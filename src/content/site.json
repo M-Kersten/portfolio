@@ -1,0 +1,58 @@
+{
+  "brand": "Merijn Kersten",
+  "nav": [
+    { "href": "#capabilities", "label": "Capabilities" },
+    { "href": "#work", "label": "Work" },
+    { "href": "#about", "label": "About" },
+    { "href": "#contact", "label": "Contact" }
+  ],
+  "hero": {
+    "name": "Merijn Kersten",
+    "tagline": "Enterprise <b>VR training</b>, <b>AR guidance</b> and <b>digital twins</b> — designed and built end to end.",
+    "metrics": [
+      "<b>12+ years</b> spatial &amp; systems work",
+      "<b>Public sector, defence &amp; industry</b> clients",
+      "<b>Real geodata</b>, not mock-ups"
+    ]
+  },
+  "capabilitiesIntro": {
+    "eyebrow": "Three pillars",
+    "title": "One discipline, three ways into the work",
+    "lead": "Each pillar is a way of putting people inside systems that are otherwise too big, too dangerous, or too abstract to see."
+  },
+  "workIntro": {
+    "eyebrow": "Selected work",
+    "title": "Case studies with one hard number each",
+    "lead": "A small set of representative engagements. Client names and logos appear only where cleared; defence work is anonymised by default."
+  },
+  "about": {
+    "eyebrow": "About",
+    "title": "A 3D engineer who ships systems, not demos",
+    "lead": "I build production VR, AR and digital-twin software for organisations that have to trust it.",
+    "body": [
+      "My work sits where spatial craft meets real operational systems: training simulators that have to match procedure exactly, AR guidance that has to survive a noisy work site, and digital twins built on open government geodata rather than invented numbers.",
+      "I work end to end — concept, 3D, engineering and delivery — which is why this portfolio is itself a working piece: the same renderer that draws the hero loads a real Dutch district from open 3DBAG building data."
+    ],
+    "facts": [
+      { "label": "Based in", "value": "The Netherlands" },
+      { "label": "Focus", "value": "VR / AR / digital twins" },
+      { "label": "Sectors", "value": "Public sector, defence, healthcare, energy" },
+      { "label": "Stack", "value": "Real-time 3D, geospatial, enterprise integration" }
+    ]
+  },
+  "contact": {
+    "eyebrow": "Contact",
+    "title": "Let's build something credible",
+    "lead": "Available for senior VR, AR and digital-twin engagements. The fastest route is email.",
+    "email": "info@merijnkersten.nl",
+    "links": [
+      { "href": "https://www.linkedin.com/", "label": "LinkedIn" },
+      { "href": "https://github.com/m-kersten", "label": "GitHub" }
+    ]
+  },
+  "twinSource": {
+    "dataset": "3DBAG",
+    "release": "TU Delft 3D geoinformation & Kadaster",
+    "note": "Buildings reconstructed in 3D from the BAG registry and AHN LiDAR. Open data."
+  }
+}

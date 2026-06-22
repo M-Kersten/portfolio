@@ -1,0 +1,54 @@
+/* Design tokens — fixed from the build spec §8 "Visual system".
+   One accent only, shared across the hero accent light and the twin legend,
+   so both 3D scenes read as a single system. */
+
+:root {
+  /* Palette */
+  --paper: #f7f6f2; /* warm off-white page and ground plane */
+  --paper-2: #efeee8; /* slightly deeper surface for cards */
+  --ink: #1b2a2e; /* slate near-black text */
+  --ink-60: rgba(27, 42, 46, 0.6);
+  --ink-40: rgba(27, 42, 46, 0.4);
+
+  --model-mid: #6b8ca3; /* building base tint */
+  --model-deep: #46627a;
+  --hairline: #c9d3d6; /* grid lines, contours */
+
+  --accent: #0f8a8a; /* deep teal — recommended default (§8, §15) */
+  --accent-ink: #0a5f5f;
+  --shadow: rgba(27, 42, 46, 0.08);
+
+  /* Type — free pairing, no licensing (§8). Self-hosted via @fontsource. */
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Fluid type scale */
+  --step--1: clamp(0.83rem, 0.79rem + 0.18vw, 0.94rem);
+  --step-0: clamp(1rem, 0.95rem + 0.24vw, 1.13rem);
+  --step-1: clamp(1.2rem, 1.11rem + 0.43vw, 1.5rem);
+  --step-2: clamp(1.44rem, 1.29rem + 0.73vw, 2rem);
+  --step-3: clamp(1.73rem, 1.49rem + 1.19vw, 2.66rem);
+  --step-4: clamp(2.07rem, 1.71rem + 1.83vw, 3.55rem);
+  --step-5: clamp(2.49rem, 1.93rem + 2.78vw, 4.73rem);
+
+  /* Spacing scale */
+  --space-2xs: 0.5rem;
+  --space-xs: 0.75rem;
+  --space-s: 1rem;
+  --space-m: 1.5rem;
+  --space-l: 2.5rem;
+  --space-xl: 4rem;
+  --space-2xl: 6.5rem;
+
+  /* Layout */
+  --measure: 68ch;
+  --container: 76rem;
+  --radius: 10px;
+  --radius-s: 6px;
+
+  --header-h: 4.25rem;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 0.5s;
+}

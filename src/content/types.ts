@@ -1,0 +1,69 @@
+// Content model — §7 of the build spec. All copy lives in committed JSON;
+// no backend at v1. These types are the contract the JSON must satisfy.
+
+export type Layer = 'vr' | 'ar' | 'twin';
+
+export interface CaseStudy {
+  slug: string;
+  title: string;
+  /** Exactly one layer tag per case (§7). */
+  layer: Layer;
+  client: string;
+  clientLogo?: string | null;
+  sector: string;
+  challenge: string;
+  built: string;
+  /** Exactly one hard outcome metric per case (§7). */
+  outcome: string;
+  /** At most one case is `live` at v1 — the twin (§7). */
+  live?: boolean;
+  media?: string[];
+  /** Sample content pending Merijn's sign-off; rendered with a quiet tag. */
+  draft?: boolean;
+}
+
+export interface Capability {
+  layer: Layer;
+  index: string;
+  title: string;
+  body: string;
+  tags: string[];
+}
+
+export interface NavItem {
+  href: string;
+  label: string;
+}
+
+export interface SiteContent {
+  brand: string;
+  nav: NavItem[];
+  hero: {
+    name: string;
+    tagline: string;
+    /** 30-second proof points — real HTML, never locked behind the canvas. */
+    metrics: string[];
+  };
+  capabilitiesIntro: { eyebrow: string; title: string; lead: string };
+  workIntro: { eyebrow: string; title: string; lead: string };
+  about: {
+    eyebrow: string;
+    title: string;
+    lead: string;
+    body: string[];
+    facts: { label: string; value: string }[];
+  };
+  contact: {
+    eyebrow: string;
+    title: string;
+    lead: string;
+    email: string;
+    links: NavItem[];
+  };
+  /** Persistent source caption for the twin scene (§5.6, non-removable). */
+  twinSource: {
+    dataset: string;
+    release: string;
+    note: string;
+  };
+}

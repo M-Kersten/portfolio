@@ -1,0 +1,2 @@
+# Optional static render fallbacks (maquette + each district) for the no-WebGL
+# path. A built-in SVG poster is the default until you drop images here.

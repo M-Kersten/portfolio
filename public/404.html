@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting…</title>
+    <!--
+      SPA deep-link support for GitHub Pages. Pages serves 404.html for any
+      unknown path; we stash the requested URL and bounce to the app base, where
+      index.html restores it (see the inline script in index.html).
+      NOTE: the base below must match VITE_BASE used at build time.
+    -->
+    <script>
+      sessionStorage.redirect = location.href;
+    </script>
+    <meta http-equiv="refresh" content="0;url=/portfolio/" />
+  </head>
+  <body>
+    Redirecting…
+  </body>
+</html>

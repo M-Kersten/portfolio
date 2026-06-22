@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#F7F6F2" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+
+    <title>Merijn Kersten — Enterprise VR, AR &amp; digital twins</title>
+    <meta
+      name="description"
+      content="Merijn Kersten designs and builds enterprise VR training, AR guidance and digital-twin systems for public-sector and industrial clients."
+    />
+
+    <!-- Open Graph / sharing -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Merijn Kersten — Enterprise VR, AR & digital twins" />
+    <meta
+      property="og:description"
+      content="Spatial and systems craft for VR training, AR guidance and digital twins."
+    />
+
+    <!-- SPA redirect restore for GitHub Pages deep links (see public/404.html). -->
+    <script>
+      (function () {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, '', redirect);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <div style="max-width: 40rem; margin: 4rem auto; padding: 0 1.5rem; font-family: system-ui, sans-serif; color: #1B2A2E;">
+        <h1>Merijn Kersten</h1>
+        <p>Enterprise VR training, AR guidance and digital twins. This site uses
+        JavaScript for its interactive 3D, but every case study is also readable
+        as text. Please email <a href="mailto:info@merijnkersten.nl">info@merijnkersten.nl</a>.</p>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
