@@ -17,9 +17,19 @@ export const caseBySlug = (slug: string): CaseStudy | undefined =>
   cases.find((c) => c.slug === slug);
 
 export const LAYER_LABEL: Record<CaseStudy['layer'], string> = {
-  vr: 'VR training',
-  ar: 'AR guidance',
-  twin: 'Digital twin',
+  city: 'City',
+  room: 'Room',
+  chip: 'Chip',
+};
+
+/** Largest → smallest scale; the order the maquette stacks (top→bottom) and the
+ *  work grid groups. */
+export const LAYER_ORDER: CaseStudy['layer'][] = ['city', 'room', 'chip'];
+
+export const LAYER_TAGLINE: Record<CaseStudy['layer'], string> = {
+  city: 'GIS & location-based',
+  room: 'Games, apps & websites',
+  chip: 'Tools, computer vision & data',
 };
 
 export * from './types';

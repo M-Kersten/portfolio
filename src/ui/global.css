@@ -558,6 +558,33 @@ img {
   gap: var(--space-m);
   margin-top: var(--space-l);
 }
+.work__group {
+  margin-top: var(--space-xl);
+}
+.work__group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8em;
+  flex-wrap: wrap;
+  padding-bottom: var(--space-s);
+  margin-bottom: var(--space-m);
+  border-bottom: 1px solid var(--hairline);
+}
+.work__group-title {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  margin: 0;
+}
+.work__group-tag {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.work__group .work__grid {
+  margin-top: 0;
+}
 .case-card {
   display: flex;
   flex-direction: column;

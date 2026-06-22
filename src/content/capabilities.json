@@ -1,23 +1,23 @@
 [
   {
-    "layer": "vr",
+    "layer": "city",
     "index": "01",
-    "title": "VR training & simulation",
-    "body": "Immersive trainers and scenario tools where the simulation has to match reality — multiplayer training for the Marechaussee, medical demonstrations, and experiences that hold up in front of an audience.",
-    "tags": ["Unity", "VR", "Multiplayer", "Training sims"]
+    "title": "City — GIS & location",
+    "body": "The largest scale: digital twins on open 3DBAG and point-cloud data, and location-based AR anchored to the real world with Visual Positioning Systems and centimetre-accurate RTK GPS.",
+    "tags": ["3DBAG", "VPS", "RTK GPS", "Point clouds"]
   },
   {
-    "layer": "ar",
+    "layer": "room",
     "index": "02",
-    "title": "AR & spatial computing",
-    "body": "On-site overlays that register digital content to the real world — HoloLens with RTK GPS for centimetre accuracy, location-based AR on Visual Positioning Systems, deployed at events worldwide.",
-    "tags": ["ARKit · ARCore", "VPS", "HoloLens · RTK", "On-site"]
+    "title": "Room — games, apps & websites",
+    "body": "Human scale: VR training, games, apps and websites — interactive experiences people step into, from a training simulator to hyper-casual mobile hits.",
+    "tags": ["Unity", "VR", "Mobile", "Web"]
   },
   {
-    "layer": "twin",
+    "layer": "chip",
     "index": "03",
-    "title": "Digital twins & geodata",
-    "body": "Spatial models wired to real data — point clouds, 360° scans, open 3DBAG buildings and geo-data — built to support real decisions, not just to look convincing.",
-    "tags": ["Point clouds", "Geo-data · 3DBAG", "WebGL", "Live attributes"]
+    "title": "Chip — tools, CV & data",
+    "body": "The smallest scale: the tools, computer vision, AI and data plumbing underneath — cross-platform AR frameworks, synthetic data, LLM-driven characters and the backends that hold it all together.",
+    "tags": ["Computer vision", "AI · LLMs", "Backends", "Databases"]
   }
 ]

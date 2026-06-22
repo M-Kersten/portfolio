@@ -1,7 +1,10 @@
 // Content model — §7 of the build spec. All copy lives in committed JSON;
 // no backend at v1. These types are the contract the JSON must satisfy.
 
-export type Layer = 'vr' | 'ar' | 'twin';
+// Three scales, large → small: city (GIS/location), room (games/apps/web),
+// chip (tools/CV/data). The maquette layers, capabilities band and case
+// categories all key off this.
+export type Layer = 'city' | 'room' | 'chip';
 
 export interface CaseStudy {
   slug: string;

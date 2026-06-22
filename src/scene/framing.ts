@@ -6,16 +6,18 @@ import type { Place } from '../data/places';
 // layers they sit on (§4).
 
 export interface MaquetteLayer {
-  id: 'vr' | 'ar' | 'twin';
-  /** vertical position of the slab in the stack */
+  id: 'chip' | 'room' | 'city';
+  /** vertical position of the platform in the stack */
   y: number;
   title: string;
 }
 
+// A scale ladder, bottom → top (small → large): the chip, the room, the city.
+// Index order matters: layerIndex 0 = chip, 1 = room, 2 = city.
 export const MAQUETTE_LAYERS: MaquetteLayer[] = [
-  { id: 'vr', y: -1.32, title: 'VR training' },
-  { id: 'ar', y: 0, title: 'AR overlays' },
-  { id: 'twin', y: 1.32, title: 'Digital twin / data' },
+  { id: 'chip', y: -1.32, title: 'Chip · tools, CV & data' },
+  { id: 'room', y: 0, title: 'Room · games, apps & web' },
+  { id: 'city', y: 1.32, title: 'City · GIS & location' },
 ];
 
 export interface Hotspot {
@@ -27,11 +29,14 @@ export interface Hotspot {
 }
 
 export const HOTSPOTS: Hotspot[] = [
-  { slug: 'virtuele-brigade', layerIndex: 0, position: [1.35, -1.22, 0.7] },
-  { slug: 'philips-medical-xr', layerIndex: 0, position: [-1.4, -1.22, -0.55] },
-  { slug: 'alliander-hololens', layerIndex: 1, position: [1.5, 0.1, -0.7] },
-  { slug: 'niantic-explorer', layerIndex: 1, position: [-1.5, 0.1, 0.7] },
-  { slug: 'operation-market-garden', layerIndex: 1, position: [0.25, 0.1, -1.05] },
+  // Chip (bottom) — tools, CV & data
+  { slug: 'amsterdam-ai', layerIndex: 0, position: [1.35, -1.22, 0.7] },
+  { slug: 'custom-ar-framework', layerIndex: 0, position: [-1.4, -1.22, -0.55] },
+  // Room (middle) — games, apps & websites
+  { slug: 'virtuele-brigade', layerIndex: 1, position: [1.5, 0.1, -0.7] },
+  { slug: 'popcore-games', layerIndex: 1, position: [-1.5, 0.1, 0.7] },
+  // City (top) — GIS & location; the twin hotspot flies into the live district
+  { slug: 'niantic-explorer', layerIndex: 2, position: [-1.4, 1.42, -0.6] },
   { slug: 'municipal-twin', layerIndex: 2, position: [0.9, 1.42, 0.55], twin: true },
 ];
 
