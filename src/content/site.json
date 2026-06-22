@@ -8,30 +8,28 @@
   ],
   "hero": {
     "name": "Merijn Kersten",
-    "subheading": "I’m an XR engineer. I build AR, VR and spatial systems that have to survive contact with reality."
+    "subheading": "Building things that survive outside the demo room"
   },
   "capabilitiesIntro": {
-    "eyebrow": "Three scales",
+    "eyebrow": "3 domains",
     "title": "From the scale of a city to the scale of a chip",
-    "lead": "My work runs across three scales — location and GIS at the largest, the interactive experiences people step into at human scale, and the tools, vision and data underneath."
+    "lead": "My work runs across domains: location and GIS at the largest, the interactive experiences people step into at human scale, and the tools, vision and data underneath."
   },
   "workIntro": {
     "eyebrow": "Selected work",
-    "title": "Emerging technology, turned into systems that ship",
     "lead": "A selection across defence, energy, healthcare, culture, education and entertainment — each with the lesson it taught."
   },
   "about": {
     "eyebrow": "About",
-    "title": "I turn emerging tech into systems that survive reality",
-    "lead": "I’m an XR engineer and systems builder with 9+ years building AR, VR and multiplayer applications — across government, healthcare, energy, education and entertainment.",
+    "title": "From shaders to screws",
+    "lead": "I’m a developer from the beautiful city of Utrecht in the Netherlands. I have work experience in various positions and work on many side projects driven by a passion for connecting the virtual with the physical. Exploring what technology is capable of has been the driving force behind my work and I enjoy every opportunity to show a new perspective to others through my creations.",
     "body": [
       "I build systems rather than isolated features, combining software engineering, UX, backend infrastructure, 3D content, hardware and the messy organisational reality around them. My toolkit spans Unity, Unreal Engine, networking, cloud, web, AI, computer vision, geospatial tech and interactive installations.",
       "I’ve worked on everything from hyper-casual mobile games and educational AR books to medical visualisation, utility infrastructure and training simulators for the Royal Netherlands Marechaussee — HoloLens with RTK GPS for centimetre-accurate placement of transformers, digital-twin tools built on point clouds and geo-data, and AI-driven conversational characters.",
       "I like working with technology before it’s ready — ARKit and ARCore before AR Foundation, multiplayer AR, Visual Positioning Systems, Vision Pro, computer vision, generative AI. Unreliable networks, hardware limits, organisational resistance and imperfect tracking taught me to design around real constraints rather than ideal ones.",
-      "In short, I take emerging technology and turn it into robust systems that survive contact with reality — and I’m happiest in the uncertain space where the requirements are still moving."
     ],
     "facts": [
-      { "label": "Based in", "value": "The Netherlands" },
+      { "label": "Based in", "value": "Utrecht, The Netherlands" },
       { "label": "Focus", "value": "Spatial computing · networking · applied R&D" },
       { "label": "Sectors", "value": "Government, healthcare, energy, education, entertainment" },
       { "label": "Stack", "value": "Unity, Unreal, geospatial, cloud, AI / computer vision" }
@@ -39,8 +37,8 @@
   },
   "contact": {
     "eyebrow": "Contact",
-    "title": "Let's build something credible",
-    "lead": "I’m open to senior XR, spatial and applied-R&D work. The fastest way to reach me is email.",
+    "title": "Let's build something cool together",
+    "lead": "Always open to chat, send me a message!",
     "email": "info@merijnkersten.nl",
     "links": [
       { "href": "https://www.linkedin.com/", "label": "LinkedIn" },
