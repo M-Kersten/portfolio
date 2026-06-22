@@ -2,7 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # Deploy branch (no `main` in this repo yet). Change here if you adopt main.
+    branches: [claude/loving-maxwell-qmf72n]
   workflow_dispatch:
 
 permissions:

@@ -102,9 +102,11 @@ export `public/models/<id>.glb`. Add a registry entry in `src/data/places.ts`.
 Fully static — works on both targets.
 
 - **GitHub Pages:** `.github/workflows/deploy.yml` builds with
-  `VITE_BASE=/portfolio/` and publishes on push to `main`. Enable Pages
-  (Settings ▸ Pages ▸ Source: GitHub Actions). The SPA deep-link redirect lives
-  in `public/404.html` (its hard-coded `/portfolio/` must match the base).
+  `VITE_BASE=/portfolio/` and publishes on push to `claude/loving-maxwell-qmf72n`
+  (the current deploy branch — change the `branches:` filter if you adopt
+  `main`). One-time setup: enable Pages (Settings ▸ Pages ▸ Source: **GitHub
+  Actions**). The SPA deep-link redirect lives in `public/404.html` (its
+  hard-coded `/portfolio/` must match the base).
 - **Vercel:** zero-config (Vite preset); `vercel.json` adds the SPA rewrite.
   Serves at root, so no `VITE_BASE` needed.
 
