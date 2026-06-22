@@ -8,11 +8,11 @@ import { site } from '../content';
 // art-directed, not a grey box. The twin poster carries the required 3DBAG
 // attribution just like the live scene (§5.6).
 
-const SLATE_DEEP = '#46627a';
-const SLATE_MID = '#6b8ca3';
-const SLATE_LITE = '#90a9bb';
-const HAIRLINE = '#c9d3d6';
-const ACCENT = '#0f8a8a';
+const SLATE_DEEP = '#2a3850';
+const SLATE_MID = '#3b4d68';
+const SLATE_LITE = '#566c8e';
+const HAIRLINE = '#7088a8';
+const ACCENT = '#2ee6e6';
 
 function MaquettePoster() {
   // three stacked isometric slabs with hairline edges and accent hotspots
@@ -73,15 +73,15 @@ function DistrictPoster({ seed }: { seed: number }) {
     200 + (gx - gz) * k,
     base + (gx + gz) * m - h,
   ];
-  const ramp = (t: number) => `hsl(${190 - t * 8} ${28 + t * 18}% ${62 - t * 24}%)`;
+  const ramp = (t: number) => `hsl(${222 - t * 40} ${32 + t * 38}% ${42 + t * 16}%)`;
 
   return (
     <svg viewBox="0 0 400 320" role="img" aria-label="Isometric district digital twin built from open building data.">
       {/* ground rhombus */}
       <polygon
         points={`${project(-2.6, -2.6, 0)} ${project(2.6, -2.6, 0)} ${project(2.6, 2.6, 0)} ${project(-2.6, 2.6, 0)}`}
-        fill="#eceadf"
-        stroke={HAIRLINE}
+        fill="#0e1218"
+        stroke="#26303c"
         strokeWidth={1}
       />
       {blocks.map((b, i) => {

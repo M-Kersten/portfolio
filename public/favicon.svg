@@ -1,8 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="MK">
-  <rect width="32" height="32" rx="7" fill="#1B2A2E" />
-  <g stroke="#C9D3D6" stroke-width="0.6" stroke-linejoin="round">
-    <polygon points="16,6 25,11 16,16 7,11" fill="#6B8CA3" />
-    <polygon points="16,13 25,18 16,23 7,18" fill="#46627A" />
-  </g>
-  <circle cx="22.5" cy="9.8" r="2" fill="#0F8A8A" />
+  <rect width="32" height="32" rx="6" fill="#0A0C0F" />
+  <mask id="ap">
+    <rect width="32" height="32" fill="black" />
+    <circle cx="15" cy="18" r="10.5" fill="white" />
+    <circle cx="25" cy="9" r="6.6" fill="black" />
+  </mask>
+  <rect width="32" height="32" fill="#2EE6E6" mask="url(#ap)" />
 </svg>

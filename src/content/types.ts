@@ -40,6 +40,7 @@ export interface SiteContent {
   nav: NavItem[];
   hero: {
     name: string;
+    role: string;
     tagline: string;
     /** 30-second proof points — real HTML, never locked behind the canvas. */
     metrics: string[];

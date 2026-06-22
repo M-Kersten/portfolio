@@ -8,10 +8,11 @@
   ],
   "hero": {
     "name": "Merijn Kersten",
-    "tagline": "Enterprise <b>VR training</b>, <b>AR guidance</b> and <b>digital twins</b> — designed and built end to end.",
+    "role": "Senior XR Developer",
+    "tagline": "I design and build <b>VR</b>, <b>AR</b> and <b>digital-twin</b> systems — spatial software, end to end.",
     "metrics": [
-      "<b>12+ years</b> spatial &amp; systems work",
-      "<b>Public sector, defence &amp; industry</b> clients",
+      "<b>7+ years</b> immersive &amp; real-time 3D",
+      "<b>VR · AR · WebGL</b>",
       "<b>Real geodata</b>, not mock-ups"
     ]
   },

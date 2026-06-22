@@ -1,26 +1,35 @@
-/* Design tokens — fixed from the build spec §8 "Visual system".
-   One accent only, shared across the hero accent light and the twin legend,
-   so both 3D scenes read as a single system. */
+/* Design tokens — dark, high-contrast, electric-cyan aesthetic.
+   One accent only, shared across the hero accent, hotspots, the twin legend and
+   the data ramp, so both 3D scenes read as one system. */
 
 :root {
-  /* Palette */
-  --paper: #f7f6f2; /* warm off-white page and ground plane */
-  --paper-2: #efeee8; /* slightly deeper surface for cards */
-  --ink: #1b2a2e; /* slate near-black text */
-  --ink-60: rgba(27, 42, 46, 0.6);
-  --ink-40: rgba(27, 42, 46, 0.4);
+  /* Palette — near-black canvas, off-white type, electric cyan accent.
+     Variable names are kept stable across the codebase; only the values are
+     dark-themed. */
+  --paper: #0a0c0f; /* near-black canvas / page + ground */
+  --paper-2: #14181d; /* raised card surface */
+  --surface-2: #1a1f26; /* hover / nested surface */
+  --ink: #eaf2f4; /* off-white text */
+  --ink-60: rgba(234, 242, 244, 0.62);
+  --ink-40: rgba(234, 242, 244, 0.4);
 
-  --model-mid: #6b8ca3; /* building base tint */
-  --model-deep: #46627a;
-  --hairline: #c9d3d6; /* grid lines, contours */
+  --model-mid: #3a4a63; /* building / maquette base (indigo-slate) */
+  --model-deep: #243044;
+  --hairline: #20262b; /* faint dividers */
+  --line: #2c343d; /* visible hairline on dark */
 
-  --accent: #0f8a8a; /* deep teal — recommended default (§8, §15) */
-  --accent-ink: #0a5f5f;
-  --shadow: rgba(27, 42, 46, 0.08);
+  --accent: #2ee6e6; /* electric cyan */
+  --accent-2: #14b8b8; /* darker cyan for gradients */
+  --accent-ink: #4beded; /* accent as text on dark */
+  --accent-contrast: #04181b; /* near-black text on a cyan fill */
+  --accent-glow: rgba(46, 230, 230, 0.3);
 
-  /* Type — free pairing, no licensing (§8). Self-hosted via @fontsource. */
+  --shadow: rgba(0, 0, 0, 0.55);
+
+  /* Type */
   --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   --font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 
   /* Fluid type scale */
   --step--1: clamp(0.83rem, 0.79rem + 0.18vw, 0.94rem);
@@ -29,7 +38,7 @@
   --step-2: clamp(1.44rem, 1.29rem + 0.73vw, 2rem);
   --step-3: clamp(1.73rem, 1.49rem + 1.19vw, 2.66rem);
   --step-4: clamp(2.07rem, 1.71rem + 1.83vw, 3.55rem);
-  --step-5: clamp(2.49rem, 1.93rem + 2.78vw, 4.73rem);
+  --step-5: clamp(2.49rem, 1.85rem + 3.2vw, 5.2rem);
 
   /* Spacing scale */
   --space-2xs: 0.5rem;
@@ -41,10 +50,10 @@
   --space-2xl: 6.5rem;
 
   /* Layout */
-  --measure: 68ch;
-  --container: 76rem;
-  --radius: 10px;
-  --radius-s: 6px;
+  --measure: 66ch;
+  --container: 78rem;
+  --radius: 4px; /* sharper, edgier corners */
+  --radius-s: 2px;
 
   --header-h: 4.25rem;
 

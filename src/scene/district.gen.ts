@@ -74,8 +74,8 @@ export function attrValue(b: Building, attr: TwinAttribute): number {
   return b.bouwjaar;
 }
 
-const RAMP_LOW = new Color('#a9bcc6');
-const RAMP_HIGH = new Color('#0f8a8a');
+const RAMP_LOW = new Color('#2b3a57'); // deep indigo (low value)
+const RAMP_HIGH = new Color('#2ee6e6'); // electric cyan (high value)
 
 export function colorFor(b: Building, attr: TwinAttribute): Color {
   const m = ATTRIBUTE_META[attr];

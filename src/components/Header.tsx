@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { site } from '../content';
+import { Logo } from './Logo';
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -9,10 +10,7 @@ export function Header() {
   return (
     <header className="header">
       <div className="container header__inner">
-        <Link to="/" className="brand" onClick={close}>
-          {site.brand}
-          <span className="brand__dot">.</span>
-        </Link>
+        <Logo />
 
         <nav id="primary-nav" className="nav" data-open={open} aria-label="Primary">
           {site.nav.map((item) => (

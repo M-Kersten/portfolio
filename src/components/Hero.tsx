@@ -8,21 +8,24 @@ export function Hero() {
   const { hero } = site;
   return (
     <section id="hero" className="hero">
-      <div className="container hero__copy">
-        <h1 className="hero__name">{hero.name}</h1>
-        <p className="hero__tagline" dangerouslySetInnerHTML={{ __html: hero.tagline }} />
-        <ul className="hero__metric">
-          {hero.metrics.map((m, i) => (
-            <li key={i} dangerouslySetInnerHTML={{ __html: m }} />
-          ))}
-        </ul>
-        <div className="hero__actions">
-          <Link className="btn" to={{ pathname: '/', hash: '#work' }}>
-            See the work
-          </Link>
-          <Link className="btn btn--ghost" to={{ pathname: '/work/municipal-twin' }}>
-            Explore the live twin →
-          </Link>
+      <div className="container">
+        <div className="hero__copy">
+          <p className="hero__eyebrow">{hero.role}</p>
+          <h1 className="hero__name">{hero.name}</h1>
+          <p className="hero__tagline" dangerouslySetInnerHTML={{ __html: hero.tagline }} />
+          <ul className="hero__metric">
+            {hero.metrics.map((m, i) => (
+              <li key={i} dangerouslySetInnerHTML={{ __html: m }} />
+            ))}
+          </ul>
+          <div className="hero__actions">
+            <Link className="btn" to={{ pathname: '/', hash: '#work' }}>
+              See the work
+            </Link>
+            <Link className="btn btn--ghost" to={{ pathname: '/work/municipal-twin' }}>
+              Explore the live twin →
+            </Link>
+          </div>
         </div>
       </div>
       <Link className="hero__scrollcue" to={{ pathname: '/', hash: '#capabilities' }}>

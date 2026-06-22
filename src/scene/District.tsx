@@ -16,17 +16,17 @@ function Ground() {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
         <planeGeometry args={[1200, 1200]} />
-        <meshStandardMaterial color="#f1efe8" roughness={1} metalness={0} />
+        <meshStandardMaterial color="#0c0f13" roughness={1} metalness={0} />
       </mesh>
       <Grid
         position={[0, 0, 0]}
         args={[10, 10]}
         cellSize={6}
         cellThickness={0.6}
-        cellColor="#c9d3d6"
+        cellColor="#1d2630"
         sectionSize={36}
         sectionThickness={1}
-        sectionColor="#aebcc2"
+        sectionColor="#236e72"
         infiniteGrid
         fadeDistance={460}
         fadeStrength={1.3}
@@ -71,8 +71,8 @@ function ProceduralDistrict({ seed, blocks }: { seed: number; blocks: number }) 
       {buildings.map((b) => (
         <mesh key={b.id} position={[b.x, b.height / 2, b.z]} onPointerOver={onOver(b)} onPointerOut={onOut}>
           <boxGeometry args={[b.w, b.height, b.d]} />
-          <meshStandardMaterial color={colorFor(b, attribute)} roughness={0.9} metalness={0} />
-          <Edges threshold={20} color="#3f5a6b" />
+          <meshStandardMaterial color={colorFor(b, attribute)} roughness={0.85} metalness={0.05} />
+          <Edges threshold={20} color="#46586f" />
         </mesh>
       ))}
 

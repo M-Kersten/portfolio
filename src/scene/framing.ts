@@ -40,11 +40,12 @@ export interface Framing {
   target: Vector3;
 }
 
-/** Establishing three-quarter view of the maquette, slightly right-of-centre
- *  to leave room for the hero copy on the left. */
+/** Establishing three-quarter view. Aimed above the model centre so the
+ *  maquette frames in the lower portion of the viewport, beneath the
+ *  top-aligned hero title (the title no longer fights the model). */
 export const MAQUETTE_HOME: Framing = {
-  pos: new Vector3(5.6, 3.4, 6.6),
-  target: new Vector3(0.55, 0, 0),
+  pos: new Vector3(5.2, 2.9, 7.0),
+  target: new Vector3(0.2, 0.85, 0),
 };
 
 /** Eased focus toward one layer when its hotspot is clicked. */
