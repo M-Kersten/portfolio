@@ -2,22 +2,22 @@
   {
     "layer": "vr",
     "index": "01",
-    "title": "VR training",
-    "body": "Immersive procedure trainers where the simulation has to match reality exactly — the same sequence, the same consequences, the same muscle memory as the real task.",
-    "tags": ["Procedure trainers", "Safety-critical", "Skills transfer"]
+    "title": "VR training & simulation",
+    "body": "Immersive trainers and scenario tools where the simulation has to match reality — multiplayer training for the Marechaussee, medical demonstrations, and experiences that hold up in front of an audience.",
+    "tags": ["Unity", "VR", "Multiplayer", "Training sims"]
   },
   {
     "layer": "ar",
     "index": "02",
-    "title": "AR guidance",
-    "body": "On-site overlays that put the right information on the real world: hidden infrastructure, assembly steps, inspection prompts — legible through gloves, glare and noise.",
-    "tags": ["On-site overlays", "Field-ready", "Hands-free"]
+    "title": "AR & spatial computing",
+    "body": "On-site overlays that register digital content to the real world — HoloLens with RTK GPS for centimetre accuracy, location-based AR on Visual Positioning Systems, deployed at events worldwide.",
+    "tags": ["ARKit · ARCore", "VPS", "HoloLens · RTK", "On-site"]
   },
   {
     "layer": "twin",
     "index": "03",
-    "title": "Digital twins",
-    "body": "Spatial models wired to real data. Built on open government geodata — 3DBAG buildings, real attributes — so what a stakeholder sees is their own world, not a generic demo.",
-    "tags": ["Open geodata", "3DBAG", "Live attributes"]
+    "title": "Digital twins & geodata",
+    "body": "Spatial models wired to real data — point clouds, 360° scans, open 3DBAG buildings and geo-data — built to support real decisions, not just to look convincing.",
+    "tags": ["Point clouds", "Geo-data · 3DBAG", "WebGL", "Live attributes"]
   }
 ]

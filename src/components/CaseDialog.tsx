@@ -62,6 +62,21 @@ export function CaseDialog({ study, onClose }: { study: CaseStudy; onClose: () =
           </section>
         </div>
 
+        {study.tech && study.tech.length > 0 && (
+          <ul className="modal__tech" aria-label="Technologies">
+            {study.tech.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        )}
+
+        {study.lesson && (
+          <div className="modal__lesson">
+            <h3 className="modal__h">Key lesson</h3>
+            <p>{study.lesson}</p>
+          </div>
+        )}
+
         <div className="modal__cta">
           {study.live && (
             <Link className="btn" to="/work/municipal-twin" onClick={onClose}>

@@ -8,12 +8,12 @@
   ],
   "hero": {
     "name": "Merijn Kersten",
-    "role": "Senior XR Developer",
-    "tagline": "I design and build <b>VR</b>, <b>AR</b> and <b>digital-twin</b> systems — spatial software, end to end.",
+    "role": "XR Engineer · Systems Builder",
+    "tagline": "I turn emerging <b>AR</b>, <b>VR</b> and <b>spatial</b> technology into systems that survive contact with reality.",
     "metrics": [
-      "<b>7+ years</b> immersive &amp; real-time 3D",
-      "<b>VR · AR · WebGL</b>",
-      "<b>Real geodata</b>, not mock-ups"
+      "<b>9+ years</b> across AR, VR &amp; multiplayer",
+      "<b>Gov · health · energy · culture</b>",
+      "<b>Emerging tech</b>, shipped to reality"
     ]
   },
   "capabilitiesIntro": {
@@ -23,22 +23,24 @@
   },
   "workIntro": {
     "eyebrow": "Selected work",
-    "title": "Case studies with one hard number each",
-    "lead": "A small set of representative engagements. Client names and logos appear only where cleared; defence work is anonymised by default."
+    "title": "Emerging technology, turned into systems that ship",
+    "lead": "A selection across defence, energy, healthcare, culture, education and entertainment — each with the lesson it taught."
   },
   "about": {
     "eyebrow": "About",
-    "title": "A 3D engineer who ships systems, not demos",
-    "lead": "I build production VR, AR and digital-twin software for organisations that have to trust it.",
+    "title": "Turning emerging tech into systems that survive reality",
+    "lead": "Merijn Kersten is an XR engineer and systems builder with 9+ years creating AR, VR and multiplayer applications — across government, healthcare, energy, education and entertainment.",
     "body": [
-      "My work sits where spatial craft meets real operational systems: training simulators that have to match procedure exactly, AR guidance that has to survive a noisy work site, and digital twins built on open government geodata rather than invented numbers.",
-      "I work end to end — concept, 3D, engineering and delivery — which is why this portfolio is itself a working piece: the same renderer that draws the hero loads a real Dutch district from open 3DBAG building data."
+      "He builds systems rather than isolated features, combining software engineering, UX, backend infrastructure, 3D content, hardware and organisational workflows. His technical background spans Unity, Unreal Engine, networking, cloud services, web, AI, computer vision, geospatial technologies and interactive installations.",
+      "His projects range from hyper-casual mobile games and educational AR books to medical visualisation, utility infrastructure and training simulators for the Royal Netherlands Marechaussee — including HoloLens solutions using RTK GPS for centimetre-accurate placement of transformers, digital-twin tools built on point clouds and geo-data, and AI-driven conversational characters.",
+      "He works with technologies before they mature — ARKit and ARCore before AR Foundation, multiplayer AR, Visual Positioning Systems, Vision Pro, computer vision and generative AI. Unreliable networks, hardware limits, organisational resistance and imperfect tracking taught him to design around real constraints rather than ideal conditions.",
+      "In essence, he takes emerging technologies and turns them into robust systems that survive contact with reality — most comfortable in uncertain environments where requirements are still evolving."
     ],
     "facts": [
       { "label": "Based in", "value": "The Netherlands" },
-      { "label": "Focus", "value": "VR / AR / digital twins" },
-      { "label": "Sectors", "value": "Public sector, defence, healthcare, energy" },
-      { "label": "Stack", "value": "Real-time 3D, geospatial, enterprise integration" }
+      { "label": "Focus", "value": "Spatial computing · networking · applied R&D" },
+      { "label": "Sectors", "value": "Government, healthcare, energy, education, entertainment" },
+      { "label": "Stack", "value": "Unity, Unreal, geospatial, cloud, AI / computer vision" }
     ]
   },
   "contact": {

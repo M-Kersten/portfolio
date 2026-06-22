@@ -1,36 +1,83 @@
-import { Edges, Html, Line } from '@react-three/drei';
+import { useMemo } from 'react';
+import { Edges, Html, Instance, Instances, Line } from '@react-three/drei';
 import { MAQUETTE_LAYERS, HOTSPOTS, type Hotspot } from './framing';
 import { caseBySlug } from '../content';
 
-// Abstract, art-directed hero (§4) — but no longer sparse. Each of the three
-// slabs carries objects that read as its discipline: a VR rig, an AR overlay,
-// and a mini digital twin. Dark, with electric-cyan accents.
+// Abstract, art-directed hero (§4) — a large centerpiece. Each of the three
+// layers is a hexagonal honeycomb platform (instanced hex tiles) carrying
+// objects that read as its discipline: a VR rig, an AR overlay and a mini
+// digital twin. Dark, with electric-cyan accents.
 
 const SLATE_DEEP = '#2a3850';
 const SLATE_MID = '#3b4d68';
 const SLATE_LITE = '#566c8e';
-const EDGE = '#41506a';
 const EDGE_LINE = '#647c9e';
 const ACCENT = '#2ee6e6';
 const ACCENT_DIM = '#1aa6a6';
 
-const SLAB = { w: 4.4, h: 0.16, d: 3.2 };
+const HEX_S = 0.42; // hex size (centre → corner) == lattice spacing
+const HEX_R = HEX_S * 0.9; // tile radius (gap forms the grid lines)
+const HEX_H = 0.18;
+const HEX_RINGS = 3;
 
 type V3 = [number, number, number];
 
-function Slab({ y, color = SLATE_DEEP, opacity = 1 }: { y: number; color?: string; opacity?: number }) {
+/** Flat-top axial hex → world (the default 6-gon cylinder is already flat-top). */
+function hexWorld(q: number, r: number, y: number): V3 {
+  return [HEX_S * 1.5 * q, y, HEX_S * Math.sqrt(3) * (q / 2 + r)];
+}
+
+function hexTiles(): [number, number][] {
+  const out: [number, number][] = [];
+  for (let q = -HEX_RINGS; q <= HEX_RINGS; q++) {
+    for (let r = Math.max(-HEX_RINGS, -q - HEX_RINGS); r <= Math.min(HEX_RINGS, -q + HEX_RINGS); r++) {
+      out.push([q, r]);
+    }
+  }
+  return out;
+}
+
+function HexPlatform({
+  y,
+  color = SLATE_DEEP,
+  opacity = 1,
+  accent = [],
+}: {
+  y: number;
+  color?: string;
+  opacity?: number;
+  accent?: [number, number][];
+}) {
+  const tiles = useMemo(hexTiles, []);
+  const isAccent = (q: number, r: number) => accent.some(([aq, ar]) => aq === q && ar === r);
+
   return (
-    <mesh position={[0, y, 0]}>
-      <boxGeometry args={[SLAB.w, SLAB.h, SLAB.d]} />
-      <meshStandardMaterial
-        color={color}
-        roughness={0.82}
-        metalness={0.15}
-        transparent={opacity < 1}
-        opacity={opacity}
-      />
-      <Edges threshold={15} color={EDGE_LINE} />
-    </mesh>
+    <group>
+      <Instances range={tiles.length} limit={tiles.length}>
+        <cylinderGeometry args={[HEX_R, HEX_R, HEX_H, 6]} />
+        <meshStandardMaterial
+          color={color}
+          roughness={0.82}
+          metalness={0.18}
+          transparent={opacity < 1}
+          opacity={opacity}
+        />
+        {tiles.map(([q, r], i) => (
+          <Instance key={i} position={hexWorld(q, r, y)} />
+        ))}
+      </Instances>
+
+      {accent.map(([q, r], i) => {
+        const [x, , z] = hexWorld(q, r, y);
+        if (!isAccent(q, r)) return null;
+        return (
+          <mesh key={i} position={[x, y + 0.015, z]}>
+            <cylinderGeometry args={[HEX_R * 0.98, HEX_R * 0.98, HEX_H + 0.03, 6]} />
+            <meshStandardMaterial color={ACCENT} emissive={ACCENT} emissiveIntensity={0.85} roughness={0.3} />
+          </mesh>
+        );
+      })}
+    </group>
   );
 }
 
@@ -45,10 +92,9 @@ function AccentNode({ position, size = 0.09 }: { position: V3; size?: number }) 
 
 /* ---------- Bottom: VR training rig ---------- */
 function VrRig({ y }: { y: number }) {
-  const top = y + 0.08;
+  const top = y + HEX_H / 2;
   const b = 1.5;
   const d = 1.05;
-  // play-area boundary ("guardian")
   const boundary: V3[] = [
     [-b, top + 0.01, -d],
     [b, top + 0.01, -d],
@@ -60,31 +106,26 @@ function VrRig({ y }: { y: number }) {
     <group>
       <Line points={boundary} color={ACCENT_DIM} lineWidth={1.2} />
 
-      {/* headset on a low stand */}
       <group position={[0.35, top + 0.55, 0.15]} rotation={[0.12, -0.5, 0]}>
         <mesh>
           <boxGeometry args={[0.52, 0.3, 0.36]} />
           <meshStandardMaterial color={SLATE_LITE} roughness={0.55} metalness={0.3} />
           <Edges threshold={20} color={EDGE_LINE} />
         </mesh>
-        {/* glowing visor strip */}
         <mesh position={[0, -0.02, 0.19]}>
           <boxGeometry args={[0.44, 0.12, 0.03]} />
           <meshStandardMaterial color={ACCENT} emissive={ACCENT} emissiveIntensity={0.9} roughness={0.3} />
         </mesh>
-        {/* strap */}
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.04, -0.05]}>
           <torusGeometry args={[0.26, 0.028, 12, 28, Math.PI * 1.2]} />
           <meshStandardMaterial color={SLATE_MID} roughness={0.7} />
         </mesh>
       </group>
-      {/* stand */}
       <mesh position={[0.35, top + 0.2, 0.15]}>
         <cylinderGeometry args={[0.05, 0.08, 0.5, 16]} />
         <meshStandardMaterial color={SLATE_DEEP} roughness={0.8} />
       </mesh>
 
-      {/* two controllers */}
       {([
         [-0.95, 0.3],
         [-0.62, -0.55],
@@ -106,7 +147,6 @@ function VrRig({ y }: { y: number }) {
 
 /* ---------- Middle: AR overlay ---------- */
 function ArRig({ y }: { y: number }) {
-  // target object with detection brackets
   const o: V3 = [0.7, y + 0.32, -0.25];
   const s = 0.26;
   const bracket = (corner: V3, sx: number, sy: number): V3[] => [
@@ -124,7 +164,6 @@ function ArRig({ y }: { y: number }) {
 
   return (
     <group>
-      {/* device "screen" the AR is seen through */}
       <group position={[-0.95, y + 0.5, 0.35]} rotation={[0, 0.55, 0]}>
         <mesh>
           <boxGeometry args={[0.04, 0.92, 0.62]} />
@@ -137,7 +176,6 @@ function ArRig({ y }: { y: number }) {
         </mesh>
       </group>
 
-      {/* tracked object */}
       <mesh position={o}>
         <boxGeometry args={[s * 2, s * 2, s * 2]} />
         <meshStandardMaterial color={SLATE_MID} roughness={0.8} transparent opacity={0.92} />
@@ -147,7 +185,6 @@ function ArRig({ y }: { y: number }) {
         <Line key={i} points={bracket(c[0], c[1], c[2])} color={ACCENT} lineWidth={2} />
       ))}
 
-      {/* annotation callouts: dot + leader line + label chip */}
       {([
         [[-0.2, y + 0.95, 0.4], [0.1, y + 0.45, 0.1]],
         [[1.35, y + 0.78, 0.2], [0.96, y + 0.5, -0.1]],
@@ -167,8 +204,7 @@ function ArRig({ y }: { y: number }) {
 
 /* ---------- Top: digital twin / data ---------- */
 function TwinRig({ y }: { y: number }) {
-  const top = y + 0.08;
-  // mini city block
+  const top = y + HEX_H / 2;
   const buildings: [number, number, number, number][] = [
     [-1.3, -0.5, 0.5, 0.26],
     [-1.0, -0.7, 0.42, 0.4],
@@ -178,9 +214,7 @@ function TwinRig({ y }: { y: number }) {
     [-1.32, -0.05, 0.3, 0.34],
     [-0.45, -0.4, 0.46, 0.22],
   ];
-  // data bars
   const bars = [0.18, 0.34, 0.26, 0.46, 0.3];
-  // network
   const nodes: V3[] = [
     [0.5, top + 0.5, 0.5],
     [1.1, top + 0.35, -0.2],
@@ -195,20 +229,6 @@ function TwinRig({ y }: { y: number }) {
 
   return (
     <group>
-      {/* mini terrain grid */}
-      {[-0.4, 0, 0.4].map((gx, i) => (
-        <Line
-          key={`gx${i}`}
-          points={[
-            [-1.5 + gx, top + 0.005, -0.9],
-            [-1.5 + gx, top + 0.005, 0.9],
-          ]}
-          color={EDGE}
-          lineWidth={0.8}
-        />
-      ))}
-
-      {/* mini city */}
       {buildings.map(([bx, bz, h, w], i) => (
         <mesh key={i} position={[bx, top + h / 2, bz]}>
           <boxGeometry args={[w, h, w]} />
@@ -217,9 +237,8 @@ function TwinRig({ y }: { y: number }) {
         </mesh>
       ))}
 
-      {/* data bars (readout) */}
       {bars.map((h, i) => (
-        <group key={i} position={[0.55 + i * 0.16, top, 0.75]}>
+        <group key={i} position={[0.55 + i * 0.16, top, 0.78]}>
           <mesh position={[0, h / 2, 0]}>
             <boxGeometry args={[0.1, h, 0.1]} />
             <meshStandardMaterial color={SLATE_LITE} roughness={0.7} />
@@ -231,7 +250,6 @@ function TwinRig({ y }: { y: number }) {
         </group>
       ))}
 
-      {/* network with one aperture-bright node */}
       {edges.map(([a, c], i) => (
         <Line key={i} points={[nodes[a], nodes[c]]} color={ACCENT_DIM} lineWidth={1} />
       ))}
@@ -278,13 +296,13 @@ export function Maquette({ onActivate }: MaquetteProps) {
   const [vr, ar, twin] = MAQUETTE_LAYERS;
   return (
     <group>
-      <Slab y={vr.y} />
+      <HexPlatform y={vr.y} accent={[[2, -2], [-2, 1], [1, 1]]} />
       <VrRig y={vr.y} />
 
-      <Slab y={ar.y} color={SLATE_MID} opacity={0.42} />
+      <HexPlatform y={ar.y} color={SLATE_MID} opacity={0.42} accent={[[-1, -1], [2, -1], [0, 2]]} />
       <ArRig y={ar.y} />
 
-      <Slab y={twin.y} />
+      <HexPlatform y={twin.y} accent={[[0, 0], [1, -2], [-2, 2]]} />
       <TwinRig y={twin.y} />
 
       {HOTSPOTS.map((h) => (

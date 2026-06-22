@@ -15,10 +15,14 @@ export interface CaseStudy {
   built: string;
   /** Exactly one hard outcome metric per case (§7). */
   outcome: string;
+  /** Tech stack, shown as tags in the case dialog. */
+  tech?: string[];
+  /** One "key lesson" — the systems-thinking throughline of Merijn's work. */
+  lesson?: string;
   /** At most one case is `live` at v1 — the twin (§7). */
   live?: boolean;
   media?: string[];
-  /** Sample content pending Merijn's sign-off; rendered with a quiet tag. */
+  /** Sample content pending sign-off; rendered with a quiet tag. */
   draft?: boolean;
 }
 

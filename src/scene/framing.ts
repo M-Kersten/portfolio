@@ -27,12 +27,12 @@ export interface Hotspot {
 }
 
 export const HOTSPOTS: Hotspot[] = [
-  { slug: 'defence-procedure-trainer', layerIndex: 0, position: [1.5, -1.32, 0.7] },
-  { slug: 'clinical-device-training', layerIndex: 0, position: [-1.45, -1.32, -0.55] },
-  { slug: 'underground-utilities', layerIndex: 1, position: [1.6, 0, -0.8] },
-  { slug: 'onsite-guidance', layerIndex: 1, position: [-1.5, 0, 0.7] },
-  { slug: 'municipal-twin', layerIndex: 2, position: [1.3, 1.32, 0.6], twin: true },
-  { slug: 'grid-simulation', layerIndex: 2, position: [-1.5, 1.32, -0.7] },
+  { slug: 'virtuele-brigade', layerIndex: 0, position: [1.35, -1.22, 0.7] },
+  { slug: 'philips-medical-xr', layerIndex: 0, position: [-1.4, -1.22, -0.55] },
+  { slug: 'alliander-hololens', layerIndex: 1, position: [1.5, 0.1, -0.7] },
+  { slug: 'niantic-explorer', layerIndex: 1, position: [-1.5, 0.1, 0.7] },
+  { slug: 'operation-market-garden', layerIndex: 1, position: [0.25, 0.1, -1.05] },
+  { slug: 'municipal-twin', layerIndex: 2, position: [0.9, 1.42, 0.55], twin: true },
 ];
 
 export interface Framing {
@@ -40,19 +40,19 @@ export interface Framing {
   target: Vector3;
 }
 
-/** Establishing three-quarter view. Aimed above the model centre so the
- *  maquette frames in the lower portion of the viewport, beneath the
- *  top-aligned hero title (the title no longer fights the model). */
+/** Establishing three-quarter view. Pulled in close and centred so the
+ *  hexagonal maquette reads as a large centerpiece; aimed slightly above the
+ *  model centre so the top-aligned hero title stays clear of it. */
 export const MAQUETTE_HOME: Framing = {
-  pos: new Vector3(5.2, 2.9, 7.0),
-  target: new Vector3(0.2, 0.85, 0),
+  pos: new Vector3(3.7, 2.2, 4.8),
+  target: new Vector3(0, 0.5, 0),
 };
 
 /** Eased focus toward one layer when its hotspot is clicked. */
 export function maquetteFocus(layerIndex: number): Framing {
   const y = MAQUETTE_LAYERS[layerIndex]?.y ?? 0;
   return {
-    pos: new Vector3(3.1, y + 1.7, 4.7),
+    pos: new Vector3(2.7, y + 1.3, 4.0),
     target: new Vector3(0, y, 0),
   };
 }

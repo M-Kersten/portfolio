@@ -741,6 +741,33 @@ img {
   padding: 0.1em 0.6em;
   font-size: 0.72rem;
 }
+.modal__tech {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  list-style: none;
+  padding: 0;
+  margin: var(--space-m) 0 0;
+}
+.modal__tech li {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--accent-ink);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: var(--radius-s);
+  padding: 0.2em 0.6em;
+}
+.modal__lesson {
+  margin-top: var(--space-m);
+  padding-left: var(--space-s);
+  border-left: 2px solid var(--accent);
+}
+.modal__lesson p {
+  margin: 0;
+  color: var(--ink);
+  font-style: italic;
+}
 .modal__cta {
   margin-top: var(--space-m);
   display: flex;
