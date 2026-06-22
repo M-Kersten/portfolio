@@ -8,13 +8,7 @@
   ],
   "hero": {
     "name": "Merijn Kersten",
-    "role": "XR Engineer · Systems Builder",
-    "tagline": "I turn emerging <b>AR</b>, <b>VR</b> and <b>spatial</b> technology into systems that survive contact with reality.",
-    "metrics": [
-      "<b>9+ years</b> across AR, VR &amp; multiplayer",
-      "<b>Gov · health · energy · culture</b>",
-      "<b>Emerging tech</b>, shipped to reality"
-    ]
+    "subheading": "I’m an XR engineer. I build AR, VR and spatial systems that have to survive contact with reality."
   },
   "capabilitiesIntro": {
     "eyebrow": "Three scales",
@@ -28,13 +22,13 @@
   },
   "about": {
     "eyebrow": "About",
-    "title": "Turning emerging tech into systems that survive reality",
-    "lead": "Merijn Kersten is an XR engineer and systems builder with 9+ years creating AR, VR and multiplayer applications — across government, healthcare, energy, education and entertainment.",
+    "title": "I turn emerging tech into systems that survive reality",
+    "lead": "I’m an XR engineer and systems builder with 9+ years building AR, VR and multiplayer applications — across government, healthcare, energy, education and entertainment.",
     "body": [
-      "He builds systems rather than isolated features, combining software engineering, UX, backend infrastructure, 3D content, hardware and organisational workflows. His technical background spans Unity, Unreal Engine, networking, cloud services, web, AI, computer vision, geospatial technologies and interactive installations.",
-      "His projects range from hyper-casual mobile games and educational AR books to medical visualisation, utility infrastructure and training simulators for the Royal Netherlands Marechaussee — including HoloLens solutions using RTK GPS for centimetre-accurate placement of transformers, digital-twin tools built on point clouds and geo-data, and AI-driven conversational characters.",
-      "He works with technologies before they mature — ARKit and ARCore before AR Foundation, multiplayer AR, Visual Positioning Systems, Vision Pro, computer vision and generative AI. Unreliable networks, hardware limits, organisational resistance and imperfect tracking taught him to design around real constraints rather than ideal conditions.",
-      "In essence, he takes emerging technologies and turns them into robust systems that survive contact with reality — most comfortable in uncertain environments where requirements are still evolving."
+      "I build systems rather than isolated features, combining software engineering, UX, backend infrastructure, 3D content, hardware and the messy organisational reality around them. My toolkit spans Unity, Unreal Engine, networking, cloud, web, AI, computer vision, geospatial tech and interactive installations.",
+      "I’ve worked on everything from hyper-casual mobile games and educational AR books to medical visualisation, utility infrastructure and training simulators for the Royal Netherlands Marechaussee — HoloLens with RTK GPS for centimetre-accurate placement of transformers, digital-twin tools built on point clouds and geo-data, and AI-driven conversational characters.",
+      "I like working with technology before it’s ready — ARKit and ARCore before AR Foundation, multiplayer AR, Visual Positioning Systems, Vision Pro, computer vision, generative AI. Unreliable networks, hardware limits, organisational resistance and imperfect tracking taught me to design around real constraints rather than ideal ones.",
+      "In short, I take emerging technology and turn it into robust systems that survive contact with reality — and I’m happiest in the uncertain space where the requirements are still moving."
     ],
     "facts": [
       { "label": "Based in", "value": "The Netherlands" },
@@ -46,7 +40,7 @@
   "contact": {
     "eyebrow": "Contact",
     "title": "Let's build something credible",
-    "lead": "Available for senior VR, AR and digital-twin engagements. The fastest route is email.",
+    "lead": "I’m open to senior XR, spatial and applied-R&D work. The fastest way to reach me is email.",
     "email": "info@merijnkersten.nl",
     "links": [
       { "href": "https://www.linkedin.com/", "label": "LinkedIn" },

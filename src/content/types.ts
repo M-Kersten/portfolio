@@ -47,10 +47,9 @@ export interface SiteContent {
   nav: NavItem[];
   hero: {
     name: string;
-    role: string;
-    tagline: string;
-    /** 30-second proof points — real HTML, never locked behind the canvas. */
-    metrics: string[];
+    /** Short, first-person subheading. Kept minimal so it stays out of the
+     *  3D's way and can fade when a node is inspected. */
+    subheading: string;
   };
   capabilitiesIntro: { eyebrow: string; title: string; lead: string };
   workIntro: { eyebrow: string; title: string; lead: string };

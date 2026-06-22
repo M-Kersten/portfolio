@@ -2,7 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Poster } from './Poster';
 import { sceneStore, useSceneSelector } from '../scene/store';
-import { MAQUETTE_LAYERS, type Hotspot } from '../scene/framing';
+import { type Hotspot } from '../scene/framing';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useWebGLSupport } from '../lib/useWebGLSupport';
 import { resolvePlace } from '../data/places';
@@ -15,7 +15,8 @@ const CanvasScene = lazy(() => import('./CanvasScene'));
 // react to. WebGL detection swaps in the static poster with no empty state.
 
 const WORK_RE = /^\/work\/([^/]+)\/?$/;
-const layerIndex = (layer: Layer) => MAQUETTE_LAYERS.findIndex((l) => l.id === layer);
+// Scroll-journey step per layer: City top (0) → Room (1) → Chip bottom (2).
+const JOURNEY_STEP: Record<Layer, number> = { city: 0, room: 1, chip: 2 };
 
 export function SceneCanvas() {
   const location = useLocation();
@@ -38,10 +39,11 @@ export function SceneCanvas() {
 
     if (slug === 'municipal-twin') {
       sceneStore.setMode('twin');
-      sceneStore.focus(null);
+      sceneStore.setSelected(null);
     } else {
       sceneStore.setMode('maquette');
-      sceneStore.focus(study ? layerIndex(study.layer) : null);
+      sceneStore.setSelected(study ? study.slug : null);
+      if (study) sceneStore.setJourneyStep(JOURNEY_STEP[study.layer]);
     }
 
     const place = resolvePlace(new URLSearchParams(location.search).get('place'));

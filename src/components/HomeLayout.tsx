@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import { Hero } from './Hero';
+import { HeroStage } from './HeroStage';
 import { Capabilities } from './Capabilities';
 import { Work } from './Work';
 import { About } from './About';
@@ -11,7 +11,7 @@ import { Footer } from './Footer';
 export function HomeLayout() {
   return (
     <>
-      <Hero />
+      <HeroStage />
       <Capabilities />
       <Work />
       <About />

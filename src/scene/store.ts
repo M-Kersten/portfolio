@@ -10,8 +10,11 @@ export type SceneMode = 'maquette' | 'twin';
 
 interface SceneState {
   mode: SceneMode;
-  /** Which maquette layer the camera is focused on (0..2), or null = establishing shot. */
-  focusLayer: number | null;
+  /** Which layer the scroll journey has centred: 0 = City (top), 1 = Room, 2 = Chip. */
+  journeyStep: number;
+  /** The inspected node's case slug, or null in the overview. Drives the zoom +
+   *  the bottom HUD + hiding the title. */
+  selectedSlug: string | null;
   /** Active place id for the twin (allowlist-resolved elsewhere). */
   placeId: string;
   /** Flips true once the twin establishing move has settled and orbit is live. */
@@ -27,7 +30,8 @@ interface SceneState {
 
 let state: SceneState = {
   mode: 'maquette',
-  focusLayer: null,
+  journeyStep: 0,
+  selectedSlug: null,
   placeId: '',
   twinSettled: false,
   resetNonce: 0,
@@ -50,13 +54,16 @@ export const sceneStore = {
   },
   snapshot: () => state,
   setMode(mode: SceneMode) {
-    if (mode !== state.mode) set({ mode, twinSettled: false, focusLayer: null });
+    if (mode !== state.mode) set({ mode, twinSettled: false });
   },
   setPlace(placeId: string) {
     if (placeId !== state.placeId) set({ placeId, twinSettled: false });
   },
-  focus(focusLayer: number | null) {
-    set({ focusLayer });
+  setJourneyStep(journeyStep: number) {
+    if (journeyStep !== state.journeyStep) set({ journeyStep });
+  },
+  setSelected(selectedSlug: string | null) {
+    if (selectedSlug !== state.selectedSlug) set({ selectedSlug });
   },
   markTwinSettled() {
     if (!state.twinSettled) set({ twinSettled: true });

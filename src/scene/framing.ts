@@ -62,6 +62,25 @@ export function maquetteFocus(layerIndex: number): Framing {
   };
 }
 
+// Scroll journey: step 0 = City (top), 1 = Room, 2 = Chip (bottom). The camera
+// glides straight down the stack, one layer centred per snap stop.
+const JOURNEY_Y = [1.32, 0, -1.32];
+const JOURNEY_OFFSET = new Vector3(3.0, 0.9, 4.1);
+
+export function journeyView(step: number): Framing {
+  const y = JOURNEY_Y[Math.max(0, Math.min(2, step))] ?? 0;
+  const target = new Vector3(0, y, 0);
+  return { pos: target.clone().add(JOURNEY_OFFSET), target };
+}
+
+const NODE_OFFSET = new Vector3(1.7, 0.65, 2.5);
+
+/** Closer look at one node when it is selected (inspect / zoom). */
+export function nodeView(hotspot: Hotspot): Framing {
+  const target = new Vector3(...hotspot.position);
+  return { pos: target.clone().add(NODE_OFFSET), target };
+}
+
 const DEG = Math.PI / 180;
 
 /** District establishing shot from the place's {distance, pitch, bearing}. */

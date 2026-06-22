@@ -4,17 +4,11 @@ import { Vector3 } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { resolvePlace } from '../data/places';
 import { useSceneSelector, sceneStore } from './store';
-import {
-  MAQUETTE_HOME,
-  maquetteFocus,
-  twinEstablishing,
-  twinIntro,
-} from './framing';
+import { HOTSPOTS, journeyView, nodeView, twinEstablishing, twinIntro } from './framing';
 
-// The bridge between the two scenes is a camera move, not an engine handoff
-// (§1, §6). In maquette mode this rig owns the camera: slow auto-orbit, eased
-// focus on a hotspot. In twin mode it flies the descent into the district, then
-// yields to OrbitControls once settled.
+// The camera is driven by the scroll journey (which layer is centred) and by the
+// selected node (zoom in). In twin mode it flies the descent into the district,
+// then yields to OrbitControls once settled.
 
 export function CameraRig() {
   const camera = useThree((s) => s.camera);
@@ -22,15 +16,16 @@ export function CameraRig() {
   const reduced = useReducedMotion();
 
   const mode = useSceneSelector((s) => s.mode);
-  const focusLayer = useSceneSelector((s) => s.focusLayer);
+  const journeyStep = useSceneSelector((s) => s.journeyStep);
+  const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const placeId = useSceneSelector((s) => s.placeId);
   const twinSettled = useSceneSelector((s) => s.twinSettled);
   const resetNonce = useSceneSelector((s) => s.resetNonce);
 
   const place = resolvePlace(placeId);
 
-  const orbit = useRef(0);
-  const target = useRef(new Vector3().copy(MAQUETTE_HOME.target));
+  const sway = useRef(0);
+  const target = useRef(new Vector3().copy(journeyView(0).target));
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
   const prevMode = useRef(mode);
@@ -57,19 +52,22 @@ export function CameraRig() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, placeId, reduced]);
 
-  // Reset view / focus changes need at least one frame in demand mode.
-  useEffect(() => invalidate(), [resetNonce, focusLayer, invalidate]);
+  // State changes need at least one frame in demand mode.
+  useEffect(() => invalidate(), [resetNonce, journeyStep, selectedSlug, invalidate]);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
 
     if (mode === 'maquette') {
-      const base = focusLayer != null ? maquetteFocus(focusLayer) : MAQUETTE_HOME;
+      const hotspot = selectedSlug ? HOTSPOTS.find((h) => h.slug === selectedSlug) : undefined;
+      const base = hotspot ? nodeView(hotspot) : journeyView(journeyStep);
       desiredTarget.current.copy(base.target);
-      if (focusLayer == null && !reduced) {
-        orbit.current += dt * 0.12;
+
+      if (!hotspot && !reduced) {
+        // gentle idle sway around the centred layer
+        sway.current += dt * 0.25;
         const off = base.pos.clone().sub(base.target);
-        const a = orbit.current;
+        const a = Math.sin(sway.current) * 0.07;
         desiredPos.current.set(
           base.target.x + off.x * Math.cos(a) - off.z * Math.sin(a),
           base.pos.y,

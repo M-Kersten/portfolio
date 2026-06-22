@@ -289,125 +289,260 @@ img {
   }
 }
 
-/* ---------- Hero ---------- */
-/* Header/title sits at the TOP; the 3D maquette is framed in the lower portion
-   of the viewport (camera offset in framing.ts), so the type no longer fights
-   the model. */
+/* ---------- Hero stage (scroll-snap layer journey) ---------- */
+
+html {
+  scroll-snap-type: y proximity;
+}
 
 .hero {
   position: relative;
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  overflow: clip;
 }
-/* Subtle top vignette keeps the title crisp over any model bleed. */
-.hero::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 35% 0;
-  z-index: 1;
+/* Three full-height snap panels give the camera journey its scroll length and
+   are transparent so the fixed canvas shows through. */
+.hero__panel {
+  height: 100svh;
+  scroll-snap-align: start;
+}
+
+/* Minimal title — fixed, fades when a node is inspected or scrolled past. */
+.hero__title {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  padding: calc(var(--header-h) + var(--space-xl)) var(--space-m) 0;
+  max-width: 32rem;
   pointer-events: none;
-  background: linear-gradient(180deg, var(--paper) 0%, color-mix(in srgb, var(--paper) 55%, transparent) 45%, transparent 100%);
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
 }
-.hero__copy {
-  position: relative;
-  z-index: 2;
-  padding-top: calc(var(--header-h) + var(--space-xl));
-  pointer-events: none;
-  max-width: 40rem;
-}
-.hero__copy > * {
-  pointer-events: auto;
-}
-.hero__eyebrow {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--accent-ink);
-  margin: 0 0 var(--space-s);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7em;
-}
-.hero__eyebrow::before {
-  content: '';
-  width: 2em;
-  height: 1px;
-  background: var(--accent);
+.hero__title[data-visible='false'] {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 .hero__name {
   font-size: var(--step-5);
   font-weight: 700;
-  margin-bottom: 0.15em;
   letter-spacing: -0.035em;
+  margin: 0 0 0.35em;
 }
-.hero__tagline {
-  font-size: var(--step-2);
-  font-weight: 400;
-  color: var(--ink);
-  max-width: 24ch;
-  margin-bottom: var(--space-m);
-}
-.hero__tagline b {
-  font-weight: 600;
-  color: var(--accent-ink);
-}
-.hero__metric {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
+.hero__sub {
+  font-size: var(--step-1);
   color: var(--ink-60);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45em 1.4em;
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--space-l);
-}
-.hero__metric li {
-  position: relative;
-  padding-left: 1.2em;
-}
-.hero__metric li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.55em;
-  width: 0.45em;
-  height: 0.45em;
-  background: var(--accent);
-}
-.hero__metric b {
-  color: var(--ink);
-  font-weight: 500;
-}
-.hero__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-s);
+  max-width: 24ch;
+  margin: 0;
 }
 .hero__scrollcue {
-  position: absolute;
-  bottom: var(--space-m);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2;
+  margin: var(--space-l) 0 0;
   font-family: var(--font-mono);
   font-size: var(--step--1);
-  color: var(--ink-40);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  text-decoration: none;
+  color: var(--ink-40);
+}
+
+/* Layer indicator — fixed right; click a step to jump to it. */
+.hero__indicator {
+  position: fixed;
+  right: var(--space-m);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  pointer-events: none;
+  transition: opacity 0.5s var(--ease);
+}
+.hero__indicator[data-visible='false'] {
+  opacity: 0;
+}
+.hero__indicator-step {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  justify-content: end;
+  gap: 0 0.5em;
+  text-align: right;
+  background: none;
+  border: 0;
+  border-right: 2px solid var(--hairline);
+  padding: 0.2em 0.7em 0.2em 0;
+  cursor: pointer;
+  color: var(--ink-40);
+  font-family: var(--font-mono);
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+.hero__indicator-step:hover {
+  color: var(--ink);
+}
+.hero__indicator-step[data-active='true'] {
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.hero__indicator-num {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+.hero__indicator-label {
+  font-family: var(--font-display);
+  font-size: var(--step-0);
+}
+.hero__indicator-tag {
+  grid-column: 2;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.6;
 }
 
 @media (max-width: 760px) {
-  .hero__copy {
-    padding-top: calc(var(--header-h) + var(--space-l));
-  }
   .hero__name {
     font-size: var(--step-4);
+  }
+  .hero__title {
+    max-width: 86vw;
+  }
+  .hero__indicator {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-snap-type: none;
+  }
+}
+
+/* ---------- Node HUD (bottom bar) ---------- */
+
+.node-hud {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) 2fr auto;
+  gap: var(--space-l);
+  align-items: center;
+  padding: var(--space-m) var(--space-l);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  border-top: 1px solid var(--accent);
+  box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  animation: hud-rise 0.32s var(--ease);
+}
+@keyframes hud-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+.node-hud__bracket {
+  position: absolute;
+  left: var(--space-l);
+  top: -1px;
+  width: 2.5rem;
+  height: 2px;
+  background: var(--accent);
+}
+.node-hud__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em 1em;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-60);
+  margin-bottom: 0.4em;
+}
+.node-hud__layer {
+  color: var(--accent-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.node-hud__title {
+  font-size: var(--step-2);
+  margin: 0;
+}
+.node-hud__outcome {
+  font-family: var(--font-display);
+  color: var(--accent-ink);
+  margin: 0.2em 0 0;
+}
+.node-hud__col--body {
+  min-width: 0;
+}
+.node-hud__built {
+  color: var(--ink-60);
+  font-size: var(--step--1);
+  margin: 0 0 var(--space-xs);
+  max-width: 60ch;
+}
+.node-hud__tech {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-xs);
+}
+.node-hud__tech li {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--accent-ink);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: var(--radius-s);
+  padding: 0.15em 0.5em;
+}
+.node-hud__lesson {
+  font-size: var(--step--1);
+  font-style: italic;
+  color: var(--ink);
+  margin: 0;
+  padding-left: var(--space-s);
+  border-left: 2px solid var(--accent);
+}
+.node-hud__lesson span {
+  display: block;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.node-hud__col--actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+}
+.node-hud__close {
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: none;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 1.05rem;
+}
+.node-hud__close:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+@media (max-width: 860px) {
+  .node-hud {
+    grid-template-columns: 1fr;
+    gap: var(--space-s);
+    max-height: 72svh;
+    overflow: auto;
+  }
+  .node-hud__col--actions {
+    justify-content: flex-end;
   }
 }
 
@@ -1124,11 +1259,11 @@ main > * {
   pointer-events: auto;
 }
 .hero,
+.hero__panel,
 .twin-overlay {
   pointer-events: none;
 }
-.hero__copy > *,
-.hero__scrollcue,
+.hero__indicator-step,
 .twin-overlay > * {
   pointer-events: auto;
 }

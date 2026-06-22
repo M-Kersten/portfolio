@@ -3,21 +3,21 @@
     "layer": "city",
     "index": "01",
     "title": "City — GIS & location",
-    "body": "The largest scale: digital twins on open 3DBAG and point-cloud data, and location-based AR anchored to the real world with Visual Positioning Systems and centimetre-accurate RTK GPS.",
+    "body": "At the largest scale I build digital twins on open 3DBAG and point-cloud data, and location-based AR anchored to the real world with Visual Positioning Systems and centimetre-accurate RTK GPS.",
     "tags": ["3DBAG", "VPS", "RTK GPS", "Point clouds"]
   },
   {
     "layer": "room",
     "index": "02",
     "title": "Room — games, apps & websites",
-    "body": "Human scale: VR training, games, apps and websites — interactive experiences people step into, from a training simulator to hyper-casual mobile hits.",
+    "body": "At human scale I build the experiences people step into — VR training, games, apps and websites, from a training simulator to hyper-casual mobile hits.",
     "tags": ["Unity", "VR", "Mobile", "Web"]
   },
   {
     "layer": "chip",
     "index": "03",
     "title": "Chip — tools, CV & data",
-    "body": "The smallest scale: the tools, computer vision, AI and data plumbing underneath — cross-platform AR frameworks, synthetic data, LLM-driven characters and the backends that hold it all together.",
+    "body": "At the smallest scale I build the tools, computer vision, AI and data plumbing underneath — cross-platform AR frameworks, synthetic data, LLM-driven characters and the backends that hold it together.",
     "tags": ["Computer vision", "AI · LLMs", "Backends", "Databases"]
   }
 ]
