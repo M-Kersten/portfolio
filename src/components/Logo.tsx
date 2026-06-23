@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 
 // Merijn's real MK + aperture logo (public/logo.svg), inlined so the aperture
-// can be animated on its own. The wordmark inherits currentColor; the aperture
-// is tinted to the brand cyan and slowly spins (faster on hover, off under
+// can be animated on its own. Both the wordmark and the aperture inherit
+// currentColor (white); the aperture "eye" blinks occasionally (off under
 // reduced motion — see global.css).
 export function Logo() {
   return (

@@ -5,7 +5,8 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 
 // Three short snap panels give the camera journey its scroll length and drive
 // `journeyStep` (which layer is centred). The minimal title + layer indicator
-// fade out quickly as you scroll down, and whenever a node is inspected.
+// stay visible across the whole City → Room → Chip journey and only fade once
+// you scroll past the last layer into the content below (or inspect a node).
 
 const STEPS = [
   { step: 0, label: 'City', tag: 'maps & the real world' },
@@ -38,15 +39,20 @@ export function HeroStage() {
     return () => io.disconnect();
   }, []);
 
-  // Fade the title + indicator within the first part of the scroll.
+  // Keep the title + indicator visible across the whole journey; fade only once
+  // the viewport centre drops below the stage (i.e. past the last layer, Chip).
   useEffect(() => {
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        const panelH = panelRefs.current[0]?.offsetHeight || window.innerHeight * 0.58;
-        setTopness(1 - Math.min(1, window.scrollY / (panelH * 0.45)));
+        const vh = window.innerHeight;
+        const stage = stageRef.current;
+        const panelH = panelRefs.current[0]?.offsetHeight || vh * 0.58;
+        const stageBottom = stage ? stage.offsetTop + stage.offsetHeight : panelH * 3;
+        const past = (window.scrollY + vh / 2 - stageBottom) / (vh * 0.5);
+        setTopness(1 - Math.min(1, Math.max(0, past)));
       });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
