@@ -34,16 +34,18 @@ export interface Hotspot {
   twin?: boolean;
 }
 
+// Hotspots sit ON the relevant object in each layer (positions are local to the
+// layer group, which is placed at LAYER_Y and scaled).
 export const HOTSPOTS: Hotspot[] = [
-  // Chip (bottom) — tools, CV & data
-  { slug: 'amsterdam-ai', layer: 'chip', position: [1.35, 0.1, 0.7] },
-  { slug: 'custom-ar-framework', layer: 'chip', position: [-1.4, 0.1, -0.55] },
-  // Room (middle) — games, apps & websites
-  { slug: 'virtuele-brigade', layer: 'room', position: [1.5, 0.1, -0.7] },
-  { slug: 'popcore-games', layer: 'room', position: [-1.5, 0.1, 0.7] },
-  // City (top) — GIS & location; the twin hotspot flies into the live district
-  { slug: 'niantic-explorer', layer: 'city', position: [-1.4, 0.12, -0.6] },
-  { slug: 'municipal-twin', layer: 'city', position: [0.9, 0.12, 0.55], twin: true },
+  // Chip — on actual chip parts
+  { slug: 'amsterdam-ai', layer: 'chip', position: [0, 0.27, 0] }, // the die / "brain"
+  { slug: 'custom-ar-framework', layer: 'chip', position: [0.42, 0.3, 0.4] }, // a component
+  // Room — on the things they live on
+  { slug: 'virtuele-brigade', layer: 'room', position: [0, 0.74, -1.16] }, // the monitor
+  { slug: 'popcore-games', layer: 'room', position: [0.22, 0.36, 0.84] }, // phone on the couch
+  // City — on real places; the twin flies into the live district
+  { slug: 'niantic-explorer', layer: 'city', position: [0.9, 0.26, 0.9] }, // the park
+  { slug: 'municipal-twin', layer: 'city', position: [0.2, 0.82, -0.2], twin: true }, // town hall
 ];
 
 export interface Framing {
