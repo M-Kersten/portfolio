@@ -1,10 +1,29 @@
 import { useEffect, useRef } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { caseBySlug, LAYER_LABEL, site } from '../content';
+import { caseBySlug, LAYER_LABEL, site, type CaseStudy } from '../content';
+import { asset } from '../lib/asset';
 
-// Game-style HUD for an inspected node. Info flanks the 3D on the left (identity)
-// and right (detail + actions) so the node stays visible in the centre. Non-
-// blocking and route-driven so deep links + the back button keep working.
+// Bottom dossier drawer for an inspected node: a photo/video on the left and the
+// full detail on the right, while the 3D node stays visible above (the camera
+// lifts it clear). Route-driven so deep links + the back button keep working.
+
+function Media({ study }: { study: CaseStudy }) {
+  const src = study.media?.[0];
+  if (!src) {
+    return (
+      <div className="node-hud__media node-hud__media--empty" aria-hidden="true">
+        <span className="node-hud__play">▶</span>
+        <span className="node-hud__mediahint">photo / video</span>
+      </div>
+    );
+  }
+  const url = asset(src);
+  if (/\.(mp4|webm|mov)$/i.test(src)) {
+    return <video className="node-hud__media" src={url} autoPlay muted loop playsInline />;
+  }
+  return <img className="node-hud__media" src={url} alt={study.title} />;
+}
+
 export function NodeHud() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -34,23 +53,35 @@ export function NodeHud() {
 
   return (
     <aside className="node-hud" role="dialog" aria-label={study.title}>
-      <div className="node-hud__panel node-hud__panel--left">
-        <span className="node-hud__bracket" aria-hidden="true" />
+      <button ref={closeRef} type="button" className="node-hud__close" onClick={close} aria-label="Close node">
+        <span aria-hidden="true">✕</span>
+      </button>
+
+      <Media study={study} />
+
+      <div className="node-hud__detail">
         <div className="node-hud__meta">
           <span className="node-hud__layer">{LAYER_LABEL[study.layer]}</span>
           <span>{study.sector}</span>
+          <span>{study.client}</span>
           {study.live && <span className="case-card__live">Live</span>}
+          {study.draft && <span className="modal__draft">Sample</span>}
         </div>
+
         <h2 className="node-hud__title">{study.title}</h2>
         <p className="node-hud__outcome">{study.outcome}</p>
-        <p className="node-hud__client">{study.client}</p>
-      </div>
 
-      <div className="node-hud__panel node-hud__panel--right">
-        <button ref={closeRef} type="button" className="node-hud__close" onClick={close} aria-label="Close node">
-          <span aria-hidden="true">✕</span>
-        </button>
-        <p className="node-hud__built">{study.built}</p>
+        <div className="node-hud__cols">
+          <section>
+            <h3 className="node-hud__h">Challenge</h3>
+            <p>{study.challenge}</p>
+          </section>
+          <section>
+            <h3 className="node-hud__h">What I built</h3>
+            <p>{study.built}</p>
+          </section>
+        </div>
+
         {study.tech && study.tech.length > 0 && (
           <ul className="node-hud__tech" aria-label="Technologies">
             {study.tech.map((t) => (
@@ -58,12 +89,14 @@ export function NodeHud() {
             ))}
           </ul>
         )}
+
         {study.lesson && (
           <p className="node-hud__lesson">
             <span>Key lesson</span>
             {study.lesson}
           </p>
         )}
+
         <a
           className="btn node-hud__discuss"
           href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}

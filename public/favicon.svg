@@ -1,9 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="MK">
-  <rect width="32" height="32" rx="6" fill="#0A0C0F" />
-  <mask id="ap">
-    <rect width="32" height="32" fill="black" />
-    <circle cx="15" cy="18" r="10.5" fill="white" />
-    <circle cx="25" cy="9" r="6.6" fill="black" />
-  </mask>
-  <rect width="32" height="32" fill="#2EE6E6" mask="url(#ap)" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MK">
+  <rect width="512" height="512" rx="96" fill="#0a0c0f" />
+  <g transform="translate(66,146.6) scale(0.4223)" fill="#eaf2f4">
+    <path d="M899.87 0H757.06L533.58 258.97V0H531.29H424.07H380.35L265.63 188.7L151.69 0H0V517.98H107.28V137.63L202.01 292.28L244.19 359.63H287.85L329.28 292.28L424.01 137.63V517.98H424.07H531.29H533.58V260.48L603.89 343.34L755.58 517.98H898.39L676.39 260.48L899.87 0Z" />
+  </g>
 </svg>
