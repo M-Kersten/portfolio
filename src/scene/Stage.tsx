@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { Environment, Lightformer, OrbitControls } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useSceneSelector } from './store';
 import { resolvePlace } from '../data/places';
@@ -54,6 +55,11 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
           )}
         </Suspense>
       )}
+
+      {/* Holographic glow — only bright emissive accents/edges bloom. */}
+      <EffectComposer enableNormalPass={false} multisampling={4}>
+        <Bloom mipmapBlur luminanceThreshold={0.62} luminanceSmoothing={0.25} intensity={0.7} radius={0.7} />
+      </EffectComposer>
     </>
   );
 }

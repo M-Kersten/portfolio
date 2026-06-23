@@ -301,7 +301,7 @@ html {
 /* Three full-height snap panels give the camera journey its scroll length and
    are transparent so the fixed canvas shows through. */
 .hero__panel {
-  height: 100svh;
+  height: 58svh;
   scroll-snap-align: start;
 }
 
@@ -414,47 +414,67 @@ html {
   }
 }
 
-/* ---------- Node HUD (bottom bar) ---------- */
+/* ---------- Node HUD (info flanks the 3D, centre clear) ---------- */
 
 .node-hud {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   z-index: 45;
-  display: grid;
-  grid-template-columns: minmax(12rem, 1fr) 2fr auto;
-  gap: var(--space-l);
-  align-items: center;
-  padding: var(--space-m) var(--space-l);
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  border-top: 1px solid var(--accent);
-  box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(12px);
-  animation: hud-rise 0.32s var(--ease);
+  pointer-events: none;
 }
-@keyframes hud-rise {
+.node-hud__panel {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(23rem, 34vw);
+  max-height: 82svh;
+  overflow: auto;
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-m);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.node-hud__panel--left {
+  left: var(--space-m);
+  border-left: 2px solid var(--accent);
+  animation: hud-in-left 0.34s var(--ease);
+}
+.node-hud__panel--right {
+  right: var(--space-m);
+  border-right: 2px solid var(--accent);
+  animation: hud-in-right 0.34s var(--ease);
+}
+@keyframes hud-in-left {
   from {
-    transform: translateY(100%);
+    opacity: 0;
+    transform: translate(-16px, -50%);
+  }
+}
+@keyframes hud-in-right {
+  from {
+    opacity: 0;
+    transform: translate(16px, -50%);
   }
 }
 .node-hud__bracket {
-  position: absolute;
-  left: var(--space-l);
-  top: -1px;
+  display: block;
   width: 2.5rem;
   height: 2px;
   background: var(--accent);
+  margin-bottom: var(--space-s);
 }
 .node-hud__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5em 1em;
+  gap: 0.4em 0.9em;
   align-items: center;
   font-family: var(--font-mono);
   font-size: var(--step--1);
   color: var(--ink-60);
-  margin-bottom: 0.4em;
+  margin-bottom: var(--space-xs);
 }
 .node-hud__layer {
   color: var(--accent-ink);
@@ -468,16 +488,35 @@ html {
 .node-hud__outcome {
   font-family: var(--font-display);
   color: var(--accent-ink);
-  margin: 0.2em 0 0;
+  font-size: var(--step-1);
+  margin: var(--space-xs) 0 0;
 }
-.node-hud__col--body {
-  min-width: 0;
+.node-hud__client {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-40);
+  margin: var(--space-xs) 0 0;
+}
+.node-hud__close {
+  float: right;
+  width: 2.4rem;
+  height: 2.4rem;
+  margin: -0.3rem -0.3rem 0 var(--space-s);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 1.05rem;
+}
+.node-hud__close:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
 }
 .node-hud__built {
   color: var(--ink-60);
   font-size: var(--step--1);
-  margin: 0 0 var(--space-xs);
-  max-width: 60ch;
+  margin: 0 0 var(--space-s);
 }
 .node-hud__tech {
   display: flex;
@@ -485,7 +524,7 @@ html {
   gap: 0.35em;
   list-style: none;
   padding: 0;
-  margin: 0 0 var(--space-xs);
+  margin: 0 0 var(--space-s);
 }
 .node-hud__tech li {
   font-family: var(--font-mono);
@@ -500,7 +539,7 @@ html {
   font-size: var(--step--1);
   font-style: italic;
   color: var(--ink);
-  margin: 0;
+  margin: 0 0 var(--space-m);
   padding-left: var(--space-s);
   border-left: 2px solid var(--accent);
 }
@@ -513,36 +552,66 @@ html {
   text-transform: uppercase;
   color: var(--ink-40);
 }
-.node-hud__col--actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-s);
-}
-.node-hud__close {
-  width: 2.6rem;
-  height: 2.6rem;
-  flex: none;
-  border-radius: var(--radius-s);
-  border: 1px solid var(--line);
-  background: var(--paper-2);
-  color: var(--ink);
-  cursor: pointer;
-  font-size: 1.05rem;
-}
-.node-hud__close:hover {
-  border-color: var(--accent);
-  color: var(--accent-ink);
+.node-hud__discuss {
+  width: 100%;
+  justify-content: center;
 }
 
 @media (max-width: 860px) {
   .node-hud {
-    grid-template-columns: 1fr;
-    gap: var(--space-s);
-    max-height: 72svh;
+    inset: auto 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: var(--space-s);
+    max-height: 78svh;
     overflow: auto;
+    pointer-events: auto;
+    background: color-mix(in srgb, var(--paper) 93%, transparent);
+    border-top: 1px solid var(--accent);
+    backdrop-filter: blur(12px);
   }
-  .node-hud__col--actions {
-    justify-content: flex-end;
+  .node-hud__panel {
+    position: static;
+    transform: none;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    padding: var(--space-xs) var(--space-s);
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    animation: none;
+  }
+  .node-hud__panel--left {
+    border-left: 0;
+  }
+  .node-hud__panel--right {
+    border-right: 0;
+  }
+}
+
+/* Faint holographic scanline over the canvas. */
+.scene-canvas::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(46, 230, 230, 0.035) 0,
+    rgba(46, 230, 230, 0.035) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  mix-blend-mode: screen;
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-canvas::after {
+    display: none;
   }
 }
 

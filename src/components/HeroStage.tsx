@@ -3,10 +3,9 @@ import { site } from '../content';
 import { sceneStore, useSceneSelector } from '../scene/store';
 import { useReducedMotion } from '../lib/useReducedMotion';
 
-// Three full-height snap panels give the camera journey its scroll length and
-// drive `journeyStep` (which layer is centred). The panels are transparent so the
-// fixed canvas shows through; a minimal title + a layer indicator sit on top and
-// fade out when a node is inspected.
+// Three short snap panels give the camera journey its scroll length and drive
+// `journeyStep` (which layer is centred). The minimal title + layer indicator
+// fade out quickly as you scroll down, and whenever a node is inspected.
 
 const STEPS = [
   { step: 0, label: 'City', tag: 'GIS & location' },
@@ -21,48 +20,57 @@ export function HeroStage() {
 
   const stageRef = useRef<HTMLElement>(null);
   const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [inView, setInView] = useState(true);
+  const [topness, setTopness] = useState(1);
 
-  // Active layer = the panel currently filling the viewport.
+  // Active layer = the panel crossing the viewport centre (robust to short panels).
   useEffect(() => {
     const panels = panelRefs.current.filter(Boolean) as HTMLDivElement[];
     if (panels.length === 0) return;
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
-          if (e.isIntersecting && e.intersectionRatio >= 0.5) {
-            sceneStore.setJourneyStep(Number((e.target as HTMLElement).dataset.step));
-          }
+          if (e.isIntersecting) sceneStore.setJourneyStep(Number((e.target as HTMLElement).dataset.step));
         });
       },
-      { threshold: [0.5, 0.8] },
+      { rootMargin: '-50% 0px -50% 0px', threshold: 0 },
     );
     panels.forEach((p) => io.observe(p));
     return () => io.disconnect();
   }, []);
 
-  // Title visibility: only while the stage is on screen.
+  // Fade the title + indicator within the first part of the scroll.
   useEffect(() => {
-    const el = stageRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0 });
-    io.observe(el);
-    return () => io.disconnect();
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const panelH = panelRefs.current[0]?.offsetHeight || window.innerHeight * 0.58;
+        setTopness(1 - Math.min(1, window.scrollY / (panelH * 0.45)));
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
-  const titleVisible = inView && !selectedSlug;
+  const opacity = selectedSlug ? 0 : topness;
+  const hidden = opacity < 0.05;
   const goto = (step: number) =>
     panelRefs.current[step]?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
 
   return (
     <section id="hero" className="hero" ref={stageRef} aria-label="Introduction">
-      <div className="hero__title" data-visible={titleVisible}>
+      <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
         <h1 className="hero__name">{site.hero.name}</h1>
         <p className="hero__sub">{site.hero.subheading}</p>
         <p className="hero__scrollcue" aria-hidden="true">Scroll to explore ↓</p>
       </div>
 
-      <nav className="hero__indicator" data-visible={titleVisible} aria-label="Layers">
+      <nav className="hero__indicator" style={{ opacity, pointerEvents: hidden ? 'none' : undefined }} aria-label="Layers">
         {STEPS.map((s) => (
           <button
             key={s.step}
