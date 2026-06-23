@@ -18,7 +18,6 @@ export function Work() {
           return (
             <div key={layer} className="work__group" data-layer={layer}>
               <div className="work__group-head">
-                <h3 className="work__group-title">{LAYER_LABEL[layer]}</h3>
                 <span className="work__group-tag">{LAYER_TAGLINE[layer]}</span>
               </div>
               <div className="work__grid">
