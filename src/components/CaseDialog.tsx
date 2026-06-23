@@ -53,11 +53,11 @@ export function CaseDialog({ study, onClose }: { study: CaseStudy; onClose: () =
 
         <div className="modal__grid">
           <section>
-            <h3 className="modal__h">Challenge</h3>
+            <h3 className="modal__h">The problem</h3>
             <p>{study.challenge}</p>
           </section>
           <section>
-            <h3 className="modal__h">What I built</h3>
+            <h3 className="modal__h">What I made</h3>
             <p>{study.built}</p>
           </section>
         </div>
@@ -72,7 +72,7 @@ export function CaseDialog({ study, onClose }: { study: CaseStudy; onClose: () =
 
         {study.lesson && (
           <div className="modal__lesson">
-            <h3 className="modal__h">Key lesson</h3>
+            <h3 className="modal__h">What I learned</h3>
             <p>{study.lesson}</p>
           </div>
         )}
@@ -87,7 +87,7 @@ export function CaseDialog({ study, onClose }: { study: CaseStudy; onClose: () =
             className="btn btn--ghost"
             href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}
           >
-            Discuss this work
+            Ask me about it
           </a>
         </div>
       </div>

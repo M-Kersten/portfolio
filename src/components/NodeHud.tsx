@@ -73,11 +73,11 @@ export function NodeHud() {
 
         <div className="node-hud__cols">
           <section>
-            <h3 className="node-hud__h">Challenge</h3>
+            <h3 className="node-hud__h">The problem</h3>
             <p>{study.challenge}</p>
           </section>
           <section>
-            <h3 className="node-hud__h">What I built</h3>
+            <h3 className="node-hud__h">What I made</h3>
             <p>{study.built}</p>
           </section>
         </div>
@@ -92,7 +92,7 @@ export function NodeHud() {
 
         {study.lesson && (
           <p className="node-hud__lesson">
-            <span>Key lesson</span>
+            <span>What I learned</span>
             {study.lesson}
           </p>
         )}
@@ -101,7 +101,7 @@ export function NodeHud() {
           className="btn node-hud__discuss"
           href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}
         >
-          Discuss this
+          Ask me about it
         </a>
       </div>
     </aside>

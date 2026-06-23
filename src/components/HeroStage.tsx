@@ -8,9 +8,9 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 // fade out quickly as you scroll down, and whenever a node is inspected.
 
 const STEPS = [
-  { step: 0, label: 'City', tag: 'GIS & location' },
-  { step: 1, label: 'Room', tag: 'Games · apps · web' },
-  { step: 2, label: 'Chip', tag: 'Tools · CV · data' },
+  { step: 0, label: 'City', tag: 'maps & the real world' },
+  { step: 1, label: 'Room', tag: 'games, apps & toys' },
+  { step: 2, label: 'Chip', tag: 'tools & nerdy bits' },
 ];
 
 export function HeroStage() {
@@ -67,7 +67,7 @@ export function HeroStage() {
       <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
         <h1 className="hero__name">{site.hero.name}</h1>
         <p className="hero__sub">{site.hero.subheading}</p>
-        <p className="hero__scrollcue" aria-hidden="true">Scroll to explore ↓</p>
+        <p className="hero__scrollcue" aria-hidden="true">scroll down, have a poke around ↓</p>
       </div>
 
       <nav className="hero__indicator" style={{ opacity, pointerEvents: hidden ? 'none' : undefined }} aria-label="Layers">

@@ -27,9 +27,9 @@ export const LAYER_LABEL: Record<CaseStudy['layer'], string> = {
 export const LAYER_ORDER: CaseStudy['layer'][] = ['city', 'room', 'chip'];
 
 export const LAYER_TAGLINE: Record<CaseStudy['layer'], string> = {
-  city: 'GIS & location-based',
-  room: 'Games, apps & websites',
-  chip: 'Tools, computer vision & data',
+  city: 'maps & the real world',
+  room: 'games, apps & toys',
+  chip: 'tools & the nerdy bits',
 };
 
 export * from './types';

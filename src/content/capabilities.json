@@ -2,22 +2,22 @@
   {
     "layer": "city",
     "index": "01",
-    "title": "City — GIS & location",
-    "body": "At the largest scale I build digital twins on open 3DBAG and point-cloud data, and location-based AR anchored to the real world with Visual Positioning Systems and centimetre-accurate RTK GPS.",
+    "title": "City — maps & the real world",
+    "body": "The big scale. I love taking real-world data — open building maps, point clouds, GPS — and turning it into something you can actually move through. Digital twins you fly into, AR that sticks to an actual street corner. There’s something a bit magic about a phone that knows exactly where it is in the world.",
     "tags": ["3DBAG", "VPS", "RTK GPS", "Point clouds"]
   },
   {
     "layer": "room",
     "index": "02",
-    "title": "Room — games, apps & websites",
-    "body": "At human scale I build the experiences people step into — VR training, games, apps and websites, from a training simulator to hyper-casual mobile hits.",
+    "title": "Room — games, apps & toys",
+    "body": "Human scale: the stuff people actually pick up and play with. Games, apps, websites, VR you can step into. This is where I get to be playful — a tiny mobile game one week, a training sim the next. If it makes someone smile or quietly learn something, even better.",
     "tags": ["Unity", "VR", "Mobile", "Web"]
   },
   {
     "layer": "chip",
     "index": "03",
-    "title": "Chip — tools, CV & data",
-    "body": "At the smallest scale I build the tools, computer vision, AI and data plumbing underneath — cross-platform AR frameworks, synthetic data, LLM-driven characters and the backends that hold it together.",
+    "title": "Chip — tools & the nerdy bits",
+    "body": "The smallest scale, and honestly my favourite to nerd out on: the tools, computer vision, AI and plumbing nobody ever sees. Cross-platform frameworks, synthetic data, characters that can hold a conversation, the backends quietly holding everything up. Build a good tool once and it pays you back forever.",
     "tags": ["Computer vision", "AI · LLMs", "Backends", "Databases"]
   }
 ]

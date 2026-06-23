@@ -19,7 +19,7 @@ export function Header() {
             </Link>
           ))}
           <a className="btn nav__cta" href={`mailto:${site.contact.email}`} onClick={close}>
-            Get in touch
+            Say hi
           </a>
         </nav>
 
