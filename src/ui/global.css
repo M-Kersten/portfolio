@@ -201,30 +201,35 @@ img {
   gap: var(--space-m);
 }
 
-/* Logo (MK + aperture). Swap public/logo.svg for the exact vector if desired. */
+/* Logo — Merijn's real MK + aperture vector, inlined in Logo.tsx. */
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
   text-decoration: none;
   color: var(--ink);
 }
-.logo__mk {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.5rem;
-  letter-spacing: -0.04em;
-  line-height: 1;
+.logo__svg {
+  height: 1.5rem;
+  width: auto;
+  display: block;
+  overflow: visible;
+}
+.logo__mark {
+  fill: currentColor;
 }
 .logo__aperture {
-  width: 1.15rem;
-  height: 1.15rem;
-  color: var(--accent);
-  flex: none;
-  transition: transform 0.4s var(--ease);
+  fill: var(--accent);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: aperture-spin 10s linear infinite;
 }
 .logo:hover .logo__aperture {
-  transform: rotate(120deg);
+  animation-duration: 1.6s;
+}
+@keyframes aperture-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .nav {
@@ -1376,7 +1381,7 @@ main > * {
     animation: none;
     inset: -4px;
   }
-  .logo:hover .logo__aperture {
-    transform: none;
+  .logo__aperture {
+    animation: none;
   }
 }
