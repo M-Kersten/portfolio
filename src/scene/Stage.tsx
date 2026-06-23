@@ -57,10 +57,9 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
         </Suspense>
       )}
 
-      {/* Holographic glow — the glowing wireframe terrain, contours, point
-          clouds and orbital nodes bloom against the dark matte canvas. */}
+      {/* A restrained glow — only the brightest accents lift, no neon halo. */}
       <EffectComposer enableNormalPass={false} multisampling={4}>
-        <Bloom mipmapBlur luminanceThreshold={0.5} luminanceSmoothing={0.3} intensity={0.95} radius={0.82} />
+        <Bloom mipmapBlur luminanceThreshold={0.78} luminanceSmoothing={0.3} intensity={0.4} radius={0.6} />
       </EffectComposer>
     </>
   );

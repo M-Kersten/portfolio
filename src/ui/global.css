@@ -210,7 +210,6 @@ img {
 }
 .btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 28px var(--accent-glow);
 }
 .btn--ghost {
   --btn-bg: transparent;
@@ -490,7 +489,7 @@ html {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
     color-mix(in srgb, var(--paper) 80%, transparent);
   border-top: 1px solid var(--line);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 -24px 64px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 -24px 64px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(20px) saturate(1.3);
   animation: hud-rise 0.36s var(--ease);
 }
@@ -718,7 +717,7 @@ html {
   height: 12px;
   border-radius: 50%;
   background: var(--hot, var(--accent));
-  box-shadow: 0 0 12px 2px color-mix(in srgb, var(--hot, var(--accent)) 45%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   flex: none;
 }
 .hotspot__ring::after {
@@ -873,19 +872,6 @@ html {
   text-transform: uppercase;
   color: var(--card-accent);
 }
-.work__group-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55em;
-}
-.work__group-title::before {
-  content: '';
-  width: 0.5em;
-  height: 0.5em;
-  border-radius: 50%;
-  background: var(--card-accent);
-  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--card-accent) 60%, transparent);
-}
 .work__group .work__grid {
   margin-top: 0;
 }
@@ -905,38 +891,30 @@ html {
   color: inherit;
   font: inherit;
   overflow: hidden;
-  backdrop-filter: blur(8px) saturate(1.15);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 36px -20px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px) saturate(1.1);
+  box-shadow: 0 14px 36px -22px rgba(0, 0, 0, 0.7);
   transition: transform 0.25s var(--ease), border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
 .case-card[data-layer='city'] { --card-accent: var(--cyan); }
 .case-card[data-layer='room'] { --card-accent: var(--coral); }
 .case-card[data-layer='chip'] { --card-accent: var(--lime); }
-/* faint halftone wash + a corner gradient bloom in the layer's accent */
+/* faint halftone wash only — no accent bloom */
 .case-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--card-accent) 16%, transparent), transparent 55%),
-    var(--halftone);
-  background-size: auto, var(--halftone-size);
-  opacity: 0.5;
+  background: var(--halftone);
+  background-size: var(--halftone-size);
+  opacity: 0.4;
   pointer-events: none;
-  transition: opacity 0.25s var(--ease);
 }
 .case-card > * {
   position: relative;
 }
 .case-card:hover {
   transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--card-accent) 55%, var(--line));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 22px 48px -22px rgba(0, 0, 0, 0.8),
-    0 0 0 1px color-mix(in srgb, var(--card-accent) 28%, transparent);
-}
-.case-card:hover::before {
-  opacity: 0.8;
+  border-color: color-mix(in srgb, var(--card-accent) 45%, var(--line));
+  box-shadow: 0 22px 48px -24px rgba(0, 0, 0, 0.8);
 }
 .case-card__top {
   display: flex;
@@ -965,7 +943,6 @@ html {
   height: 0.5em;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 8px 1px var(--accent-glow);
 }
 .case-card__title {
   font-size: var(--step-1);
@@ -1030,7 +1007,7 @@ html {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: var(--space-l);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 44px 96px rgba(0, 0, 0, 0.62);
+  box-shadow: 0 44px 96px rgba(0, 0, 0, 0.62);
   backdrop-filter: blur(22px) saturate(1.3);
   animation: modal-rise 0.3s var(--ease);
 }
@@ -1194,9 +1171,10 @@ html {
 .contact::before {
   content: '';
   position: absolute;
-  inset: -40% 30% auto -10%;
-  height: 80%;
-  background: radial-gradient(closest-side, var(--accent-glow), transparent 70%);
+  inset: 0;
+  background: var(--halftone);
+  background-size: var(--halftone-size);
+  opacity: 0.35;
   pointer-events: none;
 }
 .contact > * {
@@ -1394,7 +1372,7 @@ html {
   font-family: var(--font-mono);
   font-size: var(--step--1);
   min-width: 12rem;
-  box-shadow: 0 12px 28px var(--shadow), 0 0 0 1px var(--accent-glow);
+  box-shadow: 0 12px 28px var(--shadow);
   pointer-events: none;
 }
 .readout__id {
