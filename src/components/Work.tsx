@@ -16,7 +16,7 @@ export function Work() {
           const group = cases.filter((c) => c.layer === layer);
           if (group.length === 0) return null;
           return (
-            <div key={layer} className="work__group">
+            <div key={layer} className="work__group" data-layer={layer}>
               <div className="work__group-head">
                 <h3 className="work__group-title">{LAYER_LABEL[layer]}</h3>
                 <span className="work__group-tag">{LAYER_TAGLINE[layer]}</span>

@@ -1,11 +1,12 @@
 import { Vector3 } from 'three';
 import type { Place } from '../data/places';
+import { heightAt, type LayerId } from './terrain';
 
 // Maquette geometry and all camera framings live here as pure data/math so the
-// CameraRig stays declarative and the hotspots can be authored next to the
-// layers they sit on (§4).
+// CameraRig stays declarative and the hotspots can be authored on the terrain
+// they sit on (§4).
 
-export type LayerId = 'chip' | 'room' | 'city';
+export type { LayerId };
 
 export interface MaquetteLayer {
   id: LayerId;
@@ -34,18 +35,23 @@ export interface Hotspot {
   twin?: boolean;
 }
 
-// Hotspots sit ON the relevant object in each layer (positions are local to the
+// Hotspots sit ON the terrain — each marker is anchored to a landmark on the
+// landscape and lifted a touch above the surface (positions are local to the
 // layer group, which is placed at LAYER_Y and scaled).
+const DOT_LIFT = 0.17;
+const onTerrain = (layer: LayerId, x: number, z: number): [number, number, number] => [
+  x,
+  heightAt(x, z, layer) + DOT_LIFT,
+  z,
+];
+
 export const HOTSPOTS: Hotspot[] = [
-  // Chip — on actual chip parts
-  { slug: 'amsterdam-ai', layer: 'chip', position: [0, 0.27, 0] }, // the die / "brain"
-  { slug: 'custom-ar-framework', layer: 'chip', position: [0.42, 0.3, 0.4] }, // a component
-  // Room — on the things they live on
-  { slug: 'virtuele-brigade', layer: 'room', position: [0, 0.74, -1.16] }, // the monitor
-  { slug: 'popcore-games', layer: 'room', position: [0.22, 0.36, 0.84] }, // phone on the couch
-  // City — on real places; the twin flies into the live district
-  { slug: 'niantic-explorer', layer: 'city', position: [0.9, 0.26, 0.9] }, // the park
-  { slug: 'municipal-twin', layer: 'city', position: [0.2, 0.82, -0.2], twin: true }, // town hall
+  { slug: 'amsterdam-ai', layer: 'chip', position: onTerrain('chip', 0, 0.06) },
+  { slug: 'custom-ar-framework', layer: 'chip', position: onTerrain('chip', 0.74, -0.62) },
+  { slug: 'virtuele-brigade', layer: 'room', position: onTerrain('room', -0.28, -0.96) },
+  { slug: 'popcore-games', layer: 'room', position: onTerrain('room', 0.86, 0.66) },
+  { slug: 'niantic-explorer', layer: 'city', position: onTerrain('city', 0.96, 0.92) },
+  { slug: 'municipal-twin', layer: 'city', position: onTerrain('city', -0.12, -0.3), twin: true },
 ];
 
 export interface Framing {

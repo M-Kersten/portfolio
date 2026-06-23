@@ -24,15 +24,16 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
 
   return (
     <>
-      <color attach="background" args={['#0a0c0f']} />
-      <hemisphereLight intensity={0.35} color="#aebfd6" groundColor="#0a0c0f" />
-      <directionalLight position={[6, 11, 4]} intensity={1.15} color="#eaf2ff" />
-      <directionalLight position={[-7, 4, -6]} intensity={0.5} color="#2ee6e6" />
+      <color attach="background" args={['#0a0d10']} />
+      <hemisphereLight intensity={0.35} color="#aebfd6" groundColor="#0a0d10" />
+      <directionalLight position={[6, 11, 4]} intensity={1.1} color="#eaf2ff" />
+      <directionalLight position={[-7, 4, -6]} intensity={0.5} color="#27e8f2" />
 
       <Environment resolution={256} frames={1}>
         <Lightformer intensity={1.0} position={[5, 6, 4]} scale={9} color="#cfe0ff" />
-        <Lightformer intensity={0.7} position={[-6, 3, -4]} scale={9} color="#2ee6e6" />
-        <Lightformer intensity={0.3} position={[0, -5, 0]} scale={12} color="#0a0c0f" />
+        <Lightformer intensity={0.7} position={[-6, 3, -4]} scale={9} color="#27e8f2" />
+        <Lightformer intensity={0.45} position={[3, 2, -6]} scale={8} color="#a89eff" />
+        <Lightformer intensity={0.3} position={[0, -5, 0]} scale={12} color="#0a0d10" />
       </Environment>
 
       <CameraRig />
@@ -56,9 +57,10 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
         </Suspense>
       )}
 
-      {/* Holographic glow — only bright emissive accents/edges bloom. */}
+      {/* Holographic glow — the glowing wireframe terrain, contours, point
+          clouds and orbital nodes bloom against the dark matte canvas. */}
       <EffectComposer enableNormalPass={false} multisampling={4}>
-        <Bloom mipmapBlur luminanceThreshold={0.62} luminanceSmoothing={0.25} intensity={0.7} radius={0.7} />
+        <Bloom mipmapBlur luminanceThreshold={0.5} luminanceSmoothing={0.3} intensity={0.95} radius={0.82} />
       </EffectComposer>
     </>
   );

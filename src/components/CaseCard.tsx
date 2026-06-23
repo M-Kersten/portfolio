@@ -4,7 +4,7 @@ import { LAYER_LABEL, type CaseStudy } from '../content';
 export function CaseCard({ study }: { study: CaseStudy }) {
   const navigate = useNavigate();
   return (
-    <button type="button" className="case-card" onClick={() => navigate(`/work/${study.slug}`)}>
+    <button type="button" className="case-card" data-layer={study.layer} onClick={() => navigate(`/work/${study.slug}`)}>
       <div className="case-card__top">
         <span className="case-card__layer">{LAYER_LABEL[study.layer]}</span>
         {study.live && <span className="case-card__live">Live twin</span>}
