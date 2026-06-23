@@ -26,7 +26,7 @@
     "body": [
       "I build systems rather than isolated features, combining software engineering, UX, backend infrastructure, 3D content, hardware and the messy organisational reality around them. My toolkit spans Unity, Unreal Engine, networking, cloud, web, AI, computer vision, geospatial tech and interactive installations.",
       "I’ve worked on everything from hyper-casual mobile games and educational AR books to medical visualisation, utility infrastructure and training simulators for the Royal Netherlands Marechaussee — HoloLens with RTK GPS for centimetre-accurate placement of transformers, digital-twin tools built on point clouds and geo-data, and AI-driven conversational characters.",
-      "I like working with technology before it’s ready — ARKit and ARCore before AR Foundation, multiplayer AR, Visual Positioning Systems, Vision Pro, computer vision, generative AI. Unreliable networks, hardware limits, organisational resistance and imperfect tracking taught me to design around real constraints rather than ideal ones.",
+      "I like working with technology before it’s ready — ARKit and ARCore before AR Foundation, multiplayer AR, Visual Positioning Systems, Vision Pro, computer vision, generative AI. Unreliable networks, hardware limits, organisational resistance and imperfect tracking taught me to design around real constraints rather than ideal ones."
     ],
     "facts": [
       { "label": "Based in", "value": "Utrecht, The Netherlands" },

@@ -52,7 +52,7 @@ export interface SiteContent {
     subheading: string;
   };
   capabilitiesIntro: { eyebrow: string; title: string; lead: string };
-  workIntro: { eyebrow: string; title: string; lead: string };
+  workIntro: { eyebrow: string; title?: string; lead: string };
   about: {
     eyebrow: string;
     title: string;

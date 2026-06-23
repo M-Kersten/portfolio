@@ -9,7 +9,7 @@ export function Work() {
     <section id="work" className="section">
       <div className="container">
         <p className="section__eyebrow">{workIntro.eyebrow}</p>
-        <h2 className="section__title">{workIntro.title}</h2>
+        {workIntro.title && <h2 className="section__title">{workIntro.title}</h2>}
         <p className="section__lead">{workIntro.lead}</p>
 
         {LAYER_ORDER.map((layer) => {
