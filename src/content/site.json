@@ -8,38 +8,38 @@
   ],
   "hero": {
     "name": "Merijn Kersten",
-    "subheading": "I make things with AR, VR and code, and care way too much about whether they survive outside the demo room."
+    "subheading": "Building things that survive outside the demo room"
   },
   "capabilitiesIntro": {
     "eyebrow": "Three scales I like",
-    "title": "From the scale of a city to the scale of a chip",
-    "lead": "I tend to bounce between three sizes of thing. The city — big maps and the real world. The room — the games, apps and toys people actually pick up. And the chip — the nerdy tools and data quietly holding it all together."
+    "title": "From the scale of a city to that of a chip",
+    "lead": "I tend to bounce between three sizes of thing."
   },
   "workIntro": {
     "eyebrow": "Things I’ve made",
-    "lead": "A pile of projects from over the years. Some ended up on thousands of phones, some were beautiful failures. Every one taught me something, so I’ve kept the lesson stapled to it."
+    "lead": "A pile of projects from over the years. Some ended up on thousands of phones, some were beautiful failures. All of them taught me something, so I’ve kept the lesson stapled to it."
   },
   "about": {
     "eyebrow": "Hello",
     "title": "From shaders to screws",
-    "lead": "I’m Merijn, a creative technologist from Utrecht. I’ve been making things with code for about a decade, and I still get the same kick out of it: take some half-finished piece of technology, push it until it does something slightly magic, and watch someone go “wait, how?”.",
+    "lead": "I’m a creative technologist from Utrecht. I've been working on it for about a decade, and I still get the same kick out of it: take some upcoming technology and push it until it does something slightly magical.",
     "body": [
-      "I’m happiest somewhere between the screen and the physical world. I’ll cheerfully jump from a shader to a backend to a soldering iron in the same afternoon — I like seeing the whole thing, not just my corner of it. A lot of what I make is really about connecting the digital and the physical so they stop feeling like separate worlds.",
-      "Most of what I actually know came from side projects and things that broke in interesting ways. I like grabbing tech before it’s really ready — ARKit and ARCore back when you still had to glue them together yourself, multiplayer AR, visual positioning, Vision Pro, whatever the new shiny thing is — and finding out exactly where it falls over.",
-      "I have opinions, and here’s the big one: the demo always lies. Something that works flawlessly on my desk will find a hundred new ways to break the second it meets a real network, real hardware, or a real person who didn’t read the manual. So I’ve learned to build for the messy version of reality instead of the tidy one in the pitch deck.",
-      "Right now I’m poking at AI characters that can actually hold a conversation, visual positioning that makes AR stick to real streets, and a couple of hardware side projects I probably shouldn’t have started. If any of that sounds fun, come say hi."
+      "I’m happiest somewhere between the screen and the physical world. I’ll jump from a shader to a backend to a soldering iron on the same day. I like seeing the whole thing, context is everything. A lot of what I make is really about connecting the digital and the physical so they stop feeling like separate worlds.",
+      "Most of what I actually know came from side projects and things that broke in interesting ways. I like grabbing tech before it’s really ready — ARKit and ARCore back when you still had to glue them together yourself, multiplayer AR, visual positioning, Vision Pro, whatever the new shiny thing is.",
+      "I have some opinions, and here’s the big one: the demo always lies. Something that works flawlessly on my desk will find a hundred new ways to break when it meets a real network, hardware, or person who didn’t read the manual.",
+      "Right now I’m connecting VR players without crossing wires (a real challenge it turns out) and a couple of side projects. If any of that sounds fun, come say hi!"
     ],
     "facts": [
       { "label": "Based in", "value": "Utrecht, Netherlands" },
-      { "label": "Currently into", "value": "AI characters, visual positioning, tiny hardware" },
-      { "label": "Tools I reach for", "value": "Unity, Unreal, the web, a soldering iron" },
-      { "label": "Off the clock", "value": "Side projects, games, taking things apart" }
+      { "label": "Currently into", "value": "Music production, Multiplayer, UX design" },
+      { "label": "Tools I reach for", "value": "Unity, Unreal, full-stack webdev, Arduino" },
+      { "label": "Off the clock", "value": "Baking, History/theology, Fitness" }
     ]
   },
   "contact": {
     "eyebrow": "Say hi",
     "title": "Let’s build something cool together",
-    "lead": "I’m always up for a chat — about a project, a weird idea, or whether a thing is even possible. Drop me a line.",
+    "lead": "I’m always up for a chat, drop me a line.",
     "email": "info@merijnkersten.nl",
     "links": [
       { "href": "https://www.linkedin.com/", "label": "LinkedIn" },
