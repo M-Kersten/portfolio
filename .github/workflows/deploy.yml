@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     # Deploy branch (no `main` in this repo yet). Change here if you adopt main.
-    branches: [claude/loving-maxwell-qmf72n]
+    branches: [origin/claude/editorial-spatial-redesign]
   workflow_dispatch:
 
 permissions:
