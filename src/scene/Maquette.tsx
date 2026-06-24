@@ -1,56 +1,107 @@
 import { createContext, useContext, useMemo, useRef, type CSSProperties } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges, Html, Line } from '@react-three/drei';
-import { Color, type MeshStandardMaterial } from 'three';
+import { Edges, Html, Line, RoundedBox } from '@react-three/drei';
+import { CatmullRomCurve3, Color, Vector3, type Points as ThreePoints, type MeshStandardMaterial } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, type Hotspot, type LayerId } from './framing';
 import { useSceneSelector } from './store';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { caseBySlug } from '../content';
 
 // Scale ladder (top → bottom): City (GIS / location), Room (games / apps / web),
-// Chip (tools / CV / data). Each layer sits on a flat, soft dot field that fades
-// out toward the rim, with the literal objects (buildings, a couch, a chip)
-// authored in LOCAL coords and placed + scaled by a wrapper group. Each layer
-// carries its own accent colour (city = cyan, room = coral, chip = lime); the
-// look is matte and restrained — no neon rim glow.
+// Chip (tools / CV / data). Each layer is a flat field of dots that fade into
+// the background toward the rim, holding rounded, curved-line objects: round
+// towers + domes + curved roads (city), soft furniture (room), a round die +
+// curved traces (chip). Lines are a calm neutral; the layer accent (city =
+// cyan, room = coral, chip = lime) is reserved for highlights, the floor and a
+// sparse drifting point field.
 
+const NEUTRAL = '#9fb6c6'; // soft white-blue — the wireframe lines
 const GLASS = '#5b7da0';
 const BG = '#0a0d10';
 
-// Per-layer palette, supplied through context so every helper picks up the
-// active layer's accent without prop-drilling.
 interface Palette {
   accent: string;
-  edge: string;
-  dim: string;
 }
 const PALETTE: Record<LayerId, Palette> = {
-  city: { accent: '#27e8f2', edge: '#83d8df', dim: '#1d818a' },
-  room: { accent: '#ff9068', edge: '#f0a98f', dim: '#bd6147' },
-  chip: { accent: '#a9f75c', edge: '#bfe592', dim: '#6f9c3c' },
+  city: { accent: '#27e8f2' },
+  room: { accent: '#ff9068' },
+  chip: { accent: '#a9f75c' },
 };
 const AccentCtx = createContext<Palette>(PALETTE.city);
 const useAccent = () => useContext(AccentCtx);
 
 type V3 = [number, number, number];
 
+/* ---------- maths helpers ---------- */
+function circlePts(r: number, seg = 56): V3[] {
+  const p: V3[] = [];
+  for (let i = 0; i <= seg; i++) {
+    const a = (i / seg) * Math.PI * 2;
+    p.push([Math.cos(a) * r, 0, Math.sin(a) * r]);
+  }
+  return p;
+}
+function roundedRectPts(w: number, d: number, r: number, seg = 6): V3[] {
+  const rr = Math.max(0.001, Math.min(r, w / 2 - 0.001, d / 2 - 0.001));
+  const hw = w / 2 - rr;
+  const hd = d / 2 - rr;
+  const pts: V3[] = [];
+  const corner = (cx: number, cz: number, a0: number) => {
+    for (let i = 0; i <= seg; i++) {
+      const a = a0 + (i / seg) * (Math.PI / 2);
+      pts.push([cx + Math.cos(a) * rr, 0, cz + Math.sin(a) * rr]);
+    }
+  };
+  corner(hw, hd, 0);
+  corner(-hw, hd, Math.PI / 2);
+  corner(-hw, -hd, Math.PI);
+  corner(hw, -hd, Math.PI * 1.5);
+  pts.push(pts[0]);
+  return pts;
+}
+function smoothCurve(pts: V3[], n = 50): V3[] {
+  const curve = new CatmullRomCurve3(pts.map((p) => new Vector3(p[0], p[1], p[2])));
+  return curve.getPoints(n).map((v) => [v.x, v.y, v.z] as V3);
+}
+function makeRand(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ---------- materials ---------- */
 function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opacity?: number }) {
   return (
     <meshStandardMaterial
       color={color}
       transparent
       opacity={opacity}
-      roughness={0.32}
+      roughness={0.34}
       metalness={0}
       emissive="#0c2a30"
-      emissiveIntensity={0.16}
+      emissiveIntensity={0.14}
       depthWrite={false}
     />
   );
 }
 
-/** A box whose emissive intensity gently pulses (data / screens / die). */
-function PulseBox({ position, args, base = 0.45, amp = 0.12, speed = 1.6 }: { position: V3; args: V3; base?: number; amp?: number; speed?: number }) {
+/** Flat accent highlight (signage, screens framing, cross, clock, books). */
+function Accent({ position, args, intensity = 0.4, rotation }: { position: V3; args: V3; intensity?: number; rotation?: V3 }) {
+  const { accent } = useAccent();
+  return (
+    <mesh position={position} rotation={rotation}>
+      <boxGeometry args={args} />
+      <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={intensity} roughness={0.4} />
+    </mesh>
+  );
+}
+
+/** Pulsing accent (the chip die, the screens). */
+function PulseBox({ position, args, base = 0.45, amp = 0.12, speed = 1.5 }: { position: V3; args: V3; base?: number; amp?: number; speed?: number }) {
   const { accent } = useAccent();
   const mat = useRef<MeshStandardMaterial>(null);
   const reduced = useReducedMotion();
@@ -65,31 +116,93 @@ function PulseBox({ position, args, base = 0.45, amp = 0.12, speed = 1.6 }: { po
   );
 }
 
-function Accent({ position, args, intensity = 0.4 }: { position: V3; args: V3; intensity?: number }) {
+/* ---------- shape helpers ---------- */
+/** Round, slightly tapered tower: translucent drum with clean rim circles. */
+function Tower({ x, z, r, h }: { x: number; z: number; r: number; h: number }) {
   const { accent } = useAccent();
   return (
-    <mesh position={position}>
-      <boxGeometry args={args} />
-      <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={intensity} roughness={0.4} />
-    </mesh>
+    <group position={[x, 0, z]}>
+      <mesh position={[0, h / 2, 0]}>
+        <cylinderGeometry args={[r * 0.9, r, h, 36]} />
+        <GlassMat />
+        <Edges threshold={30} color={NEUTRAL} />
+      </mesh>
+      <Line points={circlePts(r * 0.66)} position={[0, h + 0.01, 0]} color={accent} lineWidth={1.2} transparent opacity={0.65} />
+    </group>
   );
 }
 
-function GlassBox({ position, args, opacity = 0.2 }: { position: V3; args: V3; opacity?: number }) {
-  const { edge } = useAccent();
+/** Wireframe dome — latitude rings + longitude arcs (clean curved lines). */
+function Dome({ position, r, h, segLat = 3, segLon = 4 }: { position: V3; r: number; h: number; segLat?: number; segLon?: number }) {
+  const lat = useMemo(() => {
+    const out: { r: number; y: number }[] = [{ r, y: 0 }];
+    for (let k = 1; k <= segLat; k++) {
+      const t = (k / (segLat + 0.6)) * (Math.PI / 2);
+      out.push({ r: r * Math.cos(t), y: h * Math.sin(t) });
+    }
+    return out;
+  }, [r, h, segLat]);
+  const lon = useMemo(() => {
+    const out: V3[][] = [];
+    for (let j = 0; j < segLon; j++) {
+      const ang = (j / segLon) * Math.PI * 2;
+      const pts: V3[] = [];
+      for (let k = 0; k <= 8; k++) {
+        const t = (k / 8) * (Math.PI / 2);
+        pts.push([Math.cos(ang) * r * Math.cos(t), h * Math.sin(t), Math.sin(ang) * r * Math.cos(t)]);
+      }
+      out.push(pts);
+    }
+    return out;
+  }, [r, h, segLon]);
   return (
-    <mesh position={position}>
-      <boxGeometry args={args} />
-      <GlassMat opacity={opacity} />
-      <Edges threshold={20} color={edge} />
-    </mesh>
+    <group position={position}>
+      {lat.map((l, i) => (
+        <Line key={`la${i}`} points={circlePts(l.r)} position={[0, l.y, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
+      ))}
+      {lon.map((pts, i) => (
+        <Line key={`lo${i}`} points={pts} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+      ))}
+    </group>
   );
 }
 
-/** Flat layer floor: a disc of dots whose colour fades into the background
- *  toward the rim (gradient transparency), plus a very faint boundary ring. */
-function DotGrid() {
-  const { accent, dim } = useAccent();
+/** Round-canopy tree: a trunk line and a soft sphere ringed by two circles. */
+function TreeRound({ position, h = 0.45 }: { position: V3; h?: number }) {
+  return (
+    <group position={position}>
+      <Line points={[[0, 0, 0], [0, h * 0.5, 0]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+      <group position={[0, h * 0.66, 0]}>
+        <mesh>
+          <sphereGeometry args={[0.13, 14, 12]} />
+          <GlassMat color="#3f8f8a" opacity={0.14} />
+        </mesh>
+        <Line points={circlePts(0.13)} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+        <Line points={circlePts(0.13)} rotation={[Math.PI / 2, 0, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+      </group>
+    </group>
+  );
+}
+
+/** Soft rounded box (furniture, the chip package). Optional top outline. */
+function SoftBox({ position, args, radius = 0.03, opacity = 0.2, outline = false, rotation, color }: { position: V3; args: V3; radius?: number; opacity?: number; outline?: boolean; rotation?: V3; color?: string }) {
+  // Clamp so the corner radius never exceeds half the smallest side.
+  const r = Math.min(radius, Math.min(args[0], args[1], args[2]) / 2 - 0.002);
+  return (
+    <group position={position} rotation={rotation}>
+      <RoundedBox args={args} radius={r} smoothness={3}>
+        <GlassMat opacity={opacity} color={color} />
+      </RoundedBox>
+      {outline && (
+        <Line points={roundedRectPts(args[0], args[2], radius * 1.6)} position={[0, args[1] / 2, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
+      )}
+    </group>
+  );
+}
+
+/** Flat floor of dots that fade into the background toward the rim. No ring. */
+function DotFloor() {
+  const { accent } = useAccent();
   const R = 2.2;
   const step = 0.26;
   const { positions, colors } = useMemo(() => {
@@ -103,385 +216,265 @@ function DotGrid() {
         const d = Math.hypot(x, z);
         if (d > R) continue;
         pos.push(x, 0, z);
-        const fade = Math.pow(1 - d / R, 1.5); // 1 at centre → 0 at rim
-        tmp.copy(bg).lerp(c, 0.12 + 0.78 * fade);
+        const fade = Math.pow(1 - d / R, 1.5);
+        tmp.copy(bg).lerp(c, 0.1 + 0.78 * fade);
         col.push(tmp.r, tmp.g, tmp.b);
       }
     return { positions: new Float32Array(pos), colors: new Float32Array(col) };
   }, [accent]);
-  const ring = useMemo<V3[]>(() => {
-    const p: V3[] = [];
-    for (let i = 0; i <= 64; i++) {
-      const a = (i / 64) * Math.PI * 2;
-      p.push([Math.cos(a) * R, 0, Math.sin(a) * R]);
-    }
-    return p;
-  }, []);
   return (
-    <group>
-      <points>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-          <bufferAttribute attach="attributes-color" args={[colors, 3]} />
-        </bufferGeometry>
-        <pointsMaterial size={0.03} vertexColors transparent opacity={0.85} sizeAttenuation depthWrite={false} />
-      </points>
-      <Line points={ring} color={dim} lineWidth={1} transparent opacity={0.12} />
-    </group>
+    <points>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[colors, 3]} />
+      </bufferGeometry>
+      <pointsMaterial size={0.028} vertexColors transparent opacity={0.82} sizeAttenuation depthWrite={false} />
+    </points>
   );
 }
 
-function Tree({ position, h = 0.5 }: { position: V3; h?: number }) {
-  const { edge } = useAccent();
+/** A sparse field of accent points drifting slowly above the layer. */
+function PointCloud({ seed }: { seed: number }) {
+  const { accent } = useAccent();
+  const ref = useRef<ThreePoints>(null);
+  const reduced = useReducedMotion();
+  const positions = useMemo(() => {
+    const rnd = makeRand(seed);
+    const n = 60;
+    const a = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const ang = rnd() * Math.PI * 2;
+      const r = Math.sqrt(rnd()) * 2.05;
+      a[i * 3] = Math.cos(ang) * r;
+      a[i * 3 + 1] = 0.3 + rnd() * 1.15;
+      a[i * 3 + 2] = Math.sin(ang) * r;
+    }
+    return a;
+  }, [seed]);
+  useFrame((state) => {
+    if (ref.current && !reduced) ref.current.rotation.y = state.clock.elapsedTime * 0.025;
+  });
   return (
-    <group position={position}>
-      <mesh position={[0, h * 0.25, 0]}>
-        <cylinderGeometry args={[0.022, 0.028, h * 0.5, 6]} />
-        <GlassMat opacity={0.28} />
-      </mesh>
-      <mesh position={[0, h * 0.62, 0]}>
-        <coneGeometry args={[0.15, h * 0.5, 7]} />
-        <GlassMat color="#3f8f8a" opacity={0.24} />
-        <Edges threshold={30} color={edge} />
-      </mesh>
-      <mesh position={[0, h * 0.92, 0]}>
-        <coneGeometry args={[0.1, h * 0.4, 7]} />
-        <GlassMat color="#3f8f8a" opacity={0.24} />
-        <Edges threshold={30} color={edge} />
-      </mesh>
-    </group>
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial size={0.022} color={accent} transparent opacity={0.5} sizeAttenuation depthWrite={false} />
+    </points>
   );
 }
 
 /* ---------- City — GIS & location (top) ---------- */
-
-/** A park block — the home of the niantic-explorer hotspot. */
 function Park({ position }: { position: V3 }) {
-  const { dim } = useAccent();
-  const border: V3[] = [
-    [-0.46, 0.022, -0.46], [0.46, 0.022, -0.46], [0.46, 0.022, 0.46], [-0.46, 0.022, 0.46], [-0.46, 0.022, -0.46],
-  ];
+  const { accent } = useAccent();
   return (
     <group position={position}>
-      {/* lawn */}
       <mesh position={[0, 0.012, 0]}>
-        <boxGeometry args={[0.94, 0.02, 0.94]} />
-        <GlassMat color="#2f8a6e" opacity={0.18} />
+        <cylinderGeometry args={[0.5, 0.5, 0.02, 44]} />
+        <GlassMat color="#2f8a6e" opacity={0.15} />
       </mesh>
-      <Line points={border} color={dim} lineWidth={1} transparent opacity={0.55} />
+      <Line points={circlePts(0.5)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
       {/* pond */}
-      <mesh position={[-0.16, 0.024, 0.18]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.16, 28]} />
-        <GlassMat color="#2e7f86" opacity={0.24} />
+      <mesh position={[-0.14, 0.02, 0.16]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.15, 28]} />
+        <GlassMat color="#2e7f86" opacity={0.28} />
       </mesh>
-      {/* a winding path */}
-      <Line points={[[-0.46, 0.026, -0.1], [0.05, 0.026, 0.0], [0.14, 0.026, 0.46]]} color={dim} lineWidth={1.2} transparent opacity={0.45} />
-      {/* trees */}
-      <Tree position={[0.22, 0, -0.2]} h={0.46} />
-      <Tree position={[0.26, 0, 0.24]} h={0.38} />
-      <Tree position={[-0.24, 0, -0.26]} h={0.42} />
+      <Line points={circlePts(0.15)} position={[-0.14, 0.03, 0.16]} color={accent} lineWidth={1} transparent opacity={0.5} />
+      <TreeRound position={[0.2, 0, -0.18]} h={0.44} />
+      <TreeRound position={[0.24, 0, 0.22]} h={0.36} />
+      <TreeRound position={[-0.22, 0, -0.24]} h={0.4} />
     </group>
   );
 }
 
-/** A civic town hall — the anchor for the municipal-twin (live) hotspot. */
 function TownHall({ position }: { position: V3 }) {
-  const { edge } = useAccent();
   return (
     <group position={position}>
-      {/* steps */}
-      <GlassBox position={[0, 0.025, 0.3]} args={[0.5, 0.05, 0.14]} opacity={0.28} />
-      {/* main block */}
-      <mesh position={[0, 0.27, 0]}>
-        <boxGeometry args={[0.62, 0.5, 0.46]} />
+      {/* steps / plinth */}
+      <mesh position={[0, 0.02, 0]}>
+        <cylinderGeometry args={[0.42, 0.44, 0.04, 40]} />
+        <GlassMat opacity={0.16} />
+        <Edges threshold={30} color={NEUTRAL} />
+      </mesh>
+      {/* drum */}
+      <mesh position={[0, 0.31, 0]}>
+        <cylinderGeometry args={[0.3, 0.33, 0.52, 40]} />
         <GlassMat />
-        <Edges threshold={20} color={edge} />
+        <Edges threshold={30} color={NEUTRAL} />
       </mesh>
-      {/* cornice band */}
-      <Accent position={[0, 0.52, 0]} args={[0.66, 0.015, 0.5]} intensity={0.35} />
-      {/* portico columns */}
-      {[-0.22, -0.075, 0.075, 0.22].map((x, i) => (
-        <mesh key={i} position={[x, 0.18, 0.235]}>
-          <cylinderGeometry args={[0.016, 0.016, 0.34, 8]} />
-          <GlassMat opacity={0.32} />
-        </mesh>
-      ))}
-      {/* clock tower */}
-      <mesh position={[0, 0.67, -0.02]}>
-        <boxGeometry args={[0.2, 0.34, 0.2]} />
-        <GlassMat />
-        <Edges threshold={20} color={edge} />
-      </mesh>
-      {/* clock face */}
-      <Accent position={[0, 0.72, 0.092]} args={[0.08, 0.08, 0.012]} intensity={0.5} />
-      {/* spire */}
-      <mesh position={[0, 0.9, -0.02]}>
-        <coneGeometry args={[0.1, 0.16, 4]} />
-        <GlassMat opacity={0.28} />
-        <Edges threshold={30} color={edge} />
-      </mesh>
+      {/* dome + clock */}
+      <Dome position={[0, 0.57, 0]} r={0.3} h={0.24} segLat={3} segLon={6} />
+      <Accent position={[0, 0.62, 0.31]} args={[0.09, 0.09, 0.012]} intensity={0.45} />
     </group>
   );
 }
 
 function CityRig() {
-  const { edge, dim } = useAccent();
-  // A clean block grid: two avenues, two streets, leaving a civic block (town
-  // hall) in the centre and a park block to the south.
-  const roads: V3[][] = [
-    [[-2, 0.01, -0.75], [2, 0.01, -0.75]],
-    [[-2, 0.01, 0.4], [2, 0.01, 0.4]],
-    [[-0.55, 0.01, -2], [-0.55, 0.01, 2]],
-    [[1.42, 0.01, -2], [1.42, 0.01, 2]],
-  ];
-  // [x, z, height, footprint, hasAntenna]
-  const buildings: [number, number, number, number, boolean][] = [
-    [-1.35, -1.3, 0.55, 0.34, true],
-    [-1.3, -0.05, 0.34, 0.3, false],
-    [0.2, -1.3, 0.46, 0.32, false],
-    [0.85, -1.15, 0.6, 0.3, true],
-    [1.8, -1.2, 0.4, 0.3, false],
-    [1.8, 0.0, 0.34, 0.34, false],
-    [-1.35, 1.3, 0.3, 0.3, false],
-    [1.85, 1.2, 0.5, 0.3, true],
+  const roadA = useMemo(() => smoothCurve([[-2.1, 0.01, -0.55], [-0.7, 0.01, -0.25], [0.5, 0.01, 0.25], [2.1, 0.01, 0.55]]), []);
+  const roadB = useMemo(() => smoothCurve([[-0.5, 0.01, -2.1], [-0.15, 0.01, -0.4], [0.05, 0.01, 0.5], [0.35, 0.01, 2.1]]), []);
+  const towers: { x: number; z: number; r: number; h: number }[] = [
+    { x: -1.35, z: -1.25, r: 0.2, h: 0.6 },
+    { x: -1.4, z: 0.1, r: 0.17, h: 0.36 },
+    { x: 1.5, z: -1.2, r: 0.18, h: 0.46 },
+    { x: 1.7, z: 0.1, r: 0.2, h: 0.34 },
+    { x: 1.55, z: 1.35, r: 0.17, h: 0.5 },
   ];
   return (
     <group>
-      {roads.map((r, i) => (
-        <Line key={i} points={r} color={dim} lineWidth={1.2} transparent opacity={0.5} />
-      ))}
-      {/* centre-line lane dashes */}
-      {[-1.5, -1.0, -0.5, 0.0, 0.7, 1.2, 1.7].map((x, i) => (
-        <Line key={`d${i}`} points={[[x, 0.02, -0.75], [x + 0.16, 0.02, -0.75]]} color={dim} lineWidth={1.2} transparent opacity={0.7} />
+      <Line points={roadA} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.38} />
+      <Line points={roadB} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.38} />
+      {towers.map((t, i) => (
+        <Tower key={i} {...t} />
       ))}
 
-      {buildings.map(([bx, bz, h, w, ant], i) => (
-        <group key={i} position={[bx, 0, bz]}>
-          <mesh position={[0, h / 2, 0]}>
-            <boxGeometry args={[w, h, w]} />
-            <GlassMat />
-            <Edges threshold={20} color={edge} />
-          </mesh>
-          <Accent position={[0, h + 0.008, 0]} args={[w * 0.7, 0.014, w * 0.7]} intensity={0.32} />
-          {ant && (
-            <mesh position={[w * 0.22, h + 0.13, w * 0.22]}>
-              <cylinderGeometry args={[0.004, 0.004, 0.26, 6]} />
-              <meshStandardMaterial color={edge} emissive={edge} emissiveIntensity={0.5} />
-            </mesh>
-          )}
-        </group>
-      ))}
-
-      {/* church: nave + steeple + spire + cross */}
+      {/* church: round nave + dome + cross */}
       <group position={[-1.4, 0, 0.95]}>
-        <GlassBox position={[0, 0.18, 0]} args={[0.34, 0.36, 0.5]} />
-        <GlassBox position={[0, 0.32, -0.28]} args={[0.2, 0.64, 0.2]} />
-        <mesh position={[0, 0.78, -0.28]}>
-          <coneGeometry args={[0.15, 0.34, 4]} />
-          <GlassMat opacity={0.28} />
-          <Edges threshold={30} color={edge} />
+        <mesh position={[0, 0.2, 0]}>
+          <cylinderGeometry args={[0.17, 0.19, 0.4, 28]} />
+          <GlassMat />
+          <Edges threshold={30} color={NEUTRAL} />
         </mesh>
-        <Accent position={[0, 1.02, -0.28]} args={[0.015, 0.13, 0.015]} intensity={0.6} />
-        <Accent position={[0, 1.0, -0.28]} args={[0.08, 0.015, 0.015]} intensity={0.6} />
+        <Dome position={[0, 0.4, 0]} r={0.19} h={0.18} segLat={2} segLon={5} />
+        <Accent position={[0, 0.66, 0]} args={[0.012, 0.12, 0.012]} intensity={0.55} />
+        <Accent position={[0, 0.64, 0]} args={[0.07, 0.012, 0.012]} intensity={0.55} />
       </group>
 
-      {/* the town hall (live municipal twin) and the park (niantic explorer) */}
       <TownHall position={[0.2, 0, -0.2]} />
       <Park position={[0.9, 0, 0.9]} />
 
-      {/* a couple of street trees outside the park */}
-      <Tree position={[-0.9, 0, -1.1]} h={0.4} />
-      <Tree position={[1.1, 0, -0.45]} h={0.36} />
+      <TreeRound position={[-0.85, 0, -1.05]} h={0.4} />
+      <TreeRound position={[1.05, 0, -0.5]} h={0.34} />
     </group>
   );
 }
 
 /* ---------- Room — games, apps & websites (middle) ---------- */
 function RoomRig() {
-  const { accent, edge, dim } = useAccent();
+  const { accent } = useAccent();
   return (
     <group>
-      {/* carpet */}
-      <mesh position={[0.05, 0.012, 0.45]}>
-        <boxGeometry args={[1.7, 0.02, 1.15]} />
-        <GlassMat opacity={0.14} />
+      {/* round rug */}
+      <mesh position={[0.05, 0.012, 0.4]}>
+        <cylinderGeometry args={[0.98, 0.98, 0.02, 48]} />
+        <GlassMat opacity={0.12} />
       </mesh>
-      <Line
-        points={[[-0.78, 0.025, -0.06], [0.88, 0.025, -0.06], [0.88, 0.025, 0.96], [-0.78, 0.025, 0.96], [-0.78, 0.025, -0.06]]}
-        color={dim}
-        lineWidth={1}
-        transparent
-        opacity={0.55}
-      />
+      <Line points={circlePts(0.98)} position={[0.05, 0.024, 0.4]} color={NEUTRAL} lineWidth={1} transparent opacity={0.32} />
 
-      {/* desk + monitor (virtuele-brigade lives on the screen) + keyboard */}
+      {/* desk + monitor (virtuele-brigade lives on the screen) */}
       <group position={[0, 0, -1.05]}>
-        <GlassBox position={[0, 0.36, 0]} args={[0.95, 0.05, 0.45]} />
+        <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline />
         {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
           <mesh key={i} position={[lx, 0.18, lz]}>
-            <boxGeometry args={[0.04, 0.36, 0.04]} />
-            <GlassMat opacity={0.28} />
+            <cylinderGeometry args={[0.02, 0.02, 0.36, 12]} />
+            <GlassMat opacity={0.26} />
           </mesh>
         ))}
-        {/* monitor on a stand */}
         <mesh position={[0, 0.45, -0.05]}>
-          <cylinderGeometry args={[0.016, 0.016, 0.14, 10]} />
-          <GlassMat opacity={0.28} />
+          <cylinderGeometry args={[0.016, 0.016, 0.14, 12]} />
+          <GlassMat opacity={0.26} />
         </mesh>
-        <GlassBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} />
+        <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} />
         <PulseBox position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} base={0.4} amp={0.1} speed={1.2} />
-        <Accent position={[-0.1, 0.69, -0.115]} args={[0.24, 0.02, 0.004]} intensity={0.35} />
-        {/* keyboard */}
-        <GlassBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} opacity={0.28} />
+        <SoftBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} radius={0.012} opacity={0.26} />
       </group>
 
-      {/* desk chair */}
+      {/* chair */}
       <group position={[0, 0, -0.55]}>
-        <GlassBox position={[0, 0.24, 0]} args={[0.28, 0.05, 0.28]} />
-        <GlassBox position={[0, 0.4, -0.13]} args={[0.28, 0.3, 0.05]} />
+        <SoftBox position={[0, 0.24, 0]} args={[0.3, 0.06, 0.3]} radius={0.05} />
+        <SoftBox position={[0, 0.42, -0.14]} args={[0.3, 0.32, 0.05]} radius={0.05} />
         <mesh position={[0, 0.12, 0]}>
-          <cylinderGeometry args={[0.022, 0.022, 0.24, 10]} />
-          <GlassMat opacity={0.28} />
+          <cylinderGeometry args={[0.022, 0.022, 0.24, 12]} />
+          <GlassMat opacity={0.26} />
         </mesh>
       </group>
 
       {/* couch with a phone on it (popcore-games lives on the phone screen) */}
       <group position={[0.1, 0, 0.78]}>
-        <GlassBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} />
-        <GlassBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.08]} />
-        <GlassBox position={[-0.46, 0.22, 0]} args={[0.08, 0.24, 0.44]} />
-        <GlassBox position={[0.46, 0.22, 0]} args={[0.08, 0.24, 0.44]} />
-        {/* a cushion */}
-        <GlassBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} opacity={0.24} />
-        {/* phone resting on the seat, screen up */}
+        <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline />
+        <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} />
+        <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
+        <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
+        <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} />
         <mesh position={[0.12, 0.205, 0.06]} rotation={[-Math.PI / 2, 0, 0.3]}>
-          <boxGeometry args={[0.09, 0.18, 0.012]} />
-          <GlassMat opacity={0.38} />
-        </mesh>
-        <mesh position={[0.122, 0.212, 0.06]} rotation={[-Math.PI / 2, 0, 0.3]}>
           <boxGeometry args={[0.075, 0.155, 0.004]} />
           <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} />
         </mesh>
       </group>
 
-      {/* bookcase against the left edge */}
+      {/* bookcase */}
       <group position={[-1.55, 0, 0.1]}>
-        <GlassBox position={[0, 0.45, 0]} args={[0.12, 0.9, 0.72]} />
-        {[0.16, 0.42, 0.68].map((y, i) => (
-          <GlassBox key={i} position={[0, y, 0]} args={[0.12, 0.015, 0.7]} opacity={0.28} />
-        ))}
+        <SoftBox position={[0, 0.45, 0]} args={[0.14, 0.9, 0.72]} radius={0.02} />
         {Array.from({ length: 9 }).map((_, i) => {
           const shelf = Math.floor(i / 3);
           const idx = i % 3;
           return (
-            <mesh key={i} position={[0.01, 0.24 + shelf * 0.26, -0.22 + idx * 0.18 + (i % 2) * 0.03]}>
+            <mesh key={i} position={[0.02, 0.24 + shelf * 0.26, -0.22 + idx * 0.18 + (i % 2) * 0.03]}>
               <boxGeometry args={[0.07, 0.16, 0.035]} />
-              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.12 + (i % 3) * 0.07} roughness={0.55} />
+              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.12 + (i % 3) * 0.06} roughness={0.55} />
             </mesh>
           );
         })}
       </group>
 
-      {/* a potted plant for a little life */}
-      <group position={[0.95, 0, 0.0]}>
-        <mesh position={[0, 0.08, 0]}>
-          <cylinderGeometry args={[0.07, 0.05, 0.16, 12]} />
-          <GlassMat opacity={0.3} />
-          <Edges threshold={20} color={edge} />
-        </mesh>
-        <mesh position={[0, 0.26, 0]}>
-          <coneGeometry args={[0.12, 0.3, 7]} />
-          <GlassMat color="#3f8f8a" opacity={0.24} />
-          <Edges threshold={30} color={edge} />
-        </mesh>
-      </group>
+      {/* a round plant */}
+      <TreeRound position={[0.98, 0, 0.0]} h={0.5} />
     </group>
   );
 }
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
 function ChipRig() {
-  const { accent, edge, dim } = useAccent();
-  const pins: V3[] = [];
-  for (let i = 0; i < 8; i++) {
-    const t = -0.56 + i * 0.16;
-    pins.push([0.72, 0.04, t], [-0.72, 0.04, t], [t, 0.04, 0.72], [t, 0.04, -0.72]);
-  }
-  const traces: V3[][] = [
-    [[0.64, 0.02, 0.3], [1.1, 0.02, 0.52]],
-    [[0.64, 0.02, -0.2], [1.05, 0.02, -0.48]],
-    [[-0.64, 0.02, 0.12], [-1.05, 0.02, 0.38]],
-    [[-0.64, 0.02, -0.3], [-1.02, 0.02, -0.58]],
-    [[0.2, 0.02, 0.64], [0.42, 0.02, 1.05]],
-    [[-0.3, 0.02, -0.64], [-0.5, 0.02, -1.0]],
-  ];
-  const bracket = (c: V3, sx: number, sy: number): V3[] => [
-    [c[0] + sx * 0.1, c[1], c[2]],
-    c,
-    [c[0], c[1], c[2] + sy * 0.1],
-  ];
-  const cvc = 0.16;
+  const { accent } = useAccent();
+  const traces = useMemo(
+    () => [
+      smoothCurve([[0.22, 0.16, 0.12], [0.5, 0.16, 0.32], [0.92, 0.16, 0.5]]),
+      smoothCurve([[0.22, 0.16, -0.1], [0.52, 0.16, -0.32], [0.96, 0.16, -0.52]]),
+      smoothCurve([[-0.22, 0.16, 0.1], [-0.52, 0.16, 0.32], [-0.96, 0.16, 0.46]]),
+      smoothCurve([[-0.22, 0.16, -0.12], [-0.5, 0.16, -0.34], [-0.9, 0.16, -0.6]]),
+      smoothCurve([[0.1, 0.16, 0.22], [0.28, 0.16, 0.55], [0.42, 0.16, 1.0]]),
+    ],
+    [],
+  );
   const cv: V3 = [0.85, 0.16, 0.85];
-  const cvCorners: [V3, number, number][] = [
-    [[cv[0] - cvc, cv[1], cv[2] - cvc], 1, 1],
-    [[cv[0] + cvc, cv[1], cv[2] - cvc], -1, 1],
-    [[cv[0] - cvc, cv[1], cv[2] + cvc], 1, -1],
-    [[cv[0] + cvc, cv[1], cv[2] + cvc], -1, -1],
-  ];
   return (
     <group>
-      {/* package */}
-      <GlassBox position={[0, 0.06, 0]} args={[1.25, 0.12, 1.25]} />
-      {/* the die / "brain" — amsterdam-ai hotspot sits just above this */}
-      <PulseBox position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} base={0.45} amp={0.14} speed={1.5} />
-      {[-0.12, 0, 0.12].map((o, i) => (
-        <group key={i}>
-          <Line points={[[-0.18, 0.155, o], [0.18, 0.155, o]]} color={edge} lineWidth={1} transparent opacity={0.6} />
-          <Line points={[[o, 0.155, -0.18], [o, 0.155, 0.18]]} color={edge} lineWidth={1} transparent opacity={0.6} />
-        </group>
-      ))}
-      {pins.map((p, i) => (
-        <mesh key={i} position={p}>
-          <boxGeometry args={[0.09, 0.04, 0.07]} />
-          <GlassMat opacity={0.32} />
-        </mesh>
-      ))}
+      {/* rounded package + die (the die is the accent) */}
+      <SoftBox position={[0, 0.06, 0]} args={[1.25, 0.12, 1.25]} radius={0.08} outline />
+      <PulseBox position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} base={0.5} amp={0.14} speed={1.5} />
+      <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.155, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
+
+      {/* curved traces */}
       {traces.map((t, i) => (
-        <group key={i}>
-          <Line points={t} color={dim} lineWidth={1.3} transparent opacity={0.7} />
-          <Accent position={t[1]} args={[0.07, 0.025, 0.07]} intensity={0.32} />
-        </group>
+        <Line key={i} points={t} color={NEUTRAL} lineWidth={1.1} transparent opacity={0.55} />
       ))}
-      {/* components: capacitors (custom-ar-framework hotspot sits on the first),
-          a resistor and a crystal */}
-      {([[0.42, 0.4], [0.56, 0.28]] as [number, number][]).map(([cx, cz], i) => (
+
+      {/* round components (custom-ar-framework hotspot sits on the first) */}
+      {([[0.42, 0.4], [0.56, 0.28], [-0.46, 0.42]] as [number, number][]).map(([cx, cz], i) => (
         <mesh key={i} position={[cx, 0.13, cz]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.12, 16]} />
+          <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
           <GlassMat opacity={0.34} />
-          <Edges threshold={20} color={edge} />
+          <Edges threshold={30} color={NEUTRAL} />
         </mesh>
       ))}
-      <GlassBox position={[-0.42, 0.105, 0.46]} args={[0.16, 0.05, 0.07]} opacity={0.33} />
-      <GlassBox position={[-0.5, 0.115, -0.4]} args={[0.18, 0.07, 0.1]} opacity={0.33} />
-      {/* database stack */}
+      <SoftBox position={[-0.5, 0.11, -0.4]} args={[0.18, 0.07, 0.1]} radius={0.02} opacity={0.32} />
+
+      {/* round database stack (top platter is the accent) */}
       <group position={[-0.92, 0, -0.92]}>
         {[0, 1, 2].map((i) => (
           <mesh key={i} position={[0, 0.05 + i * 0.07, 0]}>
-            <cylinderGeometry args={[0.13, 0.13, 0.06, 20]} />
+            <cylinderGeometry args={[0.13, 0.13, 0.06, 28]} />
             {i === 2 ? (
               <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.4} roughness={0.45} />
             ) : (
               <GlassMat opacity={0.28} />
             )}
-            {i !== 2 && <Edges threshold={20} color={edge} />}
+            {i !== 2 && <Edges threshold={30} color={NEUTRAL} />}
           </mesh>
         ))}
       </group>
-      {/* computer-vision bounding box */}
-      <GlassBox position={cv} args={[0.18, 0.18, 0.18]} opacity={0.28} />
-      {cvCorners.map((c, i) => (
-        <Line key={i} points={bracket(c[0], c[1], c[2])} color={accent} lineWidth={1.6} transparent opacity={0.8} />
-      ))}
+
+      {/* computer-vision frame (accent outline) */}
+      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[cv[0], cv[1], cv[2]]} color={accent} lineWidth={1.4} transparent opacity={0.75} />
     </group>
   );
 }
@@ -510,6 +503,7 @@ function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color
 }
 
 const RIGS: Record<LayerId, () => JSX.Element> = { city: CityRig, room: RoomRig, chip: ChipRig };
+const SEED: Record<LayerId, number> = { city: 11, room: 29, chip: 53 };
 
 export interface MaquetteProps {
   onActivate: (hotspot: Hotspot) => void;
@@ -526,7 +520,8 @@ export function Maquette({ onActivate }: MaquetteProps) {
         return (
           <AccentCtx.Provider key={layer.id} value={PALETTE[layer.id]}>
             <group position={[0, LAYER_Y[layer.id], 0]} scale={LAYER_SCALE[layer.id]}>
-              <DotGrid />
+              <DotFloor />
+              <PointCloud seed={SEED[layer.id]} />
               <Rig />
               {activeLayer === layer.id &&
                 HOTSPOTS.filter((h) => h.layer === layer.id).map((h) => (

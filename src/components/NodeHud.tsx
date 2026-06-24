@@ -52,7 +52,7 @@ export function NodeHud() {
   if (!study) return <Navigate to="/" replace />;
 
   return (
-    <aside className="node-hud" role="dialog" aria-label={study.title}>
+    <aside className="node-hud" data-layer={study.layer} role="dialog" aria-label={study.title}>
       <button ref={closeRef} type="button" className="node-hud__close" onClick={close} aria-label="Close node">
         <span aria-hidden="true">✕</span>
       </button>
