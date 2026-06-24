@@ -28,26 +28,29 @@ export const LAYER_SCALE: Record<LayerId, number> = { city: 1.15, room: 1.0, chi
 export interface Hotspot {
   slug: string;
   layer: LayerId;
-  /** Position LOCAL to the layer group (which is positioned at LAYER_Y and scaled). */
+  /** Floating marker (dot) position, LOCAL to the layer group. */
   position: [number, number, number];
+  /** Point ON the object the leader line points down to (local). */
+  anchor?: [number, number, number];
   /** The twin hotspot flies into the district instead of opening a modal (§4). */
   twin?: boolean;
 }
 
-// Hotspots sit ON the relevant object in each layer (positions are local to the
-// layer group, which is placed at LAYER_Y and scaled).
+// Each hotspot is a dot floating clear of the diorama with a leader line down to
+// the object it belongs to (anchor). Positions are local to the layer group
+// (placed at LAYER_Y and scaled).
 export const HOTSPOTS: Hotspot[] = [
-  // Chip — on actual chip parts
-  { slug: 'amsterdam-ai', layer: 'chip', position: [0, 0.27, 0] }, // the die / "brain"
-  { slug: 'custom-ar-framework', layer: 'chip', position: [0.42, 0.3, 0.4] }, // a component
-  { slug: 'philips-medical-xr', layer: 'chip', position: [0.5, 0.32, -0.5] }, // the ECG / Vision Pro module
-  // Room — on the things they live on
-  { slug: 'virtuele-brigade', layer: 'room', position: [0, 0.74, -1.16] }, // the monitor
-  { slug: 'popcore-games', layer: 'room', position: [0.22, 0.36, 0.84] }, // phone on the couch
-  { slug: 'lightship-drive', layer: 'room', position: [0.12, 0.42, 1.35] }, // the AR race table
+  // Chip — the die sits centre; parts fan outwards
+  { slug: 'amsterdam-ai', layer: 'chip', position: [0, 0.56, 0], anchor: [0, 0.16, 0] }, // the die
+  { slug: 'custom-ar-framework', layer: 'chip', position: [0.42, 0.58, 0.4], anchor: [0.42, 0.2, 0.4] }, // a component
+  { slug: 'philips-medical-xr', layer: 'chip', position: [0.5, 0.62, -0.5], anchor: [0.5, 0.24, -0.5] }, // ECG / Vision Pro module
+  // Room — spread into a corner diorama
+  { slug: 'virtuele-brigade', layer: 'room', position: [-0.9, 1.16, -1.14], anchor: [-0.9, 0.78, -1.14] }, // the monitor
+  { slug: 'popcore-games', layer: 'room', position: [1.07, 0.64, 0.91], anchor: [1.07, 0.24, 0.91] }, // phone on the couch
+  { slug: 'lightship-drive', layer: 'room', position: [0, 0.7, 1.0], anchor: [0, 0.3, 1.0] }, // the AR race table
   // City — on real places; the twin flies into the live district
-  { slug: 'niantic-explorer', layer: 'city', position: [0.9, 0.26, 0.9] }, // the park
-  { slug: 'municipal-twin', layer: 'city', position: [0.2, 0.82, -0.2], twin: true }, // town hall
+  { slug: 'niantic-explorer', layer: 'city', position: [0.9, 0.6, 0.9], anchor: [0.9, 0.06, 0.9] }, // the park
+  { slug: 'municipal-twin', layer: 'city', position: [0.2, 1.22, -0.2], anchor: [0.2, 0.82, -0.2], twin: true }, // town hall
 ];
 
 export interface Framing {
@@ -55,10 +58,17 @@ export interface Framing {
   target: Vector3;
 }
 
-/** World position of a hotspot, accounting for its layer's offset + scale. */
+/** World position of a hotspot dot, accounting for its layer's offset + scale. */
 export function hotspotWorld(h: Hotspot): Vector3 {
   const s = LAYER_SCALE[h.layer];
   return new Vector3(h.position[0] * s, LAYER_Y[h.layer] + h.position[1] * s, h.position[2] * s);
+}
+
+/** World position of the object the hotspot points to (its anchor). */
+export function anchorWorld(h: Hotspot): Vector3 {
+  const a = h.anchor ?? h.position;
+  const s = LAYER_SCALE[h.layer];
+  return new Vector3(a[0] * s, LAYER_Y[h.layer] + a[1] * s, a[2] * s);
 }
 
 /** Establishing three-quarter view used as the camera's initial pose. */
@@ -81,13 +91,13 @@ export function journeyView(step: number): Framing {
 
 const NODE_OFFSET = new Vector3(1.6, 0.7, 2.4);
 
-/** Closer look at a selected node. Aims a little below the node so it frames in
- *  the upper area, clear of the bottom dossier HUD. */
+/** Closer look at a selected node. Frames the object (anchor) in the upper area,
+ *  clear of the bottom dossier HUD, with its floating dot + label above. */
 export function nodeView(hotspot: Hotspot): Framing {
-  const world = hotspotWorld(hotspot);
+  const obj = anchorWorld(hotspot);
   return {
-    pos: world.clone().add(NODE_OFFSET),
-    target: world.clone().add(new Vector3(0, -0.65, 0)),
+    pos: obj.clone().add(NODE_OFFSET),
+    target: obj.clone().add(new Vector3(0, -0.05, 0)),
   };
 }
 

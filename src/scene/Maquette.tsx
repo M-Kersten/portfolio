@@ -399,19 +399,64 @@ function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
   );
 }
 
+/** A floor lamp with a glowing shade. */
+function FloorLamp({ position }: { position: V3 }) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.006, 0]}>
+        <cylinderGeometry args={[0.12, 0.13, 0.012, 24]} />
+        <GlassMat opacity={0.22} />
+      </mesh>
+      <mesh position={[0, 0.34, 0]}>
+        <cylinderGeometry args={[0.01, 0.01, 0.66, 8]} />
+        <GlassMat opacity={0.3} />
+      </mesh>
+      <mesh position={[0, 0.72, 0]}>
+        <coneGeometry args={[0.14, 0.18, 22, 1, true]} />
+        <GlassMat opacity={0.2} />
+        <Edges threshold={30} color={NEUTRAL} />
+      </mesh>
+      <Accent position={[0, 0.66, 0]} args={[0.07, 0.02, 0.07]} intensity={0.5} />
+    </group>
+  );
+}
+
+/** A low media console with a small glowing TV (games / apps / web). */
+function MediaConsole({ position }: { position: V3 }) {
+  const { accent } = useAccent();
+  return (
+    <group position={position}>
+      <SoftBox position={[0, 0.16, 0]} args={[0.34, 0.26, 0.78]} radius={0.03} outline />
+      {([-0.3, 0.3] as number[]).map((z, i) => (
+        <mesh key={i} position={[0, 0.03, z]}>
+          <boxGeometry args={[0.3, 0.05, 0.04]} />
+          <GlassMat opacity={0.26} />
+        </mesh>
+      ))}
+      {/* TV facing the room (+x) */}
+      <SoftBox position={[0.02, 0.5, 0]} args={[0.04, 0.4, 0.66]} radius={0.02} />
+      <mesh position={[0.045, 0.5, 0]}>
+        <boxGeometry args={[0.006, 0.32, 0.58]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.42} roughness={0.4} />
+      </mesh>
+    </group>
+  );
+}
+
 function RoomRig() {
   const { accent } = useAccent();
   return (
     <group>
-      {/* round rug */}
-      <mesh position={[0.05, 0.012, 0.4]}>
-        <cylinderGeometry args={[0.98, 0.98, 0.02, 48]} />
+      {/* round rug anchoring the seating area */}
+      <mesh position={[0.25, 0.012, 0.45]}>
+        <cylinderGeometry args={[1.05, 1.05, 0.02, 56]} />
         <GlassMat opacity={0.12} />
       </mesh>
-      <Line points={circlePts(0.98)} position={[0.05, 0.024, 0.4]} color={NEUTRAL} lineWidth={1} transparent opacity={0.32} />
+      <Line points={circlePts(1.05)} position={[0.25, 0.024, 0.45]} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
+      <Line points={circlePts(0.78)} position={[0.25, 0.026, 0.45]} color={accent} lineWidth={1} transparent opacity={0.16} />
 
-      {/* desk + monitor (virtuele-brigade lives on the screen) */}
-      <group position={[0, 0, -1.05]}>
+      {/* desk + monitor + VR headset (back-left) */}
+      <group position={[-0.9, 0, -1.0]}>
         <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline />
         {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
           <mesh key={i} position={[lx, 0.18, lz]}>
@@ -426,10 +471,18 @@ function RoomRig() {
         <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} />
         <PulseBox position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} base={0.4} amp={0.1} speed={1.2} />
         <SoftBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} radius={0.012} opacity={0.26} />
+        {/* desk clutter: a mug + papers */}
+        <mesh position={[-0.36, 0.42, 0.12]}>
+          <cylinderGeometry args={[0.03, 0.03, 0.06, 14]} />
+          <GlassMat opacity={0.34} />
+          <Edges threshold={30} color={NEUTRAL} />
+        </mesh>
+        <SoftBox position={[-0.05, 0.405, 0.14]} args={[0.13, 0.012, 0.17]} radius={0.004} opacity={0.3} />
+        <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
       </group>
 
       {/* chair */}
-      <group position={[0, 0, -0.55]}>
+      <group position={[-0.55, 0, -0.42]}>
         <SoftBox position={[0, 0.24, 0]} args={[0.3, 0.06, 0.3]} radius={0.05} />
         <SoftBox position={[0, 0.42, -0.14]} args={[0.3, 0.32, 0.05]} radius={0.05} />
         <mesh position={[0, 0.12, 0]}>
@@ -438,21 +491,8 @@ function RoomRig() {
         </mesh>
       </group>
 
-      {/* couch with a phone on it (popcore-games lives on the phone screen) */}
-      <group position={[0.1, 0, 0.78]}>
-        <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline />
-        <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} />
-        <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
-        <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
-        <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} />
-        <mesh position={[0.12, 0.205, 0.06]} rotation={[-Math.PI / 2, 0, 0.3]}>
-          <boxGeometry args={[0.075, 0.155, 0.004]} />
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} />
-        </mesh>
-      </group>
-
-      {/* bookcase */}
-      <group position={[-1.55, 0, 0.1]}>
+      {/* bookcase (back-right) */}
+      <group position={[1.25, 0, -1.0]}>
         <SoftBox position={[0, 0.45, 0]} args={[0.14, 0.9, 0.72]} radius={0.02} />
         {Array.from({ length: 9 }).map((_, i) => {
           const shelf = Math.floor(i / 3);
@@ -466,14 +506,26 @@ function RoomRig() {
         })}
       </group>
 
-      {/* a round plant */}
-      <TreeRound position={[0.98, 0, 0.0]} h={0.5} />
+      {/* couch + phone (front-right) */}
+      <group position={[0.95, 0, 0.85]}>
+        <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline />
+        <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} />
+        <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
+        <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
+        <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} />
+        <mesh position={[0.12, 0.205, 0.06]} rotation={[-Math.PI / 2, 0, 0.3]}>
+          <boxGeometry args={[0.075, 0.155, 0.004]} />
+          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} />
+        </mesh>
+      </group>
 
-      {/* a VR headset on the desk (Virtuele Brigade) */}
-      <VRHeadset position={[0.31, 0.44, -1.0]} rotation={[0, -0.5, 0]} />
+      {/* coffee table with AR racing in front of the couch (Lightship Drive) */}
+      <CoffeeTableAR position={[0, 0, 1.0]} />
 
-      {/* coffee table with the AR racing game in front of the couch (Lightship Drive) */}
-      <CoffeeTableAR position={[0.12, 0, 1.35]} />
+      {/* fill the diorama out */}
+      <TreeRound position={[-1.3, 0, 0.85]} h={0.55} />
+      <FloorLamp position={[0.25, 0, -1.5]} />
+      <MediaConsole position={[-1.55, 0, 0.2]} />
     </group>
   );
 }
@@ -539,6 +591,39 @@ function MiscComponents() {
   );
 }
 
+/** A secondary IC with a finned heatsink. */
+function Heatsink({ position }: { position: V3 }) {
+  return (
+    <group position={position}>
+      <SoftBox position={[0, 0.135, 0]} args={[0.24, 0.04, 0.24]} radius={0.01} opacity={0.34} />
+      {[-0.08, -0.04, 0, 0.04, 0.08].map((x, i) => (
+        <mesh key={i} position={[x, 0.21, 0]}>
+          <boxGeometry args={[0.014, 0.11, 0.2]} />
+          <GlassMat opacity={0.3} />
+          <Edges threshold={30} color={NEUTRAL} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** A pin-header connector at the board edge. */
+function PinHeader({ position, n = 6 }: { position: V3; n?: number }) {
+  const { accent } = useAccent();
+  const span = (n - 1) * 0.045;
+  return (
+    <group position={position}>
+      <SoftBox position={[0, 0.135, 0]} args={[span + 0.05, 0.04, 0.08]} radius={0.01} opacity={0.32} />
+      {Array.from({ length: n }).map((_, i) => (
+        <mesh key={i} position={[-span / 2 + i * 0.045, 0.18, 0]}>
+          <cylinderGeometry args={[0.008, 0.008, 0.06, 8]} />
+          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.3} roughness={0.4} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function ChipRig() {
   const { accent } = useAccent();
   const traces = useMemo(
@@ -548,6 +633,8 @@ function ChipRig() {
       smoothCurve([[-0.22, 0.16, 0.1], [-0.52, 0.16, 0.32], [-0.96, 0.16, 0.46]]),
       smoothCurve([[-0.22, 0.16, -0.12], [-0.5, 0.16, -0.34], [-0.9, 0.16, -0.6]]),
       smoothCurve([[0.1, 0.16, 0.22], [0.28, 0.16, 0.55], [0.42, 0.16, 1.0]]),
+      smoothCurve([[-0.18, 0.16, 0.2], [-0.6, 0.16, 0.45], [-0.92, 0.16, 0.55]]),
+      smoothCurve([[0.2, 0.16, -0.18], [0.0, 0.16, -0.6], [-0.05, 0.16, -1.0]]),
     ],
     [],
   );
@@ -592,6 +679,10 @@ function ChipRig() {
       {/* computer-vision frame (accent outline) */}
       <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[cv[0], cv[1], cv[2]]} color={accent} lineWidth={1.4} transparent opacity={0.75} />
 
+      {/* secondary IC + heatsink and a pin-header connector fill the board out */}
+      <Heatsink position={[-0.92, 0, 0.5]} />
+      <PinHeader position={[-0.05, 0, 1.02]} n={6} />
+
       {/* Philips medical XR & AI module + extra decorative components */}
       <PhilipsModule position={[0.5, 0, -0.5]} />
       <MiscComponents />
@@ -602,23 +693,33 @@ function ChipRig() {
 function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color: string; onActivate: (h: Hotspot) => void }) {
   const study = caseBySlug(hotspot.slug);
   const label = study?.title ?? hotspot.slug;
+  const anchor: V3 = hotspot.anchor ?? [hotspot.position[0], 0, hotspot.position[2]];
   return (
-    <Html position={hotspot.position} center zIndexRange={[20, 0]} className="hotspot-wrap">
-      <span className="hotspot" style={{ '--hot': color } as CSSProperties}>
-        <button
-          type="button"
-          className="hotspot__dot"
-          aria-label={hotspot.twin ? `${label} — fly into the live district` : `${label} — open node`}
-          onClick={() => onActivate(hotspot)}
-        >
-          <span className="hotspot__ring" aria-hidden="true" />
-          <span className="hotspot__label">
-            {label}
-            {hotspot.twin ? ' →' : ''}
-          </span>
-        </button>
-      </span>
-    </Html>
+    <group>
+      {/* leader line from the object up to the floating dot */}
+      <Line points={[anchor, hotspot.position]} color={color} lineWidth={1.3} transparent opacity={0.75} />
+      {/* a flat ring marking the exact spot on the object */}
+      <mesh position={anchor} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.02, 0.034, 22]} />
+        <meshBasicMaterial color={color} transparent opacity={0.85} side={2} toneMapped={false} />
+      </mesh>
+      <Html position={hotspot.position} center zIndexRange={[20, 0]} className="hotspot-wrap">
+        <span className="hotspot" style={{ '--hot': color } as CSSProperties}>
+          <button
+            type="button"
+            className="hotspot__dot"
+            aria-label={hotspot.twin ? `${label} — fly into the live district` : `${label} — open node`}
+            onClick={() => onActivate(hotspot)}
+          >
+            <span className="hotspot__ring" aria-hidden="true" />
+            <span className="hotspot__label">
+              {label}
+              {hotspot.twin ? ' →' : ''}
+            </span>
+          </button>
+        </span>
+      </Html>
+    </group>
   );
 }
 

@@ -714,17 +714,18 @@ html {
 }
 .hotspot__ring {
   position: relative;
-  width: 12px;
-  height: 12px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: var(--hot, var(--accent));
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(10, 13, 16, 0.85);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--hot, var(--accent)) 55%, transparent), 0 1px 4px rgba(0, 0, 0, 0.6);
   flex: none;
 }
 .hotspot__ring::after {
   content: '';
   position: absolute;
-  inset: -5px;
+  inset: -6px;
   border-radius: 50%;
   border: 1.5px solid var(--hot, var(--accent));
   animation: hotspot-pulse 2.4s var(--ease) infinite;
