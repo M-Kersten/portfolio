@@ -701,16 +701,15 @@ html {
 .hotspot {
   position: relative;
 }
+/* Only the ring is in flow, so <Html center> centres the dot exactly on the
+   leader line's end point. The label floats absolutely, off the dot's box. */
 .hotspot__dot {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
+  display: inline-flex;
   background: none;
   border: 0;
   padding: 0;
   cursor: pointer;
   font-family: var(--font-mono);
-  white-space: nowrap;
 }
 .hotspot__ring {
   position: relative;
@@ -731,6 +730,10 @@ html {
   animation: hotspot-pulse 2.4s var(--ease) infinite;
 }
 .hotspot__label {
+  position: absolute;
+  left: calc(100% + 0.55em);
+  top: 50%;
+  white-space: nowrap;
   font-size: var(--step--1);
   letter-spacing: 0.04em;
   color: var(--ink);
@@ -738,18 +741,16 @@ html {
   border: 1px solid var(--line);
   padding: 0.3em 0.65em;
   border-radius: var(--radius-s);
-  max-width: 0;
-  overflow: hidden;
   opacity: 0;
-  transform: translateX(-6px);
-  transition: max-width 0.3s var(--ease), opacity 0.2s var(--ease), transform 0.3s var(--ease);
+  pointer-events: none;
+  transform: translate(-4px, -50%);
+  transition: opacity 0.2s var(--ease), transform 0.3s var(--ease);
 }
 .hotspot__dot:hover .hotspot__label,
 .hotspot__dot:focus-visible .hotspot__label,
 .hotspot[data-open='true'] .hotspot__label {
-  max-width: 22ch;
   opacity: 1;
-  transform: translateX(0);
+  transform: translate(0, -50%);
 }
 
 @keyframes hotspot-pulse {

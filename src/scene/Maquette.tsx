@@ -201,10 +201,9 @@ function SoftBox({ position, args, radius = 0.03, opacity = 0.2, outline = false
 }
 
 /** Flat floor of dots that fade into the background toward the rim. No ring. */
-function DotFloor() {
+function DotFloor({ step = 0.26 }: { step?: number }) {
   const { accent } = useAccent();
   const R = 2.2;
-  const step = 0.26;
   const { positions, colors } = useMemo(() => {
     const pos: number[] = [];
     const col: number[] = [];
@@ -221,14 +220,14 @@ function DotFloor() {
         col.push(tmp.r, tmp.g, tmp.b);
       }
     return { positions: new Float32Array(pos), colors: new Float32Array(col) };
-  }, [accent]);
+  }, [accent, step]);
   return (
     <points>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
         <bufferAttribute attach="attributes-color" args={[colors, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.028} vertexColors transparent opacity={0.82} sizeAttenuation depthWrite={false} />
+      <pointsMaterial size={0.022} vertexColors transparent opacity={0.7} sizeAttenuation depthWrite={false} />
     </points>
   );
 }
@@ -240,26 +239,26 @@ function PointCloud({ seed }: { seed: number }) {
   const reduced = useReducedMotion();
   const positions = useMemo(() => {
     const rnd = makeRand(seed);
-    const n = 60;
+    const n = 32;
     const a = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
       const ang = rnd() * Math.PI * 2;
-      const r = Math.sqrt(rnd()) * 2.05;
+      const r = Math.sqrt(rnd()) * 1.95;
       a[i * 3] = Math.cos(ang) * r;
-      a[i * 3 + 1] = 0.3 + rnd() * 1.15;
+      a[i * 3 + 1] = 0.35 + rnd() * 1.0;
       a[i * 3 + 2] = Math.sin(ang) * r;
     }
     return a;
   }, [seed]);
   useFrame((state) => {
-    if (ref.current && !reduced) ref.current.rotation.y = state.clock.elapsedTime * 0.025;
+    if (ref.current && !reduced) ref.current.rotation.y = state.clock.elapsedTime * 0.02;
   });
   return (
     <points ref={ref}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.022} color={accent} transparent opacity={0.5} sizeAttenuation depthWrite={false} />
+      <pointsMaterial size={0.016} color={accent} transparent opacity={0.3} sizeAttenuation depthWrite={false} />
     </points>
   );
 }
@@ -696,12 +695,12 @@ function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color
   const anchor: V3 = hotspot.anchor ?? [hotspot.position[0], 0, hotspot.position[2]];
   return (
     <group>
-      {/* leader line from the object up to the floating dot */}
-      <Line points={[anchor, hotspot.position]} color={color} lineWidth={1.3} transparent opacity={0.75} />
-      {/* a flat ring marking the exact spot on the object */}
+      {/* subtle leader line from the object up to the floating dot */}
+      <Line points={[anchor, hotspot.position]} color={color} lineWidth={1} transparent opacity={0.38} />
+      {/* a faint flat ring marking the exact spot on the object */}
       <mesh position={anchor} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.02, 0.034, 22]} />
-        <meshBasicMaterial color={color} transparent opacity={0.85} side={2} toneMapped={false} />
+        <ringGeometry args={[0.016, 0.027, 20]} />
+        <meshBasicMaterial color={color} transparent opacity={0.5} side={2} toneMapped={false} />
       </mesh>
       <Html position={hotspot.position} center zIndexRange={[20, 0]} className="hotspot-wrap">
         <span className="hotspot" style={{ '--hot': color } as CSSProperties}>
@@ -741,7 +740,7 @@ export function Maquette({ onActivate }: MaquetteProps) {
         return (
           <AccentCtx.Provider key={layer.id} value={PALETTE[layer.id]}>
             <group position={[0, LAYER_Y[layer.id], 0]} scale={LAYER_SCALE[layer.id]}>
-              <DotFloor />
+              <DotFloor step={layer.id === 'city' ? 0.17 : 0.26} />
               <PointCloud seed={SEED[layer.id]} />
               <Rig />
               {activeLayer === layer.id &&

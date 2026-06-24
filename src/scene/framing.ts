@@ -41,16 +41,16 @@ export interface Hotspot {
 // (placed at LAYER_Y and scaled).
 export const HOTSPOTS: Hotspot[] = [
   // Chip — the die sits centre; parts fan outwards
-  { slug: 'amsterdam-ai', layer: 'chip', position: [0, 0.56, 0], anchor: [0, 0.16, 0] }, // the die
-  { slug: 'custom-ar-framework', layer: 'chip', position: [0.42, 0.58, 0.4], anchor: [0.42, 0.2, 0.4] }, // a component
-  { slug: 'philips-medical-xr', layer: 'chip', position: [0.5, 0.62, -0.5], anchor: [0.5, 0.24, -0.5] }, // ECG / Vision Pro module
+  { slug: 'amsterdam-ai', layer: 'chip', position: [0, 0.46, 0], anchor: [0, 0.16, 0] }, // the die
+  { slug: 'custom-ar-framework', layer: 'chip', position: [0.42, 0.5, 0.4], anchor: [0.42, 0.2, 0.4] }, // a component
+  { slug: 'philips-medical-xr', layer: 'chip', position: [0.5, 0.54, -0.5], anchor: [0.5, 0.24, -0.5] }, // ECG / Vision Pro module
   // Room — spread into a corner diorama
-  { slug: 'virtuele-brigade', layer: 'room', position: [-0.9, 1.16, -1.14], anchor: [-0.9, 0.78, -1.14] }, // the monitor
-  { slug: 'popcore-games', layer: 'room', position: [1.07, 0.64, 0.91], anchor: [1.07, 0.24, 0.91] }, // phone on the couch
-  { slug: 'lightship-drive', layer: 'room', position: [0, 0.7, 1.0], anchor: [0, 0.3, 1.0] }, // the AR race table
+  { slug: 'virtuele-brigade', layer: 'room', position: [-0.9, 1.08, -1.14], anchor: [-0.9, 0.78, -1.14] }, // the monitor
+  { slug: 'popcore-games', layer: 'room', position: [1.07, 0.54, 0.91], anchor: [1.07, 0.24, 0.91] }, // phone on the couch
+  { slug: 'lightship-drive', layer: 'room', position: [0, 0.6, 1.0], anchor: [0, 0.3, 1.0] }, // the AR race table
   // City — on real places; the twin flies into the live district
-  { slug: 'niantic-explorer', layer: 'city', position: [0.9, 0.6, 0.9], anchor: [0.9, 0.06, 0.9] }, // the park
-  { slug: 'municipal-twin', layer: 'city', position: [0.2, 1.22, -0.2], anchor: [0.2, 0.82, -0.2], twin: true }, // town hall
+  { slug: 'niantic-explorer', layer: 'city', position: [0.9, 0.44, 0.9], anchor: [0.9, 0.06, 0.9] }, // the park
+  { slug: 'municipal-twin', layer: 'city', position: [0.2, 1.12, -0.2], anchor: [0.2, 0.82, -0.2], twin: true }, // town hall
 ];
 
 export interface Framing {
