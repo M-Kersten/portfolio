@@ -40,9 +40,11 @@ export const HOTSPOTS: Hotspot[] = [
   // Chip — on actual chip parts
   { slug: 'amsterdam-ai', layer: 'chip', position: [0, 0.27, 0] }, // the die / "brain"
   { slug: 'custom-ar-framework', layer: 'chip', position: [0.42, 0.3, 0.4] }, // a component
+  { slug: 'philips-medical-xr', layer: 'chip', position: [0.5, 0.32, -0.5] }, // the ECG / Vision Pro module
   // Room — on the things they live on
   { slug: 'virtuele-brigade', layer: 'room', position: [0, 0.74, -1.16] }, // the monitor
   { slug: 'popcore-games', layer: 'room', position: [0.22, 0.36, 0.84] }, // phone on the couch
+  { slug: 'lightship-drive', layer: 'room', position: [0.12, 0.42, 1.35] }, // the AR race table
   // City — on real places; the twin flies into the live district
   { slug: 'niantic-explorer', layer: 'city', position: [0.9, 0.26, 0.9] }, // the park
   { slug: 'municipal-twin', layer: 'city', position: [0.2, 0.82, -0.2], twin: true }, // town hall

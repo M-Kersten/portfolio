@@ -349,6 +349,56 @@ function CityRig() {
 }
 
 /* ---------- Room — games, apps & websites (middle) ---------- */
+
+/** Coffee table with a floating AR race loop + two cars (Lightship Drive). */
+function CoffeeTableAR({ position }: { position: V3 }) {
+  const { accent } = useAccent();
+  const track = useMemo(
+    () =>
+      smoothCurve(
+        [
+          [0.22, 0, 0.0], [0.1, 0, 0.16], [-0.12, 0, 0.14], [-0.22, 0, 0.0],
+          [-0.12, 0, -0.15], [0.1, 0, -0.16], [0.22, 0, 0.0],
+        ],
+        64,
+      ),
+    [],
+  );
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.18, 0]}>
+        <cylinderGeometry args={[0.32, 0.32, 0.03, 40]} />
+        <GlassMat opacity={0.2} />
+        <Edges threshold={30} color={NEUTRAL} />
+      </mesh>
+      {([[0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2]] as [number, number][]).map(([lx, lz], i) => (
+        <mesh key={i} position={[lx, 0.09, lz]}>
+          <cylinderGeometry args={[0.016, 0.016, 0.18, 10]} />
+          <GlassMat opacity={0.24} />
+        </mesh>
+      ))}
+      {/* the AR bit — a race loop + cars floating above the table */}
+      <Line points={track} position={[0, 0.27, 0]} color={accent} lineWidth={1.6} transparent opacity={0.7} />
+      <Accent position={[0.2, 0.28, 0.02]} args={[0.045, 0.018, 0.028]} intensity={0.5} />
+      <Accent position={[-0.16, 0.28, -0.08]} args={[0.045, 0.018, 0.028]} intensity={0.5} />
+    </group>
+  );
+}
+
+/** A VR headset prop on a stand (Virtuele Brigade). */
+function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
+  const strap = useMemo(() => smoothCurve([[-0.075, 0, 0], [-0.05, 0.06, -0.055], [0.05, 0.06, -0.055], [0.075, 0, 0]], 24), []);
+  return (
+    <group position={position} rotation={rotation}>
+      <RoundedBox args={[0.16, 0.09, 0.1]} radius={0.03} smoothness={3}>
+        <GlassMat opacity={0.3} />
+      </RoundedBox>
+      <Accent position={[0, 0, 0.052]} args={[0.11, 0.05, 0.004]} intensity={0.3} />
+      <Line points={strap} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.5} />
+    </group>
+  );
+}
+
 function RoomRig() {
   const { accent } = useAccent();
   return (
@@ -418,11 +468,77 @@ function RoomRig() {
 
       {/* a round plant */}
       <TreeRound position={[0.98, 0, 0.0]} h={0.5} />
+
+      {/* a VR headset on the desk (Virtuele Brigade) */}
+      <VRHeadset position={[0.31, 0.44, -1.0]} rotation={[0, -0.5, 0]} />
+
+      {/* coffee table with the AR racing game in front of the couch (Lightship Drive) */}
+      <CoffeeTableAR position={[0.12, 0, 1.35]} />
     </group>
   );
 }
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
+
+/** Philips medical XR & AI — an ECG module with a tiny Vision Pro headset. */
+function PhilipsModule({ position }: { position: V3 }) {
+  const { accent } = useAccent();
+  const ecg = useMemo<V3[]>(
+    () => [
+      [-0.13, 0, 0], [-0.06, 0, 0], [-0.045, 0.05, 0], [-0.03, -0.035, 0], [-0.015, 0, 0],
+      [0.04, 0, 0], [0.06, 0.06, 0], [0.08, -0.03, 0], [0.1, 0, 0], [0.13, 0, 0],
+    ],
+    [],
+  );
+  return (
+    <group position={position}>
+      <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline />
+      {/* the ECG waveform (accent) */}
+      <Line points={ecg} position={[0, 0.22, 0]} color={accent} lineWidth={1.8} transparent opacity={0.85} />
+      {/* a tiny Vision Pro headset */}
+      <group position={[0, 0.18, 0.12]}>
+        <RoundedBox args={[0.14, 0.06, 0.05]} radius={0.02} smoothness={3}>
+          <GlassMat opacity={0.34} />
+        </RoundedBox>
+        <Accent position={[0, 0, 0.026]} args={[0.1, 0.035, 0.004]} intensity={0.3} />
+      </group>
+    </group>
+  );
+}
+
+/** Decorative extra board parts — resistors, a crystal, a ribbon, solder pads. */
+function MiscComponents() {
+  const { accent } = useAccent();
+  return (
+    <group>
+      {([[0.16, -0.58], [0.66, 0.08], [-0.18, 0.58]] as [number, number][]).map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.135, z]}>
+          <boxGeometry args={[0.09, 0.03, 0.04]} />
+          <GlassMat opacity={0.34} />
+          <Edges threshold={30} color={NEUTRAL} />
+        </mesh>
+      ))}
+      {/* crystal */}
+      <mesh position={[-0.16, 0.145, -0.46]}>
+        <boxGeometry args={[0.1, 0.05, 0.06]} />
+        <GlassMat opacity={0.4} />
+        <Edges threshold={30} color={NEUTRAL} />
+      </mesh>
+      {/* ribbon connector */}
+      <group position={[-0.62, 0.13, 0.18]}>
+        <SoftBox position={[0, 0.012, 0]} args={[0.07, 0.02, 0.34]} radius={0.008} opacity={0.32} />
+        {[-0.12, -0.06, 0, 0.06, 0.12].map((z, i) => (
+          <Line key={i} points={[[-0.03, 0.024, z], [0.03, 0.024, z]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
+        ))}
+      </group>
+      {/* solder pads — small accent rings */}
+      {([[0.32, 0.62], [-0.34, 0.5], [0.52, -0.64], [-0.62, -0.45]] as [number, number][]).map(([x, z], i) => (
+        <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[x, 0.122, z]} color={accent} lineWidth={1} transparent opacity={0.4} />
+      ))}
+    </group>
+  );
+}
+
 function ChipRig() {
   const { accent } = useAccent();
   const traces = useMemo(
@@ -475,6 +591,10 @@ function ChipRig() {
 
       {/* computer-vision frame (accent outline) */}
       <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[cv[0], cv[1], cv[2]]} color={accent} lineWidth={1.4} transparent opacity={0.75} />
+
+      {/* Philips medical XR & AI module + extra decorative components */}
+      <PhilipsModule position={[0.5, 0, -0.5]} />
+      <MiscComponents />
     </group>
   );
 }
