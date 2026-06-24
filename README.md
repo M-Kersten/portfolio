@@ -69,21 +69,22 @@ scripts/bake-district.md          the bake recipe
 maquette and the district are never mounted at once — `CameraRig` animates the
 camera between them, so the bridge is a camera move, not an engine handoff.
 
-**The twin today.** No baked model ships yet, so the twin renders an honest
-**procedural placeholder** (clearly captioned as such) which already
-demonstrates the camera transition, attribute colouring (Year / Height / Roof
-area), the per-building readout, the legend and the attribution. Drop a real
-`public/models/weesp.glb` in (see the recipe) and it loads that instead with zero
-code change.
+**The twin today.** The twin is a **live MapLibre map** of the district — a dark
+Carto basemap with OpenStreetMap buildings extruded in 3D and coloured by height,
+centred on Weesp (`src/components/TwinMap.tsx`). This is "live tiles": it needs
+the viewer's browser to reach the tile host, unlike the firewall-proof baked
+model. The offline 3DBAG bake path (`public/models/<id>.glb` + the procedural
+placeholder in `District.tsx`) is kept in the code as an alternative.
 
 ## Phasing (where this build is)
 
 - **Phase 1 — hero refit: done.** Three-layer maquette, hotspots, auto-orbit,
   eased camera focus, reduced-motion, no-WebGL poster, capabilities band and
   case grid from JSON. This is shippable on its own.
-- **Phase 2 — bake spike: ready, needs the bake.** District loader, ground +
-  grid and orbit controls are in. Run `scripts/bake-district.md` once for the
-  home district to replace the placeholder with real 3DBAG geometry.
+- **Phase 2 — live map twin: done.** The twin is a live MapLibre map of Weesp
+  (dark Carto basemap + OSM buildings extruded by height, `TwinMap.tsx`). The
+  offline 3DBAG bake (`scripts/bake-district.md`) is kept as a firewall-proof
+  alternative for anyone who needs the no-live-tiles version.
 - **Phase 3 — twin integration: done against the placeholder.** Camera
   transition, attribute colouring, hover/click readout, legend, caption,
   attribution, place registry and `?place=` selection all ship. Baked-in colour

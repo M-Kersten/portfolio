@@ -20,6 +20,8 @@ export interface Place {
   model: string;
   /** camera framing for the establishing shot */
   view: { distance: number; pitch: number; bearing: number };
+  /** map centre [lng, lat] + zoom for the live MapLibre twin */
+  map?: { center: [number, number]; zoom: number };
   /** default colouring attribute */
   attribute: TwinAttribute;
   /** optional /textures/<id>.jpg aerial drape (§5.4) */
@@ -44,6 +46,7 @@ export const PLACES: Place[] = [
     label: 'Weesp',
     model: '/models/weesp.glb',
     view: { distance: 180, pitch: 55, bearing: 20 },
+    map: { center: [5.0414, 52.3083], zoom: 15.2 },
     attribute: 'bouwjaar',
     placeholder: { seed: 1872, blocks: 7 },
   },
@@ -54,6 +57,7 @@ export const PLACES: Place[] = [
     label: 'Arnhem',
     model: '/models/arnhem.glb',
     view: { distance: 220, pitch: 50, bearing: -25 },
+    map: { center: [5.8987, 51.9851], zoom: 14.4 },
     attribute: 'roof_area',
     dedication: 'Framed for the Municipality of Arnhem',
     placeholder: { seed: 2603, blocks: 8 },

@@ -82,7 +82,9 @@ export function SceneCanvas() {
     [navigate, location.search],
   );
 
-  const frameloop = mode === 'twin' ? 'always' : reduced ? 'demand' : heroInView ? 'always' : 'never';
+  // The twin is now a live MapLibre map (opaque, on top), so freeze the WebGL
+  // canvas there instead of rendering the hidden placeholder behind it.
+  const frameloop = mode === 'twin' ? 'never' : reduced ? 'demand' : heroInView ? 'always' : 'never';
 
   return (
     <div className="scene-canvas">

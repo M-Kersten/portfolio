@@ -1299,7 +1299,9 @@ html {
   margin: 0.4em 0 0;
 }
 .twin-legend {
-  right: var(--space-m);
+  left: var(--space-m);
+  top: calc(var(--header-h) + var(--space-s));
+  bottom: auto;
 }
 .twin-legend__title {
   font-family: var(--font-mono);
@@ -1429,6 +1431,31 @@ html {
 }
 .scene-canvas canvas {
   display: block;
+}
+
+/* ---------- Twin map (MapLibre) — fixed, above the canvas, below the chrome */
+.twin-map {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: var(--paper);
+}
+.twin-map--fallback {
+  display: grid;
+  place-items: center;
+  padding: var(--space-xl) var(--space-l);
+  text-align: center;
+  color: var(--ink-60);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}
+.twin-map--fallback a {
+  color: var(--accent-ink);
+}
+/* keep MapLibre's attribution readable + small on the dark map */
+.twin-map .maplibregl-ctrl-attrib {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
 }
 
 /* Page content above the fixed canvas; hero + twin overlay are pointer-through
