@@ -3,7 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     # Deploy branch (no `main` in this repo yet). Change here if you adopt main.
-    branches: [origin/claude/editorial-spatial-redesign]
+    # NB: branch filters match the ref name only — no `origin/` remote prefix.
+    branches: [claude/editorial-spatial-redesign]
   workflow_dispatch:
 
 permissions:
