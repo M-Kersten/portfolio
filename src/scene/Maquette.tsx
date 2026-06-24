@@ -1,6 +1,6 @@
-import { createContext, useContext, useMemo, useRef, type CSSProperties } from 'react';
+import { createContext, useContext, useMemo, useRef, type CSSProperties, type ComponentProps } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges, Html, Line, RoundedBox } from '@react-three/drei';
+import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
 import { CatmullRomCurve3, Color, Vector3, type Points as ThreePoints, type MeshStandardMaterial } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, type Hotspot, type LayerId } from './framing';
 import { useSceneSelector } from './store';
@@ -73,7 +73,33 @@ function makeRand(seed: number) {
   };
 }
 
+/** Wrap drei's Line so every maquette line participates in the scene fog (its
+ *  LineMaterial otherwise ignores fog), fading with depth like the meshes. */
+function Line(props: ComponentProps<typeof DreiLine>) {
+  return <DreiLine fog {...props} />;
+}
+
 /* ---------- materials ---------- */
+
+// A soft white-blue fresnel rim so the frosted-glass forms catch light along
+// their silhouettes (more premium, less flat plastic). Injected into the
+// standard material before fog/tonemapping so the rim hazes + tonemaps too.
+const RIM = new Color('#b9d2e0');
+function glassRim(shader: any) {
+  shader.uniforms.uRim = { value: RIM };
+  shader.fragmentShader = shader.fragmentShader
+    .replace('void main() {', 'uniform vec3 uRim;\nvoid main() {')
+    .replace(
+      '#include <opaque_fragment>',
+      [
+        '#include <opaque_fragment>',
+        'float _rim = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.6);',
+        'gl_FragColor.rgb += uRim * _rim * 0.5;',
+        'gl_FragColor.a = clamp(gl_FragColor.a + _rim * 0.32, 0.0, 1.0);',
+      ].join('\n'),
+    );
+}
+
 function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opacity?: number }) {
   return (
     <meshStandardMaterial
@@ -85,6 +111,7 @@ function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opacity?: 
       emissive="#0c2a30"
       emissiveIntensity={0.14}
       depthWrite={false}
+      onBeforeCompile={glassRim}
     />
   );
 }

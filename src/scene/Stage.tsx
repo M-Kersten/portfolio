@@ -25,6 +25,9 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   return (
     <>
       <color attach="background" args={['#0a0d10']} />
+      {/* Subtle depth haze — maquette only (the twin scene spans huge distances
+          and would black out under it). Layers behind the active one recede. */}
+      {mode === 'maquette' && <fog attach="fog" args={['#0a0d10', 4.5, 14]} />}
       <hemisphereLight intensity={0.35} color="#aebfd6" groundColor="#0a0d10" />
       <directionalLight position={[6, 11, 4]} intensity={1.1} color="#eaf2ff" />
       <directionalLight position={[-7, 4, -6]} intensity={0.5} color="#27e8f2" />

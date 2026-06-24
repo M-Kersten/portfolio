@@ -72,16 +72,19 @@ export function anchorWorld(h: Hotspot): Vector3 {
 }
 
 /** Establishing three-quarter view used as the camera's initial pose. */
+// Open framed on the City layer (top) rather than the whole stack.
 export const MAQUETTE_HOME: Framing = {
-  pos: new Vector3(3.7, 2.2, 4.8),
-  target: new Vector3(0, 0.5, 0),
+  pos: new Vector3(3.1, 2.6, 4.2),
+  target: new Vector3(0, 1.32, 0),
 };
 
 // Scroll journey: step 0 = City (top), 1 = Room, 2 = Chip (bottom). The camera
 // glides straight down the stack, one layer centred per snap stop. A constant
 // frame means the per-layer scale difference actually reads on screen.
 const JOURNEY_Y = [1.32, 0, -1.32];
-const JOURNEY_OFFSET = new Vector3(3.1, 0.95, 4.3);
+// Tighter than before so each layer fills more of the frame; the fog hazes the
+// layers behind it, so one layer reads as the subject at a time.
+const JOURNEY_OFFSET = new Vector3(2.8, 1.15, 3.8);
 
 export function journeyView(step: number): Framing {
   const y = JOURNEY_Y[Math.max(0, Math.min(2, step))] ?? 0;
