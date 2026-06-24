@@ -69,9 +69,10 @@ scripts/bake-district.md          the bake recipe
 maquette and the district are never mounted at once — `CameraRig` animates the
 camera between them, so the bridge is a camera move, not an engine handoff.
 
-**The twin today.** The twin is a **live MapLibre map** of the district — a dark
-Carto basemap with OpenStreetMap buildings extruded in 3D and coloured by height,
-centred on Weesp (`src/components/TwinMap.tsx`). This is "live tiles": it needs
+**The twin today.** The twin is a **live MapLibre map** of the district — a
+self-contained dark style over OpenFreeMap's keyless OpenMapTiles vector tiles,
+with OpenStreetMap buildings extruded in 3D and coloured by height, centred on
+Weesp (`src/components/TwinMap.tsx`). This is "live tiles": it needs
 the viewer's browser to reach the tile host, unlike the firewall-proof baked
 model. The offline 3DBAG bake path (`public/models/<id>.glb` + the procedural
 placeholder in `District.tsx`) is kept in the code as an alternative.
@@ -82,7 +83,8 @@ placeholder in `District.tsx`) is kept in the code as an alternative.
   eased camera focus, reduced-motion, no-WebGL poster, capabilities band and
   case grid from JSON. This is shippable on its own.
 - **Phase 2 — live map twin: done.** The twin is a live MapLibre map of Weesp
-  (dark Carto basemap + OSM buildings extruded by height, `TwinMap.tsx`). The
+  (dark style over OpenFreeMap vector tiles + OSM buildings extruded by height,
+  `TwinMap.tsx`). The
   offline 3DBAG bake (`scripts/bake-district.md`) is kept as a firewall-proof
   alternative for anyone who needs the no-live-tiles version.
 - **Phase 3 — twin integration: done against the placeholder.** Camera

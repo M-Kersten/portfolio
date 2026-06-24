@@ -5,15 +5,57 @@ import { useSceneSelector } from '../scene/store';
 import { resolvePlace } from '../data/places';
 import { useWebGLSupport } from '../lib/useWebGLSupport';
 
-// The twin as a live web map (MapLibre). A dark Carto basemap centred on the
-// district, with the OSM/OpenMapTiles `building` layer extruded in 3D and
-// coloured by height. Keyless. Replaces the offline-baked .glb twin.
+// The twin as a live web map (MapLibre). A self-contained dark style over
+// OpenFreeMap's keyless OpenMapTiles vector tiles — no external style.json to
+// 404, no API key. Buildings are extruded in 3D and coloured by height; water +
+// roads give context. Attribution is shown by MapLibre.
 //
-// This is "live tiles" — it needs the viewer's browser to reach the tile host,
-// unlike the firewall-proof baked model. Attribution is shown by MapLibre.
+// "Live tiles" — it needs the viewer's browser to reach tiles.openfreemap.org,
+// unlike the firewall-proof baked model.
 
-const STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 const FALLBACK_CENTER: [number, number] = [5.0414, 52.3083]; // Weesp
+
+const HEIGHT = ['coalesce', ['get', 'render_height'], ['get', 'height'], 6];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const STYLE: any = {
+  version: 8,
+  sources: {
+    omt: {
+      type: 'vector',
+      url: 'https://tiles.openfreemap.org/planet',
+      attribution: '© OpenStreetMap contributors · OpenFreeMap',
+    },
+  },
+  layers: [
+    { id: 'bg', type: 'background', paint: { 'background-color': '#0a0d10' } },
+    { id: 'water', type: 'fill', source: 'omt', 'source-layer': 'water', paint: { 'fill-color': '#0c1a23' } },
+    {
+      id: 'roads',
+      type: 'line',
+      source: 'omt',
+      'source-layer': 'transportation',
+      minzoom: 10,
+      paint: {
+        'line-color': '#1c2832',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.3, 16, 2.4],
+      },
+    },
+    {
+      id: 'buildings',
+      type: 'fill-extrusion',
+      source: 'omt',
+      'source-layer': 'building',
+      minzoom: 13,
+      paint: {
+        'fill-extrusion-color': ['interpolate', ['linear'], HEIGHT, 3, '#163139', 12, '#1d818a', 28, '#27e8f2'],
+        'fill-extrusion-height': HEIGHT,
+        'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+        'fill-extrusion-opacity': 0.9,
+      },
+    },
+  ],
+};
 
 export default function TwinMap() {
   const placeId = useSceneSelector((s) => s.placeId);
@@ -40,40 +82,15 @@ export default function TwinMap() {
       zoom,
       pitch,
       bearing,
+      maxPitch: 70,
       attributionControl: false,
     });
     mapRef.current = map;
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-
-    map.on('load', () => {
-      // 3D buildings: find the basemap's vector source and extrude its building
-      // layer, coloured by height. If the basemap carries no heights this is a
-      // no-op and the flat dark map still stands.
-      try {
-        const sources = map.getStyle().sources as Record<string, { type?: string }>;
-        const vectorId = Object.keys(sources).find((k) => sources[k].type === 'vector');
-        if (!vectorId) return;
-        const height = ['coalesce', ['get', 'render_height'], ['get', 'height'], 6];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const layer: any = {
-          id: 'twin-buildings',
-          type: 'fill-extrusion',
-          source: vectorId,
-          'source-layer': 'building',
-          minzoom: 13,
-          paint: {
-            'fill-extrusion-color': ['interpolate', ['linear'], height, 3, '#163139', 12, '#1d818a', 28, '#27e8f2'],
-            'fill-extrusion-height': height,
-            'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], ['get', 'min_height'], 0],
-            'fill-extrusion-opacity': 0.88,
-          },
-        };
-        map.addLayer(layer);
-      } catch {
-        /* basemap has no building heights — the dark map still stands */
-      }
-    });
+    // Swallow tile/network errors so a flaky tile doesn't spam the console; the
+    // dark background layer still stands if tiles fail.
+    map.on('error', () => {});
 
     return () => {
       map.remove();

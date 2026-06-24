@@ -62,7 +62,7 @@ export function TwinPage() {
         <div className="twin-caption">
           <div className="twin-caption__place">{place.label} — live map</div>
           <p className="twin-caption__attr">
-            Live OpenStreetMap data, buildings extruded by height. © OpenStreetMap contributors, © CARTO.
+            Live OpenStreetMap data via OpenFreeMap, buildings extruded by height. © OpenStreetMap contributors.
           </p>
           {place.dedication && <p className="twin-caption__dedication">{place.dedication}</p>}
         </div>
