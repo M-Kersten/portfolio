@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useRef, type CSSProperties, type ComponentProps } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, CatmullRomCurve3, Color, DoubleSide, Quaternion, Vector3, type Group, type Points as ThreePoints, type MeshStandardMaterial, type MeshBasicMaterial, type ShaderMaterial } from 'three';
+import { AdditiveBlending, CatmullRomCurve3, Color, DoubleSide, Quaternion, Vector3, type Group, type Points as ThreePoints, type MeshStandardMaterial, type ShaderMaterial } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, type Hotspot, type LayerId } from './framing';
 import { useSceneSelector } from './store';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -349,6 +349,48 @@ function TownHall({ position }: { position: V3 }) {
   );
 }
 
+/** A flat ground ribbon built from a centre-line — reads as a paved road (a
+ *  faint surface with crisp edges) rather than a single hairline. */
+function roadRibbon(points: V3[], width: number) {
+  const half = width / 2;
+  const left: V3[] = [];
+  const right: V3[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const a = points[Math.max(0, i - 1)];
+    const b = points[Math.min(points.length - 1, i + 1)];
+    const tx = b[0] - a[0];
+    const tz = b[2] - a[2];
+    const len = Math.hypot(tx, tz) || 1;
+    const px = -tz / len;
+    const pz = tx / len; // perpendicular in the ground plane
+    left.push([p[0] + px * half, p[1], p[2] + pz * half]);
+    right.push([p[0] - px * half, p[1], p[2] - pz * half]);
+  }
+  const verts: number[] = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    verts.push(...left[i], ...right[i], ...left[i + 1]);
+    verts.push(...right[i], ...right[i + 1], ...left[i + 1]);
+  }
+  return { array: new Float32Array(verts), left, right };
+}
+
+function RoadRibbon({ points, width = 0.08 }: { points: V3[]; width?: number }) {
+  const { array, left, right } = useMemo(() => roadRibbon(points, width), [points, width]);
+  return (
+    <group>
+      <mesh>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[array, 3]} />
+        </bufferGeometry>
+        <meshBasicMaterial color="#223240" transparent opacity={0.62} side={DoubleSide} depthWrite={false} />
+      </mesh>
+      <Line points={left} color={NEUTRAL} lineWidth={1} transparent opacity={0.42} />
+      <Line points={right} color={NEUTRAL} lineWidth={1} transparent opacity={0.42} />
+    </group>
+  );
+}
+
 function CityRig() {
   // Roads: a grid threading between the blocks, three avenues out toward the
   // church / windmill / park, and two curved roads sweeping around the side.
@@ -389,11 +431,11 @@ function CityRig() {
     <group>
       {/* roads through the city */}
       {roads.map((p, i) => (
-        <Line key={`r${i}`} points={p} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.32} />
+        <RoadRibbon key={`r${i}`} points={p} width={0.08} />
       ))}
       {/* curved roads on the side */}
-      <Line points={curveA} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.34} />
-      <Line points={curveB} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.34} />
+      <RoadRibbon points={curveA} width={0.09} />
+      <RoadRibbon points={curveB} width={0.09} />
 
       {/* the skyline + its civic peak */}
       {cluster.map((b, i) => (
@@ -892,7 +934,6 @@ function Funnel({ source, sourceR, target, targetR, color, activeSteps }: Funnel
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const reduced = useReducedMotion();
   const matRef = useRef<ShaderMaterial>(null);
-  const dotRef = useRef<MeshBasicMaterial>(null);
 
   const { position, quaternion, height, uniforms } = useMemo(() => {
     const s = new Vector3(...source);
@@ -917,33 +958,24 @@ function Funnel({ source, sourceR, target, targetR, color, activeSteps }: Funnel
     if (!matRef.current) return;
     const tgt = activeSteps.includes(journeyStep) ? FUNNEL_ACTIVE : FUNNEL_WHISPER;
     const cur = matRef.current.uniforms.uOpacity.value as number;
-    const next = reduced ? tgt : cur + (tgt - cur) * 0.08;
-    matRef.current.uniforms.uOpacity.value = next;
-    if (dotRef.current) dotRef.current.opacity = Math.min(1, next * 2.4);
+    matRef.current.uniforms.uOpacity.value = reduced ? tgt : cur + (tgt - cur) * 0.08;
   });
 
   return (
-    <group>
-      <mesh position={position} quaternion={quaternion}>
-        <cylinderGeometry args={[sourceR, targetR, height, 48, 1, true]} />
-        <shaderMaterial
-          ref={matRef}
-          vertexShader={FUNNEL_VERT}
-          fragmentShader={FUNNEL_FRAG}
-          uniforms={uniforms}
-          transparent
-          blending={AdditiveBlending}
-          depthWrite={false}
-          side={DoubleSide}
-          toneMapped={false}
-        />
-      </mesh>
-      {/* the marked point — a small glow where the funnel originates */}
-      <mesh position={source}>
-        <sphereGeometry args={[sourceR * 0.85, 16, 16]} />
-        <meshBasicMaterial ref={dotRef} color={color} transparent opacity={FUNNEL_WHISPER * 2} blending={AdditiveBlending} depthWrite={false} toneMapped={false} fog={false} />
-      </mesh>
-    </group>
+    <mesh position={position} quaternion={quaternion}>
+      <cylinderGeometry args={[sourceR, targetR, height, 48, 1, true]} />
+      <shaderMaterial
+        ref={matRef}
+        vertexShader={FUNNEL_VERT}
+        fragmentShader={FUNNEL_FRAG}
+        uniforms={uniforms}
+        transparent
+        blending={AdditiveBlending}
+        depthWrite={false}
+        side={DoubleSide}
+        toneMapped={false}
+      />
+    </mesh>
   );
 }
 
