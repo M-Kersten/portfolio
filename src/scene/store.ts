@@ -15,6 +15,9 @@ interface SceneState {
   /** The inspected node's case slug, or null in the overview. Drives the zoom +
    *  the bottom HUD + hiding the title. */
   selectedSlug: string | null;
+  /** The hovered project dot's slug, or null. Drives the hover highlight on the
+   *  object that project is attached to. */
+  hoveredSlug: string | null;
   /** Active place id for the twin (allowlist-resolved elsewhere). */
   placeId: string;
   /** Flips true once the twin establishing move has settled and orbit is live. */
@@ -32,6 +35,7 @@ let state: SceneState = {
   mode: 'maquette',
   journeyStep: 0,
   selectedSlug: null,
+  hoveredSlug: null,
   placeId: '',
   twinSettled: false,
   resetNonce: 0,
@@ -64,6 +68,9 @@ export const sceneStore = {
   },
   setSelected(selectedSlug: string | null) {
     if (selectedSlug !== state.selectedSlug) set({ selectedSlug });
+  },
+  setHovered(hoveredSlug: string | null) {
+    if (hoveredSlug !== state.hoveredSlug) set({ hoveredSlug });
   },
   markTwinSettled() {
     if (!state.twinSettled) set({ twinSettled: true });

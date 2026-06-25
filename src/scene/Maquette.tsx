@@ -1,9 +1,9 @@
-import { createContext, useContext, useMemo, useRef, type CSSProperties, type ComponentProps } from 'react';
+import { createContext, useContext, useMemo, useRef, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, CatmullRomCurve3, Color, DoubleSide, Quaternion, Vector3, type Group, type Points as ThreePoints, type MeshStandardMaterial, type ShaderMaterial } from 'three';
+import { AdditiveBlending, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Quaternion, Vector3, type Group, type Mesh, type Points as ThreePoints, type MeshStandardMaterial, type MeshBasicMaterial, type ShaderMaterial } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, type Hotspot, type LayerId } from './framing';
-import { useSceneSelector } from './store';
+import { sceneStore, useSceneSelector } from './store';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { caseBySlug } from '../content';
 
@@ -77,6 +77,38 @@ function makeRand(seed: number) {
  *  LineMaterial otherwise ignores fog), fading with depth like the meshes. */
 function Line(props: ComponentProps<typeof DreiLine>) {
   return <DreiLine fog {...props} />;
+}
+
+/** Wraps the object a project is attached to: when its dot is hovered the object
+ *  lifts + grows a touch and a soft accent glow blooms around it. Scaling is
+ *  pivoted on `center` (object-local) so it grows in place rather than drifting. */
+function Highlightable({ slug, center, glowR = 0.32, children }: { slug: string; center: V3; glowR?: number; children: ReactNode }) {
+  const { accent } = useAccent();
+  const hovered = useSceneSelector((s) => s.hoveredSlug) === slug;
+  const grpRef = useRef<Group>(null);
+  const glowRef = useRef<MeshBasicMaterial>(null);
+  const reduced = useReducedMotion();
+  const k = useRef(0);
+  useFrame((state) => {
+    const g = grpRef.current;
+    if (!g) return;
+    const target = hovered ? 1 : 0;
+    k.current = reduced ? target : k.current + (target - k.current) * 0.14;
+    const s = 1 + k.current * 0.07;
+    g.scale.setScalar(s);
+    const bob = reduced ? 0 : Math.sin(state.clock.elapsedTime * 2.4) * 0.02 * k.current;
+    g.position.set(center[0] * (1 - s), center[1] * (1 - s) + bob, center[2] * (1 - s));
+    if (glowRef.current) glowRef.current.opacity = k.current * 0.26;
+  });
+  return (
+    <group ref={grpRef}>
+      {children}
+      <mesh position={center}>
+        <sphereGeometry args={[glowR, 18, 18]} />
+        <meshBasicMaterial ref={glowRef} color={accent} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} fog={false} />
+      </mesh>
+    </group>
+  );
 }
 
 /* ---------- materials ---------- */
@@ -234,14 +266,14 @@ function SoftBox({ position, args, radius = 0.03, opacity = 0.2, outline = false
   );
 }
 
-/** Flat floor of dots that fade into the background toward the rim. No ring. */
+/** Flat floor of dots that fade into the background toward the rim. Neutral —
+ *  the layer colour is reserved for the project dots + a few details. */
 function DotFloor({ step = 0.26 }: { step?: number }) {
-  const { accent } = useAccent();
   const R = 2.2;
   const { positions, colors } = useMemo(() => {
     const pos: number[] = [];
     const col: number[] = [];
-    const c = new Color(accent);
+    const c = new Color(NEUTRAL);
     const bg = new Color(BG);
     const tmp = new Color();
     for (let x = -R; x <= R + 1e-6; x += step)
@@ -250,11 +282,11 @@ function DotFloor({ step = 0.26 }: { step?: number }) {
         if (d > R) continue;
         pos.push(x, 0, z);
         const fade = Math.pow(1 - d / R, 1.5);
-        tmp.copy(bg).lerp(c, 0.1 + 0.78 * fade);
+        tmp.copy(bg).lerp(c, 0.06 + 0.5 * fade);
         col.push(tmp.r, tmp.g, tmp.b);
       }
     return { positions: new Float32Array(pos), colors: new Float32Array(col) };
-  }, [accent, step]);
+  }, [step]);
   return (
     <points>
       <bufferGeometry>
@@ -266,9 +298,8 @@ function DotFloor({ step = 0.26 }: { step?: number }) {
   );
 }
 
-/** A sparse field of accent points drifting slowly above the layer. */
+/** A sparse field of neutral points drifting slowly above the layer. */
 function PointCloud({ seed }: { seed: number }) {
-  const { accent } = useAccent();
   const ref = useRef<ThreePoints>(null);
   const reduced = useReducedMotion();
   const positions = useMemo(() => {
@@ -292,7 +323,7 @@ function PointCloud({ seed }: { seed: number }) {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.016} color={accent} transparent opacity={0.3} sizeAttenuation depthWrite={false} />
+      <pointsMaterial size={0.016} color={NEUTRAL} transparent opacity={0.22} sizeAttenuation depthWrite={false} />
     </points>
   );
 }
@@ -441,7 +472,9 @@ function CityRig() {
       {cluster.map((b, i) => (
         <Building key={i} {...b} />
       ))}
-      <TownHall position={[0, 0, 0]} />
+      <Highlightable slug="municipal-twin" center={[0, 0.5, 0]} glowR={0.46}>
+        <TownHall position={[0, 0, 0]} />
+      </Highlightable>
 
       {/* church landmark (square tower + tall spire + upright cross) */}
       <group position={[-0.55, 0, -0.7]}>
@@ -468,8 +501,10 @@ function CityRig() {
       {/* windmill on the side */}
       <Windmill position={[-1.2, 0, 0.5]} />
 
-      {/* parks */}
-      <Park position={[1.0, 0, 0.6]} />
+      {/* parks (the first carries the niantic-explorer hotspot) */}
+      <Highlightable slug="niantic-explorer" center={[1.0, 0.12, 0.6]} glowR={0.52}>
+        <Park position={[1.0, 0, 0.6]} />
+      </Highlightable>
       <Park position={[1.05, 0, -0.72]} />
 
       {/* a canal with a little bridge */}
@@ -603,7 +638,8 @@ function RoomRig() {
       <Line points={circlePts(1.05)} position={[0.25, 0.024, 0.45]} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
       <Line points={circlePts(0.78)} position={[0.25, 0.026, 0.45]} color={accent} lineWidth={1} transparent opacity={0.16} />
 
-      {/* desk + monitor + VR headset (back-left) */}
+      {/* desk + monitor + VR headset (back-left) — carries virtuele-brigade */}
+      <Highlightable slug="virtuele-brigade" center={[-0.9, 0.5, -1.0]} glowR={0.72}>
       <group position={[-0.9, 0, -1.0]}>
         <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline />
         {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
@@ -628,6 +664,7 @@ function RoomRig() {
         <SoftBox position={[-0.05, 0.405, 0.14]} args={[0.13, 0.012, 0.17]} radius={0.004} opacity={0.3} />
         <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
       </group>
+      </Highlightable>
 
       {/* chair */}
       <group position={[-0.55, 0, -0.42]}>
@@ -661,14 +698,18 @@ function RoomRig() {
         <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
         <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
         <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} />
-        <mesh position={[0.12, 0.205, 0.06]} rotation={[-Math.PI / 2, 0, 0.3]}>
-          <boxGeometry args={[0.075, 0.155, 0.004]} />
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} />
-        </mesh>
+        <Highlightable slug="popcore-games" center={[0.12, 0.205, 0.06]} glowR={0.17}>
+          <mesh position={[0.12, 0.205, 0.06]} rotation={[-Math.PI / 2, 0, 0.3]}>
+            <boxGeometry args={[0.075, 0.155, 0.004]} />
+            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} />
+          </mesh>
+        </Highlightable>
       </group>
 
       {/* coffee table with AR racing in front of the couch (Lightship Drive) */}
-      <CoffeeTableAR position={[0, 0, 1.0]} />
+      <Highlightable slug="lightship-drive" center={[0, 0.3, 1.0]} glowR={0.5}>
+        <CoffeeTableAR position={[0, 0, 1.0]} />
+      </Highlightable>
 
       {/* fill the diorama out */}
       <TreeRound position={[-1.3, 0, 0.85]} h={0.55} />
@@ -789,18 +830,27 @@ function ChipRig() {
   const cv: V3 = [0.85, 0.16, 0.85];
   return (
     <group>
-      {/* rounded package + die (the die is the accent) */}
+      {/* rounded package + die (the die is the accent; carries amsterdam-ai) */}
       <SoftBox position={[0, 0.06, 0]} args={[1.25, 0.12, 1.25]} radius={0.08} outline />
-      <PulseBox position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} base={0.5} amp={0.14} speed={1.5} />
-      <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.155, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
+      <Highlightable slug="amsterdam-ai" center={[0, 0.15, 0]} glowR={0.34}>
+        <PulseBox position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} base={0.5} amp={0.14} speed={1.5} />
+        <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.155, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
+      </Highlightable>
 
       {/* curved traces */}
       {traces.map((t, i) => (
         <Line key={i} points={t} color={NEUTRAL} lineWidth={1.1} transparent opacity={0.55} />
       ))}
 
-      {/* round components (custom-ar-framework hotspot sits on the first) */}
-      {([[0.42, 0.4], [0.56, 0.28], [-0.46, 0.42]] as [number, number][]).map(([cx, cz], i) => (
+      {/* round components — the first carries the custom-ar-framework hotspot */}
+      <Highlightable slug="custom-ar-framework" center={[0.42, 0.16, 0.4]} glowR={0.18}>
+        <mesh position={[0.42, 0.13, 0.4]}>
+          <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
+          <GlassMat opacity={0.34} />
+          <Edges threshold={30} color={NEUTRAL} />
+        </mesh>
+      </Highlightable>
+      {([[0.56, 0.28], [-0.46, 0.42]] as [number, number][]).map(([cx, cz], i) => (
         <mesh key={i} position={[cx, 0.13, cz]}>
           <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
           <GlassMat opacity={0.34} />
@@ -832,7 +882,9 @@ function ChipRig() {
       <PinHeader position={[-0.05, 0, 1.02]} n={6} />
 
       {/* Philips medical XR & AI module + extra decorative components */}
-      <PhilipsModule position={[0.5, 0, -0.5]} />
+      <Highlightable slug="philips-medical-xr" center={[0.5, 0.24, -0.5]} glowR={0.32}>
+        <PhilipsModule position={[0.5, 0, -0.5]} />
+      </Highlightable>
       <MiscComponents />
     </group>
   );
@@ -857,7 +909,14 @@ function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color
             type="button"
             className="hotspot__dot"
             aria-label={hotspot.twin ? `${label} — fly into the live district` : `${label} — open node`}
-            onClick={() => onActivate(hotspot)}
+            onPointerEnter={() => sceneStore.setHovered(hotspot.slug)}
+            onPointerLeave={() => sceneStore.setHovered(null)}
+            onFocus={() => sceneStore.setHovered(hotspot.slug)}
+            onBlur={() => sceneStore.setHovered(null)}
+            onClick={() => {
+              sceneStore.setHovered(null);
+              onActivate(hotspot);
+            }}
           >
             <span className="hotspot__ring" aria-hidden="true" />
             <span className="hotspot__label">
@@ -890,14 +949,14 @@ interface FunnelDef {
 }
 
 const FUNNELS: FunnelDef[] = [
-  // a building in the city → the whole room below
-  { source: [0.667, 1.32, -0.667], sourceR: 0.1, target: [0, 0, 0], targetR: 1.1, color: PALETTE.city.accent, activeSteps: [0, 1] },
-  // the phone on the couch → the chip die below
-  { source: [1.07, 0.205, 0.91], sourceR: 0.06, target: [0, -1.32, 0], targetR: 0.5, color: PALETTE.room.accent, activeSteps: [1, 2] },
+  // a building in the city → (almost) the whole room below
+  { source: [0.667, 1.32, -0.667], sourceR: 0.09, target: [0, 0, 0], targetR: 2.05, color: PALETTE.city.accent, activeSteps: [0, 1] },
+  // the phone on the couch → (almost) the whole chip layer below
+  { source: [1.07, 0.205, 0.91], sourceR: 0.055, target: [0, -1.32, 0], targetR: 1.55, color: PALETTE.room.accent, activeSteps: [1, 2] },
 ];
 
-const FUNNEL_WHISPER = 0.12;
-const FUNNEL_ACTIVE = 0.34;
+const FUNNEL_WHISPER = 0.05;
+const FUNNEL_ACTIVE = 0.15;
 
 // A glowing cone: bright at the narrow top (the source), fading to nothing at
 // the wide bottom, with the silhouette glowing more than the face (volumetric).
@@ -948,7 +1007,7 @@ function Funnel({ source, sourceR, target, targetR, color, activeSteps }: Funnel
       uniforms: {
         uColor: { value: new Color(color) },
         uOpacity: { value: FUNNEL_WHISPER },
-        uFade: { value: 1.8 },
+        uFade: { value: 2.5 },
         uHeight: { value: h },
       },
     };
@@ -979,6 +1038,41 @@ function Funnel({ source, sourceR, target, targetR, color, activeSteps }: Funnel
   );
 }
 
+/* ---------- Depth: a soft shadow under the focused layer that also darkens the
+   layers beneath it, so one reads as the subject. Follows the active layer. */
+function radialVeilTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(4,6,8,0.85)');
+    g.addColorStop(0.55, 'rgba(4,6,8,0.52)');
+    g.addColorStop(1, 'rgba(4,6,8,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+  }
+  return new CanvasTexture(c);
+}
+
+function DepthVeil() {
+  const journeyStep = useSceneSelector((s) => s.journeyStep);
+  const reduced = useReducedMotion();
+  const ref = useRef<Mesh>(null);
+  const tex = useMemo(() => radialVeilTexture(), []);
+  const targetY = ([1.32, 0, -1.32][journeyStep] ?? 1.32) - 0.34;
+  useFrame(() => {
+    if (!ref.current) return;
+    ref.current.position.y = reduced ? targetY : ref.current.position.y + (targetY - ref.current.position.y) * 0.08;
+  });
+  return (
+    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, targetY, 0]}>
+      <circleGeometry args={[2.7, 64]} />
+      <meshBasicMaterial map={tex} transparent depthWrite={false} toneMapped={false} fog={false} />
+    </mesh>
+  );
+}
+
 export interface MaquetteProps {
   onActivate: (hotspot: Hotspot) => void;
 }
@@ -989,6 +1083,7 @@ export function Maquette({ onActivate }: MaquetteProps) {
 
   return (
     <group>
+      <DepthVeil />
       {MAQUETTE_LAYERS.map((layer) => {
         const Rig = RIGS[layer.id];
         return (
