@@ -16,7 +16,7 @@ import { caseBySlug } from '../content';
 // sparse drifting point field.
 
 const NEUTRAL = '#9fb6c6'; // soft white-blue — the wireframe lines
-const GLASS = '#5b7da0';
+const GLASS = '#46596d'; // body colour for the (now solid) forms
 const BG = '#0a0d10';
 
 interface Palette {
@@ -132,17 +132,23 @@ function glassRim(shader: any) {
     );
 }
 
-function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opacity?: number }) {
+// Solid by default — opaque forms occlude what's behind them (and their own back
+// edges), which is what keeps the scene from reading as a busy see-through mesh.
+// `ghost` opts an element back into translucency (water, foliage, the lamp shade).
+function GlassMat({ color = GLASS, opacity = 0.3, ghost = false }: { color?: string; opacity?: number; ghost?: boolean }) {
   return (
     <meshStandardMaterial
       color={color}
-      transparent
-      opacity={opacity}
-      roughness={0.34}
+      transparent={ghost}
+      opacity={ghost ? opacity : 1}
+      roughness={ghost ? 0.34 : 0.5}
       metalness={0}
       emissive="#0c2a30"
       emissiveIntensity={0.14}
-      depthWrite={false}
+      depthWrite={!ghost}
+      polygonOffset={!ghost}
+      polygonOffsetFactor={1}
+      polygonOffsetUnits={1}
       onBeforeCompile={glassRim}
     />
   );
@@ -222,7 +228,7 @@ function Windmill({ position }: { position: V3 }) {
           <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
             <mesh position={[0, 0.24, 0]}>
               <boxGeometry args={[0.05, 0.46, 0.01]} />
-              <GlassMat color="#3f8f8a" opacity={0.34} />
+              <GlassMat color="#3f8f8a" opacity={0.34} ghost />
               <Edges threshold={30} color={NEUTRAL} />
             </mesh>
           </group>
@@ -241,7 +247,7 @@ function TreeRound({ position, h = 0.45 }: { position: V3; h?: number }) {
       <group position={[0, h * 0.66, 0]}>
         <mesh>
           <sphereGeometry args={[0.13, 14, 12]} />
-          <GlassMat color="#3f8f8a" opacity={0.14} />
+          <GlassMat color="#3f8f8a" opacity={0.14} ghost />
         </mesh>
         <Line points={circlePts(0.13)} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
         <Line points={circlePts(0.13)} rotation={[Math.PI / 2, 0, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
@@ -341,7 +347,7 @@ function Park({ position }: { position: V3 }) {
       {/* pond */}
       <mesh position={[-0.14, 0.02, 0.16]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.15, 28]} />
-        <GlassMat color="#2e7f86" opacity={0.28} />
+        <GlassMat color="#2e7f86" opacity={0.28} ghost />
       </mesh>
       <Line points={circlePts(0.15)} position={[-0.14, 0.03, 0.16]} color={accent} lineWidth={1} transparent opacity={0.5} />
       <TreeRound position={[0.2, 0, -0.18]} h={0.44} />
@@ -507,20 +513,6 @@ function CityRig() {
       </Highlightable>
       <Park position={[1.05, 0, -0.72]} />
 
-      {/* a canal with a little bridge */}
-      <group position={[0, 0, 1.15]}>
-        <mesh position={[0, 0.012, 0]}>
-          <boxGeometry args={[2.3, 0.02, 0.16]} />
-          <GlassMat color="#206a82" opacity={0.45} />
-        </mesh>
-        <Line points={[[-1.15, 0.026, 0.083], [1.15, 0.026, 0.083]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
-        <Line points={[[-1.15, 0.026, -0.083], [1.15, 0.026, -0.083]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
-        <mesh position={[0.15, 0.05, 0]}>
-          <boxGeometry args={[0.12, 0.04, 0.24]} />
-          <GlassMat opacity={0.34} />
-          <Edges threshold={20} color={NEUTRAL} />
-        </mesh>
-      </group>
 
       {/* trees */}
       <TreeRound position={[-0.78, 0, -0.18]} h={0.3} />
@@ -596,7 +588,7 @@ function FloorLamp({ position }: { position: V3 }) {
       </mesh>
       <mesh position={[0, 0.72, 0]}>
         <coneGeometry args={[0.14, 0.18, 22, 1, true]} />
-        <GlassMat opacity={0.2} />
+        <GlassMat opacity={0.2} ghost />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
       <Accent position={[0, 0.66, 0]} args={[0.07, 0.02, 0.07]} intensity={0.5} />
