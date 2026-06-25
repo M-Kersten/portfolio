@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useRef, type CSSProperties, type ComponentProps } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { CatmullRomCurve3, Color, Vector3, type Group, type Points as ThreePoints, type MeshStandardMaterial, type LineBasicMaterial } from 'three';
+import { AdditiveBlending, CatmullRomCurve3, Color, DoubleSide, Quaternion, Vector3, type Group, type Points as ThreePoints, type MeshStandardMaterial, type MeshBasicMaterial, type ShaderMaterial } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, type Hotspot, type LayerId } from './framing';
 import { useSceneSelector } from './store';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -833,68 +833,117 @@ const RIGS: Record<LayerId, () => JSX.Element> = { city: CityRig, room: RoomRig,
 const SEED: Record<LayerId, number> = { city: 11, room: 29, chip: 53 };
 
 /* ---------- Nesting: zoom funnels between the layers ----------
-   Each layer is a magnified detail of one point on the layer above. A funnel
-   marks that point (a small reticle with corner ticks) and ties it to the
-   whole layer below (a frame), with four hairline frustum edges. These live in
-   world space because they bridge two differently-scaled layer groups. They sit
-   at a faint "whisper" and brighten a little when their gap is in view. */
+   Each layer is a magnified detail of one point on the layer above. A funnel is
+   a glowing cone — narrow at that point on the upper layer, flaring open toward
+   the whole layer below and fading out as it descends. They live in world space
+   because they bridge two differently-scaled layer groups, sit at a faint
+   "whisper", and brighten a little when their gap is in view. */
 interface FunnelDef {
   source: [number, number, number]; // world point on the upper layer
-  reticleHalf: number;
-  frame: [number, number, number]; // world centre of the frame on the lower layer
-  frameHalf: number;
+  sourceR: number; // cone radius at the source (narrow)
+  target: [number, number, number]; // world centre on the lower layer
+  targetR: number; // cone radius at the layer below (wide)
   color: string;
   activeSteps: number[]; // journey steps at which this funnel brightens
 }
 
 const FUNNELS: FunnelDef[] = [
   // a building in the city → the whole room below
-  { source: [0.667, 1.32, -0.667], reticleHalf: 0.12, frame: [0, 0, 0], frameHalf: 1.1, color: PALETTE.city.accent, activeSteps: [0, 1] },
+  { source: [0.667, 1.32, -0.667], sourceR: 0.1, target: [0, 0, 0], targetR: 1.1, color: PALETTE.city.accent, activeSteps: [0, 1] },
   // the phone on the couch → the chip die below
-  { source: [1.07, 0.205, 0.91], reticleHalf: 0.085, frame: [0, -1.32, 0], frameHalf: 0.5, color: PALETTE.room.accent, activeSteps: [1, 2] },
+  { source: [1.07, 0.205, 0.91], sourceR: 0.06, target: [0, -1.32, 0], targetR: 0.5, color: PALETTE.room.accent, activeSteps: [1, 2] },
 ];
 
 const FUNNEL_WHISPER = 0.12;
-const FUNNEL_ACTIVE = 0.3;
+const FUNNEL_ACTIVE = 0.34;
 
-function Funnel({ source, reticleHalf, frame, frameHalf, color, activeSteps }: FunnelDef) {
+// A glowing cone: bright at the narrow top (the source), fading to nothing at
+// the wide bottom, with the silhouette glowing more than the face (volumetric).
+const FUNNEL_VERT = `
+  uniform float uHeight;
+  varying float vH;
+  varying vec3 vN;
+  varying vec3 vV;
+  void main() {
+    vH = position.y / uHeight + 0.5;            // 1 at the source (top), 0 at the bottom
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vN = normalize(normalMatrix * normal);
+    vV = normalize(-mv.xyz);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+const FUNNEL_FRAG = `
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  uniform float uFade;
+  varying float vH;
+  varying vec3 vN;
+  varying vec3 vV;
+  void main() {
+    float fres = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0);
+    float grad = pow(clamp(vH, 0.0, 1.0), uFade);  // fade out toward the bottom
+    float a = uOpacity * grad * (0.18 + 1.15 * fres);
+    if (a < 0.002) discard;
+    gl_FragColor = vec4(uColor, a);
+  }
+`;
+
+function Funnel({ source, sourceR, target, targetR, color, activeSteps }: FunnelDef) {
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const reduced = useReducedMotion();
-  const matRef = useRef<LineBasicMaterial>(null);
-  const [sx, sy, sz] = source;
-  const [fx, fy, fz] = frame;
-  const positions = useMemo(() => {
-    const sgn = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
-    const A = sgn.map(([ux, uz]) => [sx + ux * reticleHalf, sy, sz + uz * reticleHalf]);
-    const B = sgn.map(([ux, uz]) => [fx + ux * frameHalf, fy, fz + uz * frameHalf]);
-    const seg: number[] = [];
-    const push = (p: number[], q: number[]) => seg.push(p[0], p[1], p[2], q[0], q[1], q[2]);
-    const tk = reticleHalf * 0.5;
-    for (let i = 0; i < 4; i++) push(A[i], A[(i + 1) % 4]); // reticle square
-    for (let i = 0; i < 4; i++) {
-      const [ux, uz] = sgn[i]; // inward corner ticks
-      push(A[i], [A[i][0] - ux * tk, sy, A[i][2]]);
-      push(A[i], [A[i][0], sy, A[i][2] - uz * tk]);
-    }
-    for (let i = 0; i < 4; i++) push(B[i], B[(i + 1) % 4]); // frame square
-    for (let i = 0; i < 4; i++) push(A[i], B[i]); // frustum edges
-    return new Float32Array(seg);
-  }, [sx, sy, sz, fx, fy, fz, reticleHalf, frameHalf]);
+  const matRef = useRef<ShaderMaterial>(null);
+  const dotRef = useRef<MeshBasicMaterial>(null);
+
+  const { position, quaternion, height, uniforms } = useMemo(() => {
+    const s = new Vector3(...source);
+    const t = new Vector3(...target);
+    const h = Math.max(s.distanceTo(t), 1e-3);
+    // cone axis is local +Y; orient it to point from the target up to the source
+    const q = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), s.clone().sub(t).normalize());
+    return {
+      position: s.clone().add(t).multiplyScalar(0.5).toArray() as [number, number, number],
+      quaternion: q,
+      height: h,
+      uniforms: {
+        uColor: { value: new Color(color) },
+        uOpacity: { value: FUNNEL_WHISPER },
+        uFade: { value: 1.8 },
+        uHeight: { value: h },
+      },
+    };
+  }, [source, target, color]);
 
   useFrame(() => {
-    const m = matRef.current;
-    if (!m) return;
-    const target = activeSteps.includes(journeyStep) ? FUNNEL_ACTIVE : FUNNEL_WHISPER;
-    m.opacity = reduced ? target : m.opacity + (target - m.opacity) * 0.08;
+    if (!matRef.current) return;
+    const tgt = activeSteps.includes(journeyStep) ? FUNNEL_ACTIVE : FUNNEL_WHISPER;
+    const cur = matRef.current.uniforms.uOpacity.value as number;
+    const next = reduced ? tgt : cur + (tgt - cur) * 0.08;
+    matRef.current.uniforms.uOpacity.value = next;
+    if (dotRef.current) dotRef.current.opacity = Math.min(1, next * 2.4);
   });
 
   return (
-    <lineSegments>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <lineBasicMaterial ref={matRef} color={color} transparent opacity={FUNNEL_WHISPER} depthWrite={false} toneMapped={false} fog={false} />
-    </lineSegments>
+    <group>
+      <mesh position={position} quaternion={quaternion}>
+        <cylinderGeometry args={[sourceR, targetR, height, 48, 1, true]} />
+        <shaderMaterial
+          ref={matRef}
+          vertexShader={FUNNEL_VERT}
+          fragmentShader={FUNNEL_FRAG}
+          uniforms={uniforms}
+          transparent
+          blending={AdditiveBlending}
+          depthWrite={false}
+          side={DoubleSide}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* the marked point — a small glow where the funnel originates */}
+      <mesh position={source}>
+        <sphereGeometry args={[sourceR * 0.85, 16, 16]} />
+        <meshBasicMaterial ref={dotRef} color={color} transparent opacity={FUNNEL_WHISPER * 2} blending={AdditiveBlending} depthWrite={false} toneMapped={false} fog={false} />
+      </mesh>
+    </group>
   );
 }
 
