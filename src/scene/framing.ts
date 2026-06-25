@@ -49,8 +49,8 @@ export const HOTSPOTS: Hotspot[] = [
   { slug: 'popcore-games', layer: 'room', position: [1.07, 0.54, 0.91], anchor: [1.07, 0.24, 0.91] }, // phone on the couch
   { slug: 'lightship-drive', layer: 'room', position: [0, 0.6, 1.0], anchor: [0, 0.3, 1.0] }, // the AR race table
   // City — on real places; the twin flies into the live district
-  { slug: 'niantic-explorer', layer: 'city', position: [0.9, 0.44, 0.9], anchor: [0.9, 0.06, 0.9] }, // the park
-  { slug: 'municipal-twin', layer: 'city', position: [0.2, 1.12, -0.2], anchor: [0.2, 0.82, -0.2], twin: true }, // town hall
+  { slug: 'niantic-explorer', layer: 'city', position: [1.2, 0.46, 0.7], anchor: [1.2, 0.06, 0.7] }, // the park
+  { slug: 'municipal-twin', layer: 'city', position: [0, 1.15, 0], anchor: [0, 0.8, 0], twin: true }, // town hall (skyline peak)
 ];
 
 export interface Framing {
