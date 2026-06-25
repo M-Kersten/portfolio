@@ -324,24 +324,24 @@ function Park({ position }: { position: V3 }) {
 function TownHall({ position }: { position: V3 }) {
   return (
     <group position={position}>
-      <mesh position={[0, 0.32, 0]}>
-        <boxGeometry args={[0.36, 0.64, 0.32]} />
+      <mesh position={[0, 0.28, 0]}>
+        <boxGeometry args={[0.34, 0.56, 0.3]} />
         <GlassMat />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* cornice band */}
-      <Accent position={[0, 0.64, 0]} args={[0.4, 0.012, 0.36]} intensity={0.3} />
+      <Accent position={[0, 0.56, 0]} args={[0.38, 0.012, 0.34]} intensity={0.3} />
       {/* clock tower */}
-      <mesh position={[0, 0.78, 0]}>
-        <boxGeometry args={[0.17, 0.26, 0.17]} />
+      <mesh position={[0, 0.7, 0]}>
+        <boxGeometry args={[0.16, 0.24, 0.16]} />
         <GlassMat />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* clock face */}
-      <Accent position={[0, 0.82, 0.088]} args={[0.07, 0.07, 0.012]} intensity={0.5} />
+      <Accent position={[0, 0.74, 0.082]} args={[0.065, 0.065, 0.012]} intensity={0.5} />
       {/* spire */}
-      <mesh position={[0, 1.0, 0]}>
-        <coneGeometry args={[0.11, 0.18, 4]} />
+      <mesh position={[0, 0.91, 0]}>
+        <coneGeometry args={[0.1, 0.16, 4]} />
         <GlassMat opacity={0.3} />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
@@ -350,34 +350,50 @@ function TownHall({ position }: { position: V3 }) {
 }
 
 function CityRig() {
-  const roadA = useMemo(() => smoothCurve([[-2.1, 0.01, -0.5], [-0.7, 0.01, -0.2], [0.7, 0.01, 0.2], [2.1, 0.01, 0.55]]), []);
-  const roadB = useMemo(() => smoothCurve([[-0.55, 0.01, -2.1], [-0.2, 0.01, -0.6], [0.0, 0.01, 0.7], [0.3, 0.01, 2.1]]), []);
-  // A clustered skyline: a grid of square buildings, tallest toward the centre,
-  // with gaps for streets. The centre cell is left for the town hall.
+  // Roads: a grid threading between the blocks, three avenues out toward the
+  // church / windmill / park, and two curved roads sweeping around the side.
+  const roads: V3[][] = useMemo(
+    () => [
+      [[-0.3, 0.01, -0.9], [-0.3, 0.01, 0.9]],
+      [[0.3, 0.01, -0.9], [0.3, 0.01, 0.9]],
+      [[-0.9, 0.01, -0.3], [0.9, 0.01, -0.3]],
+      [[-0.9, 0.01, 0.3], [0.9, 0.01, 0.3]],
+      [[0.3, 0.01, 0.3], [1.0, 0.01, 0.6]],
+      [[-0.3, 0.01, 0.3], [-1.15, 0.01, 0.5]],
+      [[-0.3, 0.01, -0.3], [-0.55, 0.01, -0.62]],
+    ],
+    [],
+  );
+  const curveA = useMemo(() => smoothCurve([[-1.9, 0.01, 0.45], [-1.0, 0.01, 0.85], [0.1, 0.01, 0.98], [1.05, 0.01, 0.82]]), []);
+  const curveB = useMemo(() => smoothCurve([[1.9, 0.01, -0.5], [1.6, 0.01, 0.3], [1.4, 0.01, 0.92], [1.2, 0.01, 1.3]]), []);
+  // Sparse blocks of square buildings around a central plaza; taller toward
+  // the middle so the cluster still reads as a skyline.
   const cluster = useMemo(() => {
     const rnd = makeRand(1872); // Weesp
     const out: { x: number; z: number; w: number; d: number; h: number }[] = [];
-    const n = 5;
-    const gap = 0.3;
-    for (let i = 0; i < n; i++)
-      for (let j = 0; j < n; j++) {
-        const x = (i - (n - 1) / 2) * gap;
-        const z = (j - (n - 1) / 2) * gap;
-        if (Math.hypot(x, z) < 0.18) continue; // town hall sits at the centre
-        if (rnd() < 0.16) continue; // gaps / streets
-        const fall = Math.max(0.16, 1 - (x * x + z * z) * 1.05);
-        const h = 0.24 + fall * 0.5 + rnd() * 0.16;
-        const w = 0.15 + rnd() * 0.07;
-        const d = 0.15 + rnd() * 0.07;
-        out.push({ x, z, w, d, h });
+    const cells = [-0.58, 0, 0.58];
+    for (const cx of cells)
+      for (const cz of cells) {
+        if (cx === 0 && cz === 0) continue; // central plaza → town hall
+        const count = rnd() < 0.45 ? 2 : 1;
+        for (let k = 0; k < count; k++) {
+          const x = cx + (rnd() - 0.5) * 0.16;
+          const z = cz + (rnd() - 0.5) * 0.16;
+          const fall = Math.max(0.16, 1 - (x * x + z * z) * 0.8);
+          out.push({ x, z, w: 0.13 + rnd() * 0.05, d: 0.13 + rnd() * 0.05, h: 0.2 + fall * 0.4 + rnd() * 0.12 });
+        }
       }
     return out;
   }, []);
   return (
     <group>
-      {/* main streets */}
-      <Line points={roadA} color={NEUTRAL} lineWidth={1.1} transparent opacity={0.3} />
-      <Line points={roadB} color={NEUTRAL} lineWidth={1.1} transparent opacity={0.3} />
+      {/* roads through the city */}
+      {roads.map((p, i) => (
+        <Line key={`r${i}`} points={p} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.32} />
+      ))}
+      {/* curved roads on the side */}
+      <Line points={curveA} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.34} />
+      <Line points={curveB} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.34} />
 
       {/* the skyline + its civic peak */}
       {cluster.map((b, i) => (
@@ -385,54 +401,55 @@ function CityRig() {
       ))}
       <TownHall position={[0, 0, 0]} />
 
-      {/* church landmark (square tower + tall spire + cross) */}
-      <group position={[-0.6, 0, -0.95]}>
-        <mesh position={[0, 0.18, 0]}>
-          <boxGeometry args={[0.26, 0.36, 0.34]} />
+      {/* church landmark (square tower + tall spire + upright cross) */}
+      <group position={[-0.55, 0, -0.7]}>
+        <mesh position={[0, 0.17, 0]}>
+          <boxGeometry args={[0.24, 0.34, 0.3]} />
           <GlassMat />
           <Edges threshold={20} color={NEUTRAL} />
         </mesh>
-        <mesh position={[0, 0.42, -0.12]}>
-          <boxGeometry args={[0.16, 0.72, 0.16]} />
+        <mesh position={[0, 0.4, -0.1]}>
+          <boxGeometry args={[0.15, 0.68, 0.15]} />
           <GlassMat />
           <Edges threshold={20} color={NEUTRAL} />
         </mesh>
-        <mesh position={[0, 0.9, -0.12]}>
-          <coneGeometry args={[0.1, 0.34, 4]} />
+        <mesh position={[0, 0.86, -0.1]}>
+          <coneGeometry args={[0.095, 0.32, 4]} />
           <GlassMat opacity={0.3} />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
-        <Accent position={[0, 1.12, -0.12]} args={[0.012, 0.1, 0.012]} intensity={0.5} />
-        <Accent position={[0, 1.1, -0.12]} args={[0.06, 0.012, 0.012]} intensity={0.5} />
+        {/* cross: long stem with the crossbar near the top (upright) */}
+        <Accent position={[0, 1.11, -0.1]} args={[0.014, 0.15, 0.014]} intensity={0.5} />
+        <Accent position={[0, 1.15, -0.1]} args={[0.07, 0.014, 0.014]} intensity={0.5} />
       </group>
 
       {/* windmill on the side */}
-      <Windmill position={[-1.45, 0, 0.5]} />
+      <Windmill position={[-1.2, 0, 0.5]} />
 
       {/* parks */}
-      <Park position={[1.2, 0, 0.7]} />
-      <Park position={[1.25, 0, -0.85]} />
+      <Park position={[1.0, 0, 0.6]} />
+      <Park position={[1.05, 0, -0.72]} />
 
       {/* a canal with a little bridge */}
-      <group position={[0, 0, 1.35]}>
+      <group position={[0, 0, 1.15]}>
         <mesh position={[0, 0.012, 0]}>
-          <boxGeometry args={[2.9, 0.02, 0.17]} />
+          <boxGeometry args={[2.3, 0.02, 0.16]} />
           <GlassMat color="#206a82" opacity={0.45} />
         </mesh>
-        <Line points={[[-1.45, 0.026, 0.088], [1.45, 0.026, 0.088]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
-        <Line points={[[-1.45, 0.026, -0.088], [1.45, 0.026, -0.088]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
+        <Line points={[[-1.15, 0.026, 0.083], [1.15, 0.026, 0.083]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
+        <Line points={[[-1.15, 0.026, -0.083], [1.15, 0.026, -0.083]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
         <mesh position={[0.15, 0.05, 0]}>
-          <boxGeometry args={[0.13, 0.04, 0.26]} />
+          <boxGeometry args={[0.12, 0.04, 0.24]} />
           <GlassMat opacity={0.34} />
           <Edges threshold={20} color={NEUTRAL} />
         </mesh>
       </group>
 
-      {/* street trees */}
-      <TreeRound position={[-1.0, 0, -0.25]} h={0.36} />
-      <TreeRound position={[0.7, 0, 1.0]} h={0.34} />
-      <TreeRound position={[-0.35, 0, 1.05]} h={0.3} />
-      <TreeRound position={[0.95, 0, -0.3]} h={0.32} />
+      {/* trees */}
+      <TreeRound position={[-0.78, 0, -0.18]} h={0.3} />
+      <TreeRound position={[0.55, 0, 0.85]} h={0.28} />
+      <TreeRound position={[-0.28, 0, 0.88]} h={0.26} />
+      <TreeRound position={[0.82, 0, -0.22]} h={0.28} />
     </group>
   );
 }
