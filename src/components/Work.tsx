@@ -1,4 +1,4 @@
-import { cases, site, LAYER_ORDER, LAYER_LABEL, LAYER_TAGLINE } from '../content';
+import { cases, site, LAYER_ORDER, LAYER_TAGLINE } from '../content';
 import { CaseCard } from './CaseCard';
 
 // Grouped by scale (City → Room → Chip) so the three-layer story is visible in
@@ -16,7 +16,7 @@ export function Work() {
           const group = cases.filter((c) => c.layer === layer);
           if (group.length === 0) return null;
           return (
-            <div key={layer} className="work__group" data-layer={layer}>
+            <div key={layer} className="work__group">
               <div className="work__group-head">
                 <span className="work__group-tag">{LAYER_TAGLINE[layer]}</span>
               </div>
