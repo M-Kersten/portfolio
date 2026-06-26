@@ -84,7 +84,16 @@ function Line(props: ComponentProps<typeof DreiLine>) {
    the phone vibrates, the monitor + chip + AR projection power on / flicker, the
    building windows light up, the park's trees rustle. Each reads the hovered
    slug from the store and eases a 0→1 value it drives its motion from. */
-const useHovered = (slug: string) => useSceneSelector((s) => s.hoveredSlug) === slug;
+function useActive(slug: string) {
+  const hovered = useSceneSelector((s) => s.hoveredSlug) === slug;
+  const selected = useSceneSelector((s) => s.selectedSlug) === slug;
+  return { hovered, selected };
+}
+// Motion plays while hovered OR selected, so it keeps living once you click in.
+function useHovered(slug: string) {
+  const { hovered, selected } = useActive(slug);
+  return hovered || selected;
+}
 
 /** A subtle vibration — the phone (a gentle buzz, not a rumble). */
 function Jitter({ slug, children, amp = 0.005 }: { slug: string; children: ReactNode; amp?: number }) {
@@ -106,34 +115,44 @@ function Jitter({ slug, children, amp = 0.005 }: { slug: string; children: React
 }
 
 /** An emissive surface that powers on at hover — a smooth "turn on" (chip, AR)
- *  or a TV-style flicker (the monitor). Dim at rest, lit on hover. */
-function EmissiveHover({ slug, position, rotation, args, color, rest = 0.12, peak = 1.0, flicker = false }: {
+ *  or a TV-style flicker (the monitor). On *select* it shifts toward a lifelike
+ *  colour and brightens further (so it blooms), making the pick feel rewarding. */
+function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest = 0.12, peak = 1.0, flicker = false }: {
   slug: string;
   position: V3;
   rotation?: V3;
   args: V3;
   color?: string;
+  liveColor?: string;
   rest?: number;
   peak?: number;
   flicker?: boolean;
 }) {
   const { accent } = useAccent();
   const col = color ?? accent;
-  const hovered = useHovered(slug);
+  const { hovered, selected } = useActive(slug);
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
+  const live = useRef(0);
+  const base = useMemo(() => new Color(col), [col]);
+  const lifelike = useMemo(() => new Color(liveColor ?? col), [liveColor, col]);
   useFrame((s) => {
     if (!mat.current) return;
-    k.current += ((hovered ? 1 : 0) - k.current) * (flicker ? 0.32 : 0.12);
+    k.current += ((hovered || selected ? 1 : 0) - k.current) * (flicker ? 0.32 : 0.12);
+    live.current += ((selected ? 1 : 0) - live.current) * 0.07;
     const t = s.clock.elapsedTime;
+    let lvl;
     if (flicker) {
       const n = reduced ? 1 : Math.max(0.18, 0.55 + 0.5 * Math.sin(t * 46) * Math.sin(t * 8.7) + 0.2 * Math.sin(t * 113));
-      mat.current.emissiveIntensity = rest + k.current * peak * n;
+      lvl = rest + k.current * peak * n;
     } else {
       const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
-      mat.current.emissiveIntensity = rest + k.current * (peak + breathe);
+      lvl = rest + k.current * (peak + breathe);
     }
+    mat.current.emissiveIntensity = lvl + live.current * 0.8; // selected = brighter → blooms
+    mat.current.color.copy(base).lerp(lifelike, live.current);
+    mat.current.emissive.copy(base).lerp(lifelike, live.current);
   });
   return (
     <mesh position={position} rotation={rotation}>
@@ -404,6 +423,7 @@ function PointCloud({ seed }: { seed: number }) {
 /* ---------- City — GIS & location (top) ---------- */
 function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
   const { accent } = useAccent();
+  const selected = useActive(rustleSlug ?? '').selected;
   return (
     <group position={position}>
       <mesh position={[0, 0.012, 0]}>
@@ -416,7 +436,7 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
         <circleGeometry args={[0.15, 28]} />
         <GlassMat color="#2e7f86" opacity={0.28} />
       </mesh>
-      <Line points={circlePts(0.15)} position={[-0.14, 0.03, 0.16]} color={accent} lineWidth={1} transparent opacity={0.5} />
+      <Line points={circlePts(0.15)} position={[-0.14, 0.03, 0.16]} color={selected ? '#3fb6ff' : accent} lineWidth={1} transparent opacity={0.5} />
       <TreeRound position={[0.2, 0, -0.18]} h={0.44} swaySlug={rustleSlug} />
       <TreeRound position={[0.24, 0, 0.22]} h={0.36} swaySlug={rustleSlug} />
       <TreeRound position={[-0.22, 0, -0.24]} h={0.4} swaySlug={rustleSlug} />
@@ -607,8 +627,12 @@ function CityRig() {
  *  hover the cars ride around the loop (parked otherwise). */
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
-  const hovered = useHovered(hoverSlug ?? '');
+  const { hovered, selected } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
+  const base = useMemo(() => new Color(accent), [accent]);
+  const red = useMemo(() => new Color('#ff5a4d'), []);
+  const blue = useMemo(() => new Color('#4d9bff'), []);
+  const live = useRef(0);
   const track = useMemo(
     () =>
       smoothCurve(
@@ -634,11 +658,21 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     g.position.set(a[0], 0.28, a[2]);
     g.rotation.y = Math.atan2(b[0] - a[0], b[2] - a[2]);
   };
+  const tint = (g: Mesh | null, target: Color) => {
+    if (!g) return;
+    const m = g.material as MeshStandardMaterial;
+    m.color.copy(base).lerp(target, live.current);
+    m.emissive.copy(base).lerp(target, live.current);
+    m.emissiveIntensity = 0.7 + live.current * 0.9;
+  };
   useFrame((_s, delta) => {
-    k.current += ((hovered ? 1 : 0) - k.current) * 0.1;
+    k.current += ((hovered || selected ? 1 : 0) - k.current) * 0.1;
+    live.current += ((selected ? 1 : 0) - live.current) * 0.07;
     if (!reduced) dist.current += delta * 0.22 * k.current;
     place(car1.current, dist.current);
     place(car2.current, dist.current + 0.5);
+    tint(car1.current, red);
+    tint(car2.current, blue);
   });
   return (
     <group position={position}>
@@ -725,7 +759,6 @@ function MediaConsole({ position }: { position: V3 }) {
 }
 
 function RoomRig() {
-  const { accent } = useAccent();
   return (
     <group>
       {/* round rug anchoring the seating area */}
@@ -750,7 +783,7 @@ function RoomRig() {
           <GlassMat opacity={0.26} />
         </mesh>
         <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} />
-        <EmissiveHover slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} rest={0.32} peak={0.9} flicker />
+        <EmissiveHover slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} rest={0.32} peak={0.9} flicker liveColor="#46c8ff" />
         <SoftBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} radius={0.012} opacity={0.26} />
         {/* desk clutter: a mug + papers */}
         <mesh position={[-0.36, 0.42, 0.12]}>
@@ -795,10 +828,7 @@ function RoomRig() {
         <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
         <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} />
         <Jitter slug="popcore-games">
-          <mesh position={[0.12, 0.205, 0.06]} rotation={[-Math.PI / 2, 0, 0.3]}>
-            <boxGeometry args={[0.075, 0.155, 0.004]} />
-            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} />
-          </mesh>
+          <EmissiveHover slug="popcore-games" position={[0.12, 0.205, 0.06]} rotation={[-Math.PI / 2, 0, 0.3]} args={[0.075, 0.155, 0.004]} liveColor="#ff7a3d" rest={0.5} peak={0.3} />
         </Jitter>
       </group>
 
@@ -819,8 +849,11 @@ function RoomRig() {
  *  hover a bright blip sweeps the heart-rate waveform like a monitor trace. */
 function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
-  const hovered = useHovered(hoverSlug ?? '');
+  const { hovered, selected } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
+  const live = useRef(0);
+  const base = useMemo(() => new Color(accent), [accent]);
+  const red = useMemo(() => new Color('#ff5a5a'), []);
   const ecg = useMemo<V3[]>(
     () => [
       [-0.13, 0, 0], [-0.06, 0, 0], [-0.045, 0.05, 0], [-0.03, -0.035, 0], [-0.015, 0, 0],
@@ -839,20 +872,24 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     return 0;
   };
   useFrame((s) => {
-    k.current += ((hovered ? 1 : 0) - k.current) * 0.12;
+    k.current += ((hovered || selected ? 1 : 0) - k.current) * 0.12;
+    live.current += ((selected ? 1 : 0) - live.current) * 0.07;
     const d = dot.current;
     if (!d) return;
     d.visible = k.current > 0.04;
     const sweep = reduced ? 0.5 : (s.clock.elapsedTime * 0.6) % 1;
     const x = -0.13 + sweep * 0.26;
     d.position.set(x, 0.22 + yAtX(x), 0);
-    d.scale.setScalar(0.5 + k.current);
+    d.scale.setScalar(0.5 + k.current + live.current * 0.6);
+    const m = d.material as MeshStandardMaterial;
+    m.color.copy(base).lerp(red, live.current);
+    m.emissive.copy(base).lerp(red, live.current);
   });
   return (
     <group position={position}>
       <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline />
       {/* the ECG waveform + a blip that sweeps it on hover (the heart-rate signal) */}
-      <Line points={ecg} position={[0, 0.22, 0]} color={accent} lineWidth={1.8} transparent opacity={0.85} />
+      <Line points={ecg} position={[0, 0.22, 0]} color={selected ? '#ff5a5a' : accent} lineWidth={1.8} transparent opacity={0.85} />
       <mesh ref={dot} visible={false}>
         <sphereGeometry args={[0.014, 12, 12]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={2.2} roughness={0.3} toneMapped={false} />
@@ -951,7 +988,7 @@ function ChipRig() {
     <group>
       {/* rounded package + die (carries amsterdam-ai — the chip powers on) */}
       <SoftBox position={[0, 0.06, 0]} args={[1.25, 0.12, 1.25]} radius={0.08} outline />
-      <EmissiveHover slug="amsterdam-ai" position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} />
+      <EmissiveHover slug="amsterdam-ai" position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
       <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.155, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
 
       {/* curved traces */}
@@ -965,7 +1002,7 @@ function ChipRig() {
         <GlassMat opacity={0.34} />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
-      <EmissiveHover slug="custom-ar-framework" position={[0.42, 0.2, 0.4]} args={[0.07, 0.014, 0.07]} rest={0.04} peak={1.1} />
+      <EmissiveHover slug="custom-ar-framework" position={[0.42, 0.2, 0.4]} args={[0.07, 0.014, 0.07]} rest={0.04} peak={1.1} liveColor="#7fe6ff" />
       {([[0.56, 0.28], [-0.46, 0.42]] as [number, number][]).map(([cx, cz], i) => (
         <mesh key={i} position={[cx, 0.13, cz]}>
           <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
