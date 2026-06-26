@@ -95,6 +95,15 @@ function useHovered(slug: string) {
   return hovered || selected;
 }
 
+// One-shot scale-pop on the rising edge of `selected` — a quick acknowledging
+// bump when you click an object. Returns the scale to apply this frame.
+function popScale(pop: { current: number }, prev: { current: boolean }, selected: boolean, reduced: boolean, delta: number, amount = 0.16) {
+  if (selected && !prev.current && !reduced) pop.current = 1;
+  prev.current = selected;
+  pop.current = Math.max(0, pop.current - delta * 3.5);
+  return 1 + Math.sin(pop.current * Math.PI) * amount;
+}
+
 /** A subtle vibration — the phone (a gentle buzz, not a rumble). */
 function Jitter({ slug, children, amp = 0.005 }: { slug: string; children: ReactNode; amp?: number }) {
   const hovered = useHovered(slug);
@@ -133,11 +142,15 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
   const { hovered, selected } = useActive(slug);
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
+  const meshRef = useRef<Mesh>(null);
+  const pop = useRef(0);
+  const popped = useRef(false);
   const k = useRef(0);
   const live = useRef(0);
   const base = useMemo(() => new Color(col), [col]);
   const lifelike = useMemo(() => new Color(liveColor ?? col), [liveColor, col]);
-  useFrame((s) => {
+  useFrame((s, delta) => {
+    if (meshRef.current) meshRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
     if (!mat.current) return;
     k.current += ((hovered || selected ? 1 : 0) - k.current) * (flicker ? 0.32 : 0.12);
     live.current += ((selected ? 1 : 0) - live.current) * 0.07;
@@ -155,7 +168,7 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
     mat.current.emissive.copy(base).lerp(lifelike, live.current);
   });
   return (
-    <mesh position={position} rotation={rotation}>
+    <mesh ref={meshRef} position={position} rotation={rotation}>
       <boxGeometry args={args} />
       <meshStandardMaterial ref={mat} color={col} emissive={col} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
     </mesh>
@@ -424,8 +437,16 @@ function PointCloud({ seed }: { seed: number }) {
 function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
   const { accent } = useAccent();
   const selected = useActive(rustleSlug ?? '').selected;
+  const reduced = useReducedMotion();
+  const popRef = useRef<Group>(null);
+  const pop = useRef(0);
+  const popped = useRef(false);
+  useFrame((_s, delta) => {
+    if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta, 0.1));
+  });
   return (
     <group position={position}>
+      <group ref={popRef}>
       <mesh position={[0, 0.012, 0]}>
         <cylinderGeometry args={[0.5, 0.5, 0.02, 44]} />
         <GlassMat color="#2f8a6e" opacity={0.15} />
@@ -440,6 +461,7 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
       <TreeRound position={[0.2, 0, -0.18]} h={0.44} swaySlug={rustleSlug} />
       <TreeRound position={[0.24, 0, 0.22]} h={0.36} swaySlug={rustleSlug} />
       <TreeRound position={[-0.22, 0, -0.24]} h={0.4} swaySlug={rustleSlug} />
+      </group>
     </group>
   );
 }
@@ -648,6 +670,9 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const car2 = useRef<Mesh>(null);
   const k = useRef(0);
   const dist = useRef(0);
+  const popRef = useRef<Group>(null);
+  const pop = useRef(0);
+  const popped = useRef(false);
   const place = (g: Mesh | null, t: number) => {
     if (!g) return;
     const n = track.length;
@@ -666,6 +691,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     m.emissiveIntensity = 0.7 + live.current * 0.9;
   };
   useFrame((_s, delta) => {
+    if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
     k.current += ((hovered || selected ? 1 : 0) - k.current) * 0.1;
     live.current += ((selected ? 1 : 0) - live.current) * 0.07;
     if (!reduced) dist.current += delta * 0.22 * k.current;
@@ -676,6 +702,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   });
   return (
     <group position={position}>
+      <group ref={popRef}>
       <mesh position={[0, 0.18, 0]}>
         <cylinderGeometry args={[0.32, 0.32, 0.03, 40]} />
         <GlassMat opacity={0.2} />
@@ -697,6 +724,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         <boxGeometry args={[0.05, 0.018, 0.028]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.7} roughness={0.4} toneMapped={false} />
       </mesh>
+      </group>
     </group>
   );
 }
@@ -863,6 +891,9 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   );
   const dot = useRef<Mesh>(null);
   const k = useRef(0);
+  const popRef = useRef<Group>(null);
+  const pop = useRef(0);
+  const popped = useRef(false);
   const yAtX = (x: number) => {
     for (let i = 0; i < ecg.length - 1; i++) {
       const [x0, y0] = ecg[i];
@@ -871,7 +902,8 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     }
     return 0;
   };
-  useFrame((s) => {
+  useFrame((s, delta) => {
+    if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
     k.current += ((hovered || selected ? 1 : 0) - k.current) * 0.12;
     live.current += ((selected ? 1 : 0) - live.current) * 0.07;
     const d = dot.current;
@@ -887,6 +919,7 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   });
   return (
     <group position={position}>
+      <group ref={popRef}>
       <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline />
       {/* the ECG waveform + a blip that sweeps it on hover (the heart-rate signal) */}
       <Line points={ecg} position={[0, 0.22, 0]} color={selected ? '#ff5a5a' : accent} lineWidth={1.8} transparent opacity={0.85} />
@@ -900,6 +933,7 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
           <GlassMat opacity={0.34} />
         </RoundedBox>
         <Accent position={[0, 0, 0.026]} args={[0.1, 0.035, 0.004]} intensity={0.3} />
+      </group>
       </group>
     </group>
   );
