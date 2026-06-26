@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useRef, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Quaternion, Vector3, type Group, type Mesh, type Points as ThreePoints, type MeshStandardMaterial, type MeshBasicMaterial, type ShaderMaterial } from 'three';
+import { AdditiveBlending, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, Quaternion, Vector3, type Group, type Mesh, type Points as ThreePoints, type ShaderMaterial } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, type Hotspot, type LayerId } from './framing';
 import { sceneStore, useSceneSelector } from './store';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -16,7 +16,7 @@ import { caseBySlug } from '../content';
 // sparse drifting point field.
 
 const NEUTRAL = '#9fb6c6'; // soft white-blue — the wireframe lines
-const GLASS = '#46596d'; // body colour for the (now solid) forms
+const GLASS = '#5b7da0';
 const BG = '#0a0d10';
 
 interface Palette {
@@ -79,36 +79,102 @@ function Line(props: ComponentProps<typeof DreiLine>) {
   return <DreiLine fog {...props} />;
 }
 
-/** Wraps the object a project is attached to: when its dot is hovered the object
- *  lifts + grows a touch and a soft accent glow blooms around it. Scaling is
- *  pivoted on `center` (object-local) so it grows in place rather than drifting. */
-function Highlightable({ slug, center, glowR = 0.32, children }: { slug: string; center: V3; glowR?: number; children: ReactNode }) {
-  const { accent } = useAccent();
-  const hovered = useSceneSelector((s) => s.hoveredSlug) === slug;
-  const grpRef = useRef<Group>(null);
-  const glowRef = useRef<MeshBasicMaterial>(null);
+/* ---------- Hover behaviours ----------
+   Hovering a project's dot animates the object in a way that fits what it is:
+   the phone vibrates, the monitor + chip + AR projection power on / flicker, the
+   building windows light up, the park's trees rustle. Each reads the hovered
+   slug from the store and eases a 0→1 value it drives its motion from. */
+const useHovered = (slug: string) => useSceneSelector((s) => s.hoveredSlug) === slug;
+
+/** Rapid small vibration — the phone. */
+function Jitter({ slug, children, amp = 0.012 }: { slug: string; children: ReactNode; amp?: number }) {
+  const hovered = useHovered(slug);
   const reduced = useReducedMotion();
+  const ref = useRef<Group>(null);
   const k = useRef(0);
-  useFrame((state) => {
-    const g = grpRef.current;
+  useFrame((s) => {
+    const g = ref.current;
     if (!g) return;
-    const target = hovered ? 1 : 0;
-    k.current = reduced ? target : k.current + (target - k.current) * 0.14;
-    const s = 1 + k.current * 0.07;
-    g.scale.setScalar(s);
-    const bob = reduced ? 0 : Math.sin(state.clock.elapsedTime * 2.4) * 0.02 * k.current;
-    g.position.set(center[0] * (1 - s), center[1] * (1 - s) + bob, center[2] * (1 - s));
-    if (glowRef.current) glowRef.current.opacity = k.current * 0.26;
+    k.current += ((hovered ? 1 : 0) - k.current) * 0.2;
+    const a = reduced ? 0 : k.current;
+    const t = s.clock.elapsedTime;
+    g.position.x = Math.sin(t * 74) * amp * a;
+    g.position.z = Math.cos(t * 91) * amp * a;
+    g.rotation.y = Math.sin(t * 67) * 0.06 * a;
+  });
+  return <group ref={ref}>{children}</group>;
+}
+
+/** Gentle wind-sway — the park trees rustling. */
+function Sway({ slug, children, amp = 0.08 }: { slug: string; children: ReactNode; amp?: number }) {
+  const hovered = useHovered(slug);
+  const reduced = useReducedMotion();
+  const ref = useRef<Group>(null);
+  const k = useRef(0);
+  useFrame((s) => {
+    const g = ref.current;
+    if (!g) return;
+    k.current += ((hovered ? 1 : 0) - k.current) * 0.07;
+    const a = reduced ? 0 : k.current;
+    const t = s.clock.elapsedTime;
+    g.rotation.z = Math.sin(t * 3.1) * amp * a;
+    g.rotation.x = Math.cos(t * 2.5) * amp * 0.7 * a;
+  });
+  return <group ref={ref}>{children}</group>;
+}
+
+/** An emissive surface that powers on at hover — a smooth "turn on" (chip, AR)
+ *  or a TV-style flicker (the monitor). Dim at rest, lit on hover. */
+function EmissiveHover({ slug, position, rotation, args, color, rest = 0.12, peak = 1.0, flicker = false }: {
+  slug: string;
+  position: V3;
+  rotation?: V3;
+  args: V3;
+  color?: string;
+  rest?: number;
+  peak?: number;
+  flicker?: boolean;
+}) {
+  const { accent } = useAccent();
+  const col = color ?? accent;
+  const hovered = useHovered(slug);
+  const reduced = useReducedMotion();
+  const mat = useRef<MeshStandardMaterial>(null);
+  const k = useRef(0);
+  useFrame((s) => {
+    if (!mat.current) return;
+    k.current += ((hovered ? 1 : 0) - k.current) * (flicker ? 0.32 : 0.12);
+    const t = s.clock.elapsedTime;
+    if (flicker) {
+      const n = reduced ? 1 : Math.max(0.18, 0.55 + 0.5 * Math.sin(t * 46) * Math.sin(t * 8.7) + 0.2 * Math.sin(t * 113));
+      mat.current.emissiveIntensity = rest + k.current * peak * n;
+    } else {
+      const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
+      mat.current.emissiveIntensity = rest + k.current * (peak + breathe);
+    }
   });
   return (
-    <group ref={grpRef}>
-      {children}
-      <mesh position={center}>
-        <sphereGeometry args={[glowR, 18, 18]} />
-        <meshBasicMaterial ref={glowRef} color={accent} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} fog={false} />
-      </mesh>
-    </group>
+    <mesh position={position} rotation={rotation}>
+      <boxGeometry args={args} />
+      <meshStandardMaterial ref={mat} color={col} emissive={col} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
+    </mesh>
   );
+}
+
+/** Drives the shared window material: hovering the town hall lights the whole
+ *  skyline's windows (a soft on, with a faint flicker as they catch). */
+function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
+  const hovered = useHovered('municipal-twin');
+  const reduced = useReducedMotion();
+  const k = useRef(0);
+  useFrame((s) => {
+    k.current += ((hovered ? 1 : 0) - k.current) * 0.09;
+    const t = s.clock.elapsedTime;
+    const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26) * Math.sin(t * 6.3);
+    mat.emissiveIntensity = k.current * 1.5 * flick;
+    mat.opacity = 0.1 + k.current * 0.8;
+  });
+  return null;
 }
 
 /* ---------- materials ---------- */
@@ -132,23 +198,17 @@ function glassRim(shader: any) {
     );
 }
 
-// Solid by default — opaque forms occlude what's behind them (and their own back
-// edges), which is what keeps the scene from reading as a busy see-through mesh.
-// `ghost` opts an element back into translucency (water, foliage, the lamp shade).
-function GlassMat({ color = GLASS, opacity = 0.3, ghost = false }: { color?: string; opacity?: number; ghost?: boolean }) {
+function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opacity?: number }) {
   return (
     <meshStandardMaterial
       color={color}
-      transparent={ghost}
-      opacity={ghost ? opacity : 1}
-      roughness={ghost ? 0.34 : 0.5}
+      transparent
+      opacity={opacity}
+      roughness={0.34}
       metalness={0}
       emissive="#0c2a30"
       emissiveIntensity={0.14}
-      depthWrite={!ghost}
-      polygonOffset={!ghost}
-      polygonOffsetFactor={1}
-      polygonOffsetUnits={1}
+      depthWrite={false}
       onBeforeCompile={glassRim}
     />
   );
@@ -165,25 +225,25 @@ function Accent({ position, args, intensity = 0.4, rotation }: { position: V3; a
   );
 }
 
-/** Pulsing accent (the chip die, the screens). */
-function PulseBox({ position, args, base = 0.45, amp = 0.12, speed = 1.5 }: { position: V3; args: V3; base?: number; amp?: number; speed?: number }) {
-  const { accent } = useAccent();
-  const mat = useRef<MeshStandardMaterial>(null);
-  const reduced = useReducedMotion();
-  useFrame((state) => {
-    if (mat.current) mat.current.emissiveIntensity = reduced ? base : base + Math.sin(state.clock.elapsedTime * speed) * amp;
-  });
-  return (
-    <mesh position={position}>
-      <boxGeometry args={args} />
-      <meshStandardMaterial ref={mat} color={accent} emissive={accent} emissiveIntensity={base} roughness={0.4} />
-    </mesh>
-  );
-}
-
 /* ---------- shape helpers ---------- */
-/** A square diorama building (glass fill, neutral edges, a faint lit rooftop). */
-function Building({ x, z, w, d, h, roof = true }: { x: number; z: number; w: number; d: number; h: number; roof?: boolean }) {
+/** A square diorama building (glass fill, neutral edges, a faint lit rooftop).
+ *  When given a shared `winMat`, it grows a grid of windows on its two
+ *  camera-facing sides that light up when the town hall is hovered. */
+function Building({ x, z, w, d, h, roof = true, winMat }: { x: number; z: number; w: number; d: number; h: number; roof?: boolean; winMat?: MeshStandardMaterial }) {
+  const windows = useMemo(() => {
+    if (!winMat) return [] as { p: V3; r?: V3; s: [number, number] }[];
+    const out: { p: V3; r?: V3; s: [number, number] }[] = [];
+    const rows = Math.max(1, Math.floor((h - 0.06) / 0.11));
+    for (let r = 0; r < rows; r++) {
+      const yy = 0.09 + r * 0.11;
+      if (yy > h - 0.05) break;
+      for (const c of [-1, 1]) {
+        out.push({ p: [c * w * 0.22, yy, d / 2 + 0.004], s: [w * 0.26, 0.05] });
+        out.push({ p: [w / 2 + 0.004, yy, c * d * 0.22], r: [0, Math.PI / 2, 0], s: [d * 0.26, 0.05] });
+      }
+    }
+    return out;
+  }, [w, d, h, winMat]);
   return (
     <group position={[x, 0, z]}>
       <mesh position={[0, h / 2, 0]}>
@@ -192,6 +252,11 @@ function Building({ x, z, w, d, h, roof = true }: { x: number; z: number; w: num
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {roof && <Accent position={[0, h + 0.005, 0]} args={[w * 0.55, 0.01, d * 0.55]} intensity={0.26} />}
+      {windows.map((win, i) => (
+        <mesh key={i} position={win.p} rotation={win.r} material={winMat}>
+          <planeGeometry args={win.s} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -228,7 +293,7 @@ function Windmill({ position }: { position: V3 }) {
           <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
             <mesh position={[0, 0.24, 0]}>
               <boxGeometry args={[0.05, 0.46, 0.01]} />
-              <GlassMat color="#3f8f8a" opacity={0.34} ghost />
+              <GlassMat color="#3f8f8a" opacity={0.34} />
               <Edges threshold={30} color={NEUTRAL} />
             </mesh>
           </group>
@@ -247,7 +312,7 @@ function TreeRound({ position, h = 0.45 }: { position: V3; h?: number }) {
       <group position={[0, h * 0.66, 0]}>
         <mesh>
           <sphereGeometry args={[0.13, 14, 12]} />
-          <GlassMat color="#3f8f8a" opacity={0.14} ghost />
+          <GlassMat color="#3f8f8a" opacity={0.14} />
         </mesh>
         <Line points={circlePts(0.13)} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
         <Line points={circlePts(0.13)} rotation={[Math.PI / 2, 0, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
@@ -335,8 +400,15 @@ function PointCloud({ seed }: { seed: number }) {
 }
 
 /* ---------- City — GIS & location (top) ---------- */
-function Park({ position }: { position: V3 }) {
+function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
   const { accent } = useAccent();
+  const trees = (
+    <>
+      <TreeRound position={[0.2, 0, -0.18]} h={0.44} />
+      <TreeRound position={[0.24, 0, 0.22]} h={0.36} />
+      <TreeRound position={[-0.22, 0, -0.24]} h={0.4} />
+    </>
+  );
   return (
     <group position={position}>
       <mesh position={[0, 0.012, 0]}>
@@ -347,18 +419,16 @@ function Park({ position }: { position: V3 }) {
       {/* pond */}
       <mesh position={[-0.14, 0.02, 0.16]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.15, 28]} />
-        <GlassMat color="#2e7f86" opacity={0.28} ghost />
+        <GlassMat color="#2e7f86" opacity={0.28} />
       </mesh>
       <Line points={circlePts(0.15)} position={[-0.14, 0.03, 0.16]} color={accent} lineWidth={1} transparent opacity={0.5} />
-      <TreeRound position={[0.2, 0, -0.18]} h={0.44} />
-      <TreeRound position={[0.24, 0, 0.22]} h={0.36} />
-      <TreeRound position={[-0.22, 0, -0.24]} h={0.4} />
+      {rustleSlug ? <Sway slug={rustleSlug}>{trees}</Sway> : trees}
     </group>
   );
 }
 
 /** The civic peak of the skyline — a square block + clock tower + spire. */
-function TownHall({ position }: { position: V3 }) {
+function TownHall({ position, winMat }: { position: V3; winMat?: MeshStandardMaterial }) {
   return (
     <group position={position}>
       <mesh position={[0, 0.28, 0]}>
@@ -366,6 +436,14 @@ function TownHall({ position }: { position: V3 }) {
         <GlassMat />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
+      {winMat &&
+        [0.16, 0.3, 0.44].flatMap((yy, i) =>
+          [-1, 1].map((c) => (
+            <mesh key={`${i}-${c}`} position={[c * 0.09, yy, 0.151]} material={winMat}>
+              <planeGeometry args={[0.1, 0.05]} />
+            </mesh>
+          )),
+        )}
       {/* cornice band */}
       <Accent position={[0, 0.56, 0]} args={[0.38, 0.012, 0.34]} intensity={0.3} />
       {/* clock tower */}
@@ -464,6 +542,12 @@ function CityRig() {
       }
     return out;
   }, []);
+  const { accent } = useAccent();
+  // one shared material for every window, ramped by WindowDriver on town-hall hover
+  const winMat = useMemo(
+    () => new MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0, transparent: true, opacity: 0.1, roughness: 0.4, toneMapped: false, depthWrite: false }),
+    [accent],
+  );
   return (
     <group>
       {/* roads through the city */}
@@ -474,13 +558,12 @@ function CityRig() {
       <RoadRibbon points={curveA} width={0.09} />
       <RoadRibbon points={curveB} width={0.09} />
 
-      {/* the skyline + its civic peak */}
+      {/* the skyline + its civic peak; windows light up on town-hall hover */}
+      <WindowDriver mat={winMat} />
       {cluster.map((b, i) => (
-        <Building key={i} {...b} />
+        <Building key={i} {...b} winMat={winMat} />
       ))}
-      <Highlightable slug="municipal-twin" center={[0, 0.5, 0]} glowR={0.46}>
-        <TownHall position={[0, 0, 0]} />
-      </Highlightable>
+      <TownHall position={[0, 0, 0]} winMat={winMat} />
 
       {/* church landmark (square tower + tall spire + upright cross) */}
       <group position={[-0.55, 0, -0.7]}>
@@ -507,10 +590,8 @@ function CityRig() {
       {/* windmill on the side */}
       <Windmill position={[-1.2, 0, 0.5]} />
 
-      {/* parks (the first carries the niantic-explorer hotspot) */}
-      <Highlightable slug="niantic-explorer" center={[1.0, 0.12, 0.6]} glowR={0.52}>
-        <Park position={[1.0, 0, 0.6]} />
-      </Highlightable>
+      {/* parks (the first carries the niantic-explorer hotspot — its trees rustle) */}
+      <Park position={[1.0, 0, 0.6]} rustleSlug="niantic-explorer" />
       <Park position={[1.05, 0, -0.72]} />
 
 
@@ -588,7 +669,7 @@ function FloorLamp({ position }: { position: V3 }) {
       </mesh>
       <mesh position={[0, 0.72, 0]}>
         <coneGeometry args={[0.14, 0.18, 22, 1, true]} />
-        <GlassMat opacity={0.2} ghost />
+        <GlassMat opacity={0.2} />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
       <Accent position={[0, 0.66, 0]} args={[0.07, 0.02, 0.07]} intensity={0.5} />
@@ -630,8 +711,7 @@ function RoomRig() {
       <Line points={circlePts(1.05)} position={[0.25, 0.024, 0.45]} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
       <Line points={circlePts(0.78)} position={[0.25, 0.026, 0.45]} color={accent} lineWidth={1} transparent opacity={0.16} />
 
-      {/* desk + monitor + VR headset (back-left) — carries virtuele-brigade */}
-      <Highlightable slug="virtuele-brigade" center={[-0.9, 0.5, -1.0]} glowR={0.72}>
+      {/* desk + monitor + VR headset (back-left) — the monitor flickers on hover */}
       <group position={[-0.9, 0, -1.0]}>
         <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline />
         {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
@@ -645,7 +725,7 @@ function RoomRig() {
           <GlassMat opacity={0.26} />
         </mesh>
         <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} />
-        <PulseBox position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} base={0.4} amp={0.1} speed={1.2} />
+        <EmissiveHover slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} rest={0.32} peak={0.9} flicker />
         <SoftBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} radius={0.012} opacity={0.26} />
         {/* desk clutter: a mug + papers */}
         <mesh position={[-0.36, 0.42, 0.12]}>
@@ -656,7 +736,6 @@ function RoomRig() {
         <SoftBox position={[-0.05, 0.405, 0.14]} args={[0.13, 0.012, 0.17]} radius={0.004} opacity={0.3} />
         <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
       </group>
-      </Highlightable>
 
       {/* chair */}
       <group position={[-0.55, 0, -0.42]}>
@@ -690,18 +769,17 @@ function RoomRig() {
         <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
         <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
         <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} />
-        <Highlightable slug="popcore-games" center={[0.12, 0.205, 0.06]} glowR={0.17}>
+        <Jitter slug="popcore-games">
           <mesh position={[0.12, 0.205, 0.06]} rotation={[-Math.PI / 2, 0, 0.3]}>
             <boxGeometry args={[0.075, 0.155, 0.004]} />
             <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} />
           </mesh>
-        </Highlightable>
+        </Jitter>
       </group>
 
-      {/* coffee table with AR racing in front of the couch (Lightship Drive) */}
-      <Highlightable slug="lightship-drive" center={[0, 0.3, 1.0]} glowR={0.5}>
-        <CoffeeTableAR position={[0, 0, 1.0]} />
-      </Highlightable>
+      {/* coffee table with AR racing (Lightship Drive) — the AR projection powers on */}
+      <CoffeeTableAR position={[0, 0, 1.0]} />
+      <EmissiveHover slug="lightship-drive" position={[0, 0.27, 1.0]} args={[0.4, 0.005, 0.48]} rest={0} peak={0.5} flicker />
 
       {/* fill the diorama out */}
       <TreeRound position={[-1.3, 0, 0.85]} h={0.55} />
@@ -822,26 +900,23 @@ function ChipRig() {
   const cv: V3 = [0.85, 0.16, 0.85];
   return (
     <group>
-      {/* rounded package + die (the die is the accent; carries amsterdam-ai) */}
+      {/* rounded package + die (carries amsterdam-ai — the chip powers on) */}
       <SoftBox position={[0, 0.06, 0]} args={[1.25, 0.12, 1.25]} radius={0.08} outline />
-      <Highlightable slug="amsterdam-ai" center={[0, 0.15, 0]} glowR={0.34}>
-        <PulseBox position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} base={0.5} amp={0.14} speed={1.5} />
-        <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.155, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
-      </Highlightable>
+      <EmissiveHover slug="amsterdam-ai" position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} />
+      <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.155, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
 
       {/* curved traces */}
       {traces.map((t, i) => (
         <Line key={i} points={t} color={NEUTRAL} lineWidth={1.1} transparent opacity={0.55} />
       ))}
 
-      {/* round components — the first carries the custom-ar-framework hotspot */}
-      <Highlightable slug="custom-ar-framework" center={[0.42, 0.16, 0.4]} glowR={0.18}>
-        <mesh position={[0.42, 0.13, 0.4]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
-          <GlassMat opacity={0.34} />
-          <Edges threshold={30} color={NEUTRAL} />
-        </mesh>
-      </Highlightable>
+      {/* round components — the first carries custom-ar-framework (it powers on) */}
+      <mesh position={[0.42, 0.13, 0.4]}>
+        <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
+        <GlassMat opacity={0.34} />
+        <Edges threshold={30} color={NEUTRAL} />
+      </mesh>
+      <EmissiveHover slug="custom-ar-framework" position={[0.42, 0.2, 0.4]} args={[0.07, 0.014, 0.07]} rest={0.04} peak={1.1} />
       {([[0.56, 0.28], [-0.46, 0.42]] as [number, number][]).map(([cx, cz], i) => (
         <mesh key={i} position={[cx, 0.13, cz]}>
           <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
@@ -873,10 +948,9 @@ function ChipRig() {
       <Heatsink position={[-0.92, 0, 0.5]} />
       <PinHeader position={[-0.05, 0, 1.02]} n={6} />
 
-      {/* Philips medical XR & AI module + extra decorative components */}
-      <Highlightable slug="philips-medical-xr" center={[0.5, 0.24, -0.5]} glowR={0.32}>
-        <PhilipsModule position={[0.5, 0, -0.5]} />
-      </Highlightable>
+      {/* Philips medical XR & AI module (powers on) + extra components */}
+      <PhilipsModule position={[0.5, 0, -0.5]} />
+      <EmissiveHover slug="philips-medical-xr" position={[0.5, 0.26, -0.5]} args={[0.12, 0.014, 0.08]} rest={0.05} peak={1.0} />
       <MiscComponents />
     </group>
   );
