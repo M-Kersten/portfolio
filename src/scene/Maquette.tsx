@@ -86,8 +86,8 @@ function Line(props: ComponentProps<typeof DreiLine>) {
    slug from the store and eases a 0→1 value it drives its motion from. */
 const useHovered = (slug: string) => useSceneSelector((s) => s.hoveredSlug) === slug;
 
-/** Rapid small vibration — the phone. */
-function Jitter({ slug, children, amp = 0.012 }: { slug: string; children: ReactNode; amp?: number }) {
+/** A subtle vibration — the phone (a gentle buzz, not a rumble). */
+function Jitter({ slug, children, amp = 0.005 }: { slug: string; children: ReactNode; amp?: number }) {
   const hovered = useHovered(slug);
   const reduced = useReducedMotion();
   const ref = useRef<Group>(null);
@@ -98,27 +98,9 @@ function Jitter({ slug, children, amp = 0.012 }: { slug: string; children: React
     k.current += ((hovered ? 1 : 0) - k.current) * 0.2;
     const a = reduced ? 0 : k.current;
     const t = s.clock.elapsedTime;
-    g.position.x = Math.sin(t * 74) * amp * a;
-    g.position.z = Math.cos(t * 91) * amp * a;
-    g.rotation.y = Math.sin(t * 67) * 0.06 * a;
-  });
-  return <group ref={ref}>{children}</group>;
-}
-
-/** Gentle wind-sway — the park trees rustling. */
-function Sway({ slug, children, amp = 0.08 }: { slug: string; children: ReactNode; amp?: number }) {
-  const hovered = useHovered(slug);
-  const reduced = useReducedMotion();
-  const ref = useRef<Group>(null);
-  const k = useRef(0);
-  useFrame((s) => {
-    const g = ref.current;
-    if (!g) return;
-    k.current += ((hovered ? 1 : 0) - k.current) * 0.07;
-    const a = reduced ? 0 : k.current;
-    const t = s.clock.elapsedTime;
-    g.rotation.z = Math.sin(t * 3.1) * amp * a;
-    g.rotation.x = Math.cos(t * 2.5) * amp * 0.7 * a;
+    g.position.x = Math.sin(t * 50) * amp * a;
+    g.position.z = Math.cos(t * 58) * amp * a;
+    g.rotation.y = Math.sin(t * 45) * 0.022 * a;
   });
   return <group ref={ref}>{children}</group>;
 }
@@ -214,13 +196,15 @@ function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opacity?: 
   );
 }
 
-/** Flat accent highlight (signage, screens framing, cross, clock, books). */
-function Accent({ position, args, intensity = 0.4, rotation }: { position: V3; args: V3; intensity?: number; rotation?: V3 }) {
+/** Flat highlight box. Defaults to the layer accent, but decorative (non-hotspot)
+ *  details pass color={NEUTRAL} so the layer colour stays on the interactables. */
+function Accent({ position, args, intensity = 0.4, rotation, color }: { position: V3; args: V3; intensity?: number; rotation?: V3; color?: string }) {
   const { accent } = useAccent();
+  const c = color ?? accent;
   return (
     <mesh position={position} rotation={rotation}>
       <boxGeometry args={args} />
-      <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={intensity} roughness={0.4} />
+      <meshStandardMaterial color={c} emissive={c} emissiveIntensity={intensity} roughness={0.4} />
     </mesh>
   );
 }
@@ -248,10 +232,10 @@ function Building({ x, z, w, d, h, roof = true, winMat }: { x: number; z: number
     <group position={[x, 0, z]}>
       <mesh position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <GlassMat />
+        <GlassMat opacity={0.44} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
-      {roof && <Accent position={[0, h + 0.005, 0]} args={[w * 0.55, 0.01, d * 0.55]} intensity={0.26} />}
+      {roof && <Accent position={[0, h + 0.005, 0]} args={[w * 0.55, 0.01, d * 0.55]} intensity={0.26} color={NEUTRAL} />}
       {windows.map((win, i) => (
         <mesh key={i} position={win.p} rotation={win.r} material={winMat}>
           <planeGeometry args={win.s} />
@@ -278,7 +262,7 @@ function Windmill({ position }: { position: V3 }) {
       {/* tapered octagonal body */}
       <mesh position={[0, 0.34, 0]}>
         <cylinderGeometry args={[0.12, 0.19, 0.56, 8]} />
-        <GlassMat />
+        <GlassMat opacity={0.44} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* cap */}
@@ -298,24 +282,42 @@ function Windmill({ position }: { position: V3 }) {
             </mesh>
           </group>
         ))}
-        <Accent position={[0, 0, 0.02]} args={[0.05, 0.05, 0.03]} intensity={0.4} />
+        <Accent position={[0, 0, 0.02]} args={[0.05, 0.05, 0.03]} intensity={0.4} color={NEUTRAL} />
       </group>
     </group>
   );
 }
 
 /** Round-canopy tree: a trunk line and a soft sphere ringed by two circles. */
-function TreeRound({ position, h = 0.45 }: { position: V3; h?: number }) {
+function TreeRound({ position, h = 0.45, swaySlug }: { position: V3; h?: number; swaySlug?: string }) {
+  const hovered = useHovered(swaySlug ?? '');
+  const reduced = useReducedMotion();
+  const ref = useRef<Group>(null);
+  const k = useRef(0);
+  // a per-tree phase so the trees rustle out of sync rather than as one block
+  const phase = useMemo(() => position[0] * 5.3 + position[2] * 3.7, [position]);
+  useFrame((s) => {
+    const g = ref.current;
+    if (!g || !swaySlug) return;
+    k.current += ((hovered ? 1 : 0) - k.current) * 0.08;
+    const a = reduced ? 0 : k.current;
+    const t = s.clock.elapsedTime;
+    g.rotation.z = Math.sin(t * 2.6 + phase) * 0.12 * a;
+    g.rotation.x = Math.cos(t * 2.1 + phase * 1.3) * 0.075 * a;
+  });
   return (
     <group position={position}>
-      <Line points={[[0, 0, 0], [0, h * 0.5, 0]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-      <group position={[0, h * 0.66, 0]}>
-        <mesh>
-          <sphereGeometry args={[0.13, 14, 12]} />
-          <GlassMat color="#3f8f8a" opacity={0.14} />
-        </mesh>
-        <Line points={circlePts(0.13)} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-        <Line points={circlePts(0.13)} rotation={[Math.PI / 2, 0, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+      {/* the trunk + canopy pivot at the base (the root), so each tree sways alone */}
+      <group ref={ref}>
+        <Line points={[[0, 0, 0], [0, h * 0.5, 0]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+        <group position={[0, h * 0.66, 0]}>
+          <mesh>
+            <sphereGeometry args={[0.13, 14, 12]} />
+            <GlassMat color="#3f8f8a" opacity={0.14} />
+          </mesh>
+          <Line points={circlePts(0.13)} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+          <Line points={circlePts(0.13)} rotation={[Math.PI / 2, 0, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+        </group>
       </group>
     </group>
   );
@@ -402,13 +404,6 @@ function PointCloud({ seed }: { seed: number }) {
 /* ---------- City — GIS & location (top) ---------- */
 function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
   const { accent } = useAccent();
-  const trees = (
-    <>
-      <TreeRound position={[0.2, 0, -0.18]} h={0.44} />
-      <TreeRound position={[0.24, 0, 0.22]} h={0.36} />
-      <TreeRound position={[-0.22, 0, -0.24]} h={0.4} />
-    </>
-  );
   return (
     <group position={position}>
       <mesh position={[0, 0.012, 0]}>
@@ -422,7 +417,9 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
         <GlassMat color="#2e7f86" opacity={0.28} />
       </mesh>
       <Line points={circlePts(0.15)} position={[-0.14, 0.03, 0.16]} color={accent} lineWidth={1} transparent opacity={0.5} />
-      {rustleSlug ? <Sway slug={rustleSlug}>{trees}</Sway> : trees}
+      <TreeRound position={[0.2, 0, -0.18]} h={0.44} swaySlug={rustleSlug} />
+      <TreeRound position={[0.24, 0, 0.22]} h={0.36} swaySlug={rustleSlug} />
+      <TreeRound position={[-0.22, 0, -0.24]} h={0.4} swaySlug={rustleSlug} />
     </group>
   );
 }
@@ -433,7 +430,7 @@ function TownHall({ position, winMat }: { position: V3; winMat?: MeshStandardMat
     <group position={position}>
       <mesh position={[0, 0.28, 0]}>
         <boxGeometry args={[0.34, 0.56, 0.3]} />
-        <GlassMat />
+        <GlassMat opacity={0.44} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {winMat &&
@@ -449,7 +446,7 @@ function TownHall({ position, winMat }: { position: V3; winMat?: MeshStandardMat
       {/* clock tower */}
       <mesh position={[0, 0.7, 0]}>
         <boxGeometry args={[0.16, 0.24, 0.16]} />
-        <GlassMat />
+        <GlassMat opacity={0.44} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* clock face */}
@@ -569,12 +566,12 @@ function CityRig() {
       <group position={[-0.55, 0, -0.7]}>
         <mesh position={[0, 0.17, 0]}>
           <boxGeometry args={[0.24, 0.34, 0.3]} />
-          <GlassMat />
+          <GlassMat opacity={0.44} />
           <Edges threshold={20} color={NEUTRAL} />
         </mesh>
         <mesh position={[0, 0.4, -0.1]}>
           <boxGeometry args={[0.15, 0.68, 0.15]} />
-          <GlassMat />
+          <GlassMat opacity={0.44} />
           <Edges threshold={20} color={NEUTRAL} />
         </mesh>
         <mesh position={[0, 0.86, -0.1]}>
@@ -583,8 +580,8 @@ function CityRig() {
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
         {/* cross: long stem with the crossbar near the top (upright) */}
-        <Accent position={[0, 1.11, -0.1]} args={[0.014, 0.15, 0.014]} intensity={0.5} />
-        <Accent position={[0, 1.15, -0.1]} args={[0.07, 0.014, 0.014]} intensity={0.5} />
+        <Accent position={[0, 1.11, -0.1]} args={[0.014, 0.15, 0.014]} intensity={0.5} color={NEUTRAL} />
+        <Accent position={[0, 1.15, -0.1]} args={[0.07, 0.014, 0.014]} intensity={0.5} color={NEUTRAL} />
       </group>
 
       {/* windmill on the side */}
@@ -606,9 +603,12 @@ function CityRig() {
 
 /* ---------- Room — games, apps & websites (middle) ---------- */
 
-/** Coffee table with a floating AR race loop + two cars (Lightship Drive). */
-function CoffeeTableAR({ position }: { position: V3 }) {
+/** Coffee table with a floating AR race loop + two cars (Lightship Drive). On
+ *  hover the cars ride around the loop (parked otherwise). */
+function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
+  const hovered = useHovered(hoverSlug ?? '');
+  const reduced = useReducedMotion();
   const track = useMemo(
     () =>
       smoothCurve(
@@ -620,6 +620,26 @@ function CoffeeTableAR({ position }: { position: V3 }) {
       ),
     [],
   );
+  const car1 = useRef<Mesh>(null);
+  const car2 = useRef<Mesh>(null);
+  const k = useRef(0);
+  const dist = useRef(0);
+  const place = (g: Mesh | null, t: number) => {
+    if (!g) return;
+    const n = track.length;
+    const f = ((t % 1) + 1) % 1;
+    const i = Math.min(n - 2, Math.floor(f * (n - 1)));
+    const a = track[i];
+    const b = track[i + 1];
+    g.position.set(a[0], 0.28, a[2]);
+    g.rotation.y = Math.atan2(b[0] - a[0], b[2] - a[2]);
+  };
+  useFrame((_s, delta) => {
+    k.current += ((hovered ? 1 : 0) - k.current) * 0.1;
+    if (!reduced) dist.current += delta * 0.22 * k.current;
+    place(car1.current, dist.current);
+    place(car2.current, dist.current + 0.5);
+  });
   return (
     <group position={position}>
       <mesh position={[0, 0.18, 0]}>
@@ -633,10 +653,16 @@ function CoffeeTableAR({ position }: { position: V3 }) {
           <GlassMat opacity={0.24} />
         </mesh>
       ))}
-      {/* the AR bit — a race loop + cars floating above the table */}
+      {/* the AR bit — a race loop + two cars riding it */}
       <Line points={track} position={[0, 0.27, 0]} color={accent} lineWidth={1.6} transparent opacity={0.7} />
-      <Accent position={[0.2, 0.28, 0.02]} args={[0.045, 0.018, 0.028]} intensity={0.5} />
-      <Accent position={[-0.16, 0.28, -0.08]} args={[0.045, 0.018, 0.028]} intensity={0.5} />
+      <mesh ref={car1}>
+        <boxGeometry args={[0.05, 0.018, 0.028]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.7} roughness={0.4} toneMapped={false} />
+      </mesh>
+      <mesh ref={car2}>
+        <boxGeometry args={[0.05, 0.018, 0.028]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.7} roughness={0.4} toneMapped={false} />
+      </mesh>
     </group>
   );
 }
@@ -649,7 +675,7 @@ function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
       <RoundedBox args={[0.16, 0.09, 0.1]} radius={0.03} smoothness={3}>
         <GlassMat opacity={0.3} />
       </RoundedBox>
-      <Accent position={[0, 0, 0.052]} args={[0.11, 0.05, 0.004]} intensity={0.3} />
+      <Accent position={[0, 0, 0.052]} args={[0.11, 0.05, 0.004]} intensity={0.3} color={NEUTRAL} />
       <Line points={strap} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.5} />
     </group>
   );
@@ -672,14 +698,13 @@ function FloorLamp({ position }: { position: V3 }) {
         <GlassMat opacity={0.2} />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
-      <Accent position={[0, 0.66, 0]} args={[0.07, 0.02, 0.07]} intensity={0.5} />
+      <Accent position={[0, 0.66, 0]} args={[0.07, 0.02, 0.07]} intensity={0.5} color={NEUTRAL} />
     </group>
   );
 }
 
 /** A low media console with a small glowing TV (games / apps / web). */
 function MediaConsole({ position }: { position: V3 }) {
-  const { accent } = useAccent();
   return (
     <group position={position}>
       <SoftBox position={[0, 0.16, 0]} args={[0.34, 0.26, 0.78]} radius={0.03} outline />
@@ -693,7 +718,7 @@ function MediaConsole({ position }: { position: V3 }) {
       <SoftBox position={[0.02, 0.5, 0]} args={[0.04, 0.4, 0.66]} radius={0.02} />
       <mesh position={[0.045, 0.5, 0]}>
         <boxGeometry args={[0.006, 0.32, 0.58]} />
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.42} roughness={0.4} />
+        <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.42} roughness={0.4} />
       </mesh>
     </group>
   );
@@ -709,7 +734,7 @@ function RoomRig() {
         <GlassMat opacity={0.12} />
       </mesh>
       <Line points={circlePts(1.05)} position={[0.25, 0.024, 0.45]} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
-      <Line points={circlePts(0.78)} position={[0.25, 0.026, 0.45]} color={accent} lineWidth={1} transparent opacity={0.16} />
+      <Line points={circlePts(0.78)} position={[0.25, 0.026, 0.45]} color={NEUTRAL} lineWidth={1} transparent opacity={0.16} />
 
       {/* desk + monitor + VR headset (back-left) — the monitor flickers on hover */}
       <group position={[-0.9, 0, -1.0]}>
@@ -756,7 +781,7 @@ function RoomRig() {
           return (
             <mesh key={i} position={[0.02, 0.24 + shelf * 0.26, -0.22 + idx * 0.18 + (i % 2) * 0.03]}>
               <boxGeometry args={[0.07, 0.16, 0.035]} />
-              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.12 + (i % 3) * 0.06} roughness={0.55} />
+              <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.12 + (i % 3) * 0.06} roughness={0.55} />
             </mesh>
           );
         })}
@@ -777,9 +802,8 @@ function RoomRig() {
         </Jitter>
       </group>
 
-      {/* coffee table with AR racing (Lightship Drive) — the AR projection powers on */}
-      <CoffeeTableAR position={[0, 0, 1.0]} />
-      <EmissiveHover slug="lightship-drive" position={[0, 0.27, 1.0]} args={[0.4, 0.005, 0.48]} rest={0} peak={0.5} flicker />
+      {/* coffee table with AR racing (Lightship Drive) — the cars ride on hover */}
+      <CoffeeTableAR position={[0, 0, 1.0]} hoverSlug="lightship-drive" />
 
       {/* fill the diorama out */}
       <TreeRound position={[-1.3, 0, 0.85]} h={0.55} />
@@ -791,9 +815,12 @@ function RoomRig() {
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
 
-/** Philips medical XR & AI — an ECG module with a tiny Vision Pro headset. */
-function PhilipsModule({ position }: { position: V3 }) {
+/** Philips medical XR & AI — an ECG module with a tiny Vision Pro headset. On
+ *  hover a bright blip sweeps the heart-rate waveform like a monitor trace. */
+function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
+  const hovered = useHovered(hoverSlug ?? '');
+  const reduced = useReducedMotion();
   const ecg = useMemo<V3[]>(
     () => [
       [-0.13, 0, 0], [-0.06, 0, 0], [-0.045, 0.05, 0], [-0.03, -0.035, 0], [-0.015, 0, 0],
@@ -801,11 +828,35 @@ function PhilipsModule({ position }: { position: V3 }) {
     ],
     [],
   );
+  const dot = useRef<Mesh>(null);
+  const k = useRef(0);
+  const yAtX = (x: number) => {
+    for (let i = 0; i < ecg.length - 1; i++) {
+      const [x0, y0] = ecg[i];
+      const [x1, y1] = ecg[i + 1];
+      if ((x >= x0 && x <= x1) || (x >= x1 && x <= x0)) return y0 + (y1 - y0) * (x1 === x0 ? 0 : (x - x0) / (x1 - x0));
+    }
+    return 0;
+  };
+  useFrame((s) => {
+    k.current += ((hovered ? 1 : 0) - k.current) * 0.12;
+    const d = dot.current;
+    if (!d) return;
+    d.visible = k.current > 0.04;
+    const sweep = reduced ? 0.5 : (s.clock.elapsedTime * 0.6) % 1;
+    const x = -0.13 + sweep * 0.26;
+    d.position.set(x, 0.22 + yAtX(x), 0);
+    d.scale.setScalar(0.5 + k.current);
+  });
   return (
     <group position={position}>
       <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline />
-      {/* the ECG waveform (accent) */}
+      {/* the ECG waveform + a blip that sweeps it on hover (the heart-rate signal) */}
       <Line points={ecg} position={[0, 0.22, 0]} color={accent} lineWidth={1.8} transparent opacity={0.85} />
+      <mesh ref={dot} visible={false}>
+        <sphereGeometry args={[0.014, 12, 12]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={2.2} roughness={0.3} toneMapped={false} />
+      </mesh>
       {/* a tiny Vision Pro headset */}
       <group position={[0, 0.18, 0.12]}>
         <RoundedBox args={[0.14, 0.06, 0.05]} radius={0.02} smoothness={3}>
@@ -819,7 +870,6 @@ function PhilipsModule({ position }: { position: V3 }) {
 
 /** Decorative extra board parts — resistors, a crystal, a ribbon, solder pads. */
 function MiscComponents() {
-  const { accent } = useAccent();
   return (
     <group>
       {([[0.16, -0.58], [0.66, 0.08], [-0.18, 0.58]] as [number, number][]).map(([x, z], i) => (
@@ -842,9 +892,9 @@ function MiscComponents() {
           <Line key={i} points={[[-0.03, 0.024, z], [0.03, 0.024, z]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
         ))}
       </group>
-      {/* solder pads — small accent rings */}
+      {/* solder pads — small neutral rings */}
       {([[0.32, 0.62], [-0.34, 0.5], [0.52, -0.64], [-0.62, -0.45]] as [number, number][]).map(([x, z], i) => (
-        <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[x, 0.122, z]} color={accent} lineWidth={1} transparent opacity={0.4} />
+        <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[x, 0.122, z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
       ))}
     </group>
   );
@@ -868,7 +918,6 @@ function Heatsink({ position }: { position: V3 }) {
 
 /** A pin-header connector at the board edge. */
 function PinHeader({ position, n = 6 }: { position: V3; n?: number }) {
-  const { accent } = useAccent();
   const span = (n - 1) * 0.045;
   return (
     <group position={position}>
@@ -876,7 +925,7 @@ function PinHeader({ position, n = 6 }: { position: V3; n?: number }) {
       {Array.from({ length: n }).map((_, i) => (
         <mesh key={i} position={[-span / 2 + i * 0.045, 0.18, 0]}>
           <cylinderGeometry args={[0.008, 0.008, 0.06, 8]} />
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.3} roughness={0.4} />
+          <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.3} roughness={0.4} />
         </mesh>
       ))}
     </group>
@@ -932,7 +981,7 @@ function ChipRig() {
           <mesh key={i} position={[0, 0.05 + i * 0.07, 0]}>
             <cylinderGeometry args={[0.13, 0.13, 0.06, 28]} />
             {i === 2 ? (
-              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.4} roughness={0.45} />
+              <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.4} roughness={0.45} />
             ) : (
               <GlassMat opacity={0.28} />
             )}
@@ -941,16 +990,15 @@ function ChipRig() {
         ))}
       </group>
 
-      {/* computer-vision frame (accent outline) */}
-      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[cv[0], cv[1], cv[2]]} color={accent} lineWidth={1.4} transparent opacity={0.75} />
+      {/* computer-vision frame (neutral — not a hotspot) */}
+      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[cv[0], cv[1], cv[2]]} color={NEUTRAL} lineWidth={1.4} transparent opacity={0.75} />
 
       {/* secondary IC + heatsink and a pin-header connector fill the board out */}
       <Heatsink position={[-0.92, 0, 0.5]} />
       <PinHeader position={[-0.05, 0, 1.02]} n={6} />
 
-      {/* Philips medical XR & AI module (powers on) + extra components */}
-      <PhilipsModule position={[0.5, 0, -0.5]} />
-      <EmissiveHover slug="philips-medical-xr" position={[0.5, 0.26, -0.5]} args={[0.12, 0.014, 0.08]} rest={0.05} peak={1.0} />
+      {/* Philips medical XR & AI module (heart-rate signal animates on hover) */}
+      <PhilipsModule position={[0.5, 0, -0.5]} hoverSlug="philips-medical-xr" />
       <MiscComponents />
     </group>
   );
@@ -1015,8 +1063,8 @@ interface FunnelDef {
 }
 
 const FUNNELS: FunnelDef[] = [
-  // a building in the city → (almost) the whole room below
-  { source: [0.667, 1.32, -0.667], sourceR: 0.09, target: [0, 0, 0], targetR: 2.05, color: PALETTE.city.accent, activeSteps: [0, 1] },
+  // a building near the windmill in the city → (almost) the whole room below
+  { source: [-0.667, 1.32, 0.667], sourceR: 0.09, target: [0, 0, 0], targetR: 2.05, color: PALETTE.city.accent, activeSteps: [0, 1] },
   // the phone on the couch → (almost) the whole chip layer below
   { source: [1.07, 0.205, 0.91], sourceR: 0.055, target: [0, -1.32, 0], targetR: 1.55, color: PALETTE.room.accent, activeSteps: [1, 2] },
 ];
