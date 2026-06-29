@@ -409,7 +409,6 @@ function Windmill({ position }: { position: V3 }) {
             </mesh>
           </group>
         ))}
-        <Accent position={[0, 0, 0.02]} args={[0.05, 0.05, 0.03]} intensity={0.4} color={NEUTRAL} />
       </group>
     </group>
   );
@@ -443,8 +442,8 @@ function TreeRound({ position, h = 0.45, swaySlug }: { position: V3; h?: number;
     k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.08;
     const a = reduced ? 0 : k.current;
     const t = s.clock.elapsedTime;
-    g.rotation.z = Math.sin(t * 2.6 + phase) * 0.12 * a;
-    g.rotation.x = Math.cos(t * 2.1 + phase * 1.3) * 0.075 * a;
+    g.rotation.z = Math.sin(t * 2.0 + phase) * 0.12 * a;
+    g.rotation.x = Math.cos(t * 1.6 + phase * 1.3) * 0.075 * a;
   });
   const r = 0.14;
   return (
@@ -676,11 +675,11 @@ function CityRig() {
     ],
     [],
   );
-  const curveB = useMemo(() => smoothCurve([[1.9, 0.01, -0.5], [1.6, 0.01, 0.3], [1.4, 0.01, 0.92], [1.2, 0.01, 1.3]]), []);
+  const curveB = useMemo(() => smoothCurve([[-1.9, 0.01, 0.45], [-1.0, 0.01, 0.85], [0.1, 0.01, 0.98], [1.05, 0.01, 0.82]]), []);
   // Sparse blocks of square buildings around a central plaza; taller toward
   // the middle so the cluster still reads as a skyline.
   const cluster = useMemo(() => {
-    const rnd = makeRand(1872); // Weesp
+    const rnd = makeRand(1872);
     const out: { x: number; z: number; w: number; d: number; h: number }[] = [];
     const cells = [-0.58, 0, 0.58];
     for (const cx of cells)
@@ -744,7 +743,6 @@ function CityRig() {
       <Windmill position={[-1.2, 0, 0.5]} />
 
       {/* parks (the first carries the niantic-explorer hotspot — its trees rustle) */}
-      <Park position={[1.0, 0, 0.6]}  />
       <Park position={[1.05, 0, -0.72]} rustleSlug="niantic-explorer" />
     </group>
   );
