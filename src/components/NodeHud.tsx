@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { caseBySlug, LAYER_LABEL, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
+import { sceneStore } from '../scene/store';
+
+const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 
 // Bottom dossier drawer for an inspected node: a photo/video on the left and the
 // full detail on the right, while the 3D node stays visible above (the camera
@@ -30,7 +33,17 @@ export function NodeHud() {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   const study = slug ? caseBySlug(slug) : undefined;
-  const close = () => navigate('/');
+  // Closing drops you back on the layer you left from, not the top (City).
+  const close = () => {
+    navigate('/');
+    if (study) {
+      const step = LAYER_STEP[study.layer] ?? 0;
+      sceneStore.setJourneyStep(step);
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>(`.hero__panel[data-step="${step}"]`)?.scrollIntoView({ block: 'start' });
+      });
+    }
+  };
 
   useEffect(() => {
     if (!study) return;

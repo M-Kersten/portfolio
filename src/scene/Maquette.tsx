@@ -1,10 +1,11 @@
-import { createContext, useContext, useMemo, useRef, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, Quaternion, Vector3, type Group, type Mesh, type Points as ThreePoints, type ShaderMaterial } from 'three';
+import { AdditiveBlending, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, Quaternion, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Points as ThreePoints, type ShaderMaterial, type Texture } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, type Hotspot, type LayerId } from './framing';
 import { sceneStore, useSceneSelector } from './store';
 import { useReducedMotion } from '../lib/useReducedMotion';
+import { asset } from '../lib/asset';
 import { caseBySlug } from '../content';
 
 // Scale ladder (top → bottom): City (GIS / location), Room (games / apps / web),
@@ -179,26 +180,77 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
   );
 }
 
+/** The room monitor. At rest it's a dim screen that flickers on as you hover;
+ *  once visited it switches to a real screenshot (drop a JPG at
+ *  public/textures/room-screen.jpg). Until that file exists it falls back to the
+ *  plain lit screen, so nothing breaks. */
+function RoomScreen({ slug, position, rotation, args }: { slug: string; position: V3; rotation?: V3; args: V3 }) {
+  const { accent } = useAccent();
+  const { hovered, selected, visited } = useActive(slug);
+  const reduced = useReducedMotion();
+  const mat = useRef<MeshStandardMaterial>(null);
+  const meshRef = useRef<Mesh>(null);
+  const pop = useRef(0);
+  const popped = useRef(false);
+  const k = useRef(0);
+  const shown = useRef(false);
+  const [tex, setTex] = useState<Texture | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    new TextureLoader().load(
+      asset('/textures/room-screen.jpg'),
+      (t) => {
+        t.colorSpace = SRGBColorSpace;
+        if (cancelled) t.dispose();
+        else setTex(t);
+      },
+      undefined,
+      () => {}, // not provided yet → keep the plain-screen fallback
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useFrame((s, delta) => {
+    if (meshRef.current) meshRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
+    const m = mat.current;
+    if (!m) return;
+    k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.3;
+    const wantImg = (selected || visited) && !!tex;
+    if (wantImg !== shown.current) {
+      shown.current = wantImg;
+      m.map = wantImg ? tex : null;
+      m.emissiveMap = wantImg ? tex : null;
+      m.color.set(wantImg ? '#ffffff' : accent);
+      m.emissive.set(wantImg ? '#ffffff' : accent);
+      m.needsUpdate = true;
+    }
+    const t = s.clock.elapsedTime;
+    const n = reduced ? 1 : Math.max(0.2, 0.6 + 0.45 * Math.sin(t * 46) * Math.sin(t * 8.7));
+    m.emissiveIntensity = shown.current ? 0.6 + k.current * 0.5 : 0.3 + k.current * 0.9 * n;
+  });
+  return (
+    <mesh ref={meshRef} position={position} rotation={rotation}>
+      <boxGeometry args={args} />
+      <meshStandardMaterial ref={mat} color={accent} emissive={accent} emissiveIntensity={0.3} roughness={0.4} toneMapped={false} />
+    </mesh>
+  );
+}
+
 /** Drives the shared window material: hovering the town hall lights the whole
- *  skyline's windows. Once the city has been visited they stay on and warm to a
- *  lifelike amber, so the skyline keeps glowing like a city at night. */
+ *  skyline's windows (a calm blue). Once visited they stay softly lit, so the
+ *  skyline keeps a quiet glow — toned down, never warm/orange. */
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   const { hovered, visited } = useActive('municipal-twin');
   const reduced = useReducedMotion();
   const k = useRef(0);
-  const warm = useRef(0);
-  const base = useMemo(() => mat.color.clone(), [mat]);
-  const amber = useMemo(() => new Color('#ffb24d'), []);
   useFrame((s) => {
-    const kT = hovered ? 1 : visited ? 0.55 : 0;
+    const kT = hovered ? 1 : visited ? 0.5 : 0;
     k.current += (kT - k.current) * 0.09;
-    warm.current += ((visited ? 1 : 0) - warm.current) * 0.05;
     const t = s.clock.elapsedTime;
     const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26) * Math.sin(t * 6.3);
-    mat.emissiveIntensity = k.current * 1.5 * flick;
-    mat.opacity = 0.1 + k.current * 0.8;
-    mat.color.copy(base).lerp(amber, warm.current);
-    mat.emissive.copy(base).lerp(amber, warm.current);
+    mat.emissiveIntensity = k.current * 1.1 * flick;
+    mat.opacity = 0.08 + k.current * 0.6;
   });
   return null;
 }
@@ -254,10 +306,10 @@ function Accent({ position, args, intensity = 0.4, rotation, color }: { position
 }
 
 /* ---------- shape helpers ---------- */
-/** A square diorama building (glass fill, neutral edges, a faint lit rooftop).
- *  When given a shared `winMat`, it grows a grid of windows on its two
- *  camera-facing sides that light up when the town hall is hovered. */
-function Building({ x, z, w, d, h, roof = true, winMat }: { x: number; z: number; w: number; d: number; h: number; roof?: boolean; winMat?: MeshStandardMaterial }) {
+/** A square diorama building (glass fill, neutral edges). When given a shared
+ *  `winMat`, it grows a grid of windows on its two camera-facing sides that
+ *  light up when the town hall is hovered. */
+function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; d: number; h: number; winMat?: MeshStandardMaterial }) {
   const windows = useMemo(() => {
     if (!winMat) return [] as { p: V3; r?: V3; s: [number, number] }[];
     const out: { p: V3; r?: V3; s: [number, number] }[] = [];
@@ -279,7 +331,6 @@ function Building({ x, z, w, d, h, roof = true, winMat }: { x: number; z: number
         <GlassMat opacity={0.44} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
-      {roof && <Accent position={[0, h + 0.005, 0]} args={[w * 0.55, 0.01, d * 0.55]} intensity={0.26} color={NEUTRAL} />}
       {windows.map((win, i) => (
         <mesh key={i} position={win.p} rotation={win.r} material={winMat}>
           <planeGeometry args={win.s} />
@@ -332,36 +383,56 @@ function Windmill({ position }: { position: V3 }) {
   );
 }
 
-/** Round-canopy tree: a trunk line and a soft sphere ringed by two circles. */
+/** A stylised low-poly tree: a slim trunk and a faceted canopy cluster. Park
+ *  trees sway from their root and, once visited, the foliage greens up + solidifies. */
 function TreeRound({ position, h = 0.45, swaySlug }: { position: V3; h?: number; swaySlug?: string }) {
   const { hovered, selected, visited } = useActive(swaySlug ?? '');
   const reduced = useReducedMotion();
   const ref = useRef<Group>(null);
   const k = useRef(0);
+  const live = useRef(0);
   // a per-tree phase so the trees rustle out of sync rather than as one block
   const phase = useMemo(() => position[0] * 5.3 + position[2] * 3.7, [position]);
+  const restCol = useMemo(() => new Color('#3f7d72'), []); // muted teal-green at rest
+  const vivid = useMemo(() => new Color('#62c265'), []); // lifelike leaf green once visited
+  // one shared canopy material so all the blobs green up together
+  const leaf = useMemo(
+    () => new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.55 }),
+    [],
+  );
   useFrame((s) => {
+    if (swaySlug) {
+      live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
+      leaf.color.copy(restCol).lerp(vivid, live.current);
+      leaf.opacity = 0.55 + live.current * 0.4;
+    }
     const g = ref.current;
     if (!g || !swaySlug) return;
-    // hover/select → full rustle; visited → a soft idle breeze
     k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.08;
     const a = reduced ? 0 : k.current;
     const t = s.clock.elapsedTime;
     g.rotation.z = Math.sin(t * 2.6 + phase) * 0.12 * a;
     g.rotation.x = Math.cos(t * 2.1 + phase * 1.3) * 0.075 * a;
   });
+  const r = 0.14;
   return (
     <group position={position}>
-      {/* the trunk + canopy pivot at the base (the root), so each tree sways alone */}
+      {/* trunk + canopy pivot at the base (the root), so each tree sways alone */}
       <group ref={ref}>
-        <Line points={[[0, 0, 0], [0, h * 0.5, 0]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-        <group position={[0, h * 0.66, 0]}>
-          <mesh>
-            <sphereGeometry args={[0.13, 14, 12]} />
-            <GlassMat color="#3f8f8a" opacity={0.14} />
+        <mesh position={[0, h * 0.3, 0]}>
+          <cylinderGeometry args={[0.012, 0.022, h * 0.6, 6]} />
+          <meshStandardMaterial color="#586a61" roughness={0.85} metalness={0} />
+        </mesh>
+        <group position={[0, h * 0.62, 0]}>
+          <mesh material={leaf}>
+            <icosahedronGeometry args={[r, 0]} />
           </mesh>
-          <Line points={circlePts(0.13)} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-          <Line points={circlePts(0.13)} rotation={[Math.PI / 2, 0, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+          <mesh material={leaf} position={[r * 0.62, r * 0.5, -r * 0.2]} rotation={[0.5, 0.8, 0]}>
+            <icosahedronGeometry args={[r * 0.7, 0]} />
+          </mesh>
+          <mesh material={leaf} position={[-r * 0.55, r * 0.34, r * 0.28]} rotation={[0.2, -0.6, 0.3]}>
+            <icosahedronGeometry args={[r * 0.64, 0]} />
+          </mesh>
         </group>
       </group>
     </group>
@@ -825,7 +896,7 @@ function RoomRig() {
           <GlassMat opacity={0.26} />
         </mesh>
         <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} />
-        <EmissiveHover slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} rest={0.32} peak={0.9} flicker liveColor="#46c8ff" />
+        <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
         <SoftBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} radius={0.012} opacity={0.26} />
         {/* desk clutter: a mug + papers */}
         <mesh position={[-0.36, 0.42, 0.12]}>
