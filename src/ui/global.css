@@ -460,6 +460,9 @@ html {
   .hero__indicator {
     display: none;
   }
+  .scene-canvas {
+    transform: none; /* no menu on mobile → keep the scene centred */
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -1428,6 +1431,9 @@ html {
   position: fixed;
   inset: 0;
   z-index: 0;
+  /* nudged right into the space the old layer menu used to occupy (page bg
+     matches the scene clear colour, so the left edge stays seamless) */
+  transform: translateX(3.4vw);
 }
 .scene-canvas canvas {
   display: block;

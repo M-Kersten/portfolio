@@ -292,6 +292,38 @@ function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opacity?: 
   );
 }
 
+/** Like GlassMat, but a hotspot's body resolves from frosted glass to a
+ *  near-solid, glossier material once it's been visited — so visited objects
+ *  read as "real / high-definition" rather than abstract. */
+function LiveGlassMat({ slug, color = GLASS, opacity = 0.2 }: { slug: string; color?: string; opacity?: number }) {
+  const { selected, visited } = useActive(slug);
+  const mat = useRef<MeshStandardMaterial>(null);
+  const k = useRef(0);
+  useFrame(() => {
+    const m = mat.current;
+    if (!m) return;
+    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
+    m.opacity = opacity + (0.94 - opacity) * k.current;
+    m.roughness = 0.34 - 0.2 * k.current;
+    m.metalness = 0.18 * k.current;
+    m.depthWrite = k.current > 0.5;
+  });
+  return (
+    <meshStandardMaterial
+      ref={mat}
+      color={color}
+      transparent
+      opacity={opacity}
+      roughness={0.34}
+      metalness={0}
+      emissive="#0c2a30"
+      emissiveIntensity={0.14}
+      depthWrite={false}
+      onBeforeCompile={glassRim}
+    />
+  );
+}
+
 /** Flat highlight box. Defaults to the layer accent, but decorative (non-hotspot)
  *  details pass color={NEUTRAL} so the layer colour stays on the interactables. */
 function Accent({ position, args, intensity = 0.4, rotation, color }: { position: V3; args: V3; intensity?: number; rotation?: V3; color?: string }) {
@@ -439,14 +471,15 @@ function TreeRound({ position, h = 0.45, swaySlug }: { position: V3; h?: number;
   );
 }
 
-/** Soft rounded box (furniture, the chip package). Optional top outline. */
-function SoftBox({ position, args, radius = 0.03, opacity = 0.2, outline = false, rotation, color }: { position: V3; args: V3; radius?: number; opacity?: number; outline?: boolean; rotation?: V3; color?: string }) {
+/** Soft rounded box (furniture, the chip package). Optional top outline. With a
+ *  `liveSlug` its glass solidifies once that hotspot is visited. */
+function SoftBox({ position, args, radius = 0.03, opacity = 0.2, outline = false, rotation, color, liveSlug }: { position: V3; args: V3; radius?: number; opacity?: number; outline?: boolean; rotation?: V3; color?: string; liveSlug?: string }) {
   // Clamp so the corner radius never exceeds half the smallest side.
   const r = Math.min(radius, Math.min(args[0], args[1], args[2]) / 2 - 0.002);
   return (
     <group position={position} rotation={rotation}>
       <RoundedBox args={args} radius={r} smoothness={3}>
-        <GlassMat opacity={opacity} color={color} />
+        {liveSlug ? <LiveGlassMat slug={liveSlug} opacity={opacity} color={color} /> : <GlassMat opacity={opacity} color={color} />}
       </RoundedBox>
       {outline && (
         <Line points={roundedRectPts(args[0], args[2], radius * 1.6)} position={[0, args[1] / 2, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
@@ -534,13 +567,13 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
       <group ref={popRef}>
       <mesh position={[0, 0.012, 0]}>
         <cylinderGeometry args={[0.5, 0.5, 0.02, 44]} />
-        <GlassMat color="#2f8a6e" opacity={0.15} />
+        <LiveGlassMat slug="niantic-explorer" color="#2f8a6e" opacity={0.15} />
       </mesh>
       <Line points={circlePts(0.5)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
       {/* pond */}
       <mesh position={[-0.14, 0.02, 0.16]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.15, 28]} />
-        <GlassMat color="#2e7f86" opacity={0.28} />
+        <LiveGlassMat slug="niantic-explorer" color="#2e7f86" opacity={0.28} />
       </mesh>
       <Line points={circlePts(0.15)} position={[-0.14, 0.03, 0.16]} color={live ? '#3fb6ff' : accent} lineWidth={1} transparent opacity={0.5} />
       <TreeRound position={[0.2, 0, -0.18]} h={0.44} swaySlug={rustleSlug} />
@@ -557,7 +590,7 @@ function TownHall({ position, winMat }: { position: V3; winMat?: MeshStandardMat
     <group position={position}>
       <mesh position={[0, 0.28, 0]}>
         <boxGeometry args={[0.34, 0.56, 0.3]} />
-        <GlassMat opacity={0.44} />
+        <LiveGlassMat slug="municipal-twin" opacity={0.44} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {winMat &&
@@ -573,7 +606,7 @@ function TownHall({ position, winMat }: { position: V3; winMat?: MeshStandardMat
       {/* clock tower */}
       <mesh position={[0, 0.7, 0]}>
         <boxGeometry args={[0.16, 0.24, 0.16]} />
-        <GlassMat opacity={0.44} />
+        <LiveGlassMat slug="municipal-twin" opacity={0.44} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* clock face */}
@@ -790,7 +823,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       <group ref={popRef}>
       <mesh position={[0, 0.18, 0]}>
         <cylinderGeometry args={[0.32, 0.32, 0.03, 40]} />
-        <GlassMat opacity={0.2} />
+        <LiveGlassMat slug="lightship-drive" opacity={0.2} />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
       {([[0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2]] as [number, number][]).map(([lx, lz], i) => (
@@ -895,7 +928,7 @@ function RoomRig() {
           <cylinderGeometry args={[0.016, 0.016, 0.14, 12]} />
           <GlassMat opacity={0.26} />
         </mesh>
-        <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} />
+        <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} liveSlug="virtuele-brigade" />
         <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
         <SoftBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} radius={0.012} opacity={0.26} />
         {/* desk clutter: a mug + papers */}
@@ -1005,7 +1038,7 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   return (
     <group position={position}>
       <group ref={popRef}>
-      <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline />
+      <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline liveSlug="philips-medical-xr" />
       {/* the ECG waveform + a blip that sweeps it on hover (the heart-rate signal) */}
       <Line points={ecg} position={[0, 0.22, 0]} color={selected || visited ? '#ff5a5a' : accent} lineWidth={1.8} transparent opacity={0.85} />
       <mesh ref={dot} visible={false}>
@@ -1106,7 +1139,7 @@ function ChipRig() {
   return (
     <group>
       {/* rounded package + die (carries amsterdam-ai — the chip powers on) */}
-      <SoftBox position={[0, 0.06, 0]} args={[1.25, 0.12, 1.25]} radius={0.08} outline />
+      <SoftBox position={[0, 0.06, 0]} args={[1.25, 0.12, 1.25]} radius={0.08} outline liveSlug="amsterdam-ai" />
       <EmissiveHover slug="amsterdam-ai" position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
       <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.155, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
 
@@ -1118,7 +1151,7 @@ function ChipRig() {
       {/* round components — the first carries custom-ar-framework (it powers on) */}
       <mesh position={[0.42, 0.13, 0.4]}>
         <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
-        <GlassMat opacity={0.34} />
+        <LiveGlassMat slug="custom-ar-framework" opacity={0.34} />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
       <EmissiveHover slug="custom-ar-framework" position={[0.42, 0.2, 0.4]} args={[0.07, 0.014, 0.07]} rest={0.04} peak={1.1} liveColor="#7fe6ff" />

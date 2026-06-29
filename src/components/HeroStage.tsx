@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { site } from '../content';
 import { sceneStore, useSceneSelector } from '../scene/store';
-import { useReducedMotion } from '../lib/useReducedMotion';
 
 // Three short snap panels give the camera journey its scroll length and drive
 // `journeyStep` (which layer is centred). The minimal title + layer indicator
@@ -15,9 +14,7 @@ const STEPS = [
 ];
 
 export function HeroStage() {
-  const reduced = useReducedMotion();
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
-  const journeyStep = useSceneSelector((s) => s.journeyStep);
 
   const stageRef = useRef<HTMLElement>(null);
   const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -64,9 +61,6 @@ export function HeroStage() {
   }, []);
 
   const opacity = selectedSlug ? 0 : topness;
-  const hidden = opacity < 0.05;
-  const goto = (step: number) =>
-    panelRefs.current[step]?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
 
   return (
     <section id="hero" className="hero" ref={stageRef} aria-label="Introduction">
@@ -75,22 +69,6 @@ export function HeroStage() {
         <p className="hero__sub">{site.hero.subheading}</p>
         <p className="hero__scrollcue" aria-hidden="true">scroll down, have a poke around ↓</p>
       </div>
-
-      <nav className="hero__indicator" style={{ opacity, pointerEvents: hidden ? 'none' : undefined }} aria-label="Layers">
-        {STEPS.map((s) => (
-          <button
-            key={s.step}
-            type="button"
-            className="hero__indicator-step"
-            data-active={journeyStep === s.step}
-            onClick={() => goto(s.step)}
-          >
-            <span className="hero__indicator-num">{`0${s.step + 1}`}</span>
-            <span className="hero__indicator-label">{s.label}</span>
-            <span className="hero__indicator-tag">{s.tag}</span>
-          </button>
-        ))}
-      </nav>
 
       {STEPS.map((s) => (
         <div
