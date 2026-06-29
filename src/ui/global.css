@@ -768,6 +768,27 @@ html {
   }
 }
 
+/* Cross-layer signal threads: a faint label naming what links two nodes. Its
+   opacity is driven from the scene, fading in only while the link is active. */
+.signal-wrap {
+  pointer-events: none;
+}
+.signal-label {
+  display: inline-block;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: calc(var(--step--1) * 0.82);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--sig, var(--accent));
+  background: color-mix(in srgb, var(--paper) 64%, transparent);
+  padding: 0.16em 0.55em;
+  border-radius: var(--radius-s);
+  text-shadow: 0 0 9px color-mix(in srgb, var(--sig, var(--accent)) 70%, transparent);
+  transform: translateY(-2px);
+  will-change: opacity;
+}
+
 /* ---------- Capabilities ---------- */
 
 .capabilities__grid {

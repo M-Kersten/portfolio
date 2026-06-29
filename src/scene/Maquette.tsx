@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, Quaternion, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Points as ThreePoints, type ShaderMaterial, type Texture } from 'three';
-import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, type Hotspot, type LayerId } from './framing';
+import { AdditiveBlending, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3, type BufferAttribute, type Group, type Mesh, type Points as ThreePoints, type Texture } from 'three';
+import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { sceneStore, useSceneSelector } from './store';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { asset } from '../lib/asset';
@@ -1236,108 +1236,128 @@ function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color
 const RIGS: Record<LayerId, () => JSX.Element> = { city: CityRig, room: RoomRig, chip: ChipRig };
 const SEED: Record<LayerId, number> = { city: 11, room: 29, chip: 53 };
 
-/* ---------- Nesting: zoom funnels between the layers ----------
-   Each layer is a magnified detail of one point on the layer above. A funnel is
-   a glowing cone — narrow at that point on the upper layer, flaring open toward
-   the whole layer below and fading out as it descends. They live in world space
-   because they bridge two differently-scaled layer groups, sit at a faint
-   "whisper", and brighten a little when their gap is in view. */
-interface FunnelDef {
-  source: [number, number, number]; // world point on the upper layer
-  sourceR: number; // cone radius at the source (narrow)
-  target: [number, number, number]; // world centre on the lower layer
-  targetR: number; // cone radius at the layer below (wide)
+/* ---------- Cross-layer signal lines ----------
+   Related projects on different layers are joined by a faint arc that only
+   shows when you touch one of its endpoints: hovering a node reveals its links
+   (subtle), selecting one drives them to full. A stream of packets flows along
+   each link so it reads as live data moving between the layers, and a small
+   label names the thread that ties them together. The arcs live in world space
+   because they bridge the differently-scaled layer groups. */
+interface Relation {
+  thread: string; // shown as a faint label on the link
+  from: string; // slug — packets flow from → to
+  to: string; // slug
   color: string;
-  activeSteps: number[]; // journey steps at which this funnel brightens
 }
 
-const FUNNELS: FunnelDef[] = [
-  // a building near the windmill in the city → (almost) the whole room below
-  { source: [-0.667, 1.32, 0.667], sourceR: 0.09, target: [0, 0, 0], targetR: 2.05, color: PALETTE.city.accent, activeSteps: [0, 1] },
-  // the phone on the couch → (almost) the whole chip layer below
-  { source: [1.07, 0.205, 0.91], sourceR: 0.055, target: [0, -1.32, 0], targetR: 1.55, color: PALETTE.room.accent, activeSteps: [1, 2] },
+// Three threads weaving down the stack. AR: the framework powers the AR race
+// table, which surfaces as a city park. XR · simulation: the medical-XR module
+// feeds the brigade's training sim. AI · data: the model serves the game backend
+// and the city's digital twin.
+const THREAD = { ar: '#46d6e6', xr: '#c79bff', data: '#bff06a' };
+const RELATIONS: Relation[] = [
+  { thread: 'AR', from: 'custom-ar-framework', to: 'lightship-drive', color: THREAD.ar },
+  { thread: 'AR', from: 'lightship-drive', to: 'niantic-explorer', color: THREAD.ar },
+  { thread: 'XR · simulation', from: 'philips-medical-xr', to: 'virtuele-brigade', color: THREAD.xr },
+  { thread: 'AI · data', from: 'amsterdam-ai', to: 'popcore-games', color: THREAD.data },
+  { thread: 'AI · data', from: 'amsterdam-ai', to: 'municipal-twin', color: THREAD.data },
 ];
 
-const FUNNEL_WHISPER = 0.05;
-const FUNNEL_ACTIVE = 0.15;
+const HOTSPOT_BY_SLUG: Record<string, Hotspot> = Object.fromEntries(HOTSPOTS.map((h) => [h.slug, h]));
+const SIGNAL_PACKETS = 5;
+const _sv = new Vector3(); // scratch for sampling the curve each frame
 
-// A glowing cone: bright at the narrow top (the source), fading to nothing at
-// the wide bottom, with the silhouette glowing more than the face (volumetric).
-const FUNNEL_VERT = `
-  uniform float uHeight;
-  varying float vH;
-  varying vec3 vN;
-  varying vec3 vV;
-  void main() {
-    vH = position.y / uHeight + 0.5;            // 1 at the source (top), 0 at the bottom
-    vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    vN = normalize(normalMatrix * normal);
-    vV = normalize(-mv.xyz);
-    gl_Position = projectionMatrix * mv;
-  }
-`;
-const FUNNEL_FRAG = `
-  uniform vec3 uColor;
-  uniform float uOpacity;
-  uniform float uFade;
-  varying float vH;
-  varying vec3 vN;
-  varying vec3 vV;
-  void main() {
-    float fres = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0);
-    float grad = pow(clamp(vH, 0.0, 1.0), uFade);  // fade out toward the bottom
-    float a = uOpacity * grad * (0.18 + 1.15 * fres);
-    if (a < 0.002) discard;
-    gl_FragColor = vec4(uColor, a);
-  }
-`;
-
-function Funnel({ source, sourceR, target, targetR, color, activeSteps }: FunnelDef) {
-  const journeyStep = useSceneSelector((s) => s.journeyStep);
+function SignalLine({ thread, from, to, color }: Relation) {
   const reduced = useReducedMotion();
-  const matRef = useRef<ShaderMaterial>(null);
+  const { hovered: hovA, selected: selA } = useActive(from);
+  const { hovered: hovB, selected: selB } = useActive(to);
 
-  const { position, quaternion, height, uniforms } = useMemo(() => {
-    const s = new Vector3(...source);
-    const t = new Vector3(...target);
-    const h = Math.max(s.distanceTo(t), 1e-3);
-    // cone axis is local +Y; orient it to point from the target up to the source
-    const q = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), s.clone().sub(t).normalize());
-    return {
-      position: s.clone().add(t).multiplyScalar(0.5).toArray() as [number, number, number],
-      quaternion: q,
-      height: h,
-      uniforms: {
-        uColor: { value: new Color(color) },
-        uOpacity: { value: FUNNEL_WHISPER },
-        uFade: { value: 2.5 },
-        uHeight: { value: h },
-      },
-    };
-  }, [source, target, color]);
+  // Endpoints joined by an arc that bows away from the central axis, so the many
+  // links read as separate paths instead of piling onto the stack's spine.
+  const { curve, points, apex } = useMemo(() => {
+    const pA = anchorWorld(HOTSPOT_BY_SLUG[from]);
+    const pB = anchorWorld(HOTSPOT_BY_SLUG[to]);
+    const mid = pA.clone().add(pB).multiplyScalar(0.5);
+    const out = new Vector3(mid.x, 0, mid.z); // bow outward, away from the spine
+    if (out.length() < 0.25) {
+      const dir = pB.clone().sub(pA); // near the spine → bow to one side instead
+      out.set(-dir.z, 0, dir.x);
+      if (out.length() < 0.25) out.set(1, 0, 0);
+    }
+    out.normalize().multiplyScalar(0.5);
+    const apexPt = mid.clone().add(out).add(new Vector3(0, 0.14, 0));
+    const c = new CatmullRomCurve3([pA, apexPt, pB]);
+    return { curve: c, points: c.getPoints(40), apex: apexPt };
+  }, [from, to]);
 
-  useFrame(() => {
-    if (!matRef.current) return;
-    const tgt = activeSteps.includes(journeyStep) ? FUNNEL_ACTIVE : FUNNEL_WHISPER;
-    const cur = matRef.current.uniforms.uOpacity.value as number;
-    matRef.current.uniforms.uOpacity.value = reduced ? tgt : cur + (tgt - cur) * 0.08;
+  const lineRef = useRef<any>(null);
+  const pointsRef = useRef<ThreePoints>(null);
+  const posAttr = useRef<BufferAttribute>(null);
+  const colAttr = useRef<BufferAttribute>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const posArr = useMemo(() => new Float32Array(SIGNAL_PACKETS * 3), []);
+  const colArr = useMemo(() => new Float32Array(SIGNAL_PACKETS * 3), []);
+  const baseCol = useMemo(() => new Color(color), [color]);
+  const k = useRef(0); // eased activation: 0 idle, 0.5 hover, 1 selected
+  const u = useRef(0); // packet flow phase
+
+  useFrame((_s, delta) => {
+    const target = selA || selB ? 1 : hovA || hovB ? 0.5 : 0;
+    k.current += (target - k.current) * 0.12;
+    const kk = k.current;
+    const lit = kk > 0.01;
+
+    const line = lineRef.current;
+    if (line) {
+      line.visible = lit;
+      const m = line.material;
+      if (m) {
+        const op = kk * 0.42;
+        m.opacity = op;
+        if (m.uniforms?.opacity) m.uniforms.opacity.value = op; // LineMaterial drives opacity via a uniform
+      }
+    }
+
+    if (!reduced) u.current = (u.current + delta * 0.16) % 1;
+    const pen = pointsRef.current;
+    if (pen) {
+      pen.visible = lit;
+      if (lit) {
+        for (let i = 0; i < SIGNAL_PACKETS; i++) {
+          const f = (u.current + i / SIGNAL_PACKETS) % 1;
+          curve.getPointAt(f, _sv);
+          posArr[i * 3] = _sv.x;
+          posArr[i * 3 + 1] = _sv.y;
+          posArr[i * 3 + 2] = _sv.z;
+          const b = kk * (0.45 + 0.55 * Math.sin(f * Math.PI)); // fade in/out at the ends
+          colArr[i * 3] = baseCol.r * b;
+          colArr[i * 3 + 1] = baseCol.g * b;
+          colArr[i * 3 + 2] = baseCol.b * b;
+        }
+        if (posAttr.current) posAttr.current.needsUpdate = true;
+        if (colAttr.current) colAttr.current.needsUpdate = true;
+      }
+    }
+
+    if (labelRef.current) labelRef.current.style.opacity = String(kk > 0.04 ? Math.min(1, kk * 1.25) : 0);
   });
 
   return (
-    <mesh position={position} quaternion={quaternion}>
-      <cylinderGeometry args={[sourceR, targetR, height, 48, 1, true]} />
-      <shaderMaterial
-        ref={matRef}
-        vertexShader={FUNNEL_VERT}
-        fragmentShader={FUNNEL_FRAG}
-        uniforms={uniforms}
-        transparent
-        blending={AdditiveBlending}
-        depthWrite={false}
-        side={DoubleSide}
-        toneMapped={false}
-      />
-    </mesh>
+    <group>
+      <DreiLine ref={lineRef} points={points} color={color} lineWidth={1.4} transparent opacity={0} depthWrite={false} toneMapped={false} fog={false} visible={false} />
+      <points ref={pointsRef} visible={false}>
+        <bufferGeometry>
+          <bufferAttribute ref={posAttr} attach="attributes-position" args={[posArr, 3]} />
+          <bufferAttribute ref={colAttr} attach="attributes-color" args={[colArr, 3]} />
+        </bufferGeometry>
+        <pointsMaterial size={0.075} vertexColors transparent blending={AdditiveBlending} depthWrite={false} sizeAttenuation toneMapped={false} />
+      </points>
+      <Html position={apex} center zIndexRange={[12, 0]} className="signal-wrap" style={{ pointerEvents: 'none' }}>
+        <span ref={labelRef} className="signal-label" style={{ '--sig': color, opacity: 0 } as CSSProperties}>
+          {thread}
+        </span>
+      </Html>
+    </group>
   );
 }
 
@@ -1403,8 +1423,8 @@ export function Maquette({ onActivate }: MaquetteProps) {
           </AccentCtx.Provider>
         );
       })}
-      {FUNNELS.map((fn, i) => (
-        <Funnel key={i} {...fn} />
+      {RELATIONS.map((rel, i) => (
+        <SignalLine key={i} {...rel} />
       ))}
     </group>
   );
