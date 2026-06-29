@@ -601,8 +601,6 @@ function TownHall({ position, winMat }: { position: V3; winMat?: MeshStandardMat
             </mesh>
           )),
         )}
-      {/* cornice band */}
-      <Accent position={[0, 0.56, 0]} args={[0.38, 0.012, 0.34]} intensity={0.3} />
       {/* clock tower */}
       <mesh position={[0, 0.7, 0]}>
         <boxGeometry args={[0.16, 0.24, 0.16]} />
@@ -678,7 +676,6 @@ function CityRig() {
     ],
     [],
   );
-  const curveA = useMemo(() => smoothCurve([[-1.9, 0.01, 0.45], [-1.0, 0.01, 0.85], [0.1, 0.01, 0.98], [1.05, 0.01, 0.82]]), []);
   const curveB = useMemo(() => smoothCurve([[1.9, 0.01, -0.5], [1.6, 0.01, 0.3], [1.4, 0.01, 0.92], [1.2, 0.01, 1.3]]), []);
   // Sparse blocks of square buildings around a central plaza; taller toward
   // the middle so the cluster still reads as a skyline.
