@@ -18,6 +18,9 @@ interface SceneState {
   /** The hovered project dot's slug, or null. Drives the hover highlight on the
    *  object that project is attached to. */
   hoveredSlug: string | null;
+  /** Slugs the visitor has opened at least once. Their objects stay "alive"
+   *  (lifelike colour + a gentle idle), so exploring brings the scene to life. */
+  visited: string[];
   /** Active place id for the twin (allowlist-resolved elsewhere). */
   placeId: string;
   /** Flips true once the twin establishing move has settled and orbit is live. */
@@ -36,6 +39,7 @@ let state: SceneState = {
   journeyStep: 0,
   selectedSlug: null,
   hoveredSlug: null,
+  visited: [],
   placeId: '',
   twinSettled: false,
   resetNonce: 0,
@@ -71,6 +75,9 @@ export const sceneStore = {
   },
   setHovered(hoveredSlug: string | null) {
     if (hoveredSlug !== state.hoveredSlug) set({ hoveredSlug });
+  },
+  markVisited(slug: string) {
+    if (!state.visited.includes(slug)) set({ visited: [...state.visited, slug] });
   },
   markTwinSettled() {
     if (!state.twinSettled) set({ twinSettled: true });

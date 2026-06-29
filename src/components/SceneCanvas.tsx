@@ -36,6 +36,7 @@ export function SceneCanvas() {
   useEffect(() => {
     const slug = WORK_RE.exec(location.pathname)?.[1];
     const study = slug ? caseBySlug(slug) : undefined;
+    if (slug) sceneStore.markVisited(slug); // opening a node marks it "alive"
 
     if (slug === 'municipal-twin') {
       sceneStore.setMode('twin');

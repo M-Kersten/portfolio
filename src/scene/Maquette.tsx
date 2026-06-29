@@ -87,7 +87,8 @@ function Line(props: ComponentProps<typeof DreiLine>) {
 function useActive(slug: string) {
   const hovered = useSceneSelector((s) => s.hoveredSlug) === slug;
   const selected = useSceneSelector((s) => s.selectedSlug) === slug;
-  return { hovered, selected };
+  const visited = useSceneSelector((s) => s.visited.includes(slug));
+  return { hovered, selected, visited };
 }
 // Motion plays while hovered OR selected, so it keeps living once you click in.
 function useHovered(slug: string) {
@@ -139,7 +140,7 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
 }) {
   const { accent } = useAccent();
   const col = color ?? accent;
-  const { hovered, selected } = useActive(slug);
+  const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
   const meshRef = useRef<Mesh>(null);
@@ -152,8 +153,11 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
   useFrame((s, delta) => {
     if (meshRef.current) meshRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
     if (!mat.current) return;
-    k.current += ((hovered || selected ? 1 : 0) - k.current) * (flicker ? 0.32 : 0.12);
-    live.current += ((selected ? 1 : 0) - live.current) * 0.07;
+    // hover/select → full; visited → a calm lit idle; otherwise off
+    const kT = hovered || selected ? 1 : visited ? 0.42 : 0;
+    k.current += (kT - k.current) * (flicker ? 0.32 : 0.12);
+    // colour resolves to lifelike once selected, and stays that way once visited
+    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
     const t = s.clock.elapsedTime;
     let lvl;
     if (flicker) {
@@ -163,7 +167,7 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
       const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
       lvl = rest + k.current * (peak + breathe);
     }
-    mat.current.emissiveIntensity = lvl + live.current * 0.8; // selected = brighter → blooms
+    mat.current.emissiveIntensity = lvl;
     mat.current.color.copy(base).lerp(lifelike, live.current);
     mat.current.emissive.copy(base).lerp(lifelike, live.current);
   });
@@ -176,17 +180,25 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
 }
 
 /** Drives the shared window material: hovering the town hall lights the whole
- *  skyline's windows (a soft on, with a faint flicker as they catch). */
+ *  skyline's windows. Once the city has been visited they stay on and warm to a
+ *  lifelike amber, so the skyline keeps glowing like a city at night. */
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
-  const hovered = useHovered('municipal-twin');
+  const { hovered, visited } = useActive('municipal-twin');
   const reduced = useReducedMotion();
   const k = useRef(0);
+  const warm = useRef(0);
+  const base = useMemo(() => mat.color.clone(), [mat]);
+  const amber = useMemo(() => new Color('#ffb24d'), []);
   useFrame((s) => {
-    k.current += ((hovered ? 1 : 0) - k.current) * 0.09;
+    const kT = hovered ? 1 : visited ? 0.55 : 0;
+    k.current += (kT - k.current) * 0.09;
+    warm.current += ((visited ? 1 : 0) - warm.current) * 0.05;
     const t = s.clock.elapsedTime;
     const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26) * Math.sin(t * 6.3);
     mat.emissiveIntensity = k.current * 1.5 * flick;
     mat.opacity = 0.1 + k.current * 0.8;
+    mat.color.copy(base).lerp(amber, warm.current);
+    mat.emissive.copy(base).lerp(amber, warm.current);
   });
   return null;
 }
@@ -322,7 +334,7 @@ function Windmill({ position }: { position: V3 }) {
 
 /** Round-canopy tree: a trunk line and a soft sphere ringed by two circles. */
 function TreeRound({ position, h = 0.45, swaySlug }: { position: V3; h?: number; swaySlug?: string }) {
-  const hovered = useHovered(swaySlug ?? '');
+  const { hovered, selected, visited } = useActive(swaySlug ?? '');
   const reduced = useReducedMotion();
   const ref = useRef<Group>(null);
   const k = useRef(0);
@@ -331,7 +343,8 @@ function TreeRound({ position, h = 0.45, swaySlug }: { position: V3; h?: number;
   useFrame((s) => {
     const g = ref.current;
     if (!g || !swaySlug) return;
-    k.current += ((hovered ? 1 : 0) - k.current) * 0.08;
+    // hover/select → full rustle; visited → a soft idle breeze
+    k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.08;
     const a = reduced ? 0 : k.current;
     const t = s.clock.elapsedTime;
     g.rotation.z = Math.sin(t * 2.6 + phase) * 0.12 * a;
@@ -436,7 +449,8 @@ function PointCloud({ seed }: { seed: number }) {
 /* ---------- City — GIS & location (top) ---------- */
 function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
   const { accent } = useAccent();
-  const selected = useActive(rustleSlug ?? '').selected;
+  const { selected, visited } = useActive(rustleSlug ?? '');
+  const live = selected || visited;
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
   const pop = useRef(0);
@@ -457,7 +471,7 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
         <circleGeometry args={[0.15, 28]} />
         <GlassMat color="#2e7f86" opacity={0.28} />
       </mesh>
-      <Line points={circlePts(0.15)} position={[-0.14, 0.03, 0.16]} color={selected ? '#3fb6ff' : accent} lineWidth={1} transparent opacity={0.5} />
+      <Line points={circlePts(0.15)} position={[-0.14, 0.03, 0.16]} color={live ? '#3fb6ff' : accent} lineWidth={1} transparent opacity={0.5} />
       <TreeRound position={[0.2, 0, -0.18]} h={0.44} swaySlug={rustleSlug} />
       <TreeRound position={[0.24, 0, 0.22]} h={0.36} swaySlug={rustleSlug} />
       <TreeRound position={[-0.22, 0, -0.24]} h={0.4} swaySlug={rustleSlug} />
@@ -649,7 +663,7 @@ function CityRig() {
  *  hover the cars ride around the loop (parked otherwise). */
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
-  const { hovered, selected } = useActive(hoverSlug ?? '');
+  const { hovered, selected, visited } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
   const base = useMemo(() => new Color(accent), [accent]);
   const red = useMemo(() => new Color('#ff5a4d'), []);
@@ -692,8 +706,8 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   };
   useFrame((_s, delta) => {
     if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
-    k.current += ((hovered || selected ? 1 : 0) - k.current) * 0.1;
-    live.current += ((selected ? 1 : 0) - live.current) * 0.07;
+    k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.1;
+    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
     if (!reduced) dist.current += delta * 0.22 * k.current;
     place(car1.current, dist.current);
     place(car2.current, dist.current + 0.5);
@@ -877,7 +891,7 @@ function RoomRig() {
  *  hover a bright blip sweeps the heart-rate waveform like a monitor trace. */
 function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
-  const { hovered, selected } = useActive(hoverSlug ?? '');
+  const { hovered, selected, visited } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
   const live = useRef(0);
   const base = useMemo(() => new Color(accent), [accent]);
@@ -904,8 +918,8 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   };
   useFrame((s, delta) => {
     if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
-    k.current += ((hovered || selected ? 1 : 0) - k.current) * 0.12;
-    live.current += ((selected ? 1 : 0) - live.current) * 0.07;
+    k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.12;
+    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
     const d = dot.current;
     if (!d) return;
     d.visible = k.current > 0.04;
@@ -922,7 +936,7 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       <group ref={popRef}>
       <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline />
       {/* the ECG waveform + a blip that sweeps it on hover (the heart-rate signal) */}
-      <Line points={ecg} position={[0, 0.22, 0]} color={selected ? '#ff5a5a' : accent} lineWidth={1.8} transparent opacity={0.85} />
+      <Line points={ecg} position={[0, 0.22, 0]} color={selected || visited ? '#ff5a5a' : accent} lineWidth={1.8} transparent opacity={0.85} />
       <mesh ref={dot} visible={false}>
         <sphereGeometry args={[0.014, 12, 12]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={2.2} roughness={0.3} toneMapped={false} />
