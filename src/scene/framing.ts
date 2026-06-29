@@ -49,7 +49,7 @@ export const HOTSPOTS: Hotspot[] = [
   { slug: 'popcore-games', layer: 'room', position: [1.07, 0.54, 0.91], anchor: [1.07, 0.24, 0.91] }, // phone on the couch
   { slug: 'lightship-drive', layer: 'room', position: [0, 0.6, 1.0], anchor: [0, 0.3, 1.0] }, // the AR race table
   // City — on real places; the twin flies into the live district
-  { slug: 'niantic-explorer', layer: 'city', position: [1.0, 0.46, 0.6], anchor: [1.0, 0.06, 0.6] }, // the park
+  { slug: 'niantic-explorer', layer: 'city', position: [1.05, 0.46, -0.72], anchor: [1.05, 0.06, -0.72] }, // the park
   { slug: 'municipal-twin', layer: 'city', position: [0, 1.05, 0], anchor: [0, 0.72, 0], twin: true }, // town hall (skyline peak)
 ];
 

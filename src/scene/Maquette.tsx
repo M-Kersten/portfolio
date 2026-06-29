@@ -429,7 +429,7 @@ function TreeRound({ position, h = 0.45, swaySlug }: { position: V3; h?: number;
   const vivid = useMemo(() => new Color('#62c265'), []); // lifelike leaf green once visited
   // one shared canopy material so all the blobs green up together
   const leaf = useMemo(
-    () => new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.55 }),
+    () => new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.3 }),
     [],
   );
   useFrame((s) => {
@@ -712,7 +712,6 @@ function CityRig() {
         <RoadRibbon key={`r${i}`} points={p} width={0.08} />
       ))}
       {/* curved roads on the side */}
-      <RoadRibbon points={curveA} width={0.09} />
       <RoadRibbon points={curveB} width={0.09} />
 
       {/* the skyline + its civic peak; windows light up on town-hall hover */}
@@ -748,15 +747,8 @@ function CityRig() {
       <Windmill position={[-1.2, 0, 0.5]} />
 
       {/* parks (the first carries the niantic-explorer hotspot — its trees rustle) */}
-      <Park position={[1.0, 0, 0.6]} rustleSlug="niantic-explorer" />
-      <Park position={[1.05, 0, -0.72]} />
-
-
-      {/* trees */}
-      <TreeRound position={[-0.78, 0, -0.18]} h={0.3} />
-      <TreeRound position={[0.55, 0, 0.85]} h={0.28} />
-      <TreeRound position={[-0.28, 0, 0.88]} h={0.26} />
-      <TreeRound position={[0.82, 0, -0.22]} h={0.28} />
+      <Park position={[1.0, 0, 0.6]}  />
+      <Park position={[1.05, 0, -0.72]} rustleSlug="niantic-explorer" />
     </group>
   );
 }
