@@ -1154,6 +1154,90 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   );
 }
 
+/** An under-shelf light strip that warms up when the Zwijsen book is engaged. */
+function ShelfLight({ y }: { y: number }) {
+  const { hovered, selected, visited } = useActive('zwijsen-ar-books');
+  const mat = useRef<MeshStandardMaterial>(null);
+  const k = useRef(0);
+  useFrame(() => {
+    const t = hovered || selected ? 1 : visited ? 0.35 : 0;
+    k.current += (t - k.current) * 0.1;
+    if (mat.current) mat.current.emissiveIntensity = k.current * 1.5;
+  });
+  return (
+    <mesh position={[0, y, 0.11]}>
+      <boxGeometry args={[0.66, 0.006, 0.014]} />
+      <meshStandardMaterial ref={mat} color="#ffe2b4" emissive="#ffe2b4" emissiveIntensity={0} roughness={0.4} toneMapped={false} />
+    </mesh>
+  );
+}
+
+/** The bookcase. Engaging the Zwijsen book "turns it on": the under-shelf strips
+ *  warm up and the book spines glow, alongside the orange book lifting + opening. */
+function Bookcase() {
+  const { hovered, selected, visited } = useActive('zwijsen-ar-books');
+  const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
+  const lit = useRef(0);
+  useFrame(() => {
+    const t = hovered || selected ? 1 : visited ? 0.3 : 0;
+    lit.current += (t - lit.current) * 0.1;
+    const e = 0.1 + lit.current * 0.7;
+    for (const m of bookMats.current) if (m) m.emissiveIntensity = e;
+  });
+  return (
+    <group position={[0.9, 0, -0.82]}>
+      {/* case frame: back, sides, top, base */}
+      <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} />
+      <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} />
+      <SoftBox position={[0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} />
+      <SoftBox position={[0, 0.915, 0.04]} args={[0.74, 0.03, 0.26]} radius={0.01} />
+      <SoftBox position={[0, 0.02, 0.04]} args={[0.74, 0.04, 0.26]} radius={0.01} />
+      {/* shelves */}
+      {[0.16, 0.42, 0.68].map((sy, s) => (
+        <SoftBox key={s} position={[0, sy, 0.04]} args={[0.7, 0.02, 0.24]} radius={0.006} opacity={0.3} />
+      ))}
+      {/* under-shelf light strips — warm up when engaged (the bookcase turns on) */}
+      {[0.4, 0.66, 0.9].map((y, i) => (
+        <ShelfLight key={`l${i}`} y={y} />
+      ))}
+      {/* books — their spines glow when the bookcase is on */}
+      {BOOKS.map((bk, i) => (
+        <mesh key={i} position={bk.p} rotation={bk.r}>
+          <boxGeometry args={bk.s} />
+          <meshStandardMaterial ref={(m) => (bookMats.current[i] = m)} color={bk.c} emissive={bk.c} emissiveIntensity={0.1} roughness={0.6} />
+        </mesh>
+      ))}
+      {/* a horizontal stack on the bottom-right shelf */}
+      <group position={[0.19, 0.19, 0.02]}>
+        <mesh position={[0, 0, 0]}>
+          <boxGeometry args={[0.2, 0.03, 0.16]} />
+          <meshStandardMaterial color="#26405f" emissive="#26405f" emissiveIntensity={0.12} roughness={0.6} />
+        </mesh>
+        <mesh position={[0.01, 0.032, 0.006]}>
+          <boxGeometry args={[0.19, 0.028, 0.155]} />
+          <meshStandardMaterial color="#3a608a" emissive="#3a608a" emissiveIntensity={0.12} roughness={0.6} />
+        </mesh>
+        <mesh position={[-0.008, 0.062, -0.004]}>
+          <boxGeometry args={[0.18, 0.026, 0.15]} />
+          <meshStandardMaterial color="#4f74a6" emissive="#4f74a6" emissiveIntensity={0.12} roughness={0.6} />
+        </mesh>
+      </group>
+      {/* a little potted plant on top for detail */}
+      <group position={[0.25, 0.93, 0.05]}>
+        <mesh position={[0, 0.018, 0]}>
+          <cylinderGeometry args={[0.03, 0.024, 0.04, 16]} />
+          <GlassMat color="#8a6a4f" opacity={0.45} />
+        </mesh>
+        <mesh position={[0, 0.07, 0]}>
+          <icosahedronGeometry args={[0.045, 0]} />
+          <meshStandardMaterial color="#3f7d62" flatShading roughness={0.7} />
+        </mesh>
+      </group>
+      <OpenBook slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} />
+    </group>
+  );
+}
+
 function RoomRig() {
   return (
     <group>
@@ -1165,91 +1249,47 @@ function RoomRig() {
       <Line points={circlePts(1.05)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
       <Line points={circlePts(0.78)} position={[0, 0.026, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.16} />
 
-      {/* desk + monitor + VR headset (back-left) — the monitor flickers on hover */}
-      <group position={[-0.85, 0, -0.82]}>
-        <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline />
-        {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
-          <mesh key={i} position={[lx, 0.18, lz]}>
-            <cylinderGeometry args={[0.02, 0.02, 0.36, 12]} />
+      {/* workstation (desk + monitor + chair) — front-left by the plant, angled
+          toward the centre; the monitor flickers on hover */}
+      <group position={[-0.82, 0, 0.5]} rotation={[0, 0.62, 0]}>
+        <group position={[0, 0, -0.3]}>
+          <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline />
+          {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
+            <mesh key={i} position={[lx, 0.18, lz]}>
+              <cylinderGeometry args={[0.02, 0.02, 0.36, 12]} />
+              <GlassMat opacity={0.26} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.45, -0.05]}>
+            <cylinderGeometry args={[0.016, 0.016, 0.14, 12]} />
             <GlassMat opacity={0.26} />
           </mesh>
-        ))}
-        <mesh position={[0, 0.45, -0.05]}>
-          <cylinderGeometry args={[0.016, 0.016, 0.14, 12]} />
-          <GlassMat opacity={0.26} />
-        </mesh>
-        <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} liveSlug="virtuele-brigade" />
-        <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
-        <SoftBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} radius={0.012} opacity={0.26} />
-        {/* desk clutter: a mug + papers */}
-        <mesh position={[-0.36, 0.42, 0.12]}>
-          <cylinderGeometry args={[0.03, 0.03, 0.06, 14]} />
-          <GlassMat opacity={0.34} />
-          <Edges threshold={30} color={NEUTRAL} />
-        </mesh>
-        <SoftBox position={[-0.05, 0.405, 0.14]} args={[0.13, 0.012, 0.17]} radius={0.004} opacity={0.3} />
-        <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
-      </group>
-
-      {/* desk chair — in front of the desk, facing the monitor (back panel toward
-          the room, seat toward the desk) */}
-      <group position={[-0.85, 0, -0.3]} rotation={[0, Math.PI, 0]}>
-        <SoftBox position={[0, 0.24, 0]} args={[0.3, 0.06, 0.3]} radius={0.05} />
-        <SoftBox position={[0, 0.42, -0.14]} args={[0.3, 0.32, 0.05]} radius={0.05} />
-        <mesh position={[0, 0.12, 0]}>
-          <cylinderGeometry args={[0.022, 0.022, 0.24, 12]} />
-          <GlassMat opacity={0.26} />
-        </mesh>
-      </group>
-
-      {/* bookcase (back-right) — faces into the room (+z); the orange book is the
-          Zwijsen AR-books hotspot, which lifts out and opens on select */}
-      <group position={[0.9, 0, -0.82]}>
-        {/* case frame: back, sides, top, base */}
-        <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} />
-        <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} />
-        <SoftBox position={[0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} />
-        <SoftBox position={[0, 0.915, 0.04]} args={[0.74, 0.03, 0.26]} radius={0.01} />
-        <SoftBox position={[0, 0.02, 0.04]} args={[0.74, 0.04, 0.26]} radius={0.01} />
-        {/* shelves */}
-        {[0.16, 0.42, 0.68].map((sy, s) => (
-          <SoftBox key={s} position={[0, sy, 0.04]} args={[0.7, 0.02, 0.24]} radius={0.006} opacity={0.3} />
-        ))}
-        {/* books */}
-        {BOOKS.map((bk, i) => (
-          <mesh key={i} position={bk.p} rotation={bk.r}>
-            <boxGeometry args={bk.s} />
-            <meshStandardMaterial color={bk.c} emissive={bk.c} emissiveIntensity={0.12} roughness={0.6} />
+          <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} liveSlug="virtuele-brigade" />
+          <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
+          <SoftBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} radius={0.012} opacity={0.26} />
+          {/* desk clutter: a mug + papers */}
+          <mesh position={[-0.36, 0.42, 0.12]}>
+            <cylinderGeometry args={[0.03, 0.03, 0.06, 14]} />
+            <GlassMat opacity={0.34} />
+            <Edges threshold={30} color={NEUTRAL} />
           </mesh>
-        ))}
-        {/* a horizontal stack on the bottom-right shelf */}
-        <group position={[0.19, 0.19, 0.02]}>
-          <mesh position={[0, 0, 0]}>
-            <boxGeometry args={[0.2, 0.03, 0.16]} />
-            <meshStandardMaterial color="#26405f" emissive="#26405f" emissiveIntensity={0.12} roughness={0.6} />
-          </mesh>
-          <mesh position={[0.01, 0.032, 0.006]}>
-            <boxGeometry args={[0.19, 0.028, 0.155]} />
-            <meshStandardMaterial color="#3a608a" emissive="#3a608a" emissiveIntensity={0.12} roughness={0.6} />
-          </mesh>
-          <mesh position={[-0.008, 0.062, -0.004]}>
-            <boxGeometry args={[0.18, 0.026, 0.15]} />
-            <meshStandardMaterial color="#4f74a6" emissive="#4f74a6" emissiveIntensity={0.12} roughness={0.6} />
+          <SoftBox position={[-0.05, 0.405, 0.14]} args={[0.13, 0.012, 0.17]} radius={0.004} opacity={0.3} />
+          <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
+        </group>
+        {/* chair in front of the desk, facing the monitor */}
+        <group position={[0, 0, 0.32]} rotation={[0, Math.PI, 0]}>
+          <SoftBox position={[0, 0.24, 0]} args={[0.3, 0.06, 0.3]} radius={0.05} />
+          <SoftBox position={[0, 0.42, -0.14]} args={[0.3, 0.32, 0.05]} radius={0.05} />
+          <mesh position={[0, 0.12, 0]}>
+            <cylinderGeometry args={[0.022, 0.022, 0.24, 12]} />
+            <GlassMat opacity={0.26} />
           </mesh>
         </group>
-        {/* a little potted plant on top for detail */}
-        <group position={[0.25, 0.93, 0.05]}>
-          <mesh position={[0, 0.018, 0]}>
-            <cylinderGeometry args={[0.03, 0.024, 0.04, 16]} />
-            <GlassMat color="#8a6a4f" opacity={0.45} />
-          </mesh>
-          <mesh position={[0, 0.07, 0]}>
-            <icosahedronGeometry args={[0.045, 0]} />
-            <meshStandardMaterial color="#3f7d62" flatShading roughness={0.7} />
-          </mesh>
-        </group>
-        <OpenBook slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} />
       </group>
+
+      {/* bookcase (back-right) — engaging the Zwijsen book turns its shelf lights
+          on + opens the orange book */}
+      <Bookcase />
 
       {/* couch + phone — faces the coffee table / room front (+z) */}
       <group position={[0, 0, -0.32]}>
@@ -1267,8 +1307,8 @@ function RoomRig() {
       <CoffeeTableAR position={[0, 0, 0.52]} hoverSlug="lightship-drive" />
 
       {/* fill the diorama out, balanced around the centre */}
-      <PottedPlant position={[-1.0, 0, 0.7]} />
-      <FloorLamp position={[1.0, 0, 0.4]} />
+      <PottedPlant position={[-1.42, 0, 0.74]} />
+      <FloorLamp position={[1.05, 0, 0.5]} />
     </group>
   );
 }
@@ -1496,45 +1536,129 @@ function ChipLED({ position, color, target, phase, speed }: { position: V3; colo
   );
 }
 
+/* ---- motherboard trace routing: straight runs joined by 90° / 45° corners ---- */
+// densify a polyline so the per-vertex fill animation stays smooth on long runs
+function densify(pts: V3[], step = 0.028): V3[] {
+  const out: V3[] = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[2] - a[2]) / step));
+    for (let j = 0; j < n; j++) {
+      const t = j / n;
+      out.push([a[0] + (b[0] - a[0]) * t, a[1], a[2] + (b[2] - a[2]) * t]);
+    }
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+// an L-route from A to B with a 45° chamfer at the corner (PCB style)
+function pcbRoute(ax: number, az: number, bx: number, bz: number, y: number, xFirst: boolean): V3[] {
+  const sx = Math.sign(bx - ax) || 1;
+  const sz = Math.sign(bz - az) || 1;
+  const c = Math.min(0.1, Math.abs(bx - ax) * 0.5, Math.abs(bz - az) * 0.5);
+  return xFirst
+    ? [[ax, y, az], [bx - sx * c, y, az], [bx, y, az + sz * c], [bx, y, bz]]
+    : [[ax, y, az], [ax, y, bz - sz * c], [ax + sx * c, y, bz], [bx, y, bz]];
+}
+// full trace from the package edge out to a component, leaving the edge square
+function pcbTrace(bx: number, bz: number, y: number): V3[] {
+  const HALF = 0.5;
+  const xEdge = Math.abs(bx) >= Math.abs(bz);
+  const sx = Math.sign(bx) || 1;
+  const sz = Math.sign(bz) || 1;
+  const ex = xEdge ? sx * HALF : Math.max(-HALF, Math.min(HALF, bx));
+  const ez = xEdge ? Math.max(-HALF, Math.min(HALF, bz)) : sz * HALF;
+  const stub = 0.08;
+  const px = xEdge ? ex + sx * stub : ex;
+  const pz = xEdge ? ez : ez + sz * stub;
+  return densify([[ex, y, ez], ...pcbRoute(px, pz, bx, bz, y, xEdge)]);
+}
+
+/** custom-ar-framework as an AR camera lens — a barrel, aperture and a convex
+ *  glass element that lights up (the lens "powers on") on hover / select. */
+function LensComponent({ slug, position }: { slug: string; position: V3 }) {
+  const { hovered, selected, visited } = useActive(slug);
+  const reduced = useReducedMotion();
+  const mat = useRef<MeshStandardMaterial>(null);
+  const k = useRef(0);
+  useFrame((s) => {
+    k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.12;
+    if (mat.current) {
+      const breathe = reduced ? 0 : Math.sin(s.clock.elapsedTime * 2.2) * 0.06;
+      mat.current.emissiveIntensity = 0.14 + k.current * (1.0 + breathe);
+    }
+  });
+  return (
+    <group position={position}>
+      {/* barrel */}
+      <mesh position={[0, 0.05, 0]}>
+        <cylinderGeometry args={[0.075, 0.082, 0.1, 28]} />
+        <GlassMat opacity={0.4} />
+        <Edges threshold={20} color={NEUTRAL} />
+      </mesh>
+      {/* aperture ring */}
+      <mesh position={[0, 0.1, 0]}>
+        <cylinderGeometry args={[0.08, 0.08, 0.014, 28]} />
+        <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.25} roughness={0.4} metalness={0.3} />
+      </mesh>
+      {/* convex glass lens that lights up */}
+      <mesh position={[0, 0.108, 0]} scale={[1, 0.42, 1]}>
+        <sphereGeometry args={[0.062, 24, 18]} />
+        <meshStandardMaterial ref={mat} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.14} transparent opacity={0.55} roughness={0.12} metalness={0.1} toneMapped={false} />
+      </mesh>
+      {/* lens element rings */}
+      <Line points={circlePts(0.055, 28)} position={[0, 0.119, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
+      <Line points={circlePts(0.03, 20)} position={[0, 0.127, 0]} color="#7fe6ff" lineWidth={1.2} transparent opacity={0.6} />
+    </group>
+  );
+}
+
 function ChipRig() {
   const { accent } = useAccent();
   const energy = useChipEnergyTarget();
-  // a trace from the die edge out to each component, with a gentle routed bend
-  const traces = useMemo(
-    () =>
-      CHIP_NODES.map((nd, i) => {
-        const len = Math.hypot(nd.x, nd.z) || 1;
-        const sx = (nd.x / len) * 0.22;
-        const sz = (nd.z / len) * 0.22; // start at the die edge, pointing at the node
-        const off = (i % 2 ? 1 : -1) * 0.13;
-        const mx = (sx + nd.x) / 2 + (-nd.z / len) * off;
-        const mz = (sz + nd.z) / 2 + (nd.x / len) * off;
-        return smoothCurve([[sx, 0.16, sz], [mx, 0.16, mz], [nd.x, 0.16, nd.z]], 26);
-      }),
+  const TY = 0.026; // trace height, sitting on the PCB substrate
+  const traces = useMemo(() => CHIP_NODES.map((nd) => pcbTrace(nd.x, nd.z, TY)), []);
+  // a few decorative board traces (not to components) for the motherboard look
+  const extra = useMemo(
+    () => [
+      densify(pcbRoute(0.58, -0.18, 1.02, -0.42, TY, true)),
+      densify(pcbRoute(-0.58, 0.22, -1.05, 0.34, TY, true)),
+      densify(pcbRoute(0.2, 0.55, 0.36, 1.04, TY, false)),
+      densify(pcbRoute(-0.34, -0.55, -0.46, -1.04, TY, false)),
+      densify(pcbRoute(0.55, 0.3, 0.86, 0.62, TY, true)),
+    ],
     [],
   );
   return (
     <group>
-      {/* package + die (carries amsterdam-ai — the chip powers on) */}
-      <SoftBox position={[0, 0.06, 0]} args={[1.05, 0.12, 1.05]} radius={0.08} outline liveSlug="amsterdam-ai" />
-      <EmissiveHover slug="amsterdam-ai" position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
-      <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.155, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
+      {/* the PCB substrate — every part mounts on it, so it reads as one board */}
+      <RoundedBox args={[2.05, 0.02, 2.05]} radius={0.04} smoothness={2} position={[0, 0.01, 0]}>
+        <meshStandardMaterial color="#10303a" transparent opacity={0.5} roughness={0.6} metalness={0.1} />
+      </RoundedBox>
+      <Line points={roundedRectPts(2.0, 2.0, 0.06)} position={[0, 0.022, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
 
-      {/* traces fill with current + each component's LED flashes when the chip is live */}
+      {/* package + die (carries amsterdam-ai — the chip powers on) */}
+      <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.08} outline liveSlug="amsterdam-ai" />
+      <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
+      <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.175, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
+
+      {/* motherboard traces fill with current; a solder pad + flashing LED per part */}
       {traces.map((t, i) => (
         <ChipTrace key={i} points={t} target={energy} color={accent} />
       ))}
+      {extra.map((t, i) => (
+        <ChipTrace key={`x${i}`} points={t} target={energy} color={accent} />
+      ))}
       {CHIP_NODES.map((nd, i) => (
-        <ChipLED key={i} position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} />
+        <group key={i}>
+          <Line points={circlePts(0.034, 16)} position={[nd.x, TY + 0.003, nd.z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
+          <ChipLED position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} />
+        </group>
       ))}
 
-      {/* custom-ar-framework component (powers on) */}
-      <mesh position={[0.92, 0.13, 0.62]}>
-        <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
-        <LiveGlassMat slug="custom-ar-framework" opacity={0.34} />
-        <Edges threshold={30} color={NEUTRAL} />
-      </mesh>
-      <EmissiveHover slug="custom-ar-framework" position={[0.92, 0.2, 0.62]} args={[0.07, 0.014, 0.07]} rest={0.04} peak={1.1} liveColor="#7fe6ff" />
+      {/* custom-ar-framework — an AR camera lens that lights up */}
+      <LensComponent slug="custom-ar-framework" position={[0.92, 0.02, 0.62]} />
 
       {/* decorative round caps */}
       {([[-0.55, 0.95], [0.55, -1.0]] as [number, number][]).map(([cx, cz], i) => (

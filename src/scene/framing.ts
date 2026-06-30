@@ -42,7 +42,7 @@ export const HOTSPOTS: Hotspot[] = [
   { slug: 'custom-ar-framework', layer: 'chip', position: [0.92, 0.5, 0.62], anchor: [0.92, 0.2, 0.62] }, // a component
   { slug: 'philips-medical-xr', layer: 'chip', position: [0.95, 0.54, -0.72], anchor: [0.95, 0.24, -0.72] }, // ECG / Vision Pro module
   // Room — spread into a corner diorama
-  { slug: 'virtuele-brigade', layer: 'room', position: [-0.85, 1.08, -0.96], anchor: [-0.85, 0.78, -0.96] }, // the monitor
+  { slug: 'virtuele-brigade', layer: 'room', position: [-1.08, 1.08, 0.14], anchor: [-1.08, 0.78, 0.14] }, // the monitor
   { slug: 'popcore-games', layer: 'room', position: [0.12, 0.54, -0.26], anchor: [0.12, 0.24, -0.26] }, // phone on the couch
   { slug: 'lightship-drive', layer: 'room', position: [0, 0.62, 0.52], anchor: [0, 0.28, 0.52] }, // the AR race table
   { slug: 'zwijsen-ar-books', layer: 'room', position: [1.02, 0.95, -0.78], anchor: [1.02, 0.52, -0.78] }, // the orange book on the shelf
