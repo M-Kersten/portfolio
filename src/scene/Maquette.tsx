@@ -785,7 +785,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     const i = Math.min(n - 2, Math.floor(f * (n - 1)));
     const a = track[i];
     const b = track[i + 1];
-    g.position.set(a[0], 0.28, a[2]);
+    g.position.set(a[0], 0.205, a[2]);
     g.rotation.y = Math.atan2(b[0] - a[0], b[2] - a[2]);
   };
   const tint = (g: Mesh | null, target: Color) => {
@@ -819,8 +819,8 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
           <GlassMat opacity={0.24} />
         </mesh>
       ))}
-      {/* the AR bit — a race loop + two cars riding it */}
-      <Line points={track} position={[0, 0.27, 0]} color={accent} lineWidth={1.6} transparent opacity={0.7} />
+      {/* the AR bit — a race loop + two cars riding it, sitting on the tabletop */}
+      <Line points={track} position={[0, 0.2, 0]} color={accent} lineWidth={1.6} transparent opacity={0.7} />
       <mesh ref={car1}>
         <boxGeometry args={[0.05, 0.018, 0.028]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.7} roughness={0.4} toneMapped={false} />
@@ -891,16 +891,35 @@ function MediaConsole({ position }: { position: V3 }) {
   );
 }
 
+// Books on the shelves (local to the bookcase group), standing along each shelf
+// and facing the room. The orange Zwijsen spine is rendered separately as a hotspot.
+const BOOKS: { p: V3; s: V3 }[] = [
+  { p: [-0.26, 0.78, 0.04], s: [0.05, 0.16, 0.05] },
+  { p: [-0.18, 0.785, 0.04], s: [0.06, 0.17, 0.05] },
+  { p: [-0.04, 0.79, 0.04], s: [0.07, 0.2, 0.05] },
+  { p: [0.1, 0.78, 0.04], s: [0.05, 0.16, 0.05] },
+  { p: [0.24, 0.775, 0.04], s: [0.06, 0.15, 0.05] },
+  { p: [-0.26, 0.52, 0.04], s: [0.06, 0.17, 0.05] },
+  { p: [-0.16, 0.52, 0.04], s: [0.05, 0.16, 0.05] },
+  { p: [-0.04, 0.53, 0.04], s: [0.06, 0.18, 0.05] },
+  { p: [0.26, 0.52, 0.04], s: [0.05, 0.16, 0.05] },
+  { p: [-0.24, 0.26, 0.04], s: [0.06, 0.16, 0.05] },
+  { p: [-0.12, 0.265, 0.04], s: [0.07, 0.18, 0.05] },
+  { p: [0.02, 0.26, 0.04], s: [0.05, 0.16, 0.05] },
+  { p: [0.16, 0.26, 0.04], s: [0.06, 0.17, 0.05] },
+  { p: [0.27, 0.255, 0.04], s: [0.05, 0.15, 0.05] },
+];
+
 function RoomRig() {
   return (
     <group>
-      {/* round rug anchoring the seating area */}
-      <mesh position={[0.25, 0.012, 0.45]}>
-        <cylinderGeometry args={[1.05, 1.05, 0.02, 56]} />
+      {/* round rug anchoring the seating area (under the couch + coffee table) */}
+      <mesh position={[0.7, 0.012, 0.6]}>
+        <cylinderGeometry args={[1.0, 1.0, 0.02, 56]} />
         <GlassMat opacity={0.12} />
       </mesh>
-      <Line points={circlePts(1.05)} position={[0.25, 0.024, 0.45]} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
-      <Line points={circlePts(0.78)} position={[0.25, 0.026, 0.45]} color={NEUTRAL} lineWidth={1} transparent opacity={0.16} />
+      <Line points={circlePts(1.0)} position={[0.7, 0.024, 0.6]} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
+      <Line points={circlePts(0.74)} position={[0.7, 0.026, 0.6]} color={NEUTRAL} lineWidth={1} transparent opacity={0.16} />
 
       {/* desk + monitor + VR headset (back-left) — the monitor flickers on hover */}
       <group position={[-0.9, 0, -1.0]}>
@@ -928,8 +947,9 @@ function RoomRig() {
         <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
       </group>
 
-      {/* chair */}
-      <group position={[-0.55, 0, -0.42]}>
+      {/* desk chair — in front of the desk, facing the monitor (back panel toward
+          the room, seat toward the desk) */}
+      <group position={[-0.9, 0, -0.5]} rotation={[0, Math.PI, 0]}>
         <SoftBox position={[0, 0.24, 0]} args={[0.3, 0.06, 0.3]} radius={0.05} />
         <SoftBox position={[0, 0.42, -0.14]} args={[0.3, 0.32, 0.05]} radius={0.05} />
         <mesh position={[0, 0.12, 0]}>
@@ -938,23 +958,24 @@ function RoomRig() {
         </mesh>
       </group>
 
-      {/* bookcase (back-right) */}
-      <group position={[1.25, 0, -1.0]}>
-        <SoftBox position={[0, 0.45, 0]} args={[0.14, 0.9, 0.72]} radius={0.02} />
-        {Array.from({ length: 9 }).map((_, i) => {
-          const shelf = Math.floor(i / 3);
-          const idx = i % 3;
-          return (
-            <mesh key={i} position={[0.02, 0.24 + shelf * 0.26, -0.22 + idx * 0.18 + (i % 2) * 0.03]}>
-              <boxGeometry args={[0.07, 0.16, 0.035]} />
-              <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.12 + (i % 3) * 0.06} roughness={0.55} />
-            </mesh>
-          );
-        })}
+      {/* bookcase (back-right) — faces into the room (+z); the orange spine is the
+          Zwijsen AR-books hotspot */}
+      <group position={[1.2, 0, -1.0]}>
+        <SoftBox position={[0, 0.46, -0.08]} args={[0.72, 0.92, 0.08]} radius={0.02} />
+        {[0.16, 0.42, 0.68].map((sy, s) => (
+          <SoftBox key={s} position={[0, sy, 0.0]} args={[0.7, 0.02, 0.22]} radius={0.006} opacity={0.3} />
+        ))}
+        {BOOKS.map((bk, i) => (
+          <mesh key={i} position={bk.p}>
+            <boxGeometry args={bk.s} />
+            <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.1 + (i % 3) * 0.05} roughness={0.55} />
+          </mesh>
+        ))}
+        <EmissiveHover slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} args={[0.07, 0.18, 0.05]} color="#ff7a3d" liveColor="#ffa24d" rest={0.35} peak={0.7} />
       </group>
 
-      {/* couch + phone (front-right) */}
-      <group position={[0.95, 0, 0.85]}>
+      {/* couch + phone — faces the coffee table / room front (+z) */}
+      <group position={[0.7, 0, 0.15]}>
         <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline />
         <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} />
         <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
@@ -965,13 +986,13 @@ function RoomRig() {
         </Jitter>
       </group>
 
-      {/* coffee table with AR racing (Lightship Drive) — the cars ride on hover */}
-      <CoffeeTableAR position={[0, 0, 1.0]} hoverSlug="lightship-drive" />
+      {/* coffee table with AR racing (Lightship Drive), directly in front of the couch */}
+      <CoffeeTableAR position={[0.7, 0, 1.05]} hoverSlug="lightship-drive" />
 
       {/* fill the diorama out */}
-      <TreeRound position={[-1.3, 0, 0.85]} h={0.55} />
-      <FloorLamp position={[0.25, 0, -1.5]} />
-      <MediaConsole position={[-1.55, 0, 0.2]} />
+      <TreeRound position={[-1.4, 0, 1.05]} h={0.55} />
+      <FloorLamp position={[1.5, 0, -0.15]} />
+      <MediaConsole position={[-1.5, 0, 0.5]} />
     </group>
   );
 }
@@ -1335,6 +1356,7 @@ const THREAD = { ar: '#46d6e6', xr: '#c79bff', data: '#bff06a' };
 const RELATIONS: Relation[] = [
   { thread: 'AR', from: 'custom-ar-framework', to: 'lightship-drive', color: THREAD.ar },
   { thread: 'AR', from: 'lightship-drive', to: 'niantic-explorer', color: THREAD.ar },
+  { thread: 'AR', from: 'custom-ar-framework', to: 'zwijsen-ar-books', color: THREAD.ar },
   { thread: 'XR · simulation', from: 'philips-medical-xr', to: 'virtuele-brigade', color: THREAD.xr },
   { thread: 'AI · data', from: 'amsterdam-ai', to: 'popcore-games', color: THREAD.data },
   { thread: 'AI · data', from: 'amsterdam-ai', to: 'municipal-twin', color: THREAD.data },

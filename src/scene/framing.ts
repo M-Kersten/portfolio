@@ -46,8 +46,9 @@ export const HOTSPOTS: Hotspot[] = [
   { slug: 'philips-medical-xr', layer: 'chip', position: [0.95, 0.54, -0.72], anchor: [0.95, 0.24, -0.72] }, // ECG / Vision Pro module
   // Room — spread into a corner diorama
   { slug: 'virtuele-brigade', layer: 'room', position: [-0.9, 1.08, -1.14], anchor: [-0.9, 0.78, -1.14] }, // the monitor
-  { slug: 'popcore-games', layer: 'room', position: [1.07, 0.54, 0.91], anchor: [1.07, 0.24, 0.91] }, // phone on the couch
-  { slug: 'lightship-drive', layer: 'room', position: [0, 0.6, 1.0], anchor: [0, 0.3, 1.0] }, // the AR race table
+  { slug: 'popcore-games', layer: 'room', position: [0.82, 0.54, 0.21], anchor: [0.82, 0.24, 0.21] }, // phone on the couch
+  { slug: 'lightship-drive', layer: 'room', position: [0.7, 0.62, 1.05], anchor: [0.7, 0.28, 1.05] }, // the AR race table
+  { slug: 'zwijsen-ar-books', layer: 'room', position: [1.32, 0.95, -0.96], anchor: [1.32, 0.52, -0.96] }, // the orange book on the shelf
   // City — on real places; the twin flies into the live district
   { slug: 'niantic-explorer', layer: 'city', position: [1.05, 0.46, -0.72], anchor: [1.05, 0.06, -0.72] }, // the park
   { slug: 'municipal-twin', layer: 'city', position: [0, 1.05, 0], anchor: [0, 0.72, 0], twin: true }, // town hall (skyline peak)
