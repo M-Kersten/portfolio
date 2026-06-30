@@ -750,16 +750,63 @@ function CityRig() {
 
 /* ---------- Room — games, apps & websites (middle) ---------- */
 
-/** Coffee table with a floating AR race loop + two cars (Lightship Drive). On
- *  hover the cars ride around the loop (parked otherwise). */
+// A tiny race car for the Lightship Drive AR table — chassis, nose, cabin, a
+// rear wing and four wheels — pointing along its local +z (its heading).
+function RaceCar({ color }: { color: string }) {
+  return (
+    <group>
+      <mesh position={[0, 0.007, -0.002]}>
+        <boxGeometry args={[0.03, 0.012, 0.06]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} roughness={0.4} metalness={0.1} toneMapped={false} />
+      </mesh>
+      {/* nose */}
+      <mesh position={[0, 0.005, 0.032]}>
+        <boxGeometry args={[0.024, 0.008, 0.018]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} roughness={0.4} toneMapped={false} />
+      </mesh>
+      {/* cabin / windscreen */}
+      <mesh position={[0, 0.017, -0.004]}>
+        <boxGeometry args={[0.022, 0.012, 0.026]} />
+        <meshStandardMaterial color="#0b1418" emissive={color} emissiveIntensity={0.12} roughness={0.25} toneMapped={false} />
+      </mesh>
+      {/* rear wing */}
+      <mesh position={[0, 0.016, -0.03]}>
+        <boxGeometry args={[0.032, 0.002, 0.008]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} roughness={0.4} toneMapped={false} />
+      </mesh>
+      {/* wheels */}
+      {([[-0.018, 0.022], [0.018, 0.022], [-0.018, -0.022], [0.018, -0.022]] as [number, number][]).map(([wx, wz], i) => (
+        <mesh key={i} position={[wx, 0.002, wz]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.008, 0.008, 0.006, 12]} />
+          <meshStandardMaterial color="#161f27" roughness={0.6} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// The cars launch off a ramp partway round the loop: a short window where they
+// rise on a sine arc and pitch nose-up (take-off) then nose-down (landing).
+const JUMP_FR = 0.0; // ramp position along the loop (0..1)
+const JUMP_SPAN = 0.18; // how much of the lap the jump covers
+const JUMP_H = 0.078; // peak height
+const JUMP_PITCH = 0.5; // nose tilt at take-off / landing (rad)
+function jumpAt(f: number) {
+  let p = f - JUMP_FR;
+  if (p < 0) p += 1;
+  if (p < JUMP_SPAN) {
+    const u = p / JUMP_SPAN;
+    return { dy: JUMP_H * Math.sin(Math.PI * u), pitch: -JUMP_PITCH * Math.cos(Math.PI * u) };
+  }
+  return { dy: 0, pitch: 0 };
+}
+
+/** Coffee table with an AR race loop, two cars and a ramp they jump (Lightship
+ *  Drive). On hover the cars lap the loop and launch off the ramp. */
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
-  const base = useMemo(() => new Color(accent), [accent]);
-  const red = useMemo(() => new Color('#ff5a4d'), []);
-  const blue = useMemo(() => new Color('#4d9bff'), []);
-  const live = useRef(0);
   const track = useMemo(
     () =>
       smoothCurve(
@@ -771,64 +818,73 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       ),
     [],
   );
-  const car1 = useRef<Mesh>(null);
-  const car2 = useRef<Mesh>(null);
+  const car1 = useRef<Group>(null);
+  const car2 = useRef<Group>(null);
   const k = useRef(0);
-  const dist = useRef(0);
+  const dist = useRef(0.3); // park the cars away from the ramp at rest
   const popRef = useRef<Group>(null);
   const pop = useRef(0);
   const popped = useRef(false);
-  const place = (g: Mesh | null, t: number) => {
+  // the ramp sits on the loop at JUMP_FR, oriented along the track there
+  const ramp = useMemo(() => {
+    const n = track.length;
+    const i = Math.min(n - 2, Math.floor(JUMP_FR * (n - 1)));
+    const a = track[i];
+    const b = track[i + 1];
+    return { pos: [a[0], 0.196, a[2]] as V3, rotY: Math.atan2(b[0] - a[0], b[2] - a[2]) };
+  }, [track]);
+  const place = (g: Group | null, t: number) => {
     if (!g) return;
     const n = track.length;
     const f = ((t % 1) + 1) % 1;
     const i = Math.min(n - 2, Math.floor(f * (n - 1)));
     const a = track[i];
     const b = track[i + 1];
-    g.position.set(a[0], 0.205, a[2]);
+    const { dy, pitch } = jumpAt(f);
+    g.rotation.order = 'YXZ';
+    g.position.set(a[0], 0.202 + dy, a[2]);
     g.rotation.y = Math.atan2(b[0] - a[0], b[2] - a[2]);
-  };
-  const tint = (g: Mesh | null, target: Color) => {
-    if (!g) return;
-    const m = g.material as MeshStandardMaterial;
-    m.color.copy(base).lerp(target, live.current);
-    m.emissive.copy(base).lerp(target, live.current);
-    m.emissiveIntensity = 0.7 + live.current * 0.9;
+    g.rotation.x = pitch;
   };
   useFrame((_s, delta) => {
     if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
     k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.1;
-    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
     if (!reduced) dist.current += delta * 0.22 * k.current;
     place(car1.current, dist.current);
     place(car2.current, dist.current + 0.5);
-    tint(car1.current, red);
-    tint(car2.current, blue);
   });
+  const rampAngle = Math.atan2(JUMP_H, 0.085);
   return (
     <group position={position}>
       <group ref={popRef}>
-      <mesh position={[0, 0.18, 0]}>
-        <cylinderGeometry args={[0.32, 0.32, 0.03, 40]} />
-        <LiveGlassMat slug="lightship-drive" opacity={0.2} />
-        <Edges threshold={30} color={NEUTRAL} />
-      </mesh>
-      {([[0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2]] as [number, number][]).map(([lx, lz], i) => (
-        <mesh key={i} position={[lx, 0.09, lz]}>
-          <cylinderGeometry args={[0.016, 0.016, 0.18, 10]} />
-          <GlassMat opacity={0.24} />
+        <mesh position={[0, 0.18, 0]}>
+          <cylinderGeometry args={[0.32, 0.32, 0.03, 40]} />
+          <LiveGlassMat slug="lightship-drive" opacity={0.2} />
+          <Edges threshold={30} color={NEUTRAL} />
         </mesh>
-      ))}
-      {/* the AR bit — a race loop + two cars riding it, sitting on the tabletop */}
-      <Line points={track} position={[0, 0.2, 0]} color={accent} lineWidth={1.6} transparent opacity={0.7} />
-      <mesh ref={car1}>
-        <boxGeometry args={[0.05, 0.018, 0.028]} />
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.7} roughness={0.4} toneMapped={false} />
-      </mesh>
-      <mesh ref={car2}>
-        <boxGeometry args={[0.05, 0.018, 0.028]} />
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.7} roughness={0.4} toneMapped={false} />
-      </mesh>
+        {([[0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2]] as [number, number][]).map(([lx, lz], i) => (
+          <mesh key={i} position={[lx, 0.09, lz]}>
+            <cylinderGeometry args={[0.016, 0.016, 0.18, 10]} />
+            <GlassMat opacity={0.24} />
+          </mesh>
+        ))}
+        {/* the AR race loop */}
+        <Line points={track} position={[0, 0.2, 0]} color={accent} lineWidth={1.6} transparent opacity={0.7} />
+        {/* the ramp the cars launch off */}
+        <group position={ramp.pos} rotation={[0, ramp.rotY, 0]}>
+          <mesh position={[0, JUMP_H * 0.5, 0]} rotation={[-rampAngle, 0, 0]}>
+            <boxGeometry args={[0.05, 0.006, 0.085]} />
+            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.45} transparent opacity={0.55} roughness={0.4} toneMapped={false} />
+            <Edges threshold={20} color={NEUTRAL} />
+          </mesh>
+        </group>
+        {/* the two cars */}
+        <group ref={car1}>
+          <RaceCar color="#ff5a4d" />
+        </group>
+        <group ref={car2}>
+          <RaceCar color="#4d9bff" />
+        </group>
       </group>
     </group>
   );
