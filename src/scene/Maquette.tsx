@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Points as ThreePoints, type Texture } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
+import { useTweak } from './devTweak';
 import { sceneStore, useSceneSelector } from './store';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { asset } from '../lib/asset';
@@ -764,6 +765,10 @@ function CityRig() {
     () => new MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0, transparent: true, opacity: 0.1, roughness: 0.4, toneMapped: false, depthWrite: false }),
     [accent],
   );
+  // DEV-only position scrubbers (leva). Tree-shaken from production builds.
+  const church = useTweak('City.Church', { position: [-0.55, 0, -0.7] });
+  const mill = useTweak('City.Windmill', { position: [-1.2, 0, 0.5] });
+  const park = useTweak('City.Park', { position: [1.05, 0, -0.72] });
   return (
     <group>
       {/* roads through the city */}
@@ -781,7 +786,7 @@ function CityRig() {
       <TownHall position={[0, 0, 0]} winMat={winMat} />
 
       {/* church landmark (square tower + tall spire + upright cross) */}
-      <group position={[-0.55, 0, -0.7]}>
+      <group position={church.position}>
         <mesh position={[0, 0.17, 0]}>
           <boxGeometry args={[0.24, 0.34, 0.3]} />
           <GlassMat opacity={0.44} />
@@ -803,10 +808,10 @@ function CityRig() {
       </group>
 
       {/* windmill on the side */}
-      <Windmill position={[-1.2, 0, 0.5]} />
+      <Windmill position={mill.position} />
 
       {/* parks (the first carries the niantic-explorer hotspot — its trees rustle) */}
-      <Park position={[1.05, 0, -0.72]} rustleSlug="niantic-explorer" />
+      <Park position={park.position} rustleSlug="niantic-explorer" />
     </group>
   );
 }
@@ -1174,7 +1179,7 @@ function ShelfLight({ y }: { y: number }) {
 
 /** The bookcase. Engaging the Zwijsen book "turns it on": the under-shelf strips
  *  warm up and the book spines glow, alongside the orange book lifting + opening. */
-function Bookcase() {
+function Bookcase({ position }: { position: V3 }) {
   const { hovered, selected, visited } = useActive('zwijsen-ar-books');
   const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
   const lit = useRef(0);
@@ -1185,7 +1190,7 @@ function Bookcase() {
     for (const m of bookMats.current) if (m) m.emissiveIntensity = e;
   });
   return (
-    <group position={[0.9, 0, -0.82]}>
+    <group position={position}>
       {/* case frame: back, sides, top, base */}
       <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} />
       <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} />
@@ -1239,6 +1244,13 @@ function Bookcase() {
 }
 
 function RoomRig() {
+  // DEV-only position scrubbers (leva). Tree-shaken from production builds.
+  const desk = useTweak('Room.Desk', { position: [-0.82, 0, 0.5], rotationY: 0.62 });
+  const couch = useTweak('Room.Couch', { position: [0, 0, -0.32] });
+  const table = useTweak('Room.AR table', { position: [0, 0, 0.52] });
+  const shelf = useTweak('Room.Bookcase', { position: [0.9, 0, -0.82] });
+  const plant = useTweak('Room.Plant', { position: [-1.42, 0, 0.74] });
+  const lamp = useTweak('Room.Floor lamp', { position: [1.05, 0, 0.5] });
   return (
     <group>
       {/* round rug centred on the scene — lined up with the chip die below it */}
@@ -1251,7 +1263,7 @@ function RoomRig() {
 
       {/* workstation (desk + monitor + chair) — front-left by the plant, angled
           toward the centre; the monitor flickers on hover */}
-      <group position={[-0.82, 0, 0.5]} rotation={[0, 0.62, 0]}>
+      <group position={desk.position} rotation={[0, desk.rotationY, 0]}>
         <group position={[0, 0, -0.3]}>
           <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline />
           {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
@@ -1289,10 +1301,10 @@ function RoomRig() {
 
       {/* bookcase (back-right) — engaging the Zwijsen book turns its shelf lights
           on + opens the orange book */}
-      <Bookcase />
+      <Bookcase position={shelf.position} />
 
       {/* couch + phone — faces the coffee table / room front (+z) */}
-      <group position={[0, 0, -0.32]}>
+      <group position={couch.position}>
         <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline />
         <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} />
         <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
@@ -1304,11 +1316,11 @@ function RoomRig() {
       </group>
 
       {/* coffee table with AR racing (Lightship Drive), directly in front of the couch */}
-      <CoffeeTableAR position={[0, 0, 0.52]} hoverSlug="lightship-drive" />
+      <CoffeeTableAR position={table.position} hoverSlug="lightship-drive" />
 
       {/* fill the diorama out, balanced around the centre */}
-      <PottedPlant position={[-1.42, 0, 0.74]} />
-      <FloorLamp position={[1.05, 0, 0.5]} />
+      <PottedPlant position={plant.position} />
+      <FloorLamp position={lamp.position} />
     </group>
   );
 }
