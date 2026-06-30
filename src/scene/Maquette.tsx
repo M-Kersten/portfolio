@@ -765,7 +765,7 @@ function CityRig() {
     () => new MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0, transparent: true, opacity: 0.1, roughness: 0.4, toneMapped: false, depthWrite: false }),
     [accent],
   );
-  // DEV-only position scrubbers (leva). Tree-shaken from production builds.
+  // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const church = useTweak('City.Church', { position: [-0.55, 0, -0.7] });
   const mill = useTweak('City.Windmill', { position: [-1.2, 0, 0.5] });
   const park = useTweak('City.Park', { position: [1.05, 0, -0.72] });
@@ -1244,7 +1244,7 @@ function Bookcase({ position }: { position: V3 }) {
 }
 
 function RoomRig() {
-  // DEV-only position scrubbers (leva). Tree-shaken from production builds.
+  // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const desk = useTweak('Room.Desk', { position: [-0.82, 0, 0.5], rotationY: 0.62 });
   const couch = useTweak('Room.Couch', { position: [0, 0, -0.32] });
   const table = useTweak('Room.AR table', { position: [0, 0, 0.52] });
