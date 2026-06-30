@@ -90,15 +90,15 @@ export function journeyView(step: number): Framing {
   return { pos: target.clone().add(JOURNEY_OFFSET), target };
 }
 
-const NODE_OFFSET = new Vector3(1.6, 0.7, 2.4);
+const NODE_OFFSET = new Vector3(1.55, 1.15, 2.55);
 
-/** Closer look at a selected node. Frames the object (anchor) in the upper area,
- *  clear of the bottom dossier HUD, with its floating dot + label above. */
+/** Closer look at a selected node. Pulled back a touch and aimed below the
+ *  object so it sits high in the upper area, clear of the bottom dossier HUD. */
 export function nodeView(hotspot: Hotspot): Framing {
   const obj = anchorWorld(hotspot);
   return {
     pos: obj.clone().add(NODE_OFFSET),
-    target: obj.clone().add(new Vector3(0, -0.05, 0)),
+    target: obj.clone().add(new Vector3(0, -0.38, 0)),
   };
 }
 

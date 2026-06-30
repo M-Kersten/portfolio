@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Points as ThreePoints, type Texture } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Points as ThreePoints, type Texture } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { sceneStore, useSceneSelector } from './store';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -550,6 +550,23 @@ function PointCloud({ seed }: { seed: number }) {
 }
 
 /* ---------- City — GIS & location (top) ---------- */
+/** An organic closed outline (a wobbly ring) for a natural lake shoreline. */
+function blobPts(r: number, wobble: number, seg = 48, seed = 7): V3[] {
+  const rnd = makeRand(seed);
+  const k = 7;
+  const offs = Array.from({ length: k }, () => 1 + (rnd() - 0.5) * wobble);
+  const pts: V3[] = [];
+  for (let i = 0; i <= seg; i++) {
+    const a = (i / seg) * Math.PI * 2;
+    const f = (a / (Math.PI * 2)) * k;
+    const i0 = Math.floor(f) % k;
+    const t = f - Math.floor(f);
+    const rr = r * (offs[i0] * (1 - t) + offs[(i0 + 1) % k] * t);
+    pts.push([Math.cos(a) * rr, 0, Math.sin(a) * rr]);
+  }
+  return pts;
+}
+
 function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
   const { accent } = useAccent();
   const { selected, visited } = useActive(rustleSlug ?? '');
@@ -558,6 +575,14 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
   const popRef = useRef<Group>(null);
   const pop = useRef(0);
   const popped = useRef(false);
+  // an irregular lake outline + its filled water shape
+  const lake = useMemo(() => {
+    const pts = blobPts(0.2, 0.5, 56, 13);
+    const shape = new Shape();
+    shape.moveTo(pts[0][0], pts[0][2]);
+    for (let i = 1; i < pts.length; i++) shape.lineTo(pts[i][0], pts[i][2]);
+    return { geo: new ShapeGeometry(shape), shore: pts.map((p) => [p[0], 0, -p[2]] as V3) };
+  }, []);
   useFrame((_s, delta) => {
     if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta, 0.1));
   });
@@ -569,12 +594,50 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
         <LiveGlassMat slug="niantic-explorer" color="#2f8a6e" opacity={0.15} />
       </mesh>
       <Line points={circlePts(0.5)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-      {/* pond */}
-      <mesh position={[-0.14, 0.02, 0.16]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.15, 28]} />
-        <LiveGlassMat slug="niantic-explorer" color="#2e7f86" opacity={0.28} />
-      </mesh>
-      <Line points={circlePts(0.15)} position={[-0.14, 0.03, 0.16]} color={live ? '#3fb6ff' : accent} lineWidth={1} transparent opacity={0.5} />
+      {/* lake — an irregular water body with shore, ripples, a jetty + reeds */}
+      <group position={[-0.14, 0, 0.18]}>
+        <mesh geometry={lake.geo} position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <LiveGlassMat slug="niantic-explorer" color="#27557d" opacity={0.4} />
+        </mesh>
+        {/* lighter shallows */}
+        <mesh position={[0.03, 0.025, -0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.1, 28]} />
+          <LiveGlassMat slug="niantic-explorer" color="#4a96c0" opacity={0.3} />
+        </mesh>
+        {/* shoreline */}
+        <Line points={lake.shore} position={[0, 0.03, 0]} color={live ? '#5fc4ff' : accent} lineWidth={1.2} transparent opacity={0.6} />
+        {/* ripples */}
+        <Line points={circlePts(0.06, 22)} position={[-0.03, 0.032, 0.02]} color={live ? '#7fd0ff' : NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+        <Line points={circlePts(0.035, 18)} position={[0.06, 0.032, -0.04]} color={live ? '#7fd0ff' : NEUTRAL} lineWidth={1} transparent opacity={0.35} />
+        {/* a little jetty over the water */}
+        <group position={[0.13, 0, -0.07]} rotation={[0, -0.5, 0]}>
+          <mesh position={[0, 0.045, 0]}>
+            <boxGeometry args={[0.13, 0.012, 0.035]} />
+            <GlassMat color="#9a7150" opacity={0.55} />
+            <Edges threshold={30} color={NEUTRAL} />
+          </mesh>
+          {[-0.05, 0.04].map((px, i) => (
+            <mesh key={i} position={[px, 0.022, 0.013]}>
+              <cylinderGeometry args={[0.005, 0.005, 0.05, 6]} />
+              <GlassMat color="#9a7150" opacity={0.5} />
+            </mesh>
+          ))}
+        </group>
+        {/* reeds at the far edge */}
+        {([[-0.16, 0.03], [-0.185, -0.02], [-0.15, -0.06]] as [number, number][]).map(([rx, rz], i) => (
+          <mesh key={`r${i}`} position={[rx, 0.06, rz]} rotation={[0.12 * (i - 1), 0, 0.13]}>
+            <cylinderGeometry args={[0.003, 0.005, 0.11, 5]} />
+            <meshStandardMaterial color="#5f8a52" roughness={0.8} />
+          </mesh>
+        ))}
+        {/* lily pads */}
+        {([[0.07, 0.06], [-0.02, -0.08]] as [number, number][]).map(([lx, lz], i) => (
+          <mesh key={`l${i}`} position={[lx, 0.028, lz]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[0.022, 12]} />
+            <meshStandardMaterial color="#3f7d52" roughness={0.7} side={DoubleSide} />
+          </mesh>
+        ))}
+      </group>
       <TreeRound position={[0.2, 0, -0.18]} h={0.44} swaySlug={rustleSlug} />
       <TreeRound position={[0.24, 0, 0.22]} h={0.36} swaySlug={rustleSlug} />
       <TreeRound position={[-0.22, 0, -0.24]} h={0.4} swaySlug={rustleSlug} />
@@ -926,34 +989,74 @@ function FloorLamp({ position }: { position: V3 }) {
   );
 }
 
+/** A leafy potted houseplant — upright arching blades fanning out of a pot. */
+function PottedPlant({ position }: { position: V3 }) {
+  const blades = useMemo(
+    () =>
+      Array.from({ length: 9 }, (_, i) => ({
+        a: (i / 9) * Math.PI * 2 + (i % 2) * 0.4,
+        tilt: 0.13 + (i % 3) * 0.08,
+        len: 0.34 + ((i * 7) % 3) * 0.07,
+        c: i % 2 ? '#3f8f5e' : '#4fa86e',
+      })),
+    [],
+  );
+  return (
+    <group position={position}>
+      {/* pot */}
+      <mesh position={[0, 0.08, 0]}>
+        <cylinderGeometry args={[0.13, 0.1, 0.16, 22]} />
+        <GlassMat color="#9a6b4e" opacity={0.55} />
+        <Edges threshold={24} color={NEUTRAL} />
+      </mesh>
+      {/* soil */}
+      <mesh position={[0, 0.165, 0]}>
+        <cylinderGeometry args={[0.12, 0.12, 0.012, 20]} />
+        <meshStandardMaterial color="#2b2420" roughness={0.95} />
+      </mesh>
+      {/* leaf blades */}
+      {blades.map((b, i) => (
+        <group key={i} position={[0, 0.17, 0]} rotation={[0, b.a, 0]}>
+          <group rotation={[b.tilt, 0, 0]}>
+            <mesh position={[0, b.len / 2, 0]} scale={[1, 1, 0.18]}>
+              <coneGeometry args={[0.045, b.len, 5]} />
+              <meshStandardMaterial color={b.c} flatShading roughness={0.65} />
+            </mesh>
+          </group>
+        </group>
+      ))}
+    </group>
+  );
+}
+
 // Books on the shelves (local to the bookcase group), standing spine-out with
 // real depth, varied size + muted colour; a couple lean. Each shelf packed.
 const BOOKS: { p: V3; s: V3; c: string; r?: V3 }[] = [
   // top shelf (y ≈ 0.78)
-  { p: [-0.30, 0.78, 0.02], s: [0.05, 0.17, 0.18], c: '#3c4a63' },
-  { p: [-0.245, 0.785, 0.02], s: [0.045, 0.18, 0.18], c: '#3f6d63' },
-  { p: [-0.19, 0.778, 0.02], s: [0.052, 0.165, 0.18], c: '#9e8358' },
-  { p: [-0.12, 0.79, 0.02], s: [0.06, 0.19, 0.18], c: '#6e3b44' },
-  { p: [-0.05, 0.775, 0.02], s: [0.046, 0.16, 0.18], c: '#566b82' },
-  { p: [0.02, 0.783, 0.02], s: [0.05, 0.175, 0.18], c: '#7d8794' },
-  { p: [0.10, 0.78, 0.02], s: [0.055, 0.17, 0.18], c: '#3c4a63' },
-  { p: [0.185, 0.787, 0.02], s: [0.05, 0.185, 0.18], c: '#3f6d63' },
-  { p: [0.258, 0.742, 0.02], s: [0.05, 0.16, 0.18], c: '#9e8358', r: [0, 0, 0.17] }, // leaning
+  { p: [-0.30, 0.78, 0.02], s: [0.05, 0.17, 0.18], c: '#2f4a6b' },
+  { p: [-0.245, 0.785, 0.02], s: [0.045, 0.18, 0.18], c: '#3a608a' },
+  { p: [-0.19, 0.778, 0.02], s: [0.052, 0.165, 0.18], c: '#4f74a6' },
+  { p: [-0.12, 0.79, 0.02], s: [0.06, 0.19, 0.18], c: '#26405f' },
+  { p: [-0.05, 0.775, 0.02], s: [0.046, 0.16, 0.18], c: '#5b7cab' },
+  { p: [0.02, 0.783, 0.02], s: [0.05, 0.175, 0.18], c: '#6f8cb6' },
+  { p: [0.10, 0.78, 0.02], s: [0.055, 0.17, 0.18], c: '#2f4a6b' },
+  { p: [0.185, 0.787, 0.02], s: [0.05, 0.185, 0.18], c: '#3a608a' },
+  { p: [0.258, 0.742, 0.02], s: [0.05, 0.16, 0.18], c: '#4f74a6', r: [0, 0, 0.17] }, // leaning
   // middle shelf (y ≈ 0.52) — gap at x ≈ 0.12 for the orange book
-  { p: [-0.30, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#566b82' },
-  { p: [-0.245, 0.515, 0.02], s: [0.048, 0.16, 0.18], c: '#6e3b44' },
-  { p: [-0.185, 0.523, 0.02], s: [0.055, 0.18, 0.18], c: '#3f6d63' },
-  { p: [-0.11, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#7d8794' },
-  { p: [-0.04, 0.518, 0.02], s: [0.052, 0.165, 0.18], c: '#3c4a63' },
-  { p: [0.26, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#566b82' },
-  { p: [0.214, 0.5, 0.02], s: [0.05, 0.15, 0.18], c: '#6e3b44', r: [0, 0, -0.15] }, // leaning into the gap
+  { p: [-0.30, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#5b7cab' },
+  { p: [-0.245, 0.515, 0.02], s: [0.048, 0.16, 0.18], c: '#26405f' },
+  { p: [-0.185, 0.523, 0.02], s: [0.055, 0.18, 0.18], c: '#3a608a' },
+  { p: [-0.11, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#6f8cb6' },
+  { p: [-0.04, 0.518, 0.02], s: [0.052, 0.165, 0.18], c: '#2f4a6b' },
+  { p: [0.26, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#5b7cab' },
+  { p: [0.214, 0.5, 0.02], s: [0.05, 0.15, 0.18], c: '#26405f', r: [0, 0, -0.15] }, // leaning into the gap
   // bottom shelf (y ≈ 0.26) — books, then a horizontal stack fills the right
-  { p: [-0.30, 0.26, 0.02], s: [0.052, 0.17, 0.18], c: '#3f6d63' },
-  { p: [-0.24, 0.265, 0.02], s: [0.05, 0.18, 0.18], c: '#9e8358' },
-  { p: [-0.18, 0.258, 0.02], s: [0.055, 0.165, 0.18], c: '#3c4a63' },
-  { p: [-0.11, 0.262, 0.02], s: [0.048, 0.175, 0.18], c: '#6e3b44' },
-  { p: [-0.04, 0.26, 0.02], s: [0.05, 0.17, 0.18], c: '#566b82' },
-  { p: [0.03, 0.255, 0.02], s: [0.052, 0.16, 0.18], c: '#7d8794' },
+  { p: [-0.30, 0.26, 0.02], s: [0.052, 0.17, 0.18], c: '#3a608a' },
+  { p: [-0.24, 0.265, 0.02], s: [0.05, 0.18, 0.18], c: '#4f74a6' },
+  { p: [-0.18, 0.258, 0.02], s: [0.055, 0.165, 0.18], c: '#2f4a6b' },
+  { p: [-0.11, 0.262, 0.02], s: [0.048, 0.175, 0.18], c: '#26405f' },
+  { p: [-0.04, 0.26, 0.02], s: [0.05, 0.17, 0.18], c: '#5b7cab' },
+  { p: [0.03, 0.255, 0.02], s: [0.052, 0.16, 0.18], c: '#6f8cb6' },
 ];
 
 /** The Zwijsen AR-books spine — a closed orange book on the shelf that lifts out
@@ -1001,12 +1104,13 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
     const s = reduced ? (selected ? 1 : 0) : sel.current;
     const g = grp.current;
     if (g) {
-      // closed → standing cover-out (rot.x = 90°); open → tipped nearly flat, lifted forward
-      g.rotation.x = (Math.PI / 2) * (1 - s) - 0.22 * s;
-      g.rotation.y = 0.5 * s;
-      g.position.set(position[0] - 0.02 * s, position[1] + 0.05 * s, position[2] + 0.02 + 0.22 * s);
+      // closed → standing cover-out (rot.x = 90°); open → tilted back toward the
+      // player and lifted forward so the spread reads face-on
+      g.rotation.x = (Math.PI / 2) * (1 - s) + 1.18 * s;
+      g.rotation.y = 0.4 * s;
+      g.position.set(position[0] - 0.03 * s, position[1] + 0.14 * s, position[2] + 0.02 + 0.26 * s);
     }
-    if (cover.current) cover.current.rotation.z = 2.15 * s; // front cover swings open
+    if (cover.current) cover.current.rotation.z = 2.4 * s; // front cover swings open
     bodyMat.emissiveIntensity = 0.28 + glow.current * 0.7;
     bodyMat.color.copy(base).lerp(lively, live.current * 0.6);
     bodyMat.emissive.copy(base).lerp(lively, live.current * 0.6);
@@ -1122,15 +1226,15 @@ function RoomRig() {
         <group position={[0.19, 0.19, 0.02]}>
           <mesh position={[0, 0, 0]}>
             <boxGeometry args={[0.2, 0.03, 0.16]} />
-            <meshStandardMaterial color="#6e3b44" emissive="#6e3b44" emissiveIntensity={0.12} roughness={0.6} />
+            <meshStandardMaterial color="#26405f" emissive="#26405f" emissiveIntensity={0.12} roughness={0.6} />
           </mesh>
           <mesh position={[0.01, 0.032, 0.006]}>
             <boxGeometry args={[0.19, 0.028, 0.155]} />
-            <meshStandardMaterial color="#3f6d63" emissive="#3f6d63" emissiveIntensity={0.12} roughness={0.6} />
+            <meshStandardMaterial color="#3a608a" emissive="#3a608a" emissiveIntensity={0.12} roughness={0.6} />
           </mesh>
           <mesh position={[-0.008, 0.062, -0.004]}>
             <boxGeometry args={[0.18, 0.026, 0.15]} />
-            <meshStandardMaterial color="#9e8358" emissive="#9e8358" emissiveIntensity={0.12} roughness={0.6} />
+            <meshStandardMaterial color="#4f74a6" emissive="#4f74a6" emissiveIntensity={0.12} roughness={0.6} />
           </mesh>
         </group>
         {/* a little potted plant on top for detail */}
@@ -1163,7 +1267,7 @@ function RoomRig() {
       <CoffeeTableAR position={[0, 0, 0.52]} hoverSlug="lightship-drive" />
 
       {/* fill the diorama out, balanced around the centre */}
-      <TreeRound position={[-1.0, 0, 0.7]} h={0.55} />
+      <PottedPlant position={[-1.0, 0, 0.7]} />
       <FloorLamp position={[1.0, 0, 0.4]} />
     </group>
   );
@@ -1174,12 +1278,12 @@ function RoomRig() {
 /** Philips medical XR & AI — an ECG module with a tiny Vision Pro headset. On
  *  hover a bright blip sweeps the heart-rate waveform like a monitor trace. */
 function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
-  const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
   const live = useRef(0);
-  const base = useMemo(() => new Color(accent), [accent]);
-  const red = useMemo(() => new Color('#ff5a5a'), []);
+  const base = useMemo(() => new Color('#9fb0bd'), []); // grey at rest
+  const green = useMemo(() => new Color('#5fd07a'), []); // green on select
+  const stripMat = useRef<MeshStandardMaterial>(null);
   const ecg = useMemo<V3[]>(
     () => [
       [-0.13, 0, 0], [-0.06, 0, 0], [-0.045, 0.05, 0], [-0.03, -0.035, 0], [-0.015, 0, 0],
@@ -1203,7 +1307,11 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   useFrame((s, delta) => {
     if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
     k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.12;
-    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
+    live.current += ((selected ? 1 : 0) - live.current) * 0.07; // green only while selected
+    if (stripMat.current) {
+      stripMat.current.color.copy(base).lerp(green, live.current);
+      stripMat.current.emissive.copy(base).lerp(green, live.current);
+    }
     const d = dot.current;
     if (!d) return;
     d.visible = k.current > 0.04;
@@ -1212,25 +1320,28 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     d.position.set(x, 0.22 + yAtX(x), 0);
     d.scale.setScalar(0.5 + k.current + live.current * 0.6);
     const m = d.material as MeshStandardMaterial;
-    m.color.copy(base).lerp(red, live.current);
-    m.emissive.copy(base).lerp(red, live.current);
+    m.color.copy(base).lerp(green, live.current);
+    m.emissive.copy(base).lerp(green, live.current);
   });
   return (
     <group position={position}>
       <group ref={popRef}>
       <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline liveSlug="philips-medical-xr" />
       {/* the ECG waveform + a blip that sweeps it on hover (the heart-rate signal) */}
-      <Line points={ecg} position={[0, 0.22, 0]} color={selected || visited ? '#ff5a5a' : accent} lineWidth={1.8} transparent opacity={0.85} />
+      <Line points={ecg} position={[0, 0.22, 0]} color={selected ? '#5fd07a' : '#9fb0bd'} lineWidth={1.8} transparent opacity={0.85} />
       <mesh ref={dot} visible={false}>
         <sphereGeometry args={[0.014, 12, 12]} />
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={2.2} roughness={0.3} toneMapped={false} />
+        <meshStandardMaterial color="#9fb0bd" emissive="#9fb0bd" emissiveIntensity={2.2} roughness={0.3} toneMapped={false} />
       </mesh>
       {/* a tiny Vision Pro headset */}
       <group position={[0, 0.18, 0.12]}>
         <RoundedBox args={[0.14, 0.06, 0.05]} radius={0.02} smoothness={3}>
           <GlassMat opacity={0.34} />
         </RoundedBox>
-        <Accent position={[0, 0, 0.026]} args={[0.1, 0.035, 0.004]} intensity={0.3} />
+        <mesh position={[0, 0, 0.026]}>
+          <boxGeometry args={[0.1, 0.035, 0.004]} />
+          <meshStandardMaterial ref={stripMat} color="#9fb0bd" emissive="#9fb0bd" emissiveIntensity={0.4} roughness={0.4} toneMapped={false} />
+        </mesh>
       </group>
       </group>
     </group>
@@ -1307,15 +1418,16 @@ function useChipEnergyTarget() {
 
 // The board's components, spread well out around the die. Each gets a trace from
 // the die and a coloured status LED that flashes (its own rhythm) when live.
-const CHIP_NODES: { x: number; z: number; led: string; phase: number; speed: number }[] = [
-  { x: 0.92, z: 0.62, led: '#7fe6ff', phase: 0.0, speed: 6.5 }, // custom-ar
-  { x: 0.95, z: -0.72, led: '#ff6a6a', phase: 1.1, speed: 5.0 }, // philips
-  { x: -0.95, z: -0.74, led: '#a9f75c', phase: 2.0, speed: 7.5 }, // database
-  { x: -0.98, z: 0.56, led: '#ffcf5e', phase: 0.7, speed: 5.8 }, // heatsink
-  { x: 0.9, z: 0.92, led: '#7fe6ff', phase: 2.6, speed: 6.0 }, // computer vision
-  { x: 0.0, z: 1.08, led: '#a9f75c', phase: 1.6, speed: 8.0 }, // pin header
-  { x: -0.55, z: 0.95, led: '#ff6a6a', phase: 3.1, speed: 6.8 }, // cap
-  { x: 0.55, z: -1.0, led: '#7fe6ff', phase: 0.4, speed: 7.0 }, // cap
+// `ly` sits each LED on top of its component rather than floating above the board.
+const CHIP_NODES: { x: number; z: number; ly: number; led: string; phase: number; speed: number }[] = [
+  { x: 0.92, z: 0.62, ly: 0.2, led: '#7fe6ff', phase: 0.0, speed: 6.5 }, // custom-ar
+  { x: 0.95, z: -0.72, ly: 0.175, led: '#ff6a6a', phase: 1.1, speed: 5.0 }, // philips
+  { x: -0.95, z: -0.74, ly: 0.225, led: '#a9f75c', phase: 2.0, speed: 7.5 }, // database
+  { x: -0.98, z: 0.56, ly: 0.27, led: '#ffcf5e', phase: 0.7, speed: 5.8 }, // heatsink
+  { x: 0.9, z: 0.92, ly: 0.17, led: '#7fe6ff', phase: 2.6, speed: 6.0 }, // computer vision
+  { x: 0.0, z: 1.08, ly: 0.165, led: '#a9f75c', phase: 1.6, speed: 8.0 }, // pin header
+  { x: -0.55, z: 0.95, ly: 0.195, led: '#ff6a6a', phase: 3.1, speed: 6.8 }, // cap
+  { x: 0.55, z: -1.0, ly: 0.195, led: '#7fe6ff', phase: 0.4, speed: 7.0 }, // cap
 ];
 
 /** A board trace that "fills" with current — a bright front sweeps from the die
@@ -1413,7 +1525,7 @@ function ChipRig() {
         <ChipTrace key={i} points={t} target={energy} color={accent} />
       ))}
       {CHIP_NODES.map((nd, i) => (
-        <ChipLED key={i} position={[nd.x * 0.9, 0.2, nd.z * 0.9]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} />
+        <ChipLED key={i} position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} />
       ))}
 
       {/* custom-ar-framework component (powers on) */}
