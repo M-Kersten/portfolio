@@ -1,12 +1,6 @@
-import { useMemo } from 'react';
-import type { SceneMode } from '../scene/store';
-import { resolvePlace } from '../data/places';
-import { site } from '../content';
-
-// Static, self-hosted SVG posters — the first-class no-WebGL / low-power
+// Static, self-hosted SVG poster — the first-class no-WebGL / low-power
 // fallback (§4, §11). Many corporate viewers may only ever see this, so it is
-// art-directed, not a grey box. The twin poster carries the required 3DBAG
-// attribution just like the live scene (§5.6).
+// art-directed, not a grey box.
 
 const SLATE_DEEP = '#2a3850';
 const SLATE_MID = '#3b4d68';
@@ -31,7 +25,7 @@ function MaquettePoster() {
     );
   };
   return (
-    <svg viewBox="0 0 400 320" role="img" aria-label="Three-layer capability maquette: VR training, AR overlays and a data twin.">
+    <svg viewBox="0 0 400 320" role="img" aria-label="Three-layer capability maquette: city, room and chip.">
       {slab(232, SLATE_LITE)}
       {slab(150, SLATE_MID)}
       {slab(68, SLATE_LITE)}
@@ -43,82 +37,10 @@ function MaquettePoster() {
   );
 }
 
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function DistrictPoster({ seed }: { seed: number }) {
-  const blocks = useMemo(() => {
-    const rnd = mulberry32(seed);
-    const out: { gx: number; gz: number; h: number; t: number }[] = [];
-    for (let gx = -2; gx <= 2; gx++) {
-      for (let gz = -2; gz <= 2; gz++) {
-        if (rnd() < 0.18) continue;
-        out.push({ gx, gz, h: 14 + rnd() * 60, t: rnd() });
-      }
-    }
-    return out.sort((a, b) => a.gx + a.gz - (b.gx + b.gz));
-  }, [seed]);
-
-  const k = 30;
-  const m = 15;
-  const base = 200;
-  const project = (gx: number, gz: number, h: number): [number, number] => [
-    200 + (gx - gz) * k,
-    base + (gx + gz) * m - h,
-  ];
-  const ramp = (t: number) => `hsl(${222 - t * 40} ${32 + t * 38}% ${42 + t * 16}%)`;
-
-  return (
-    <svg viewBox="0 0 400 320" role="img" aria-label="Isometric district digital twin built from open building data.">
-      {/* ground rhombus */}
-      <polygon
-        points={`${project(-2.6, -2.6, 0)} ${project(2.6, -2.6, 0)} ${project(2.6, 2.6, 0)} ${project(-2.6, 2.6, 0)}`}
-        fill="#0e1218"
-        stroke="#26303c"
-        strokeWidth={1}
-      />
-      {blocks.map((b, i) => {
-        const s = 0.42;
-        const A = project(b.gx - s, b.gz - s, b.h);
-        const B = project(b.gx + s, b.gz - s, b.h);
-        const C = project(b.gx + s, b.gz + s, b.h);
-        const D = project(b.gx - s, b.gz + s, b.h);
-        const Bb = project(b.gx + s, b.gz - s, 0);
-        const Cb = project(b.gx + s, b.gz + s, 0);
-        const Db = project(b.gx - s, b.gz + s, 0);
-        const col = ramp(b.t);
-        return (
-          <g key={i}>
-            <polygon points={`${B} ${C} ${Cb} ${Bb}`} fill={col} opacity={0.8} />
-            <polygon points={`${D} ${C} ${Cb} ${Db}`} fill={col} opacity={0.62} />
-            <polygon points={`${A} ${B} ${C} ${D}`} fill={col} stroke={HAIRLINE} strokeWidth={0.8} />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-export function Poster({ mode, placeId }: { mode: SceneMode; placeId: string }) {
-  const place = resolvePlace(placeId);
+export function Poster() {
   return (
     <div className="poster">
-      {mode === 'twin' ? <DistrictPoster seed={place.placeholder?.seed ?? 1} /> : <MaquettePoster />}
-      {mode === 'twin' && (
-        <div className="twin-caption" style={{ position: 'absolute' }}>
-          <div className="twin-caption__place">{place.label} — digital twin</div>
-          <p className="twin-caption__attr">
-            © {site.twinSource.dataset}, {site.twinSource.release}. Static preview — interactive 3D needs WebGL.
-          </p>
-        </div>
-      )}
+      <MaquettePoster />
       <p className="poster__note">Static preview — interactive 3D unavailable on this device.</p>
     </div>
   );

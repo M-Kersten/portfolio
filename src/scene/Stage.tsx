@@ -1,15 +1,13 @@
-import { Suspense, useRef, type RefObject } from 'react';
-import { Environment, Lightformer, OrbitControls } from '@react-three/drei';
+import { useRef, type RefObject } from 'react';
+import { Environment, Lightformer } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { DirectionalLight, Fog, HemisphereLight } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useSceneSelector } from './store';
-import { resolvePlace } from '../data/places';
-import { twinEstablishing, type Hotspot } from './framing';
+import { type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
 import { Maquette } from './Maquette';
-import { District } from './District';
 
 // When a node is selected, dim the stage lights + deepen the fog so the picked
 // object (which is emissive + brightened) stands alone in a soft spotlight.
@@ -19,12 +17,11 @@ function SelectDim({ hemi, dir1, dir2 }: {
   dir2: RefObject<DirectionalLight | null>;
 }) {
   const selected = useSceneSelector((s) => s.selectedSlug);
-  const mode = useSceneSelector((s) => s.mode);
   const reduced = useReducedMotion();
   const scene = useThree((s) => s.scene);
   const d = useRef(0);
   useFrame(() => {
-    const target = mode === 'maquette' && selected ? 1 : 0;
+    const target = selected ? 1 : 0;
     d.current += (target - d.current) * (reduced ? 1 : 0.07);
     const k = d.current;
     if (hemi.current) hemi.current.intensity = 0.35 * (1 - 0.72 * k);
@@ -36,18 +33,11 @@ function SelectDim({ hemi, dir1, dir2 }: {
   return null;
 }
 
-// In-canvas scene root. One renderer, two scenes (§6): the maquette and the
-// twin are never mounted at once — the camera move bridges them. Dark stage with
-// a cyan rim light; the procedural Lightformer environment means no external HDR
-// fetch (nothing for a corporate firewall to block — §12).
+// In-canvas scene root. Dark stage with a cyan rim light; the procedural
+// Lightformer environment means no external HDR fetch (nothing for a corporate
+// firewall to block — §12).
 
 export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
-  const reduced = useReducedMotion();
-  const mode = useSceneSelector((s) => s.mode);
-  const placeId = useSceneSelector((s) => s.placeId);
-  const twinSettled = useSceneSelector((s) => s.twinSettled);
-  const place = resolvePlace(placeId);
-  const est = twinEstablishing(place.view);
   const hemi = useRef<HemisphereLight>(null);
   const dir1 = useRef<DirectionalLight>(null);
   const dir2 = useRef<DirectionalLight>(null);
@@ -55,9 +45,8 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   return (
     <>
       <color attach="background" args={['#0a0d10']} />
-      {/* Subtle depth haze — maquette only (the twin scene spans huge distances
-          and would black out under it). Layers behind the active one recede. */}
-      {mode === 'maquette' && <fog attach="fog" args={['#0a0d10', 4.5, 14]} />}
+      {/* Subtle depth haze so the layers behind the active one recede. */}
+      <fog attach="fog" args={['#0a0d10', 4.5, 14]} />
       <hemisphereLight ref={hemi} intensity={0.35} color="#aebfd6" groundColor="#0a0d10" />
       <directionalLight ref={dir1} position={[6, 11, 4]} intensity={1.1} color="#eaf2ff" />
       <directionalLight ref={dir2} position={[-7, 4, -6]} intensity={0.5} color="#27e8f2" />
@@ -72,24 +61,7 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
 
       <CameraRig />
 
-      {mode === 'maquette' ? (
-        <Maquette onActivate={onActivate} />
-      ) : (
-        <Suspense fallback={null}>
-          <District />
-          {twinSettled && (
-            <OrbitControls
-              makeDefault
-              enableDamping={!reduced}
-              dampingFactor={0.08}
-              target={[est.target.x, est.target.y, est.target.z]}
-              minDistance={20}
-              maxDistance={420}
-              maxPolarAngle={Math.PI * 0.49}
-            />
-          )}
-        </Suspense>
-      )}
+      <Maquette onActivate={onActivate} />
 
       {/* A restrained glow — only the brightest accents lift, no neon halo. */}
       <EffectComposer enableNormalPass={false} multisampling={4}>

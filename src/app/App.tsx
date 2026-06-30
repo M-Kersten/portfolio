@@ -3,12 +3,10 @@ import { Header } from '../components/Header';
 import { SceneCanvas } from '../components/SceneCanvas';
 import { HomeLayout } from '../components/HomeLayout';
 import { NodeHud } from '../components/NodeHud';
-import { TwinPage } from '../components/TwinPage';
 import { ScrollToHash } from '../components/ScrollToHash';
 
-// One Router, one persistent <SceneCanvas/> (§6). The twin is its own top-level
-// route so the home sections don't render behind (and cover) the full-screen
-// twin; every other case study is a modal nested in the home layout.
+// One Router, one persistent <SceneCanvas/> (§6). Every case study is a modal
+// nested in the home layout, so the scene stays mounted behind it.
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
 
 export function App() {
@@ -26,7 +24,6 @@ export function App() {
             <Route index element={null} />
             <Route path="work/:slug" element={<NodeHud />} />
           </Route>
-          <Route path="work/municipal-twin" element={<TwinPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

@@ -1,21 +1,5 @@
 [
   {
-    "slug": "municipal-twin",
-    "title": "Municipal digital twin",
-    "layer": "city",
-    "client": "Open-data experiment",
-    "clientLogo": null,
-    "sector": "Cities · open data",
-    "challenge": "I kept watching people plan cities from flat maps and site visits and thought — why can’t I just fly through the actual buildings, in a browser, right now?",
-    "built": "So I did. This very page loads real Dutch building data (open 3DBAG), lets you swoop around it and colour it by age or height — no plugins, no login. The model you’re looking at is the actual thing, running live.",
-    "outcome": "A whole city you can fly through in a tab",
-    "tech": ["WebGL", "React Three Fiber", "3DBAG", "Open geodata"],
-    "lesson": "Do the hard geo-maths once, offline, and the live version stays dumb, fast and basically unbreakable. Boring tech in the right spot is a feature, not a cop-out.",
-    "live": true,
-    "media": [],
-    "draft": false
-  },
-  {
     "slug": "virtuele-brigade",
     "title": "Virtuele Brigade",
     "layer": "room",

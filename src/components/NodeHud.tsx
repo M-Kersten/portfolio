@@ -61,7 +61,6 @@ export function NodeHud() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [study]);
 
-  if (slug === 'municipal-twin') return <Navigate to="/work/municipal-twin" replace />;
   if (!study) return <Navigate to="/" replace />;
 
   return (

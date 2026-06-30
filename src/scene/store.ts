@@ -1,15 +1,11 @@
 import { useSyncExternalStore } from 'react';
-import type { TwinAttribute } from '../data/places';
 
-// One renderer, two scenes (§6). DOM components (hotspots, routes, overlay) and
-// the in-Canvas components (CameraRig, scenes) live in different React
-// reconcilers, so they coordinate through this tiny module-level store rather
-// than React context — no context bridging into <Canvas> required.
-
-export type SceneMode = 'maquette' | 'twin';
+// One renderer, one scene. DOM components (hotspots, routes, overlay) and the
+// in-Canvas components (CameraRig, scene) live in different React reconcilers,
+// so they coordinate through this tiny module-level store rather than React
+// context — no context bridging into <Canvas> required.
 
 interface SceneState {
-  mode: SceneMode;
   /** Which layer the scroll journey has centred: 0 = City (top), 1 = Room, 2 = Chip. */
   journeyStep: number;
   /** The inspected node's case slug, or null in the overview. Drives the zoom +
@@ -21,30 +17,13 @@ interface SceneState {
   /** Slugs the visitor has opened at least once. Their objects stay "alive"
    *  (lifelike colour + a gentle idle), so exploring brings the scene to life. */
   visited: string[];
-  /** Active place id for the twin (allowlist-resolved elsewhere). */
-  placeId: string;
-  /** Flips true once the twin establishing move has settled and orbit is live. */
-  twinSettled: boolean;
-  /** Increment to request a one-shot "reset view" back to the establishing shot. */
-  resetNonce: number;
-  /** Attribute the twin buildings are coloured by (§5.5). */
-  twinAttribute: TwinAttribute;
-  /** True when the twin is showing the synthetic placeholder, not a baked 3DBAG
-   *  model — drives the honest caption so attribution never claims fake data. */
-  twinPlaceholder: boolean;
 }
 
 let state: SceneState = {
-  mode: 'maquette',
   journeyStep: 0,
   selectedSlug: null,
   hoveredSlug: null,
   visited: [],
-  placeId: '',
-  twinSettled: false,
-  resetNonce: 0,
-  twinAttribute: 'bouwjaar',
-  twinPlaceholder: false,
 };
 
 const listeners = new Set<() => void>();
@@ -61,12 +40,6 @@ export const sceneStore = {
     return () => listeners.delete(listener);
   },
   snapshot: () => state,
-  setMode(mode: SceneMode) {
-    if (mode !== state.mode) set({ mode, twinSettled: false });
-  },
-  setPlace(placeId: string) {
-    if (placeId !== state.placeId) set({ placeId, twinSettled: false });
-  },
   setJourneyStep(journeyStep: number) {
     if (journeyStep !== state.journeyStep) set({ journeyStep });
   },
@@ -78,18 +51,6 @@ export const sceneStore = {
   },
   markVisited(slug: string) {
     if (!state.visited.includes(slug)) set({ visited: [...state.visited, slug] });
-  },
-  markTwinSettled() {
-    if (!state.twinSettled) set({ twinSettled: true });
-  },
-  resetTwinView() {
-    set({ resetNonce: state.resetNonce + 1, twinSettled: false });
-  },
-  setTwinAttribute(twinAttribute: TwinAttribute) {
-    if (twinAttribute !== state.twinAttribute) set({ twinAttribute });
-  },
-  setTwinPlaceholder(twinPlaceholder: boolean) {
-    if (twinPlaceholder !== state.twinPlaceholder) set({ twinPlaceholder });
   },
 };
 

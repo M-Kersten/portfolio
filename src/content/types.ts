@@ -22,7 +22,7 @@ export interface CaseStudy {
   tech?: string[];
   /** One "key lesson" — the systems-thinking throughline of Merijn's work. */
   lesson?: string;
-  /** At most one case is `live` at v1 — the twin (§7). */
+  /** Marks a case as currently live in production. */
   live?: boolean;
   media?: string[];
   /** Sample content pending sign-off; rendered with a quiet tag. */
@@ -66,11 +66,5 @@ export interface SiteContent {
     lead: string;
     email: string;
     links: NavItem[];
-  };
-  /** Persistent source caption for the twin scene (§5.6, non-removable). */
-  twinSource: {
-    dataset: string;
-    release: string;
-    note: string;
   };
 }

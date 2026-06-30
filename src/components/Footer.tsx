@@ -7,9 +7,6 @@ export function Footer() {
         <span>
           © {new Date().getFullYear()} {site.brand}
         </span>
-        <span className="footer__credit">
-          Building data © {site.twinSource.dataset} ({site.twinSource.release}). Aerial imagery © PDOK where shown.
-        </span>
       </div>
     </footer>
   );

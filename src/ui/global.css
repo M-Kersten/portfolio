@@ -1281,157 +1281,6 @@ html {
   color: var(--ink-40);
 }
 
-/* ---------- Twin overlay (legend / caption / attribution) ---------- */
-
-.twin-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 3;
-}
-.twin-overlay > * {
-  pointer-events: auto;
-}
-.twin-caption,
-.twin-legend {
-  position: absolute;
-  bottom: var(--space-m);
-  background: color-mix(in srgb, var(--paper) 78%, transparent);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-s);
-  padding: var(--space-s);
-  font-size: var(--step--1);
-  backdrop-filter: blur(8px);
-}
-.twin-caption {
-  left: var(--space-m);
-  max-width: 34ch;
-}
-.twin-caption__place {
-  font-family: var(--font-display);
-  font-size: var(--step-0);
-  font-weight: 600;
-}
-.twin-caption__attr {
-  font-family: var(--font-mono);
-  color: var(--ink-60);
-  margin: 0.3em 0 0;
-}
-.twin-caption__dedication {
-  color: var(--accent-ink);
-  font-style: italic;
-  margin: 0.4em 0 0;
-}
-.twin-legend {
-  left: var(--space-m);
-  top: calc(var(--header-h) + var(--space-s));
-  bottom: auto;
-}
-.twin-legend__title {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 0.5em;
-}
-.twin-legend__ramp {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-}
-.twin-legend__bar {
-  width: 8rem;
-  height: 0.55rem;
-  border-radius: var(--radius-s);
-}
-.twin-legend__scale {
-  display: flex;
-  justify-content: space-between;
-  font-family: var(--font-mono);
-  color: var(--ink-60);
-  margin-top: 0.35em;
-}
-.twin-controls {
-  position: absolute;
-  left: var(--space-m);
-  top: calc(var(--header-h) + var(--space-s));
-  display: flex;
-  gap: 0.4em;
-  flex-wrap: wrap;
-}
-.twin-controls__btn {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.04em;
-  padding: 0.45em 0.85em;
-  border-radius: var(--radius-s);
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--paper) 78%, transparent);
-  color: var(--ink-60);
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-  transition: border-color 0.18s var(--ease), color 0.18s var(--ease);
-}
-.twin-controls__btn:hover {
-  border-color: var(--accent);
-  color: var(--ink);
-}
-.twin-controls__btn[aria-pressed='true'] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
-}
-.twin-back {
-  position: absolute;
-  right: var(--space-m);
-  top: calc(var(--header-h) + var(--space-s));
-  display: flex;
-  gap: 0.4em;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-/* ---------- Building readout card ---------- */
-
-.readout {
-  background: var(--paper-2);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-s);
-  padding: var(--space-xs);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  min-width: 12rem;
-  box-shadow: 0 12px 28px var(--shadow);
-  pointer-events: none;
-}
-.readout__id {
-  font-family: var(--font-display);
-  font-weight: 600;
-  color: var(--accent-ink);
-}
-.readout dl {
-  margin: 0.4em 0 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.1em 0.8em;
-}
-.readout dt {
-  color: var(--ink-40);
-}
-.readout dd {
-  margin: 0;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.readout__note {
-  margin-top: 0.5em;
-  padding-top: 0.35em;
-  border-top: 1px solid var(--hairline);
-  color: var(--ink-40);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
 /* ---------- Visually hidden ---------- */
 
 .visually-hidden {
@@ -1460,33 +1309,8 @@ html {
   display: block;
 }
 
-/* ---------- Twin map (MapLibre) — fixed, above the canvas, below the chrome */
-.twin-map {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  background: var(--paper);
-}
-.twin-map--fallback {
-  display: grid;
-  place-items: center;
-  padding: var(--space-xl) var(--space-l);
-  text-align: center;
-  color: var(--ink-60);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-}
-.twin-map--fallback a {
-  color: var(--accent-ink);
-}
-/* keep MapLibre's attribution readable + small on the dark map */
-.twin-map .maplibregl-ctrl-attrib {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-}
-
-/* Page content above the fixed canvas; hero + twin overlay are pointer-through
-   so the hotspots / orbit behind stay usable. */
+/* Page content above the fixed canvas; the hero is pointer-through
+   so the hotspots behind stay usable. */
 main {
   position: relative;
   z-index: 1;
@@ -1496,38 +1320,11 @@ main > * {
   pointer-events: auto;
 }
 .hero,
-.hero__panel,
-.twin-overlay {
+.hero__panel {
   pointer-events: none;
 }
-.hero__indicator-step,
-.twin-overlay > * {
+.hero__indicator-step {
   pointer-events: auto;
-}
-
-/* ---------- Transition veil ---------- */
-
-.veil {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  pointer-events: none;
-  opacity: 0;
-  background: radial-gradient(120% 100% at 60% 40%, #11161c 0%, var(--paper) 55%, #05070a 100%);
-}
-.veil--run {
-  animation: veil-cross 0.85s var(--ease);
-}
-@keyframes veil-cross {
-  0% {
-    opacity: 0;
-  }
-  35% {
-    opacity: 0.96;
-  }
-  100% {
-    opacity: 0;
-  }
 }
 
 /* ---------- Reduced motion ---------- */

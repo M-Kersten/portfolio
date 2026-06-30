@@ -1,5 +1,4 @@
 import { Vector3 } from 'three';
-import type { Place } from '../data/places';
 
 // Maquette geometry and all camera framings live here as pure data/math so the
 // CameraRig stays declarative and the hotspots can be authored next to the
@@ -32,8 +31,6 @@ export interface Hotspot {
   position: [number, number, number];
   /** Point ON the object the leader line points down to (local). */
   anchor?: [number, number, number];
-  /** The twin hotspot flies into the district instead of opening a modal (§4). */
-  twin?: boolean;
 }
 
 // Each hotspot is a dot floating clear of the diorama with a leader line down to
@@ -49,9 +46,9 @@ export const HOTSPOTS: Hotspot[] = [
   { slug: 'popcore-games', layer: 'room', position: [0.12, 0.54, -0.26], anchor: [0.12, 0.24, -0.26] }, // phone on the couch
   { slug: 'lightship-drive', layer: 'room', position: [0, 0.62, 0.52], anchor: [0, 0.28, 0.52] }, // the AR race table
   { slug: 'zwijsen-ar-books', layer: 'room', position: [1.02, 0.95, -0.78], anchor: [1.02, 0.52, -0.78] }, // the orange book on the shelf
-  // City — on real places; the twin flies into the live district
+  // City — GIS / location work
   { slug: 'niantic-explorer', layer: 'city', position: [1.05, 0.46, -0.72], anchor: [1.05, 0.06, -0.72] }, // the park
-  { slug: 'municipal-twin', layer: 'city', position: [0, 1.05, 0], anchor: [0, 0.72, 0], twin: true }, // town hall (skyline peak)
+  { slug: 'alliander-hololens', layer: 'city', position: [0, 1.05, 0], anchor: [0, 0.72, 0] }, // town hall (skyline peak)
 ];
 
 export interface Framing {
@@ -105,28 +102,3 @@ export function nodeView(hotspot: Hotspot): Framing {
   };
 }
 
-const DEG = Math.PI / 180;
-
-/** District establishing shot from the place's {distance, pitch, bearing}. */
-export function twinEstablishing(view: Place['view']): Framing {
-  const pr = view.pitch * DEG;
-  const br = view.bearing * DEG;
-  const r = view.distance;
-  return {
-    pos: new Vector3(
-      r * Math.cos(pr) * Math.sin(br),
-      r * Math.sin(pr),
-      r * Math.cos(pr) * Math.cos(br),
-    ),
-    target: new Vector3(0, r * 0.05, 0),
-  };
-}
-
-/** Pulled-back, higher "approach" pose the descent into the city starts from. */
-export function twinIntro(view: Place['view']): Framing {
-  const e = twinEstablishing(view);
-  return {
-    pos: new Vector3(e.pos.x * 1.45, e.pos.y * 1.7 + 60, e.pos.z * 1.45),
-    target: e.target.clone(),
-  };
-}

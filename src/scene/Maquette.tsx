@@ -241,7 +241,7 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
  *  skyline's windows (a calm blue). Once visited they stay softly lit, so the
  *  skyline keeps a quiet glow — toned down, never warm/orange. */
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
-  const { hovered, visited } = useActive('municipal-twin');
+  const { hovered, visited } = useActive('alliander-hololens');
   const reduced = useReducedMotion();
   const k = useRef(0);
   useFrame((s) => {
@@ -589,7 +589,7 @@ function TownHall({ position, winMat }: { position: V3; winMat?: MeshStandardMat
     <group position={position}>
       <mesh position={[0, 0.28, 0]}>
         <boxGeometry args={[0.34, 0.56, 0.3]} />
-        <LiveGlassMat slug="municipal-twin" opacity={0.44} />
+        <LiveGlassMat slug="alliander-hololens" opacity={0.44} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {winMat &&
@@ -603,7 +603,7 @@ function TownHall({ position, winMat }: { position: V3; winMat?: MeshStandardMat
       {/* clock tower */}
       <mesh position={[0, 0.7, 0]}>
         <boxGeometry args={[0.16, 0.24, 0.16]} />
-        <LiveGlassMat slug="municipal-twin" opacity={0.44} />
+        <LiveGlassMat slug="alliander-hololens" opacity={0.44} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* clock face */}
@@ -1342,7 +1342,7 @@ function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color
           <button
             type="button"
             className="hotspot__dot"
-            aria-label={hotspot.twin ? `${label} — fly into the live district` : `${label} — open node`}
+            aria-label={`${label} — open node`}
             onPointerEnter={() => sceneStore.setHovered(hotspot.slug)}
             onPointerLeave={() => sceneStore.setHovered(null)}
             onFocus={() => sceneStore.setHovered(hotspot.slug)}
@@ -1353,10 +1353,7 @@ function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color
             }}
           >
             <span className="hotspot__ring" aria-hidden="true" />
-            <span className="hotspot__label">
-              {label}
-              {hotspot.twin ? ' →' : ''}
-            </span>
+            <span className="hotspot__label">{label}</span>
           </button>
         </span>
       </Html>
@@ -1385,7 +1382,7 @@ interface Relation {
 // Three threads weaving down the stack. AR: the framework powers the AR race
 // table, which surfaces as a city park. XR · simulation: the medical-XR module
 // feeds the brigade's training sim. AI · data: the model serves the game backend
-// and the city's digital twin.
+// and the city's Alliander grid work.
 const THREAD = { ar: '#46d6e6', xr: '#c79bff', data: '#bff06a' };
 const RELATIONS: Relation[] = [
   { thread: 'AR', from: 'custom-ar-framework', to: 'lightship-drive', color: THREAD.ar },
@@ -1393,7 +1390,7 @@ const RELATIONS: Relation[] = [
   { thread: 'AR', from: 'custom-ar-framework', to: 'zwijsen-ar-books', color: THREAD.ar },
   { thread: 'XR · simulation', from: 'philips-medical-xr', to: 'virtuele-brigade', color: THREAD.xr },
   { thread: 'AI · data', from: 'amsterdam-ai', to: 'popcore-games', color: THREAD.data },
-  { thread: 'AI · data', from: 'amsterdam-ai', to: 'municipal-twin', color: THREAD.data },
+  { thread: 'AI · data', from: 'amsterdam-ai', to: 'alliander-hololens', color: THREAD.data },
 ];
 
 const HOTSPOT_BY_SLUG: Record<string, Hotspot> = Object.fromEntries(HOTSPOTS.map((h) => [h.slug, h]));

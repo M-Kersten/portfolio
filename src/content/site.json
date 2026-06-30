@@ -45,10 +45,5 @@
       { "href": "https://www.linkedin.com/", "label": "LinkedIn" },
       { "href": "https://github.com/m-kersten", "label": "GitHub" }
     ]
-  },
-  "twinSource": {
-    "dataset": "3DBAG",
-    "release": "TU Delft 3D geoinformation & Kadaster",
-    "note": "Buildings reconstructed in 3D from the BAG registry and AHN LiDAR. Open data."
   }
 }
