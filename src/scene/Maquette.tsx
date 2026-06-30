@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3, type BufferAttribute, type Group, type Mesh, type Points as ThreePoints, type Texture } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Points as ThreePoints, type Texture } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { sceneStore, useSceneSelector } from './store';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -1048,28 +1048,22 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
 function MiscComponents() {
   return (
     <group>
-      {([[0.16, -0.58], [0.66, 0.08], [-0.18, 0.58]] as [number, number][]).map(([x, z], i) => (
-        <mesh key={i} position={[x, 0.135, z]}>
+      {/* resistors dotted across the mid-board */}
+      {([[0.4, -0.3], [-0.34, 0.3], [0.28, 0.42], [-0.42, -0.32]] as [number, number][]).map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.135, z]} rotation={[0, i % 2 ? 0.6 : -0.4, 0]}>
           <boxGeometry args={[0.09, 0.03, 0.04]} />
           <GlassMat opacity={0.34} />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
       ))}
       {/* crystal */}
-      <mesh position={[-0.16, 0.145, -0.46]}>
+      <mesh position={[0.34, 0.145, 0.18]}>
         <boxGeometry args={[0.1, 0.05, 0.06]} />
         <GlassMat opacity={0.4} />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
-      {/* ribbon connector */}
-      <group position={[-0.62, 0.13, 0.18]}>
-        <SoftBox position={[0, 0.012, 0]} args={[0.07, 0.02, 0.34]} radius={0.008} opacity={0.32} />
-        {[-0.12, -0.06, 0, 0.06, 0.12].map((z, i) => (
-          <Line key={i} points={[[-0.03, 0.024, z], [0.03, 0.024, z]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
-        ))}
-      </group>
-      {/* solder pads — small neutral rings */}
-      {([[0.32, 0.62], [-0.34, 0.5], [0.52, -0.64], [-0.62, -0.45]] as [number, number][]).map(([x, z], i) => (
+      {/* solder pads — small neutral rings, scattered to the board's outer ring */}
+      {([[0.72, 0.3], [-0.72, 0.86], [0.34, -0.92], [-0.5, -0.62], [0.86, -0.34], [-0.86, 0.1]] as [number, number][]).map(([x, z], i) => (
         <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[x, 0.122, z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
       ))}
     </group>
@@ -1108,51 +1102,146 @@ function PinHeader({ position, n = 6 }: { position: V3; n?: number }) {
   );
 }
 
+/* The chip "powers on": engaging any of its hotspots energises the whole board —
+   current fills the traces out to each component and their LEDs flash. */
+const CHIP_SLUGS = ['amsterdam-ai', 'custom-ar-framework', 'philips-medical-xr'];
+function useChipEnergyTarget() {
+  const selected = useSceneSelector((s) => CHIP_SLUGS.includes(s.selectedSlug ?? ''));
+  const hovered = useSceneSelector((s) => CHIP_SLUGS.includes(s.hoveredSlug ?? ''));
+  const visited = useSceneSelector((s) => CHIP_SLUGS.some((c) => s.visited.includes(c)));
+  return selected ? 1 : hovered ? 0.6 : visited ? 0.25 : 0;
+}
+
+// The board's components, spread well out around the die. Each gets a trace from
+// the die and a coloured status LED that flashes (its own rhythm) when live.
+const CHIP_NODES: { x: number; z: number; led: string; phase: number; speed: number }[] = [
+  { x: 0.92, z: 0.62, led: '#7fe6ff', phase: 0.0, speed: 6.5 }, // custom-ar
+  { x: 0.95, z: -0.72, led: '#ff6a6a', phase: 1.1, speed: 5.0 }, // philips
+  { x: -0.95, z: -0.74, led: '#a9f75c', phase: 2.0, speed: 7.5 }, // database
+  { x: -0.98, z: 0.56, led: '#ffcf5e', phase: 0.7, speed: 5.8 }, // heatsink
+  { x: 0.9, z: 0.92, led: '#7fe6ff', phase: 2.6, speed: 6.0 }, // computer vision
+  { x: 0.0, z: 1.08, led: '#a9f75c', phase: 1.6, speed: 8.0 }, // pin header
+  { x: -0.55, z: 0.95, led: '#ff6a6a', phase: 3.1, speed: 6.8 }, // cap
+  { x: 0.55, z: -1.0, led: '#7fe6ff', phase: 0.4, speed: 7.0 }, // cap
+];
+
+/** A board trace that "fills" with current — a bright front sweeps from the die
+ *  out to its component as the chip energises, then a pulse keeps flowing. Built
+ *  as a vertex-coloured line so the fill can travel along it. */
+function ChipTrace({ points, target, color }: { points: V3[]; target: number; color: string }) {
+  const reduced = useReducedMotion();
+  const { obj, colorAttr, colors } = useMemo(() => {
+    const n = points.length;
+    const pos = new Float32Array(n * 3);
+    points.forEach((p, i) => {
+      pos[i * 3] = p[0];
+      pos[i * 3 + 1] = p[1];
+      pos[i * 3 + 2] = p[2];
+    });
+    const cols = new Float32Array(n * 3);
+    const g = new BufferGeometry();
+    g.setAttribute('position', new BufferAttribute(pos, 3));
+    const ca = new BufferAttribute(cols, 3);
+    g.setAttribute('color', ca);
+    const m = new LineBasicMaterial({ vertexColors: true, transparent: true, toneMapped: false, depthWrite: false, blending: AdditiveBlending });
+    return { obj: new ThreeLine(g, m), colorAttr: ca, colors: cols };
+  }, [points]);
+  const rest = useMemo(() => new Color(NEUTRAL), []);
+  const hot = useMemo(() => new Color(color), [color]);
+  const tmp = useMemo(() => new Color(), []);
+  const k = useRef(0);
+  useFrame((s) => {
+    k.current += (target - k.current) * 0.07;
+    const e = k.current;
+    const t = s.clock.elapsedTime;
+    const front = Math.min(1, e * 1.6); // the fill sweeps out as the chip energises
+    const ch1 = reduced ? 0.5 : (t * 0.7) % 1; // bright charges travelling die → component
+    const ch2 = reduced ? 0.5 : (t * 0.7 + 0.5) % 1;
+    const n = colors.length / 3;
+    for (let i = 0; i < n; i++) {
+      const tt = i / (n - 1);
+      const filled = tt < front ? 1 : 0;
+      const charge = filled * (Math.exp(-((tt - ch1) ** 2) / 0.01) + Math.exp(-((tt - ch2) ** 2) / 0.01));
+      const b = 0.12 + e * (filled * 0.4 + charge * 0.95); // steady fill + travelling charge
+      tmp.copy(rest).lerp(hot, Math.min(1, filled * 0.7 + 0.25));
+      colors[i * 3] = tmp.r * b;
+      colors[i * 3 + 1] = tmp.g * b;
+      colors[i * 3 + 2] = tmp.b * b;
+    }
+    colorAttr.needsUpdate = true;
+  });
+  return <primitive object={obj} />;
+}
+
+/** A small status LED that flashes on its own rhythm while the chip is live. */
+function ChipLED({ position, color, target, phase, speed }: { position: V3; color: string; target: number; phase: number; speed: number }) {
+  const reduced = useReducedMotion();
+  const mat = useRef<MeshStandardMaterial>(null);
+  const k = useRef(0);
+  useFrame((s) => {
+    k.current += (target - k.current) * 0.1;
+    const blink = reduced ? 1 : Math.sin(s.clock.elapsedTime * speed + phase) > 0.45 ? 1 : 0.1;
+    if (mat.current) mat.current.emissiveIntensity = 0.08 + k.current * 1.9 * blink;
+  });
+  return (
+    <mesh position={position}>
+      <sphereGeometry args={[0.017, 12, 12]} />
+      <meshStandardMaterial ref={mat} color={color} emissive={color} emissiveIntensity={0.08} roughness={0.3} toneMapped={false} />
+    </mesh>
+  );
+}
+
 function ChipRig() {
   const { accent } = useAccent();
+  const energy = useChipEnergyTarget();
+  // a trace from the die edge out to each component, with a gentle routed bend
   const traces = useMemo(
-    () => [
-      smoothCurve([[0.22, 0.16, 0.12], [0.5, 0.16, 0.32], [0.92, 0.16, 0.5]]),
-      smoothCurve([[0.22, 0.16, -0.1], [0.52, 0.16, -0.32], [0.96, 0.16, -0.52]]),
-      smoothCurve([[-0.22, 0.16, 0.1], [-0.52, 0.16, 0.32], [-0.96, 0.16, 0.46]]),
-      smoothCurve([[-0.22, 0.16, -0.12], [-0.5, 0.16, -0.34], [-0.9, 0.16, -0.6]]),
-      smoothCurve([[0.1, 0.16, 0.22], [0.28, 0.16, 0.55], [0.42, 0.16, 1.0]]),
-      smoothCurve([[-0.18, 0.16, 0.2], [-0.6, 0.16, 0.45], [-0.92, 0.16, 0.55]]),
-      smoothCurve([[0.2, 0.16, -0.18], [0.0, 0.16, -0.6], [-0.05, 0.16, -1.0]]),
-    ],
+    () =>
+      CHIP_NODES.map((nd, i) => {
+        const len = Math.hypot(nd.x, nd.z) || 1;
+        const sx = (nd.x / len) * 0.22;
+        const sz = (nd.z / len) * 0.22; // start at the die edge, pointing at the node
+        const off = (i % 2 ? 1 : -1) * 0.13;
+        const mx = (sx + nd.x) / 2 + (-nd.z / len) * off;
+        const mz = (sz + nd.z) / 2 + (nd.x / len) * off;
+        return smoothCurve([[sx, 0.16, sz], [mx, 0.16, mz], [nd.x, 0.16, nd.z]], 26);
+      }),
     [],
   );
-  const cv: V3 = [0.85, 0.16, 0.85];
   return (
     <group>
-      {/* rounded package + die (carries amsterdam-ai — the chip powers on) */}
-      <SoftBox position={[0, 0.06, 0]} args={[1.25, 0.12, 1.25]} radius={0.08} outline liveSlug="amsterdam-ai" />
+      {/* package + die (carries amsterdam-ai — the chip powers on) */}
+      <SoftBox position={[0, 0.06, 0]} args={[1.05, 0.12, 1.05]} radius={0.08} outline liveSlug="amsterdam-ai" />
       <EmissiveHover slug="amsterdam-ai" position={[0, 0.13, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
       <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.155, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
 
-      {/* curved traces */}
+      {/* traces fill with current + each component's LED flashes when the chip is live */}
       {traces.map((t, i) => (
-        <Line key={i} points={t} color={NEUTRAL} lineWidth={1.1} transparent opacity={0.55} />
+        <ChipTrace key={i} points={t} target={energy} color={accent} />
+      ))}
+      {CHIP_NODES.map((nd, i) => (
+        <ChipLED key={i} position={[nd.x * 0.9, 0.2, nd.z * 0.9]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} />
       ))}
 
-      {/* round components — the first carries custom-ar-framework (it powers on) */}
-      <mesh position={[0.42, 0.13, 0.4]}>
+      {/* custom-ar-framework component (powers on) */}
+      <mesh position={[0.92, 0.13, 0.62]}>
         <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
         <LiveGlassMat slug="custom-ar-framework" opacity={0.34} />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
-      <EmissiveHover slug="custom-ar-framework" position={[0.42, 0.2, 0.4]} args={[0.07, 0.014, 0.07]} rest={0.04} peak={1.1} liveColor="#7fe6ff" />
-      {([[0.56, 0.28], [-0.46, 0.42]] as [number, number][]).map(([cx, cz], i) => (
+      <EmissiveHover slug="custom-ar-framework" position={[0.92, 0.2, 0.62]} args={[0.07, 0.014, 0.07]} rest={0.04} peak={1.1} liveColor="#7fe6ff" />
+
+      {/* decorative round caps */}
+      {([[-0.55, 0.95], [0.55, -1.0]] as [number, number][]).map(([cx, cz], i) => (
         <mesh key={i} position={[cx, 0.13, cz]}>
           <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
           <GlassMat opacity={0.34} />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
       ))}
-      <SoftBox position={[-0.5, 0.11, -0.4]} args={[0.18, 0.07, 0.1]} radius={0.02} opacity={0.32} />
 
       {/* round database stack (top platter is the accent) */}
-      <group position={[-0.92, 0, -0.92]}>
+      <group position={[-0.95, 0, -0.74]}>
         {[0, 1, 2].map((i) => (
           <mesh key={i} position={[0, 0.05 + i * 0.07, 0]}>
             <cylinderGeometry args={[0.13, 0.13, 0.06, 28]} />
@@ -1167,14 +1256,14 @@ function ChipRig() {
       </group>
 
       {/* computer-vision frame (neutral — not a hotspot) */}
-      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[cv[0], cv[1], cv[2]]} color={NEUTRAL} lineWidth={1.4} transparent opacity={0.75} />
+      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[0.9, 0.16, 0.92]} color={NEUTRAL} lineWidth={1.4} transparent opacity={0.75} />
 
       {/* secondary IC + heatsink and a pin-header connector fill the board out */}
-      <Heatsink position={[-0.92, 0, 0.5]} />
-      <PinHeader position={[-0.05, 0, 1.02]} n={6} />
+      <Heatsink position={[-0.98, 0, 0.56]} />
+      <PinHeader position={[0.0, 0, 1.08]} n={6} />
 
       {/* Philips medical XR & AI module (heart-rate signal animates on hover) */}
-      <PhilipsModule position={[0.5, 0, -0.5]} hoverSlug="philips-medical-xr" />
+      <PhilipsModule position={[0.95, 0, -0.72]} hoverSlug="philips-medical-xr" />
       <MiscComponents />
     </group>
   );

@@ -42,8 +42,8 @@ export interface Hotspot {
 export const HOTSPOTS: Hotspot[] = [
   // Chip — the die sits centre; parts fan outwards
   { slug: 'amsterdam-ai', layer: 'chip', position: [0, 0.46, 0], anchor: [0, 0.16, 0] }, // the die
-  { slug: 'custom-ar-framework', layer: 'chip', position: [0.42, 0.5, 0.4], anchor: [0.42, 0.2, 0.4] }, // a component
-  { slug: 'philips-medical-xr', layer: 'chip', position: [0.5, 0.54, -0.5], anchor: [0.5, 0.24, -0.5] }, // ECG / Vision Pro module
+  { slug: 'custom-ar-framework', layer: 'chip', position: [0.92, 0.5, 0.62], anchor: [0.92, 0.2, 0.62] }, // a component
+  { slug: 'philips-medical-xr', layer: 'chip', position: [0.95, 0.54, -0.72], anchor: [0.95, 0.24, -0.72] }, // ECG / Vision Pro module
   // Room — spread into a corner diorama
   { slug: 'virtuele-brigade', layer: 'room', position: [-0.9, 1.08, -1.14], anchor: [-0.9, 0.78, -1.14] }, // the monitor
   { slug: 'popcore-games', layer: 'room', position: [1.07, 0.54, 0.91], anchor: [1.07, 0.24, 0.91] }, // phone on the couch
