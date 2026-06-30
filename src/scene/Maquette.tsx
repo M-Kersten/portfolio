@@ -926,24 +926,129 @@ function FloorLamp({ position }: { position: V3 }) {
   );
 }
 
-// Books on the shelves (local to the bookcase group), standing along each shelf
-// and facing the room. The orange Zwijsen spine is rendered separately as a hotspot.
-const BOOKS: { p: V3; s: V3 }[] = [
-  { p: [-0.26, 0.78, 0.04], s: [0.05, 0.16, 0.05] },
-  { p: [-0.18, 0.785, 0.04], s: [0.06, 0.17, 0.05] },
-  { p: [-0.04, 0.79, 0.04], s: [0.07, 0.2, 0.05] },
-  { p: [0.1, 0.78, 0.04], s: [0.05, 0.16, 0.05] },
-  { p: [0.24, 0.775, 0.04], s: [0.06, 0.15, 0.05] },
-  { p: [-0.26, 0.52, 0.04], s: [0.06, 0.17, 0.05] },
-  { p: [-0.16, 0.52, 0.04], s: [0.05, 0.16, 0.05] },
-  { p: [-0.04, 0.53, 0.04], s: [0.06, 0.18, 0.05] },
-  { p: [0.26, 0.52, 0.04], s: [0.05, 0.16, 0.05] },
-  { p: [-0.24, 0.26, 0.04], s: [0.06, 0.16, 0.05] },
-  { p: [-0.12, 0.265, 0.04], s: [0.07, 0.18, 0.05] },
-  { p: [0.02, 0.26, 0.04], s: [0.05, 0.16, 0.05] },
-  { p: [0.16, 0.26, 0.04], s: [0.06, 0.17, 0.05] },
-  { p: [0.27, 0.255, 0.04], s: [0.05, 0.15, 0.05] },
+// Books on the shelves (local to the bookcase group), standing spine-out with
+// real depth, varied size + muted colour; a couple lean. Each shelf packed.
+const BOOKS: { p: V3; s: V3; c: string; r?: V3 }[] = [
+  // top shelf (y ≈ 0.78)
+  { p: [-0.30, 0.78, 0.02], s: [0.05, 0.17, 0.18], c: '#3c4a63' },
+  { p: [-0.245, 0.785, 0.02], s: [0.045, 0.18, 0.18], c: '#3f6d63' },
+  { p: [-0.19, 0.778, 0.02], s: [0.052, 0.165, 0.18], c: '#9e8358' },
+  { p: [-0.12, 0.79, 0.02], s: [0.06, 0.19, 0.18], c: '#6e3b44' },
+  { p: [-0.05, 0.775, 0.02], s: [0.046, 0.16, 0.18], c: '#566b82' },
+  { p: [0.02, 0.783, 0.02], s: [0.05, 0.175, 0.18], c: '#7d8794' },
+  { p: [0.10, 0.78, 0.02], s: [0.055, 0.17, 0.18], c: '#3c4a63' },
+  { p: [0.185, 0.787, 0.02], s: [0.05, 0.185, 0.18], c: '#3f6d63' },
+  { p: [0.258, 0.742, 0.02], s: [0.05, 0.16, 0.18], c: '#9e8358', r: [0, 0, 0.17] }, // leaning
+  // middle shelf (y ≈ 0.52) — gap at x ≈ 0.12 for the orange book
+  { p: [-0.30, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#566b82' },
+  { p: [-0.245, 0.515, 0.02], s: [0.048, 0.16, 0.18], c: '#6e3b44' },
+  { p: [-0.185, 0.523, 0.02], s: [0.055, 0.18, 0.18], c: '#3f6d63' },
+  { p: [-0.11, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#7d8794' },
+  { p: [-0.04, 0.518, 0.02], s: [0.052, 0.165, 0.18], c: '#3c4a63' },
+  { p: [0.26, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#566b82' },
+  { p: [0.214, 0.5, 0.02], s: [0.05, 0.15, 0.18], c: '#6e3b44', r: [0, 0, -0.15] }, // leaning into the gap
+  // bottom shelf (y ≈ 0.26) — books, then a horizontal stack fills the right
+  { p: [-0.30, 0.26, 0.02], s: [0.052, 0.17, 0.18], c: '#3f6d63' },
+  { p: [-0.24, 0.265, 0.02], s: [0.05, 0.18, 0.18], c: '#9e8358' },
+  { p: [-0.18, 0.258, 0.02], s: [0.055, 0.165, 0.18], c: '#3c4a63' },
+  { p: [-0.11, 0.262, 0.02], s: [0.048, 0.175, 0.18], c: '#6e3b44' },
+  { p: [-0.04, 0.26, 0.02], s: [0.05, 0.17, 0.18], c: '#566b82' },
+  { p: [0.03, 0.255, 0.02], s: [0.052, 0.16, 0.18], c: '#7d8794' },
 ];
+
+/** The Zwijsen AR-books spine — a closed orange book on the shelf that lifts out
+ *  and opens on select, revealing its inner spread. Drop a JPG at
+ *  public/textures/zwijsen-book.jpg for the spread; until then it falls back to a
+ *  plain cream page, so nothing breaks. */
+function OpenBook({ slug, position }: { slug: string; position: V3 }) {
+  const { hovered, selected, visited } = useActive(slug);
+  const reduced = useReducedMotion();
+  const grp = useRef<Group>(null);
+  const cover = useRef<Group>(null);
+  const sel = useRef(0); // 0 = closed on the shelf, 1 = lifted + open
+  const glow = useRef(0);
+  const live = useRef(0);
+  const [tex, setTex] = useState<Texture | null>(null);
+  const base = useMemo(() => new Color('#ff7a3d'), []);
+  const lively = useMemo(() => new Color('#ffb066'), []);
+  const bodyMat = useMemo(
+    () => new MeshStandardMaterial({ color: '#ff7a3d', emissive: '#ff7a3d', emissiveIntensity: 0.3, roughness: 0.4, toneMapped: false }),
+    [],
+  );
+  useEffect(() => {
+    let cancelled = false;
+    new TextureLoader().load(
+      asset('/textures/zwijsen-book.jpg'),
+      (t) => {
+        t.colorSpace = SRGBColorSpace;
+        if (cancelled) t.dispose();
+        else setTex(t);
+      },
+      undefined,
+      () => {}, // not provided yet → keep the cream-page fallback
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const W = 0.16;
+  const H = 0.2;
+  const T = 0.012;
+  useFrame(() => {
+    sel.current += ((selected ? 1 : 0) - sel.current) * 0.09;
+    glow.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - glow.current) * 0.12;
+    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
+    const s = reduced ? (selected ? 1 : 0) : sel.current;
+    const g = grp.current;
+    if (g) {
+      // closed → standing cover-out (rot.x = 90°); open → tipped nearly flat, lifted forward
+      g.rotation.x = (Math.PI / 2) * (1 - s) - 0.22 * s;
+      g.rotation.y = 0.5 * s;
+      g.position.set(position[0] - 0.02 * s, position[1] + 0.05 * s, position[2] + 0.02 + 0.22 * s);
+    }
+    if (cover.current) cover.current.rotation.z = 2.15 * s; // front cover swings open
+    bodyMat.emissiveIntensity = 0.28 + glow.current * 0.7;
+    bodyMat.color.copy(base).lerp(lively, live.current * 0.6);
+    bodyMat.emissive.copy(base).lerp(lively, live.current * 0.6);
+  });
+  return (
+    <group ref={grp} position={position}>
+      {/* page block (cream) between the covers */}
+      <mesh position={[0.006, 0, 0]}>
+        <boxGeometry args={[W - 0.02, 0.02, H - 0.012]} />
+        <meshStandardMaterial color="#efe6d0" emissive="#efe6d0" emissiveIntensity={0.1} roughness={0.85} />
+      </mesh>
+      {/* back cover */}
+      <mesh position={[0, -0.012, 0]} material={bodyMat}>
+        <boxGeometry args={[W, T, H]} />
+      </mesh>
+      {/* inner spread — the texture (or cream fallback), facing up */}
+      <mesh position={[0.006, 0.011, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[W - 0.022, H - 0.018]} />
+        {tex ? (
+          <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.55} roughness={0.7} toneMapped={false} />
+        ) : (
+          <meshStandardMaterial color="#f3ead4" emissive="#f3ead4" emissiveIntensity={0.16} roughness={0.85} />
+        )}
+      </mesh>
+      {/* spine */}
+      <mesh position={[-W / 2, 0, 0]} material={bodyMat}>
+        <boxGeometry args={[0.016, T + 0.03, H]} />
+      </mesh>
+      {/* front cover — hinged at the spine, lifts open on select */}
+      <group ref={cover} position={[-W / 2, 0.012, 0]}>
+        <mesh position={[W / 2, 0, 0]} material={bodyMat}>
+          <boxGeometry args={[W, T, H]} />
+        </mesh>
+        {/* a title plate on the cover */}
+        <mesh position={[W / 2, T * 0.6, 0.03]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[W * 0.52, 0.045]} />
+          <meshStandardMaterial color="#fff0db" emissive="#fff0db" emissiveIntensity={0.3} toneMapped={false} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
 
 function RoomRig() {
   return (
@@ -993,20 +1098,53 @@ function RoomRig() {
         </mesh>
       </group>
 
-      {/* bookcase (back-right) — faces into the room (+z); the orange spine is the
-          Zwijsen AR-books hotspot */}
+      {/* bookcase (back-right) — faces into the room (+z); the orange book is the
+          Zwijsen AR-books hotspot, which lifts out and opens on select */}
       <group position={[0.9, 0, -0.82]}>
-        <SoftBox position={[0, 0.46, -0.08]} args={[0.72, 0.92, 0.08]} radius={0.02} />
+        {/* case frame: back, sides, top, base */}
+        <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} />
+        <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} />
+        <SoftBox position={[0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} />
+        <SoftBox position={[0, 0.915, 0.04]} args={[0.74, 0.03, 0.26]} radius={0.01} />
+        <SoftBox position={[0, 0.02, 0.04]} args={[0.74, 0.04, 0.26]} radius={0.01} />
+        {/* shelves */}
         {[0.16, 0.42, 0.68].map((sy, s) => (
-          <SoftBox key={s} position={[0, sy, 0.0]} args={[0.7, 0.02, 0.22]} radius={0.006} opacity={0.3} />
+          <SoftBox key={s} position={[0, sy, 0.04]} args={[0.7, 0.02, 0.24]} radius={0.006} opacity={0.3} />
         ))}
+        {/* books */}
         {BOOKS.map((bk, i) => (
-          <mesh key={i} position={bk.p}>
+          <mesh key={i} position={bk.p} rotation={bk.r}>
             <boxGeometry args={bk.s} />
-            <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.1 + (i % 3) * 0.05} roughness={0.55} />
+            <meshStandardMaterial color={bk.c} emissive={bk.c} emissiveIntensity={0.12} roughness={0.6} />
           </mesh>
         ))}
-        <EmissiveHover slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} args={[0.07, 0.18, 0.05]} color="#ff7a3d" liveColor="#ffa24d" rest={0.35} peak={0.7} />
+        {/* a horizontal stack on the bottom-right shelf */}
+        <group position={[0.19, 0.19, 0.02]}>
+          <mesh position={[0, 0, 0]}>
+            <boxGeometry args={[0.2, 0.03, 0.16]} />
+            <meshStandardMaterial color="#6e3b44" emissive="#6e3b44" emissiveIntensity={0.12} roughness={0.6} />
+          </mesh>
+          <mesh position={[0.01, 0.032, 0.006]}>
+            <boxGeometry args={[0.19, 0.028, 0.155]} />
+            <meshStandardMaterial color="#3f6d63" emissive="#3f6d63" emissiveIntensity={0.12} roughness={0.6} />
+          </mesh>
+          <mesh position={[-0.008, 0.062, -0.004]}>
+            <boxGeometry args={[0.18, 0.026, 0.15]} />
+            <meshStandardMaterial color="#9e8358" emissive="#9e8358" emissiveIntensity={0.12} roughness={0.6} />
+          </mesh>
+        </group>
+        {/* a little potted plant on top for detail */}
+        <group position={[0.25, 0.93, 0.05]}>
+          <mesh position={[0, 0.018, 0]}>
+            <cylinderGeometry args={[0.03, 0.024, 0.04, 16]} />
+            <GlassMat color="#8a6a4f" opacity={0.45} />
+          </mesh>
+          <mesh position={[0, 0.07, 0]}>
+            <icosahedronGeometry args={[0.045, 0]} />
+            <meshStandardMaterial color="#3f7d62" flatShading roughness={0.7} />
+          </mesh>
+        </group>
+        <OpenBook slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} />
       </group>
 
       {/* couch + phone — faces the coffee table / room front (+z) */}
