@@ -870,27 +870,6 @@ function FloorLamp({ position }: { position: V3 }) {
   );
 }
 
-/** A low media console with a small glowing TV (games / apps / web). */
-function MediaConsole({ position }: { position: V3 }) {
-  return (
-    <group position={position}>
-      <SoftBox position={[0, 0.16, 0]} args={[0.34, 0.26, 0.78]} radius={0.03} outline />
-      {([-0.3, 0.3] as number[]).map((z, i) => (
-        <mesh key={i} position={[0, 0.03, z]}>
-          <boxGeometry args={[0.3, 0.05, 0.04]} />
-          <GlassMat opacity={0.26} />
-        </mesh>
-      ))}
-      {/* TV facing the room (+x) */}
-      <SoftBox position={[0.02, 0.5, 0]} args={[0.04, 0.4, 0.66]} radius={0.02} />
-      <mesh position={[0.045, 0.5, 0]}>
-        <boxGeometry args={[0.006, 0.32, 0.58]} />
-        <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.42} roughness={0.4} />
-      </mesh>
-    </group>
-  );
-}
-
 // Books on the shelves (local to the bookcase group), standing along each shelf
 // and facing the room. The orange Zwijsen spine is rendered separately as a hotspot.
 const BOOKS: { p: V3; s: V3 }[] = [
@@ -913,16 +892,16 @@ const BOOKS: { p: V3; s: V3 }[] = [
 function RoomRig() {
   return (
     <group>
-      {/* round rug anchoring the seating area (under the couch + coffee table) */}
-      <mesh position={[0.7, 0.012, 0.6]}>
-        <cylinderGeometry args={[1.0, 1.0, 0.02, 56]} />
+      {/* round rug centred on the scene — lined up with the chip die below it */}
+      <mesh position={[0, 0.012, 0]}>
+        <cylinderGeometry args={[1.05, 1.05, 0.02, 56]} />
         <GlassMat opacity={0.12} />
       </mesh>
-      <Line points={circlePts(1.0)} position={[0.7, 0.024, 0.6]} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
-      <Line points={circlePts(0.74)} position={[0.7, 0.026, 0.6]} color={NEUTRAL} lineWidth={1} transparent opacity={0.16} />
+      <Line points={circlePts(1.05)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
+      <Line points={circlePts(0.78)} position={[0, 0.026, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.16} />
 
       {/* desk + monitor + VR headset (back-left) — the monitor flickers on hover */}
-      <group position={[-0.9, 0, -1.0]}>
+      <group position={[-0.85, 0, -0.82]}>
         <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline />
         {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
           <mesh key={i} position={[lx, 0.18, lz]}>
@@ -949,7 +928,7 @@ function RoomRig() {
 
       {/* desk chair — in front of the desk, facing the monitor (back panel toward
           the room, seat toward the desk) */}
-      <group position={[-0.9, 0, -0.5]} rotation={[0, Math.PI, 0]}>
+      <group position={[-0.85, 0, -0.3]} rotation={[0, Math.PI, 0]}>
         <SoftBox position={[0, 0.24, 0]} args={[0.3, 0.06, 0.3]} radius={0.05} />
         <SoftBox position={[0, 0.42, -0.14]} args={[0.3, 0.32, 0.05]} radius={0.05} />
         <mesh position={[0, 0.12, 0]}>
@@ -960,7 +939,7 @@ function RoomRig() {
 
       {/* bookcase (back-right) — faces into the room (+z); the orange spine is the
           Zwijsen AR-books hotspot */}
-      <group position={[1.2, 0, -1.0]}>
+      <group position={[0.9, 0, -0.82]}>
         <SoftBox position={[0, 0.46, -0.08]} args={[0.72, 0.92, 0.08]} radius={0.02} />
         {[0.16, 0.42, 0.68].map((sy, s) => (
           <SoftBox key={s} position={[0, sy, 0.0]} args={[0.7, 0.02, 0.22]} radius={0.006} opacity={0.3} />
@@ -975,7 +954,7 @@ function RoomRig() {
       </group>
 
       {/* couch + phone — faces the coffee table / room front (+z) */}
-      <group position={[0.7, 0, 0.15]}>
+      <group position={[0, 0, -0.32]}>
         <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline />
         <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} />
         <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
@@ -987,12 +966,11 @@ function RoomRig() {
       </group>
 
       {/* coffee table with AR racing (Lightship Drive), directly in front of the couch */}
-      <CoffeeTableAR position={[0.7, 0, 1.05]} hoverSlug="lightship-drive" />
+      <CoffeeTableAR position={[0, 0, 0.52]} hoverSlug="lightship-drive" />
 
-      {/* fill the diorama out */}
-      <TreeRound position={[-1.4, 0, 1.05]} h={0.55} />
-      <FloorLamp position={[1.5, 0, -0.15]} />
-      <MediaConsole position={[-1.5, 0, 0.5]} />
+      {/* fill the diorama out, balanced around the centre */}
+      <TreeRound position={[-1.0, 0, 0.7]} h={0.55} />
+      <FloorLamp position={[1.0, 0, 0.4]} />
     </group>
   );
 }
