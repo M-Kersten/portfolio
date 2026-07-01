@@ -950,71 +950,74 @@ html {
 
 /* ---------- Work grid ---------- */
 
-/* Full-bleed horizontal track; cards align to the container edge via the inline
-   padding, and snap gently as you scroll sideways. */
-.worktrack {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-m);
-  margin-top: var(--space-l);
+/* A tall scroll region; while it's pinned the page scroll pans the wall
+   sideways, and because the cards descend left→right it feels like riding an
+   escalator down a wall of pictures. */
+.wall__scroll { position: relative; }
+.wall__pin {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+}
+.wall__plane {
+  position: relative;
+  height: 100%;
+  will-change: transform;
+}
+/* Reduced-motion fallback: no scroll-jack — pan the wall by hand. */
+.wall[data-reduced] .wall__scroll { height: auto; }
+.wall[data-reduced] .wall__pin {
+  position: relative;
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-snap-type: x proximity;
-  padding: var(--space-s) max(var(--space-m), (100% - var(--container)) / 2) var(--space-l);
-  scroll-padding-inline: max(var(--space-m), (100% - var(--container)) / 2);
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--ink) 20%, transparent) transparent;
-  overscroll-behavior-x: contain;
 }
-.worktrack::-webkit-scrollbar { height: 8px; }
-.worktrack::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--ink) 18%, transparent);
-  border-radius: 999px;
+.wall__cue {
+  position: absolute;
+  left: max(var(--space-m), (100% - var(--container)) / 2);
+  bottom: var(--space-l);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  pointer-events: none;
 }
-/* ---------- Poster wall (project gallery) ---------- */
+
+/* Poster tile — absolutely placed on the wall, tilted a touch; straightens and
+   lifts on hover. */
 .worktile {
   --card-accent: var(--accent);
-  flex: 0 0 clamp(258px, 80vw, 310px);
-  scroll-snap-align: start;
-  position: relative;
+  --rot: 0deg;
+  position: absolute;
+  width: 240px;
   display: flex;
   flex-direction: column;
+  text-align: left;
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015));
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
+  cursor: pointer;
   color: inherit;
+  font: inherit;
+  padding: 0;
   backdrop-filter: blur(8px) saturate(1.1);
-  box-shadow: 0 14px 36px -22px rgba(0, 0, 0, 0.7);
-  transition: flex-basis 0.42s var(--ease), border-color 0.28s var(--ease), box-shadow 0.28s var(--ease), transform 0.28s var(--ease);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+  transform: rotate(var(--rot));
+  transition: transform 0.3s var(--ease), border-color 0.28s var(--ease), box-shadow 0.28s var(--ease);
 }
 .worktile[data-layer='city'] { --card-accent: var(--cyan); }
 .worktile[data-layer='room'] { --card-accent: var(--coral); }
 .worktile[data-layer='chip'] { --card-accent: var(--lime); }
-/* clicked open → widens in place and reveals the full detail */
-.worktile[data-open='true'] {
-  flex-basis: min(680px, 92vw);
+.worktile:hover,
+.worktile:focus-visible {
+  transform: rotate(0deg) translateY(-6px) scale(1.04);
   border-color: color-mix(in srgb, var(--card-accent) 55%, var(--line));
-  box-shadow: 0 26px 54px -24px rgba(0, 0, 0, 0.85), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent);
-}
-.worktile:not([data-open]):hover {
-  transform: translateY(-4px);
-  border-color: color-mix(in srgb, var(--card-accent) 45%, var(--line));
-}
-.worktile__hit {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-  background: none;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-.worktile__hit:focus-visible {
-  outline: 2px solid var(--card-accent);
-  outline-offset: -3px;
+  box-shadow: 0 30px 60px -26px rgba(0, 0, 0, 0.9), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent);
+  outline: none;
+  z-index: 5;
 }
 
 .worktile__media {
@@ -1022,9 +1025,7 @@ html {
   aspect-ratio: 4 / 3;
   overflow: hidden;
   background: var(--paper-2);
-  transition: aspect-ratio 0.42s var(--ease);
 }
-.worktile[data-open='true'] .worktile__media { aspect-ratio: 2 / 1; }
 
 /* placeholder poster art — shown until a real image is dropped in */
 .worktile__ph {
@@ -1062,7 +1063,7 @@ html {
   object-fit: cover;
   transition: transform 0.4s var(--ease);
 }
-.worktile:not([data-open]):hover .worktile__img { transform: scale(1.05); }
+.worktile:hover .worktile__img { transform: scale(1.06); }
 .worktile__scrim {
   position: absolute;
   inset: 0;
@@ -1135,18 +1136,7 @@ html {
   margin-bottom: 0.25em;
 }
 
-/* expanded detail — revealed when a tile is opened */
-.worktile__detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-s);
-  padding: 0 var(--space-m) var(--space-m);
-  animation: worktile-reveal 0.4s var(--ease) both;
-}
-@keyframes worktile-reveal {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
+/* detail bits — reused by the focus (lifted-off-the-wall) view */
 .worktile__cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1203,6 +1193,83 @@ html {
   --btn-bg: var(--card-accent);
 }
 
+/* ---------- Focus card — a project lifted off the wall ---------- */
+.focus {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: var(--space-l) var(--space-m);
+  background: color-mix(in srgb, var(--paper) 74%, transparent);
+  backdrop-filter: blur(10px);
+  animation: focus-fade 0.3s var(--ease);
+}
+.focus__card {
+  --card-accent: var(--accent);
+  position: relative;
+  width: min(880px, 100%);
+  max-height: 88svh;
+  overflow: hidden auto;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
+    color-mix(in srgb, var(--paper-2) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 45%, var(--line));
+  border-radius: var(--radius);
+  box-shadow: 0 44px 96px rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(22px) saturate(1.3);
+  animation: focus-pop 0.35s var(--ease);
+}
+.focus__card[data-layer='city'] { --card-accent: var(--cyan); }
+.focus__card[data-layer='room'] { --card-accent: var(--coral); }
+.focus__card[data-layer='chip'] { --card-accent: var(--lime); }
+.focus__media {
+  aspect-ratio: auto;
+  min-height: 260px;
+}
+.focus__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+  padding: var(--space-l);
+}
+.focus__title {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.05;
+  margin: 0.1em 0 0;
+}
+.focus__outcome {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  color: var(--card-accent);
+  margin: 0 0 var(--space-xs);
+}
+.focus__close {
+  position: absolute;
+  top: var(--space-s);
+  right: var(--space-s);
+  z-index: 2;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  backdrop-filter: blur(4px);
+}
+.focus__close:hover { border-color: var(--card-accent); color: var(--card-accent); }
+@keyframes focus-fade { from { opacity: 0; } }
+@keyframes focus-pop { from { opacity: 0; transform: scale(0.92) translateY(12px); } }
+
+@media (max-width: 720px) {
+  .focus__card { grid-template-columns: 1fr; }
+  .focus__media { aspect-ratio: 16 / 9; min-height: 0; }
+}
 @media (max-width: 560px) {
   .worktile__cols { grid-template-columns: 1fr; }
 }
