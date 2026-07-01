@@ -950,77 +950,71 @@ html {
 
 /* ---------- Work grid ---------- */
 
-.work__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  grid-auto-flow: dense;
+/* Full-bleed horizontal track; cards align to the container edge via the inline
+   padding, and snap gently as you scroll sideways. */
+.worktrack {
+  display: flex;
+  align-items: flex-start;
   gap: var(--space-m);
   margin-top: var(--space-l);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  padding: var(--space-s) max(var(--space-m), (100% - var(--container)) / 2) var(--space-l);
+  scroll-padding-inline: max(var(--space-m), (100% - var(--container)) / 2);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink) 20%, transparent) transparent;
+  overscroll-behavior-x: contain;
 }
-.work__group {
-  margin-top: var(--space-xl);
-}
-.work__group-head {
-  display: flex;
-  align-items: baseline;
-  gap: 0.8em;
-  flex-wrap: wrap;
-  padding-bottom: var(--space-s);
-  margin-bottom: var(--space-m);
-  border-bottom: 1px solid var(--hairline);
-}
-.work__group-title {
-  font-family: var(--font-display);
-  font-size: var(--step-2);
-  margin: 0;
-}
-.work__group {
-  --card-accent: var(--accent);
-}
-.work__group[data-layer='city'] { --card-accent: var(--cyan); }
-.work__group[data-layer='room'] { --card-accent: var(--coral); }
-.work__group[data-layer='chip'] { --card-accent: var(--lime); }
-.work__group-tag {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--card-accent);
-}
-.work__group .work__grid {
-  margin-top: 0;
+.worktrack::-webkit-scrollbar { height: 8px; }
+.worktrack::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: 999px;
 }
 /* ---------- Poster wall (project gallery) ---------- */
 .worktile {
   --card-accent: var(--accent);
+  flex: 0 0 clamp(258px, 80vw, 310px);
+  scroll-snap-align: start;
   position: relative;
   display: flex;
   flex-direction: column;
-  text-align: left;
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015));
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
-  cursor: pointer;
   color: inherit;
-  font: inherit;
   backdrop-filter: blur(8px) saturate(1.1);
   box-shadow: 0 14px 36px -22px rgba(0, 0, 0, 0.7);
-  transition: transform 0.28s var(--ease), border-color 0.28s var(--ease), box-shadow 0.28s var(--ease);
+  transition: flex-basis 0.42s var(--ease), border-color 0.28s var(--ease), box-shadow 0.28s var(--ease), transform 0.28s var(--ease);
 }
 .worktile[data-layer='city'] { --card-accent: var(--cyan); }
 .worktile[data-layer='room'] { --card-accent: var(--coral); }
 .worktile[data-layer='chip'] { --card-accent: var(--lime); }
-/* feature tiles span wider for an editorial rhythm */
-.worktile[data-feature='true'] { grid-column: span 2; }
-.worktile:hover {
-  transform: translateY(-4px);
+/* clicked open → widens in place and reveals the full detail */
+.worktile[data-open='true'] {
+  flex-basis: min(680px, 92vw);
   border-color: color-mix(in srgb, var(--card-accent) 55%, var(--line));
   box-shadow: 0 26px 54px -24px rgba(0, 0, 0, 0.85), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent);
 }
-.worktile:focus-visible {
+.worktile:not([data-open]):hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--card-accent) 45%, var(--line));
+}
+.worktile__hit {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.worktile__hit:focus-visible {
   outline: 2px solid var(--card-accent);
-  outline-offset: 3px;
+  outline-offset: -3px;
 }
 
 .worktile__media {
@@ -1028,8 +1022,9 @@ html {
   aspect-ratio: 4 / 3;
   overflow: hidden;
   background: var(--paper-2);
+  transition: aspect-ratio 0.42s var(--ease);
 }
-.worktile[data-feature='true'] .worktile__media { aspect-ratio: 16 / 9; }
+.worktile[data-open='true'] .worktile__media { aspect-ratio: 2 / 1; }
 
 /* placeholder poster art — shown until a real image is dropped in */
 .worktile__ph {
@@ -1067,7 +1062,7 @@ html {
   object-fit: cover;
   transition: transform 0.4s var(--ease);
 }
-.worktile:hover .worktile__img { transform: scale(1.05); }
+.worktile:not([data-open]):hover .worktile__img { transform: scale(1.05); }
 .worktile__scrim {
   position: absolute;
   inset: 0;
@@ -1140,9 +1135,76 @@ html {
   margin-bottom: 0.25em;
 }
 
+/* expanded detail — revealed when a tile is opened */
+.worktile__detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+  padding: 0 var(--space-m) var(--space-m);
+  animation: worktile-reveal 0.4s var(--ease) both;
+}
+@keyframes worktile-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.worktile__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-m);
+}
+.worktile__cols p {
+  margin: 0.35em 0 0;
+  font-size: var(--step--1);
+  line-height: 1.5;
+  color: var(--ink-60);
+}
+.worktile__h {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--card-accent);
+}
+.worktile__tech {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  margin: 0;
+  padding: 0;
+}
+.worktile__tech li {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-60);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.15em 0.6em;
+}
+.worktile__lesson {
+  margin: 0;
+  font-size: var(--step--1);
+  line-height: 1.5;
+  color: var(--ink);
+}
+.worktile__lesson > span {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  margin-bottom: 0.25em;
+}
+.worktile__discuss {
+  align-self: flex-start;
+  margin-top: 0.2em;
+  --btn-bg: var(--card-accent);
+}
+
 @media (max-width: 560px) {
-  .work__grid { grid-template-columns: 1fr; }
-  .worktile[data-feature='true'] { grid-column: span 1; }
+  .worktile__cols { grid-template-columns: 1fr; }
 }
 
 /* ---------- Case modal ---------- */
