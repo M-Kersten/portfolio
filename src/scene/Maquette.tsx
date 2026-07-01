@@ -684,19 +684,15 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
   );
 }
 
-/** The civic peak of the skyline — a square block + clock tower + spire. */
-// The city's centrepiece: a fancy tapering, gently twisting glass skyscraper
-// with a lit crown — carries the Alliander hotspot. Each tier steps back and
-// rotates a little as it rises, so the corners spiral; horizontal floor bands
-// (the shared winMat, ramped by WindowDriver) glow when the node is engaged,
-// and the crown beacon pulses.
-const TOWER_TIERS = [
-  { base: 0.0, h: 0.3, s: 0.3, rot: 0.0 },
-  { base: 0.3, h: 0.27, s: 0.245, rot: 0.13 },
-  { base: 0.57, h: 0.24, s: 0.19, rot: 0.26 },
-  { base: 0.81, h: 0.2, s: 0.135, rot: 0.39 },
-];
-const TOWER_TOP = 1.01; // top of the highest tier (0.81 + 0.2)
+// The city's centrepiece — a slender, continuously tapering octagonal glass
+// tower (one frustum shaft, not stacked blocks) with full-height mullion fins
+// running the edges, a few floor bands that glow when engaged (the shared
+// winMat, ramped by WindowDriver) and a tapered crown with a slow-pulsing
+// beacon. Carries the Alliander hotspot; the shaft solidifies once visited.
+const TOWER_H = 0.78;
+const TOWER_R_BOT = 0.145;
+const TOWER_R_TOP = 0.115; // only a gentle taper — reads as a vertical tower, not a cone
+const TOWER_SIDES = 8;
 
 function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardMaterial }) {
   const { accent } = useAccent();
@@ -704,8 +700,13 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   const beacon = useRef<MeshStandardMaterial>(null);
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
+  // mullion fins hug the taper: each runs base-radius → top-radius up one edge
+  const finL = Math.hypot(TOWER_R_BOT - TOWER_R_TOP, TOWER_H);
+  const finTilt = Math.atan2(TOWER_R_BOT - TOWER_R_TOP, TOWER_H);
+  const finR = (TOWER_R_BOT + TOWER_R_TOP) / 2;
+  const rAt = (y: number) => TOWER_R_BOT + (TOWER_R_TOP - TOWER_R_BOT) * (y / TOWER_H);
   useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, 0.22);
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, 0.18);
     if (!beacon.current) return;
     const t = reduced ? 0 : s.clock.elapsedTime;
     beacon.current.emissiveIntensity = 0.45 + 0.55 * Math.abs(Math.sin(t * 2.1));
@@ -713,42 +714,47 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   return (
     <group position={position}>
       <group ref={popRef}>
-      {TOWER_TIERS.map((tr, i) => (
-        <group key={i} rotation={[0, tr.rot, 0]}>
-          <mesh position={[0, tr.base + tr.h / 2, 0]}>
-            <boxGeometry args={[tr.s, tr.h, tr.s]} />
-            <LiveGlassMat slug="alliander-hololens" opacity={0.4} />
-            <Edges threshold={20} color={NEUTRAL} />
-          </mesh>
-          {/* lit floor bands on the two camera-facing sides of each tier */}
-          {winMat &&
-            [0.34, 0.66].map((f, r) => {
-              const yy = tr.base + tr.h * f;
-              return [
-                <mesh key={`z${r}`} position={[0, yy, tr.s / 2 + 0.003]} material={winMat}>
-                  <planeGeometry args={[tr.s * 0.72, 0.03]} />
-                </mesh>,
-                <mesh key={`x${r}`} position={[tr.s / 2 + 0.003, yy, 0]} rotation={[0, Math.PI / 2, 0]} material={winMat}>
-                  <planeGeometry args={[tr.s * 0.72, 0.03]} />
-                </mesh>,
-              ];
-            })}
-        </group>
-      ))}
-      {/* crown: a tapered glass cap, an antenna mast and a slow-pulsing beacon */}
-      <mesh position={[0, TOWER_TOP + 0.07, 0]} rotation={[0, 0.39, 0]}>
-        <coneGeometry args={[0.085, 0.16, 4]} />
-        <GlassMat opacity={0.32} />
-        <Edges threshold={30} color={NEUTRAL} />
-      </mesh>
-      <mesh position={[0, TOWER_TOP + 0.2, 0]}>
-        <cylinderGeometry args={[0.005, 0.005, 0.12, 8]} />
-        <meshStandardMaterial color={NEUTRAL} metalness={0.6} roughness={0.4} />
-      </mesh>
-      <mesh position={[0, TOWER_TOP + 0.28, 0]}>
-        <sphereGeometry args={[0.016, 12, 12]} />
-        <meshStandardMaterial ref={beacon} color={accent} emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
-      </mesh>
+        {/* one continuous tapered octagonal glass shaft */}
+        <mesh position={[0, TOWER_H / 2, 0]}>
+          <cylinderGeometry args={[TOWER_R_TOP, TOWER_R_BOT, TOWER_H, TOWER_SIDES]} />
+          <LiveGlassMat slug="alliander-hololens" opacity={0.4} />
+          <Edges threshold={15} color={NEUTRAL} />
+        </mesh>
+        {/* full-height mullion fins along the eight edges */}
+        {Array.from({ length: TOWER_SIDES }).map((_, i) => (
+          <group key={i} rotation={[0, (i / TOWER_SIDES) * Math.PI * 2, 0]}>
+            <mesh position={[finR, TOWER_H / 2, 0]} rotation={[0, 0, finTilt]}>
+              <boxGeometry args={[0.016, finL, 0.02]} />
+              <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.18} roughness={0.4} metalness={0.3} />
+            </mesh>
+          </group>
+        ))}
+        {/* floor bands wrap the shaft — faint at rest, glow when engaged */}
+        {winMat &&
+          [0.24, 0.42, 0.58].map((f, i) => {
+            const y = TOWER_H * f;
+            const r = rAt(y) + 0.004;
+            return (
+              <mesh key={i} position={[0, y, 0]} material={winMat}>
+                <cylinderGeometry args={[r, r, 0.02, TOWER_SIDES, 1, true]} />
+              </mesh>
+            );
+          })}
+        {/* crown: a short tapered mechanical cap (flat top), then a thin antenna
+            mast + a slow-pulsing beacon — a tower crown, not a spike */}
+        <mesh position={[0, TOWER_H + 0.05, 0]}>
+          <cylinderGeometry args={[0.055, TOWER_R_TOP, 0.1, TOWER_SIDES]} />
+          <GlassMat opacity={0.34} />
+          <Edges threshold={15} color={NEUTRAL} />
+        </mesh>
+        <mesh position={[0, TOWER_H + 0.15, 0]}>
+          <cylinderGeometry args={[0.004, 0.004, 0.1, 8]} />
+          <meshStandardMaterial color={NEUTRAL} metalness={0.6} roughness={0.4} />
+        </mesh>
+        <mesh position={[0, TOWER_H + 0.21, 0]}>
+          <sphereGeometry args={[0.014, 12, 12]} />
+          <meshStandardMaterial ref={beacon} color={accent} emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
+        </mesh>
       </group>
     </group>
   );
