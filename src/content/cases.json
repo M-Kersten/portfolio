@@ -64,6 +64,22 @@
     "draft": false
   },
   {
+    "slug": "wonderment-location",
+    "title": "Wonderment location XR",
+    "layer": "city",
+    "client": "Wonderment",
+    "clientLogo": null,
+    "sector": "Location-based · R&D",
+    "challenge": "We kept circling the same question: what can you actually build when digital content is pinned to a real place — and what quietly falls apart the moment you step outside the lab?",
+    "built": "A run of location-based experiments — GPS- and map-anchored AR prototypes that tie content to real coordinates, poking at how it behaves out in the wild rather than on a tidy desk.",
+    "outcome": "A stack of location-anchored AR prototypes",
+    "tech": ["GPS", "Geo-data", "AR", "Unity", "Maps"],
+    "lesson": "The real world is a messy test lab — GPS drifts, places change, people wander into frame. Designing for that mess up front beats pretending it isn't there.",
+    "live": false,
+    "media": [],
+    "draft": false
+  },
+  {
     "slug": "lightship-drive",
     "title": "Lightship Drive",
     "layer": "room",

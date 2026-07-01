@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
+import { Edges, Html, Line as DreiLine, MeshTransmissionMaterial, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Points as ThreePoints, type Texture } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { useTweak } from './devTweak';
@@ -325,6 +325,33 @@ function LiveGlassMat({ slug, color = GLASS, opacity = 0.2 }: { slug: string; co
   );
 }
 
+/** Real refractive glass for the city towers. `transmissionSampler` shares one
+ *  low-res transmission buffer across the whole skyline, so the refraction costs
+ *  a single extra pass rather than one per building. The neutral <Edges> overlay
+ *  still holds each silhouette against the dark stage. */
+function CityGlass({ opacity = 0.9, thickness = 0.5 }: { opacity?: number; thickness?: number }) {
+  return (
+    <MeshTransmissionMaterial
+      transmissionSampler
+      samples={4}
+      resolution={256}
+      transmission={1}
+      roughness={0.14}
+      thickness={thickness}
+      ior={1.35}
+      chromaticAberration={0.05}
+      distortion={0.12}
+      distortionScale={0.2}
+      temporalDistortion={0}
+      color={GLASS}
+      attenuationColor="#bfe9ff"
+      attenuationDistance={2.5}
+      transparent
+      opacity={opacity}
+    />
+  );
+}
+
 /** Flat highlight box. Defaults to the layer accent, but decorative (non-hotspot)
  *  details pass color={NEUTRAL} so the layer colour stays on the interactables. */
 function Accent({ position, args, intensity = 0.4, rotation, color }: { position: V3; args: V3; intensity?: number; rotation?: V3; color?: string }) {
@@ -361,7 +388,7 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
     <group position={[x, 0, z]}>
       <mesh position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <GlassMat opacity={0.44} />
+        <CityGlass thickness={Math.max(w, d)} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {windows.map((win, i) => (
@@ -724,6 +751,77 @@ function RoadRibbon({ points, width = 0.08 }: { points: V3[]; width?: number }) 
   );
 }
 
+/** A small satellite that slowly flies a circle above the skyline — the anchor
+ *  for the Wonderment location-based work. Foil-wrapped bus, two solar wings and
+ *  a dish; a status beacon blinks and brightens when the node is engaged. */
+function Satellite({ center, radius = 0.28, slug }: { center: V3; radius?: number; slug?: string }) {
+  const orbit = useRef<Group>(null);
+  const beacon = useRef<MeshStandardMaterial>(null);
+  const reduced = useReducedMotion();
+  const hovered = useHovered(slug ?? '');
+  const { accent } = useAccent();
+  const lit = useRef(0);
+  useFrame((s) => {
+    const t = reduced ? 0 : s.clock.elapsedTime;
+    const a = t * 0.18;
+    const g = orbit.current;
+    if (g) {
+      g.position.set(center[0] + Math.cos(a) * radius, center[1] + Math.sin(a * 1.3) * 0.04, center[2] + Math.sin(a) * radius);
+      g.rotation.y = -a; // bank into the direction of travel
+    }
+    lit.current += ((hovered ? 1 : 0) - lit.current) * 0.1;
+    if (beacon.current) {
+      const blink = 0.5 + 0.5 * Math.sin(t * 6);
+      beacon.current.emissiveIntensity = (0.35 + blink * 0.7) * (0.6 + lit.current);
+    }
+  });
+  return (
+    <group ref={orbit} position={center}>
+      {/* body — foil-wrapped bus */}
+      <mesh>
+        <boxGeometry args={[0.09, 0.08, 0.11]} />
+        <meshStandardMaterial color="#d8c078" metalness={0.9} roughness={0.34} emissive="#3a2f12" emissiveIntensity={0.22} />
+        <Edges threshold={20} color={NEUTRAL} />
+      </mesh>
+      {/* solar wings + spars */}
+      {[-1, 1].map((s2) => (
+        <group key={s2}>
+          <mesh position={[s2 * 0.075, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.004, 0.004, 0.06, 8]} />
+            <meshStandardMaterial color={NEUTRAL} metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[s2 * 0.16, 0, 0]}>
+            <boxGeometry args={[0.2, 0.006, 0.09]} />
+            <meshStandardMaterial color="#12314a" metalness={0.6} roughness={0.3} emissive="#0a2036" emissiveIntensity={0.35} />
+            <Edges threshold={20} color={accent} />
+          </mesh>
+        </group>
+      ))}
+      {/* dish antenna, angled forward */}
+      <group position={[0, 0.05, 0.03]} rotation={[0.6, 0, 0]}>
+        <mesh>
+          <cylinderGeometry args={[0.032, 0.008, 0.024, 16, 1, true]} />
+          <meshStandardMaterial color="#cfe0ff" metalness={0.3} roughness={0.4} side={DoubleSide} />
+        </mesh>
+        <mesh position={[0, 0.02, 0]}>
+          <cylinderGeometry args={[0.003, 0.003, 0.04, 6]} />
+          <meshStandardMaterial color={NEUTRAL} />
+        </mesh>
+      </group>
+      {/* whip antenna */}
+      <mesh position={[0.02, -0.02, -0.06]} rotation={[0.4, 0, 0.2]}>
+        <cylinderGeometry args={[0.002, 0.002, 0.09, 6]} />
+        <meshStandardMaterial color={NEUTRAL} />
+      </mesh>
+      {/* status beacon */}
+      <mesh position={[0, -0.052, 0]}>
+        <sphereGeometry args={[0.012, 12, 12]} />
+        <meshStandardMaterial ref={beacon} color={accent} emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
 function CityRig() {
   // Roads: a grid threading between the blocks, three avenues out toward the
   // church / windmill / park, and two curved roads sweeping around the side.
@@ -766,9 +864,9 @@ function CityRig() {
     [accent],
   );
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
-  const church = useTweak('City.Church', { position: [-0.55, 0, -0.7] });
   const mill = useTweak('City.Windmill', { position: [-1.2, 0, 0.5] });
   const park = useTweak('City.Park', { position: [1.05, 0, -0.72] });
+  const sat = useTweak('City.Satellite', { position: [0.55, 0.95, 0.3] });
   return (
     <group>
       {/* roads through the city */}
@@ -785,27 +883,8 @@ function CityRig() {
       ))}
       <TownHall position={[0, 0, 0]} winMat={winMat} />
 
-      {/* church landmark (square tower + tall spire + upright cross) */}
-      <group position={church.position}>
-        <mesh position={[0, 0.17, 0]}>
-          <boxGeometry args={[0.24, 0.34, 0.3]} />
-          <GlassMat opacity={0.44} />
-          <Edges threshold={20} color={NEUTRAL} />
-        </mesh>
-        <mesh position={[0, 0.4, -0.1]}>
-          <boxGeometry args={[0.15, 0.68, 0.15]} />
-          <GlassMat opacity={0.44} />
-          <Edges threshold={20} color={NEUTRAL} />
-        </mesh>
-        <mesh position={[0, 0.86, -0.1]}>
-          <coneGeometry args={[0.095, 0.32, 4]} />
-          <GlassMat opacity={0.3} />
-          <Edges threshold={30} color={NEUTRAL} />
-        </mesh>
-        {/* cross: long stem with the crossbar near the top (upright) */}
-        <Accent position={[0, 1.11, -0.1]} args={[0.014, 0.15, 0.014]} intensity={0.5} color={NEUTRAL} />
-        <Accent position={[0, 1.15, -0.1]} args={[0.07, 0.014, 0.014]} intensity={0.5} color={NEUTRAL} />
-      </group>
+      {/* satellite flying above the skyline — the Wonderment location hotspot */}
+      <Satellite center={sat.position} slug="wonderment-location" />
 
       {/* windmill on the side */}
       <Windmill position={mill.position} />
