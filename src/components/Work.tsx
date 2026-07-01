@@ -15,7 +15,8 @@ function mulberry32(seed: number) {
   };
 }
 
-const CARD_W = 160;
+const CARD_W = 320;
+const HANG_PCT = 3.4; // the string hangs this % of the plane above each card's top
 
 interface Slot {
   left: number;
@@ -23,19 +24,45 @@ interface Slot {
   rot: number;
 }
 
-// Lay the cards out top-left → bottom-right along a jittered diagonal, all kept
-// within the viewport band so nothing needs vertical scrolling.
-function buildWall(n: number): { width: number; slots: Slot[] } {
+interface Wall {
+  width: number;
+  slots: Slot[];
+  string: string; // SVG path (viewBox 0 0 width 1000) — the garland the cards clip to
+}
+
+// Lay the cards out top-left → bottom-right along a widely jittered diagonal, so
+// it reads like a hand-hung wall of paintings rather than a tidy line — but all
+// kept within the viewport band so nothing needs vertical scrolling. Then thread
+// a slack "string" through a hang point just above each card.
+function buildWall(n: number): Wall {
   const rnd = mulberry32(9137);
   const slots: Slot[] = [];
-  let x = 48;
+  let x = 56;
   for (let i = 0; i < n; i++) {
     const t = n > 1 ? i / (n - 1) : 0;
-    const topPct = Math.min(56, Math.max(5, 8 + t * 46 + (rnd() * 2 - 1) * 7));
-    slots.push({ left: x, topPct, rot: (rnd() * 2 - 1) * 3.4 });
-    x += CARD_W + 56 + rnd() * 130; // advance with a little jitter
+    const topPct = Math.min(50, Math.max(3, 4 + t * 40 + (rnd() * 2 - 1) * 13));
+    slots.push({ left: x, topPct, rot: (rnd() * 2 - 1) * 4.6 });
+    x += CARD_W + 80 + rnd() * 150; // advance with a little jitter, wider gaps
   }
-  return { width: x + 40, slots };
+  const width = x + 48;
+
+  // Hang points sit just above each card's top-centre; y is per-mille of the
+  // plane height (topPct * 10) so the SVG can share a width × 1000 viewBox.
+  const hp = slots.map((s) => ({ x: s.left + CARD_W / 2, y: (s.topPct - HANG_PCT) * 10 }));
+  let string = '';
+  hp.forEach((p, i) => {
+    if (i === 0) {
+      string += `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+      return;
+    }
+    const prev = hp[i - 1];
+    const midX = (prev.x + p.x) / 2;
+    const sag = Math.min(48, Math.max(16, (p.x - prev.x) * 0.06)); // longer gap → deeper sag
+    const midY = Math.max(prev.y, p.y) + sag;
+    string += ` Q ${midX.toFixed(1)} ${midY.toFixed(1)} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+  });
+
+  return { width, slots, string };
 }
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
@@ -187,6 +214,28 @@ export function Work() {
       >
         <div className="wall__pin">
           <div className="wall__plane" ref={planeRef} style={{ width: `${wall.width}px` }}>
+            <svg
+              className="wall__string"
+              viewBox={`0 0 ${wall.width} 1000`}
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <path d={wall.string} vectorEffect="non-scaling-stroke" />
+            </svg>
+            {ordered.map((study, i) => (
+              <span
+                key={`knot-${study.slug}`}
+                className="wall__knot"
+                aria-hidden="true"
+                style={
+                  {
+                    left: `${wall.slots[i].left + CARD_W / 2}px`,
+                    top: `${wall.slots[i].topPct - HANG_PCT}%`,
+                    '--knot': accentFor(study.slug),
+                  } as CSSProperties
+                }
+              />
+            ))}
             {ordered.map((study, i) => (
               <CaseCard
                 key={study.slug}

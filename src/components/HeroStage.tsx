@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { site } from '../content';
 import { sceneStore, useSceneSelector } from '../scene/store';
 
 // Three short snap panels give the camera journey its scroll length and drive
-// `journeyStep` (which layer is centred). The minimal title + layer indicator
-// stay visible across the whole City → Room → Chip journey and only fade once
-// you scroll past the last layer into the content below (or inspect a node).
+// `journeyStep` (which layer is centred). The minimal title lives only on the
+// City layer and clears the moment you scroll down to Room (or inspect a node).
 
 const STEPS = [
   { step: 0, label: 'City', tag: 'maps & the real world' },
@@ -15,10 +14,8 @@ const STEPS = [
 
 export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
-
-  const stageRef = useRef<HTMLElement>(null);
+  const journeyStep = useSceneSelector((s) => s.journeyStep);
   const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [topness, setTopness] = useState(1);
 
   // Active layer = the panel crossing the viewport centre (robust to short panels).
   useEffect(() => {
@@ -36,22 +33,11 @@ export function HeroStage() {
     return () => io.disconnect();
   }, []);
 
-  // Keep the title + coach-mark visible across the whole journey, then fade them
-  // once the hero has scrolled out of view. An IntersectionObserver on the stage
-  // is robust to the pinned scroll-jack section below (a scroll-position formula
-  // wasn't updating reliably once that tall section was in play).
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const io = new IntersectionObserver(([e]) => setTopness(e.isIntersecting ? 1 : 0), { threshold: 0 });
-    io.observe(stage);
-    return () => io.disconnect();
-  }, []);
-
-  const opacity = selectedSlug ? 0 : topness;
+  // Title lives only on the City layer; it clears the moment you scroll to Room.
+  const opacity = selectedSlug ? 0 : journeyStep === 0 ? 1 : 0;
 
   return (
-    <section id="hero" className="hero" ref={stageRef} aria-label="Introduction">
+    <section id="hero" className="hero" aria-label="Introduction">
       <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
         <h1 className="hero__name">{site.hero.name}</h1>
         <p className="hero__sub">{site.hero.subheading}</p>
