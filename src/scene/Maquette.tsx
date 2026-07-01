@@ -675,35 +675,65 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
 }
 
 /** The civic peak of the skyline — a square block + clock tower + spire. */
-function TownHall({ position, winMat }: { position: V3; winMat?: MeshStandardMaterial }) {
+// The city's centrepiece: a fancy tapering, gently twisting glass skyscraper
+// with a lit crown — carries the Alliander hotspot. Each tier steps back and
+// rotates a little as it rises, so the corners spiral; horizontal floor bands
+// (the shared winMat, ramped by WindowDriver) glow when the node is engaged,
+// and the crown beacon pulses.
+const TOWER_TIERS = [
+  { base: 0.0, h: 0.3, s: 0.3, rot: 0.0 },
+  { base: 0.3, h: 0.27, s: 0.245, rot: 0.13 },
+  { base: 0.57, h: 0.24, s: 0.19, rot: 0.26 },
+  { base: 0.81, h: 0.2, s: 0.135, rot: 0.39 },
+];
+const TOWER_TOP = 1.01; // top of the highest tier (0.81 + 0.2)
+
+function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardMaterial }) {
+  const { accent } = useAccent();
+  const beacon = useRef<MeshStandardMaterial>(null);
+  const reduced = useReducedMotion();
+  useFrame((s) => {
+    if (!beacon.current) return;
+    const t = reduced ? 0 : s.clock.elapsedTime;
+    beacon.current.emissiveIntensity = 0.45 + 0.55 * Math.abs(Math.sin(t * 2.1));
+  });
   return (
     <group position={position}>
-      <mesh position={[0, 0.28, 0]}>
-        <boxGeometry args={[0.34, 0.56, 0.3]} />
-        <LiveGlassMat slug="alliander-hololens" opacity={0.44} />
-        <Edges threshold={20} color={NEUTRAL} />
-      </mesh>
-      {winMat &&
-        [0.16, 0.3, 0.44].flatMap((yy, i) =>
-          [-1, 1].map((c) => (
-            <mesh key={`${i}-${c}`} position={[c * 0.09, yy, 0.151]} material={winMat}>
-              <planeGeometry args={[0.1, 0.05]} />
-            </mesh>
-          )),
-        )}
-      {/* clock tower */}
-      <mesh position={[0, 0.7, 0]}>
-        <boxGeometry args={[0.16, 0.24, 0.16]} />
-        <LiveGlassMat slug="alliander-hololens" opacity={0.44} />
-        <Edges threshold={20} color={NEUTRAL} />
-      </mesh>
-      {/* clock face */}
-      <Accent position={[0, 0.74, 0.082]} args={[0.065, 0.065, 0.012]} intensity={0.5} />
-      {/* spire */}
-      <mesh position={[0, 0.91, 0]}>
-        <coneGeometry args={[0.1, 0.16, 4]} />
-        <GlassMat opacity={0.3} />
+      {TOWER_TIERS.map((tr, i) => (
+        <group key={i} rotation={[0, tr.rot, 0]}>
+          <mesh position={[0, tr.base + tr.h / 2, 0]}>
+            <boxGeometry args={[tr.s, tr.h, tr.s]} />
+            <LiveGlassMat slug="alliander-hololens" opacity={0.4} />
+            <Edges threshold={20} color={NEUTRAL} />
+          </mesh>
+          {/* lit floor bands on the two camera-facing sides of each tier */}
+          {winMat &&
+            [0.34, 0.66].map((f, r) => {
+              const yy = tr.base + tr.h * f;
+              return [
+                <mesh key={`z${r}`} position={[0, yy, tr.s / 2 + 0.003]} material={winMat}>
+                  <planeGeometry args={[tr.s * 0.72, 0.03]} />
+                </mesh>,
+                <mesh key={`x${r}`} position={[tr.s / 2 + 0.003, yy, 0]} rotation={[0, Math.PI / 2, 0]} material={winMat}>
+                  <planeGeometry args={[tr.s * 0.72, 0.03]} />
+                </mesh>,
+              ];
+            })}
+        </group>
+      ))}
+      {/* crown: a tapered glass cap, an antenna mast and a slow-pulsing beacon */}
+      <mesh position={[0, TOWER_TOP + 0.07, 0]} rotation={[0, 0.39, 0]}>
+        <coneGeometry args={[0.085, 0.16, 4]} />
+        <GlassMat opacity={0.32} />
         <Edges threshold={30} color={NEUTRAL} />
+      </mesh>
+      <mesh position={[0, TOWER_TOP + 0.2, 0]}>
+        <cylinderGeometry args={[0.005, 0.005, 0.12, 8]} />
+        <meshStandardMaterial color={NEUTRAL} metalness={0.6} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, TOWER_TOP + 0.28, 0]}>
+        <sphereGeometry args={[0.016, 12, 12]} />
+        <meshStandardMaterial ref={beacon} color={accent} emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
       </mesh>
     </group>
   );
@@ -747,77 +777,6 @@ function RoadRibbon({ points, width = 0.08 }: { points: V3[]; width?: number }) 
       </mesh>
       <Line points={left} color={NEUTRAL} lineWidth={1} transparent opacity={0.42} />
       <Line points={right} color={NEUTRAL} lineWidth={1} transparent opacity={0.42} />
-    </group>
-  );
-}
-
-/** A small satellite that slowly flies a circle above the skyline — the anchor
- *  for the Wonderment location-based work. Foil-wrapped bus, two solar wings and
- *  a dish; a status beacon blinks and brightens when the node is engaged. */
-function Satellite({ center, radius = 0.28, slug }: { center: V3; radius?: number; slug?: string }) {
-  const orbit = useRef<Group>(null);
-  const beacon = useRef<MeshStandardMaterial>(null);
-  const reduced = useReducedMotion();
-  const hovered = useHovered(slug ?? '');
-  const { accent } = useAccent();
-  const lit = useRef(0);
-  useFrame((s) => {
-    const t = reduced ? 0 : s.clock.elapsedTime;
-    const a = t * 0.18;
-    const g = orbit.current;
-    if (g) {
-      g.position.set(center[0] + Math.cos(a) * radius, center[1] + Math.sin(a * 1.3) * 0.04, center[2] + Math.sin(a) * radius);
-      g.rotation.y = -a; // bank into the direction of travel
-    }
-    lit.current += ((hovered ? 1 : 0) - lit.current) * 0.1;
-    if (beacon.current) {
-      const blink = 0.5 + 0.5 * Math.sin(t * 6);
-      beacon.current.emissiveIntensity = (0.35 + blink * 0.7) * (0.6 + lit.current);
-    }
-  });
-  return (
-    <group ref={orbit} position={center}>
-      {/* body — foil-wrapped bus */}
-      <mesh>
-        <boxGeometry args={[0.09, 0.08, 0.11]} />
-        <meshStandardMaterial color="#d8c078" metalness={0.9} roughness={0.34} emissive="#3a2f12" emissiveIntensity={0.22} />
-        <Edges threshold={20} color={NEUTRAL} />
-      </mesh>
-      {/* solar wings + spars */}
-      {[-1, 1].map((s2) => (
-        <group key={s2}>
-          <mesh position={[s2 * 0.075, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.004, 0.004, 0.06, 8]} />
-            <meshStandardMaterial color={NEUTRAL} metalness={0.6} roughness={0.4} />
-          </mesh>
-          <mesh position={[s2 * 0.16, 0, 0]}>
-            <boxGeometry args={[0.2, 0.006, 0.09]} />
-            <meshStandardMaterial color="#12314a" metalness={0.6} roughness={0.3} emissive="#0a2036" emissiveIntensity={0.35} />
-            <Edges threshold={20} color={accent} />
-          </mesh>
-        </group>
-      ))}
-      {/* dish antenna, angled forward */}
-      <group position={[0, 0.05, 0.03]} rotation={[0.6, 0, 0]}>
-        <mesh>
-          <cylinderGeometry args={[0.032, 0.008, 0.024, 16, 1, true]} />
-          <meshStandardMaterial color="#cfe0ff" metalness={0.3} roughness={0.4} side={DoubleSide} />
-        </mesh>
-        <mesh position={[0, 0.02, 0]}>
-          <cylinderGeometry args={[0.003, 0.003, 0.04, 6]} />
-          <meshStandardMaterial color={NEUTRAL} />
-        </mesh>
-      </group>
-      {/* whip antenna */}
-      <mesh position={[0.02, -0.02, -0.06]} rotation={[0.4, 0, 0.2]}>
-        <cylinderGeometry args={[0.002, 0.002, 0.09, 6]} />
-        <meshStandardMaterial color={NEUTRAL} />
-      </mesh>
-      {/* status beacon */}
-      <mesh position={[0, -0.052, 0]}>
-        <sphereGeometry args={[0.012, 12, 12]} />
-        <meshStandardMaterial ref={beacon} color={accent} emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
-      </mesh>
     </group>
   );
 }
@@ -866,7 +825,6 @@ function CityRig() {
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const mill = useTweak('City.Windmill', { position: [-1.2, 0, 0.5] });
   const park = useTweak('City.Park', { position: [1.05, 0, -0.72] });
-  const sat = useTweak('City.Satellite', { position: [0.55, 0.95, 0.3] });
   return (
     <group>
       {/* roads through the city */}
@@ -881,10 +839,7 @@ function CityRig() {
       {cluster.map((b, i) => (
         <Building key={i} {...b} winMat={winMat} />
       ))}
-      <TownHall position={[0, 0, 0]} winMat={winMat} />
-
-      {/* satellite flying above the skyline — the Wonderment location hotspot */}
-      <Satellite center={sat.position} slug="wonderment-location" />
+      <Skyscraper position={[0, 0, 0]} winMat={winMat} />
 
       {/* windmill on the side */}
       <Windmill position={mill.position} />

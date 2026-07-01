@@ -48,8 +48,7 @@ export const HOTSPOTS: Hotspot[] = [
   { slug: 'zwijsen-ar-books', layer: 'room', position: [1.02, 0.95, -0.78], anchor: [1.02, 0.52, -0.78] }, // the orange book on the shelf
   // City — GIS / location work
   { slug: 'niantic-explorer', layer: 'city', position: [1.05, 0.46, -0.72], anchor: [1.05, 0.06, -0.72] }, // the park
-  { slug: 'alliander-hololens', layer: 'city', position: [0, 1.05, 0], anchor: [0, 0.72, 0] }, // town hall (skyline peak)
-  { slug: 'wonderment-location', layer: 'city', position: [0.55, 1.34, 0.3], anchor: [0.55, 0.95, 0.3] }, // satellite orbiting above the city
+  { slug: 'alliander-hololens', layer: 'city', position: [0, 1.4, 0], anchor: [0, 0.85, 0] }, // the skyscraper (skyline peak)
 ];
 
 export interface Framing {
