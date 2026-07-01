@@ -15,7 +15,7 @@ function mulberry32(seed: number) {
   };
 }
 
-const CARD_W = 240;
+const CARD_W = 160;
 
 interface Slot {
   left: number;

@@ -4,20 +4,20 @@
     "index": "01",
     "title": "City: maps & the real world",
     "body": "The big scale, i love taking real-world data. Open building maps, point clouds, GPS, and turning it into something you can actually move through. Digital twins, location based AR. The fact that these work is still magical to me",
-    "tags": ["3DBAG", "VPS", "RTK GPS", "Point clouds"]
+    "tags": ["VPS", "RTK GPS", "Point clouds", "GIS"]
   },
   {
     "layer": "room",
     "index": "02",
     "title": "Room: games, apps & toys",
-    "body": "Human scale: the stuff people actually pick up and play with. Games, apps, websites, VR experiences. This is where I get to be rapidly prototype, a tiny mobile game one week, a training sim or quick visualization. If it makes someone smile or learn something i did my job.",
+    "body": "The human scale, what people pick up and play with. Games, apps, websites, UX design. This is where I get to be rapidly prototype, a tiny mobile game one week, a training sim or quick visualization. If it makes someone smile or learn something i did my job.",
     "tags": ["Unity", "VR", "Mobile", "Web"]
   },
   {
     "layer": "chip",
     "index": "03",
     "title": "Chip: tools & the nerdy bits",
-    "body": "The smallest scale, and maybe my favourite one: the tools, computer vision, AI and work nobody sees. Cross-platform frameworks, synthetic data generation, npc's you can talk to, a solid backend. The stuff needed to run everything.",
+    "body": "The smallest scale, and maybe my favourite one: the tools that make my work easier, computer vision, AI and work nobody sees. Cross-platform frameworks, synthetic data generation, npc's you can talk to, a solid backend. The stuff needed to run everything.",
     "tags": ["Computer vision", "AI · LLMs", "Backends", "Databases"]
   }
 ]

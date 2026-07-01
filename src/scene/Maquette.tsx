@@ -845,8 +845,8 @@ function CityRig() {
     [accent],
   );
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
-  const mill = useTweak('City.Windmill', { position: [-1.2, 0, 0.5] });
-  const park = useTweak('City.Park', { position: [1.05, 0, -0.72] });
+  const mill = useTweak('City.Windmill', { position: [-1.34, 0, 0.33] });
+  const park = useTweak('City.Park', { position: [1.3, 0, -0.23] });
   return (
     <group>
       {/* roads through the city */}
@@ -1304,12 +1304,12 @@ function Bookcase({ position }: { position: V3 }) {
 
 function RoomRig() {
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
-  const desk = useTweak('Room.Desk', { position: [-0.82, 0, 0.5], rotationY: 0.62 });
-  const couch = useTweak('Room.Couch', { position: [0, 0, -0.32] });
+  const desk = useTweak('Room.Desk', { position: [-1.2, 0, 0.18], rotationY: 1.76 });
+  const couch = useTweak('Room.Couch', { position: [0.12, 0, -0.22], rotationY: -0.16 });
   const table = useTweak('Room.AR table', { position: [0, 0, 0.52] });
   const shelf = useTweak('Room.Bookcase', { position: [0.9, 0, -0.82] });
-  const plant = useTweak('Room.Plant', { position: [-1.42, 0, 0.74] });
-  const lamp = useTweak('Room.Floor lamp', { position: [1.05, 0, 0.5] });
+  const plant = useTweak('Room.Plant', { position: [-1.23, 0, 0.9] });
+  const lamp = useTweak('Room.Floor lamp', { position: [-0.32, 0, -1.57] });
   return (
     <group>
       {/* round rug centred on the scene — lined up with the chip die below it */}
@@ -1348,7 +1348,7 @@ function RoomRig() {
           <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
         </group>
         {/* chair in front of the desk, facing the monitor */}
-        <group position={[0, 0, 0.32]} rotation={[0, Math.PI, 0]}>
+        <group position={[0, 0, 0.05]} rotation={[0, Math.PI, 0]}>
           <SoftBox position={[0, 0.24, 0]} args={[0.3, 0.06, 0.3]} radius={0.05} />
           <SoftBox position={[0, 0.42, -0.14]} args={[0.3, 0.32, 0.05]} radius={0.05} />
           <mesh position={[0, 0.12, 0]}>
@@ -1363,7 +1363,7 @@ function RoomRig() {
       <Bookcase position={shelf.position} />
 
       {/* couch + phone — faces the coffee table / room front (+z) */}
-      <group position={couch.position}>
+      <group position={couch.position} rotation={[0, couch.rotationY, 0]}>
         <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline />
         <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} />
         <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
