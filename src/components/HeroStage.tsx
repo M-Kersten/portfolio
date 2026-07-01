@@ -39,28 +39,16 @@ export function HeroStage() {
     return () => io.disconnect();
   }, []);
 
-  // Keep the title + indicator visible across the whole journey; fade only once
-  // the viewport centre drops below the stage (i.e. past the last layer, Chip).
+  // Keep the title + coach-mark visible across the whole journey, then fade them
+  // once the hero has scrolled out of view. An IntersectionObserver on the stage
+  // is robust to the pinned scroll-jack section below (a scroll-position formula
+  // wasn't updating reliably once that tall section was in play).
   useEffect(() => {
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const vh = window.innerHeight;
-        const stage = stageRef.current;
-        const panelH = panelRefs.current[0]?.offsetHeight || vh * 0.58;
-        const stageBottom = stage ? stage.offsetTop + stage.offsetHeight : panelH * 3;
-        const past = (window.scrollY + vh / 2 - stageBottom) / (vh * 0.5);
-        setTopness(1 - Math.min(1, Math.max(0, past)));
-      });
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
+    const stage = stageRef.current;
+    if (!stage) return;
+    const io = new IntersectionObserver(([e]) => setTopness(e.isIntersecting ? 1 : 0), { threshold: 0 });
+    io.observe(stage);
+    return () => io.disconnect();
   }, []);
 
   useEffect(() => {

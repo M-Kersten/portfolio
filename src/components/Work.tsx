@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { cases, caseBySlug, site, LAYER_LABEL, LAYER_ORDER, type CaseStudy } from '../content';
+import { cases, caseBySlug, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { CaseCard } from './CaseCard';
+import { CaseCard, accentFor } from './CaseCard';
 
 // Seeded RNG so the "randomly placed" wall is stable between renders.
 function mulberry32(seed: number) {
@@ -63,7 +63,7 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
     <div className="focus" onClick={onClose}>
       <div
         className="focus__card"
-        data-layer={study.layer}
+        style={{ '--card-accent': accentFor(study.slug) } as CSSProperties}
         role="dialog"
         aria-modal="true"
         aria-label={study.title}
@@ -76,10 +76,11 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
           <div className="worktile__ph" aria-hidden="true" />
           {imgOk && <img className="worktile__img" src={src} alt="" onError={() => setImgOk(false)} />}
           <div className="worktile__scrim" aria-hidden="true" />
-          <div className="worktile__badges">
-            <span className="worktile__layer">{LAYER_LABEL[study.layer]}</span>
-            {study.live && <span className="worktile__live">Live</span>}
-          </div>
+          {study.live && (
+            <div className="worktile__badges">
+              <span className="worktile__live">Live</span>
+            </div>
+          )}
         </div>
         <div className="focus__body">
           <span className="worktile__meta">
@@ -128,7 +129,16 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
 export function Work() {
   const { workIntro } = site;
   const reduced = useReducedMotion();
-  const ordered = useMemo(() => LAYER_ORDER.flatMap((l) => cases.filter((c) => c.layer === l)), []);
+  // Random scatter (stable per build) — no longer grouped by layer.
+  const ordered = useMemo(() => {
+    const arr = [...cases];
+    const rnd = mulberry32(4242);
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, []);
   const wall = useMemo(() => buildWall(ordered.length), [ordered.length]);
   const [open, setOpen] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);

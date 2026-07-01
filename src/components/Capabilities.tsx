@@ -12,7 +12,7 @@ export function Capabilities() {
 
         <div className="capabilities__grid">
           {capabilities.map((c) => (
-            <article key={c.layer} className="capability">
+            <article key={c.layer} className="capability" data-layer={c.layer}>
               <div className="capability__index">{c.index}</div>
               <h3 className="capability__title">{c.title}</h3>
               <p className="capability__body">{c.body}</p>
