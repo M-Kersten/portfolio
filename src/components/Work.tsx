@@ -21,8 +21,8 @@ export function Work() {
                 <span className="work__group-tag">{LAYER_TAGLINE[layer]}</span>
               </div>
               <div className="work__grid">
-                {group.map((study) => (
-                  <CaseCard key={study.slug} study={study} />
+                {group.map((study, i) => (
+                  <CaseCard key={study.slug} study={study} feature={i === 0} />
                 ))}
               </div>
             </div>
