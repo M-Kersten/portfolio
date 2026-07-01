@@ -394,6 +394,69 @@ html {
   color: var(--ink-40);
 }
 
+/* Intro coach-mark — points up at the diorama and explains the "one system across
+   scales" idea. Fades out for good the first time you engage a node. */
+.hero__coach {
+  position: fixed;
+  left: 50%;
+  bottom: 12svh;
+  z-index: 6;
+  width: min(32rem, calc(100vw - 2 * var(--space-m)));
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(8px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+}
+.hero__coach[data-visible='true'] {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.hero__coach-arrow {
+  display: block;
+  font-size: 1.7rem;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 0.3em;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 60%, transparent));
+  animation: coach-nudge 1.8s var(--ease) infinite;
+}
+.hero__coach-lead {
+  margin: 0 0 0.3em;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.hero__coach-text {
+  margin: 0 auto;
+  max-width: 30ch;
+  font-size: var(--step-0);
+  line-height: 1.45;
+  color: var(--ink);
+  text-wrap: balance;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85), 0 0 3px rgba(0, 0, 0, 0.7);
+}
+.hero__coach-text b {
+  color: var(--accent);
+  font-weight: 700;
+}
+@keyframes coach-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero__coach-arrow {
+    animation: none;
+  }
+}
+
 /* Layer indicator — fixed right; click a step to jump to it. */
 .hero__indicator {
   position: fixed;
@@ -716,22 +779,43 @@ html {
 }
 .hotspot__ring {
   position: relative;
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
   background: var(--hot, var(--accent));
   border: 2px solid rgba(10, 13, 16, 0.85);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--hot, var(--accent)) 55%, transparent), 0 1px 4px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--hot, var(--accent)) 55%, transparent),
+    0 0 10px color-mix(in srgb, var(--hot, var(--accent)) 65%, transparent), 0 1px 4px rgba(0, 0, 0, 0.6);
   flex: none;
+  transition: transform 0.18s var(--ease);
+}
+/* a small glyph marks the dot as openable (+), flips to × once it's open */
+.hotspot__ring::before {
+  content: '+';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 700 12px/1 var(--font-mono);
+  color: rgba(10, 13, 16, 0.92);
+}
+.hotspot[data-open='true'] .hotspot__ring::before {
+  content: '×';
 }
 .hotspot__ring::after {
   content: '';
   position: absolute;
-  inset: -6px;
+  inset: -7px;
   border-radius: 50%;
   border: 1.5px solid var(--hot, var(--accent));
-  animation: hotspot-pulse 2.4s var(--ease) infinite;
+  animation: hotspot-pulse 2.2s var(--ease) infinite;
 }
+.hotspot__dot:hover .hotspot__ring,
+.hotspot__dot:focus-visible .hotspot__ring {
+  transform: scale(1.22);
+}
+/* Labels read by default (light caption) so it's obvious the dots are named,
+   clickable things; on hover/open they gain a solid chip. */
 .hotspot__label {
   position: absolute;
   left: calc(100% + 0.55em);
@@ -740,20 +824,23 @@ html {
   font-size: var(--step--1);
   letter-spacing: 0.04em;
   color: var(--ink);
-  background: color-mix(in srgb, var(--paper) 82%, transparent);
-  border: 1px solid var(--line);
+  background: transparent;
+  border: 1px solid transparent;
   padding: 0.3em 0.65em;
   border-radius: var(--radius-s);
-  opacity: 0;
+  opacity: 0.78;
   pointer-events: none;
-  transform: translate(-4px, -50%);
-  transition: opacity 0.2s var(--ease), transform 0.3s var(--ease);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.7);
+  transform: translate(0, -50%);
+  transition: opacity 0.2s var(--ease), background 0.2s var(--ease), border-color 0.2s var(--ease);
 }
 .hotspot__dot:hover .hotspot__label,
 .hotspot__dot:focus-visible .hotspot__label,
 .hotspot[data-open='true'] .hotspot__label {
   opacity: 1;
-  transform: translate(0, -50%);
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  border-color: var(--line);
+  text-shadow: none;
 }
 
 @keyframes hotspot-pulse {

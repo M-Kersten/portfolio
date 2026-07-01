@@ -15,10 +15,13 @@ const STEPS = [
 
 export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
+  const hoveredSlug = useSceneSelector((s) => s.hoveredSlug);
 
   const stageRef = useRef<HTMLElement>(null);
   const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [topness, setTopness] = useState(1);
+  // The intro coach-mark bows out for good the first time you touch a node.
+  const [engaged, setEngaged] = useState(false);
 
   // Active layer = the panel crossing the viewport centre (robust to short panels).
   useEffect(() => {
@@ -60,7 +63,12 @@ export function HeroStage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (hoveredSlug || selectedSlug) setEngaged(true);
+  }, [hoveredSlug, selectedSlug]);
+
   const opacity = selectedSlug ? 0 : topness;
+  const coachVisible = !engaged && !selectedSlug && topness > 0.9;
 
   return (
     <section id="hero" className="hero" ref={stageRef} aria-label="Introduction">
@@ -68,6 +76,14 @@ export function HeroStage() {
         <h1 className="hero__name">{site.hero.name}</h1>
         <p className="hero__sub">{site.hero.subheading}</p>
         <p className="hero__scrollcue" aria-hidden="true">scroll down, have a poke around ↓</p>
+      </div>
+
+      <div className="hero__coach" data-visible={coachVisible} aria-hidden="true">
+        <span className="hero__coach-arrow">↑</span>
+        <p className="hero__coach-lead">it's all one system</p>
+        <p className="hero__coach-text">
+          chip · room · city — three scales, the same hands. tap a glowing <b>+</b> to dig in, and watch the threads light up between them.
+        </p>
       </div>
 
       {STEPS.map((s) => (

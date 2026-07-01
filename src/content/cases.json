@@ -80,6 +80,22 @@
     "draft": false
   },
   {
+    "slug": "dtt-amsterdam",
+    "title": "DTT Amsterdam",
+    "layer": "city",
+    "client": "DTT",
+    "clientLogo": null,
+    "sector": "Apps · AR/VR",
+    "challenge": "A studio shipping client work in every format under the sun — one week an educational book that plays, the next a VR piece or an AR demo — all of it needing to actually work, not just look good in a pitch.",
+    "built": "I worked across a run of projects here: an interactive edu play book, an OSR VR experience, and an AR sample & showcase app that shows off what the tech can do.",
+    "outcome": "A shelf of shipped AR / VR / app projects",
+    "tech": ["Unity", "AR", "VR", "iOS", "Android"],
+    "lesson": "Bouncing between wildly different projects teaches you to spot the shared bones underneath — the patterns that carry from a playful book straight over to a VR sim.",
+    "live": false,
+    "media": [],
+    "draft": false
+  },
+  {
     "slug": "lightship-drive",
     "title": "Lightship Drive",
     "layer": "room",

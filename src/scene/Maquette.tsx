@@ -404,15 +404,22 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
   );
 }
 
-/** A Dutch windmill (smock mill) with slowly turning sails. */
-function Windmill({ position }: { position: V3 }) {
+/** A Dutch windmill (smock mill). Its sails idle slowly and spin up when its
+ *  hotspot (DTT Amsterdam) is engaged; the body solidifies once visited. */
+function Windmill({ position, slug }: { position: V3; slug?: string }) {
   const sails = useRef<Group>(null);
+  const popRef = useRef<Group>(null);
   const reduced = useReducedMotion();
-  useFrame((s) => {
-    if (sails.current && !reduced) sails.current.rotation.z = s.clock.elapsedTime * 0.5;
+  const { hovered, selected } = useActive(slug ?? '');
+  const spin = useRef(0.5);
+  useFrame((_s, delta) => {
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
+    spin.current += ((hovered || selected ? 2.6 : 0.5) - spin.current) * 0.04;
+    if (sails.current && !reduced) sails.current.rotation.z += delta * spin.current;
   });
   return (
     <group position={position}>
+      <group ref={popRef}>
       {/* grassy mound */}
       <mesh position={[0, 0.03, 0]}>
         <cylinderGeometry args={[0.24, 0.3, 0.06, 20]} />
@@ -421,7 +428,7 @@ function Windmill({ position }: { position: V3 }) {
       {/* tapered octagonal body */}
       <mesh position={[0, 0.34, 0]}>
         <cylinderGeometry args={[0.12, 0.19, 0.56, 8]} />
-        <GlassMat opacity={0.44} />
+        <LiveGlassMat slug={slug ?? ''} opacity={0.44} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* cap */}
@@ -430,7 +437,7 @@ function Windmill({ position }: { position: V3 }) {
         <GlassMat opacity={0.3} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
-      {/* sails — a turning cross on the front face */}
+      {/* sails — a turning cross on the front face; they spin up when engaged */}
       <group ref={sails} position={[0, 0.62, 0.19]}>
         {[0, 1, 2, 3].map((i) => (
           <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
@@ -441,6 +448,7 @@ function Windmill({ position }: { position: V3 }) {
             </mesh>
           </group>
         ))}
+      </group>
       </group>
     </group>
   );
@@ -848,8 +856,8 @@ function CityRig() {
       ))}
       <Skyscraper position={[0, 0, 0]} winMat={winMat} />
 
-      {/* windmill on the side */}
-      <Windmill position={mill.position} />
+      {/* windmill on the side — carries the DTT Amsterdam hotspot */}
+      <Windmill position={mill.position} slug="dtt-amsterdam" />
 
       {/* parks (the first carries the niantic-explorer hotspot — its trees rustle) */}
       <Park position={park.position} rustleSlug="niantic-explorer" />
@@ -1759,6 +1767,7 @@ function ChipRig() {
 function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color: string; onActivate: (h: Hotspot) => void }) {
   const study = caseBySlug(hotspot.slug);
   const label = study?.title ?? hotspot.slug;
+  const { selected } = useActive(hotspot.slug);
   const anchor: V3 = hotspot.anchor ?? [hotspot.position[0], 0, hotspot.position[2]];
   return (
     <group>
@@ -1770,7 +1779,7 @@ function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color
         <meshBasicMaterial color={color} transparent opacity={0.5} side={2} toneMapped={false} />
       </mesh>
       <Html position={hotspot.position} center zIndexRange={[20, 0]} className="hotspot-wrap">
-        <span className="hotspot" style={{ '--hot': color } as CSSProperties}>
+        <span className="hotspot" data-open={selected || undefined} style={{ '--hot': color } as CSSProperties}>
           <button
             type="button"
             className="hotspot__dot"
