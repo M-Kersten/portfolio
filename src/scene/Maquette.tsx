@@ -98,24 +98,21 @@ function useHovered(slug: string) {
   return hovered || selected;
 }
 
-// A springy squash-and-stretch bounce on the rising edge of `selected`, plus a
-// gentle ongoing bob while it stays selected — the picked object springs to life
-// in place. State is stashed on the object's userData so call sites just hand us
-// the group/mesh each frame. Meant for a non-rotated (or yaw-only) object so the
-// stretch runs along world-up; scaling anchors at the object's local origin.
-function bounceObject(obj: Object3D, selected: boolean, reduced: boolean, delta: number, t: number, amp = 0.28) {
+// A springy squash-and-stretch bounce on the rising edge of `selected` — the
+// picked object springs to life in place, then settles back to rest. State is
+// stashed on the object's userData so call sites just hand us the group/mesh each
+// frame. Meant for a non-rotated (or yaw-only) object so the stretch runs along
+// world-up; scaling anchors at the object's local origin.
+function bounceObject(obj: Object3D, selected: boolean, reduced: boolean, delta: number, amp = 0.28) {
   const u = obj.userData;
-  if (u.bBaseY === undefined) u.bBaseY = obj.position.y;
   if (selected && !u.bPrev && !reduced) u.bPop = 1; // trigger on the rising edge
   u.bPrev = selected;
   u.bPop = Math.max(0, (u.bPop ?? 0) - delta * 2.1);
-  u.bSel = (u.bSel ?? 0) + ((selected ? 1 : 0) - (u.bSel ?? 0)) * 0.08;
   // phase 0 at the trigger → 1 as it settles; a decaying cosine gives an initial
-  // stretch that oscillates (stretch → squash → settle).
+  // stretch that oscillates (stretch → squash → settle) back to rest.
   const spring = reduced ? 0 : Math.cos((1 - u.bPop) * Math.PI * 3) * u.bPop;
   const sq = spring * amp;
   obj.scale.set(1 - sq, 1 + sq, 1 - sq);
-  obj.position.y = u.bBaseY + (reduced ? 0 : Math.sin(t * 3) * 0.02 * u.bSel);
 }
 
 /** A subtle vibration — the phone (a gentle buzz, not a rumble). */
@@ -162,7 +159,7 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
   const base = useMemo(() => new Color(col), [col]);
   const lifelike = useMemo(() => new Color(liveColor ?? col), [liveColor, col]);
   useFrame((s, delta) => {
-    if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta, s.clock.elapsedTime);
+    if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta);
     if (!mat.current) return;
     // hover/select → full; visited → a calm lit idle; otherwise off
     const kT = hovered || selected ? 1 : visited ? 0.42 : 0;
@@ -220,7 +217,7 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
     };
   }, []);
   useFrame((s, delta) => {
-    if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta, s.clock.elapsedTime);
+    if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta);
     const m = mat.current;
     if (!m) return;
     k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.3;
@@ -616,8 +613,8 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
     for (let i = 1; i < pts.length; i++) shape.lineTo(pts[i][0], pts[i][2]);
     return { geo: new ShapeGeometry(shape), shore: pts.map((p) => [p[0], 0, -p[2]] as V3) };
   }, []);
-  useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime, 0.14);
+  useFrame((_s, delta) => {
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, 0.14);
   });
   return (
     <group position={position}>
@@ -700,7 +697,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
   useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime, 0.22);
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, 0.22);
     if (!beacon.current) return;
     const t = reduced ? 0 : s.clock.elapsedTime;
     beacon.current.emissiveIntensity = 0.45 + 0.55 * Math.abs(Math.sin(t * 2.1));
@@ -956,8 +953,8 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     g.rotation.y = Math.atan2(b[0] - a[0], b[2] - a[2]);
     g.rotation.x = pitch;
   };
-  useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime);
+  useFrame((_s, delta) => {
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
     k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.1;
     if (!reduced) dist.current += delta * 0.22 * k.current;
     place(car1.current, dist.current);
@@ -1227,8 +1224,8 @@ function Bookcase({ position }: { position: V3 }) {
   const lit = useRef(0);
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
-  useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime, 0.1);
+  useFrame((_s, delta) => {
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, 0.1);
     const t = hovered || selected ? 1 : visited ? 0.3 : 0;
     lit.current += (t - lit.current) * 0.1;
     const e = 0.1 + lit.current * 0.7;
@@ -1402,7 +1399,7 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     return 0;
   };
   useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime);
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
     k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.12;
     live.current += ((selected ? 1 : 0) - live.current) * 0.07; // green only while selected
     if (stripMat.current) {
@@ -1641,7 +1638,7 @@ function LensComponent({ slug, position }: { slug: string; position: V3 }) {
   const k = useRef(0);
   const popRef = useRef<Group>(null);
   useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime);
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
     k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.12;
     if (mat.current) {
       const breathe = reduced ? 0 : Math.sin(s.clock.elapsedTime * 2.2) * 0.06;

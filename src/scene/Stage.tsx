@@ -31,13 +31,17 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
   const scene = useThree((s) => s.scene);
   const d = useRef(0);
   const accentHex = (selected && LAYER_ACCENT[caseBySlug(selected)?.layer ?? '']) || RIM_HEX;
-  const accent = useMemo(() => new Color(accentHex), [accentHex]);
   const bg = useMemo(() => new Color(BG_HEX), []);
   const rim = useMemo(() => new Color(RIM_HEX), []);
+  // Latched: only refreshed while a node is selected, so the fade-out holds the
+  // last layer colour instead of snapping to the cyan default and flashing blue
+  // on the way back to black.
+  const accent = useMemo(() => new Color(RIM_HEX), []);
   useFrame(() => {
     const target = selected ? 1 : 0;
     d.current += (target - d.current) * (reduced ? 1 : 0.07);
     const k = d.current;
+    if (selected) accent.set(accentHex);
     if (hemi.current) hemi.current.intensity = 0.35 * (1 - 0.72 * k);
     if (dir1.current) dir1.current.intensity = 1.1 * (1 - 0.66 * k);
     if (dir2.current) {
