@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, MeshTransmissionMaterial, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Points as ThreePoints, type Texture } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { useTweak } from './devTweak';
 import { sceneStore, useSceneSelector } from './store';
@@ -98,13 +98,24 @@ function useHovered(slug: string) {
   return hovered || selected;
 }
 
-// One-shot scale-pop on the rising edge of `selected` — a quick acknowledging
-// bump when you click an object. Returns the scale to apply this frame.
-function popScale(pop: { current: number }, prev: { current: boolean }, selected: boolean, reduced: boolean, delta: number, amount = 0.16) {
-  if (selected && !prev.current && !reduced) pop.current = 1;
-  prev.current = selected;
-  pop.current = Math.max(0, pop.current - delta * 3.5);
-  return 1 + Math.sin(pop.current * Math.PI) * amount;
+// A springy squash-and-stretch bounce on the rising edge of `selected`, plus a
+// gentle ongoing bob while it stays selected — the picked object springs to life
+// in place. State is stashed on the object's userData so call sites just hand us
+// the group/mesh each frame. Meant for a non-rotated (or yaw-only) object so the
+// stretch runs along world-up; scaling anchors at the object's local origin.
+function bounceObject(obj: Object3D, selected: boolean, reduced: boolean, delta: number, t: number, amp = 0.28) {
+  const u = obj.userData;
+  if (u.bBaseY === undefined) u.bBaseY = obj.position.y;
+  if (selected && !u.bPrev && !reduced) u.bPop = 1; // trigger on the rising edge
+  u.bPrev = selected;
+  u.bPop = Math.max(0, (u.bPop ?? 0) - delta * 2.1);
+  u.bSel = (u.bSel ?? 0) + ((selected ? 1 : 0) - (u.bSel ?? 0)) * 0.08;
+  // phase 0 at the trigger → 1 as it settles; a decaying cosine gives an initial
+  // stretch that oscillates (stretch → squash → settle).
+  const spring = reduced ? 0 : Math.cos((1 - u.bPop) * Math.PI * 3) * u.bPop;
+  const sq = spring * amp;
+  obj.scale.set(1 - sq, 1 + sq, 1 - sq);
+  obj.position.y = u.bBaseY + (reduced ? 0 : Math.sin(t * 3) * 0.02 * u.bSel);
 }
 
 /** A subtle vibration — the phone (a gentle buzz, not a rumble). */
@@ -146,14 +157,12 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
   const meshRef = useRef<Mesh>(null);
-  const pop = useRef(0);
-  const popped = useRef(false);
   const k = useRef(0);
   const live = useRef(0);
   const base = useMemo(() => new Color(col), [col]);
   const lifelike = useMemo(() => new Color(liveColor ?? col), [liveColor, col]);
   useFrame((s, delta) => {
-    if (meshRef.current) meshRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
+    if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta, s.clock.elapsedTime);
     if (!mat.current) return;
     // hover/select → full; visited → a calm lit idle; otherwise off
     const kT = hovered || selected ? 1 : visited ? 0.42 : 0;
@@ -191,8 +200,6 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
   const meshRef = useRef<Mesh>(null);
-  const pop = useRef(0);
-  const popped = useRef(false);
   const k = useRef(0);
   const shown = useRef(false);
   const [tex, setTex] = useState<Texture | null>(null);
@@ -213,7 +220,7 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
     };
   }, []);
   useFrame((s, delta) => {
-    if (meshRef.current) meshRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
+    if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta, s.clock.elapsedTime);
     const m = mat.current;
     if (!m) return;
     k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.3;
@@ -601,8 +608,6 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
   const live = selected || visited;
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
-  const pop = useRef(0);
-  const popped = useRef(false);
   // an irregular lake outline + its filled water shape
   const lake = useMemo(() => {
     const pts = blobPts(0.2, 0.5, 56, 13);
@@ -611,8 +616,8 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
     for (let i = 1; i < pts.length; i++) shape.lineTo(pts[i][0], pts[i][2]);
     return { geo: new ShapeGeometry(shape), shore: pts.map((p) => [p[0], 0, -p[2]] as V3) };
   }, []);
-  useFrame((_s, delta) => {
-    if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta, 0.1));
+  useFrame((s, delta) => {
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime, 0.14);
   });
   return (
     <group position={position}>
@@ -690,15 +695,19 @@ const TOWER_TOP = 1.01; // top of the highest tier (0.81 + 0.2)
 
 function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardMaterial }) {
   const { accent } = useAccent();
+  const { selected } = useActive('alliander-hololens');
   const beacon = useRef<MeshStandardMaterial>(null);
   const reduced = useReducedMotion();
-  useFrame((s) => {
+  const popRef = useRef<Group>(null);
+  useFrame((s, delta) => {
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime, 0.22);
     if (!beacon.current) return;
     const t = reduced ? 0 : s.clock.elapsedTime;
     beacon.current.emissiveIntensity = 0.45 + 0.55 * Math.abs(Math.sin(t * 2.1));
   });
   return (
     <group position={position}>
+      <group ref={popRef}>
       {TOWER_TIERS.map((tr, i) => (
         <group key={i} rotation={[0, tr.rot, 0]}>
           <mesh position={[0, tr.base + tr.h / 2, 0]}>
@@ -735,6 +744,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
         <sphereGeometry args={[0.016, 12, 12]} />
         <meshStandardMaterial ref={beacon} color={accent} emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
       </mesh>
+      </group>
     </group>
   );
 }
@@ -925,8 +935,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const k = useRef(0);
   const dist = useRef(0.3); // park the cars away from the ramp at rest
   const popRef = useRef<Group>(null);
-  const pop = useRef(0);
-  const popped = useRef(false);
   // the ramp sits on the loop at JUMP_FR, oriented along the track there
   const ramp = useMemo(() => {
     const n = track.length;
@@ -948,8 +956,8 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     g.rotation.y = Math.atan2(b[0] - a[0], b[2] - a[2]);
     g.rotation.x = pitch;
   };
-  useFrame((_s, delta) => {
-    if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
+  useFrame((s, delta) => {
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime);
     k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.1;
     if (!reduced) dist.current += delta * 0.22 * k.current;
     place(car1.current, dist.current);
@@ -1217,7 +1225,10 @@ function Bookcase({ position }: { position: V3 }) {
   const { hovered, selected, visited } = useActive('zwijsen-ar-books');
   const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
   const lit = useRef(0);
-  useFrame(() => {
+  const reduced = useReducedMotion();
+  const popRef = useRef<Group>(null);
+  useFrame((s, delta) => {
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime, 0.1);
     const t = hovered || selected ? 1 : visited ? 0.3 : 0;
     lit.current += (t - lit.current) * 0.1;
     const e = 0.1 + lit.current * 0.7;
@@ -1225,6 +1236,7 @@ function Bookcase({ position }: { position: V3 }) {
   });
   return (
     <group position={position}>
+      <group ref={popRef}>
       {/* case frame: back, sides, top, base */}
       <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} />
       <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} />
@@ -1273,6 +1285,7 @@ function Bookcase({ position }: { position: V3 }) {
         </mesh>
       </group>
       <OpenBook slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} />
+      </group>
     </group>
   );
 }
@@ -1380,8 +1393,6 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const dot = useRef<Mesh>(null);
   const k = useRef(0);
   const popRef = useRef<Group>(null);
-  const pop = useRef(0);
-  const popped = useRef(false);
   const yAtX = (x: number) => {
     for (let i = 0; i < ecg.length - 1; i++) {
       const [x0, y0] = ecg[i];
@@ -1391,7 +1402,7 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     return 0;
   };
   useFrame((s, delta) => {
-    if (popRef.current) popRef.current.scale.setScalar(popScale(pop, popped, selected, reduced, delta));
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime);
     k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.12;
     live.current += ((selected ? 1 : 0) - live.current) * 0.07; // green only while selected
     if (stripMat.current) {
@@ -1628,7 +1639,9 @@ function LensComponent({ slug, position }: { slug: string; position: V3 }) {
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
-  useFrame((s) => {
+  const popRef = useRef<Group>(null);
+  useFrame((s, delta) => {
+    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, s.clock.elapsedTime);
     k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.12;
     if (mat.current) {
       const breathe = reduced ? 0 : Math.sin(s.clock.elapsedTime * 2.2) * 0.06;
@@ -1637,6 +1650,7 @@ function LensComponent({ slug, position }: { slug: string; position: V3 }) {
   });
   return (
     <group position={position}>
+      <group ref={popRef}>
       {/* barrel */}
       <mesh position={[0, 0.05, 0]}>
         <cylinderGeometry args={[0.075, 0.082, 0.1, 28]} />
@@ -1656,6 +1670,7 @@ function LensComponent({ slug, position }: { slug: string; position: V3 }) {
       {/* lens element rings */}
       <Line points={circlePts(0.055, 28)} position={[0, 0.119, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
       <Line points={circlePts(0.03, 20)} position={[0, 0.127, 0]} color="#7fe6ff" lineWidth={1.2} transparent opacity={0.6} />
+      </group>
     </group>
   );
 }
