@@ -714,10 +714,11 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   return (
     <group position={position}>
       <group ref={popRef}>
-        {/* one continuous tapered octagonal glass shaft */}
+        {/* one continuous tapered octagonal shaft — same refractive glass as the
+            surrounding towers so it sits in the skyline, set apart by its shape */}
         <mesh position={[0, TOWER_H / 2, 0]}>
           <cylinderGeometry args={[TOWER_R_TOP, TOWER_R_BOT, TOWER_H, TOWER_SIDES]} />
-          <LiveGlassMat slug="alliander-hololens" opacity={0.4} />
+          <CityGlass thickness={TOWER_R_BOT * 2} />
           <Edges threshold={15} color={NEUTRAL} />
         </mesh>
         {/* full-height mullion fins along the eight edges */}
@@ -744,7 +745,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
             mast + a slow-pulsing beacon — a tower crown, not a spike */}
         <mesh position={[0, TOWER_H + 0.05, 0]}>
           <cylinderGeometry args={[0.055, TOWER_R_TOP, 0.1, TOWER_SIDES]} />
-          <GlassMat opacity={0.34} />
+          <CityGlass thickness={0.12} />
           <Edges threshold={15} color={NEUTRAL} />
         </mesh>
         <mesh position={[0, TOWER_H + 0.15, 0]}>
