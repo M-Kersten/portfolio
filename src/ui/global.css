@@ -1745,10 +1745,13 @@ html {
   display: grid;
   gap: var(--space-l);
 }
-/* Scroll-scrubbed portrait — five stacked frames, the active one faded in. */
+/* Scroll-scrubbed portrait — five stacked frames, the active one faded in.
+   Kept compact so the bio + facts still read in one view. */
 .about__portrait {
   position: relative;
   margin: 0;
+  width: 100%;
+  max-width: 250px;
   aspect-ratio: 4 / 5;
   border-radius: var(--radius);
   overflow: hidden;

@@ -21,14 +21,17 @@ function AboutPortrait() {
     }
     // Polled on a rAF loop rather than scroll events (which fire unreliably for
     // isolated jumps) — one cheap rect read per frame; setFrame bails if stable.
+    // Cycling starts once the portrait's centre has risen past START (a bit up
+    // from the bottom edge) and finishes at the middle, so the flip-through is
+    // quick and obvious rather than a slow drift.
+    const START = 0.82;
+    const END = 0.5;
     let raf = 0;
     const loop = () => {
       const r = box.getBoundingClientRect();
       const cy = r.top + r.height / 2;
       const vh = window.innerHeight;
-      // 0 when the portrait's centre sits at the bottom of the viewport, 1 when
-      // it reaches the middle (and it holds there as you scroll further up).
-      const p = Math.min(1, Math.max(0, (vh - cy) / (vh / 2)));
+      const p = Math.min(1, Math.max(0, (START * vh - cy) / ((START - END) * vh)));
       setFrame(Math.min(PORTRAITS - 1, Math.floor(p * PORTRAITS)));
       raf = requestAnimationFrame(loop);
     };
