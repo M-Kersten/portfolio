@@ -42,14 +42,14 @@ export const HOTSPOTS: Hotspot[] = [
   { slug: 'custom-ar-framework', layer: 'chip', position: [0.92, 0.5, 0.62], anchor: [0.92, 0.2, 0.62] }, // a component
   { slug: 'philips-medical-xr', layer: 'chip', position: [0.95, 0.54, -0.72], anchor: [0.95, 0.24, -0.72] }, // ECG / Vision Pro module
   // Room — spread into a corner diorama
-  { slug: 'virtuele-brigade', layer: 'room', position: [-1.08, 1.08, 0.14], anchor: [-1.08, 0.78, 0.14] }, // the monitor
-  { slug: 'popcore-games', layer: 'room', position: [0.12, 0.54, -0.26], anchor: [0.12, 0.24, -0.26] }, // phone on the couch
-  { slug: 'lightship-drive', layer: 'room', position: [0, 0.62, 0.52], anchor: [0, 0.28, 0.52] }, // the AR race table
-  { slug: 'zwijsen-ar-books', layer: 'room', position: [1.02, 0.95, -0.78], anchor: [1.02, 0.52, -0.78] }, // the orange book on the shelf
+  { slug: 'virtuele-brigade', layer: 'room', position: [-1.8, 0.95, 0.14], anchor: [-1.8, 0.65, 0.14] }, // the monitor
+  { slug: 'popcore-games', layer: 'room', position: [0.23, 0.62, -0.14], anchor: [0.23, 0.22, -0.14] }, // phone on the couch
+  { slug: 'lightship-drive', layer: 'room', position: [0, 0.52, 0.52], anchor: [0, 0.2, 0.52] }, // the AR race table
+  { slug: 'zwijsen-ar-books', layer: 'room', position: [1.02, 1.1, -0.78], anchor: [1.02, 0.52, -0.78] }, // the orange book on the shelf
   // City — GIS / location work
-  { slug: 'niantic-explorer', layer: 'city', position: [1.05, 0.46, -0.72], anchor: [1.05, 0.06, -0.72] }, // the park
-  { slug: 'alliander-hololens', layer: 'city', position: [0, 1.15, 0], anchor: [0, 0.55, 0] }, // the skyscraper (skyline peak)
-  { slug: 'dtt-amsterdam', layer: 'city', position: [-1.2, 1.3, 0.5], anchor: [-1.2, 0.7, 0.5] }, // the windmill
+  { slug: 'niantic-explorer', layer: 'city', position: [1.25, 0.56, -0.22], anchor: [1.25, 0.0, -0.22] }, // the park
+  { slug: 'alliander-hololens', layer: 'city', position: [0, 1.0, 0], anchor: [0, 0.55, 0] }, // the skyscraper (skyline peak)
+  { slug: 'dtt-amsterdam', layer: 'city', position: [-1.2, 1.15, 0.5], anchor: [-1.2, 0.7, 0.5] }, // the windmill
 ];
 
 export interface Framing {

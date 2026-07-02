@@ -5,7 +5,6 @@ export function About() {
   return (
     <section id="about" className="section">
       <div className="container">
-        <p className="section__eyebrow">{a.eyebrow}</p>
         <h2 className="section__title">{a.title}</h2>
 
         <div className="about__grid">

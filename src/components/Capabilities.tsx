@@ -6,7 +6,6 @@ export function Capabilities() {
   return (
     <section id="capabilities" className="section">
       <div className="container">
-        <p className="section__eyebrow">{capabilitiesIntro.eyebrow}</p>
         <h2 className="section__title">{capabilitiesIntro.title}</h2>
         <p className="section__lead">{capabilitiesIntro.lead}</p>
 
