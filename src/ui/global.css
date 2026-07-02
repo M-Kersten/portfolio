@@ -1053,19 +1053,6 @@ html {
   color: var(--ink);
   letter-spacing: 0.14em;
 }
-/* A little pulsing "lock" dot for the tracking read-out. */
-.wall__hud-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent);
-  animation: hud-pulse 1.6s var(--ease) infinite;
-}
-@keyframes hud-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
-}
 .wall[data-reduced] .wall__hud { display: none; }
 
 /* Hand-scrawled dev-humour notes scattered in the empty wall gaps. */

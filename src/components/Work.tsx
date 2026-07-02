@@ -34,9 +34,6 @@ const NOTES = [
   "it works, we don't ask why",
 ];
 
-// The HUD's rotating "system status" line — pure flavour.
-const QUIPS = ['nominal', 'caffeinated', 'shipping it', 'do not perceive me', '99 problems', 'it compiles', 'trust the process'];
-
 interface Slot {
   left: number;
   topPct: number;
@@ -267,17 +264,6 @@ export function Work() {
     };
   }, [reduced, wall.width, n]);
 
-  // Cycle the HUD's "system status" quip for a bit of life.
-  useEffect(() => {
-    if (reduced) return;
-    let i = 0;
-    const id = window.setInterval(() => {
-      i = (i + 1) % QUIPS.length;
-      hudRef.current?.querySelector('[data-k="status"]')?.replaceChildren(QUIPS[i]);
-    }, 2600);
-    return () => window.clearInterval(id);
-  }, [reduced]);
-
   const openStudy = open ? caseBySlug(open) : undefined;
 
   return (
@@ -383,15 +369,6 @@ export function Work() {
             <span className="wall__hud-row">
               <b>CURSOR</b>
               <span data-k="cursor">X:0000 Y:0000</span>
-            </span>
-            <span className="wall__hud-row wall__hud-track">
-              <b>TRACK</b>
-              <span className="wall__hud-dot" />
-              <span>6DoF lock</span>
-            </span>
-            <span className="wall__hud-row">
-              <b>SYS</b>
-              <span data-k="status">nominal</span>
             </span>
           </div>
         </div>
