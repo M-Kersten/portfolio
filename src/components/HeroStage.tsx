@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { site } from '../content';
 import { sceneStore, useSceneSelector } from '../scene/store';
 
@@ -15,7 +15,11 @@ const STEPS = [
 export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const journeyStep = useSceneSelector((s) => s.journeyStep);
+  const heroRef = useRef<HTMLElement>(null);
   const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
+  // Whether the hero itself is on screen — guards against `journeyStep` going
+  // stale (e.g. an anchor jump straight to the wall never crosses a panel).
+  const [heroInView, setHeroInView] = useState(true);
 
   // Active layer = the panel crossing the viewport centre (robust to short panels).
   useEffect(() => {
@@ -33,11 +37,20 @@ export function HeroStage() {
     return () => io.disconnect();
   }, []);
 
-  // Title lives only on the City layer; it clears the moment you scroll to Room.
-  const opacity = selectedSlug ? 0 : journeyStep === 0 ? 1 : 0;
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero) return;
+    const io = new IntersectionObserver(([e]) => setHeroInView(e.isIntersecting), { threshold: 0 });
+    io.observe(hero);
+    return () => io.disconnect();
+  }, []);
+
+  // Title lives only on the City layer (and only while the hero is on screen);
+  // it clears the moment you scroll to Room or leave the hero entirely.
+  const opacity = selectedSlug ? 0 : heroInView && journeyStep === 0 ? 1 : 0;
 
   return (
-    <section id="hero" className="hero" aria-label="Introduction">
+    <section id="hero" className="hero" ref={heroRef} aria-label="Introduction">
       <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
         <h1 className="hero__name">{site.hero.name}</h1>
         <p className="hero__sub">{site.hero.subheading}</p>

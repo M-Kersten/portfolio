@@ -16,7 +16,10 @@ function mulberry32(seed: number) {
 }
 
 const CARD_W = 320;
-const HANG_PCT = 3.4; // the string hangs this % of the plane above each card's top
+// The wall plane is taller than the viewport, so scrolling pans it down as well
+// as across — you ride diagonally past the pictures rather than straight sideways
+// (2× viewport tall ⇒ a full viewport of descent over the scroll).
+const PLANE_VH = 2;
 
 interface Slot {
   left: number;
@@ -27,28 +30,29 @@ interface Slot {
 interface Wall {
   width: number;
   slots: Slot[];
-  string: string; // SVG path (viewBox 0 0 width 1000) — the garland the cards clip to
+  string: string; // SVG path (viewBox 0 0 width 1000) — the wire the cards pin to
 }
 
-// Lay the cards out top-left → bottom-right along a widely jittered diagonal, so
-// it reads like a hand-hung wall of paintings rather than a tidy line — but all
-// kept within the viewport band so nothing needs vertical scrolling. Then thread
-// a slack "string" through a hang point just above each card.
+// Lay the cards out top-left → bottom-right across the whole (tall + wide) plane,
+// widely jittered so it reads like a hand-hung wall of paintings. Then thread a
+// wire that pins to each card's top edge, sagging gently between the pins.
 function buildWall(n: number): Wall {
   const rnd = mulberry32(9137);
   const slots: Slot[] = [];
   let x = 56;
   for (let i = 0; i < n; i++) {
     const t = n > 1 ? i / (n - 1) : 0;
-    const topPct = Math.min(50, Math.max(3, 4 + t * 40 + (rnd() * 2 - 1) * 13));
+    // Descend across the full plane height (kept clear of the very bottom so the
+    // last cards land fully in view at the end of the scroll).
+    const topPct = Math.min(74, Math.max(4, 6 + t * 60 + (rnd() * 2 - 1) * 9));
     slots.push({ left: x, topPct, rot: (rnd() * 2 - 1) * 4.6 });
     x += CARD_W + 80 + rnd() * 150; // advance with a little jitter, wider gaps
   }
   const width = x + 48;
 
-  // Hang points sit just above each card's top-centre; y is per-mille of the
-  // plane height (topPct * 10) so the SVG can share a width × 1000 viewBox.
-  const hp = slots.map((s) => ({ x: s.left + CARD_W / 2, y: (s.topPct - HANG_PCT) * 10 }));
+  // Pin points sit right on each card's top-centre; y is per-mille of the plane
+  // height (topPct * 10) so the SVG can share a width × 1000 viewBox.
+  const hp = slots.map((s) => ({ x: s.left + CARD_W / 2, y: s.topPct * 10 }));
   let string = '';
   hp.forEach((p, i) => {
     if (i === 0) {
@@ -57,8 +61,8 @@ function buildWall(n: number): Wall {
     }
     const prev = hp[i - 1];
     const midX = (prev.x + p.x) / 2;
-    const sag = Math.min(48, Math.max(16, (p.x - prev.x) * 0.06)); // longer gap → deeper sag
-    const midY = Math.max(prev.y, p.y) + sag;
+    const sag = Math.min(60, Math.max(18, (p.x - prev.x) * 0.05)); // wider gap → deeper sag
+    const midY = (prev.y + p.y) / 2 + sag;
     string += ` Q ${midX.toFixed(1)} ${midY.toFixed(1)} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
   });
 
@@ -181,8 +185,9 @@ export function Work() {
       if (!el || !plane) return;
       const scrollable = el.offsetHeight - window.innerHeight;
       const p = scrollable > 0 ? Math.min(1, Math.max(0, -el.getBoundingClientRect().top / scrollable)) : 0;
-      const maxOffset = Math.max(0, wall.width - window.innerWidth);
-      plane.style.transform = `translate3d(${-(p * maxOffset)}px, 0, 0)`;
+      const maxX = Math.max(0, wall.width - window.innerWidth);
+      const maxY = Math.max(0, plane.offsetHeight - window.innerHeight);
+      plane.style.transform = `translate3d(${-(p * maxX)}px, ${-(p * maxY)}px, 0)`;
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
@@ -213,7 +218,11 @@ export function Work() {
         style={reduced ? undefined : { height: `calc(100svh + ${wall.width}px - 100vw)` }}
       >
         <div className="wall__pin">
-          <div className="wall__plane" ref={planeRef} style={{ width: `${wall.width}px` }}>
+          <div
+            className="wall__plane"
+            ref={planeRef}
+            style={{ width: `${wall.width}px`, height: `${PLANE_VH * 100}svh` }}
+          >
             <svg
               className="wall__string"
               viewBox={`0 0 ${wall.width} 1000`}
@@ -230,7 +239,7 @@ export function Work() {
                 style={
                   {
                     left: `${wall.slots[i].left + CARD_W / 2}px`,
-                    top: `${wall.slots[i].topPct - HANG_PCT}%`,
+                    top: `${wall.slots[i].topPct}%`,
                     '--knot': accentFor(study.slug),
                   } as CSSProperties
                 }
