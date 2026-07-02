@@ -993,22 +993,37 @@ html {
   pointer-events: none;
 }
 .wall__grid line {
-  stroke: color-mix(in srgb, var(--ink) 7%, transparent);
+  stroke: color-mix(in srgb, var(--ink) 5%, transparent);
   stroke-width: 1px;
 }
 .wall__contour {
   fill: none;
-  stroke: color-mix(in srgb, var(--cyan) 15%, transparent);
+  stroke: color-mix(in srgb, var(--cyan) 9%, transparent);
   stroke-width: 1px;
 }
 .wall__coast {
   fill: none;
-  stroke: color-mix(in srgb, var(--cyan) 26%, transparent);
-  stroke-width: 1.4px;
+  stroke: color-mix(in srgb, var(--cyan) 16%, transparent);
+  stroke-width: 1.2px;
   stroke-linecap: round;
 }
 .wall__water {
-  fill: color-mix(in srgb, var(--cyan) 6%, transparent);
+  fill: color-mix(in srgb, var(--cyan) 4%, transparent);
+}
+/* Rivers winding out of the mountains to the sea. */
+.wall__river {
+  fill: none;
+  stroke: color-mix(in srgb, var(--cyan) 13%, transparent);
+  stroke-width: 1.1px;
+  stroke-linecap: round;
+}
+/* Meandering footpaths across the land. */
+.wall__path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 11%, transparent);
+  stroke-width: 1px;
+  stroke-dasharray: 3 7;
+  stroke-linecap: round;
 }
 .wall__string {
   position: absolute;
@@ -1018,12 +1033,12 @@ html {
   overflow: visible;
   pointer-events: none;
 }
-/* The route threaded between the survey markers — a dashed map trail. */
+/* The route threaded between the tiles — a faint dashed map trail. */
 .wall__wire {
   fill: none;
-  stroke: color-mix(in srgb, var(--ink) 26%, transparent);
-  stroke-width: 1.1px;
-  stroke-dasharray: 5 5;
+  stroke: color-mix(in srgb, var(--ink) 17%, transparent);
+  stroke-width: 1px;
+  stroke-dasharray: 5 6;
   stroke-linecap: round;
 }
 /* A bright data packet that fires down the wire into a hovered tile. */
@@ -1106,46 +1121,6 @@ html {
 }
 .wall[data-reduced] .wall__hud { display: none; }
 
-/* Compass rose, docked bottom-left of the pinned map (above the scroll cue). */
-.wall__compass {
-  position: absolute;
-  left: var(--space-m);
-  bottom: calc(var(--space-l) + 2.6rem);
-  z-index: 6;
-  width: 46px;
-  height: 46px;
-  pointer-events: none;
-}
-.wall__compass svg {
-  width: 100%;
-  height: 100%;
-}
-.wall__compass circle {
-  fill: color-mix(in srgb, #05070a 45%, transparent);
-  stroke: color-mix(in srgb, var(--ink) 26%, transparent);
-  stroke-width: 1px;
-}
-.wall__compass line {
-  stroke: color-mix(in srgb, var(--ink) 18%, transparent);
-  stroke-width: 1px;
-}
-.wall__compass polygon {
-  fill: var(--ink-40);
-}
-.wall__compass .wall__compass-n {
-  fill: var(--cyan);
-}
-.wall__compass span {
-  position: absolute;
-  top: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--cyan);
-}
-.wall[data-reduced] .wall__compass { display: none; }
-
 /* Map labels scattered in the empty gaps: feature names, surveyor's marginalia
    and grid references. */
 .wall__label {
@@ -1159,23 +1134,23 @@ html {
 .wall__label--place {
   font-family: var(--font-body);
   font-style: italic;
-  font-size: 15px;
+  font-size: 14px;
   letter-spacing: 0.08em;
-  color: color-mix(in srgb, var(--cyan) 44%, var(--ink-40));
+  color: color-mix(in srgb, var(--cyan) 32%, var(--ink-40));
 }
 /* Surveyor's marginalia — mono, like a code comment in the margin. */
 .wall__label--note {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.02em;
-  color: color-mix(in srgb, var(--ink) 34%, transparent);
+  color: color-mix(in srgb, var(--ink) 26%, transparent);
 }
 /* Grid references — tiny, faint, tabular. */
 .wall__label--coord {
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.14em;
-  color: color-mix(in srgb, var(--ink) 24%, transparent);
+  color: color-mix(in srgb, var(--ink) 18%, transparent);
 }
 
 /* Razor-thin scanner-frame brackets around the viewport (clear of the header). */
@@ -1196,27 +1171,6 @@ html {
 .wall__frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
 .wall__frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
 .wall[data-reduced] .wall__frame { display: none; }
-/* Survey marker sat on each tile's top edge — a crosshair ring, tinted to the
-   card, like a triangulation point on a map. */
-.wall__knot {
-  position: absolute;
-  width: 13px;
-  height: 13px;
-  margin: -6.5px 0 0 -6.5px;
-  border-radius: 50%;
-  border: 1px solid var(--knot, var(--ink-40));
-  box-shadow: 0 0 8px -2px var(--knot, var(--ink-40));
-  pointer-events: none;
-  z-index: 2;
-}
-.wall__knot::before,
-.wall__knot::after {
-  content: '';
-  position: absolute;
-  background: var(--knot, var(--ink-40));
-}
-.wall__knot::before { left: 50%; top: -3px; bottom: -3px; width: 1px; margin-left: -0.5px; }
-.wall__knot::after { top: 50%; left: -3px; right: -3px; height: 1px; margin-top: -0.5px; }
 /* Reduced-motion fallback: no scroll-jack — pan the (2D) wall by hand. */
 .wall[data-reduced] .wall__scroll { height: auto; }
 .wall[data-reduced] .wall__pin {

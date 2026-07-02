@@ -125,16 +125,30 @@ function smoothClosed(pts: number[][]): string {
   return d + ' Z';
 }
 
-function buildMap(): { contours: string; coast: string; water: string } {
+// Smooth open curve through points (for coastline, rivers, paths).
+function smoothOpen(pts: number[][]): string {
+  let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const m = mid(pts[i - 1], pts[i]);
+    d += ` Q ${pts[i - 1][0].toFixed(1)} ${pts[i - 1][1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`;
+  }
+  const last = pts[pts.length - 1];
+  return `${d} L ${last[0].toFixed(1)} ${last[1].toFixed(1)}`;
+}
+
+function buildMap(): { contours: string; coast: string; water: string; rivers: string; paths: string } {
   const rnd = mulberry32(7311);
   const ring = (cx: number, cy: number, r: number, offs: number[]) =>
     smoothClosed(offs.map((o, i) => [cx + Math.cos((i / offs.length) * Math.PI * 2) * r * o, cy + Math.sin((i / offs.length) * Math.PI * 2) * r * o]));
 
+  const COAST_Y = 660;
   let contours = '';
   const peaks = 6;
+  const peakPos: number[][] = [];
   for (let p = 0; p < peaks; p++) {
     const cx = 220 + (p / (peaks - 1)) * (MAP_VBW - 440) + (rnd() * 2 - 1) * 110;
-    const cy = 210 + rnd() * 560;
+    const cy = 210 + rnd() * 380; // keep peaks on the land side
+    peakPos.push([cx, cy]);
     const baseR = 120 + rnd() * 150;
     const offs = Array.from({ length: 20 }, () => 1 + (rnd() * 2 - 1) * 0.16); // shared wobble → concentric rings
     const rings = 3 + Math.floor(rnd() * 2);
@@ -143,15 +157,40 @@ function buildMap(): { contours: string; coast: string; water: string } {
 
   const cn = 10;
   const cpts: number[][] = [];
-  for (let i = 0; i <= cn; i++) cpts.push([(i / cn) * MAP_VBW, 660 + Math.sin(i * 1.1) * 70 + (rnd() * 2 - 1) * 55]);
-  let coast = `M ${cpts[0][0].toFixed(0)} ${cpts[0][1].toFixed(0)}`;
-  for (let i = 1; i < cpts.length; i++) {
-    const m = mid(cpts[i - 1], cpts[i]);
-    coast += ` Q ${cpts[i - 1][0].toFixed(0)} ${cpts[i - 1][1].toFixed(0)} ${m[0].toFixed(0)} ${m[1].toFixed(0)}`;
-  }
-  coast += ` L ${cpts[cn][0].toFixed(0)} ${cpts[cn][1].toFixed(0)}`;
+  for (let i = 0; i <= cn; i++) cpts.push([(i / cn) * MAP_VBW, COAST_Y + Math.sin(i * 1.1) * 70 + (rnd() * 2 - 1) * 55]);
+  const coast = smoothOpen(cpts);
   const water = `${coast} L ${MAP_VBW} ${MAP_VBH} L 0 ${MAP_VBH} Z`;
-  return { contours, coast, water };
+
+  // Rivers wind down out of the mountains to the sea.
+  let rivers = '';
+  for (let r = 0; r < 3; r++) {
+    const src = peakPos[1 + Math.floor(rnd() * (peaks - 1))];
+    let x = src[0] + (rnd() * 2 - 1) * 60;
+    let y = src[1] + 40;
+    const pts = [[x, y]];
+    const steps = 6 + Math.floor(rnd() * 3);
+    for (let s = 1; s <= steps; s++) {
+      x += (rnd() * 2 - 1) * 150;
+      y += (COAST_Y + 30 - y) / (steps - s + 1) + (rnd() * 2 - 1) * 24;
+      pts.push([x, y]);
+    }
+    rivers += smoothOpen(pts) + ' ';
+  }
+
+  // A couple of meandering footpaths across the land.
+  let paths = '';
+  for (let p = 0; p < 2; p++) {
+    let y = 190 + rnd() * 260;
+    const pts = [[0, y]];
+    const steps = 9;
+    for (let s = 1; s <= steps; s++) {
+      y = Math.max(110, Math.min(600, y + (rnd() * 2 - 1) * 130));
+      pts.push([(s / steps) * MAP_VBW, y]);
+    }
+    paths += smoothOpen(pts) + ' ';
+  }
+
+  return { contours, coast, water, rivers, paths };
 }
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
@@ -379,7 +418,9 @@ export function Work() {
                 ))}
               </g>
               <path className="wall__contour" d={map.contours} />
+              <path className="wall__path" d={map.paths} />
               <path className="wall__coast" d={map.coast} />
+              <path className="wall__river" d={map.rivers} />
             </svg>
             <svg
               className="wall__string"
@@ -395,20 +436,6 @@ export function Work() {
                 </circle>
               )}
             </svg>
-            {ordered.map((study, i) => (
-              <span
-                key={`knot-${study.slug}`}
-                className="wall__knot"
-                aria-hidden="true"
-                style={
-                  {
-                    left: `${wall.slots[i].left + CARD_W / 2}px`,
-                    top: `${wall.slots[i].topPct}%`,
-                    '--knot': accentFor(study.slug),
-                  } as CSSProperties
-                }
-              />
-            ))}
             {labels.map((a, i) => (
               <span
                 key={`lbl-${i}`}
@@ -442,17 +469,6 @@ export function Work() {
             <i />
             <i />
             <i />
-          </div>
-          {/* Compass rose. */}
-          <div className="wall__compass" aria-hidden="true">
-            <svg viewBox="0 0 44 44">
-              <circle cx="22" cy="22" r="19" />
-              <line x1="22" y1="5" x2="22" y2="39" />
-              <line x1="5" y1="22" x2="39" y2="22" />
-              <polygon className="wall__compass-n" points="22,6 26,22 22,18 18,22" />
-              <polygon points="22,38 18,22 22,26 26,22" />
-            </svg>
-            <span>N</span>
           </div>
           {/* Basemap legend / render layers — part instrument, part joke. */}
           <div className="wall__hud" ref={hudRef} aria-hidden="true">
