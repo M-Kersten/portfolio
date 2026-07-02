@@ -17,8 +17,6 @@ export function CaseCard({ study, onOpen, style }: { study: CaseStudy; onOpen: (
   const [imgOk, setImgOk] = useState(true);
   const src = study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
   const seed = Array.from(study.slug).reduce((a, c) => a + c.charCodeAt(0), 0);
-  // A stable pseudo "detection confidence" for the AR tracking overlay (0.90–0.98).
-  const conf = (0.9 + (seed % 90) / 1000).toFixed(2);
 
   return (
     <button
@@ -39,6 +37,7 @@ export function CaseCard({ study, onOpen, style }: { study: CaseStudy; onOpen: (
             <span className="worktile__live">Live</span>
           </div>
         )}
+        {study.year && <span className="worktile__year">{study.year}</span>}
       </div>
       <div className="worktile__body">
         <span className="worktile__meta">
@@ -53,13 +52,12 @@ export function CaseCard({ study, onOpen, style }: { study: CaseStudy; onOpen: (
           </ul>
         )}
       </div>
-      {/* AR-style tracking overlay — the tile reads as an object being detected. */}
+      {/* AR-style tracking overlay — corner brackets that "lock on" on hover. */}
       <span className="worktile__reticle" aria-hidden="true">
         <i />
         <i />
         <i />
         <i />
-        <span className="worktile__conf">TRACKED · {conf}</span>
       </span>
     </button>
   );

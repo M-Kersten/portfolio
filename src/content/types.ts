@@ -22,6 +22,8 @@ export interface CaseStudy {
   tech?: string[];
   /** One "key lesson" — the systems-thinking throughline of Merijn's work. */
   lesson?: string;
+  /** Year the project was worked on — shown as a stamped date on the wall tile. */
+  year?: string;
   /** Marks a case as currently live in production. */
   live?: boolean;
   media?: string[];

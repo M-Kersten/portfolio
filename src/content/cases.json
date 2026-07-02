@@ -11,6 +11,7 @@
     "outcome": "Multiplayer VR, retrofitted into a living system",
     "tech": ["Unity", "C#", "VR", "Networking"],
     "lesson": "Adding tech to a system that already exists is often harder than starting from scratch. Before i implement a feature i should ask: 'will this even be maintained?'",
+    "year": "2023",
     "live": false,
     "media": [],
     "draft": false
@@ -27,6 +28,7 @@
     "outcome": "Holograms that line up with the world to the cm",
     "tech": ["HoloLens", "RTK GPS", "Unity", "Android", "Azure"],
     "lesson": "The tech was the easy half. Getting it to fit how an organisation actually works, day to day, was the real puzzle and eventual downfall of this project, it did not catch on due to impracticallities. If it were up to me i would not choose a Hololens but an iPad instead.",
+    "year": "2021",
     "live": false,
     "media": [],
     "draft": false
@@ -43,6 +45,7 @@
     "outcome": "Site visits you can do from your chair",
     "tech": ["Point clouds", "QGIS", "WebGL", "Geo-data"],
     "lesson": "Technically it worked great, but the organisation wasn’t quite ready to change how it worked so it never fully landed.",
+    "year": "2022",
     "live": false,
     "media": [],
     "draft": false
@@ -59,6 +62,7 @@
     "outcome": "AR that held its place at SXSW",
     "tech": ["Lightship ARDK", "VPS", "GPS", "Firebase", "Unity"],
     "lesson": "Location AR is about 10% cool tech and 90% systems-integration headache. And however clever the localisation is, the whole thing lives or dies on how it feels.",
+    "year": "2022",
     "live": false,
     "media": [],
     "draft": false
@@ -75,6 +79,7 @@
     "outcome": "A stack of location-anchored AR prototypes",
     "tech": ["GPS", "Geo-data", "AR", "Unity", "Maps"],
     "lesson": "The real world is a messy test lab — GPS drifts, places change, people wander into frame. Designing for that mess up front beats pretending it isn't there.",
+    "year": "2023",
     "live": false,
     "media": [],
     "draft": false
@@ -91,6 +96,7 @@
     "outcome": "A shelf of shipped AR / VR / app projects",
     "tech": ["Unity", "AR", "VR", "iOS", "Android"],
     "lesson": "Bouncing between wildly different projects teaches you to spot the shared bones underneath — the patterns that carry from a playful book straight over to a VR sim.",
+    "year": "2019",
     "live": false,
     "media": [],
     "draft": false
@@ -107,6 +113,7 @@
     "outcome": "AR races on a show floor (and they actually worked)",
     "tech": ["Unity", "Networking", "VPS", "Lightship ARDK"],
     "lesson": "Build assuming things will fail, because on a show floor they absolutely will. In this case the server SDK was brand new and cut off sessions after some 10 minutes, not seeing a fix i introduced a 'you won! give the phone to the next visitor' popup when the server decided to close.",
+    "year": "2023",
     "live": false,
     "media": [],
     "draft": false
@@ -123,6 +130,7 @@
     "outcome": "Ended up on tens of thousands of phones",
     "tech": ["Unity", "AR", "iOS", "Android"],
     "lesson": "Owning something end to end teaches you the whole lifecycle — and that the last 10% (support, store reviews, that one cursed device) is somehow most of the work.",
+    "year": "2020",
     "live": false,
     "media": [],
     "draft": false
@@ -139,6 +147,7 @@
     "outcome": "Tiny games, shipped fast",
     "tech": ["Unity", "ECS", "CI/CD", "Mobile"],
     "lesson": "Sometimes shipping fast and iterating beats elegant code by a mile. The market really doesn’t care how pretty your architecture is.",
+    "year": "2021",
     "live": false,
     "media": [],
     "draft": false
@@ -155,6 +164,7 @@
     "outcome": "Fake humans, real research",
     "tech": ["Unreal Engine", "Computer vision", "Unity", "Vision Pro", "AI"],
     "lesson": "Research is as much about finding out what you shouldn’t build as what you should. “This isn’t worth it” is a real, useful result — even if it feels anticlimactic.",
+    "year": "2024",
     "live": false,
     "media": [],
     "draft": false
@@ -171,6 +181,7 @@
     "outcome": "AI locals you can actually chat with",
     "tech": ["Azure AI", "Speech-to-text", "LLMs", "Blendshapes", "Generative AI"],
     "lesson": "Just because you can automate the human out of something doesn’t mean you should. Technically working and emotionally working are very different bars.",
+    "year": "2024",
     "live": false,
     "media": [],
     "draft": false
@@ -187,6 +198,7 @@
     "outcome": "Two AR platforms, one tidy API",
     "tech": ["ARCore", "ARKit", "C#", "Unity"],
     "lesson": "Building the tool underneath often creates more value than solving the one problem in front of you. I’ve been reaching for that lesson ever since.",
+    "year": "2018",
     "live": false,
     "media": [],
     "draft": false

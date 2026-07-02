@@ -31,15 +31,12 @@ interface Wall {
   width: number;
   slots: Slot[];
   string: string; // SVG path (viewBox 0 0 width 1000) — the wire the cards pin to
-  links: string; // faint threads between cards that share a technology
 }
 
 // Lay the cards out top-left → bottom-right across the whole (tall + wide) plane,
 // widely jittered so it reads like a hand-hung wall of paintings. Then thread a
-// wire that pins to each card's top edge, plus faint "shared-tech" threads that
-// wire together the projects built with the same tools.
-function buildWall(items: CaseStudy[]): Wall {
-  const n = items.length;
+// wire that pins to each card's top edge.
+function buildWall(n: number): Wall {
   const rnd = mulberry32(9137);
   const slots: Slot[] = [];
   let x = 56;
@@ -69,30 +66,7 @@ function buildWall(items: CaseStudy[]): Wall {
     string += ` Q ${midX.toFixed(1)} ${midY.toFixed(1)} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
   });
 
-  // "Everything connects": thread the projects that share a technology. Take the
-  // few most-shared tools and run a faint straight line through their cards so
-  // the wall reads as a graph, not just a row.
-  const byTech = new Map<string, number[]>();
-  items.forEach((c, i) => {
-    (c.tech ?? []).forEach((tech) => {
-      const arr = byTech.get(tech);
-      if (arr) arr.push(i);
-      else byTech.set(tech, [i]);
-    });
-  });
-  const clusters = [...byTech.values()]
-    .filter((idx) => idx.length >= 2)
-    .sort((a, b) => b.length - a.length)
-    .slice(0, 3);
-  let links = '';
-  clusters.forEach((idx) => {
-    idx.forEach((ci, k) => {
-      const p = pin[ci];
-      links += (k === 0 ? 'M' : ' L') + ` ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
-    });
-  });
-
-  return { width, slots, string, links };
+  return { width, slots, string };
 }
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
@@ -196,7 +170,7 @@ export function Work() {
     }
     return arr;
   }, []);
-  const wall = useMemo(() => buildWall(ordered), [ordered]);
+  const wall = useMemo(() => buildWall(ordered.length), [ordered.length]);
   const [open, setOpen] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const planeRef = useRef<HTMLDivElement>(null);
@@ -264,7 +238,6 @@ export function Work() {
               preserveAspectRatio="none"
               aria-hidden="true"
             >
-              <path className="wall__link" d={wall.links} vectorEffect="non-scaling-stroke" />
               <path className="wall__wire" d={wall.string} vectorEffect="non-scaling-stroke" />
             </svg>
             {ordered.map((study, i) => (
