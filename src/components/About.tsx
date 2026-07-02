@@ -62,10 +62,9 @@ export function About() {
   return (
     <section id="about" className="section">
       <div className="container">
-        <h2 className="section__title">{a.title}</h2>
-
         <div className="about__grid">
           <div>
+            <h2 className="section__title">{a.title}</h2>
             <p className="about__lead">{a.lead}</p>
             {a.body.map((p, i) => (
               <p key={i}>{p}</p>

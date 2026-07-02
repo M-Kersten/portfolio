@@ -1735,7 +1735,6 @@ html {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
   gap: var(--space-xl);
-  margin-top: var(--space-l);
   align-items: start;
 }
 .about__lead {
