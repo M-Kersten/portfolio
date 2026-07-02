@@ -21,18 +21,33 @@ const CARD_W = 320;
 // (2× viewport tall ⇒ a full viewport of descent over the scroll).
 const PLANE_VH = 2;
 
-// Small hand-scrawled notes scattered in the gaps between tiles — a bit of dev
-// humour, engineer's-margin style.
-const NOTES = [
-  '// works on my machine',
-  '// shipped on a friday',
-  'TODO: refactor (later™)',
-  'git blame → me',
-  '~ compiled with vibes ~',
-  '/* survives outside the demo room */',
-  '404: free time not found',
-  "it works, we don't ask why",
+// Cartographic feature names — the map's regions, rendered as classic italic
+// map labels but named after programmer hazards.
+const PLACES = [
+  'Null Pointer Swamp',
+  'Procedural Coastline',
+  'Mount Stackoverflow',
+  'The Race Conditions',
+  'Deprecated Forest',
+  'Cache Bay',
+  'Off-by-One Isle',
+  'Segfault Cliffs',
+  'Latency Lagoon',
+  'Legacy Ruins',
 ];
+// Surveyor's marginalia — mono annotations scrawled in the gaps.
+const NOTES = [
+  'Turn left after the merge conflict',
+  'Rendering chunks...',
+  'here be race conditions',
+  'terrain still loading',
+  '// TODO: name this region',
+  'surveyed at 3am',
+  'coastline approximate',
+  'you are here (probably)',
+];
+// Faux grid references dotted around the graticule.
+const COORDS = ['52°21′N', '4°54′E', 'GRID 04·47', 'ELEV ~0m', 'x1024 y768', '° drift 0.3'];
 
 interface Slot {
   left: number;
@@ -86,6 +101,57 @@ function buildWall(n: number): Wall {
   });
 
   return { width, slots, string, segs };
+}
+
+// ---- Cartographic backdrop ------------------------------------------------
+// A self-contained topo layer (own square-ish viewBox, drawn with slice so it
+// never distorts): wobbly contour rings for "mountains", a coastline, and the
+// water it encloses. Decorative — it doesn't need to line up with the tiles.
+const MAP_VBW = 3200;
+const MAP_VBH = 1000;
+
+const mid = (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+
+// Smooth closed curve through points, using each vertex as a quadratic control.
+function smoothClosed(pts: number[][]): string {
+  const n = pts.length;
+  const start = mid(pts[n - 1], pts[0]);
+  let d = `M ${start[0].toFixed(1)} ${start[1].toFixed(1)}`;
+  for (let i = 0; i < n; i++) {
+    const c = pts[i];
+    const m = mid(pts[i], pts[(i + 1) % n]);
+    d += ` Q ${c[0].toFixed(1)} ${c[1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`;
+  }
+  return d + ' Z';
+}
+
+function buildMap(): { contours: string; coast: string; water: string } {
+  const rnd = mulberry32(7311);
+  const ring = (cx: number, cy: number, r: number, offs: number[]) =>
+    smoothClosed(offs.map((o, i) => [cx + Math.cos((i / offs.length) * Math.PI * 2) * r * o, cy + Math.sin((i / offs.length) * Math.PI * 2) * r * o]));
+
+  let contours = '';
+  const peaks = 6;
+  for (let p = 0; p < peaks; p++) {
+    const cx = 220 + (p / (peaks - 1)) * (MAP_VBW - 440) + (rnd() * 2 - 1) * 110;
+    const cy = 210 + rnd() * 560;
+    const baseR = 120 + rnd() * 150;
+    const offs = Array.from({ length: 20 }, () => 1 + (rnd() * 2 - 1) * 0.16); // shared wobble → concentric rings
+    const rings = 3 + Math.floor(rnd() * 2);
+    for (let k = 0; k < rings; k++) contours += ring(cx, cy, baseR * (1 - k * 0.24), offs) + ' ';
+  }
+
+  const cn = 10;
+  const cpts: number[][] = [];
+  for (let i = 0; i <= cn; i++) cpts.push([(i / cn) * MAP_VBW, 660 + Math.sin(i * 1.1) * 70 + (rnd() * 2 - 1) * 55]);
+  let coast = `M ${cpts[0][0].toFixed(0)} ${cpts[0][1].toFixed(0)}`;
+  for (let i = 1; i < cpts.length; i++) {
+    const m = mid(cpts[i - 1], cpts[i]);
+    coast += ` Q ${cpts[i - 1][0].toFixed(0)} ${cpts[i - 1][1].toFixed(0)} ${m[0].toFixed(0)} ${m[1].toFixed(0)}`;
+  }
+  coast += ` L ${cpts[cn][0].toFixed(0)} ${cpts[cn][1].toFixed(0)}`;
+  const water = `${coast} L ${MAP_VBW} ${MAP_VBH} L 0 ${MAP_VBH} Z`;
+  return { contours, coast, water };
 }
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
@@ -190,16 +256,27 @@ export function Work() {
     return arr;
   }, []);
   const wall = useMemo(() => buildWall(ordered.length), [ordered.length]);
-  // Scatter the funny notes into the empty triangles above / below the tile band.
-  const annos = useMemo(() => {
+  const map = useMemo(() => buildMap(), []);
+  // Scatter the place names / marginalia / grid refs into the empty triangles
+  // above and below the tile band.
+  const labels = useMemo(() => {
     const rnd = mulberry32(2027);
-    return NOTES.map((text, k) => {
-      const fx = (k + 0.5) / NOTES.length;
-      const x = 60 + fx * (wall.width - 300);
+    const items = [
+      ...PLACES.map((text) => ({ text, kind: 'place' as const })),
+      ...NOTES.map((text) => ({ text, kind: 'note' as const })),
+      ...COORDS.map((text) => ({ text, kind: 'coord' as const })),
+    ];
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items.map((it, k) => {
+      const fx = (k + 0.5) / items.length;
+      const x = 60 + fx * (wall.width - 320);
       const band = 6 + fx * 52; // ~ where the tiles sit at this x
       const above = k % 2 === 0;
-      const topPct = Math.min(95, Math.max(2, above ? band - 32 - rnd() * 8 : band + 34 + rnd() * 8));
-      return { text, x, topPct, rot: (rnd() * 2 - 1) * 3 };
+      const topPct = Math.min(95, Math.max(2, above ? band - 30 - rnd() * 10 : band + 32 + rnd() * 10));
+      return { ...it, x, topPct, rot: (rnd() * 2 - 1) * (it.kind === 'place' ? 2 : 3.4) };
     });
   }, [wall.width]);
   const [open, setOpen] = useState<string | null>(null);
@@ -290,6 +367,20 @@ export function Work() {
             ref={planeRef}
             style={{ width: `${wall.width}px`, height: `${PLANE_VH * 100}svh` }}
           >
+            {/* Cartographic backdrop — graticule, contours, coastline + water. */}
+            <svg className="wall__map" viewBox={`0 0 ${MAP_VBW} ${MAP_VBH}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <path className="wall__water" d={map.water} />
+              <g className="wall__grid">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <line key={`gv${i}`} x1={((i + 1) / 7) * MAP_VBW} y1={0} x2={((i + 1) / 7) * MAP_VBW} y2={MAP_VBH} />
+                ))}
+                {Array.from({ length: 4 }, (_, i) => (
+                  <line key={`gh${i}`} x1={0} y1={((i + 1) / 5) * MAP_VBH} x2={MAP_VBW} y2={((i + 1) / 5) * MAP_VBH} />
+                ))}
+              </g>
+              <path className="wall__contour" d={map.contours} />
+              <path className="wall__coast" d={map.coast} />
+            </svg>
             <svg
               className="wall__string"
               viewBox={`0 0 ${wall.width} 1000`}
@@ -318,10 +409,10 @@ export function Work() {
                 }
               />
             ))}
-            {annos.map((a, i) => (
+            {labels.map((a, i) => (
               <span
-                key={`note-${i}`}
-                className="wall__note"
+                key={`lbl-${i}`}
+                className={`wall__label wall__label--${a.kind}`}
                 aria-hidden="true"
                 style={{ left: `${a.x}px`, top: `${a.topPct}%`, '--rot': `${a.rot}deg` } as CSSProperties}
               >
@@ -352,23 +443,51 @@ export function Work() {
             <i />
             <i />
           </div>
-          {/* Faux instrument read-out — live scroll / node / cursor + flavour. */}
+          {/* Compass rose. */}
+          <div className="wall__compass" aria-hidden="true">
+            <svg viewBox="0 0 44 44">
+              <circle cx="22" cy="22" r="19" />
+              <line x1="22" y1="5" x2="22" y2="39" />
+              <line x1="5" y1="22" x2="39" y2="22" />
+              <polygon className="wall__compass-n" points="22,6 26,22 22,18 18,22" />
+              <polygon points="22,38 18,22 22,26 26,22" />
+            </svg>
+            <span>N</span>
+          </div>
+          {/* Basemap legend / render layers — part instrument, part joke. */}
           <div className="wall__hud" ref={hudRef} aria-hidden="true">
             <span className="wall__hud-row wall__hud-title">
-              <b>WORK.DB</b>
-              <span>v2.6</span>
+              <b>BASEMAP</b>
+              <span>mk·survey</span>
             </span>
             <span className="wall__hud-row">
               <b>SCROLL</b>
               <span data-k="scroll">000%</span>
             </span>
             <span className="wall__hud-row">
-              <b>NODE</b>
+              <b>SECTOR</b>
               <span data-k="node">01/{n}</span>
             </span>
             <span className="wall__hud-row">
-              <b>CURSOR</b>
+              <b>COORD</b>
               <span data-k="cursor">X:0000 Y:0000</span>
+            </span>
+            <span className="wall__hud-sub">render layers</span>
+            <span className="wall__hud-row wall__hud-render">
+              <b>Fog</b>
+              <span>covering mistakes</span>
+            </span>
+            <span className="wall__hud-row wall__hud-render">
+              <b>Mountains</b>
+              <span>billboarded</span>
+            </span>
+            <span className="wall__hud-row wall__hud-render">
+              <b>Reflections</b>
+              <span>aspirational</span>
+            </span>
+            <span className="wall__hud-row wall__hud-render">
+              <b>Shadows</b>
+              <span>estimated</span>
             </span>
           </div>
         </div>

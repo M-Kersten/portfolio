@@ -983,6 +983,33 @@ html {
   position: relative;
   will-change: transform;
 }
+/* Cartographic backdrop — a topo layer drawn undistorted (slice) behind the
+   tiles: graticule lines, contour rings, a coastline and the water it holds. */
+.wall__map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.wall__grid line {
+  stroke: color-mix(in srgb, var(--ink) 7%, transparent);
+  stroke-width: 1px;
+}
+.wall__contour {
+  fill: none;
+  stroke: color-mix(in srgb, var(--cyan) 15%, transparent);
+  stroke-width: 1px;
+}
+.wall__coast {
+  fill: none;
+  stroke: color-mix(in srgb, var(--cyan) 26%, transparent);
+  stroke-width: 1.4px;
+  stroke-linecap: round;
+}
+.wall__water {
+  fill: color-mix(in srgb, var(--cyan) 6%, transparent);
+}
 .wall__string {
   position: absolute;
   inset: 0;
@@ -991,12 +1018,12 @@ html {
   overflow: visible;
   pointer-events: none;
 }
-/* The wire the cards pin to — threaded right through each card's top edge and
-   sagging gently between the pins. */
+/* The route threaded between the survey markers — a dashed map trail. */
 .wall__wire {
   fill: none;
-  stroke: color-mix(in srgb, var(--ink) 30%, transparent);
-  stroke-width: 1.25px;
+  stroke: color-mix(in srgb, var(--ink) 26%, transparent);
+  stroke-width: 1.1px;
+  stroke-dasharray: 5 5;
   stroke-linecap: round;
 }
 /* A bright data packet that fires down the wire into a hovered tile. */
@@ -1053,19 +1080,102 @@ html {
   color: var(--ink);
   letter-spacing: 0.14em;
 }
+/* "render layers" sub-header + the joke legend rows. */
+.wall__hud-sub {
+  margin-top: 0.35em;
+  padding-top: 0.35em;
+  border-top: 1px solid var(--hairline);
+  color: var(--ink-40);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 9px;
+}
+.wall__hud-render {
+  justify-content: space-between;
+  gap: 1.2em;
+}
+.wall__hud-render b {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--ink-60);
+}
+.wall__hud-render span {
+  font-style: italic;
+  color: color-mix(in srgb, var(--cyan) 55%, var(--ink-40));
+}
 .wall[data-reduced] .wall__hud { display: none; }
 
-/* Hand-scrawled dev-humour notes scattered in the empty wall gaps. */
-.wall__note {
+/* Compass rose, docked bottom-left of the pinned map (above the scroll cue). */
+.wall__compass {
+  position: absolute;
+  left: var(--space-m);
+  bottom: calc(var(--space-l) + 2.6rem);
+  z-index: 6;
+  width: 46px;
+  height: 46px;
+  pointer-events: none;
+}
+.wall__compass svg {
+  width: 100%;
+  height: 100%;
+}
+.wall__compass circle {
+  fill: color-mix(in srgb, #05070a 45%, transparent);
+  stroke: color-mix(in srgb, var(--ink) 26%, transparent);
+  stroke-width: 1px;
+}
+.wall__compass line {
+  stroke: color-mix(in srgb, var(--ink) 18%, transparent);
+  stroke-width: 1px;
+}
+.wall__compass polygon {
+  fill: var(--ink-40);
+}
+.wall__compass .wall__compass-n {
+  fill: var(--cyan);
+}
+.wall__compass span {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--cyan);
+}
+.wall[data-reduced] .wall__compass { display: none; }
+
+/* Map labels scattered in the empty gaps: feature names, surveyor's marginalia
+   and grid references. */
+.wall__label {
   position: absolute;
   transform: translate(-50%, -50%) rotate(var(--rot, 0deg));
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  color: color-mix(in srgb, var(--ink) 33%, transparent);
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
+}
+/* Feature names — classic italic cartographic labels, in a watery tint. */
+.wall__label--place {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--cyan) 44%, var(--ink-40));
+}
+/* Surveyor's marginalia — mono, like a code comment in the margin. */
+.wall__label--note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--ink) 34%, transparent);
+}
+/* Grid references — tiny, faint, tabular. */
+.wall__label--coord {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: color-mix(in srgb, var(--ink) 24%, transparent);
 }
 
 /* Razor-thin scanner-frame brackets around the viewport (clear of the header). */
@@ -1086,20 +1196,27 @@ html {
 .wall__frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
 .wall__frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
 .wall[data-reduced] .wall__frame { display: none; }
-/* The pin holding each card to the wall, sat on its top edge, tinted to the card. */
+/* Survey marker sat on each tile's top edge — a crosshair ring, tinted to the
+   card, like a triangulation point on a map. */
 .wall__knot {
   position: absolute;
-  width: 9px;
-  height: 9px;
-  margin: -4.5px 0 0 -4.5px;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
   border-radius: 50%;
-  background: var(--knot, var(--ink-40));
-  box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--paper) 78%, transparent),
-    0 0 10px -1px var(--knot, var(--ink-40));
+  border: 1px solid var(--knot, var(--ink-40));
+  box-shadow: 0 0 8px -2px var(--knot, var(--ink-40));
   pointer-events: none;
   z-index: 2;
 }
+.wall__knot::before,
+.wall__knot::after {
+  content: '';
+  position: absolute;
+  background: var(--knot, var(--ink-40));
+}
+.wall__knot::before { left: 50%; top: -3px; bottom: -3px; width: 1px; margin-left: -0.5px; }
+.wall__knot::after { top: 50%; left: -3px; right: -3px; height: 1px; margin-top: -0.5px; }
 /* Reduced-motion fallback: no scroll-jack — pan the (2D) wall by hand. */
 .wall[data-reduced] .wall__scroll { height: auto; }
 .wall[data-reduced] .wall__pin {
