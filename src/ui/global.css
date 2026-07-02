@@ -992,32 +992,19 @@ html {
   height: 100%;
   pointer-events: none;
 }
-.wall__grid line {
-  stroke: color-mix(in srgb, var(--ink) 5%, transparent);
-  stroke-width: 1px;
-}
 .wall__contour {
   fill: none;
   stroke: color-mix(in srgb, var(--cyan) 9%, transparent);
   stroke-width: 1px;
 }
-.wall__coast {
-  fill: none;
-  stroke: color-mix(in srgb, var(--cyan) 16%, transparent);
-  stroke-width: 1.2px;
-  stroke-linecap: round;
-}
-.wall__water {
-  fill: color-mix(in srgb, var(--cyan) 4%, transparent);
-}
-/* Rivers winding out of the mountains to the sea. */
+/* Rivers winding down out of the mountains. */
 .wall__river {
   fill: none;
   stroke: color-mix(in srgb, var(--cyan) 13%, transparent);
   stroke-width: 1.1px;
   stroke-linecap: round;
 }
-/* Meandering footpaths across the land. */
+/* A meandering footpath across the land. */
 .wall__path {
   fill: none;
   stroke: color-mix(in srgb, var(--ink) 11%, transparent);
@@ -1046,6 +1033,27 @@ html {
   fill: currentColor;
   filter: drop-shadow(0 0 5px currentColor);
 }
+
+/* The traveller's trail — a dashed line lingering behind the cursor. */
+.wall__trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+  overflow: visible;
+}
+.wall__trail path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--cyan) 50%, transparent);
+  stroke-width: 1.4px;
+  stroke-dasharray: 2 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--cyan) 40%, transparent));
+}
+.wall[data-reduced] .wall__trail { display: none; }
 
 /* Faux instrument read-out docked top-right of the pinned wall — live
    diagnostics in a crisp monospace, like a viewport HUD. */
@@ -1151,6 +1159,45 @@ html {
   font-size: 9px;
   letter-spacing: 0.14em;
   color: color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+/* Icon features on the land — a cluster of trees (forest) or blocks (a city),
+   each with its own italic map label. */
+.wall__feature {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+}
+.wall__feature-ico {
+  display: block;
+  width: 64px;
+  height: 30px;
+  margin: 0 auto;
+}
+.wall__feature--forest .wall__feature-ico path {
+  fill: color-mix(in srgb, var(--lime) 34%, transparent);
+}
+.wall__feature--city .wall__feature-ico rect {
+  fill: color-mix(in srgb, var(--ink) 24%, transparent);
+  stroke: color-mix(in srgb, var(--cyan) 34%, transparent);
+  stroke-width: 0.7px;
+}
+.wall__feature-label {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.wall__feature--forest .wall__feature-label {
+  color: color-mix(in srgb, var(--lime) 40%, var(--ink-40));
+}
+.wall__feature--city .wall__feature-label {
+  color: color-mix(in srgb, var(--ink) 42%, transparent);
 }
 
 /* Razor-thin scanner-frame brackets around the viewport (clear of the header). */

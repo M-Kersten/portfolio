@@ -21,33 +21,26 @@ const CARD_W = 320;
 // (2× viewport tall ⇒ a full viewport of descent over the scroll).
 const PLANE_VH = 2;
 
-// Cartographic feature names — the map's regions, rendered as classic italic
-// map labels but named after programmer hazards.
-const PLACES = [
-  'Null Pointer Swamp',
-  'Procedural Coastline',
-  'Mount Stackoverflow',
-  'The Race Conditions',
-  'Deprecated Forest',
-  'Cache Bay',
-  'Off-by-One Isle',
-  'Segfault Cliffs',
-  'Latency Lagoon',
-  'Legacy Ruins',
-];
+// Cartographic feature names — classic italic map labels named after programmer
+// hazards. (Forests / the city carry their own labels; these name the rest.)
+const PLACES = ['Null Pointer Swamp', 'Mount Stackoverflow', 'Segfault Cliffs', 'Legacy Ruins', 'The Data Stream', 'The Race Conditions'];
 // Surveyor's marginalia — mono annotations scrawled in the gaps.
 const NOTES = [
   'Turn left after the merge conflict',
   'Rendering chunks...',
-  'here be race conditions',
-  'terrain still loading',
   '// TODO: name this region',
+  'terrain still loading',
   'surveyed at 3am',
-  'coastline approximate',
-  'you are here (probably)',
 ];
 // Faux grid references dotted around the graticule.
-const COORDS = ['52°21′N', '4°54′E', 'GRID 04·47', 'ELEV ~0m', 'x1024 y768', '° drift 0.3'];
+const COORDS = ['52°21′N', '4°54′E', 'GRID 04·47'];
+// Icon features drawn on the land, each with its own label.
+const FEATURES = [
+  { kind: 'city' as const, label: 'Localhost' },
+  { kind: 'forest' as const, label: 'Deprecated Forest' },
+  { kind: 'forest' as const, label: 'The Dependency Woods' },
+  { kind: 'forest' as const, label: 'Recursion Grove' },
+];
 
 interface Slot {
   left: number;
@@ -136,61 +129,50 @@ function smoothOpen(pts: number[][]): string {
   return `${d} L ${last[0].toFixed(1)} ${last[1].toFixed(1)}`;
 }
 
-function buildMap(): { contours: string; coast: string; water: string; rivers: string; paths: string } {
+function buildMap(): { contours: string; rivers: string; paths: string } {
   const rnd = mulberry32(7311);
   const ring = (cx: number, cy: number, r: number, offs: number[]) =>
     smoothClosed(offs.map((o, i) => [cx + Math.cos((i / offs.length) * Math.PI * 2) * r * o, cy + Math.sin((i / offs.length) * Math.PI * 2) * r * o]));
 
-  const COAST_Y = 660;
+  // A few clean mountain groups, well spaced.
   let contours = '';
-  const peaks = 6;
+  const peaks = 3;
   const peakPos: number[][] = [];
   for (let p = 0; p < peaks; p++) {
-    const cx = 220 + (p / (peaks - 1)) * (MAP_VBW - 440) + (rnd() * 2 - 1) * 110;
-    const cy = 210 + rnd() * 380; // keep peaks on the land side
+    const cx = 380 + (p / (peaks - 1)) * (MAP_VBW - 760) + (rnd() * 2 - 1) * 120;
+    const cy = 240 + rnd() * 420;
     peakPos.push([cx, cy]);
-    const baseR = 120 + rnd() * 150;
-    const offs = Array.from({ length: 20 }, () => 1 + (rnd() * 2 - 1) * 0.16); // shared wobble → concentric rings
-    const rings = 3 + Math.floor(rnd() * 2);
-    for (let k = 0; k < rings; k++) contours += ring(cx, cy, baseR * (1 - k * 0.24), offs) + ' ';
+    const baseR = 140 + rnd() * 120;
+    const offs = Array.from({ length: 20 }, () => 1 + (rnd() * 2 - 1) * 0.15); // shared wobble → concentric rings
+    for (let k = 0; k < 3; k++) contours += ring(cx, cy, baseR * (1 - k * 0.26), offs) + ' ';
   }
 
-  const cn = 10;
-  const cpts: number[][] = [];
-  for (let i = 0; i <= cn; i++) cpts.push([(i / cn) * MAP_VBW, COAST_Y + Math.sin(i * 1.1) * 70 + (rnd() * 2 - 1) * 55]);
-  const coast = smoothOpen(cpts);
-  const water = `${coast} L ${MAP_VBW} ${MAP_VBH} L 0 ${MAP_VBH} Z`;
-
-  // Rivers wind down out of the mountains to the sea.
+  // Two rivers meandering down out of the mountains.
   let rivers = '';
-  for (let r = 0; r < 3; r++) {
-    const src = peakPos[1 + Math.floor(rnd() * (peaks - 1))];
+  for (let r = 0; r < 2; r++) {
+    const src = peakPos[r % peaks];
     let x = src[0] + (rnd() * 2 - 1) * 60;
-    let y = src[1] + 40;
+    let y = src[1] + 50;
     const pts = [[x, y]];
-    const steps = 6 + Math.floor(rnd() * 3);
+    const steps = 6;
     for (let s = 1; s <= steps; s++) {
       x += (rnd() * 2 - 1) * 150;
-      y += (COAST_Y + 30 - y) / (steps - s + 1) + (rnd() * 2 - 1) * 24;
+      y += 90 + (rnd() * 2 - 1) * 30;
       pts.push([x, y]);
     }
     rivers += smoothOpen(pts) + ' ';
   }
 
-  // A couple of meandering footpaths across the land.
-  let paths = '';
-  for (let p = 0; p < 2; p++) {
-    let y = 190 + rnd() * 260;
-    const pts = [[0, y]];
-    const steps = 9;
-    for (let s = 1; s <= steps; s++) {
-      y = Math.max(110, Math.min(600, y + (rnd() * 2 - 1) * 130));
-      pts.push([(s / steps) * MAP_VBW, y]);
-    }
-    paths += smoothOpen(pts) + ' ';
+  // One long footpath wandering across the land.
+  let py = 300 + rnd() * 200;
+  const ppts = [[0, py]];
+  for (let s = 1; s <= 8; s++) {
+    py = Math.max(140, Math.min(760, py + (rnd() * 2 - 1) * 150));
+    ppts.push([(s / 8) * MAP_VBW, py]);
   }
+  const paths = smoothOpen(ppts);
 
-  return { contours, coast, water, rivers, paths };
+  return { contours, rivers, paths };
 }
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
@@ -318,6 +300,21 @@ export function Work() {
       return { ...it, x, topPct, rot: (rnd() * 2 - 1) * (it.kind === 'place' ? 2 : 3.4) };
     });
   }, [wall.width]);
+  // Forests + a city, spaced along the land, each with its own label.
+  const features = useMemo(() => {
+    const slots = wall.slots;
+    return FEATURES.map((f, k) => {
+      // Drop each feature into a horizontal gap between two tiles, where nothing
+      // can hide it, offset a touch above or below the trail.
+      const i = Math.max(0, Math.min(slots.length - 2, Math.round(((k + 0.5) / FEATURES.length) * (slots.length - 2))));
+      const a = slots[i];
+      const bcard = slots[i + 1];
+      const x = (a.left + CARD_W + bcard.left) / 2;
+      const band = (a.topPct + bcard.topPct) / 2;
+      const topPct = Math.min(90, Math.max(6, band + (k % 2 === 1 ? -20 : 22)));
+      return { ...f, x, topPct };
+    });
+  }, [wall.slots]);
   const [open, setOpen] = useState<string | null>(null);
   // Which tile is hovered — drives the data-packet that runs down the wire.
   const [hover, setHover] = useState<number | null>(null);
@@ -326,6 +323,8 @@ export function Work() {
   const farRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);
+  const trailRef = useRef<{ x: number; y: number; t: number }[]>([]);
+  const trailPathRef = useRef<SVGPathElement>(null);
   const n = ordered.length;
 
   useEffect(() => {
@@ -356,6 +355,17 @@ export function Work() {
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
     };
+    // A dashed trail that lingers behind the cursor for ~0.7s — like charting a
+    // route as you wander the map. Drawn in the pinned viewport's own pixels.
+    const LIFE = 700;
+    let trailRaf = 0;
+    const drawTrail = () => {
+      const now = performance.now();
+      const pts = (trailRef.current = trailRef.current.filter((q) => now - q.t < LIFE));
+      const path = trailPathRef.current;
+      if (path) path.setAttribute('d', pts.length < 2 ? '' : 'M ' + pts.map((q) => `${q.x} ${q.y}`).join(' L '));
+      trailRaf = pts.length > 0 ? requestAnimationFrame(drawTrail) : 0;
+    };
     const onMove = (e: MouseEvent) => {
       const pin = pinRef.current;
       const hud = hudRef.current;
@@ -367,6 +377,11 @@ export function Work() {
       hud.querySelector('[data-k="cursor"]')?.replaceChildren(
         `X:${String(x).padStart(4, '0')} Y:${String(y).padStart(4, '0')}`,
       );
+      const t = trailRef.current;
+      const last = t[t.length - 1];
+      if (!last || Math.hypot(x - last.x, y - last.y) > 6) t.push({ x, y, t: performance.now() });
+      if (t.length > 80) t.shift();
+      if (!trailRaf) trailRaf = requestAnimationFrame(drawTrail);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
@@ -377,6 +392,7 @@ export function Work() {
       window.removeEventListener('resize', onScroll);
       window.removeEventListener('mousemove', onMove);
       if (raf) cancelAnimationFrame(raf);
+      if (trailRaf) cancelAnimationFrame(trailRaf);
     };
   }, [reduced, wall.width, n]);
 
@@ -406,20 +422,10 @@ export function Work() {
             ref={planeRef}
             style={{ width: `${wall.width}px`, height: `${PLANE_VH * 100}svh` }}
           >
-            {/* Cartographic backdrop — graticule, contours, coastline + water. */}
+            {/* Cartographic backdrop — contours, a footpath and rivers. */}
             <svg className="wall__map" viewBox={`0 0 ${MAP_VBW} ${MAP_VBH}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-              <path className="wall__water" d={map.water} />
-              <g className="wall__grid">
-                {Array.from({ length: 6 }, (_, i) => (
-                  <line key={`gv${i}`} x1={((i + 1) / 7) * MAP_VBW} y1={0} x2={((i + 1) / 7) * MAP_VBW} y2={MAP_VBH} />
-                ))}
-                {Array.from({ length: 4 }, (_, i) => (
-                  <line key={`gh${i}`} x1={0} y1={((i + 1) / 5) * MAP_VBH} x2={MAP_VBW} y2={((i + 1) / 5) * MAP_VBH} />
-                ))}
-              </g>
               <path className="wall__contour" d={map.contours} />
               <path className="wall__path" d={map.paths} />
-              <path className="wall__coast" d={map.coast} />
               <path className="wall__river" d={map.rivers} />
             </svg>
             <svg
@@ -446,6 +452,44 @@ export function Work() {
                 {a.text}
               </span>
             ))}
+            {features.map((f, i) => (
+              <div
+                key={`feat-${i}`}
+                className={`wall__feature wall__feature--${f.kind}`}
+                aria-hidden="true"
+                style={{ left: `${f.x}px`, top: `${f.topPct}%` } as CSSProperties}
+              >
+                {f.kind === 'forest' ? (
+                  <svg className="wall__feature-ico" viewBox="0 0 64 30">
+                    {[
+                      [10, 24],
+                      [22, 22],
+                      [34, 25],
+                      [46, 21],
+                      [17, 27],
+                      [40, 28],
+                    ].map(([tx, ty], j) => (
+                      <path key={j} d={`M${tx} ${ty} l-5 0 l5 -13 l5 13 z`} />
+                    ))}
+                  </svg>
+                ) : (
+                  <svg className="wall__feature-ico" viewBox="0 0 64 30">
+                    {[
+                      [8, 12],
+                      [16, 20],
+                      [24, 9],
+                      [32, 17],
+                      [40, 13],
+                      [48, 22],
+                      [56, 15],
+                    ].map(([bx, h], j) => (
+                      <rect key={j} x={bx} y={30 - h} width="6" height={h} />
+                    ))}
+                  </svg>
+                )}
+                <span className="wall__feature-label">{f.label}</span>
+              </div>
+            ))}
             {ordered.map((study, i) => (
               <CaseCard
                 key={study.slug}
@@ -463,6 +507,10 @@ export function Work() {
             ))}
           </div>
           <span className="wall__cue" aria-hidden="true">scroll to explore →</span>
+          {/* The traveller's dashed trail, lingering behind the cursor. */}
+          <svg className="wall__trail" aria-hidden="true">
+            <path ref={trailPathRef} />
+          </svg>
           {/* Razor-thin scanner-frame corners around the viewport. */}
           <div className="wall__frame" aria-hidden="true">
             <i />
