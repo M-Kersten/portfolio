@@ -966,17 +966,23 @@ html {
   height: 100svh;
   overflow: hidden;
 }
+/* The dot field, on its own layer so it can drift slower than the cards for a
+   parallax depth cue (transform set per frame in JS). */
+.wall__far {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--ink) 13%, transparent) 1.1px, transparent 1.5px);
+  background-size: 30px 30px;
+  pointer-events: none;
+}
 /* Taller + wider than the viewport (height set inline in svh); page scroll pans
-   it diagonally, down and across. */
+   it diagonally, down and across — the near layer in front of the dot field. */
 .wall__plane {
   position: relative;
   will-change: transform;
-  /* A dot field pinned to the plane, so it travels with the cards. */
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--ink) 13%, transparent) 1.1px, transparent 1.5px);
-  background-size: 30px 30px;
 }
-/* The wire the cards pin to — threaded right through each card's top edge and
-   sagging gently between the pins. */
 .wall__string {
   position: absolute;
   inset: 0;
@@ -985,10 +991,21 @@ html {
   overflow: visible;
   pointer-events: none;
 }
-.wall__string path {
+/* The wire the cards pin to — threaded right through each card's top edge and
+   sagging gently between the pins. */
+.wall__wire {
   fill: none;
   stroke: color-mix(in srgb, var(--ink) 30%, transparent);
   stroke-width: 1.25px;
+  stroke-linecap: round;
+}
+/* Faint "shared-tech" threads: dashed lines wiring together projects built with
+   the same tools, so the wall reads as a graph of connected work. */
+.wall__link {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 16%, transparent);
+  stroke-width: 1px;
+  stroke-dasharray: 2 7;
   stroke-linecap: round;
 }
 /* The pin holding each card to the wall, sat on its top edge, tinted to the card. */
@@ -1057,6 +1074,47 @@ html {
   box-shadow: 0 30px 60px -26px rgba(0, 0, 0, 0.9), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent);
   outline: none;
   z-index: 5;
+}
+
+/* AR tracking overlay — corner brackets + a confidence read-out that "lock on"
+   when a tile is hovered/focused, like an object being detected. */
+.worktile__reticle {
+  position: absolute;
+  inset: 7px;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(1.05);
+  transition: opacity 0.22s var(--ease), transform 0.22s var(--ease);
+  z-index: 4;
+}
+.worktile:hover .worktile__reticle,
+.worktile:focus-visible .worktile__reticle {
+  opacity: 1;
+  transform: scale(1);
+}
+.worktile__reticle i {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--card-accent);
+}
+.worktile__reticle i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.worktile__reticle i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.worktile__reticle i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.worktile__reticle i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.worktile__conf {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--card-accent);
+  background: color-mix(in srgb, var(--paper) 74%, transparent);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 38%, transparent);
+  white-space: nowrap;
 }
 
 .worktile__media {
