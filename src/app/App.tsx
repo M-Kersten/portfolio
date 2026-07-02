@@ -5,6 +5,7 @@ import { HomeLayout } from '../components/HomeLayout';
 import { NodeHud } from '../components/NodeHud';
 import { ScrollToHash } from '../components/ScrollToHash';
 import { DevTweakPanel } from '../scene/devTweak';
+import { WallTweakPanel } from '../components/wallTweak';
 
 // One Router, one persistent <SceneCanvas/> (§6). Every case study is a modal
 // nested in the home layout, so the scene stays mounted behind it.
@@ -20,6 +21,7 @@ export function App() {
       <Header />
       <SceneCanvas />
       {import.meta.env.DEV && <DevTweakPanel />}
+      {import.meta.env.DEV && <WallTweakPanel />}
       <main id="main">
         <Routes>
           <Route element={<HomeLayout />}>

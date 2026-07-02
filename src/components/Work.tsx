@@ -3,6 +3,7 @@ import { cases, caseBySlug, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard, accentFor } from './CaseCard';
+import { useWallConfig, type WallConfig } from './wallTweak';
 
 // Seeded RNG so the "randomly placed" wall is stable between renders.
 function mulberry32(seed: number) {
@@ -14,12 +15,6 @@ function mulberry32(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-const CARD_W = 320;
-// The wall plane is taller than the viewport, so scrolling pans it down as well
-// as across — you ride diagonally past the pictures rather than straight sideways
-// (2× viewport tall ⇒ a full viewport of descent over the scroll).
-const PLANE_VH = 2;
 
 // Cartographic feature names — classic italic map labels named after programmer
 // hazards. (Forests / the city carry their own labels; these name the rest.)
@@ -58,24 +53,24 @@ interface Wall {
 // Lay the cards out top-left → bottom-right across the whole (tall + wide) plane,
 // widely jittered so it reads like a hand-hung wall of paintings. Then thread a
 // wire that pins to each card's top edge.
-function buildWall(n: number): Wall {
-  const rnd = mulberry32(9137);
+function buildWall(n: number, cfg: WallConfig): Wall {
+  const rnd = mulberry32(cfg.seed);
   const slots: Slot[] = [];
-  let x = 56;
+  let x = cfg.startX;
   for (let i = 0; i < n; i++) {
     const t = n > 1 ? i / (n - 1) : 0;
     // Descend across the full plane height, but with a wide vertical jitter so it
     // scatters rather than reading as a tidy diagonal (kept clear of the very
     // bottom so the last cards land fully in view at the end of the scroll).
-    const topPct = Math.min(78, Math.max(3, 6 + t * 52 + (rnd() * 2 - 1) * 17));
-    slots.push({ left: x, topPct, rot: (rnd() * 2 - 1) * 4.6 });
-    x += CARD_W + 80 + rnd() * 150; // advance with a little jitter, wider gaps
+    const topPct = Math.min(cfg.topMax, Math.max(cfg.topMin, cfg.topStart + t * cfg.topSlope + (rnd() * 2 - 1) * cfg.topJitter));
+    slots.push({ left: x, topPct, rot: (rnd() * 2 - 1) * cfg.rot });
+    x += cfg.cardW + cfg.gapMin + rnd() * cfg.gapJitter; // advance with a little jitter
   }
   const width = x + 48;
 
   // Pin points sit right on each card's top-centre; y is per-mille of the plane
   // height (topPct * 10) so the SVG can share a width × 1000 viewBox.
-  const pin = slots.map((s) => ({ x: s.left + CARD_W / 2, y: s.topPct * 10 }));
+  const pin = slots.map((s) => ({ x: s.left + cfg.cardW / 2, y: s.topPct * 10 }));
   let string = '';
   const segs: string[] = [];
   pin.forEach((p, i) => {
@@ -276,7 +271,8 @@ export function Work() {
     }
     return arr;
   }, []);
-  const wall = useMemo(() => buildWall(ordered.length), [ordered.length]);
+  const cfg = useWallConfig();
+  const wall = useMemo(() => buildWall(ordered.length, cfg), [ordered.length, cfg]);
   const map = useMemo(() => buildMap(), []);
   // Scatter the place names / marginalia / grid refs into the empty triangles
   // above and below the tile band.
@@ -309,12 +305,12 @@ export function Work() {
       const i = Math.max(0, Math.min(slots.length - 2, Math.round(((k + 0.5) / FEATURES.length) * (slots.length - 2))));
       const a = slots[i];
       const bcard = slots[i + 1];
-      const x = (a.left + CARD_W + bcard.left) / 2;
+      const x = (a.left + cfg.cardW + bcard.left) / 2;
       const band = (a.topPct + bcard.topPct) / 2;
       const topPct = Math.min(90, Math.max(6, band + (k % 2 === 1 ? -20 : 22)));
       return { ...f, x, topPct };
     });
-  }, [wall.slots]);
+  }, [wall.slots, cfg.cardW]);
   const [open, setOpen] = useState<string | null>(null);
   // Which tile is hovered — drives the data-packet that runs down the wire.
   const [hover, setHover] = useState<number | null>(null);
@@ -342,7 +338,7 @@ export function Work() {
       plane.style.transform = `translate3d(${-(p * maxX)}px, ${-(p * maxY)}px, 0)`;
       // Parallax: the dot field drifts slower, so the cards read as the near
       // layer floating in front of a receding space.
-      if (farRef.current) farRef.current.style.transform = `translate3d(${-(p * maxX * 0.72)}px, ${-(p * maxY * 0.72)}px, 0)`;
+      if (farRef.current) farRef.current.style.transform = `translate3d(${-(p * maxX * cfg.parallax)}px, ${-(p * maxY * cfg.parallax)}px, 0)`;
       // Telemetry read-outs.
       const hud = hudRef.current;
       if (hud) {
@@ -394,7 +390,7 @@ export function Work() {
       if (raf) cancelAnimationFrame(raf);
       if (trailRaf) cancelAnimationFrame(trailRaf);
     };
-  }, [reduced, wall.width, n]);
+  }, [reduced, wall.width, n, cfg.parallax]);
 
   const openStudy = open ? caseBySlug(open) : undefined;
 
@@ -415,12 +411,12 @@ export function Work() {
             className="wall__far"
             ref={farRef}
             aria-hidden="true"
-            style={{ width: `${wall.width}px`, height: `${PLANE_VH * 100}svh` }}
+            style={{ width: `${wall.width}px`, height: `${cfg.planeVh * 100}svh` }}
           />
           <div
             className="wall__plane"
             ref={planeRef}
-            style={{ width: `${wall.width}px`, height: `${PLANE_VH * 100}svh` }}
+            style={{ width: `${wall.width}px`, height: `${cfg.planeVh * 100}svh`, '--card-w': `${cfg.cardW}px` } as CSSProperties}
           >
             {/* Cartographic backdrop — contours, a footpath and rivers. */}
             <svg className="wall__map" viewBox={`0 0 ${MAP_VBW} ${MAP_VBH}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
