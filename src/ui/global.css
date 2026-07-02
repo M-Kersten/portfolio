@@ -1769,8 +1769,10 @@ html {
 .about__portrait-frame {
   position: absolute;
   inset: 0;
-  background-size: cover;
-  background-position: center top;
+  /* Zoomed a touch and anchored low so the empty space above the head is
+     cropped out and the face sits high in the frame. */
+  background-size: 116%;
+  background-position: center 85%;
 }
 .about__portrait-idx {
   position: absolute;
