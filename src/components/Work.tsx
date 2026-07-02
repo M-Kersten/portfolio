@@ -21,6 +21,22 @@ const CARD_W = 320;
 // (2× viewport tall ⇒ a full viewport of descent over the scroll).
 const PLANE_VH = 2;
 
+// Small hand-scrawled notes scattered in the gaps between tiles — a bit of dev
+// humour, engineer's-margin style.
+const NOTES = [
+  '// works on my machine',
+  '// shipped on a friday',
+  'TODO: refactor (later™)',
+  'git blame → me',
+  '~ compiled with vibes ~',
+  '/* survives outside the demo room */',
+  '404: free time not found',
+  "it works, we don't ask why",
+];
+
+// The HUD's rotating "system status" line — pure flavour.
+const QUIPS = ['nominal', 'caffeinated', 'shipping it', 'do not perceive me', '99 problems', 'it compiles', 'trust the process'];
+
 interface Slot {
   left: number;
   topPct: number;
@@ -43,9 +59,10 @@ function buildWall(n: number): Wall {
   let x = 56;
   for (let i = 0; i < n; i++) {
     const t = n > 1 ? i / (n - 1) : 0;
-    // Descend across the full plane height (kept clear of the very bottom so the
-    // last cards land fully in view at the end of the scroll).
-    const topPct = Math.min(74, Math.max(4, 6 + t * 60 + (rnd() * 2 - 1) * 9));
+    // Descend across the full plane height, but with a wide vertical jitter so it
+    // scatters rather than reading as a tidy diagonal (kept clear of the very
+    // bottom so the last cards land fully in view at the end of the scroll).
+    const topPct = Math.min(78, Math.max(3, 6 + t * 52 + (rnd() * 2 - 1) * 17));
     slots.push({ left: x, topPct, rot: (rnd() * 2 - 1) * 4.6 });
     x += CARD_W + 80 + rnd() * 150; // advance with a little jitter, wider gaps
   }
@@ -176,6 +193,18 @@ export function Work() {
     return arr;
   }, []);
   const wall = useMemo(() => buildWall(ordered.length), [ordered.length]);
+  // Scatter the funny notes into the empty triangles above / below the tile band.
+  const annos = useMemo(() => {
+    const rnd = mulberry32(2027);
+    return NOTES.map((text, k) => {
+      const fx = (k + 0.5) / NOTES.length;
+      const x = 60 + fx * (wall.width - 300);
+      const band = 6 + fx * 52; // ~ where the tiles sit at this x
+      const above = k % 2 === 0;
+      const topPct = Math.min(95, Math.max(2, above ? band - 32 - rnd() * 8 : band + 34 + rnd() * 8));
+      return { text, x, topPct, rot: (rnd() * 2 - 1) * 3 };
+    });
+  }, [wall.width]);
   const [open, setOpen] = useState<string | null>(null);
   // Which tile is hovered — drives the data-packet that runs down the wire.
   const [hover, setHover] = useState<number | null>(null);
@@ -206,12 +235,9 @@ export function Work() {
       const hud = hudRef.current;
       if (hud) {
         const node = Math.min(n, Math.max(1, Math.round(p * (n - 1)) + 1));
-        const mem = 48 + Math.round(p * 39);
-        hud.style.setProperty('--mem', `${mem}`);
         const set = (k: string, v: string) => hud.querySelector(`[data-k="${k}"]`)?.replaceChildren(v);
         set('scroll', `${String(Math.round(p * 100)).padStart(3, '0')}%`);
         set('node', `${String(node).padStart(2, '0')}/${n}`);
-        set('mem', `${mem}%`);
       }
     };
     const onScroll = () => {
@@ -240,6 +266,17 @@ export function Work() {
       if (raf) cancelAnimationFrame(raf);
     };
   }, [reduced, wall.width, n]);
+
+  // Cycle the HUD's "system status" quip for a bit of life.
+  useEffect(() => {
+    if (reduced) return;
+    let i = 0;
+    const id = window.setInterval(() => {
+      i = (i + 1) % QUIPS.length;
+      hudRef.current?.querySelector('[data-k="status"]')?.replaceChildren(QUIPS[i]);
+    }, 2600);
+    return () => window.clearInterval(id);
+  }, [reduced]);
 
   const openStudy = open ? caseBySlug(open) : undefined;
 
@@ -295,6 +332,16 @@ export function Work() {
                 }
               />
             ))}
+            {annos.map((a, i) => (
+              <span
+                key={`note-${i}`}
+                className="wall__note"
+                aria-hidden="true"
+                style={{ left: `${a.x}px`, top: `${a.topPct}%`, '--rot': `${a.rot}deg` } as CSSProperties}
+              >
+                {a.text}
+              </span>
+            ))}
             {ordered.map((study, i) => (
               <CaseCard
                 key={study.slug}
@@ -312,8 +359,19 @@ export function Work() {
             ))}
           </div>
           <span className="wall__cue" aria-hidden="true">scroll to explore →</span>
-          {/* Faux instrument read-out — live scroll / node / cursor / memory. */}
+          {/* Razor-thin scanner-frame corners around the viewport. */}
+          <div className="wall__frame" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <i />
+          </div>
+          {/* Faux instrument read-out — live scroll / node / cursor + flavour. */}
           <div className="wall__hud" ref={hudRef} aria-hidden="true">
+            <span className="wall__hud-row wall__hud-title">
+              <b>WORK.DB</b>
+              <span>v2.6</span>
+            </span>
             <span className="wall__hud-row">
               <b>SCROLL</b>
               <span data-k="scroll">000%</span>
@@ -326,10 +384,14 @@ export function Work() {
               <b>CURSOR</b>
               <span data-k="cursor">X:0000 Y:0000</span>
             </span>
-            <span className="wall__hud-row wall__hud-mem">
-              <b>MEM</b>
-              <span className="wall__hud-bar" />
-              <span data-k="mem">48%</span>
+            <span className="wall__hud-row wall__hud-track">
+              <b>TRACK</b>
+              <span className="wall__hud-dot" />
+              <span>6DoF lock</span>
+            </span>
+            <span className="wall__hud-row">
+              <b>SYS</b>
+              <span data-k="status">nominal</span>
             </span>
           </div>
         </div>

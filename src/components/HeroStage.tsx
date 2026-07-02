@@ -37,24 +37,22 @@ export function HeroStage() {
     return () => io.disconnect();
   }, []);
 
-  // Scroll-driven (not IntersectionObserver): an instant anchor jump straight to
-  // the content below fires a scroll event but doesn't always trip an observer,
-  // which used to leave the title stranded over the wall. Checked directly on
-  // each scroll (one cheap rect read; the setState bails when unchanged).
+  // Is the hero on screen? Polled on a rAF loop rather than via scroll events or
+  // an IntersectionObserver — an instant anchor jump straight to the content
+  // below doesn't reliably trip either, which used to strand the title over the
+  // wall. One cheap rect read per frame; setState bails when the value is stable.
   useEffect(() => {
-    const check = () => {
+    let raf = 0;
+    const loop = () => {
       const hero = heroRef.current;
-      if (!hero) return;
-      const r = hero.getBoundingClientRect();
-      setHeroInView(r.bottom > 0 && r.top < window.innerHeight);
+      if (hero) {
+        const r = hero.getBoundingClientRect();
+        setHeroInView(r.bottom > 0 && r.top < window.innerHeight);
+      }
+      raf = requestAnimationFrame(loop);
     };
-    window.addEventListener('scroll', check, { passive: true });
-    window.addEventListener('resize', check);
-    check();
-    return () => {
-      window.removeEventListener('scroll', check);
-      window.removeEventListener('resize', check);
-    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   // Title lives only on the City layer (and only while the hero is on screen);
