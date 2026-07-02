@@ -31,6 +31,7 @@ interface Wall {
   width: number;
   slots: Slot[];
   string: string; // SVG path (viewBox 0 0 width 1000) — the wire the cards pin to
+  segs: string[]; // per-card incoming wire segment, for the hover data-packet
 }
 
 // Lay the cards out top-left → bottom-right across the whole (tall + wide) plane,
@@ -54,19 +55,23 @@ function buildWall(n: number): Wall {
   // height (topPct * 10) so the SVG can share a width × 1000 viewBox.
   const pin = slots.map((s) => ({ x: s.left + CARD_W / 2, y: s.topPct * 10 }));
   let string = '';
+  const segs: string[] = [];
   pin.forEach((p, i) => {
     if (i === 0) {
       string += `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+      segs.push('');
       return;
     }
     const prev = pin[i - 1];
     const midX = (prev.x + p.x) / 2;
     const sag = Math.min(60, Math.max(18, (p.x - prev.x) * 0.05)); // wider gap → deeper sag
     const midY = (prev.y + p.y) / 2 + sag;
-    string += ` Q ${midX.toFixed(1)} ${midY.toFixed(1)} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+    const q = `Q ${midX.toFixed(1)} ${midY.toFixed(1)} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+    string += ` ${q}`;
+    segs.push(`M ${prev.x.toFixed(1)} ${prev.y.toFixed(1)} ${q}`);
   });
 
-  return { width, slots, string };
+  return { width, slots, string, segs };
 }
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
@@ -172,9 +177,14 @@ export function Work() {
   }, []);
   const wall = useMemo(() => buildWall(ordered.length), [ordered.length]);
   const [open, setOpen] = useState<string | null>(null);
+  // Which tile is hovered — drives the data-packet that runs down the wire.
+  const [hover, setHover] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const planeRef = useRef<HTMLDivElement>(null);
   const farRef = useRef<HTMLDivElement>(null);
+  const pinRef = useRef<HTMLDivElement>(null);
+  const hudRef = useRef<HTMLDivElement>(null);
+  const n = ordered.length;
 
   useEffect(() => {
     if (reduced) return;
@@ -192,19 +202,44 @@ export function Work() {
       // Parallax: the dot field drifts slower, so the cards read as the near
       // layer floating in front of a receding space.
       if (farRef.current) farRef.current.style.transform = `translate3d(${-(p * maxX * 0.72)}px, ${-(p * maxY * 0.72)}px, 0)`;
+      // Telemetry read-outs.
+      const hud = hudRef.current;
+      if (hud) {
+        const node = Math.min(n, Math.max(1, Math.round(p * (n - 1)) + 1));
+        const mem = 48 + Math.round(p * 39);
+        hud.style.setProperty('--mem', `${mem}`);
+        const set = (k: string, v: string) => hud.querySelector(`[data-k="${k}"]`)?.replaceChildren(v);
+        set('scroll', `${String(Math.round(p * 100)).padStart(3, '0')}%`);
+        set('node', `${String(node).padStart(2, '0')}/${n}`);
+        set('mem', `${mem}%`);
+      }
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
     };
+    const onMove = (e: MouseEvent) => {
+      const pin = pinRef.current;
+      const hud = hudRef.current;
+      if (!pin || !hud) return;
+      const r = pin.getBoundingClientRect();
+      const x = Math.round(e.clientX - r.left);
+      const y = Math.round(e.clientY - r.top);
+      if (x < 0 || y < 0 || x > r.width || y > r.height) return;
+      hud.querySelector('[data-k="cursor"]')?.replaceChildren(
+        `X:${String(x).padStart(4, '0')} Y:${String(y).padStart(4, '0')}`,
+      );
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
+    window.addEventListener('mousemove', onMove, { passive: true });
     update();
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
+      window.removeEventListener('mousemove', onMove);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [reduced, wall.width]);
+  }, [reduced, wall.width, n]);
 
   const openStudy = open ? caseBySlug(open) : undefined;
 
@@ -220,7 +255,7 @@ export function Work() {
         ref={scrollRef}
         style={reduced ? undefined : { height: `calc(100svh + ${wall.width}px - 100vw)` }}
       >
-        <div className="wall__pin">
+        <div className="wall__pin" ref={pinRef}>
           <div
             className="wall__far"
             ref={farRef}
@@ -239,6 +274,12 @@ export function Work() {
               aria-hidden="true"
             >
               <path className="wall__wire" d={wall.string} vectorEffect="non-scaling-stroke" />
+              {hover != null && wall.segs[hover] && (
+                // A data packet fired down the wire into the hovered tile.
+                <circle key={hover} className="wall__packet" r={4} style={{ color: accentFor(ordered[hover].slug) }}>
+                  <animateMotion dur="0.5s" path={wall.segs[hover]} fill="freeze" />
+                </circle>
+              )}
             </svg>
             {ordered.map((study, i) => (
               <span
@@ -259,6 +300,7 @@ export function Work() {
                 key={study.slug}
                 study={study}
                 onOpen={() => setOpen(study.slug)}
+                onHover={(v) => setHover(v ? i : (prev) => (prev === i ? null : prev))}
                 style={
                   {
                     left: `${wall.slots[i].left}px`,
@@ -270,6 +312,26 @@ export function Work() {
             ))}
           </div>
           <span className="wall__cue" aria-hidden="true">scroll to explore →</span>
+          {/* Faux instrument read-out — live scroll / node / cursor / memory. */}
+          <div className="wall__hud" ref={hudRef} aria-hidden="true">
+            <span className="wall__hud-row">
+              <b>SCROLL</b>
+              <span data-k="scroll">000%</span>
+            </span>
+            <span className="wall__hud-row">
+              <b>NODE</b>
+              <span data-k="node">01/{n}</span>
+            </span>
+            <span className="wall__hud-row">
+              <b>CURSOR</b>
+              <span data-k="cursor">X:0000 Y:0000</span>
+            </span>
+            <span className="wall__hud-row wall__hud-mem">
+              <b>MEM</b>
+              <span className="wall__hud-bar" />
+              <span data-k="mem">48%</span>
+            </span>
+          </div>
         </div>
       </div>
 

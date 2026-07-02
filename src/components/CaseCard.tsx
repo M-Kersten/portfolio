@@ -13,7 +13,17 @@ export function accentFor(slug: string): string {
 
 // A poster tile on the wall. `style` carries its absolute placement + tilt.
 // Clicking it lifts the project off the wall into the focus view (no HUD).
-export function CaseCard({ study, onOpen, style }: { study: CaseStudy; onOpen: () => void; style?: CSSProperties }) {
+export function CaseCard({
+  study,
+  onOpen,
+  onHover,
+  style,
+}: {
+  study: CaseStudy;
+  onOpen: () => void;
+  onHover?: (hovering: boolean) => void;
+  style?: CSSProperties;
+}) {
   const [imgOk, setImgOk] = useState(true);
   const src = study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
   const seed = Array.from(study.slug).reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -24,6 +34,8 @@ export function CaseCard({ study, onOpen, style }: { study: CaseStudy; onOpen: (
       className="worktile"
       style={{ ...style, '--card-accent': accentFor(study.slug), '--card-ang': `${120 + (seed % 90)}deg` } as CSSProperties}
       onClick={onOpen}
+      onMouseEnter={() => onHover?.(true)}
+      onMouseLeave={() => onHover?.(false)}
       aria-label={`${study.title} — open`}
     >
       <div className="worktile__media">

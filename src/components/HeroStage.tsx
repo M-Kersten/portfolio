@@ -37,12 +37,24 @@ export function HeroStage() {
     return () => io.disconnect();
   }, []);
 
+  // Scroll-driven (not IntersectionObserver): an instant anchor jump straight to
+  // the content below fires a scroll event but doesn't always trip an observer,
+  // which used to leave the title stranded over the wall. Checked directly on
+  // each scroll (one cheap rect read; the setState bails when unchanged).
   useEffect(() => {
-    const hero = heroRef.current;
-    if (!hero) return;
-    const io = new IntersectionObserver(([e]) => setHeroInView(e.isIntersecting), { threshold: 0 });
-    io.observe(hero);
-    return () => io.disconnect();
+    const check = () => {
+      const hero = heroRef.current;
+      if (!hero) return;
+      const r = hero.getBoundingClientRect();
+      setHeroInView(r.bottom > 0 && r.top < window.innerHeight);
+    };
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    check();
+    return () => {
+      window.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+    };
   }, []);
 
   // Title lives only on the City layer (and only while the hero is on screen);
