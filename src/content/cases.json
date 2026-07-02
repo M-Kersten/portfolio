@@ -11,7 +11,7 @@
     "outcome": "Multiplayer VR, retrofitted into a living system",
     "tech": ["Unity", "C#", "VR", "Networking"],
     "lesson": "Adding tech to a system that already exists is often harder than starting from scratch. Before i implement a feature i should ask: 'will this even be maintained?'",
-    "year": "2023",
+    "year": "2026",
     "live": false,
     "media": [],
     "draft": false
@@ -67,6 +67,7 @@
     "media": [],
     "draft": false
   },
+  
   {
     "slug": "wonderment-location",
     "title": "Wonderment location XR",

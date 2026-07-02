@@ -1462,7 +1462,7 @@ html {
   flex-wrap: wrap;
   gap: 0.4em;
   margin: 0;
-  padding: 0;
+  padding: 10px 0 0 0;
 }
 /* Engraved / OLED-plate chips: sharp corners, solid ground, hairline mechanical
    border, mono — each tag reads as a component label stamped on the tile. */
@@ -1752,24 +1752,16 @@ html {
   aspect-ratio: 4 / 5;
   border-radius: var(--radius);
   overflow: hidden;
-  border: 1px solid var(--line);
-  background: var(--paper-2);
   box-shadow: 0 24px 60px -34px rgba(0, 0, 0, 0.85);
 }
 .about__portrait-ph {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(120% 90% at 30% 0%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 60%),
-    linear-gradient(160deg, var(--paper-2), var(--paper));
 }
 .about__portrait-ph::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--dotfield);
-  background-size: var(--dotfield-size);
-  opacity: 0.4;
   mix-blend-mode: screen;
 }
 .about__portrait-frame {
@@ -1777,7 +1769,6 @@ html {
   inset: 0;
   background-size: cover;
   background-position: center top;
-  transition: opacity 0.18s var(--ease);
 }
 .about__portrait-idx {
   position: absolute;
@@ -1787,12 +1778,6 @@ html {
   font-family: var(--font-mono);
   font-size: var(--step--1);
   letter-spacing: 0.12em;
-  color: var(--ink-60);
-  background: color-mix(in srgb, #05070a 55%, transparent);
-  border: 1px solid var(--hairline);
-  border-radius: 3px;
-  padding: 0.1em 0.5em;
-  backdrop-filter: blur(3px);
 }
 .about__list {
   list-style: none;

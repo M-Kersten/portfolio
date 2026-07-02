@@ -44,7 +44,7 @@ function AboutPortrait() {
           key={i}
           className="about__portrait-frame"
           aria-hidden="true"
-          style={{ backgroundImage: `url(${asset(`/profile/${i + 1}.jpg`)})`, opacity: i === frame ? 1 : 0 }}
+          style={{ backgroundImage: `url(${asset(`/profile/${i + 1}.png`)})`, opacity: i === frame ? 1 : 0 }}
         />
       ))}
       <span className="about__portrait-idx" aria-hidden="true">
