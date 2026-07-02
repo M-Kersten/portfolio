@@ -1200,9 +1200,9 @@ html {
   display: flex;
   flex-direction: column;
   text-align: left;
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015));
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012));
+  border: 1px solid color-mix(in srgb, var(--card-accent) 14%, var(--line));
+  border-radius: 9px;
   overflow: hidden;
   cursor: pointer;
   color: inherit;
@@ -1225,27 +1225,29 @@ html {
   z-index: 5;
 }
 
-/* AR tracking overlay — corner brackets + a confidence read-out that "lock on"
-   when a tile is hovered/focused, like an object being detected. */
+/* Survey-plate registration frame — faint corner brackets that mark each tile
+   as a catalogued location on the map, then expand + lock on when hovered. */
 .worktile__reticle {
   position: absolute;
-  inset: 7px;
+  inset: 8px;
   pointer-events: none;
-  opacity: 0;
-  transform: scale(1.05);
-  transition: opacity 0.22s var(--ease), transform 0.22s var(--ease);
   z-index: 4;
+  transition: inset 0.22s var(--ease);
 }
 .worktile:hover .worktile__reticle,
 .worktile:focus-visible .worktile__reticle {
-  opacity: 1;
-  transform: scale(1);
+  inset: 5px;
 }
 .worktile__reticle i {
   position: absolute;
-  width: 15px;
-  height: 15px;
-  border: 2px solid var(--card-accent);
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--card-accent) 30%, transparent);
+  transition: border-color 0.22s var(--ease);
+}
+.worktile:hover .worktile__reticle i,
+.worktile:focus-visible .worktile__reticle i {
+  border-color: var(--card-accent);
 }
 .worktile__reticle i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
 .worktile__reticle i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
