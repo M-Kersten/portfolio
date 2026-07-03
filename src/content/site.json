@@ -80,7 +80,9 @@
     "email": "info@merijnkersten.nl",
     "links": [
       { "href": "https://www.linkedin.com/", "label": "LinkedIn" },
-      { "href": "https://github.com/m-kersten", "label": "GitHub" }
+      { "href": "https://github.com/m-kersten", "label": "GitHub" },
+      { "href": "https://www.instagram.com/merijnkersten/", "label": "Instagram" },
+      { "href": "https://www.youtube.com/@mrspazzout1/featured", "label": "YouTube" }
     ]
   }
 }
