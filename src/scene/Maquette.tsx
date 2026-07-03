@@ -978,6 +978,63 @@ function RoadRibbon({ points, width = 0.08 }: { points: V3[]; width?: number }) 
   );
 }
 
+/** Sagging power cables from the Alliander tower out to every building. All
+ *  cables are packed into one `segments` polyline (one draw call); each edge is a
+ *  point-pair, with a parabolic droop between the tower top and the roof. */
+function cableSegs(from: V3, targets: V3[]): V3[] {
+  const segs: V3[] = [];
+  for (const t of targets) {
+    const horiz = Math.hypot(t[0] - from[0], t[2] - from[2]);
+    const sag = 0.05 + horiz * 0.14; // longer spans droop more
+    const N = 12;
+    let prev: V3 | null = null;
+    for (let i = 0; i <= N; i++) {
+      const u = i / N;
+      const p: V3 = [
+        from[0] + (t[0] - from[0]) * u,
+        from[1] + (t[1] - from[1]) * u - sag * 4 * u * (1 - u),
+        from[2] + (t[2] - from[2]) * u,
+      ];
+      if (prev) segs.push(prev, p);
+      prev = p;
+    }
+  }
+  return segs;
+}
+
+/** The grid: dim slate cables at rest that ease to a bright cyan — bloom-catching
+ *  — when the Alliander tower is engaged, so its network "lights up". */
+function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
+  const { hovered, selected, visited } = useActive('alliander-hololens');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lineRef = useRef<any>(null);
+  const k = useRef(0);
+  const rest = useMemo(() => new Color('#3a5163'), []);
+  // HDR cyan (>1) so the cables read as the brightest thing on the board and bloom
+  // clearly, rather than blending into the cyan wash the whole stage takes on select.
+  const glow = useMemo(() => new Color('#27e8f2').multiplyScalar(2.4), []);
+  const segs = useMemo(() => cableSegs(from, targets), [from, targets]);
+  useFrame(() => {
+    const target = selected ? 1 : hovered ? 0.55 : visited ? 0.16 : 0;
+    k.current += (target - k.current) * 0.09;
+    const kk = k.current;
+    const m = lineRef.current?.material;
+    if (!m) return;
+    const op = 0.14 + kk * 0.76;
+    const lw = 1.0 + kk * 1.6;
+    m.opacity = op;
+    m.linewidth = lw;
+    if (m.color) m.color.copy(rest).lerp(glow, kk);
+    if (m.uniforms) {
+      if (m.uniforms.opacity) m.uniforms.opacity.value = op;
+      if (m.uniforms.linewidth) m.uniforms.linewidth.value = lw;
+      if (m.uniforms.diffuse && m.color) m.uniforms.diffuse.value.copy(m.color);
+    }
+  });
+  if (segs.length === 0) return null;
+  return <Line ref={lineRef} segments points={segs} color="#3a5163" lineWidth={1} transparent opacity={0.14} />;
+}
+
 function CityRig() {
   // Roads: a grid threading between the blocks, three avenues out toward the
   // church / windmill / park, and two curved roads sweeping around the side.
@@ -1037,6 +1094,9 @@ function CityRig() {
         <Building key={i} {...b} winMat={winMat} />
       ))}
       <Skyscraper position={[0, 0, 0]} winMat={winMat} />
+      {/* power lines from the central tower to every building — glow blue on select */}
+      <PowerWires from={[0, 0.8, 0]} targets={cluster.map((b) => [b.x, b.h, b.z] as V3)} />
+
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}
       <Windmill position={mill.position} slug="dtt-amsterdam" />
