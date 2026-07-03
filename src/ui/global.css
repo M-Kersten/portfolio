@@ -1047,7 +1047,9 @@ html {
   fill: none;
   stroke: color-mix(in srgb, var(--cyan) 50%, transparent);
   stroke-width: 1.4px;
-  stroke-dasharray: 2 6;
+  /* Pattern length (3 + 7 = 10px) must match DASH/GAP in Work.tsx, which pins the
+     dashoffset to world space so the dashes stay put as the tail retracts. */
+  stroke-dasharray: 3 7;
   stroke-linecap: round;
   stroke-linejoin: round;
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--cyan) 40%, transparent));

@@ -341,7 +341,9 @@ export function Work() {
   const farRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);
-  const trailRef = useRef<{ x: number; y: number; t: number }[]>([]);
+  // Trail points carry a cumulative arc-length `s` (px from the first point ever),
+  // so the dash pattern can be pinned to world space and never crawl.
+  const trailRef = useRef<{ x: number; y: number; t: number; s: number }[]>([]);
   const trailPathRef = useRef<SVGPathElement>(null);
   const n = ordered.length;
 
@@ -373,16 +375,56 @@ export function Work() {
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
     };
-    // A dashed trail that lingers behind the cursor for ~0.7s — like charting a
-    // route as you wander the map. Drawn in the pinned viewport's own pixels.
-    const LIFE = 700;
+    // A dashed trail that lingers behind the cursor — like charting a route as you
+    // wander the map. You draw at the head as the mouse moves; the tail retracts
+    // by age. The dashes are pinned to world space (dashoffset = the tail's
+    // arc-length) so they stay put where drawn instead of crawling forward — each
+    // dash just shrinks and pops off the tail as the line expires. Pattern below
+    // must stay in sync with `.wall__trail path` stroke-dasharray in global.css.
+    const LIFE = 700; // ms a point survives before the retracting tail reaches it
+    const DASH = 3;
+    const GAP = 7;
+    const PATTERN = DASH + GAP;
     let trailRaf = 0;
     const drawTrail = () => {
       const now = performance.now();
-      const pts = (trailRef.current = trailRef.current.filter((q) => now - q.t < LIFE));
+      const pts = trailRef.current;
       const path = trailPathRef.current;
-      if (path) path.setAttribute('d', pts.length < 2 ? '' : 'M ' + pts.map((q) => `${q.x} ${q.y}`).join(' L '));
-      trailRaf = pts.length > 0 ? requestAnimationFrame(drawTrail) : 0;
+      const cutoff = now - LIFE;
+      // First still-living point (everything before it has aged past LIFE).
+      let i = 0;
+      while (i < pts.length && pts[i].t < cutoff) i++;
+      if (i >= pts.length || pts.length < 2) {
+        // Nothing left alive (or too short to draw a segment) — clear and idle.
+        if (i >= pts.length) trailRef.current = [];
+        if (path) path.setAttribute('d', '');
+        trailRaf = trailRef.current.length > 1 ? requestAnimationFrame(drawTrail) : 0;
+        return;
+      }
+      // The tail: the exact point where the cutoff time falls, interpolated between
+      // the last dead point and the first live one, so it slides smoothly instead
+      // of jumping vertex to vertex.
+      let tx = pts[i].x;
+      let ty = pts[i].y;
+      let ts = pts[i].s;
+      if (i > 0) {
+        const a = pts[i - 1];
+        const b = pts[i];
+        const f = Math.min(1, Math.max(0, (cutoff - a.t) / (b.t - a.t || 1)));
+        tx = a.x + (b.x - a.x) * f;
+        ty = a.y + (b.y - a.y) * f;
+        ts = a.s + (b.s - a.s) * f;
+      }
+      let d = `M ${tx.toFixed(1)} ${ty.toFixed(1)}`;
+      for (let k = i; k < pts.length; k++) d += ` L ${pts[k].x.toFixed(1)} ${pts[k].y.toFixed(1)}`;
+      if (path) {
+        path.setAttribute('d', d);
+        // Pin the pattern to the tail's world arc-length → dashes never crawl.
+        path.style.strokeDashoffset = String(ts % PATTERN);
+      }
+      // Drop points fully behind the tail, keeping the one anchor we interpolate from.
+      if (i > 1) pts.splice(0, i - 1);
+      trailRaf = requestAnimationFrame(drawTrail);
     };
     const onMove = (e: MouseEvent) => {
       const pin = pinRef.current;
@@ -397,8 +439,12 @@ export function Work() {
       );
       const t = trailRef.current;
       const last = t[t.length - 1];
-      if (!last || Math.hypot(x - last.x, y - last.y) > 6) t.push({ x, y, t: performance.now() });
-      if (t.length > 80) t.shift();
+      const dist = last ? Math.hypot(x - last.x, y - last.y) : 0;
+      if (!last || dist > 4) {
+        // Extend the head, accumulating arc-length so the dashes can be world-locked.
+        t.push({ x, y, t: performance.now(), s: (last?.s ?? 0) + dist });
+        if (t.length > 240) t.shift();
+      }
       if (!trailRaf) trailRaf = requestAnimationFrame(drawTrail);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
