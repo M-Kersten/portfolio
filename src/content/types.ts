@@ -44,6 +44,20 @@ export interface NavItem {
   label: string;
 }
 
+/** An employer / studio shown in the About "where I've worked" strip; clicking
+ *  the name opens a popup with the role, timeframe and a short blurb. */
+export interface Company {
+  name: string;
+  /** Role held there, e.g. "XR developer". */
+  role: string;
+  /** Timeframe, e.g. "2019 — 2021" or "2024". */
+  period: string;
+  /** A sentence or two on the experience. */
+  blurb: string;
+  /** Optional external link (opens in a new tab). */
+  url?: string;
+}
+
 export interface SiteContent {
   brand: string;
   nav: NavItem[];
@@ -61,6 +75,8 @@ export interface SiteContent {
     lead: string;
     body: string[];
     facts: { label: string; value: string }[];
+    /** Short strip of past employers/studios, each opening an experience popup. */
+    companies?: Company[];
   };
   contact: {
     eyebrow: string;

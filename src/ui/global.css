@@ -1802,6 +1802,140 @@ html {
   margin: 0 0 var(--space-s);
 }
 
+/* "Where I've worked" — a short strip of past employers under the bio. Each name
+   is an engraved-plate chip (matching the tech tags) that opens an experience
+   popup. */
+.about__companies {
+  margin-top: var(--space-l);
+  padding-top: var(--space-m);
+  border-top: 1px solid var(--hairline);
+}
+.about__companies-label {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  margin: 0 0 var(--space-s);
+}
+.about__companies-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+.about__company {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--accent) 55%, var(--ink));
+  background: color-mix(in srgb, #05070a 55%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0.42em 0.85em;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease),
+    background var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.about__company:hover,
+.about__company:focus-visible {
+  color: var(--accent-ink);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+/* Company experience popup — a compact single-column sibling of .focus. */
+.cdialog {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: var(--space-l) var(--space-m);
+  background: color-mix(in srgb, var(--paper) 74%, transparent);
+  backdrop-filter: blur(10px);
+  animation: focus-fade 0.3s var(--ease);
+}
+.cdialog__card {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: 88svh;
+  overflow: hidden auto;
+  padding: var(--space-l);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
+    color-mix(in srgb, var(--paper-2) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  border-radius: var(--radius);
+  box-shadow: 0 40px 80px -40px var(--shadow), 0 0 0 1px rgba(0, 0, 0, 0.4);
+  animation: focus-pop 0.32s var(--ease);
+}
+.cdialog__close {
+  position: absolute;
+  top: var(--space-s);
+  right: var(--space-s);
+  width: 2.1rem;
+  height: 2.1rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+  color: var(--ink);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.cdialog__close:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.cdialog__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55em;
+  margin: 0 0 0.25em;
+  padding-right: 2.4rem; /* clear the close button */
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cdialog__period {
+  color: var(--accent-ink);
+}
+.cdialog__sep {
+  color: var(--ink-40);
+}
+.cdialog__role {
+  color: var(--ink-60);
+  letter-spacing: 0.1em;
+}
+.cdialog__name {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.05;
+  margin: 0 0 var(--space-s);
+}
+.cdialog__blurb {
+  margin: 0;
+  color: var(--ink);
+}
+.cdialog__link {
+  margin-top: var(--space-m);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cdialog,
+  .cdialog__card {
+    animation: none;
+  }
+}
+
 .contact {
   position: relative;
   overflow: hidden;
