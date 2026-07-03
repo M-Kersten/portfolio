@@ -1406,6 +1406,113 @@ function ShelfLight({ y }: { y: number }) {
   );
 }
 
+/** A little mouse that lives behind the Zwijsen book. When the book is picked up
+ *  it hops out of the gap it leaves, drops to the floor and then scurries a loop
+ *  around the bookcase. Coords are bookcase-local; it lives outside the pop group
+ *  so the bookcase's select-bounce doesn't squash it. */
+const MOUSE_GROUND = 0.03; // belly on the floor, bookcase-local
+function BookcaseMouse({ gap }: { gap: V3 }) {
+  const { selected } = useActive('zwijsen-ar-books');
+  const reduced = useReducedMotion();
+  const ref = useRef<Group>(null);
+  const pos = useMemo(() => new Vector3(), []);
+  const vel = useMemo(() => new Vector3(), []);
+  const phase = useRef<'hidden' | 'arming' | 'jump' | 'walk'>('hidden');
+  const delay = useRef(0);
+  const walkT = useRef(0);
+  const yaw = useRef(0);
+  // The loop the mouse walks — an ellipse that encloses the bookcase footprint.
+  const CX = 0;
+  const CZ = 0.02;
+  const RX = 0.52;
+  const RZ = 0.34;
+
+  useFrame((s, delta) => {
+    const g = ref.current;
+    if (!g) return;
+    const dt = Math.min(delta, 1 / 30);
+    const t = s.clock.elapsedTime;
+
+    if (selected && phase.current === 'hidden') {
+      phase.current = 'arming';
+      delay.current = reduced ? 0 : 0.35; // let the book clear the shelf first
+    }
+    if (phase.current === 'arming') {
+      delay.current -= dt;
+      if (delay.current <= 0) {
+        g.visible = true;
+        if (reduced) {
+          phase.current = 'walk';
+          walkT.current = Math.PI / 2; // sit at the front, no hop
+          pos.set(CX, MOUSE_GROUND, CZ + RZ);
+        } else {
+          phase.current = 'jump';
+          pos.set(gap[0], gap[1], gap[2]);
+          vel.set(0.05, 0.72, 0.55); // hop up and out toward the room
+        }
+      }
+    } else if (phase.current === 'jump') {
+      vel.y -= 3.0 * dt; // gravity
+      pos.addScaledVector(vel, dt);
+      yaw.current = Math.atan2(vel.x, vel.z);
+      if (pos.y <= MOUSE_GROUND) {
+        pos.y = MOUSE_GROUND;
+        phase.current = 'walk';
+        walkT.current = Math.atan2((pos.z - CZ) / RZ, (pos.x - CX) / RX); // continue from here
+      }
+    } else if (phase.current === 'walk') {
+      const speed = reduced ? 0 : 0.85 + Math.sin(t * 6) * 0.18; // rad/s, with a little scurry
+      walkT.current += speed * dt;
+      pos.set(CX + Math.cos(walkT.current) * RX, MOUSE_GROUND, CZ + Math.sin(walkT.current) * RZ);
+      pos.y += reduced ? 0 : Math.abs(Math.sin(t * 15)) * 0.004; // scurry bob
+      yaw.current = Math.atan2(-Math.sin(walkT.current) * RX, Math.cos(walkT.current) * RZ);
+    }
+
+    if (phase.current === 'hidden') {
+      g.visible = false;
+      return;
+    }
+    g.position.copy(pos);
+    g.rotation.y = yaw.current;
+    g.rotation.x = phase.current === 'jump' ? Math.max(-0.5, Math.min(0.5, -vel.y * 0.3)) : 0;
+  });
+
+  const GREY = '#8b929c';
+  const PINK = '#b58794';
+  return (
+    <group ref={ref} visible={false}>
+      <mesh scale={[0.024, 0.02, 0.034]}>
+        <sphereGeometry args={[1, 12, 10]} />
+        <meshStandardMaterial color={GREY} emissive="#3a3f47" emissiveIntensity={0.25} roughness={0.7} flatShading />
+      </mesh>
+      <mesh position={[0, 0.004, 0.03]} scale={[0.015, 0.014, 0.018]}>
+        <sphereGeometry args={[1, 12, 10]} />
+        <meshStandardMaterial color="#949aa4" emissive="#3a3f47" emissiveIntensity={0.25} roughness={0.7} flatShading />
+      </mesh>
+      {[-1, 1].map((sx, i) => (
+        <mesh key={`ear${i}`} position={[sx * 0.011, 0.016, 0.026]}>
+          <sphereGeometry args={[0.008, 10, 8]} />
+          <meshStandardMaterial color={PINK} emissive="#3a3f47" emissiveIntensity={0.2} roughness={0.7} />
+        </mesh>
+      ))}
+      {[-1, 1].map((sx, i) => (
+        <mesh key={`eye${i}`} position={[sx * 0.007, 0.006, 0.042]}>
+          <sphereGeometry args={[0.0035, 8, 8]} />
+          <meshStandardMaterial color="#ffd7e0" emissive="#ff6a90" emissiveIntensity={1.2} toneMapped={false} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.001, 0.05]}>
+        <sphereGeometry args={[0.004, 8, 8]} />
+        <meshStandardMaterial color="#d98aa0" emissive="#d98aa0" emissiveIntensity={0.5} toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 0.007, -0.03]} rotation={[-0.5, 0, 0]}>
+        <cylinderGeometry args={[0.0015, 0.003, 0.05, 6]} />
+        <meshStandardMaterial color={PINK} roughness={0.7} />
+      </mesh>
+    </group>
+  );
+}
+
 /** The bookcase. Engaging the Zwijsen book "turns it on": the under-shelf strips
  *  warm up and the book spines glow, alongside the orange book lifting + opening. */
 function Bookcase({ position }: { position: V3 }) {
@@ -1473,6 +1580,8 @@ function Bookcase({ position }: { position: V3 }) {
       </group>
       <OpenBook slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} />
       </group>
+      {/* a mouse hiding behind the book — hops out of the gap and scurries around */}
+      <BookcaseMouse gap={[0.12, 0.52, 0.04]} />
     </group>
   );
 }
