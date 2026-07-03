@@ -22,6 +22,10 @@ export interface CaseStudy {
   tech?: string[];
   /** One "key lesson" — the systems-thinking throughline of Merijn's work. */
   lesson?: string;
+  /** For touring installations — the cities/venues it has travelled to. */
+  places?: string[];
+  /** For field-deployed work — "what breaks in the real world", label + note. */
+  fieldNotes?: { label: string; body: string }[];
   /** Year the project was worked on — shown as a stamped date on the wall tile. */
   year?: string;
   /** Marks a case as currently live in production. */

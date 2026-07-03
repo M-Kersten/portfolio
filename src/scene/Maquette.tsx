@@ -629,18 +629,18 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
       <group ref={popRef}>
       <mesh position={[0, 0.012, 0]}>
         <cylinderGeometry args={[0.5, 0.5, 0.02, 44]} />
-        <LiveGlassMat slug="niantic-explorer" color="#2f8a6e" opacity={0.15} />
+        <LiveGlassMat slug="arcam" color="#2f8a6e" opacity={0.15} />
       </mesh>
       <Line points={circlePts(0.5)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
       {/* lake — an irregular water body with shore, ripples, a jetty + reeds */}
       <group position={[-0.14, 0, 0.18]}>
         <mesh geometry={lake.geo} position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <LiveGlassMat slug="niantic-explorer" color="#27557d" opacity={0.4} />
+          <LiveGlassMat slug="arcam" color="#27557d" opacity={0.4} />
         </mesh>
         {/* lighter shallows */}
         <mesh position={[0.03, 0.025, -0.02]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.1, 28]} />
-          <LiveGlassMat slug="niantic-explorer" color="#4a96c0" opacity={0.3} />
+          <LiveGlassMat slug="arcam" color="#4a96c0" opacity={0.3} />
         </mesh>
         {/* shoreline */}
         <Line points={lake.shore} position={[0, 0.03, 0]} color={live ? '#5fc4ff' : accent} lineWidth={1.2} transparent opacity={0.6} />
@@ -866,8 +866,8 @@ function CityRig() {
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}
       <Windmill position={mill.position} slug="dtt-amsterdam" />
 
-      {/* parks (the first carries the niantic-explorer hotspot — its trees rustle) */}
-      <Park position={park.position} rustleSlug="niantic-explorer" />
+      {/* parks (the first carries the arcam hotspot — its trees rustle) */}
+      <Park position={park.position} rustleSlug="arcam" />
     </group>
   );
 }
@@ -1834,7 +1834,7 @@ interface Relation {
 const THREAD = { ar: '#46d6e6', xr: '#c79bff', data: '#bff06a' };
 const RELATIONS: Relation[] = [
   { thread: 'AR', from: 'custom-ar-framework', to: 'lightship-drive', color: THREAD.ar },
-  { thread: 'AR', from: 'lightship-drive', to: 'niantic-explorer', color: THREAD.ar },
+  { thread: 'AR', from: 'lightship-drive', to: 'arcam', color: THREAD.ar },
   { thread: 'AR', from: 'custom-ar-framework', to: 'zwijsen-ar-books', color: THREAD.ar },
   { thread: 'XR · simulation', from: 'philips-medical-xr', to: 'virtuele-brigade', color: THREAD.xr },
   { thread: 'AI · data', from: 'amsterdam-ai', to: 'popcore-games', color: THREAD.data },

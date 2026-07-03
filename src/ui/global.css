@@ -1499,6 +1499,46 @@ html {
   --btn-bg: var(--card-accent);
 }
 
+/* Case extras (only present on cases that provide them, e.g. ARCam): a field-
+   failure spec list and a world-tour manifest of small mono plates. */
+.focus__notes {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35em var(--space-m);
+  margin: 0.45em 0 0;
+}
+.focus__notes dt {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--card-accent);
+}
+.focus__notes dd {
+  margin: 0;
+  font-size: var(--step--1);
+  line-height: 1.5;
+  color: var(--ink-60);
+}
+.focus__tour {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  margin: 0.5em 0 0;
+  padding: 0;
+}
+.focus__tour li {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.02em;
+  color: var(--ink-60);
+  background: color-mix(in srgb, #05070a 45%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0.12em 0.5em;
+}
+
 /* ---------- Focus card — a project lifted off the wall ---------- */
 .focus {
   position: fixed;

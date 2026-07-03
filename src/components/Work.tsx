@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { cases, caseBySlug, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -252,6 +252,29 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
                 <li key={t}>{t}</li>
               ))}
             </ul>
+          )}
+          {study.places && study.places.length > 0 && (
+            <section>
+              <h4 className="worktile__h">Where it’s toured · {study.places.length} stops</h4>
+              <ul className="focus__tour" aria-label="Places it has toured">
+                {study.places.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {study.fieldNotes && study.fieldNotes.length > 0 && (
+            <section>
+              <h4 className="worktile__h">What breaks in the field</h4>
+              <dl className="focus__notes">
+                {study.fieldNotes.map((f) => (
+                  <Fragment key={f.label}>
+                    <dt>{f.label}</dt>
+                    <dd>{f.body}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+            </section>
           )}
           {study.lesson && (
             <p className="worktile__lesson">
