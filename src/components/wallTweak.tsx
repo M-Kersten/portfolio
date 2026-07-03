@@ -18,6 +18,8 @@ export interface WallConfig {
   topJitter: number; // random vertical scatter, ± this many %
   topMin: number; // clamp — highest a tile may sit (min %)
   topMax: number; // clamp — lowest a tile may sit (max %)
+  stackChance: number; // 0–1 — how often a column holds two tiles, stacked
+  stackGap: number; // vertical spread of a stacked pair, ± this many % from centre
   rot: number; // random tile rotation, ± this many degrees
   parallax: number; // dot-field drift vs tiles (0 = fixed, 1 = moves with them)
   seed: number; // RNG seed for the scatter — change it to reshuffle
@@ -34,6 +36,8 @@ export const WALL_DEFAULTS: WallConfig = {
   topJitter: 17,
   topMin: 3,
   topMax: 78,
+  stackChance: 0.45,
+  stackGap: 15,
   rot: 4.6,
   parallax: 0.72,
   seed: 9137,
@@ -80,6 +84,8 @@ const FIELDS: FieldSpec[] = [
   { k: 'topJitter', label: 'top jitter ±%', min: 0, max: 45, step: 1 },
   { k: 'topMin', label: 'clamp min %', min: 0, max: 40, step: 1 },
   { k: 'topMax', label: 'clamp max %', min: 40, max: 98, step: 1 },
+  { k: 'stackChance', label: 'stack chance', min: 0, max: 1, step: 0.05 },
+  { k: 'stackGap', label: 'stack gap ±%', min: 0, max: 40, step: 1 },
   { k: 'rot', label: 'rotation ±°', min: 0, max: 16, step: 0.2 },
   { k: 'parallax', label: 'dot parallax', min: 0, max: 1, step: 0.02 },
   { k: 'seed', label: 'seed', min: 1, max: 99999, step: 1 },

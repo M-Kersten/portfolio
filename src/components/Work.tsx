@@ -50,22 +50,38 @@ interface Wall {
   segs: string[]; // per-card incoming wire segment, for the hover data-packet
 }
 
-// Lay the cards out top-left → bottom-right across the whole (tall + wide) plane,
-// widely jittered so it reads like a hand-hung wall of paintings. Then thread a
-// wire that pins to each card's top edge.
+// Lay the cards out as a row of COLUMNS descending left → right across the tall +
+// wide plane. Each column holds one tile, or — `stackChance` of the time — two,
+// one above the other at the same x (a stacked pair). Widely jittered so it reads
+// like a hand-hung wall. Then a wire is threaded that pins to each card's top edge.
 function buildWall(n: number, cfg: WallConfig): Wall {
   const rnd = mulberry32(cfg.seed);
+  // Plan the columns first: sizes of 1 or 2 tiles that sum to exactly n.
+  const colSizes: number[] = [];
+  let remaining = n;
+  while (remaining > 0) {
+    const two = remaining >= 2 && rnd() < cfg.stackChance;
+    colSizes.push(two ? 2 : 1);
+    remaining -= two ? 2 : 1;
+  }
+  const cols = colSizes.length;
+  const clamp = (v: number) => Math.min(cfg.topMax, Math.max(cfg.topMin, v));
   const slots: Slot[] = [];
   let x = cfg.startX;
-  for (let i = 0; i < n; i++) {
-    const t = n > 1 ? i / (n - 1) : 0;
-    // Descend across the full plane height, but with a wide vertical jitter so it
-    // scatters rather than reading as a tidy diagonal (kept clear of the very
-    // bottom so the last cards land fully in view at the end of the scroll).
-    const topPct = Math.min(cfg.topMax, Math.max(cfg.topMin, cfg.topStart + t * cfg.topSlope + (rnd() * 2 - 1) * cfg.topJitter));
-    slots.push({ left: x, topPct, rot: (rnd() * 2 - 1) * cfg.rot });
-    x += cfg.cardW + cfg.gapMin + rnd() * cfg.gapJitter; // advance with a little jitter
-  }
+  colSizes.forEach((size, c) => {
+    const t = cols > 1 ? c / (cols - 1) : 0;
+    const band = cfg.topStart + t * cfg.topSlope; // where this column sits vertically
+    if (size === 2) {
+      // Split the pair above / below the band; a shared partial jitter keeps the
+      // gap intact while still nudging the whole column off the tidy diagonal.
+      const j = (rnd() * 2 - 1) * cfg.topJitter * 0.35;
+      slots.push({ left: x, topPct: clamp(band - cfg.stackGap + j), rot: (rnd() * 2 - 1) * cfg.rot });
+      slots.push({ left: x, topPct: clamp(band + cfg.stackGap + j), rot: (rnd() * 2 - 1) * cfg.rot });
+    } else {
+      slots.push({ left: x, topPct: clamp(band + (rnd() * 2 - 1) * cfg.topJitter), rot: (rnd() * 2 - 1) * cfg.rot });
+    }
+    x += cfg.cardW + cfg.gapMin + rnd() * cfg.gapJitter; // advance to the next column
+  });
   const width = x + 48;
 
   // Pin points sit right on each card's top-centre; y is per-mille of the plane
@@ -299,14 +315,20 @@ export function Work() {
   // Forests + a city, spaced along the land, each with its own label.
   const features = useMemo(() => {
     const slots = wall.slots;
+    // Distinct column x's (a stacked pair shares one), left → right, each with the
+    // mean vertical band of its tile(s).
+    const xs = [...new Set(slots.map((s) => s.left))].sort((a, b) => a - b);
+    if (xs.length < 2) return [];
+    const bandAt = (left: number) => {
+      const ys = slots.filter((s) => s.left === left).map((s) => s.topPct);
+      return ys.reduce((a, b) => a + b, 0) / ys.length;
+    };
     return FEATURES.map((f, k) => {
-      // Drop each feature into a horizontal gap between two tiles, where nothing
-      // can hide it, offset a touch above or below the trail.
-      const i = Math.max(0, Math.min(slots.length - 2, Math.round(((k + 0.5) / FEATURES.length) * (slots.length - 2))));
-      const a = slots[i];
-      const bcard = slots[i + 1];
-      const x = (a.left + cfg.cardW + bcard.left) / 2;
-      const band = (a.topPct + bcard.topPct) / 2;
+      // Drop each feature into a horizontal gap between two columns, where no tile
+      // can hide it, offset a touch above or below the tile band.
+      const j = Math.max(0, Math.min(xs.length - 2, Math.round(((k + 0.5) / FEATURES.length) * (xs.length - 2))));
+      const x = (xs[j] + cfg.cardW + xs[j + 1]) / 2;
+      const band = (bandAt(xs[j]) + bandAt(xs[j + 1])) / 2;
       const topPct = Math.min(90, Math.max(6, band + (k % 2 === 1 ? -20 : 22)));
       return { ...f, x, topPct };
     });
@@ -413,6 +435,11 @@ export function Work() {
             aria-hidden="true"
             style={{ width: `${wall.width}px`, height: `${cfg.planeVh * 100}svh` }}
           />
+          {/* The traveller's dashed trail, lingering behind the cursor — sits
+              between the dot field and the plane so the tiles occlude it. */}
+          <svg className="wall__trail" aria-hidden="true">
+            <path ref={trailPathRef} />
+          </svg>
           <div
             className="wall__plane"
             ref={planeRef}
@@ -503,10 +530,6 @@ export function Work() {
             ))}
           </div>
           <span className="wall__cue" aria-hidden="true">scroll to explore →</span>
-          {/* The traveller's dashed trail, lingering behind the cursor. */}
-          <svg className="wall__trail" aria-hidden="true">
-            <path ref={trailPathRef} />
-          </svg>
           {/* Razor-thin scanner-frame corners around the viewport. */}
           <div className="wall__frame" aria-hidden="true">
             <i />
