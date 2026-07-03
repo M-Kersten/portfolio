@@ -506,17 +506,20 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
   );
 }
 
-/** A Dutch windmill (smock mill). Its sails idle slowly and spin up when its
- *  hotspot (DTT Amsterdam) is engaged; the body solidifies once visited. */
+/** A Dutch windmill (smock mill). The sails are still at idle; hovering its
+ *  hotspot (DTT Amsterdam) turns them slowly, selecting spins them up fast, and
+ *  once it's been opened they keep turning. The body solidifies once visited. */
 function Windmill({ position, slug }: { position: V3; slug?: string }) {
   const sails = useRef<Group>(null);
   const popRef = useRef<Group>(null);
   const reduced = useReducedMotion();
-  const { hovered, selected } = useActive(slug ?? '');
-  const spin = useRef(0.5);
+  const { hovered, selected, visited } = useActive(slug ?? '');
+  const spin = useRef(0);
   useFrame((_s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
-    spin.current += ((hovered || selected ? 2.6 : 0.5) - spin.current) * 0.04;
+    // idle → still; hovered → slow; opened (selected, then latched by visited) → fast
+    const target = selected || visited ? 2.6 : hovered ? 0.9 : 0;
+    spin.current += (target - spin.current) * 0.04;
     if (sails.current && !reduced) sails.current.rotation.z += delta * spin.current;
   });
   return (
@@ -709,6 +712,65 @@ function blobPts(r: number, wobble: number, seg = 48, seed = 7): V3[] {
   return pts;
 }
 
+/** A coin-op rooftop tower viewer — a pole with a tilting binocular head whose
+ *  objective lenses glow in the layer accent. Static scenery for the park. */
+function Binoculars({ position, rotationY = 0 }: { position: V3; rotationY?: number }) {
+  const { accent } = useAccent();
+  const METAL = '#4a5560';
+  return (
+    <group position={position} rotation={[0, rotationY, 0]}>
+      {/* base + pole */}
+      <mesh position={[0, 0.012, 0]}>
+        <cylinderGeometry args={[0.04, 0.05, 0.024, 18]} />
+        <GlassMat color={METAL} opacity={0.5} />
+        <Edges threshold={30} color={NEUTRAL} />
+      </mesh>
+      <mesh position={[0, 0.12, 0]}>
+        <cylinderGeometry args={[0.013, 0.016, 0.2, 12]} />
+        <GlassMat color={METAL} opacity={0.5} />
+        <Edges threshold={30} color={NEUTRAL} />
+      </mesh>
+      {/* tilting head, angled down toward the view */}
+      <group position={[0, 0.225, 0]} rotation={[0.3, 0, 0]}>
+        <mesh>
+          <boxGeometry args={[0.07, 0.045, 0.05]} />
+          <GlassMat color={METAL} opacity={0.55} />
+          <Edges threshold={30} color={NEUTRAL} />
+        </mesh>
+        {/* two barrels reaching forward, each capped by a glowing objective lens */}
+        {[-0.02, 0.02].map((x, i) => (
+          <group key={i} position={[x, 0, 0.05]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh>
+              <cylinderGeometry args={[0.014, 0.017, 0.1, 14]} />
+              <GlassMat color={METAL} opacity={0.5} />
+              <Edges threshold={30} color={NEUTRAL} />
+            </mesh>
+            <mesh position={[0, 0.052, 0]}>
+              <cylinderGeometry args={[0.015, 0.015, 0.006, 14]} />
+              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.3} toneMapped={false} />
+            </mesh>
+          </group>
+        ))}
+        {/* eyepieces at the back */}
+        {[-0.02, 0.02].map((x, i) => (
+          <mesh key={`e${i}`} position={[x, 0, -0.035]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.009, 0.011, 0.02, 10]} />
+            <GlassMat color={METAL} opacity={0.55} />
+            <Edges threshold={30} color={NEUTRAL} />
+          </mesh>
+        ))}
+        {/* side handlebars */}
+        {[-1, 1].map((s, i) => (
+          <mesh key={`h${i}`} position={[s * 0.045, -0.006, -0.018]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.005, 0.005, 0.035, 8]} />
+            <GlassMat color={METAL} opacity={0.55} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
 function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
   const { accent } = useAccent();
   const { selected, visited } = useActive(rustleSlug ?? '');
@@ -781,6 +843,8 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
       <TreeRound position={[0.2, 0, -0.18]} h={0.44} swaySlug={rustleSlug} />
       <TreeRound position={[0.24, 0, 0.22]} h={0.36} swaySlug={rustleSlug} />
       <TreeRound position={[-0.22, 0, -0.24]} h={0.4} swaySlug={rustleSlug} />
+      {/* a rooftop-style tower viewer looking out over the front of the park */}
+      <Binoculars position={[0.1, 0, 0.34]} rotationY={-0.15} />
       </group>
     </group>
   );
