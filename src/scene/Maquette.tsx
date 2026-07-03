@@ -376,9 +376,18 @@ function glassRim(shader: any) {
       '#include <opaque_fragment>',
       [
         '#include <opaque_fragment>',
+        // Fresnel rim.
         'float _rim = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.6);',
         'gl_FragColor.rgb += uRim * _rim * 0.5;',
         'gl_FragColor.a = clamp(gl_FragColor.a + _rim * 0.32, 0.0, 1.0);',
+        // A fine screen-space dot-grid printed across every glass surface, so the
+        // maquette carries the same dithered / halftone texture as the rest of the
+        // site. Screen-locked (not surface-mapped), so overlapping panes stay
+        // coherent; kept gentle so the delicate glass still reads.
+        'float _dg = sin(gl_FragCoord.x * 1.7) * sin(gl_FragCoord.y * 1.7);',
+        'float _dot = smoothstep(-0.2, 0.6, _dg);',
+        'gl_FragColor.rgb *= 0.85 + 0.3 * _dot;',
+        'gl_FragColor.a = clamp(gl_FragColor.a * (0.9 + 0.16 * _dot), 0.0, 1.0);',
       ].join('\n'),
     );
 }
@@ -1693,9 +1702,9 @@ function useChipEnergyTarget() {
 // the die and a coloured status LED that flashes (its own rhythm) when live.
 // `ly` sits each LED on top of its component rather than floating above the board.
 const CHIP_NODES: { x: number; z: number; ly: number; led: string; phase: number; speed: number }[] = [
-  { x: 0.92, z: 0.62, ly: 0.2, led: '#7fe6ff', phase: 0.0, speed: 6.5 }, // custom-ar
-  { x: 0.95, z: -0.72, ly: 0.175, led: '#ff6a6a', phase: 1.1, speed: 5.0 }, // philips
-  { x: -0.95, z: -0.74, ly: 0.225, led: '#a9f75c', phase: 2.0, speed: 7.5 }, // database
+  { x: 0.95, z: -0.72, ly: 0.2, led: '#7fe6ff', phase: 0.0, speed: 6.5 }, // custom-ar (back-right)
+  { x: -0.95, z: -0.74, ly: 0.175, led: '#ff6a6a', phase: 1.1, speed: 5.0 }, // philips (left)
+  { x: 0.92, z: 0.62, ly: 0.225, led: '#a9f75c', phase: 2.0, speed: 7.5 }, // database (front-right)
   { x: -0.98, z: 0.56, ly: 0.27, led: '#ffcf5e', phase: 0.7, speed: 5.8 }, // heatsink
   { x: 0.9, z: 0.92, ly: 0.17, led: '#7fe6ff', phase: 2.6, speed: 6.0 }, // computer vision
   { x: 0.0, z: 1.08, ly: 0.165, led: '#a9f75c', phase: 1.6, speed: 8.0 }, // pin header
@@ -1894,8 +1903,8 @@ function ChipRig() {
         </group>
       ))}
 
-      {/* custom-ar-framework — an AR camera lens that lights up */}
-      <LensComponent slug="custom-ar-framework" position={[0.92, 0.02, 0.62]} />
+      {/* custom-ar-framework — an AR camera lens that lights up (back-right) */}
+      <LensComponent slug="custom-ar-framework" position={[0.95, 0.02, -0.72]} />
 
       {/* decorative round caps */}
       {([[-0.55, 0.95], [0.55, -1.0]] as [number, number][]).map(([cx, cz], i) => (
@@ -1906,8 +1915,9 @@ function ChipRig() {
         </mesh>
       ))}
 
-      {/* round database stack (top platter is the accent) */}
-      <group position={[-0.95, 0, -0.74]}>
+      {/* round database stack (top platter is the accent) — moved to the front-right,
+          into the spot the AR lens vacated, so the board stays balanced */}
+      <group position={[0.92, 0, 0.62]}>
         {[0, 1, 2].map((i) => (
           <mesh key={i} position={[0, 0.05 + i * 0.07, 0]}>
             <cylinderGeometry args={[0.13, 0.13, 0.06, 28]} />
@@ -1928,8 +1938,8 @@ function ChipRig() {
       <Heatsink position={[-0.98, 0, 0.56]} />
       <PinHeader position={[0.0, 0, 1.08]} n={6} />
 
-      {/* Philips medical XR & AI module (heart-rate signal animates on hover) */}
-      <PhilipsModule position={[0.95, 0, -0.72]} hoverSlug="philips-medical-xr" />
+      {/* Philips medical XR & AI module (heart-rate signal animates on hover) — left side */}
+      <PhilipsModule position={[-0.95, 0, -0.74]} hoverSlug="philips-medical-xr" />
       <MiscComponents />
     </group>
   );
