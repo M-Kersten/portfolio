@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, MeshTransmissionMaterial, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
@@ -92,12 +92,6 @@ function useActive(slug: string) {
   const visited = useSceneSelector((s) => s.visited.includes(slug));
   return { hovered, selected, visited };
 }
-// Motion plays while hovered OR selected, so it keeps living once you click in.
-function useHovered(slug: string) {
-  const { hovered, selected } = useActive(slug);
-  return hovered || selected;
-}
-
 // A springy squash-and-stretch bounce on the rising edge of `selected` — the
 // picked object springs to life in place, then settles back to rest. State is
 // stashed on the object's userData so call sites just hand us the group/mesh each
@@ -113,25 +107,6 @@ function bounceObject(obj: Object3D, selected: boolean, reduced: boolean, delta:
   const spring = reduced ? 0 : Math.cos((1 - u.bPop) * Math.PI * 3) * u.bPop;
   const sq = spring * amp;
   obj.scale.set(1 - sq, 1 + sq, 1 - sq);
-}
-
-/** A subtle vibration — the phone (a gentle buzz, not a rumble). */
-function Jitter({ slug, children, amp = 0.005 }: { slug: string; children: ReactNode; amp?: number }) {
-  const hovered = useHovered(slug);
-  const reduced = useReducedMotion();
-  const ref = useRef<Group>(null);
-  const k = useRef(0);
-  useFrame((s) => {
-    const g = ref.current;
-    if (!g) return;
-    k.current += ((hovered ? 1 : 0) - k.current) * 0.2;
-    const a = reduced ? 0 : k.current;
-    const t = s.clock.elapsedTime;
-    g.position.x = Math.sin(t * 50) * amp * a;
-    g.position.z = Math.cos(t * 58) * amp * a;
-    g.rotation.y = Math.sin(t * 45) * 0.022 * a;
-  });
-  return <group ref={ref}>{children}</group>;
 }
 
 /** An emissive surface that powers on at hover — a smooth "turn on" (chip, AR)
@@ -184,6 +159,133 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
       <boxGeometry args={args} />
       <meshStandardMaterial ref={mat} color={col} emissive={col} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
     </mesh>
+  );
+}
+
+/** The phone on the couch (Popcore). It buzzes on hover; on *select* it lifts
+ *  off the cushion and rotates to face you, and the first time you open it a
+ *  handful of ping-pong balls pop out of the screen and settle on the seat. */
+const PHONE_BALLS = 6;
+const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
+function Phone({ slug, position, args, liveColor }: { slug: string; position: V3; args: V3; liveColor: string }) {
+  const { accent } = useAccent();
+  const { hovered, selected, visited } = useActive(slug);
+  const reduced = useReducedMotion();
+  const rigRef = useRef<Group>(null);
+  const mat = useRef<MeshStandardMaterial>(null);
+  const k = useRef(0); // emissive hover/select level
+  const glow = useRef(0); // 0 → 1 shift toward the lifelike colour
+  const turn = useRef(0); // 0 = lying flat, 1 = lifted + facing the user
+  const buzz = useRef(0); // hover buzz envelope
+  const base = useMemo(() => new Color(accent), [accent]);
+  const lifelike = useMemo(() => new Color(liveColor), [liveColor]);
+  const mix = (a: number, b: number, t: number) => a + (b - a) * t;
+
+  // Ping-pong balls — each carries its own little bit of physics, fired once on
+  // the first open. Held as plain objects (mutated in useFrame, not React state).
+  const balls = useMemo(
+    () => Array.from({ length: PHONE_BALLS }, () => ({ mesh: null as Mesh | null, vel: new Vector3(), delay: 0 })),
+    [],
+  );
+  const R = 0.015; // ball radius
+  const fired = useRef(false);
+
+  useFrame((s, delta) => {
+    const dt = Math.min(delta, 1 / 30);
+    const t = s.clock.elapsedTime;
+
+    // --- lift + rotate toward the user on select; buzz on hover while resting ---
+    const rig = rigRef.current;
+    if (rig) {
+      turn.current += ((selected ? 1 : 0) - turn.current) * 0.1;
+      const tt = reduced ? (selected ? 1 : 0) : turn.current;
+      buzz.current += ((hovered || selected ? 1 : 0) - buzz.current) * 0.2;
+      const a = reduced ? 0 : buzz.current * (1 - tt); // buzz fades as it stands up
+      rig.rotation.set(mix(-Math.PI / 2, -0.5, tt), Math.sin(t * 45) * 0.022 * a, mix(0.3, 0.15, tt));
+      rig.position.set(
+        position[0] + Math.sin(t * 50) * 0.005 * a,
+        position[1] + tt * 0.085, // rises off the cushion so it doesn't clip
+        position[2] + Math.cos(t * 58) * 0.005 * a,
+      );
+    }
+
+    // --- emissive screen (same feel as EmissiveHover: rest 0.5, peak 0.3) ---
+    if (mat.current) {
+      k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.12;
+      glow.current += ((selected || visited ? 1 : 0) - glow.current) * 0.07;
+      const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
+      mat.current.emissiveIntensity = 0.5 + k.current * (0.3 + breathe);
+      mat.current.color.copy(base).lerp(lifelike, glow.current);
+      mat.current.emissive.copy(base).lerp(lifelike, glow.current);
+    }
+
+    // --- fire the balls once, on the first open ---
+    if (selected && !fired.current) {
+      fired.current = true;
+      balls.forEach((b, i) => {
+        if (!b.mesh) return;
+        if (reduced) {
+          // no launch — just scatter them at rest on the cushion around the phone
+          const ang = (i / PHONE_BALLS) * Math.PI * 2;
+          b.mesh.position.set(position[0] + Math.cos(ang) * 0.07, COUCH_SEAT_Y + R, position[2] + Math.sin(ang) * 0.05);
+          b.mesh.visible = true;
+        } else {
+          const ang = (i / PHONE_BALLS) * Math.PI * 2 + 0.6;
+          b.delay = i * 0.045; // slight stagger → a little spray
+          b.vel.set(Math.cos(ang) * (0.1 + Math.random() * 0.1), 0.62 + Math.random() * 0.3, Math.sin(ang) * (0.1 + Math.random() * 0.1));
+          b.mesh.position.set(position[0], position[1] + 0.03, position[2]);
+          b.mesh.visible = false; // shown once its stagger delay elapses
+        }
+      });
+    }
+
+    // --- integrate the balls: launch, arc under gravity, bounce, settle ---
+    if (fired.current && !reduced) {
+      const restY = COUCH_SEAT_Y + R;
+      for (const b of balls) {
+        if (!b.mesh) continue;
+        if (b.delay > 0) {
+          b.delay -= dt;
+          continue;
+        }
+        b.mesh.visible = true;
+        b.vel.y -= 2.6 * dt; // gravity
+        b.mesh.position.addScaledVector(b.vel, dt);
+        if (b.mesh.position.y <= restY) {
+          b.mesh.position.y = restY;
+          if (Math.abs(b.vel.y) < 0.14) b.vel.set(0, 0, 0); // settled
+          else {
+            b.vel.y = -b.vel.y * 0.5; // bounce
+            b.vel.x *= 0.72;
+            b.vel.z *= 0.72;
+          }
+        }
+      }
+    }
+  });
+
+  return (
+    <>
+      <group ref={rigRef} position={position} rotation={[-Math.PI / 2, 0, 0.3]}>
+        <mesh>
+          <boxGeometry args={args} />
+          <meshStandardMaterial ref={mat} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={false} />
+        </mesh>
+      </group>
+      {balls.map((b, i) => (
+        <mesh
+          key={i}
+          ref={(m) => {
+            b.mesh = m;
+          }}
+          position={position}
+          visible={false}
+        >
+          <sphereGeometry args={[R, 16, 12]} />
+          <meshStandardMaterial color="#fffdf5" emissive="#fff0d0" emissiveIntensity={0.2} roughness={0.55} toneMapped={false} />
+        </mesh>
+      ))}
+    </>
   );
 }
 
@@ -1369,9 +1471,7 @@ function RoomRig() {
         <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
         <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
         <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} />
-        <Jitter slug="popcore-games">
-          <EmissiveHover slug="popcore-games" position={[0.12, 0.205, 0.06]} rotation={[-Math.PI / 2, 0, 0.3]} args={[0.075, 0.155, 0.004]} liveColor="#ff7a3d" rest={0.5} peak={0.3} />
-        </Jitter>
+        <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor="#ff7a3d" />
       </group>
 
       {/* coffee table with AR racing (Lightship Drive), directly in front of the couch */}
