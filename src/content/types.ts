@@ -52,6 +52,8 @@ export interface Company {
   role: string;
   /** Timeframe, e.g. "2019 — 2021" or "2024". */
   period: string;
+  /** Where the role was based, e.g. "Amsterdam, NL" or "Remote". */
+  location?: string;
   /** A sentence or two on the experience. */
   blurb: string;
   /** Optional external link (opens in a new tab). */

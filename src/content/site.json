@@ -40,30 +40,35 @@
         "name": "DTT",
         "role": "XR & app developer",
         "period": "2019",
+        "location": "Amsterdam, NL",
         "blurb": "An Amsterdam studio where I worked across a run of projects — an interactive educational play-book, a room-scale VR experience, and an AR sample app built to show off what the tech could do."
       },
       {
         "name": "Popcore",
         "role": "Game developer",
         "period": "2021",
+        "location": "Remote / Berlin, DE",
         "blurb": "Casual mobile games at scale — the kind that end up on thousands of devices and have to stay fun while surviving real-world app stores and audiences."
       },
       {
         "name": "Niantic",
         "role": "AR developer",
         "period": "2022 — 2023",
+        "location": "Remote",
         "blurb": "Planet-scale AR on the Lightship platform: an explorer experience and location/driving features leaning hard on visual positioning and shared AR out in the real world."
       },
       {
         "name": "Wonderment",
         "role": "Creative technologist",
         "period": "2023",
+        "location": "Netherlands",
         "blurb": "Location-based XR — anchoring digital experiences to real places so the physical and the digital stop feeling like separate worlds."
       },
       {
         "name": "Philips",
         "role": "XR & AI engineer",
         "period": "2024",
+        "location": "Eindhoven, NL",
         "blurb": "Medical XR and AI prototyping — taking new spatial and machine-learning tech and pushing it toward something dependable enough to actually be useful."
       }
     ]

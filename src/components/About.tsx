@@ -58,82 +58,48 @@ function AboutPortrait() {
   );
 }
 
-// A compact popup describing one past role — timeframe, title and a short blurb.
-// Mirrors the case-study FocusCard: backdrop + Esc + ✕ close, body-scroll lock.
-function CompanyDialog({ company, onClose }: { company: Company; onClose: () => void }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
-
-  return (
-    <div className="cdialog" onClick={onClose}>
-      <div
-        className="cdialog__card"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${company.name} — experience`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button ref={closeRef} type="button" className="cdialog__close" onClick={onClose} aria-label="Close">
-          <span aria-hidden="true">✕</span>
-        </button>
-        <p className="cdialog__meta">
-          <span className="cdialog__period">{company.period}</span>
-          <span className="cdialog__sep" aria-hidden="true">·</span>
-          <span className="cdialog__role">{company.role}</span>
-        </p>
-        <h3 className="cdialog__name">{company.name}</h3>
-        <p className="cdialog__blurb">{company.blurb}</p>
-        {company.url && (
-          <a className="btn btn--ghost cdialog__link" href={company.url} target="_blank" rel="noreferrer">
-            Visit <span aria-hidden="true">↗</span>
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// A short horizontal row of past employers; clicking a name opens its popup.
+// A short horizontal row of past employers; hovering (or focusing / tapping) a
+// name swaps the detail panel below to that company's role, dates, location and
+// a short blurb. No modal — an inline preview, like a segmented control.
 function CompanyStrip({ companies }: { companies: Company[] }) {
-  const [open, setOpen] = useState<number | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const close = () => {
-    setOpen(null);
-    triggerRef.current?.focus(); // hand focus back to the name that opened it
-  };
+  const [active, setActive] = useState(0);
+  const c = companies[active];
   return (
     <div className="about__companies">
       <p className="about__companies-label">Where I’ve worked</p>
       <ul className="about__companies-row">
-        {companies.map((c, i) => (
-          <li key={c.name}>
+        {companies.map((co, i) => (
+          <li key={co.name}>
             <button
               type="button"
               className="about__company"
-              aria-haspopup="dialog"
-              onClick={(e) => {
-                triggerRef.current = e.currentTarget;
-                setOpen(i);
-              }}
+              data-active={i === active || undefined}
+              aria-pressed={i === active}
+              onMouseEnter={() => setActive(i)}
+              onFocus={() => setActive(i)}
+              onClick={() => setActive(i)}
             >
-              {c.name}
+              {co.name}
             </button>
           </li>
         ))}
       </ul>
-      {open != null && <CompanyDialog company={companies[open]} onClose={close} />}
+      <div className="about__company-detail" aria-live="polite">
+        <div className="cdetail__head">
+          <h3 className="cdetail__name">{c.name}</h3>
+          <span className="cdetail__period">{c.period}</span>
+        </div>
+        <p className="cdetail__meta">
+          <span className="cdetail__role">{c.role}</span>
+          {c.location && (
+            <>
+              <span className="cdetail__sep" aria-hidden="true">·</span>
+              <span className="cdetail__loc">{c.location}</span>
+            </>
+          )}
+        </p>
+        <p className="cdetail__blurb">{c.blurb}</p>
+      </div>
     </div>
   );
 }
