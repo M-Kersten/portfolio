@@ -526,8 +526,9 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
   const spin = useRef(0);
   useFrame((_s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
-    // idle → still; hovered → slow; opened (selected, then latched by visited) → fast
-    const target = selected || visited ? 2.6 : hovered ? 0.9 : 0;
+    // still at idle; turns slowly once engaged (hover or select) and keeps turning
+    // once opened — no fast spin-up on select
+    const target = hovered || selected || visited ? 0.9 : 0;
     spin.current += (target - spin.current) * 0.04;
     if (sails.current && !reduced) sails.current.rotation.z += delta * spin.current;
   });
@@ -1008,7 +1009,7 @@ function Constellation({ anchor }: { anchor: V3 }) {
   const stars = useMemo(() => {
     const cx = DIPPER.reduce((a, s) => a + s[0], 0) / DIPPER.length;
     const cy = DIPPER.reduce((a, s) => a + s[1], 0) / DIPPER.length;
-    const S = 0.34; // asterism scale
+    const S = 0.26; // asterism scale
     return DIPPER.map(([x, y]) => [(x - cx) * S, (y - cy) * S, 0] as V3);
   }, []);
   const segs = useMemo(() => DIPPER_LINKS.flatMap(([a, b]) => [stars[a], stars[b]]), [stars]);
@@ -1023,22 +1024,22 @@ function Constellation({ anchor }: { anchor: V3 }) {
     starMats.current.forEach((m, i) => {
       if (!m) return;
       const tw = reduced ? 1 : 0.78 + 0.32 * Math.sin(t * (1.7 + i * 0.4) + i);
-      m.emissiveIntensity = kk * 1.9 * tw; // HDR → blooms
+      m.emissiveIntensity = kk * 1.3 * tw; // gentle bloom so the linking lines still read
       m.opacity = Math.min(1, kk * 1.5);
     });
     const lm = lineRef.current?.material;
     if (lm) {
-      const op = kk * 0.7;
+      const op = kk * 0.95;
       lm.opacity = op;
       if (lm.uniforms?.opacity) lm.uniforms.opacity.value = op;
     }
   });
   return (
-    <group ref={grp} position={[anchor[0] + 0.1, anchor[1] + 0.88, anchor[2] - 0.7]} rotation={[0.05, 0.4, 0]} visible={false}>
-      <Line ref={lineRef} segments points={segs} color="#bfe4ff" lineWidth={1.4} transparent opacity={0} />
+    <group ref={grp} position={[anchor[0] + 0.1, anchor[1] + 1.0, anchor[2] - 0.7]} rotation={[0.05, 0.4, 0]} visible={false}>
+      <Line ref={lineRef} segments points={segs} color="#dcefff" lineWidth={2.6} transparent opacity={0} />
       {stars.map((p, i) => (
         <mesh key={i} position={p}>
-          <sphereGeometry args={[0.02 + DIPPER_MAG[i] * 0.016, 12, 12]} />
+          <sphereGeometry args={[0.013 + DIPPER_MAG[i] * 0.011, 12, 12]} />
           <meshStandardMaterial
             ref={(m) => {
               starMats.current[i] = m;
@@ -1087,30 +1088,25 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lineRef = useRef<any>(null);
   const k = useRef(0);
-  const rest = useMemo(() => new Color('#3a5163'), []);
-  // HDR cyan (>1) so the cables read as the brightest thing on the board and bloom
-  // clearly, rather than blending into the cyan wash the whole stage takes on select.
-  const glow = useMemo(() => new Color('#27e8f2').multiplyScalar(2.4), []);
   const segs = useMemo(() => cableSegs(from, targets), [from, targets]);
   useFrame(() => {
-    const target = selected ? 1 : hovered ? 0.55 : visited ? 0.16 : 0;
+    const target = selected ? 1 : hovered ? 0.5 : visited ? 0.2 : 0;
     k.current += (target - k.current) * 0.09;
     const kk = k.current;
     const m = lineRef.current?.material;
     if (!m) return;
-    const op = 0.14 + kk * 0.76;
-    const lw = 1.0 + kk * 1.6;
+    // The cable colour is a fixed bright blue; the glow comes from fading its
+    // opacity + thickness up on select (both reliable on LineMaterial), so it
+    // blooms clearly instead of relying on a colour tween the wash can swallow.
+    const op = 0.08 + kk * 0.9;
+    const lw = 1.0 + kk * 2.8;
     m.opacity = op;
     m.linewidth = lw;
-    if (m.color) m.color.copy(rest).lerp(glow, kk);
-    if (m.uniforms) {
-      if (m.uniforms.opacity) m.uniforms.opacity.value = op;
-      if (m.uniforms.linewidth) m.uniforms.linewidth.value = lw;
-      if (m.uniforms.diffuse && m.color) m.uniforms.diffuse.value.copy(m.color);
-    }
+    if (m.uniforms?.opacity) m.uniforms.opacity.value = op;
+    if (m.uniforms?.linewidth) m.uniforms.linewidth.value = lw;
   });
   if (segs.length === 0) return null;
-  return <Line ref={lineRef} segments points={segs} color="#3a5163" lineWidth={1} transparent opacity={0.14} />;
+  return <Line ref={lineRef} segments points={segs} color="#6fe6ff" lineWidth={1} transparent opacity={0.08} />;
 }
 
 function CityRig() {
@@ -1224,27 +1220,11 @@ function RaceCar({ color }: { color: string }) {
   );
 }
 
-// The cars launch off a ramp partway round the loop: a short window where they
-// rise on a sine arc and pitch nose-up (take-off) then nose-down (landing).
-const JUMP_FR = 0.0; // ramp position along the loop (0..1)
-const JUMP_SPAN = 0.18; // how much of the lap the jump covers
-const JUMP_H = 0.078; // peak height
-const JUMP_PITCH = 0.5; // nose tilt at take-off / landing (rad)
-function jumpAt(f: number) {
-  let p = f - JUMP_FR;
-  if (p < 0) p += 1;
-  if (p < JUMP_SPAN) {
-    const u = p / JUMP_SPAN;
-    return { dy: JUMP_H * Math.sin(Math.PI * u), pitch: -JUMP_PITCH * Math.cos(Math.PI * u) };
-  }
-  return { dy: 0, pitch: 0 };
-}
-
-/** Coffee table with an AR race loop, two cars and a ramp they jump (Lightship
- *  Drive). On hover the cars lap the loop and launch off the ramp. */
+/** Coffee table with an AR race loop and two cars (Lightship Drive). The cars
+ *  lap the loop continuously and smoothly — no ramp, no jump. */
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
-  const { hovered, selected, visited } = useActive(hoverSlug ?? '');
+  const { selected } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
   const track = useMemo(
     () =>
@@ -1259,17 +1239,8 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   );
   const car1 = useRef<Group>(null);
   const car2 = useRef<Group>(null);
-  const k = useRef(0);
-  const dist = useRef(0.3); // park the cars away from the ramp at rest
+  const dist = useRef(0.3);
   const popRef = useRef<Group>(null);
-  // the ramp sits on the loop at JUMP_FR, oriented along the track there
-  const ramp = useMemo(() => {
-    const n = track.length;
-    const i = Math.min(n - 2, Math.floor(JUMP_FR * (n - 1)));
-    const a = track[i];
-    const b = track[i + 1];
-    return { pos: [a[0], 0.196, a[2]] as V3, rotY: Math.atan2(b[0] - a[0], b[2] - a[2]) };
-  }, [track]);
   const place = (g: Group | null, t: number) => {
     if (!g) return;
     const n = track.length;
@@ -1277,20 +1248,15 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     const i = Math.min(n - 2, Math.floor(f * (n - 1)));
     const a = track[i];
     const b = track[i + 1];
-    const { dy, pitch } = jumpAt(f);
-    g.rotation.order = 'YXZ';
-    g.position.set(a[0], 0.202 + dy, a[2]);
+    g.position.set(a[0], 0.202, a[2]);
     g.rotation.y = Math.atan2(b[0] - a[0], b[2] - a[2]);
-    g.rotation.x = pitch;
   };
   useFrame((_s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
-    k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.1;
-    if (!reduced) dist.current += delta * 0.22 * k.current;
+    if (!reduced) dist.current += Math.min(delta, 1 / 30) * 0.2; // smooth, continuous lapping
     place(car1.current, dist.current);
     place(car2.current, dist.current + 0.5);
   });
-  const rampAngle = Math.atan2(JUMP_H, 0.085);
   return (
     <group position={position}>
       <group ref={popRef}>
@@ -1307,15 +1273,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         ))}
         {/* the AR race loop */}
         <Line points={track} position={[0, 0.2, 0]} color={accent} lineWidth={1.6} transparent opacity={0.7} />
-        {/* the ramp the cars launch off */}
-        <group position={ramp.pos} rotation={[0, ramp.rotY, 0]}>
-          <mesh position={[0, JUMP_H * 0.5, 0]} rotation={[-rampAngle, 0, 0]}>
-            <boxGeometry args={[0.05, 0.006, 0.085]} />
-            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.45} transparent opacity={0.55} roughness={0.4} toneMapped={false} />
-            <Edges threshold={20} color={NEUTRAL} />
-          </mesh>
-        </group>
-        {/* the two cars */}
+        {/* the two cars, lapping smoothly */}
         <group ref={car1}>
           <RaceCar color="#ff5a4d" />
         </group>
