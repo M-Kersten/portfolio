@@ -109,9 +109,9 @@ function bounceObject(obj: Object3D, selected: boolean, reduced: boolean, delta:
   obj.scale.set(1 - sq, 1 + sq, 1 - sq);
 }
 
-/** An emissive surface that powers on at hover — a smooth "turn on" (chip, AR)
- *  or a TV-style flicker (the monitor). On *select* it shifts toward a lifelike
- *  colour and brightens further (so it blooms), making the pick feel rewarding. */
+/** An emissive surface that powers on when its hotspot is selected and stays lit
+ *  once visited (no hover response) — a smooth "turn on" or a TV-style flicker.
+ *  On select it also shifts toward a lifelike colour and blooms. */
 function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest = 0.12, peak = 1.0, flicker = false }: {
   slug: string;
   position: V3;
@@ -125,7 +125,7 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
 }) {
   const { accent } = useAccent();
   const col = color ?? accent;
-  const { hovered, selected, visited } = useActive(slug);
+  const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
   const meshRef = useRef<Mesh>(null);
@@ -136,8 +136,8 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
   useFrame((s, delta) => {
     if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta);
     if (!mat.current) return;
-    // hover/select → full; visited → a calm lit idle; otherwise off
-    const kT = hovered || selected ? 1 : visited ? 0.42 : 0;
+    // select → full on, and it stays on once visited; otherwise off (no hover)
+    const kT = selected || visited ? 1 : 0;
     k.current += (kT - k.current) * (flicker ? 0.32 : 0.12);
     // colour resolves to lifelike once selected, and stays that way once visited
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
@@ -978,6 +978,84 @@ function RoadRibbon({ points, width = 0.08 }: { points: V3[]; width?: number }) 
   );
 }
 
+// The Big Dipper (Ursa Major — "the Big Bear") asterism: 7 stars + the links
+// between them. Handle on the right, bowl on the left.
+const DIPPER: [number, number][] = [
+  [0.0, 1.0], // 0 Dubhe  — bowl top-outer
+  [0.0, 0.0], // 1 Merak  — bowl bottom-outer
+  [1.0, 0.05], // 2 Phecda — bowl bottom-inner
+  [1.05, 0.85], // 3 Megrez — bowl top-inner / handle joint
+  [1.85, 1.0], // 4 Alioth
+  [2.6, 1.15], // 5 Mizar
+  [3.35, 1.4], // 6 Alkaid — handle end
+];
+const DIPPER_LINKS: [number, number][] = [
+  [0, 3], [3, 2], [2, 1], [1, 0], // the bowl
+  [3, 4], [4, 5], [5, 6], // the handle
+];
+const DIPPER_MAG = [1, 0.7, 0.65, 0.8, 1, 0.85, 1]; // relative brightness → star size
+
+/** A star constellation (the Big Dipper) that fades in behind the windmill while
+ *  it's selected, its stars twinkling and blooming against the night. */
+function Constellation({ anchor }: { anchor: V3 }) {
+  const { selected } = useActive('dtt-amsterdam');
+  const reduced = useReducedMotion();
+  const grp = useRef<Group>(null);
+  const starMats = useRef<(MeshStandardMaterial | null)[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lineRef = useRef<any>(null);
+  const k = useRef(0);
+  const stars = useMemo(() => {
+    const cx = DIPPER.reduce((a, s) => a + s[0], 0) / DIPPER.length;
+    const cy = DIPPER.reduce((a, s) => a + s[1], 0) / DIPPER.length;
+    const S = 0.34; // asterism scale
+    return DIPPER.map(([x, y]) => [(x - cx) * S, (y - cy) * S, 0] as V3);
+  }, []);
+  const segs = useMemo(() => DIPPER_LINKS.flatMap(([a, b]) => [stars[a], stars[b]]), [stars]);
+  useFrame((s) => {
+    k.current += ((selected ? 1 : 0) - k.current) * 0.08;
+    const kk = k.current;
+    if (grp.current) {
+      grp.current.visible = kk > 0.01;
+      grp.current.scale.setScalar(0.9 + 0.1 * kk);
+    }
+    const t = s.clock.elapsedTime;
+    starMats.current.forEach((m, i) => {
+      if (!m) return;
+      const tw = reduced ? 1 : 0.78 + 0.32 * Math.sin(t * (1.7 + i * 0.4) + i);
+      m.emissiveIntensity = kk * 1.9 * tw; // HDR → blooms
+      m.opacity = Math.min(1, kk * 1.5);
+    });
+    const lm = lineRef.current?.material;
+    if (lm) {
+      const op = kk * 0.7;
+      lm.opacity = op;
+      if (lm.uniforms?.opacity) lm.uniforms.opacity.value = op;
+    }
+  });
+  return (
+    <group ref={grp} position={[anchor[0] + 0.1, anchor[1] + 0.88, anchor[2] - 0.7]} rotation={[0.05, 0.4, 0]} visible={false}>
+      <Line ref={lineRef} segments points={segs} color="#bfe4ff" lineWidth={1.4} transparent opacity={0} />
+      {stars.map((p, i) => (
+        <mesh key={i} position={p}>
+          <sphereGeometry args={[0.02 + DIPPER_MAG[i] * 0.016, 12, 12]} />
+          <meshStandardMaterial
+            ref={(m) => {
+              starMats.current[i] = m;
+            }}
+            color="#eaf6ff"
+            emissive="#cfe8ff"
+            emissiveIntensity={0}
+            transparent
+            opacity={0}
+            toneMapped={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /** Sagging power cables from the Alliander tower out to every building. All
  *  cables are packed into one `segments` polyline (one draw call); each edge is a
  *  point-pair, with a parabolic droop between the tower top and the roof. */
@@ -1100,6 +1178,8 @@ function CityRig() {
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}
       <Windmill position={mill.position} slug="dtt-amsterdam" />
+      {/* the Big Dipper rises behind the windmill while it's selected */}
+      <Constellation anchor={mill.position} />
 
       {/* parks (the first carries the arcam hotspot — its trees rustle) */}
       <Park position={park.position} rustleSlug="arcam" />
@@ -1731,7 +1811,7 @@ function RoomRig() {
 /** Philips medical XR & AI — an ECG module with a tiny Vision Pro headset. On
  *  hover a bright blip sweeps the heart-rate waveform like a monitor trace. */
 function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
-  const { hovered, selected, visited } = useActive(hoverSlug ?? '');
+  const { selected, visited } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
   const live = useRef(0);
   const base = useMemo(() => new Color('#9fb0bd'), []); // grey at rest
@@ -1757,8 +1837,8 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   };
   useFrame((s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
-    k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.12;
-    live.current += ((selected ? 1 : 0) - live.current) * 0.07; // green only while selected
+    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
+    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07; // green stays after select
     if (stripMat.current) {
       stripMat.current.color.copy(base).lerp(green, live.current);
       stripMat.current.emissive.copy(base).lerp(green, live.current);
@@ -1778,8 +1858,8 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     <group position={position}>
       <group ref={popRef}>
       <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline liveSlug="philips-medical-xr" />
-      {/* the ECG waveform + a blip that sweeps it on hover (the heart-rate signal) */}
-      <Line points={ecg} position={[0, 0.22, 0]} color={selected ? '#5fd07a' : '#9fb0bd'} lineWidth={1.8} transparent opacity={0.85} />
+      {/* the ECG waveform + a blip that sweeps it once engaged (the heart-rate signal) */}
+      <Line points={ecg} position={[0, 0.22, 0]} color={selected || visited ? '#5fd07a' : '#9fb0bd'} lineWidth={1.8} transparent opacity={0.85} />
       <mesh ref={dot} visible={false}>
         <sphereGeometry args={[0.014, 12, 12]} />
         <meshStandardMaterial color="#9fb0bd" emissive="#9fb0bd" emissiveIntensity={2.2} roughness={0.3} toneMapped={false} />
@@ -1861,10 +1941,11 @@ function PinHeader({ position, n = 6 }: { position: V3; n?: number }) {
    current fills the traces out to each component and their LEDs flash. */
 const CHIP_SLUGS = ['amsterdam-ai', 'custom-ar-framework', 'philips-medical-xr'];
 function useChipEnergyTarget() {
+  // The board powers on when any chip hotspot is selected and stays on once
+  // visited — it comes to life by selecting, never by hovering.
   const selected = useSceneSelector((s) => CHIP_SLUGS.includes(s.selectedSlug ?? ''));
-  const hovered = useSceneSelector((s) => CHIP_SLUGS.includes(s.hoveredSlug ?? ''));
   const visited = useSceneSelector((s) => CHIP_SLUGS.some((c) => s.visited.includes(c)));
-  return selected ? 1 : hovered ? 0.6 : visited ? 0.25 : 0;
+  return selected || visited ? 1 : 0;
 }
 
 // The board's components, spread well out around the die. Each gets a trace from
@@ -1989,14 +2070,14 @@ function pcbTrace(bx: number, bz: number, y: number): V3[] {
 /** custom-ar-framework as an AR camera lens — a barrel, aperture and a convex
  *  glass element that lights up (the lens "powers on") on hover / select. */
 function LensComponent({ slug, position }: { slug: string; position: V3 }) {
-  const { hovered, selected, visited } = useActive(slug);
+  const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
   const popRef = useRef<Group>(null);
   useFrame((s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
-    k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.12;
+    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
     if (mat.current) {
       const breathe = reduced ? 0 : Math.sin(s.clock.elapsedTime * 2.2) * 0.06;
       mat.current.emissiveIntensity = 0.14 + k.current * (1.0 + breathe);
