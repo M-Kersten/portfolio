@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, MeshTransmissionMaterial, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Group, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, TubeGeometry, Vector3, type Group, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { useTweak } from './devTweak';
 import { sceneStore, useSceneSelector } from './store';
@@ -999,7 +999,7 @@ const DIPPER_MAG = [1, 0.7, 0.65, 0.8, 1, 0.85, 1]; // relative brightness → s
 /** A star constellation (the Big Dipper) that fades in behind the windmill while
  *  it's selected, its stars twinkling and blooming against the night. */
 function Constellation({ anchor }: { anchor: V3 }) {
-  const { selected } = useActive('dtt-amsterdam');
+  const { selected, visited } = useActive('dtt-amsterdam');
   const reduced = useReducedMotion();
   const grp = useRef<Group>(null);
   const starMats = useRef<(MeshStandardMaterial | null)[]>([]);
@@ -1014,7 +1014,8 @@ function Constellation({ anchor }: { anchor: V3 }) {
   }, []);
   const segs = useMemo(() => DIPPER_LINKS.flatMap(([a, b]) => [stars[a], stars[b]]), [stars]);
   useFrame((s) => {
-    k.current += ((selected ? 1 : 0) - k.current) * 0.08;
+    // fades in on select and stays lit once the windmill has been opened
+    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.08;
     const kk = k.current;
     if (grp.current) {
       grp.current.visible = kk > 0.01;
@@ -1024,7 +1025,7 @@ function Constellation({ anchor }: { anchor: V3 }) {
     starMats.current.forEach((m, i) => {
       if (!m) return;
       const tw = reduced ? 1 : 0.78 + 0.32 * Math.sin(t * (1.7 + i * 0.4) + i);
-      m.emissiveIntensity = kk * 1.3 * tw; // gentle bloom so the linking lines still read
+      m.emissiveIntensity = kk * 1.8 * tw; // brighter to keep the now-tiny stars visible
       m.opacity = Math.min(1, kk * 1.5);
     });
     const lm = lineRef.current?.material;
@@ -1036,10 +1037,10 @@ function Constellation({ anchor }: { anchor: V3 }) {
   });
   return (
     <group ref={grp} position={[anchor[0] + 0.1, anchor[1] + 1.0, anchor[2] - 0.7]} rotation={[0.05, 0.4, 0]} visible={false}>
-      <Line ref={lineRef} segments points={segs} color="#dcefff" lineWidth={2.6} transparent opacity={0} />
+      <Line ref={lineRef} segments points={segs} color="#dcefff" lineWidth={3.0} transparent opacity={0} />
       {stars.map((p, i) => (
         <mesh key={i} position={p}>
-          <sphereGeometry args={[0.013 + DIPPER_MAG[i] * 0.011, 12, 12]} />
+          <sphereGeometry args={[0.0033 + DIPPER_MAG[i] * 0.0028, 10, 10]} />
           <meshStandardMaterial
             ref={(m) => {
               starMats.current[i] = m;
@@ -1057,56 +1058,60 @@ function Constellation({ anchor }: { anchor: V3 }) {
   );
 }
 
-/** Sagging power cables from the Alliander tower out to every building. All
- *  cables are packed into one `segments` polyline (one draw call); each edge is a
- *  point-pair, with a parabolic droop between the tower top and the roof. */
-function cableSegs(from: V3, targets: V3[]): V3[] {
-  const segs: V3[] = [];
-  for (const t of targets) {
-    const horiz = Math.hypot(t[0] - from[0], t[2] - from[2]);
-    const sag = 0.05 + horiz * 0.14; // longer spans droop more
-    const N = 12;
-    let prev: V3 | null = null;
-    for (let i = 0; i <= N; i++) {
-      const u = i / N;
-      const p: V3 = [
-        from[0] + (t[0] - from[0]) * u,
-        from[1] + (t[1] - from[1]) * u - sag * 4 * u * (1 - u),
-        from[2] + (t[2] - from[2]) * u,
-      ];
-      if (prev) segs.push(prev, p);
-      prev = p;
-    }
-  }
-  return segs;
-}
-
-/** The grid: dim slate cables at rest that ease to a bright cyan — bloom-catching
- *  — when the Alliander tower is engaged, so its network "lights up". */
+/** Power cables from the Alliander tower out to every building — thin emissive
+ *  tubes (not lines) so they reliably bloom: dim blue at rest, ramping to a bright
+ *  glowing blue when the tower is engaged, and staying lit once visited. All tubes
+ *  share one material, animated in one place. */
 function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
   const { hovered, selected, visited } = useActive('alliander-hololens');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const lineRef = useRef<any>(null);
   const k = useRef(0);
-  const segs = useMemo(() => cableSegs(from, targets), [from, targets]);
+  const tubes = useMemo(
+    () =>
+      targets.map((t) => {
+        const horiz = Math.hypot(t[0] - from[0], t[2] - from[2]);
+        const sag = 0.05 + horiz * 0.14; // longer spans droop more
+        const pts: Vector3[] = [];
+        for (let i = 0; i <= 12; i++) {
+          const u = i / 12;
+          pts.push(
+            new Vector3(
+              from[0] + (t[0] - from[0]) * u,
+              from[1] + (t[1] - from[1]) * u - sag * 4 * u * (1 - u),
+              from[2] + (t[2] - from[2]) * u,
+            ),
+          );
+        }
+        return new TubeGeometry(new CatmullRomCurve3(pts), 14, 0.006, 5, false);
+      }),
+    [from, targets],
+  );
+  const mat = useMemo(
+    () =>
+      new MeshStandardMaterial({
+        color: '#284a5c',
+        emissive: '#4fd8ff',
+        emissiveIntensity: 0.12,
+        transparent: true,
+        opacity: 0.55,
+        roughness: 0.4,
+        toneMapped: false,
+      }),
+    [],
+  );
   useFrame(() => {
-    const target = selected ? 1 : hovered ? 0.5 : visited ? 0.2 : 0;
+    const target = selected ? 1 : hovered ? 0.5 : visited ? 0.28 : 0;
     k.current += (target - k.current) * 0.09;
     const kk = k.current;
-    const m = lineRef.current?.material;
-    if (!m) return;
-    // The cable colour is a fixed bright blue; the glow comes from fading its
-    // opacity + thickness up on select (both reliable on LineMaterial), so it
-    // blooms clearly instead of relying on a colour tween the wash can swallow.
-    const op = 0.08 + kk * 0.9;
-    const lw = 1.0 + kk * 2.8;
-    m.opacity = op;
-    m.linewidth = lw;
-    if (m.uniforms?.opacity) m.uniforms.opacity.value = op;
-    if (m.uniforms?.linewidth) m.uniforms.linewidth.value = lw;
+    mat.emissiveIntensity = 0.12 + kk * 2.8; // toneMapped:false → blooms on select
+    mat.opacity = 0.5 + kk * 0.5;
   });
-  if (segs.length === 0) return null;
-  return <Line ref={lineRef} segments points={segs} color="#6fe6ff" lineWidth={1} transparent opacity={0.08} />;
+  return (
+    <group>
+      {tubes.map((g, i) => (
+        <mesh key={i} geometry={g} material={mat} />
+      ))}
+    </group>
+  );
 }
 
 function CityRig() {
@@ -1221,41 +1226,17 @@ function RaceCar({ color }: { color: string }) {
 }
 
 /** Coffee table with an AR race loop and two cars (Lightship Drive). The cars
- *  lap the loop continuously and smoothly — no ramp, no jump. */
+ *  ride a circle, simply rotating around the table's centre pivot. */
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
   const { selected } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
-  const track = useMemo(
-    () =>
-      smoothCurve(
-        [
-          [0.22, 0, 0.0], [0.1, 0, 0.16], [-0.12, 0, 0.14], [-0.22, 0, 0.0],
-          [-0.12, 0, -0.15], [0.1, 0, -0.16], [0.22, 0, 0.0],
-        ],
-        64,
-      ),
-    [],
-  );
-  const car1 = useRef<Group>(null);
-  const car2 = useRef<Group>(null);
-  const dist = useRef(0.3);
+  const ring = useRef<Group>(null);
   const popRef = useRef<Group>(null);
-  const place = (g: Group | null, t: number) => {
-    if (!g) return;
-    const n = track.length;
-    const f = ((t % 1) + 1) % 1;
-    const i = Math.min(n - 2, Math.floor(f * (n - 1)));
-    const a = track[i];
-    const b = track[i + 1];
-    g.position.set(a[0], 0.202, a[2]);
-    g.rotation.y = Math.atan2(b[0] - a[0], b[2] - a[2]);
-  };
+  const R = 0.2; // track radius
   useFrame((_s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
-    if (!reduced) dist.current += Math.min(delta, 1 / 30) * 0.2; // smooth, continuous lapping
-    place(car1.current, dist.current);
-    place(car2.current, dist.current + 0.5);
+    if (ring.current && !reduced) ring.current.rotation.y += Math.min(delta, 1 / 30) * 1.0;
   });
   return (
     <group position={position}>
@@ -1271,14 +1252,16 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
             <GlassMat opacity={0.24} />
           </mesh>
         ))}
-        {/* the AR race loop */}
-        <Line points={track} position={[0, 0.2, 0]} color={accent} lineWidth={1.6} transparent opacity={0.7} />
-        {/* the two cars, lapping smoothly */}
-        <group ref={car1}>
-          <RaceCar color="#ff5a4d" />
-        </group>
-        <group ref={car2}>
-          <RaceCar color="#4d9bff" />
+        {/* the AR race loop — a circle */}
+        <Line points={circlePts(R)} position={[0, 0.2, 0]} color={accent} lineWidth={1.6} transparent opacity={0.7} />
+        {/* two cars circling the centre pivot, facing their direction of travel */}
+        <group ref={ring} position={[0, 0.202, 0]}>
+          <group position={[R, 0, 0]} rotation={[0, Math.PI, 0]}>
+            <RaceCar color="#ff5a4d" />
+          </group>
+          <group position={[-R, 0, 0]}>
+            <RaceCar color="#4d9bff" />
+          </group>
         </group>
       </group>
     </group>
