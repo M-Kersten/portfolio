@@ -62,13 +62,6 @@
     "outcome": "16 cities worldwide, packed in a suitcase",
     "tech": ["Lightship ARDK", "Unity", "iPad / iOS", "Location AR", "Web app"],
     "lesson": "Location-based AR is a systems-integration problem dressed up as a graphics demo: the physical world is your least reliable dependency, so you end up owning everything — tracking, databases, web, audio, performance, devices, UX, 3D, even the electronics and the screws. The backend was a punt I built on a hunch — vibe-coded years before that was a phrase; it fell over on day one and then ran flawlessly, which taught me how much value you can add just by taking the initiative early. And living out of a suitcase across sixteen cities taught me what ‘delivering’ really means: a thing that survives heat, bad Wi-Fi and a knocked tripod, not just a thing that works on your desk.",
-    "places": ["Netherlands", "London", "Paris", "Berlin", "Cannes", "San Francisco", "Tokyo", "Cologne", "Long Beach", "Osaka", "Madrid", "New York", "Düsseldorf", "Sendai", "Austin", "Zürich"],
-    "fieldNotes": [
-      { "label": "Internet", "body": "Wi-Fi congestion and blocked traffic at venues — it needs an offline mode." },
-      { "label": "Heat", "body": "iPads overheating (Cannes) and batteries draining fast (Berlin)." },
-      { "label": "Social", "body": "Cultural differences in how people queue and pose for the camera." },
-      { "label": "Physical", "body": "Knocked tripods, yanked cables, dropped iPads — and screws that didn’t hold, bought fresh in the city." }
-    ],
     "year": "2022",
     "live": false,
     "media": [],

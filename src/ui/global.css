@@ -1519,46 +1519,6 @@ html {
   --btn-bg: var(--card-accent);
 }
 
-/* Case extras (only present on cases that provide them, e.g. ARCam): a field-
-   failure spec list and a world-tour manifest of small mono plates. */
-.focus__notes {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.35em var(--space-m);
-  margin: 0.45em 0 0;
-}
-.focus__notes dt {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--card-accent);
-}
-.focus__notes dd {
-  margin: 0;
-  font-size: var(--step--1);
-  line-height: 1.5;
-  color: var(--ink-60);
-}
-.focus__tour {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4em;
-  margin: 0.5em 0 0;
-  padding: 0;
-}
-.focus__tour li {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.02em;
-  color: var(--ink-60);
-  background: color-mix(in srgb, #05070a 45%, transparent);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 0.12em 0.5em;
-}
-
 /* ---------- Focus card — a project lifted off the wall ---------- */
 .focus {
   position: fixed;
@@ -1574,11 +1534,10 @@ html {
 .focus__card {
   --card-accent: var(--accent);
   position: relative;
-  width: min(1040px, 100%);
+  width: min(760px, 100%);
   max-height: 88svh;
   overflow: hidden auto;
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  display: block;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
     color-mix(in srgb, var(--paper-2) 90%, transparent);
   border: 1px solid color-mix(in srgb, var(--card-accent) 45%, var(--line));
@@ -1590,18 +1549,10 @@ html {
 .focus__card[data-layer='city'] { --card-accent: var(--cyan); }
 .focus__card[data-layer='room'] { --card-accent: var(--coral); }
 .focus__card[data-layer='chip'] { --card-accent: var(--lime); }
-/* Media column: an optional embedded video stacked over the photo. */
-.focus__media {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-s);
-  padding: var(--space-l);
-  min-width: 0;
-}
+/* Full-bleed video / photo header at the top of the card — the card's own
+   overflow:hidden rounds their top corners. */
 .focus__video {
-  border-radius: var(--radius-s);
   overflow: hidden;
-  border: 1px solid var(--line);
   background: #06080a;
 }
 .focus__video iframe {
@@ -1611,8 +1562,7 @@ html {
   border: 0;
 }
 .focus__photo {
-  border-radius: var(--radius-s);
-  overflow: hidden;
+  aspect-ratio: 16 / 9;
 }
 .focus__actions {
   display: flex;
@@ -1659,10 +1609,6 @@ html {
 @keyframes focus-fade { from { opacity: 0; } }
 @keyframes focus-pop { from { opacity: 0; transform: scale(0.92) translateY(12px); } }
 
-@media (max-width: 720px) {
-  .focus__card { grid-template-columns: 1fr; }
-  .focus__media { padding: var(--space-m) var(--space-m) 0; }
-}
 @media (max-width: 560px) {
   .worktile__cols { grid-template-columns: 1fr; }
 }

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { cases, caseBySlug, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
@@ -191,8 +191,10 @@ function buildMap(): { contours: string; rivers: string; paths: string } {
 // backdrop. Not the old bottom HUD — a focused card. Esc / ✕ / backdrop closes.
 function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }) {
   const [imgOk, setImgOk] = useState(true);
-  const src = study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
   const embed = youtubeEmbed(study.video);
+  // With a video, only show a photo if a real one is provided; without a video,
+  // fall back to the poster placeholder so the card still has a header image.
+  const photo = embed ? study.media?.[0] : study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -222,21 +224,21 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
         <button ref={closeRef} type="button" className="focus__close" onClick={onClose} aria-label="Close">
           <span aria-hidden="true">✕</span>
         </button>
-        <div className="focus__media">
-          {embed && (
-            <div className="focus__video">
-              <iframe
-                src={embed}
-                title={`${study.title} — video`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                loading="lazy"
-              />
-            </div>
-          )}
+        {embed && (
+          <div className="focus__video">
+            <iframe
+              src={embed}
+              title={`${study.title} — video`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              loading="lazy"
+            />
+          </div>
+        )}
+        {photo && (
           <div className="focus__photo worktile__media">
             <div className="worktile__ph" aria-hidden="true" />
-            {imgOk && <img className="worktile__img" src={src} alt="" onError={() => setImgOk(false)} />}
+            {imgOk && <img className="worktile__img" src={photo} alt="" onError={() => setImgOk(false)} />}
             <div className="worktile__scrim" aria-hidden="true" />
             {study.live && (
               <div className="worktile__badges">
@@ -244,7 +246,7 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
               </div>
             )}
           </div>
-        </div>
+        )}
         <div className="focus__body">
           <span className="worktile__meta">
             {study.client} · {study.sector}
@@ -267,29 +269,6 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
                 <li key={t}>{t}</li>
               ))}
             </ul>
-          )}
-          {study.places && study.places.length > 0 && (
-            <section>
-              <h4 className="worktile__h">Where it’s toured · {study.places.length} stops</h4>
-              <ul className="focus__tour" aria-label="Places it has toured">
-                {study.places.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {study.fieldNotes && study.fieldNotes.length > 0 && (
-            <section>
-              <h4 className="worktile__h">What breaks in the field</h4>
-              <dl className="focus__notes">
-                {study.fieldNotes.map((f) => (
-                  <Fragment key={f.label}>
-                    <dt>{f.label}</dt>
-                    <dd>{f.body}</dd>
-                  </Fragment>
-                ))}
-              </dl>
-            </section>
           )}
           {study.lesson && (
             <p className="worktile__lesson">
