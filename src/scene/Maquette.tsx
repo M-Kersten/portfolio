@@ -1335,7 +1335,7 @@ function PottedPlant({ position }: { position: V3 }) {
           <group rotation={[b.tilt, 0, 0]}>
             <mesh position={[0, b.len / 2, 0]} scale={[1, 1, 0.18]}>
               <coneGeometry args={[0.045, b.len, 5]} />
-              <meshStandardMaterial color={b.c} flatShading roughness={0.65} />
+              <GlassMat color={b.c} opacity={0.24} />
             </mesh>
           </group>
         </group>
@@ -2201,6 +2201,7 @@ const RELATIONS: Relation[] = [
   { thread: 'AR', from: 'custom-ar-framework', to: 'lightship-drive', color: THREAD.ar },
   { thread: 'AR', from: 'lightship-drive', to: 'arcam', color: THREAD.ar },
   { thread: 'AR', from: 'custom-ar-framework', to: 'zwijsen-ar-books', color: THREAD.ar },
+  { thread: 'AR games', from: 'dtt-amsterdam', to: 'lightship-drive', color: THREAD.ar },
   { thread: 'XR · simulation', from: 'philips-medical-xr', to: 'virtuele-brigade', color: THREAD.xr },
   { thread: 'AI · data', from: 'amsterdam-ai', to: 'popcore-games', color: THREAD.data },
   { thread: 'AI · data', from: 'amsterdam-ai', to: 'alliander-hololens', color: THREAD.data },
