@@ -19,7 +19,7 @@ function dot(ctx: Ctx, x: number, y: number, r: number, a: number) {
 
 // City — a top-down grid; some cells are "buildings" that breathe, and a
 // render-sweep runs across lighting the dots it passes.
-function drawCity(ctx: Ctx, w: number, h: number, t: number, base: number) {
+export function drawCity(ctx: Ctx, w: number, h: number, t: number, base: number) {
   const g = 15;
   const scan = ((t * 55) % (w + 140)) - 70;
   for (let y = g; y < h; y += g) {
@@ -39,7 +39,7 @@ function drawCity(ctx: Ctx, w: number, h: number, t: number, base: number) {
 
 // Room — a few soft clusters of dots that bob and rotate, like objects you can
 // pick up.
-function drawRoom(ctx: Ctx, w: number, h: number, t: number, base: number) {
+export function drawRoom(ctx: Ctx, w: number, h: number, t: number, base: number) {
   const clusters: [number, number, number][] = [
     [0.2, 0.5, 5],
     [0.42, 0.4, 5],
@@ -65,7 +65,7 @@ function drawRoom(ctx: Ctx, w: number, h: number, t: number, base: number) {
 
 // Chip — a dim die grid with bright current pulses running along lanes and a
 // core that beats.
-function drawChip(ctx: Ctx, w: number, h: number, t: number, base: number) {
+export function drawChip(ctx: Ctx, w: number, h: number, t: number, base: number) {
   const g = 14;
   const cols = Math.floor(w / g);
   const rows = Math.max(1, Math.floor(h / g));
