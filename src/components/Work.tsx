@@ -232,15 +232,28 @@ export function Work() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const planeRef = useRef<HTMLDivElement>(null);
   const farRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
-  // Trail points carry a cumulative arc-length `s` (px from the first point ever),
-  // so the dash pattern can be pinned to world space and never crawl.
-  const trailRef = useRef<{ x: number; y: number; t: number; s: number }[]>([]);
-  const trailPathRef = useRef<SVGPathElement>(null);
+  // The dot field's current parallax offset + the last cursor position, so the
+  // hover glow stays aligned to the dots as you scroll, not only as you move.
+  const farOffset = useRef({ x: 0, y: 0 });
+  const lastCursor = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (reduced) return;
     let raf = 0;
+    // Keep the bright dot layer sitting exactly over the (parallaxed) base dots,
+    // and the glow pool under the last-known cursor.
+    const syncGlow = () => {
+      const glow = glowRef.current;
+      if (!glow) return;
+      glow.style.setProperty('--ox', `${-farOffset.current.x}px`);
+      glow.style.setProperty('--oy', `${-farOffset.current.y}px`);
+      if (lastCursor.current) {
+        glow.style.setProperty('--mx', `${lastCursor.current.x}px`);
+        glow.style.setProperty('--my', `${lastCursor.current.y}px`);
+      }
+    };
     const update = () => {
       raf = 0;
       const el = scrollRef.current;
@@ -253,78 +266,32 @@ export function Work() {
       plane.style.transform = `translate3d(${-(p * maxX)}px, ${-(p * maxY)}px, 0)`;
       // Parallax: the dot field drifts slower, so the timeline reads as the near
       // layer floating in front of a receding space.
-      if (farRef.current) farRef.current.style.transform = `translate3d(${-(p * maxX * cfg.parallax)}px, ${-(p * maxY * cfg.parallax)}px, 0)`;
+      farOffset.current = { x: p * maxX * cfg.parallax, y: p * maxY * cfg.parallax };
+      if (farRef.current) farRef.current.style.transform = `translate3d(${-farOffset.current.x}px, ${-farOffset.current.y}px, 0)`;
+      syncGlow();
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
     };
-    // A dashed trail that lingers behind the cursor — like charting a route as you
-    // wander the map. You draw at the head as the mouse moves; the tail retracts
-    // by age. The dashes are pinned to world space (dashoffset = the tail's
-    // arc-length) so they stay put where drawn instead of crawling forward — each
-    // dash just shrinks and pops off the tail as the line expires. Pattern below
-    // must stay in sync with `.wall__trail path` stroke-dasharray in global.css.
-    const LIFE = 700; // ms a point survives before the retracting tail reaches it
-    const DASH = 3;
-    const GAP = 7;
-    const PATTERN = DASH + GAP;
-    let trailRaf = 0;
-    const drawTrail = () => {
-      const now = performance.now();
-      const pts = trailRef.current;
-      const path = trailPathRef.current;
-      const cutoff = now - LIFE;
-      // First still-living point (everything before it has aged past LIFE).
-      let i = 0;
-      while (i < pts.length && pts[i].t < cutoff) i++;
-      if (i >= pts.length || pts.length < 2) {
-        // Nothing left alive (or too short to draw a segment) — clear and idle.
-        if (i >= pts.length) trailRef.current = [];
-        if (path) path.setAttribute('d', '');
-        trailRaf = trailRef.current.length > 1 ? requestAnimationFrame(drawTrail) : 0;
-        return;
-      }
-      // The tail: the exact point where the cutoff time falls, interpolated between
-      // the last dead point and the first live one, so it slides smoothly instead
-      // of jumping vertex to vertex.
-      let tx = pts[i].x;
-      let ty = pts[i].y;
-      let ts = pts[i].s;
-      if (i > 0) {
-        const a = pts[i - 1];
-        const b = pts[i];
-        const f = Math.min(1, Math.max(0, (cutoff - a.t) / (b.t - a.t || 1)));
-        tx = a.x + (b.x - a.x) * f;
-        ty = a.y + (b.y - a.y) * f;
-        ts = a.s + (b.s - a.s) * f;
-      }
-      let d = `M ${tx.toFixed(1)} ${ty.toFixed(1)}`;
-      for (let k = i; k < pts.length; k++) d += ` L ${pts[k].x.toFixed(1)} ${pts[k].y.toFixed(1)}`;
-      if (path) {
-        path.setAttribute('d', d);
-        // Pin the pattern to the tail's world arc-length → dashes never crawl.
-        path.style.strokeDashoffset = String(ts % PATTERN);
-      }
-      // Drop points fully behind the tail, keeping the one anchor we interpolate from.
-      if (i > 1) pts.splice(0, i - 1);
-      trailRaf = requestAnimationFrame(drawTrail);
-    };
+    // Hover glow: a soft pool that lights up the background dots nearest the
+    // cursor. We move the mask centre to the cursor; syncGlow keeps the bright
+    // dot layer aligned to the base field underneath.
     const onMove = (e: MouseEvent) => {
       const pin = pinRef.current;
-      if (!pin) return;
+      const glow = glowRef.current;
+      if (!pin || !glow) return;
       const r = pin.getBoundingClientRect();
-      const x = Math.round(e.clientX - r.left);
-      const y = Math.round(e.clientY - r.top);
-      if (x < 0 || y < 0 || x > r.width || y > r.height) return;
-      const t = trailRef.current;
-      const last = t[t.length - 1];
-      const dist = last ? Math.hypot(x - last.x, y - last.y) : 0;
-      if (!last || dist > 4) {
-        // Extend the head, accumulating arc-length so the dashes can be world-locked.
-        t.push({ x, y, t: performance.now(), s: (last?.s ?? 0) + dist });
-        if (t.length > 240) t.shift();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      if (x < 0 || y < 0 || x > r.width || y > r.height) {
+        lastCursor.current = null;
+        glow.style.setProperty('--mx', '-9999px');
+        glow.style.setProperty('--my', '-9999px');
+        return;
       }
-      if (!trailRaf) trailRaf = requestAnimationFrame(drawTrail);
+      lastCursor.current = { x, y };
+      glow.style.setProperty('--mx', `${x}px`);
+      glow.style.setProperty('--my', `${y}px`);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
@@ -335,13 +302,12 @@ export function Work() {
       window.removeEventListener('resize', onScroll);
       window.removeEventListener('mousemove', onMove);
       if (raf) cancelAnimationFrame(raf);
-      if (trailRaf) cancelAnimationFrame(trailRaf);
     };
   }, [reduced, timeline.width, cfg.parallax]);
 
   const openStudy = open ? caseBySlug(open) : undefined;
-  // The spawn point sits a fixed lead-in left of where the route proper starts.
-  const spawnX = Math.max(40, timeline.routeLeft - 250);
+  // The spawn point sits a short lead-in left of where the route proper starts.
+  const spawnX = Math.max(74, timeline.routeLeft - 96);
 
   return (
     <section id="work" className="section wall" data-reduced={reduced || undefined}>
@@ -362,11 +328,10 @@ export function Work() {
             aria-hidden="true"
             style={{ width: `${timeline.width}px`, height: `${cfg.planeVh * 100}svh` }}
           />
-          {/* The traveller's dashed trail, lingering behind the cursor — sits
-              between the dot field and the plane so the waypoints occlude it. */}
-          <svg className="wall__trail" aria-hidden="true">
-            <path ref={trailPathRef} />
-          </svg>
+          {/* Hover glow — a bright copy of the dot field, masked to a soft pool
+              around the cursor so the dots nearest it light up. Sits between the
+              base dots and the plane so the waypoints occlude it. */}
+          <div className="wall__glow" ref={glowRef} aria-hidden="true" />
           <div
             className="wall__plane"
             ref={planeRef}

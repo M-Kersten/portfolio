@@ -19,7 +19,7 @@ export interface WallConfig {
 export const WALL_DEFAULTS: WallConfig = {
   cardW: 250,
   planeVh: 1,
-  startX: 340,
+  startX: 210,
   yearGap: 360,
   rise: 6,
   parallax: 0.72,
