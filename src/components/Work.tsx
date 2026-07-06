@@ -13,6 +13,15 @@ function formatSpawn(iso: string): string {
   return `${d} ${SPAWN_MONTHS[(m || 1) - 1]} ${y}`;
 }
 
+// "2016-09" + "2018-09" → "Sep 2016 – Sep 2018"; null `to` → "… – present".
+function fmtPeriod(from: string, to: string | null): string {
+  const p = (s: string) => {
+    const [y, m] = s.split('-').map(Number);
+    return `${SPAWN_MONTHS[(m || 1) - 1]} ${y}`;
+  };
+  return `${p(from)} – ${to ? p(to) : 'present'}`;
+}
+
 // ---- Timeline layout ------------------------------------------------------
 // The map is a single route through time. Every project is a waypoint pinned at
 // its year; where a year holds more than one, they stack above and below the
@@ -29,6 +38,10 @@ interface CareerBand {
   x1: number;
   x2: number;
   freelance: boolean;
+  role?: string;
+  location?: string;
+  blurb?: string;
+  period: string;
 }
 interface Timeline {
   width: number;
@@ -98,14 +111,16 @@ function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig
     const end = next ? Math.min(c.e, next.s) : c.e; // the later job takes over the line
     const x1 = xFrac(c.s);
     const x2 = xFrac(end);
-    if (x2 - x1 > 1) bands.push({ company: c.company, color: c.color, x1, x2, freelance: false });
+    if (x2 - x1 > 1)
+      bands.push({ company: c.company, color: c.color, x1, x2, freelance: false, role: c.role, location: c.location, blurb: c.blurb, period: fmtPeriod(c.from, c.to) });
   });
   career
     .filter((c) => c.freelance)
     .forEach((c) => {
       const x1 = xFrac(frac(c.from));
       const x2 = xFrac(frac(c.to));
-      if (x2 - x1 > 1) bands.push({ company: c.company, color: c.color, x1, x2, freelance: true });
+      if (x2 - x1 > 1)
+        bands.push({ company: c.company, color: c.color, x1, x2, freelance: true, role: c.role, location: c.location, blurb: c.blurb, period: fmtPeriod(c.from, c.to) });
     });
 
   return { width, routeLeft, routeW, stops, bands, minYear, maxYear };
@@ -237,7 +252,7 @@ export function Work() {
   // The dot field's current parallax offset + the last cursor position, so the
   // hover glow stays aligned to the dots as you scroll, not only as you move.
   const farOffset = useRef({ x: 0, y: 0 });
-  const lastCursor = useRef<{ x: number; y: number } | null>(null);
+  const lastCursor = useRef<{ x: number; y: number; r: number } | null>(null);
 
   useEffect(() => {
     if (reduced) return;
@@ -252,6 +267,7 @@ export function Work() {
       if (lastCursor.current) {
         glow.style.setProperty('--mx', `${lastCursor.current.x}px`);
         glow.style.setProperty('--my', `${lastCursor.current.y}px`);
+        glow.style.setProperty('--r', `${lastCursor.current.r}px`);
       }
     };
     const update = () => {
@@ -289,9 +305,22 @@ export function Work() {
         glow.style.setProperty('--my', '-9999px');
         return;
       }
-      lastCursor.current = { x, y };
-      glow.style.setProperty('--mx', `${x}px`);
-      glow.style.setProperty('--my', `${y}px`);
+      // Over a waypoint card, grow the pool and centre it on the card so the
+      // dots around the whole tile light up (the card occludes the middle).
+      const tile = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('.worktile');
+      let cx = x;
+      let cy = y;
+      let rad = 130;
+      if (tile) {
+        const t = tile.getBoundingClientRect();
+        cx = t.left + t.width / 2 - r.left;
+        cy = t.top + t.height / 2 - r.top;
+        rad = Math.max(t.width, t.height) / 2 + 110;
+      }
+      lastCursor.current = { x: cx, y: cy, r: rad };
+      glow.style.setProperty('--mx', `${cx}px`);
+      glow.style.setProperty('--my', `${cy}px`);
+      glow.style.setProperty('--r', `${rad}px`);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
@@ -360,6 +389,22 @@ export function Work() {
                 >
                   {b.company}
                 </span>
+                {/* Hover target over the line + label → tooltip about the stint. */}
+                <div
+                  className="tl-seg"
+                  style={{ left: `${b.x1}px`, width: `${b.x2 - b.x1}px`, '--band': b.color } as CSSProperties}
+                >
+                  <span className="tl-tip" role="tooltip">
+                    <span className="tl-tip__top">
+                      <b>{b.company}</b>
+                      <span className="tl-tip__period">{b.period}</span>
+                    </span>
+                    {(b.role || b.location) && (
+                      <span className="tl-tip__role">{[b.role, b.location].filter(Boolean).join(' · ')}</span>
+                    )}
+                    {b.blurb && <span className="tl-tip__body">{b.blurb}</span>}
+                  </span>
+                </div>
               </Fragment>
             ))}
             {site.spawn && (

@@ -68,6 +68,12 @@ export interface CareerEntry {
   /** Concurrent freelance / side work: drawn as an overlay below the main
    *  spine rather than taking over the route (e.g. Alliander during Philips). */
   freelance?: boolean;
+  /** Job title held there — shown in the route tooltip. */
+  role?: string;
+  /** Where it was based — shown in the route tooltip. */
+  location?: string;
+  /** A sentence about the experience — shown in the route tooltip. */
+  blurb?: string;
 }
 
 /** An employer / studio shown in the About "where I've worked" strip; clicking

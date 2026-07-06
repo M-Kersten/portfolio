@@ -22,12 +22,12 @@
   "spawn": "1997-03-16",
   "career": [
     { "company": "Letink Design", "from": "2016-09", "to": "2018-09", "color": "#7f9cc0" },
-    { "company": "DTT", "from": "2019-01", "to": "2020-07", "color": "#46b8a4" },
-    { "company": "Popcore", "from": "2020-06", "to": "2022-05", "color": "#b48ced" },
-    { "company": "Wonderment", "from": "2022-01", "to": "2024-02", "color": "#e6a95e" },
-    { "company": "Philips", "from": "2024-03", "to": "2024-06", "color": "#5b8fd6" },
+    { "company": "DTT", "from": "2019-01", "to": "2020-07", "color": "#46b8a4", "role": "XR & app developer", "location": "Amsterdam, NL", "blurb": "An Amsterdam studio where I bounced across projects — an interactive educational play-book, a room-scale VR experience and an AR showcase app." },
+    { "company": "Popcore", "from": "2020-06", "to": "2022-05", "color": "#b48ced", "role": "Game developer", "location": "Remote / Berlin, DE", "blurb": "Casual mobile games at scale — the kind that land on thousands of devices and have to stay fun while surviving real app stores and audiences." },
+    { "company": "Wonderment", "from": "2022-01", "to": "2024-02", "color": "#e6a95e", "role": "Creative technologist", "location": "Netherlands", "blurb": "Location-based XR — anchoring digital experiences to real places so the physical and the digital stop feeling like separate worlds." },
+    { "company": "Philips", "from": "2024-03", "to": "2024-06", "color": "#5b8fd6", "role": "XR & AI engineer", "location": "Eindhoven, NL", "blurb": "Medical XR and AI prototyping — pushing new spatial and machine-learning tech toward something dependable enough to actually be useful." },
     { "company": "Alliander", "from": "2024-06", "to": "2024-11", "color": "#74c06a" },
-    { "company": "Philips", "from": "2024-11", "to": "2025-07", "color": "#5b8fd6" },
+    { "company": "Philips", "from": "2024-11", "to": "2025-07", "color": "#5b8fd6", "role": "XR & AI engineer", "location": "Eindhoven, NL", "blurb": "Medical XR and AI prototyping — pushing new spatial and machine-learning tech toward something dependable enough to actually be useful." },
     { "company": "KMar", "from": "2025-07", "to": null, "color": "#d97f7f" }
   ],
   "about": {
