@@ -1003,24 +1003,52 @@ html {
   position: relative;
   will-change: transform;
 }
-/* ---- Timeline route — one line through time, waypoints pinned along it ---- */
+/* ---- Timeline route — coloured by employer, waypoints pinned along it ---- */
+/* Faint base line, visible only in the gaps between jobs. */
 .tl-route {
   position: absolute;
   top: 50%;
   height: 0;
-  border-top: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--cyan) 16%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
   pointer-events: none;
 }
-/* A faint tick at every year — the empty years (e.g. 2025) read as honest gaps. */
-.tl-tick {
+/* Employer band — a coloured segment of the route for one stint. */
+.tl-band {
   position: absolute;
   top: 50%;
-  width: 1px;
-  height: 9px;
-  transform: translate(-50%, -50%);
-  background: color-mix(in srgb, var(--ink) 26%, transparent);
+  height: 4px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--band) 62%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--band) 32%, transparent);
   pointer-events: none;
+}
+/* Concurrent freelance / side work — a slimmer dashed overlay just below. */
+.tl-band--free {
+  top: calc(50% + 7px);
+  height: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-top: 2px dashed color-mix(in srgb, var(--band) 72%, transparent);
+}
+/* Company name set on top of its band. */
+.tl-band__label {
+  position: absolute;
+  top: calc(50% - 11px);
+  transform: translate(-50%, -100%);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--band) 70%, var(--ink));
+  white-space: nowrap;
+  pointer-events: none;
+}
+.tl-band__label--free {
+  top: calc(50% + 13px);
+  transform: translate(-50%, 0);
+  font-size: 10px;
 }
 .tl-cap {
   position: absolute;
@@ -1037,18 +1065,17 @@ html {
   transform: translateX(-100%);
   color: var(--accent-ink);
 }
-/* Node — the waypoint's mark on the route; its ring picks up the layer colour. */
+/* Node — the waypoint's mark on the route: a neutral station dot on the band. */
 .tl-node {
-  --node: var(--cyan);
   position: absolute;
   top: 50%;
-  width: 13px;
-  height: 13px;
+  width: 11px;
+  height: 11px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: var(--paper);
-  border: 2px solid var(--node);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--node) 55%, transparent);
+  border: 2px solid color-mix(in srgb, var(--ink) 55%, transparent);
+  z-index: 2;
   pointer-events: none;
 }
 .tl-node::after {
@@ -1056,11 +1083,8 @@ html {
   position: absolute;
   inset: 3px;
   border-radius: 50%;
-  background: var(--node);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
 }
-.tl-node[data-layer='city'] { --node: var(--cyan); }
-.tl-node[data-layer='room'] { --node: var(--coral); }
-.tl-node[data-layer='chip'] { --node: var(--lime); }
 /* Leader — the thin stem from the route up/down to a card's near edge. */
 .tl-leader {
   position: absolute;

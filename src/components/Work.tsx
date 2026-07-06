@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { cases, caseBySlug, site, type CaseStudy } from '../content';
+import { cases, caseBySlug, site, type CareerEntry, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -9,23 +9,31 @@ import { useWallConfig, type WallConfig } from './wallTweak';
 // ---- Timeline layout ------------------------------------------------------
 // The map is a single route through time. Every project is a waypoint pinned at
 // its year; where a year holds more than one, they stack above and below the
-// line. Empty years (e.g. 2025) simply leave a gap — an honest stretch of road.
+// line. The route itself is coloured by employer (see career bands below), so a
+// visitor can read who Merijn was working for on each project at a glance.
 interface Stop {
   study: CaseStudy;
   x: number; // horizontal position (px) — driven by the year
   side: 'above' | 'below';
+}
+interface CareerBand {
+  company: string;
+  color: string;
+  x1: number;
+  x2: number;
+  freelance: boolean;
 }
 interface Timeline {
   width: number;
   routeLeft: number;
   routeW: number;
   stops: Stop[];
-  ticks: { year: number; x: number }[];
+  bands: CareerBand[];
   minYear: number;
   maxYear: number;
 }
 
-function buildTimeline(list: CaseStudy[], cfg: WallConfig): Timeline {
+function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig): Timeline {
   const yearOf = (c: CaseStudy) => Number(c.year ?? 0);
   const ordered = [...list].sort((a, b) => yearOf(a) - yearOf(b));
   const minYear = yearOf(ordered[0]);
@@ -50,13 +58,47 @@ function buildTimeline(list: CaseStudy[], cfg: WallConfig): Timeline {
     }
   }
 
-  const ticks: { year: number; x: number }[] = [];
-  for (let y = minYear; y <= maxYear; y++) ticks.push({ year: y, x: xOf(y) });
-
   const routeLeft = xOf(minYear);
   const routeW = (maxYear - minYear) * cfg.yearGap;
-  const width = routeLeft + routeW + cfg.startX;
-  return { width, routeLeft, routeW, stops, ticks, minYear, maxYear };
+  const routeRight = routeLeft + routeW;
+  const width = routeRight + cfg.startX;
+
+  // ---- Career bands — colour the route by employer over time. ------------
+  // Dates map onto the same x-axis at month precision. Primary jobs form the
+  // spine: each owns the line until the next one starts, so overlapping stints
+  // resolve to a clean handoff. Work flagged `freelance` is drawn as a
+  // concurrent overlay instead (e.g. Alliander during Philips), so nothing is
+  // misrepresented as a single sequence.
+  const today = new Date();
+  const present = today.getFullYear() + today.getMonth() / 12;
+  const frac = (s: string | null) => {
+    if (!s) return present;
+    const [y, m] = s.split('-').map(Number);
+    return y + ((m || 1) - 1) / 12;
+  };
+  const xFrac = (f: number) => Math.max(routeLeft, Math.min(routeRight, cfg.startX + (f - minYear) * cfg.yearGap));
+
+  const primary = career
+    .filter((c) => !c.freelance)
+    .map((c) => ({ ...c, s: frac(c.from), e: frac(c.to) }))
+    .sort((a, b) => a.s - b.s);
+  const bands: CareerBand[] = [];
+  primary.forEach((c, i) => {
+    const next = primary[i + 1];
+    const end = next ? Math.min(c.e, next.s) : c.e; // the later job takes over the line
+    const x1 = xFrac(c.s);
+    const x2 = xFrac(end);
+    if (x2 - x1 > 1) bands.push({ company: c.company, color: c.color, x1, x2, freelance: false });
+  });
+  career
+    .filter((c) => c.freelance)
+    .forEach((c) => {
+      const x1 = xFrac(frac(c.from));
+      const x2 = xFrac(frac(c.to));
+      if (x2 - x1 > 1) bands.push({ company: c.company, color: c.color, x1, x2, freelance: true });
+    });
+
+  return { width, routeLeft, routeW, stops, bands, minYear, maxYear };
 }
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
@@ -175,7 +217,7 @@ export function Work() {
   const { workIntro } = site;
   const reduced = useReducedMotion();
   const cfg = useWallConfig();
-  const timeline = useMemo(() => buildTimeline(cases, cfg), [cfg]);
+  const timeline = useMemo(() => buildTimeline(cases, site.career ?? [], cfg), [cfg]);
   const [open, setOpen] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const planeRef = useRef<HTMLDivElement>(null);
@@ -325,10 +367,23 @@ export function Work() {
               } as CSSProperties
             }
           >
-            {/* The route: one line through time, with a tick at every year. */}
+            {/* The route: one line through time, coloured by employer. A faint
+                base line shows through the gaps between jobs. */}
             <div className="tl-route" aria-hidden="true" style={{ left: `${timeline.routeLeft}px`, width: `${timeline.routeW}px` }} />
-            {timeline.ticks.map((t) => (
-              <span key={t.year} className="tl-tick" aria-hidden="true" style={{ left: `${t.x}px` }} />
+            {timeline.bands.map((b, i) => (
+              <Fragment key={`${b.company}-${i}`}>
+                <span
+                  className={b.freelance ? 'tl-band tl-band--free' : 'tl-band'}
+                  aria-hidden="true"
+                  style={{ left: `${b.x1}px`, width: `${b.x2 - b.x1}px`, '--band': b.color } as CSSProperties}
+                />
+                <span
+                  className={b.freelance ? 'tl-band__label tl-band__label--free' : 'tl-band__label'}
+                  style={{ left: `${(b.x1 + b.x2) / 2}px`, '--band': b.color } as CSSProperties}
+                >
+                  {b.company}
+                </span>
+              </Fragment>
             ))}
             <span className="tl-cap tl-cap--start" aria-hidden="true" style={{ left: `${timeline.routeLeft}px` }}>
               {timeline.minYear} · first shipped
@@ -339,7 +394,7 @@ export function Work() {
 
             {timeline.stops.map((s) => (
               <Fragment key={s.study.slug}>
-                <span className="tl-node" data-layer={s.study.layer} aria-hidden="true" style={{ left: `${s.x}px` }} />
+                <span className="tl-node" aria-hidden="true" style={{ left: `${s.x}px` }} />
                 <span className={`tl-leader tl-leader--${s.side}`} aria-hidden="true" style={{ left: `${s.x}px` }} />
                 <CaseCard
                   study={s.study}

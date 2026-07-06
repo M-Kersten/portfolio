@@ -48,6 +48,22 @@ export interface NavItem {
   label: string;
 }
 
+/** One stint on the career timeline — colours + labels a stretch of the map's
+ *  route, so a visitor can see who Merijn was working for on each project. */
+export interface CareerEntry {
+  /** Short label drawn on the route, e.g. "Wonderment". */
+  company: string;
+  /** Start month, "YYYY-MM". */
+  from: string;
+  /** End month, "YYYY-MM", or null for the current role. */
+  to: string | null;
+  /** Band colour — kept distinct from the City/Room/Chip card palette. */
+  color: string;
+  /** Concurrent freelance / side work: drawn as an overlay below the main
+   *  spine rather than taking over the route (e.g. Alliander during Philips). */
+  freelance?: boolean;
+}
+
 /** An employer / studio shown in the About "where I've worked" strip; clicking
  *  the name opens a popup with the role, timeframe and a short blurb. */
 export interface Company {
@@ -75,6 +91,9 @@ export interface SiteContent {
   };
   capabilitiesIntro: { eyebrow: string; title: string; lead: string };
   workIntro: { eyebrow: string; title?: string; lead: string };
+  /** Employment history — colours the projects-map route so a visitor can see
+   *  which company Merijn was at for each project. Chronological, may overlap. */
+  career?: CareerEntry[];
   about: {
     eyebrow: string;
     title: string;

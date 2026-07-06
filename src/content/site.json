@@ -19,6 +19,15 @@
     "eyebrow": "Things I’ve made",
     "lead": "A bunch of projects from over the years. Some ended up on thousands of devices, some were failures, but all of them taught me something."
   },
+  "career": [
+    { "company": "Letink Design", "from": "2016-09", "to": "2018-09", "color": "#7f9cc0" },
+    { "company": "DTT", "from": "2019-01", "to": "2020-07", "color": "#46b8a4" },
+    { "company": "Popcore", "from": "2020-06", "to": "2022-05", "color": "#b48ced" },
+    { "company": "Wonderment", "from": "2022-01", "to": "2024-02", "color": "#e6a95e" },
+    { "company": "Philips", "from": "2024-03", "to": "2025-07", "color": "#5b8fd6" },
+    { "company": "Alliander", "from": "2024-06", "to": "2024-11", "color": "#74c06a", "freelance": true },
+    { "company": "KMar", "from": "2025-07", "to": null, "color": "#d97f7f" }
+  ],
   "about": {
     "eyebrow": "Hello",
     "title": "From shaders to screws",
