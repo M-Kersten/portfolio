@@ -2,6 +2,7 @@
   {
     "slug": "virtuele-brigade",
     "title": "Virtuele Brigade",
+    "tag": "Marechaussee",
     "layer": "room",
     "client": "Royal Netherlands Marechaussee",
     "clientLogo": null,
@@ -19,6 +20,7 @@
   {
     "slug": "alliander-hololens",
     "title": "Alliander HoloLens suite",
+    "kind": "freelance",
     "layer": "city",
     "client": "Alliander",
     "clientLogo": null,
@@ -36,6 +38,7 @@
   {
     "slug": "alliander-digital-twin",
     "title": "Alliander digital twin",
+    "kind": "freelance",
     "layer": "city",
     "client": "Alliander",
     "clientLogo": null,
@@ -175,6 +178,7 @@
   {
     "slug": "amsterdam-ai",
     "title": "Amsterdam AI guides",
+    "kind": "passion",
     "layer": "chip",
     "client": "Self-directed prototype",
     "clientLogo": null,
@@ -192,6 +196,7 @@
   {
     "slug": "custom-ar-framework",
     "title": "Custom AR framework",
+    "kind": "passion",
     "layer": "chip",
     "client": "Graduation project",
     "clientLogo": null,

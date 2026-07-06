@@ -6,6 +6,13 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard, accentFor } from './CaseCard';
 import { useWallConfig, type WallConfig } from './wallTweak';
 
+const SPAWN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// "1997-03-16" → "16 Mar 1997".
+function formatSpawn(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${d} ${SPAWN_MONTHS[(m || 1) - 1]} ${y}`;
+}
+
 // ---- Timeline layout ------------------------------------------------------
 // The map is a single route through time. Every project is a waypoint pinned at
 // its year; where a year holds more than one, they stack above and below the
@@ -36,7 +43,10 @@ interface Timeline {
 function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig): Timeline {
   const yearOf = (c: CaseStudy) => Number(c.year ?? 0);
   const ordered = [...list].sort((a, b) => yearOf(a) - yearOf(b));
-  const minYear = yearOf(ordered[0]);
+  // Start the axis at the earliest of the first project or the first job, so
+  // the timeline reaches back to where the career actually began.
+  const careerMin = career.length ? Math.min(...career.map((c) => Number(c.from.slice(0, 4)))) : Infinity;
+  const minYear = Math.min(yearOf(ordered[0]), careerMin);
   const maxYear = yearOf(ordered[ordered.length - 1]);
   const xOf = (y: number) => cfg.startX + (y - minYear) * cfg.yearGap;
 
@@ -330,6 +340,8 @@ export function Work() {
   }, [reduced, timeline.width, cfg.parallax]);
 
   const openStudy = open ? caseBySlug(open) : undefined;
+  // The spawn point sits a fixed lead-in left of where the route proper starts.
+  const spawnX = Math.max(40, timeline.routeLeft - 250);
 
   return (
     <section id="work" className="section wall" data-reduced={reduced || undefined}>
@@ -385,9 +397,22 @@ export function Work() {
                 </span>
               </Fragment>
             ))}
-            <span className="tl-cap tl-cap--start" aria-hidden="true" style={{ left: `${timeline.routeLeft}px` }}>
-              {timeline.minYear} · first shipped
-            </span>
+            {site.spawn && (
+              <Fragment>
+                {/* A playful origin point — birth — with a compressed, not-to-
+                    scale lead-in to where the career proper begins. */}
+                <div
+                  className="tl-leadin"
+                  aria-hidden="true"
+                  style={{ left: `${spawnX}px`, width: `${timeline.routeLeft - spawnX}px` }}
+                />
+                <span className="tl-spawn" aria-hidden="true" style={{ left: `${spawnX}px` }} />
+                <span className="tl-spawn__label" style={{ left: `${spawnX}px` }}>
+                  <b>spawn</b>
+                  <span>{formatSpawn(site.spawn)}</span>
+                </span>
+              </Fragment>
+            )}
             <span className="tl-cap tl-cap--end" aria-hidden="true" style={{ left: `${timeline.routeLeft + timeline.routeW}px` }}>
               now →
             </span>

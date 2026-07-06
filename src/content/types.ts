@@ -24,6 +24,12 @@ export interface CaseStudy {
   lesson?: string;
   /** Year the project was worked on — shown as a stamped date on the wall tile. */
   year?: string;
+  /** Map tag override — a short company/label for the waypoint. Defaults to
+   *  `client`. Ignored when `kind` is set (then the kind label is shown). */
+  tag?: string;
+  /** Flags independent work so the waypoint tag reads "Freelance" / "Passion"
+   *  in its own colour instead of a client company. */
+  kind?: 'freelance' | 'passion';
   /** Marks a case as currently live in production. */
   live?: boolean;
   media?: string[];
@@ -94,6 +100,9 @@ export interface SiteContent {
   /** Employment history — colours the projects-map route so a visitor can see
    *  which company Merijn was at for each project. Chronological, may overlap. */
   career?: CareerEntry[];
+  /** Birth date ("YYYY-MM-DD") — drawn as a playful "spawn" point at the very
+   *  start of the projects-map timeline. */
+  spawn?: string;
   about: {
     eyebrow: string;
     title: string;

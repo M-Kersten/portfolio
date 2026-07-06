@@ -1065,6 +1065,52 @@ html {
   transform: translateX(-100%);
   color: var(--accent-ink);
 }
+/* Spawn — a playful origin (birth) at the far left, joined to the career by a
+   compressed, not-to-scale dashed lead-in. */
+.tl-leadin {
+  position: absolute;
+  top: 50%;
+  height: 0;
+  border-top: 1px dashed color-mix(in srgb, var(--ink) 20%, transparent);
+  pointer-events: none;
+}
+.tl-spawn {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--paper);
+  border: 2px solid var(--accent-ink);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 45%, transparent);
+  z-index: 2;
+  pointer-events: none;
+}
+.tl-spawn__label {
+  position: absolute;
+  top: calc(50% - 16px);
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-family: var(--font-mono);
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.tl-spawn__label b {
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.tl-spawn__label span {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--ink-40);
+}
 /* Node — the waypoint's mark on the route: a neutral station dot on the band. */
 .tl-node {
   position: absolute;
@@ -1246,15 +1292,28 @@ html {
 }
 .worktile__tag {
   align-self: center;
+  max-width: 64%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: var(--font-mono);
   font-size: 9px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--card-accent);
-  border: 1px solid color-mix(in srgb, var(--card-accent) 34%, var(--line));
+  color: var(--ink-60);
+  border: 1px solid var(--line);
   border-radius: 999px;
   padding: 0.25em 0.6em;
   white-space: nowrap;
+}
+/* Independent work is flagged in its own colour so it stands out from client
+   companies. */
+.worktile__tag[data-kind='freelance'] {
+  color: var(--lavender);
+  border-color: color-mix(in srgb, var(--lavender) 42%, var(--line));
+}
+.worktile__tag[data-kind='passion'] {
+  color: var(--pink);
+  border-color: color-mix(in srgb, var(--pink) 42%, var(--line));
 }
 /* Live pill floated on the thumbnail. */
 .worktile__live--float {

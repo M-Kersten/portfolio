@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { LAYER_LABEL, type CaseStudy } from '../content';
+import { type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 
 // Card accent is decoupled from the layer (the 3D scene already tells that
@@ -12,7 +12,7 @@ export function accentFor(slug: string): string {
 }
 
 // A waypoint on the timeline map: a compact card pinned above or below the
-// route, with a small thumbnail, the year as a milestone and a faint layer tag.
+// route, with a small thumbnail, the year as a milestone and a company tag.
 // `style` carries its absolute placement (left = its year, top/bottom = its
 // side). Clicking it lifts the project into the focus view.
 export function CaseCard({
@@ -27,6 +27,12 @@ export function CaseCard({
   const [imgOk, setImgOk] = useState(true);
   const src = study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
   const seed = Array.from(study.slug).reduce((a, c) => a + c.charCodeAt(0), 0);
+  // The tag reads as the company by default; independent work overrides it with
+  // a "Freelance" / "Passion" label (and then the client moves into the meta
+  // line so it stays visible).
+  const kindLabel = study.kind === 'freelance' ? 'Freelance' : study.kind === 'passion' ? 'Passion' : null;
+  const tagText = kindLabel ?? study.tag ?? study.client;
+  const metaText = kindLabel ? `${study.client} · ${study.sector}` : study.sector;
 
   return (
     <button
@@ -48,12 +54,10 @@ export function CaseCard({
       <div className="worktile__body">
         <div className="worktile__stamp">
           <span className="worktile__yr">{study.year}</span>
-          <span className="worktile__tag">{LAYER_LABEL[study.layer]}</span>
+          <span className="worktile__tag" data-kind={study.kind}>{tagText}</span>
         </div>
         <h3 className="worktile__title">{study.title}</h3>
-        <span className="worktile__meta">
-          {study.client} · {study.sector}
-        </span>
+        <span className="worktile__meta">{metaText}</span>
       </div>
       {/* AR-style tracking overlay — corner brackets that "lock on" on hover. */}
       <span className="worktile__reticle" aria-hidden="true">
