@@ -1,9 +1,11 @@
 import { site } from '../content';
+import { ScanFrame } from './ScanFrame';
 
 export function Contact() {
   const c = site.contact;
   return (
-    <section id="contact" className="section">
+    <section id="contact" className="section section--instrument">
+      <ScanFrame variant="section" />
       <div className="container">
         <div className="contact">
           <p className="section__eyebrow">{c.eyebrow}</p>

@@ -3,6 +3,7 @@ import { site } from '../content';
 import type { Company } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
+import { ScanFrame } from './ScanFrame';
 
 const PORTRAITS = 5;
 
@@ -54,6 +55,7 @@ function AboutPortrait() {
       <span className="about__portrait-idx" aria-hidden="true">
         {String(frame + 1).padStart(2, '0')} / {String(PORTRAITS).padStart(2, '0')}
       </span>
+      <ScanFrame variant="portrait" />
     </figure>
   );
 }
@@ -107,7 +109,8 @@ function CompanyStrip({ companies }: { companies: Company[] }) {
 export function About() {
   const a = site.about;
   return (
-    <section id="about" className="section">
+    <section id="about" className="section section--instrument">
+      <ScanFrame variant="section" />
       <div className="container">
         <div className="about__grid">
           <div>
