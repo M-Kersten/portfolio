@@ -898,15 +898,6 @@ html {
 
 /* ---------- Capabilities — the three scales as one slanted band ---------- */
 
-.capabilities__eyebrow {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--accent-ink);
-  margin: 0 0 var(--space-2xs);
-}
-
 /* Shared written content — used by the band columns and the mobile cards. */
 .capc__index {
   font-family: var(--font-mono);
@@ -2073,6 +2064,11 @@ html {
 }
 .contact > * {
   position: relative;
+}
+/* The section eyebrow is flex-aligned to the start by default; centre it to
+   sit above the centred contact title. */
+.contact .section__eyebrow {
+  justify-content: center;
 }
 .contact h2 {
   color: var(--ink);

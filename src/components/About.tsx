@@ -111,6 +111,7 @@ export function About() {
       <div className="container">
         <div className="about__grid">
           <div>
+            <p className="section__eyebrow">{a.eyebrow}</p>
             <h2 className="section__title">{a.title}</h2>
             <p className="about__lead">{a.lead}</p>
             {a.body.map((p, i) => (

@@ -2,15 +2,6 @@ import { useState, type CSSProperties } from 'react';
 import { type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 
-// Card accent is decoupled from the layer (the 3D scene already tells that
-// story) — each project gets a stable colour from the four-colour palette, so
-// the focus view reads as a colourful pick rather than three tidy groups.
-const PALETTE = ['var(--cyan)', 'var(--lime)', 'var(--coral)', 'var(--lavender)'];
-export function accentFor(slug: string): string {
-  const h = Array.from(slug).reduce((a, c) => a + c.charCodeAt(0), 0);
-  return PALETTE[h % PALETTE.length];
-}
-
 // A waypoint on the timeline map: a compact card pinned above or below the
 // route, with a small thumbnail, the year as a milestone and a company tag.
 // `style` carries its absolute placement (left = its year, top/bottom = its

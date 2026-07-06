@@ -3,7 +3,7 @@ import { cases, caseBySlug, site, type CareerEntry, type CaseStudy } from '../co
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { CaseCard, accentFor } from './CaseCard';
+import { CaseCard } from './CaseCard';
 import { useWallConfig, type WallConfig } from './wallTweak';
 
 const SPAWN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -154,7 +154,7 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
     <div className="focus" onClick={onClose}>
       <div
         className="focus__card"
-        style={{ '--card-accent': accentFor(study.slug) } as CSSProperties}
+        data-layer={study.layer}
         role="dialog"
         aria-modal="true"
         aria-label={study.title}
@@ -341,6 +341,7 @@ export function Work() {
   return (
     <section id="work" className="section wall" data-reduced={reduced || undefined}>
       <div className="container">
+        <p className="section__eyebrow">{workIntro.eyebrow}</p>
         {workIntro.title && <h2 className="section__title">{workIntro.title}</h2>}
         <p className="section__lead">{workIntro.lead}</p>
       </div>

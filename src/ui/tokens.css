@@ -1,10 +1,10 @@
 /* Design tokens — refined futuristic / spatial-computing aesthetic.
-   Dark matte canvas, big editorial type, tiny mono metadata, a four-colour
-   accent palette (cyan · lime · coral · lavender) and a set of signature
-   gradients + halftone/grain textures shared across the whole system.
+   Dark matte canvas, big editorial type, tiny mono metadata, a small locked
+   accent palette (cyan · coral · lime · lavender · pink) and a set of
+   signature gradients + halftone/grain textures shared across the whole system.
 
-   Component code keeps using --accent (cyan) as the primary; the extra accents
-   are opt-in per section/layer. */
+   Component code keeps using --accent (cyan) as the primary. Every other hue
+   has one fixed job — see "The spatial palette" block below. */
 
 :root {
   /* ---- Core surfaces — dark matte ---- */
@@ -16,12 +16,30 @@
   --ink-40: rgba(234, 234, 234, 0.4);
   --ink-20: rgba(234, 234, 234, 0.16);
 
-  /* ---- The four-colour spatial palette ---- */
-  --cyan: #27e8f2;
-  --lime: #a9f75c;
-  --coral: #ff9068;
-  --lavender: #a89eff;
-  --pink: #ff74b0; /* gradient partner for coral */
+  /* ---- The spatial palette — one locked job per colour ------------------
+     The colour system is deliberately small so the whole site reads as one
+     instrument. Each hue means exactly one thing, everywhere:
+
+       cyan     — interactive / primary: links, focus, "Live", the hero's
+                  default accent, AND the CITY layer. --accent aliases this.
+       coral    — the ROOM layer (games / apps / web). Layer colour only.
+       lime     — the CHIP layer (tools / data / CV). Layer colour only.
+       lavender — the "Freelance" project tag. Nothing else.
+       pink     — the "Passion" project tag (+ coral's gradient partner).
+
+     Layer → colour is fixed and used identically by the hero maquette, the
+     capabilities band, the project cards and the focus popup:
+       city = cyan · room = coral · chip = lime.
+
+     The employer / career palette (site.json `career[].color`) is a separate,
+     deliberately muted set. It only ever tints the timeline route + its
+     tooltips — never UI chrome — so career context never competes with the
+     accents above. */
+  --cyan: #27e8f2; /* interactive / primary · city layer */
+  --lime: #a9f75c; /* chip layer */
+  --coral: #ff9068; /* room layer */
+  --lavender: #a89eff; /* "Freelance" project tag */
+  --pink: #ff74b0; /* "Passion" project tag · coral's gradient partner */
 
   /* Primary accent = cyan (names kept stable for existing components). */
   --accent: #27e8f2;
