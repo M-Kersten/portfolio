@@ -896,76 +896,168 @@ html {
   will-change: opacity;
 }
 
-/* ---------- Capabilities ---------- */
+/* ---------- Capabilities — the scale ladder ---------- */
 
-.capabilities__grid {
+.capabilities__eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin: 0 0 var(--space-2xs);
+}
+.cap-ladder {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-m);
   margin-top: var(--space-l);
 }
-.capability {
+@media (max-width: 860px) {
+  .cap-ladder {
+    grid-template-columns: 1fr;
+    max-width: 34rem;
+  }
+}
+
+.cap {
   --card-accent: var(--accent);
   position: relative;
-  background: var(--paper-2);
-  border: 1px solid color-mix(in srgb, var(--card-accent) 38%, var(--line));
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card-accent) 8%, var(--paper-2)), var(--paper-2));
+  border: 1px solid color-mix(in srgb, var(--card-accent) 30%, var(--line));
   border-radius: var(--radius);
-  padding: var(--space-m);
   overflow: hidden;
+  transition: transform 0.4s var(--ease), border-color 0.3s var(--ease), box-shadow 0.3s var(--ease), opacity 0.5s var(--ease);
+  transition-delay: calc(var(--i) * 0.09s);
 }
-.capability[data-layer='city'] { --card-accent: var(--cyan); }
-.capability[data-layer='room'] { --card-accent: var(--coral); }
-.capability[data-layer='chip'] { --card-accent: var(--lime); }
-/* small dotted background, like the poster cards */
-.capability::before {
+.cap[data-layer='city'] { --card-accent: var(--cyan); }
+.cap[data-layer='room'] { --card-accent: var(--coral); }
+.cap[data-layer='chip'] { --card-accent: var(--lime); }
+
+/* Scroll-reveal — panels rise + fade in with a per-panel stagger. */
+.cap-ladder:not([data-shown]) .cap {
+  opacity: 0;
+  transform: translateY(26px);
+}
+
+/* Hover-to-focus — the pointed-at panel lifts and glows; siblings recede. */
+.cap[data-on] {
+  transform: translateY(-6px) scale(1.015);
+  border-color: color-mix(in srgb, var(--card-accent) 65%, var(--line));
+  box-shadow: 0 26px 60px -30px rgba(0, 0, 0, 0.85), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent),
+    0 0 44px -10px color-mix(in srgb, var(--card-accent) 34%, transparent);
+}
+.cap-ladder[data-active] .cap:not([data-on]) { opacity: 0.5; }
+
+/* The live motif window. */
+.cap__motif {
+  position: relative;
+  height: 150px;
+  overflow: hidden;
+  background: radial-gradient(120% 110% at 50% 0%, color-mix(in srgb, var(--card-accent) 13%, transparent), transparent 68%), #06090c;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-accent) 26%, var(--line));
+}
+.cap__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* fade the motif into the body */
+.cap__motif::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, color-mix(in srgb, var(--card-accent) 55%, transparent) 0.9px, transparent 1.1px);
-  background-size: var(--dotfield-size);
-  opacity: 0.22;
+  background: linear-gradient(180deg, transparent 52%, color-mix(in srgb, var(--paper-2) 88%, transparent));
   pointer-events: none;
 }
-.capability > * {
-  position: relative;
-}
-.capability__index {
+.cap__scale {
+  position: absolute;
+  top: 11px;
+  left: 13px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
   font-family: var(--font-mono);
   font-size: var(--step--1);
-  color: var(--card-accent);
   letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--card-accent);
 }
-.capability__title {
+.cap__scale::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--card-accent);
+  box-shadow: 0 0 8px var(--card-accent);
+}
+.cap__scale b { font-weight: 500; }
+.cap__scale i { font-style: normal; color: var(--ink-40); letter-spacing: 0.06em; }
+/* scanner-frame corners, locking on with the panel */
+.cap__reticle {
+  position: absolute;
+  inset: 8px;
+  z-index: 2;
+  pointer-events: none;
+}
+.cap__reticle i {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--card-accent) 38%, transparent);
+  transition: border-color 0.3s var(--ease);
+}
+.cap[data-on] .cap__reticle i { border-color: var(--card-accent); }
+.cap__reticle i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.cap__reticle i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.cap__reticle i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.cap__reticle i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+
+.cap__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  padding: var(--space-m);
+  flex: 1;
+}
+.cap__index {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.1em;
+  color: var(--card-accent);
+}
+.cap__title {
+  font-family: var(--font-display);
   font-size: var(--step-1);
-  margin: var(--space-2xs) 0 var(--space-xs);
+  line-height: 1.1;
+  margin: 0;
 }
-.capability__body {
+.cap__text {
   color: var(--ink-60);
   font-size: var(--step-0);
-  margin: 0 0 var(--space-s);
+  line-height: 1.55;
+  margin: 0;
 }
-.capability__tags {
+.cap__tags {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4em;
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: auto 0 0;
 }
-.capability__tags li {
+.cap__tags li {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.04em;
   color: var(--ink-60);
-  border: 1px solid color-mix(in srgb, var(--card-accent) 28%, var(--hairline));
+  border: 1px solid color-mix(in srgb, var(--card-accent) 26%, var(--hairline));
   border-radius: var(--radius-s);
   padding: 0.2em 0.55em;
-}
-
-@media (max-width: 760px) {
-  .capabilities__grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ---------- Work grid ---------- */
