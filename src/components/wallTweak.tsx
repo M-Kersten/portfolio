@@ -8,39 +8,21 @@ import { useSyncExternalStore, type CSSProperties } from 'react';
 // panel away and just uses WALL_DEFAULTS.
 // ---------------------------------------------------------------------------
 export interface WallConfig {
-  cardW: number; // tile width in px
-  planeVh: number; // plane height in viewports (how far it descends as you scroll)
-  startX: number; // left margin before the first tile (px)
-  gapMin: number; // minimum horizontal gap after a tile (px, on top of cardW)
-  gapJitter: number; // extra random horizontal gap (px)
-  topStart: number; // vertical position of the first tile (% of plane height)
-  topSlope: number; // extra % the tiles descend across the whole wall
-  topJitter: number; // random vertical scatter, ± this many %
-  topMin: number; // clamp — highest a tile may sit (min %)
-  topMax: number; // clamp — lowest a tile may sit (max %)
-  stackChance: number; // 0–1 — how often a column holds two tiles, stacked
-  stackGap: number; // vertical spread of a stacked pair, ± this many % from centre
-  rot: number; // random tile rotation, ± this many degrees
-  parallax: number; // dot-field drift vs tiles (0 = fixed, 1 = moves with them)
-  seed: number; // RNG seed for the scatter — change it to reshuffle
+  cardW: number; // waypoint card width in px
+  planeVh: number; // plane height in viewports (≈1 → the timeline pans horizontally)
+  startX: number; // left margin before the first year (px)
+  yearGap: number; // horizontal distance between consecutive years (px)
+  rise: number; // gap between the route line and a card's near edge (% of plane height)
+  parallax: number; // dot-field drift vs the timeline (0 = fixed, 1 = moves with it)
 }
 
 export const WALL_DEFAULTS: WallConfig = {
-  cardW: 320,
-  planeVh: 2,
-  startX: 56,
-  gapMin: 80,
-  gapJitter: 150,
-  topStart: 6,
-  topSlope: 52,
-  topJitter: 17,
-  topMin: 3,
-  topMax: 78,
-  stackChance: 0.45,
-  stackGap: 15,
-  rot: 4.6,
+  cardW: 250,
+  planeVh: 1,
+  startX: 200,
+  yearGap: 360,
+  rise: 6,
   parallax: 0.72,
-  seed: 9137,
 };
 
 // --- DEV live store (only reached from import.meta.env.DEV branches) ---
@@ -74,21 +56,12 @@ interface FieldSpec {
   step: number;
 }
 const FIELDS: FieldSpec[] = [
-  { k: 'cardW', label: 'tile width', min: 140, max: 480, step: 10 },
-  { k: 'planeVh', label: 'plane height (vh)', min: 1, max: 3.2, step: 0.05 },
-  { k: 'startX', label: 'left margin', min: 0, max: 240, step: 4 },
-  { k: 'gapMin', label: 'gap min', min: 0, max: 320, step: 5 },
-  { k: 'gapJitter', label: 'gap jitter', min: 0, max: 400, step: 10 },
-  { k: 'topStart', label: 'top start %', min: 0, max: 50, step: 1 },
-  { k: 'topSlope', label: 'top slope %', min: 0, max: 90, step: 1 },
-  { k: 'topJitter', label: 'top jitter ±%', min: 0, max: 45, step: 1 },
-  { k: 'topMin', label: 'clamp min %', min: 0, max: 40, step: 1 },
-  { k: 'topMax', label: 'clamp max %', min: 40, max: 98, step: 1 },
-  { k: 'stackChance', label: 'stack chance', min: 0, max: 1, step: 0.05 },
-  { k: 'stackGap', label: 'stack gap ±%', min: 0, max: 40, step: 1 },
-  { k: 'rot', label: 'rotation ±°', min: 0, max: 16, step: 0.2 },
+  { k: 'cardW', label: 'card width', min: 160, max: 380, step: 5 },
+  { k: 'planeVh', label: 'plane height (vh)', min: 1, max: 2, step: 0.05 },
+  { k: 'startX', label: 'left margin', min: 40, max: 400, step: 10 },
+  { k: 'yearGap', label: 'year spacing', min: 160, max: 560, step: 10 },
+  { k: 'rise', label: 'route → card %', min: 0, max: 20, step: 0.5 },
   { k: 'parallax', label: 'dot parallax', min: 0, max: 1, step: 0.02 },
-  { k: 'seed', label: 'seed', min: 1, max: 99999, step: 1 },
 ];
 
 const panelStyle: CSSProperties = {
@@ -171,9 +144,6 @@ export function WallTweakPanel() {
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
         <button style={btnStyle} onClick={() => void navigator.clipboard?.writeText(literal)}>
           copy config
-        </button>
-        <button style={btnStyle} onClick={() => setVal('seed', Math.floor(Math.random() * 99999) + 1)}>
-          reshuffle
         </button>
         <button
           style={btnStyle}

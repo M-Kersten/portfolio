@@ -1003,56 +1003,78 @@ html {
   position: relative;
   will-change: transform;
 }
-/* Cartographic backdrop — a topo layer drawn undistorted (slice) behind the
-   tiles: graticule lines, contour rings, a coastline and the water it holds. */
-.wall__map {
+/* ---- Timeline route — one line through time, waypoints pinned along it ---- */
+.tl-route {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 50%;
+  height: 0;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--cyan) 16%, transparent);
   pointer-events: none;
 }
-.wall__contour {
-  fill: none;
-  stroke: color-mix(in srgb, var(--cyan) 9%, transparent);
-  stroke-width: 1px;
-}
-/* Rivers winding down out of the mountains. */
-.wall__river {
-  fill: none;
-  stroke: color-mix(in srgb, var(--cyan) 13%, transparent);
-  stroke-width: 1.1px;
-  stroke-linecap: round;
-}
-/* A meandering footpath across the land. */
-.wall__path {
-  fill: none;
-  stroke: color-mix(in srgb, var(--ink) 11%, transparent);
-  stroke-width: 1px;
-  stroke-dasharray: 3 7;
-  stroke-linecap: round;
-}
-.wall__string {
+/* A faint tick at every year — the empty years (e.g. 2025) read as honest gaps. */
+.tl-tick {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+  top: 50%;
+  width: 1px;
+  height: 9px;
+  transform: translate(-50%, -50%);
+  background: color-mix(in srgb, var(--ink) 26%, transparent);
   pointer-events: none;
 }
-/* The route threaded between the tiles — a faint dashed map trail. */
-.wall__wire {
-  fill: none;
-  stroke: color-mix(in srgb, var(--ink) 17%, transparent);
-  stroke-width: 1px;
-  stroke-dasharray: 5 6;
-  stroke-linecap: round;
+.tl-cap {
+  position: absolute;
+  top: calc(50% + 12px);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  white-space: nowrap;
+  pointer-events: none;
 }
-/* A bright data packet that fires down the wire into a hovered tile. */
-.wall__packet {
-  fill: currentColor;
-  filter: drop-shadow(0 0 5px currentColor);
+.tl-cap--end {
+  transform: translateX(-100%);
+  color: var(--accent-ink);
 }
+/* Node — the waypoint's mark on the route; its ring picks up the layer colour. */
+.tl-node {
+  --node: var(--cyan);
+  position: absolute;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--node);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--node) 55%, transparent);
+  pointer-events: none;
+}
+.tl-node::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--node);
+}
+.tl-node[data-layer='city'] { --node: var(--cyan); }
+.tl-node[data-layer='room'] { --node: var(--coral); }
+.tl-node[data-layer='chip'] { --node: var(--lime); }
+/* Leader — the thin stem from the route up/down to a card's near edge. */
+.tl-leader {
+  position: absolute;
+  width: 1px;
+  height: var(--rise);
+  transform: translateX(-50%);
+  background: linear-gradient(var(--line), transparent);
+  pointer-events: none;
+}
+.tl-leader--above {
+  bottom: 50%;
+  background: linear-gradient(transparent, var(--line));
+}
+.tl-leader--below { top: 50%; }
 
 /* The traveller's trail — a dashed line lingering behind the cursor. */
 .wall__trail {
@@ -1076,150 +1098,8 @@ html {
 }
 .wall[data-reduced] .wall__trail { display: none; }
 
-/* Faux instrument read-out docked top-right of the pinned wall — live
-   diagnostics in a crisp monospace, like a viewport HUD. */
-.wall__hud {
-  position: absolute;
-  right: var(--space-m);
-  top: calc(var(--header-h) + var(--space-s));
-  z-index: 6;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3em;
-  padding: 0.55em 0.7em;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--ink-60);
-  text-align: right;
-  background: color-mix(in srgb, #05070a 55%, transparent);
-  border: 1px solid var(--hairline);
-  border-radius: 3px;
-  backdrop-filter: blur(3px);
-  pointer-events: none;
-}
-.wall__hud-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.6em;
-}
-.wall__hud-row b {
-  font-weight: 500;
-  color: var(--ink-40);
-}
-.wall__hud-row [data-k] {
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
-}
-/* Masthead row — a hairline rule under the title. */
-.wall__hud-title {
-  justify-content: space-between;
-  gap: 1.4em;
-  padding-bottom: 0.35em;
-  margin-bottom: 0.15em;
-  border-bottom: 1px solid var(--hairline);
-}
-.wall__hud-title b {
-  color: var(--ink);
-  letter-spacing: 0.14em;
-}
-/* "render layers" sub-header + the joke legend rows. */
-.wall__hud-sub {
-  margin-top: 0.35em;
-  padding-top: 0.35em;
-  border-top: 1px solid var(--hairline);
-  color: var(--ink-40);
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 9px;
-}
-.wall__hud-render {
-  justify-content: space-between;
-  gap: 1.2em;
-}
-.wall__hud-render b {
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0.02em;
-  color: var(--ink-60);
-}
-.wall__hud-render span {
-  font-style: italic;
-  color: color-mix(in srgb, var(--cyan) 55%, var(--ink-40));
-}
-.wall[data-reduced] .wall__hud { display: none; }
-
-/* Map labels scattered in the empty gaps: feature names, surveyor's marginalia
-   and grid references. */
-.wall__label {
-  position: absolute;
-  transform: translate(-50%, -50%) rotate(var(--rot, 0deg));
-  white-space: nowrap;
-  pointer-events: none;
-  user-select: none;
-}
-/* Feature names — classic italic cartographic labels, in a watery tint. */
-.wall__label--place {
-  font-family: var(--font-body);
-  font-style: italic;
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  color: color-mix(in srgb, var(--cyan) 32%, var(--ink-40));
-}
-/* Surveyor's marginalia — mono, like a code comment in the margin. */
-.wall__label--note {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  color: color-mix(in srgb, var(--ink) 26%, transparent);
-}
-/* Grid references — tiny, faint, tabular. */
-.wall__label--coord {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  color: color-mix(in srgb, var(--ink) 18%, transparent);
-}
-
-/* Icon features on the land — a cluster of trees (forest) or blocks (a city),
-   each with its own italic map label. */
-.wall__feature {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  pointer-events: none;
-  user-select: none;
-}
-.wall__feature-ico {
-  display: block;
-  width: 64px;
-  height: 30px;
-  margin: 0 auto;
-}
-.wall__feature--forest .wall__feature-ico path {
-  fill: color-mix(in srgb, var(--lime) 34%, transparent);
-}
-.wall__feature--city .wall__feature-ico rect {
-  fill: color-mix(in srgb, var(--ink) 24%, transparent);
-  stroke: color-mix(in srgb, var(--cyan) 34%, transparent);
-  stroke-width: 0.7px;
-}
-.wall__feature-label {
-  display: block;
-  margin-top: 3px;
-  font-family: var(--font-body);
-  font-style: italic;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-}
-.wall__feature--forest .wall__feature-label {
-  color: color-mix(in srgb, var(--lime) 40%, var(--ink-40));
-}
-.wall__feature--city .wall__feature-label {
-  color: color-mix(in srgb, var(--ink) 42%, transparent);
-}
+/* (The BASEMAP instrument HUD, scattered map labels and land features were
+   removed — the timeline route is the map's single organising device now.) */
 
 /* Razor-thin scanner-frame brackets around the viewport (clear of the header). */
 .wall__frame {
@@ -1260,17 +1140,20 @@ html {
 
 /* Poster tile — absolutely placed on the wall, tilted a touch; straightens and
    lifts on hover. */
+/* Waypoint card — absolutely placed, centred on its year (margin-left pulls it
+   back half its width); lifts on hover. Vertical anchor (top/bottom) is set
+   inline so it hangs above or below the route. */
 .worktile {
   --card-accent: var(--accent);
-  --rot: 0deg;
   position: absolute;
-  width: var(--card-w, 320px);
+  width: var(--card-w, 250px);
+  margin-left: calc(var(--card-w, 250px) / -2);
   display: flex;
   flex-direction: column;
   text-align: left;
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012));
-  border: 1px solid color-mix(in srgb, var(--card-accent) 14%, var(--line));
-  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 16%, var(--line));
+  border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
   color: inherit;
@@ -1278,7 +1161,6 @@ html {
   padding: 0;
   backdrop-filter: blur(8px) saturate(1.1);
   box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
-  transform: rotate(var(--rot));
   transition: transform 0.3s var(--ease), border-color 0.28s var(--ease), box-shadow 0.28s var(--ease);
 }
 .worktile[data-layer='city'] { --card-accent: var(--cyan); }
@@ -1286,7 +1168,7 @@ html {
 .worktile[data-layer='chip'] { --card-accent: var(--lime); }
 .worktile:hover,
 .worktile:focus-visible {
-  transform: rotate(0deg) translateY(-6px) scale(1.04);
+  transform: translateY(-6px) scale(1.035);
   border-color: color-mix(in srgb, var(--card-accent) 55%, var(--line));
   box-shadow: 0 30px 60px -26px rgba(0, 0, 0, 0.9), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent);
   outline: none;
@@ -1322,28 +1204,45 @@ html {
 .worktile__reticle i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
 .worktile__reticle i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
 
-/* Year the project ran — a crisp engraved / OLED-style date plate stamped on
-   the tile: sharp corners, solid ground, a hairline mechanical border, mono. */
-.worktile__year {
-  position: absolute;
-  top: 9px;
-  right: 9px;
-  z-index: 3;
+/* Milestone stamp in the body — the year is the map's unit of distance, so it
+   leads; a small layer tag (the faint tie back to the maquette) sits beside it. */
+.worktile__stamp {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5em;
+}
+.worktile__yr {
   font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  font-size: var(--step-1);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.worktile__tag {
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--card-accent);
-  background: color-mix(in srgb, #05070a 82%, transparent);
-  padding: 2px 6px 1px;
-  border: 1px solid color-mix(in srgb, var(--card-accent) 34%, transparent);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 34%, var(--line));
+  border-radius: 999px;
+  padding: 0.25em 0.6em;
   white-space: nowrap;
+}
+/* Live pill floated on the thumbnail. */
+.worktile__live--float {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
 }
 
 .worktile__media {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
   background: var(--paper-2);
 }
@@ -1423,8 +1322,8 @@ html {
 .worktile__body {
   display: flex;
   flex-direction: column;
-  gap: 0.15em;
-  padding: var(--space-m);
+  gap: 0.3em;
+  padding: var(--space-s);
 }
 .worktile__meta {
   font-family: var(--font-mono);
@@ -1434,9 +1333,9 @@ html {
 }
 .worktile__title {
   font-family: var(--font-display);
-  font-size: var(--step-1);
-  line-height: 1.05;
-  margin: 0.1em 0 0;
+  font-size: var(--step-0);
+  line-height: 1.12;
+  margin: 0.15em 0 0;
 }
 .worktile__outcome {
   margin-top: var(--space-s);

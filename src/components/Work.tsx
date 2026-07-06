@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { cases, caseBySlug, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
@@ -6,185 +6,57 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard, accentFor } from './CaseCard';
 import { useWallConfig, type WallConfig } from './wallTweak';
 
-// Seeded RNG so the "randomly placed" wall is stable between renders.
-function mulberry32(seed: number) {
-  let a = seed;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+// ---- Timeline layout ------------------------------------------------------
+// The map is a single route through time. Every project is a waypoint pinned at
+// its year; where a year holds more than one, they stack above and below the
+// line. Empty years (e.g. 2025) simply leave a gap — an honest stretch of road.
+interface Stop {
+  study: CaseStudy;
+  x: number; // horizontal position (px) — driven by the year
+  side: 'above' | 'below';
 }
-
-// Cartographic feature names — classic italic map labels named after programmer
-// hazards. (Forests / the city carry their own labels; these name the rest.)
-const PLACES = ['Null Pointer Swamp', 'Mount Stackoverflow', 'Segfault Cliffs', 'Legacy Ruins', 'The Data Stream', 'The Race Conditions'];
-// Surveyor's marginalia — mono annotations scrawled in the gaps.
-const NOTES = [
-  'Turn left after the merge conflict',
-  'Rendering chunks...',
-  '// TODO: name this region',
-  'terrain still loading',
-  'surveyed at 3am',
-];
-// Faux grid references dotted around the graticule.
-const COORDS = ['52°21′N', '4°54′E', 'GRID 04·47'];
-// Icon features drawn on the land, each with its own label.
-const FEATURES = [
-  { kind: 'city' as const, label: 'Localhost' },
-  { kind: 'forest' as const, label: 'Deprecated Forest' },
-  { kind: 'forest' as const, label: 'The Dependency Woods' },
-  { kind: 'forest' as const, label: 'Recursion Grove' },
-];
-
-interface Slot {
-  left: number;
-  topPct: number;
-  rot: number;
-}
-
-interface Wall {
+interface Timeline {
   width: number;
-  slots: Slot[];
-  string: string; // SVG path (viewBox 0 0 width 1000) — the wire the cards pin to
-  segs: string[]; // per-card incoming wire segment, for the hover data-packet
+  routeLeft: number;
+  routeW: number;
+  stops: Stop[];
+  ticks: { year: number; x: number }[];
+  minYear: number;
+  maxYear: number;
 }
 
-// Lay the cards out as a row of COLUMNS descending left → right across the tall +
-// wide plane. Each column holds one tile, or — `stackChance` of the time — two,
-// one above the other at the same x (a stacked pair). Widely jittered so it reads
-// like a hand-hung wall. Then a wire is threaded that pins to each card's top edge.
-function buildWall(n: number, cfg: WallConfig): Wall {
-  const rnd = mulberry32(cfg.seed);
-  // Plan the columns first: sizes of 1 or 2 tiles that sum to exactly n.
-  const colSizes: number[] = [];
-  let remaining = n;
-  while (remaining > 0) {
-    const two = remaining >= 2 && rnd() < cfg.stackChance;
-    colSizes.push(two ? 2 : 1);
-    remaining -= two ? 2 : 1;
-  }
-  const cols = colSizes.length;
-  const clamp = (v: number) => Math.min(cfg.topMax, Math.max(cfg.topMin, v));
-  const slots: Slot[] = [];
-  let x = cfg.startX;
-  colSizes.forEach((size, c) => {
-    const t = cols > 1 ? c / (cols - 1) : 0;
-    const band = cfg.topStart + t * cfg.topSlope; // where this column sits vertically
-    if (size === 2) {
-      // Split the pair above / below the band; a shared partial jitter keeps the
-      // gap intact while still nudging the whole column off the tidy diagonal.
-      const j = (rnd() * 2 - 1) * cfg.topJitter * 0.35;
-      slots.push({ left: x, topPct: clamp(band - cfg.stackGap + j), rot: (rnd() * 2 - 1) * cfg.rot });
-      slots.push({ left: x, topPct: clamp(band + cfg.stackGap + j), rot: (rnd() * 2 - 1) * cfg.rot });
+function buildTimeline(list: CaseStudy[], cfg: WallConfig): Timeline {
+  const yearOf = (c: CaseStudy) => Number(c.year ?? 0);
+  const ordered = [...list].sort((a, b) => yearOf(a) - yearOf(b));
+  const minYear = yearOf(ordered[0]);
+  const maxYear = yearOf(ordered[ordered.length - 1]);
+  const xOf = (y: number) => cfg.startX + (y - minYear) * cfg.yearGap;
+
+  // Walk the ordered list year-group by year-group, deciding each stop's side.
+  // Singles alternate above/below down the line; a shared year splits its
+  // members across both sides so they never collide.
+  const stops: Stop[] = [];
+  let toggle: 'above' | 'below' = 'above';
+  for (let i = 0; i < ordered.length; ) {
+    const y = yearOf(ordered[i]);
+    const group: CaseStudy[] = [];
+    while (i < ordered.length && yearOf(ordered[i]) === y) group.push(ordered[i++]);
+    const x = xOf(y);
+    if (group.length === 1) {
+      stops.push({ study: group[0], x, side: toggle });
+      toggle = toggle === 'above' ? 'below' : 'above';
     } else {
-      slots.push({ left: x, topPct: clamp(band + (rnd() * 2 - 1) * cfg.topJitter), rot: (rnd() * 2 - 1) * cfg.rot });
+      group.forEach((s, k) => stops.push({ study: s, x, side: k % 2 === 0 ? 'above' : 'below' }));
     }
-    x += cfg.cardW + cfg.gapMin + rnd() * cfg.gapJitter; // advance to the next column
-  });
-  const width = x + 48;
-
-  // Pin points sit right on each card's top-centre; y is per-mille of the plane
-  // height (topPct * 10) so the SVG can share a width × 1000 viewBox.
-  const pin = slots.map((s) => ({ x: s.left + cfg.cardW / 2, y: s.topPct * 10 }));
-  let string = '';
-  const segs: string[] = [];
-  pin.forEach((p, i) => {
-    if (i === 0) {
-      string += `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
-      segs.push('');
-      return;
-    }
-    const prev = pin[i - 1];
-    const midX = (prev.x + p.x) / 2;
-    const sag = Math.min(60, Math.max(18, (p.x - prev.x) * 0.05)); // wider gap → deeper sag
-    const midY = (prev.y + p.y) / 2 + sag;
-    const q = `Q ${midX.toFixed(1)} ${midY.toFixed(1)} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
-    string += ` ${q}`;
-    segs.push(`M ${prev.x.toFixed(1)} ${prev.y.toFixed(1)} ${q}`);
-  });
-
-  return { width, slots, string, segs };
-}
-
-// ---- Cartographic backdrop ------------------------------------------------
-// A self-contained topo layer (own square-ish viewBox, drawn with slice so it
-// never distorts): wobbly contour rings for "mountains", a coastline, and the
-// water it encloses. Decorative — it doesn't need to line up with the tiles.
-const MAP_VBW = 3200;
-const MAP_VBH = 1000;
-
-const mid = (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-
-// Smooth closed curve through points, using each vertex as a quadratic control.
-function smoothClosed(pts: number[][]): string {
-  const n = pts.length;
-  const start = mid(pts[n - 1], pts[0]);
-  let d = `M ${start[0].toFixed(1)} ${start[1].toFixed(1)}`;
-  for (let i = 0; i < n; i++) {
-    const c = pts[i];
-    const m = mid(pts[i], pts[(i + 1) % n]);
-    d += ` Q ${c[0].toFixed(1)} ${c[1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`;
-  }
-  return d + ' Z';
-}
-
-// Smooth open curve through points (for coastline, rivers, paths).
-function smoothOpen(pts: number[][]): string {
-  let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
-  for (let i = 1; i < pts.length; i++) {
-    const m = mid(pts[i - 1], pts[i]);
-    d += ` Q ${pts[i - 1][0].toFixed(1)} ${pts[i - 1][1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`;
-  }
-  const last = pts[pts.length - 1];
-  return `${d} L ${last[0].toFixed(1)} ${last[1].toFixed(1)}`;
-}
-
-function buildMap(): { contours: string; rivers: string; paths: string } {
-  const rnd = mulberry32(7311);
-  const ring = (cx: number, cy: number, r: number, offs: number[]) =>
-    smoothClosed(offs.map((o, i) => [cx + Math.cos((i / offs.length) * Math.PI * 2) * r * o, cy + Math.sin((i / offs.length) * Math.PI * 2) * r * o]));
-
-  // A few clean mountain groups, well spaced.
-  let contours = '';
-  const peaks = 3;
-  const peakPos: number[][] = [];
-  for (let p = 0; p < peaks; p++) {
-    const cx = 380 + (p / (peaks - 1)) * (MAP_VBW - 760) + (rnd() * 2 - 1) * 120;
-    const cy = 240 + rnd() * 420;
-    peakPos.push([cx, cy]);
-    const baseR = 140 + rnd() * 120;
-    const offs = Array.from({ length: 20 }, () => 1 + (rnd() * 2 - 1) * 0.15); // shared wobble → concentric rings
-    for (let k = 0; k < 3; k++) contours += ring(cx, cy, baseR * (1 - k * 0.26), offs) + ' ';
   }
 
-  // Two rivers meandering down out of the mountains.
-  let rivers = '';
-  for (let r = 0; r < 2; r++) {
-    const src = peakPos[r % peaks];
-    let x = src[0] + (rnd() * 2 - 1) * 60;
-    let y = src[1] + 50;
-    const pts = [[x, y]];
-    const steps = 6;
-    for (let s = 1; s <= steps; s++) {
-      x += (rnd() * 2 - 1) * 150;
-      y += 90 + (rnd() * 2 - 1) * 30;
-      pts.push([x, y]);
-    }
-    rivers += smoothOpen(pts) + ' ';
-  }
+  const ticks: { year: number; x: number }[] = [];
+  for (let y = minYear; y <= maxYear; y++) ticks.push({ year: y, x: xOf(y) });
 
-  // One long footpath wandering across the land.
-  let py = 300 + rnd() * 200;
-  const ppts = [[0, py]];
-  for (let s = 1; s <= 8; s++) {
-    py = Math.max(140, Math.min(760, py + (rnd() * 2 - 1) * 150));
-    ppts.push([(s / 8) * MAP_VBW, py]);
-  }
-  const paths = smoothOpen(ppts);
-
-  return { contours, rivers, paths };
+  const routeLeft = xOf(minYear);
+  const routeW = (maxYear - minYear) * cfg.yearGap;
+  const width = routeLeft + routeW + cfg.startX;
+  return { width, routeLeft, routeW, stops, ticks, minYear, maxYear };
 }
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
@@ -295,81 +167,24 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
   );
 }
 
-// The projects wall: cards scattered top-left → bottom-right; while the section
-// is pinned, page scroll pans the wall horizontally — like riding an escalator
-// down a wall of pictures. Clicking a card opens the focus view.
+// The projects map: a timeline you pan through. While the section is pinned,
+// page scroll drives the wall sideways — you travel from the first project to
+// the most recent, each pinned to the route at the year it happened. Clicking a
+// waypoint opens the focus view.
 export function Work() {
   const { workIntro } = site;
   const reduced = useReducedMotion();
-  // Random scatter (stable per build) — no longer grouped by layer.
-  const ordered = useMemo(() => {
-    const arr = [...cases];
-    const rnd = mulberry32(4242);
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(rnd() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }, []);
   const cfg = useWallConfig();
-  const wall = useMemo(() => buildWall(ordered.length, cfg), [ordered.length, cfg]);
-  const map = useMemo(() => buildMap(), []);
-  // Scatter the place names / marginalia / grid refs into the empty triangles
-  // above and below the tile band.
-  const labels = useMemo(() => {
-    const rnd = mulberry32(2027);
-    const items = [
-      ...PLACES.map((text) => ({ text, kind: 'place' as const })),
-      ...NOTES.map((text) => ({ text, kind: 'note' as const })),
-      ...COORDS.map((text) => ({ text, kind: 'coord' as const })),
-    ];
-    for (let i = items.length - 1; i > 0; i--) {
-      const j = Math.floor(rnd() * (i + 1));
-      [items[i], items[j]] = [items[j], items[i]];
-    }
-    return items.map((it, k) => {
-      const fx = (k + 0.5) / items.length;
-      const x = 60 + fx * (wall.width - 320);
-      const band = 6 + fx * 52; // ~ where the tiles sit at this x
-      const above = k % 2 === 0;
-      const topPct = Math.min(95, Math.max(2, above ? band - 30 - rnd() * 10 : band + 32 + rnd() * 10));
-      return { ...it, x, topPct, rot: (rnd() * 2 - 1) * (it.kind === 'place' ? 2 : 3.4) };
-    });
-  }, [wall.width]);
-  // Forests + a city, spaced along the land, each with its own label.
-  const features = useMemo(() => {
-    const slots = wall.slots;
-    // Distinct column x's (a stacked pair shares one), left → right, each with the
-    // mean vertical band of its tile(s).
-    const xs = [...new Set(slots.map((s) => s.left))].sort((a, b) => a - b);
-    if (xs.length < 2) return [];
-    const bandAt = (left: number) => {
-      const ys = slots.filter((s) => s.left === left).map((s) => s.topPct);
-      return ys.reduce((a, b) => a + b, 0) / ys.length;
-    };
-    return FEATURES.map((f, k) => {
-      // Drop each feature into a horizontal gap between two columns, where no tile
-      // can hide it, offset a touch above or below the tile band.
-      const j = Math.max(0, Math.min(xs.length - 2, Math.round(((k + 0.5) / FEATURES.length) * (xs.length - 2))));
-      const x = (xs[j] + cfg.cardW + xs[j + 1]) / 2;
-      const band = (bandAt(xs[j]) + bandAt(xs[j + 1])) / 2;
-      const topPct = Math.min(90, Math.max(6, band + (k % 2 === 1 ? -20 : 22)));
-      return { ...f, x, topPct };
-    });
-  }, [wall.slots, cfg.cardW]);
+  const timeline = useMemo(() => buildTimeline(cases, cfg), [cfg]);
   const [open, setOpen] = useState<string | null>(null);
-  // Which tile is hovered — drives the data-packet that runs down the wire.
-  const [hover, setHover] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const planeRef = useRef<HTMLDivElement>(null);
   const farRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
-  const hudRef = useRef<HTMLDivElement>(null);
   // Trail points carry a cumulative arc-length `s` (px from the first point ever),
   // so the dash pattern can be pinned to world space and never crawl.
   const trailRef = useRef<{ x: number; y: number; t: number; s: number }[]>([]);
   const trailPathRef = useRef<SVGPathElement>(null);
-  const n = ordered.length;
 
   useEffect(() => {
     if (reduced) return;
@@ -381,20 +196,12 @@ export function Work() {
       if (!el || !plane) return;
       const scrollable = el.offsetHeight - window.innerHeight;
       const p = scrollable > 0 ? Math.min(1, Math.max(0, -el.getBoundingClientRect().top / scrollable)) : 0;
-      const maxX = Math.max(0, wall.width - window.innerWidth);
+      const maxX = Math.max(0, timeline.width - window.innerWidth);
       const maxY = Math.max(0, plane.offsetHeight - window.innerHeight);
       plane.style.transform = `translate3d(${-(p * maxX)}px, ${-(p * maxY)}px, 0)`;
-      // Parallax: the dot field drifts slower, so the cards read as the near
+      // Parallax: the dot field drifts slower, so the timeline reads as the near
       // layer floating in front of a receding space.
       if (farRef.current) farRef.current.style.transform = `translate3d(${-(p * maxX * cfg.parallax)}px, ${-(p * maxY * cfg.parallax)}px, 0)`;
-      // Telemetry read-outs.
-      const hud = hudRef.current;
-      if (hud) {
-        const node = Math.min(n, Math.max(1, Math.round(p * (n - 1)) + 1));
-        const set = (k: string, v: string) => hud.querySelector(`[data-k="${k}"]`)?.replaceChildren(v);
-        set('scroll', `${String(Math.round(p * 100)).padStart(3, '0')}%`);
-        set('node', `${String(node).padStart(2, '0')}/${n}`);
-      }
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
@@ -452,15 +259,11 @@ export function Work() {
     };
     const onMove = (e: MouseEvent) => {
       const pin = pinRef.current;
-      const hud = hudRef.current;
-      if (!pin || !hud) return;
+      if (!pin) return;
       const r = pin.getBoundingClientRect();
       const x = Math.round(e.clientX - r.left);
       const y = Math.round(e.clientY - r.top);
       if (x < 0 || y < 0 || x > r.width || y > r.height) return;
-      hud.querySelector('[data-k="cursor"]')?.replaceChildren(
-        `X:${String(x).padStart(4, '0')} Y:${String(y).padStart(4, '0')}`,
-      );
       const t = trailRef.current;
       const last = t[t.length - 1];
       const dist = last ? Math.hypot(x - last.x, y - last.y) : 0;
@@ -482,7 +285,7 @@ export function Work() {
       if (raf) cancelAnimationFrame(raf);
       if (trailRaf) cancelAnimationFrame(trailRaf);
     };
-  }, [reduced, wall.width, n, cfg.parallax]);
+  }, [reduced, timeline.width, cfg.parallax]);
 
   const openStudy = open ? caseBySlug(open) : undefined;
 
@@ -496,152 +299,67 @@ export function Work() {
       <div
         className="wall__scroll"
         ref={scrollRef}
-        style={reduced ? undefined : { height: `calc(100svh + ${wall.width}px - 100vw)` }}
+        style={reduced ? undefined : { height: `calc(100svh + ${timeline.width}px - 100vw)` }}
       >
         <div className="wall__pin" ref={pinRef}>
           <div
             className="wall__far"
             ref={farRef}
             aria-hidden="true"
-            style={{ width: `${wall.width}px`, height: `${cfg.planeVh * 100}svh` }}
+            style={{ width: `${timeline.width}px`, height: `${cfg.planeVh * 100}svh` }}
           />
           {/* The traveller's dashed trail, lingering behind the cursor — sits
-              between the dot field and the plane so the tiles occlude it. */}
+              between the dot field and the plane so the waypoints occlude it. */}
           <svg className="wall__trail" aria-hidden="true">
             <path ref={trailPathRef} />
           </svg>
           <div
             className="wall__plane"
             ref={planeRef}
-            style={{ width: `${wall.width}px`, height: `${cfg.planeVh * 100}svh`, '--card-w': `${cfg.cardW}px` } as CSSProperties}
+            style={
+              {
+                width: `${timeline.width}px`,
+                height: `${cfg.planeVh * 100}svh`,
+                '--card-w': `${cfg.cardW}px`,
+                '--rise': `${cfg.rise}%`,
+              } as CSSProperties
+            }
           >
-            {/* Cartographic backdrop — contours, a footpath and rivers. */}
-            <svg className="wall__map" viewBox={`0 0 ${MAP_VBW} ${MAP_VBH}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-              <path className="wall__contour" d={map.contours} />
-              <path className="wall__path" d={map.paths} />
-              <path className="wall__river" d={map.rivers} />
-            </svg>
-            <svg
-              className="wall__string"
-              viewBox={`0 0 ${wall.width} 1000`}
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              <path className="wall__wire" d={wall.string} vectorEffect="non-scaling-stroke" />
-              {hover != null && wall.segs[hover] && (
-                // A data packet fired down the wire into the hovered tile.
-                <circle key={hover} className="wall__packet" r={4} style={{ color: accentFor(ordered[hover].slug) }}>
-                  <animateMotion dur="0.5s" path={wall.segs[hover]} fill="freeze" />
-                </circle>
-              )}
-            </svg>
-            {labels.map((a, i) => (
-              <span
-                key={`lbl-${i}`}
-                className={`wall__label wall__label--${a.kind}`}
-                aria-hidden="true"
-                style={{ left: `${a.x}px`, top: `${a.topPct}%`, '--rot': `${a.rot}deg` } as CSSProperties}
-              >
-                {a.text}
-              </span>
+            {/* The route: one line through time, with a tick at every year. */}
+            <div className="tl-route" aria-hidden="true" style={{ left: `${timeline.routeLeft}px`, width: `${timeline.routeW}px` }} />
+            {timeline.ticks.map((t) => (
+              <span key={t.year} className="tl-tick" aria-hidden="true" style={{ left: `${t.x}px` }} />
             ))}
-            {features.map((f, i) => (
-              <div
-                key={`feat-${i}`}
-                className={`wall__feature wall__feature--${f.kind}`}
-                aria-hidden="true"
-                style={{ left: `${f.x}px`, top: `${f.topPct}%` } as CSSProperties}
-              >
-                {f.kind === 'forest' ? (
-                  <svg className="wall__feature-ico" viewBox="0 0 64 30">
-                    {[
-                      [10, 24],
-                      [22, 22],
-                      [34, 25],
-                      [46, 21],
-                      [17, 27],
-                      [40, 28],
-                    ].map(([tx, ty], j) => (
-                      <path key={j} d={`M${tx} ${ty} l-5 0 l5 -13 l5 13 z`} />
-                    ))}
-                  </svg>
-                ) : (
-                  <svg className="wall__feature-ico" viewBox="0 0 64 30">
-                    {[
-                      [8, 12],
-                      [16, 20],
-                      [24, 9],
-                      [32, 17],
-                      [40, 13],
-                      [48, 22],
-                      [56, 15],
-                    ].map(([bx, h], j) => (
-                      <rect key={j} x={bx} y={30 - h} width="6" height={h} />
-                    ))}
-                  </svg>
-                )}
-                <span className="wall__feature-label">{f.label}</span>
-              </div>
-            ))}
-            {ordered.map((study, i) => (
-              <CaseCard
-                key={study.slug}
-                study={study}
-                onOpen={() => setOpen(study.slug)}
-                onHover={(v) => setHover(v ? i : (prev) => (prev === i ? null : prev))}
-                style={
-                  {
-                    left: `${wall.slots[i].left}px`,
-                    top: `${wall.slots[i].topPct}%`,
-                    '--rot': `${wall.slots[i].rot}deg`,
-                  } as CSSProperties
-                }
-              />
+            <span className="tl-cap tl-cap--start" aria-hidden="true" style={{ left: `${timeline.routeLeft}px` }}>
+              {timeline.minYear} · first shipped
+            </span>
+            <span className="tl-cap tl-cap--end" aria-hidden="true" style={{ left: `${timeline.routeLeft + timeline.routeW}px` }}>
+              now →
+            </span>
+
+            {timeline.stops.map((s) => (
+              <Fragment key={s.study.slug}>
+                <span className="tl-node" data-layer={s.study.layer} aria-hidden="true" style={{ left: `${s.x}px` }} />
+                <span className={`tl-leader tl-leader--${s.side}`} aria-hidden="true" style={{ left: `${s.x}px` }} />
+                <CaseCard
+                  study={s.study}
+                  onOpen={() => setOpen(s.study.slug)}
+                  style={
+                    s.side === 'above'
+                      ? { left: `${s.x}px`, bottom: 'calc(50% + var(--rise))' }
+                      : { left: `${s.x}px`, top: 'calc(50% + var(--rise))' }
+                  }
+                />
+              </Fragment>
             ))}
           </div>
-          <span className="wall__cue" aria-hidden="true">scroll to explore →</span>
+          <span className="wall__cue" aria-hidden="true">scroll through time →</span>
           {/* Razor-thin scanner-frame corners around the viewport. */}
           <div className="wall__frame" aria-hidden="true">
             <i />
             <i />
             <i />
             <i />
-          </div>
-          {/* Basemap legend / render layers — part instrument, part joke. */}
-          <div className="wall__hud" ref={hudRef} aria-hidden="true">
-            <span className="wall__hud-row wall__hud-title">
-              <b>BASEMAP</b>
-              <span>mk·survey</span>
-            </span>
-            <span className="wall__hud-row">
-              <b>SCROLL</b>
-              <span data-k="scroll">000%</span>
-            </span>
-            <span className="wall__hud-row">
-              <b>SECTOR</b>
-              <span data-k="node">01/{n}</span>
-            </span>
-            <span className="wall__hud-row">
-              <b>COORD</b>
-              <span data-k="cursor">X:0000 Y:0000</span>
-            </span>
-            <span className="wall__hud-sub">render layers</span>
-            <span className="wall__hud-row wall__hud-render">
-              <b>Fog</b>
-              <span>covering mistakes</span>
-            </span>
-            <span className="wall__hud-row wall__hud-render">
-              <b>Mountains</b>
-              <span>billboarded</span>
-            </span>
-            <span className="wall__hud-row wall__hud-render">
-              <b>Reflections</b>
-              <span>aspirational</span>
-            </span>
-            <span className="wall__hud-row wall__hud-render">
-              <b>Shadows</b>
-              <span>estimated</span>
-            </span>
           </div>
         </div>
       </div>
