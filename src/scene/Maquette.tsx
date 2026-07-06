@@ -583,7 +583,7 @@ function TreeRound({ position, h = 0.45, swaySlug }: { position: V3; h?: number;
   const vivid = useMemo(() => new Color('#62c265'), []); // lifelike leaf green once visited
   // one shared canopy material so all the blobs green up together
   const leaf = useMemo(
-    () => new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.3 }),
+    () => new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.2 }),
     [],
   );
   useFrame((s) => {
@@ -722,68 +722,118 @@ function blobPts(r: number, wobble: number, seg = 48, seed = 7): V3[] {
   return pts;
 }
 
-/** A coin-op rooftop tower viewer — a pole with a tilting binocular head whose
- *  objective lenses glow in the layer accent. Static scenery for the park. */
-function Binoculars({ position, rotationY = 0 }: { position: V3; rotationY?: number }) {
+/** The park's AR tower viewer — the ARCam installation. It stays hidden until
+ *  the ARCam hotspot is selected, then pops in, pans left↔right scanning the
+ *  scene and flashes its lenses at each end as if taking a photo. */
+function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY?: number; slug?: string }) {
   const { accent } = useAccent();
+  const { selected, visited } = useActive(slug ?? '');
+  const reduced = useReducedMotion();
   const METAL = '#4a5560';
+  const popRef = useRef<Group>(null);
+  const headRef = useRef<Group>(null);
+  const k = useRef(0); // pop-in scale progress
+  const vel = useRef(0);
+  const flash = useRef(0); // camera-flash level, decays each frame
+  const lastShot = useRef(0);
+  // one shared material for both objective lenses so they flash together
+  const lensMat = useMemo(
+    () => new MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5, roughness: 0.3, metalness: 0, toneMapped: false }),
+    [accent],
+  );
+  useFrame((s, delta) => {
+    const dt = Math.min(delta, 1 / 30);
+    const target = selected || visited ? 1 : 0;
+    if (reduced) {
+      k.current = target;
+      vel.current = 0;
+    } else {
+      // a spring toward the target → a pop-in with a little overshoot
+      vel.current += ((target - k.current) * 170 - vel.current * 19) * dt;
+      k.current += vel.current * dt;
+    }
+    const pop = popRef.current;
+    if (pop) {
+      const sc = Math.max(0, k.current);
+      pop.scale.setScalar(sc);
+      pop.visible = sc > 0.002;
+    }
+    const head = headRef.current;
+    if (!reduced && selected && k.current > 0.55) {
+      // sweep the head left↔right; snap a photo at each extreme
+      const ph = s.clock.elapsedTime * 0.95;
+      if (head) head.rotation.y = Math.sin(ph) * 0.6;
+      const shot = Math.floor((ph - Math.PI / 2) / Math.PI);
+      if (shot !== lastShot.current) {
+        lastShot.current = shot;
+        flash.current = 1;
+      }
+    } else if (head) {
+      head.rotation.y += (0 - head.rotation.y) * 0.1; // settle back to centre
+    }
+    flash.current = Math.max(0, flash.current - dt * 3.4);
+    lensMat.emissiveIntensity = 0.5 + flash.current * 4.4;
+  });
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
-      {/* base + pole */}
-      <mesh position={[0, 0.012, 0]}>
-        <cylinderGeometry args={[0.04, 0.05, 0.024, 18]} />
-        <GlassMat color={METAL} opacity={0.5} />
-        <Edges threshold={30} color={NEUTRAL} />
-      </mesh>
-      <mesh position={[0, 0.12, 0]}>
-        <cylinderGeometry args={[0.013, 0.016, 0.2, 12]} />
-        <GlassMat color={METAL} opacity={0.5} />
-        <Edges threshold={30} color={NEUTRAL} />
-      </mesh>
-      {/* tilting head, angled down toward the view */}
-      <group position={[0, 0.225, 0]} rotation={[0.3, 0, 0]}>
-        <mesh>
-          <boxGeometry args={[0.07, 0.045, 0.05]} />
-          <GlassMat color={METAL} opacity={0.55} />
+      <group ref={popRef} visible={false}>
+        {/* base + pole */}
+        <mesh position={[0, 0.012, 0]}>
+          <cylinderGeometry args={[0.04, 0.05, 0.024, 18]} />
+          <GlassMat color={METAL} opacity={0.5} />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
-        {/* two barrels reaching forward, each capped by a glowing objective lens */}
-        {[-0.02, 0.02].map((x, i) => (
-          <group key={i} position={[x, 0, 0.05]} rotation={[Math.PI / 2, 0, 0]}>
+        <mesh position={[0, 0.12, 0]}>
+          <cylinderGeometry args={[0.013, 0.016, 0.2, 12]} />
+          <GlassMat color={METAL} opacity={0.5} />
+          <Edges threshold={30} color={NEUTRAL} />
+        </mesh>
+        {/* head — pans left↔right, tilted down toward the view */}
+        <group ref={headRef} position={[0, 0.225, 0]}>
+          <group rotation={[0.3, 0, 0]}>
             <mesh>
-              <cylinderGeometry args={[0.014, 0.017, 0.1, 14]} />
-              <GlassMat color={METAL} opacity={0.5} />
+              <boxGeometry args={[0.07, 0.045, 0.05]} />
+              <GlassMat color={METAL} opacity={0.55} />
               <Edges threshold={30} color={NEUTRAL} />
             </mesh>
-            <mesh position={[0, 0.052, 0]}>
-              <cylinderGeometry args={[0.015, 0.015, 0.006, 14]} />
-              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.3} toneMapped={false} />
-            </mesh>
+            {/* two barrels reaching forward, each capped by a glowing objective lens */}
+            {[-0.02, 0.02].map((x, i) => (
+              <group key={i} position={[x, 0, 0.05]} rotation={[Math.PI / 2, 0, 0]}>
+                <mesh>
+                  <cylinderGeometry args={[0.014, 0.017, 0.1, 14]} />
+                  <GlassMat color={METAL} opacity={0.5} />
+                  <Edges threshold={30} color={NEUTRAL} />
+                </mesh>
+                <mesh position={[0, 0.052, 0]} material={lensMat}>
+                  <cylinderGeometry args={[0.015, 0.015, 0.006, 14]} />
+                </mesh>
+              </group>
+            ))}
+            {/* eyepieces at the back */}
+            {[-0.02, 0.02].map((x, i) => (
+              <mesh key={`e${i}`} position={[x, 0, -0.035]} rotation={[Math.PI / 2, 0, 0]}>
+                <cylinderGeometry args={[0.009, 0.011, 0.02, 10]} />
+                <GlassMat color={METAL} opacity={0.55} />
+                <Edges threshold={30} color={NEUTRAL} />
+              </mesh>
+            ))}
+            {/* side handlebars */}
+            {[-1, 1].map((sgn, i) => (
+              <mesh key={`h${i}`} position={[sgn * 0.045, -0.006, -0.018]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.005, 0.005, 0.035, 8]} />
+                <GlassMat color={METAL} opacity={0.55} />
+              </mesh>
+            ))}
           </group>
-        ))}
-        {/* eyepieces at the back */}
-        {[-0.02, 0.02].map((x, i) => (
-          <mesh key={`e${i}`} position={[x, 0, -0.035]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.009, 0.011, 0.02, 10]} />
-            <GlassMat color={METAL} opacity={0.55} />
-            <Edges threshold={30} color={NEUTRAL} />
-          </mesh>
-        ))}
-        {/* side handlebars */}
-        {[-1, 1].map((s, i) => (
-          <mesh key={`h${i}`} position={[s * 0.045, -0.006, -0.018]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.005, 0.005, 0.035, 8]} />
-            <GlassMat color={METAL} opacity={0.55} />
-          </mesh>
-        ))}
+        </group>
       </group>
     </group>
   );
 }
 
-function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
+function Park({ position, slug }: { position: V3; slug?: string }) {
   const { accent } = useAccent();
-  const { selected, visited } = useActive(rustleSlug ?? '');
+  const { selected, visited } = useActive(slug ?? '');
   const live = selected || visited;
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
@@ -850,11 +900,11 @@ function Park({ position, rustleSlug }: { position: V3; rustleSlug?: string }) {
           </mesh>
         ))}
       </group>
-      <TreeRound position={[0.2, 0, -0.18]} h={0.44} swaySlug={rustleSlug} />
-      <TreeRound position={[0.24, 0, 0.22]} h={0.36} swaySlug={rustleSlug} />
-      <TreeRound position={[-0.22, 0, -0.24]} h={0.4} swaySlug={rustleSlug} />
-      {/* a rooftop-style tower viewer looking out over the front of the park */}
-      <Binoculars position={[0.1, 0, 0.34]} rotationY={-0.15} />
+      <TreeRound position={[0.2, 0, -0.18]} h={0.44} />
+      <TreeRound position={[0.24, 0, 0.22]} h={0.36} />
+      <TreeRound position={[-0.22, 0, -0.24]} h={0.4} />
+      {/* the ARCam tower viewer — pops in and scans when the hotspot is selected */}
+      <Binoculars position={[0.1, 0, 0.34]} rotationY={-0.15} slug={slug} />
       </group>
     </group>
   );
@@ -1183,7 +1233,7 @@ function CityRig() {
       <Constellation anchor={mill.position} />
 
       {/* parks (the first carries the arcam hotspot — its trees rustle) */}
-      <Park position={park.position} rustleSlug="arcam" />
+      <Park position={park.position} slug="arcam" />
     </group>
   );
 }
