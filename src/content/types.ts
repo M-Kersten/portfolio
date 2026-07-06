@@ -31,6 +31,10 @@ export interface CaseStudy {
   /** Marks a case as currently live in production. */
   live?: boolean;
   media?: string[];
+  /** A YouTube URL — embedded in the node HUD and the map card popup. */
+  video?: string;
+  /** URL to a fuller write-up (e.g. a blog post) — linked from the popups. */
+  article?: string;
   /** Sample content pending sign-off; rendered with a quiet tag. */
   draft?: boolean;
 }

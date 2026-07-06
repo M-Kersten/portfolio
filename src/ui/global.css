@@ -630,6 +630,26 @@ html {
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+/* An embedded YouTube player filling the media slot. */
+.node-hud__media--video {
+  position: relative;
+  overflow: hidden;
+  background: #06080a;
+}
+.node-hud__media--video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.node-hud__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+  align-items: center;
+  margin-top: 0.2em;
+}
 
 /* detail (right column) */
 .node-hud__detail {
@@ -1554,7 +1574,7 @@ html {
 .focus__card {
   --card-accent: var(--accent);
   position: relative;
-  width: min(880px, 100%);
+  width: min(1040px, 100%);
   max-height: 88svh;
   overflow: hidden auto;
   display: grid;
@@ -1570,9 +1590,36 @@ html {
 .focus__card[data-layer='city'] { --card-accent: var(--cyan); }
 .focus__card[data-layer='room'] { --card-accent: var(--coral); }
 .focus__card[data-layer='chip'] { --card-accent: var(--lime); }
+/* Media column: an optional embedded video stacked over the photo. */
 .focus__media {
-  aspect-ratio: auto;
-  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+  padding: var(--space-l);
+  min-width: 0;
+}
+.focus__video {
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #06080a;
+}
+.focus__video iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+.focus__photo {
+  border-radius: var(--radius-s);
+  overflow: hidden;
+}
+.focus__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+  align-items: center;
+  margin-top: 0.2em;
 }
 .focus__body {
   display: flex;
@@ -1614,7 +1661,7 @@ html {
 
 @media (max-width: 720px) {
   .focus__card { grid-template-columns: 1fr; }
-  .focus__media { aspect-ratio: 16 / 9; min-height: 0; }
+  .focus__media { padding: var(--space-m) var(--space-m) 0; }
 }
 @media (max-width: 560px) {
   .worktile__cols { grid-template-columns: 1fr; }

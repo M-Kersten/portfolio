@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { caseBySlug, LAYER_LABEL, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
+import { youtubeEmbed } from '../lib/youtube';
 import { sceneStore } from '../scene/store';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
@@ -11,6 +12,20 @@ const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // lifts it clear). Route-driven so deep links + the back button keep working.
 
 function Media({ study }: { study: CaseStudy }) {
+  const embed = youtubeEmbed(study.video);
+  if (embed) {
+    return (
+      <div className="node-hud__media node-hud__media--video">
+        <iframe
+          src={embed}
+          title={`${study.title} — video`}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          loading="lazy"
+        />
+      </div>
+    );
+  }
   const src = study.media?.[0];
   if (!src) {
     return (
@@ -109,12 +124,19 @@ export function NodeHud() {
           </p>
         )}
 
-        <a
-          className="btn node-hud__discuss"
-          href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}
-        >
-          Ask me about it
-        </a>
+        <div className="node-hud__actions">
+          <a
+            className="btn node-hud__discuss"
+            href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}
+          >
+            Ask me about it
+          </a>
+          {study.article && (
+            <a className="btn btn--ghost" href={study.article} target="_blank" rel="noreferrer">
+              Read more <span aria-hidden="true">↗</span>
+            </a>
+          )}
+        </div>
       </div>
     </aside>
   );

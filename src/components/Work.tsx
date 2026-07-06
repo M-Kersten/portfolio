@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { cases, caseBySlug, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
+import { youtubeEmbed } from '../lib/youtube';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard, accentFor } from './CaseCard';
 import { useWallConfig, type WallConfig } from './wallTweak';
@@ -191,6 +192,7 @@ function buildMap(): { contours: string; rivers: string; paths: string } {
 function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }) {
   const [imgOk, setImgOk] = useState(true);
   const src = study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
+  const embed = youtubeEmbed(study.video);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -220,15 +222,28 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
         <button ref={closeRef} type="button" className="focus__close" onClick={onClose} aria-label="Close">
           <span aria-hidden="true">✕</span>
         </button>
-        <div className="focus__media worktile__media">
-          <div className="worktile__ph" aria-hidden="true" />
-          {imgOk && <img className="worktile__img" src={src} alt="" onError={() => setImgOk(false)} />}
-          <div className="worktile__scrim" aria-hidden="true" />
-          {study.live && (
-            <div className="worktile__badges">
-              <span className="worktile__live">Live</span>
+        <div className="focus__media">
+          {embed && (
+            <div className="focus__video">
+              <iframe
+                src={embed}
+                title={`${study.title} — video`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                loading="lazy"
+              />
             </div>
           )}
+          <div className="focus__photo worktile__media">
+            <div className="worktile__ph" aria-hidden="true" />
+            {imgOk && <img className="worktile__img" src={src} alt="" onError={() => setImgOk(false)} />}
+            <div className="worktile__scrim" aria-hidden="true" />
+            {study.live && (
+              <div className="worktile__badges">
+                <span className="worktile__live">Live</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="focus__body">
           <span className="worktile__meta">
@@ -282,12 +297,19 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
               {study.lesson}
             </p>
           )}
-          <a
-            className="btn worktile__discuss"
-            href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}
-          >
-            Ask me about it
-          </a>
+          <div className="focus__actions">
+            <a
+              className="btn worktile__discuss"
+              href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}
+            >
+              Ask me about it
+            </a>
+            {study.article && (
+              <a className="btn btn--ghost" href={study.article} target="_blank" rel="noreferrer">
+                Read more <span aria-hidden="true">↗</span>
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>
