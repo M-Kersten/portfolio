@@ -70,10 +70,10 @@
 
   --shadow: rgba(0, 0, 0, 0.5);
 
-  /* ---- Type — Geist (display), Inter Tight (text), IBM Plex Mono (meta) ---- */
-  --font-display: 'Geist Sans', 'Inter Tight', ui-sans-serif, system-ui, sans-serif;
-  --font-body: 'Inter Tight', 'Geist Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* ---- Type — Space Grotesk (display + text), Space Mono (meta) ---- */
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Fluid type scale — large, bold editorial display end. */
   --step--1: clamp(0.78rem, 0.74rem + 0.18vw, 0.88rem);
