@@ -11,11 +11,11 @@
     "subheading": "Building things that survive outside the demo room"
   },
   "capabilitiesIntro": {
-    "title": "From the scale of a city to that of a chip",
+    "title": "From the scale of a city\nto that of a chip",
     "lead": "I tend to bounce between three sizes of thing."
   },
   "workIntro": {
-    "title": "A map of everything I’ve built",
+    "title": "A map of everything\nI’ve built",
     "lead": "A bunch of projects from over the years. Some ended up on thousands of devices, some were failures, but all of them taught me something."
   },
   "spawn": "1997-03-16",
@@ -30,7 +30,7 @@
     { "company": "KMar", "from": "2025-07", "to": null, "color": "#d97f7f" }
   ],
   "about": {
-    "title": "From shaders to screws",
+    "title": "From shaders\nto screws",
     "lead": "I’m a creative technologist from Utrecht. I've been working on it for about a decade, and I still get the same kick out of it: take some upcoming technology and push it until it does something slightly magical.",
     "body": [
       "I’m happiest somewhere between the screen and the physical world. I’ll jump from a shader to a backend to a soldering iron on the same day. I like seeing the whole thing, context is everything. A lot of what I make is really about connecting the digital and the physical so they stop feeling like separate worlds.",

@@ -3,6 +3,7 @@ import { site } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { ScanFrame } from './ScanFrame';
+import { SectionTitle } from './SectionTitle';
 
 const PORTRAITS = 5;
 
@@ -67,7 +68,7 @@ export function About() {
       <div className="container">
         <div className="about__grid">
           <div>
-            <h2 className="section__title">{a.title}</h2>
+            <SectionTitle>{a.title}</SectionTitle>
             <p className="about__lead">{a.lead}</p>
             {a.body.map((p, i) => (
               <p key={i}>{p}</p>

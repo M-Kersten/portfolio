@@ -138,8 +138,16 @@ img {
 }
 
 .section__title {
-  font-size: var(--step-3);
-  max-width: 22ch;
+  font-size: var(--step-4);
+  line-height: 0.95;
+  letter-spacing: -0.015em;
+  max-width: 20ch;
+  text-wrap: balance;
+}
+/* Each line of a stepped heading indents a little further than the last. */
+.section__title-ln {
+  display: block;
+  margin-left: calc(var(--ln, 0) * clamp(0.6rem, 3.5vw, 2.6rem));
 }
 
 .section__lead {
@@ -637,6 +645,21 @@ html {
   min-width: 0;
   overflow: auto;
   padding-right: var(--space-s);
+}
+
+/* The overlay views (node HUD + case popup) scroll, but without a visible
+   scrollbar — it reads cleaner over the frozen page behind them. */
+.node-hud,
+.node-hud__detail,
+.focus__card {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+.node-hud::-webkit-scrollbar,
+.node-hud__detail::-webkit-scrollbar,
+.focus__card::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 .node-hud__meta {
   display: flex;
