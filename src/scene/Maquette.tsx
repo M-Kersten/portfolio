@@ -164,7 +164,9 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
 
 /** The phone on the couch (Popcore). It buzzes on hover; on *select* it lifts
  *  off the cushion and rotates to face you, and the first time you open it a
- *  handful of ping-pong balls pop out of the screen and settle on the seat. */
+ *  handful of ping-pong balls pop out of the screen and settle on the seat.
+ *  The screen shows a screenshot once you've visited it — drop a JPG at
+ *  public/textures/room-phone.jpg; until then it stays a plain glowing screen. */
 const PHONE_BALLS = 6;
 const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
 function Phone({ slug, position, args, liveColor }: { slug: string; position: V3; args: V3; liveColor: string }) {
@@ -189,6 +191,24 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
   );
   const R = 0.015; // ball radius
   const fired = useRef(false);
+  const shown = useRef(false); // whether the screenshot is currently mapped on
+  const [tex, setTex] = useState<Texture | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    new TextureLoader().load(
+      asset('/textures/room-phone.jpg'),
+      (t) => {
+        t.colorSpace = SRGBColorSpace;
+        if (cancelled) t.dispose();
+        else setTex(t);
+      },
+      undefined,
+      () => {}, // not provided yet → keep the plain glowing screen
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
@@ -209,14 +229,28 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
       );
     }
 
-    // --- emissive screen (same feel as EmissiveHover: rest 0.5, peak 0.3) ---
+    // --- emissive screen: glows on hover/visit, and swaps to a screenshot once
+    // the texture is loaded and the node is opened/visited (else the plain glow) ---
     if (mat.current) {
+      const m = mat.current;
       k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.12;
       glow.current += ((selected || visited ? 1 : 0) - glow.current) * 0.07;
+      const wantImg = (selected || visited) && !!tex;
+      if (wantImg !== shown.current) {
+        shown.current = wantImg;
+        m.map = wantImg ? tex : null;
+        m.emissiveMap = wantImg ? tex : null;
+        m.needsUpdate = true;
+      }
       const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
-      mat.current.emissiveIntensity = 0.5 + k.current * (0.3 + breathe);
-      mat.current.color.copy(base).lerp(lifelike, glow.current);
-      mat.current.emissive.copy(base).lerp(lifelike, glow.current);
+      m.emissiveIntensity = (wantImg ? 0.62 : 0.5) + k.current * (0.3 + breathe);
+      if (wantImg) {
+        m.color.set('#ffffff');
+        m.emissive.set('#ffffff');
+      } else {
+        m.color.copy(base).lerp(lifelike, glow.current);
+        m.emissive.copy(base).lerp(lifelike, glow.current);
+      }
     }
 
     // --- fire the balls once, on the first open ---
@@ -267,8 +301,14 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
   return (
     <>
       <group ref={rigRef} position={position} rotation={[-Math.PI / 2, 0, 0.3]}>
+        {/* body / bezel */}
         <mesh>
           <boxGeometry args={args} />
+          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.28} roughness={0.4} toneMapped={false} />
+        </mesh>
+        {/* screen face — glows at rest, shows the screenshot once loaded + visited */}
+        <mesh position={[0, 0, args[2] / 2 + 0.0006]}>
+          <planeGeometry args={[args[0] * 0.86, args[1] * 0.93]} />
           <meshStandardMaterial ref={mat} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={false} />
         </mesh>
       </group>
@@ -1424,10 +1464,11 @@ const BOOKS: { p: V3; s: V3; c: string; r?: V3 }[] = [
   { p: [0.03, 0.255, 0.02], s: [0.052, 0.16, 0.18], c: '#6f8cb6' },
 ];
 
-/** The Zwijsen AR-books spine — a closed orange book on the shelf that lifts out
+/** The Zwijsen AR-books book — a closed orange book on the shelf that lifts out
  *  and opens on select, revealing its inner spread. Drop a JPG at
- *  public/textures/zwijsen-book.jpg for the spread; until then it falls back to a
- *  plain cream page, so nothing breaks. */
+ *  public/textures/zwijsen-book.jpg and it maps onto both the cover (seen on the
+ *  shelf) and the inner spread (on open); until then it falls back to a plain
+ *  cream page + title plate, so nothing breaks. */
 function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
@@ -1509,11 +1550,18 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
         <mesh position={[W / 2, 0, 0]} material={bodyMat}>
           <boxGeometry args={[W, T, H]} />
         </mesh>
-        {/* a title plate on the cover */}
-        <mesh position={[W / 2, T * 0.6, 0.03]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[W * 0.52, 0.045]} />
-          <meshStandardMaterial color="#fff0db" emissive="#fff0db" emissiveIntensity={0.3} toneMapped={false} />
-        </mesh>
+        {/* cover art once the texture loads, else the plain title plate */}
+        {tex ? (
+          <mesh position={[W / 2, T / 2 + 0.0015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[W * 0.9, H * 0.9]} />
+            <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.3} roughness={0.8} toneMapped={false} />
+          </mesh>
+        ) : (
+          <mesh position={[W / 2, T * 0.6, 0.03]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[W * 0.52, 0.045]} />
+            <meshStandardMaterial color="#fff0db" emissive="#fff0db" emissiveIntensity={0.3} toneMapped={false} />
+          </mesh>
+        )}
       </group>
     </group>
   );
