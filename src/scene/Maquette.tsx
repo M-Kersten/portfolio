@@ -109,6 +109,30 @@ function bounceObject(obj: Object3D, selected: boolean, reduced: boolean, delta:
   obj.scale.set(1 - sq, 1 + sq, 1 - sq);
 }
 
+/** Load an optional texture from /public. Resolves to null while loading and
+ *  stays null when the file hasn't been provided, so objects keep their plain
+ *  procedural fallback (used by the monitor, the phone and the Zwijsen book). */
+function useOptionalTexture(path: string): Texture | null {
+  const [tex, setTex] = useState<Texture | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    new TextureLoader().load(
+      asset(path),
+      (t) => {
+        t.colorSpace = SRGBColorSpace;
+        if (cancelled) t.dispose();
+        else setTex(t);
+      },
+      undefined,
+      () => {}, // absent file → keep the fallback
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+  return tex;
+}
+
 /* ---------- The life system — you give the world its colour ----------
    Every interactive object starts as a DORMANT GHOST: a faint monochrome
    wireframe (fills nearly gone, edges dimmed grey). Clicking it floods the
@@ -140,6 +164,8 @@ function LifeGroup({ slug, children }: { slug: string; children: ReactNode }) {
   const born = useRef(false);
   const glitch = useRef(0);
   const idle = useRef(8 + Math.random() * 9);
+  const lastApplied = useRef(-1); // last life level written to the materials
+  const frame = useRef(0);
 
   useFrame((s, delta) => {
     const g = grp.current;
@@ -147,7 +173,7 @@ function LifeGroup({ slug, children }: { slug: string; children: ReactNode }) {
     const dt = Math.min(delta, 1 / 30);
     const alive = selected || visited;
     const target = alive ? 1 : hovered ? 0.22 : 0;
-    if (reduced) L.current = target;
+    if (reduced || Math.abs(target - L.current) < 0.001) L.current = target;
     else L.current += (target - L.current) * 0.09;
     // materialise: a short glitchy flicker the first time it comes alive…
     if (alive && !born.current) {
@@ -165,6 +191,13 @@ function LifeGroup({ slug, children }: { slug: string; children: ReactNode }) {
     }
     const flick = glitch.current > 0 && Math.sin(s.clock.elapsedTime * 93) > 0.35 ? 0.3 : 1;
     const l = Math.max(0, Math.min(1, L.current)) * flick;
+
+    // Steady state (most of the time): the level already written hasn't moved,
+    // so skip the subtree walk — except a periodic pass that catches materials
+    // appearing late (e.g. a texture-swapped plane) and pulls them to level.
+    frame.current++;
+    if (l === lastApplied.current && glitch.current === 0 && frame.current % 30 !== 0) return;
+    lastApplied.current = l;
 
     g.traverse((o) => {
       const raw = (o as Mesh).material as Material | Material[] | undefined;
@@ -290,23 +323,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
   const R = 0.015; // ball radius
   const fired = useRef(false);
   const shown = useRef(false); // whether the screenshot is currently mapped on
-  const [tex, setTex] = useState<Texture | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    new TextureLoader().load(
-      asset('/textures/room-phone.jpg'),
-      (t) => {
-        t.colorSpace = SRGBColorSpace;
-        if (cancelled) t.dispose();
-        else setTex(t);
-      },
-      undefined,
-      () => {}, // not provided yet → keep the plain glowing screen
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const tex = useOptionalTexture('/textures/room-phone.jpg');
 
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
@@ -441,23 +458,7 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
   const meshRef = useRef<Mesh>(null);
   const k = useRef(0);
   const shown = useRef(false);
-  const [tex, setTex] = useState<Texture | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    new TextureLoader().load(
-      asset('/textures/room-screen.jpg'),
-      (t) => {
-        t.colorSpace = SRGBColorSpace;
-        if (cancelled) t.dispose();
-        else setTex(t);
-      },
-      undefined,
-      () => {}, // not provided yet → keep the plain-screen fallback
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const tex = useOptionalTexture('/textures/room-screen.jpg');
   const live = useRef(0);
   const accentC = useMemo(() => new Color(accent), [accent]);
   useFrame((s, delta) => {
@@ -1587,29 +1588,13 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const sel = useRef(0); // 0 = closed on the shelf, 1 = lifted + open
   const glow = useRef(0);
   const live = useRef(0);
-  const [tex, setTex] = useState<Texture | null>(null);
+  const tex = useOptionalTexture('/textures/zwijsen-book.jpg');
   const base = useMemo(() => new Color('#ff7a3d'), []);
   const lively = useMemo(() => new Color('#ffb066'), []);
   const bodyMat = useMemo(() => {
     const m = new MeshStandardMaterial({ color: '#ff7a3d', emissive: '#ff7a3d', emissiveIntensity: 0.3, roughness: 0.4, toneMapped: false });
     m.userData.lifeSkip = true; // ghost→orange handled below
     return m;
-  }, []);
-  useEffect(() => {
-    let cancelled = false;
-    new TextureLoader().load(
-      asset('/textures/zwijsen-book.jpg'),
-      (t) => {
-        t.colorSpace = SRGBColorSpace;
-        if (cancelled) t.dispose();
-        else setTex(t);
-      },
-      undefined,
-      () => {}, // not provided yet → keep the cream-page fallback
-    );
-    return () => {
-      cancelled = true;
-    };
   }, []);
   const W = 0.16;
   const H = 0.2;

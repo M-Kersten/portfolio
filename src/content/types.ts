@@ -12,7 +12,6 @@ export interface CaseStudy {
   /** Exactly one layer tag per case (§7). */
   layer: Layer;
   client: string;
-  clientLogo?: string | null;
   sector: string;
   challenge: string;
   built: string;

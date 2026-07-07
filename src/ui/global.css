@@ -66,28 +66,6 @@ h4 {
   text-wrap: balance;
 }
 
-/* ---------- Texture + gradient utilities ---------- */
-
-/* Gradient text — clip a palette gradient to the glyphs. */
-.u-grad-text {
-  background: var(--grad-spectrum);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.u-grad-text--cl {
-  background: var(--grad-cyan-lavender);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Fine halftone dot field, used as a faint overlay on feature surfaces. */
-.u-halftone {
-  background-image: var(--halftone);
-  background-size: var(--halftone-size);
-}
-
 p {
   margin: 0 0 1em;
   max-width: var(--measure);
@@ -379,134 +357,12 @@ html {
   color: var(--ink);
 }
 
-/* Intro coach-mark — points up at the diorama and explains the "one system across
-   scales" idea. Fades out for good the first time you engage a node. */
-.hero__coach {
-  position: fixed;
-  left: 50%;
-  bottom: 12svh;
-  z-index: 6;
-  width: min(32rem, calc(100vw - 2 * var(--space-m)));
-  text-align: center;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateX(-50%) translateY(8px);
-  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
-}
-.hero__coach[data-visible='true'] {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-.hero__coach-arrow {
-  display: block;
-  font-size: 1.7rem;
-  line-height: 1;
-  color: var(--accent);
-  margin-bottom: 0.3em;
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 60%, transparent));
-  animation: coach-nudge 1.8s var(--ease) infinite;
-}
-.hero__coach-lead {
-  margin: 0 0 0.3em;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-.hero__coach-text {
-  margin: 0 auto;
-  max-width: 30ch;
-  font-size: var(--step-0);
-  line-height: 1.45;
-  color: var(--ink);
-  text-wrap: balance;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85), 0 0 3px rgba(0, 0, 0, 0.7);
-}
-.hero__coach-text b {
-  color: var(--accent);
-  font-weight: 700;
-}
-@keyframes coach-nudge {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-7px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero__coach-arrow {
-    animation: none;
-  }
-}
-
-/* Layer indicator — fixed right; click a step to jump to it. */
-.hero__indicator {
-  position: fixed;
-  right: var(--space-m);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  pointer-events: none;
-  transition: opacity 0.5s var(--ease);
-}
-.hero__indicator[data-visible='false'] {
-  opacity: 0;
-}
-.hero__indicator-step {
-  pointer-events: auto;
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: baseline;
-  justify-content: end;
-  gap: 0 0.5em;
-  text-align: right;
-  background: none;
-  border: 0;
-  border-right: 2px solid var(--hairline);
-  padding: 0.2em 0.7em 0.2em 0;
-  cursor: pointer;
-  color: var(--ink-40);
-  font-family: var(--font-mono);
-  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
-}
-.hero__indicator-step:hover {
-  color: var(--ink);
-}
-.hero__indicator-step[data-active='true'] {
-  color: var(--accent-ink);
-  border-color: var(--accent);
-}
-.hero__indicator-num {
-  font-size: 0.7rem;
-  opacity: 0.7;
-}
-.hero__indicator-label {
-  font-family: var(--font-display);
-  font-size: var(--step-0);
-}
-.hero__indicator-tag {
-  grid-column: 2;
-  font-size: 0.66rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.6;
-}
-
 @media (max-width: 760px) {
   .hero__name {
     font-size: var(--step-4);
   }
   .hero__title {
     max-width: 86vw;
-  }
-  .hero__indicator {
-    display: none;
   }
   .scene-canvas {
     transform: none; /* no menu on mobile → keep the scene centred */
@@ -1535,18 +1391,6 @@ html {
   justify-content: space-between;
   gap: 0.5em;
 }
-.worktile__layer {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--card-accent);
-  background: color-mix(in srgb, var(--paper) 68%, transparent);
-  border: 1px solid color-mix(in srgb, var(--card-accent) 30%, var(--line));
-  padding: 0.15em 0.6em;
-  border-radius: var(--radius-s);
-  backdrop-filter: blur(4px);
-}
 .worktile__live {
   font-family: var(--font-mono);
   font-size: var(--step--1);
@@ -1574,25 +1418,6 @@ html {
   line-height: 1.12;
   margin: 0.15em 0 0;
 }
-.worktile__outcome {
-  margin-top: var(--space-s);
-  padding-top: var(--space-s);
-  border-top: 1px solid var(--hairline);
-  font-family: var(--font-display);
-  font-size: var(--step-0);
-  color: var(--ink);
-}
-.worktile__outcome > span {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  font-weight: 400;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-40);
-  margin-bottom: 0.25em;
-}
-
 /* detail bits — reused by the focus (lifted-off-the-wall) view */
 .worktile__cols {
   display: grid;
@@ -1749,92 +1574,7 @@ html {
   .worktile__cols { grid-template-columns: 1fr; }
 }
 
-/* ---------- Case modal ---------- */
-
-.modal {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: end center;
-  padding: var(--space-m);
-  background: rgba(2, 4, 6, 0.72);
-  backdrop-filter: blur(4px);
-  animation: modal-fade 0.25s var(--ease);
-}
-@media (min-width: 720px) {
-  .modal {
-    place-items: center;
-  }
-}
-.modal__panel {
-  position: relative;
-  width: min(56rem, 100%);
-  max-height: 92svh;
-  overflow: auto;
-  /* translucent acrylic sheet */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
-    color-mix(in srgb, var(--paper-2) 86%, transparent);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--space-l);
-  box-shadow: 0 44px 96px rgba(0, 0, 0, 0.62);
-  backdrop-filter: blur(22px) saturate(1.3);
-  animation: modal-rise 0.3s var(--ease);
-}
-.modal__panel::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  background: var(--accent);
-}
-.modal__close {
-  position: absolute;
-  top: var(--space-s);
-  right: var(--space-s);
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: var(--radius-s);
-  border: 1px solid var(--line);
-  background: var(--paper);
-  color: var(--ink);
-  cursor: pointer;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-.modal__close:hover {
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
-.modal__layer {
-  color: var(--accent-ink);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.modal__title {
-  font-size: var(--step-3);
-}
-.modal__outcome {
-  display: inline-block;
-  font-family: var(--font-display);
-  font-size: var(--step-2);
-  color: var(--accent-ink);
-  margin: var(--space-s) 0 var(--space-m);
-}
-.modal__grid {
-  display: grid;
-  gap: var(--space-m);
-  grid-template-columns: 1fr;
-}
-.modal__h {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-40);
-  margin-bottom: 0.4em;
-}
+/* "Sample" chip on draft case studies (node HUD). */
 .modal__draft {
   font-family: var(--font-mono);
   color: var(--accent-ink);
@@ -1842,51 +1582,6 @@ html {
   border-radius: var(--radius-s);
   padding: 0.1em 0.6em;
   font-size: 0.72rem;
-}
-.modal__tech {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4em;
-  list-style: none;
-  padding: 0;
-  margin: var(--space-m) 0 0;
-}
-.modal__tech li {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  color: var(--accent-ink);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-  border-radius: var(--radius-s);
-  padding: 0.2em 0.6em;
-}
-.modal__lesson {
-  margin-top: var(--space-m);
-  padding-left: var(--space-s);
-  border-left: 2px solid var(--accent);
-}
-.modal__lesson p {
-  margin: 0;
-  color: var(--ink);
-  font-style: italic;
-}
-.modal__cta {
-  margin-top: var(--space-m);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-s);
-}
-
-@keyframes modal-fade {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes modal-rise {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
 }
 
 /* ---------- About + Contact ---------- */
@@ -2083,11 +1778,6 @@ html {
   align-items: center;
   justify-content: space-between;
 }
-.footer__credit {
-  max-width: 54ch;
-  color: var(--ink-40);
-}
-
 /* ---------- WebGL / no-canvas fallback poster ---------- */
 
 .poster {
@@ -2152,9 +1842,6 @@ main > * {
 .hero,
 .hero__panel {
   pointer-events: none;
-}
-.hero__indicator-step {
-  pointer-events: auto;
 }
 
 /* ---------- Reduced motion ---------- */
