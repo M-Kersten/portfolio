@@ -4,6 +4,7 @@ import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard } from './CaseCard';
+import { SectionTitle } from './SectionTitle';
 import { useWallConfig, type WallConfig } from './wallTweak';
 
 const SPAWN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -341,8 +342,7 @@ export function Work() {
   return (
     <section id="work" className="section wall" data-reduced={reduced || undefined}>
       <div className="container">
-        <p className="section__eyebrow">{workIntro.eyebrow}</p>
-        {workIntro.title && <h2 className="section__title">{workIntro.title}</h2>}
+        {workIntro.title && <SectionTitle>{workIntro.title}</SectionTitle>}
         <p className="section__lead">{workIntro.lead}</p>
       </div>
 

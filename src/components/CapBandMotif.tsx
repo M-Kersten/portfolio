@@ -51,7 +51,10 @@ export function CapBandMotif({ active }: { active: Layer | null }) {
       const xt2 = (2 * w) / 3 + sh / 2;
       const xb2 = (2 * w) / 3 - sh / 2;
       const A = activeRef.current;
-      const baseOf = (l: Layer) => (A === l ? 1.05 : A ? 0.5 : 0.78);
+      // Kept faint so the band reads as a quiet living texture (like the site's
+      // static dot-fields) rather than a bright billboard; hovering a region
+      // still lifts it clear of the other two.
+      const baseOf = (l: Layer) => (A === l ? 0.62 : A ? 0.22 : 0.4);
       const speedOf = (l: Layer) => (A === l ? 1.8 : 1);
 
       const region = (pts: [number, number][], tx: number, rw: number, layer: Layer, fn: typeof drawCity) => {
@@ -67,16 +70,17 @@ export function CapBandMotif({ active }: { active: Layer | null }) {
       region([[xt1, 0], [xt2, 0], [xb2, h], [xb1, h]], xb1, xt2 - xb1, 'room', drawRoom);
       region([[xt2, 0], [w, 0], [w, h], [xb2, h]], xb2, w - xb2, 'chip', drawChip);
 
-      // the two diagonal seams — a soft under-glow plus a crisp hairline
+      // the two diagonal seams — dark grooves that cut the band into three
+      // scales: a soft black under-shadow plus a crisp black hairline
       ctx.globalAlpha = 1;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(234, 234, 234, 0.10)';
-      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.lineWidth = 5;
       ctx.beginPath();
       ctx.moveTo(xt1, 0); ctx.lineTo(xb1, h);
       ctx.moveTo(xt2, 0); ctx.lineTo(xb2, h);
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(234, 234, 234, 0.42)';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(xt1, 0); ctx.lineTo(xb1, h);

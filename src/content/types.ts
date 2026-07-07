@@ -76,22 +76,6 @@ export interface CareerEntry {
   blurb?: string;
 }
 
-/** An employer / studio shown in the About "where I've worked" strip; clicking
- *  the name opens a popup with the role, timeframe and a short blurb. */
-export interface Company {
-  name: string;
-  /** Role held there, e.g. "XR developer". */
-  role: string;
-  /** Timeframe, e.g. "2019 — 2021" or "2024". */
-  period: string;
-  /** Where the role was based, e.g. "Amsterdam, NL" or "Remote". */
-  location?: string;
-  /** A sentence or two on the experience. */
-  blurb: string;
-  /** Optional external link (opens in a new tab). */
-  url?: string;
-}
-
 export interface SiteContent {
   brand: string;
   nav: NavItem[];
@@ -101,8 +85,8 @@ export interface SiteContent {
      *  3D's way and can fade when a node is inspected. */
     subheading: string;
   };
-  capabilitiesIntro: { eyebrow: string; title: string; lead: string };
-  workIntro: { eyebrow: string; title?: string; lead: string };
+  capabilitiesIntro: { title: string; lead: string };
+  workIntro: { title?: string; lead: string };
   /** Employment history — colours the projects-map route so a visitor can see
    *  which company Merijn was at for each project. Chronological, may overlap. */
   career?: CareerEntry[];
@@ -110,16 +94,12 @@ export interface SiteContent {
    *  start of the projects-map timeline. */
   spawn?: string;
   about: {
-    eyebrow: string;
     title: string;
     lead: string;
     body: string[];
     facts: { label: string; value: string }[];
-    /** Short strip of past employers/studios, each opening an experience popup. */
-    companies?: Company[];
   };
   contact: {
-    eyebrow: string;
     title: string;
     lead: string;
     email: string;

@@ -3,6 +3,8 @@ import { capabilities, site, type Capability, type Layer } from '../content';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { ScaleMotif } from './ScaleMotif';
 import { CapBandMotif } from './CapBandMotif';
+import { ScanFrame } from './ScanFrame';
+import { SectionTitle } from './SectionTitle';
 
 const COLOR: Record<Layer, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
 
@@ -58,9 +60,9 @@ export function Capabilities() {
 
   return (
     <section id="capabilities" className="section capabilities">
+      <ScanFrame variant="section" />
       <div className="container" ref={headRef}>
-        <p className="section__eyebrow">{capabilitiesIntro.eyebrow}</p>
-        <h2 className="section__title">{capabilitiesIntro.title}</h2>
+        <SectionTitle>{capabilitiesIntro.title}</SectionTitle>
         <p className="section__lead">{capabilitiesIntro.lead}</p>
       </div>
 

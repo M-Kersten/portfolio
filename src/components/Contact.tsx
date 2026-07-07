@@ -8,7 +8,6 @@ export function Contact() {
       <ScanFrame variant="section" />
       <div className="container">
         <div className="contact">
-          <p className="section__eyebrow">{c.eyebrow}</p>
           <h2>{c.title}</h2>
           <p>{c.lead}</p>
           <a className="contact__email" href={`mailto:${c.email}`}>
