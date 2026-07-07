@@ -783,18 +783,19 @@ html {
 }
 
 /* ---------- Hotspots (drei <Html>) ----------
-   A crosshair marks each interactive object (grey while its object is a
-   dormant ghost, layer-coloured once the visitor has brought it alive);
-   scanner brackets lock around it on hover — the same reticle grammar as the
+   A crosshair marks each interactive object — always in the layer accent, so
+   it reads clearly as "click me" against the ghost/dormant 3D objects, and
+   brightens further once the visitor has brought that object to life.
+   Scanner brackets lock around it on hover — the same reticle grammar as the
    project cards and the section frames. */
 
 .hotspot {
   position: relative;
-  /* the marker colour: ghost grey until the object is alive */
-  --hotc: rgba(234, 234, 234, 0.55);
+  /* the marker colour: the layer accent from the very first frame */
+  --hotc: var(--hot, var(--accent));
 }
 .hotspot[data-alive] {
-  --hotc: var(--hot, var(--accent));
+  --hotc: color-mix(in srgb, var(--hot, var(--accent)) 85%, white 15%);
 }
 /* Only the mark is in flow, so <Html center> centres the crosshair exactly on
    the leader line's end point. The label floats absolutely, off its box. */
@@ -812,40 +813,42 @@ html {
   height: 24px;
   flex: none;
 }
-/* crosshair — two hairlines with a gap at the centre, plus a tiny core */
+/* crosshair — two hairlines with a gap at the centre, plus a glowing core */
 .hotspot__mark b::before,
 .hotspot__mark b::after {
   content: '';
   position: absolute;
-  background: linear-gradient(to bottom, var(--hotc) 0 34%, transparent 34% 66%, var(--hotc) 66% 100%);
+  background: linear-gradient(to bottom, var(--hotc) 0 30%, transparent 30% 70%, var(--hotc) 70% 100%);
 }
 .hotspot__mark b::before {
   left: 50%;
-  top: 3px;
-  bottom: 3px;
-  width: 1px;
-  margin-left: -0.5px;
+  top: 2px;
+  bottom: 2px;
+  width: 1.5px;
+  margin-left: -0.75px;
 }
 .hotspot__mark b::after {
   top: 50%;
-  left: 3px;
-  right: 3px;
-  height: 1px;
-  margin-top: -0.5px;
-  background: linear-gradient(to right, var(--hotc) 0 34%, transparent 34% 66%, var(--hotc) 66% 100%);
+  left: 2px;
+  right: 2px;
+  height: 1.5px;
+  margin-top: -0.75px;
+  background: linear-gradient(to right, var(--hotc) 0 30%, transparent 30% 70%, var(--hotc) 70% 100%);
 }
 .hotspot__mark::after {
   content: '';
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 3px;
-  height: 3px;
-  margin: -1.5px 0 0 -1.5px;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 50%;
   background: var(--hotc);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--hot, var(--accent)) 50%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--hot, var(--accent)) 75%, transparent);
 }
-/* scanner brackets — hidden until the cursor locks on */
+/* scanner brackets — a whisper once alive (already "found"), locking fully
+   into place on hover */
 .hotspot__mark i {
   position: absolute;
   width: 7px;
@@ -859,16 +862,20 @@ html {
 .hotspot__mark i:nth-of-type(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
 .hotspot__mark i:nth-of-type(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
 .hotspot__mark i:nth-of-type(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.hotspot[data-alive] .hotspot__mark i {
+  opacity: 0.5;
+  transform: none;
+}
 .hotspot__dot:hover .hotspot__mark i,
 .hotspot__dot:focus-visible .hotspot__mark i,
 .hotspot[data-open='true'] .hotspot__mark i {
   opacity: 1;
   transform: none;
 }
-/* while locked on / alive the crosshair takes the layer colour too */
+/* hovering brightens the mark further still, whether or not it's alive yet */
 .hotspot__dot:hover,
 .hotspot__dot:focus-visible {
-  --hotc: var(--hot, var(--accent));
+  --hotc: color-mix(in srgb, var(--hot, var(--accent)) 90%, white 10%);
 }
 /* Labels read by default (light caption) so it's obvious the marks are named,
    clickable things; on hover/open they gain a solid chip. */

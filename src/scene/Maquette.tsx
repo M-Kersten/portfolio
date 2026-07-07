@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges, Html, Line as DreiLine, MeshTransmissionMaterial, RoundedBox } from '@react-three/drei';
+import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, TubeGeometry, Vector3, type Group, type Material, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { useTweak } from './devTweak';
@@ -596,33 +596,6 @@ function LiveGlassMat({ slug, color = GLASS, opacity = 0.2 }: { slug: string; co
   );
 }
 
-/** Real refractive glass for the city towers. `transmissionSampler` shares one
- *  low-res transmission buffer across the whole skyline, so the refraction costs
- *  a single extra pass rather than one per building. The neutral <Edges> overlay
- *  still holds each silhouette against the dark stage. */
-function CityGlass({ opacity = 0.9, thickness = 0.5 }: { opacity?: number; thickness?: number }) {
-  return (
-    <MeshTransmissionMaterial
-      transmissionSampler
-      samples={4}
-      resolution={256}
-      transmission={1}
-      roughness={0.14}
-      thickness={thickness}
-      ior={1.35}
-      chromaticAberration={0.05}
-      distortion={0.12}
-      distortionScale={0.2}
-      temporalDistortion={0}
-      color={GLASS}
-      attenuationColor="#bfe9ff"
-      attenuationDistance={2.5}
-      transparent
-      opacity={opacity}
-    />
-  );
-}
-
 /** Flat highlight box. Defaults to the layer accent, but decorative (non-hotspot)
  *  details pass color={NEUTRAL} so the layer colour stays on the interactables. */
 function Accent({ position, args, intensity = 0.4, rotation, color }: { position: V3; args: V3; intensity?: number; rotation?: V3; color?: string }) {
@@ -659,7 +632,7 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
     <group position={[x, 0, z]}>
       <mesh position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <CityGlass thickness={Math.max(w, d)} />
+        <GlassMat opacity={0.3} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {windows.map((win, i) => (
@@ -1072,7 +1045,8 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
 // tower (one frustum shaft, not stacked blocks) with full-height mullion fins
 // running the edges, a few floor bands that glow when engaged (the shared
 // winMat, ramped by WindowDriver) and a tapered crown with a slow-pulsing
-// beacon. Carries the Alliander hotspot; the shaft solidifies once visited.
+// beacon. Carries the Alliander hotspot; same GlassMat language as the rest of
+// the scene, via LiveGlassMat so the shaft solidifies once visited.
 const TOWER_H = 0.78;
 const TOWER_R_BOT = 0.145;
 const TOWER_R_TOP = 0.115; // only a gentle taper — reads as a vertical tower, not a cone
@@ -1105,11 +1079,12 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   return (
     <group position={position}>
       <group ref={popRef}>
-        {/* one continuous tapered octagonal shaft — same refractive glass as the
-            surrounding towers so it sits in the skyline, set apart by its shape */}
+        {/* one continuous tapered octagonal shaft — the same frosted glass as
+            the rest of the scene, set apart by its shape; ghost grey until the
+            hotspot is visited, then it solidifies */}
         <mesh position={[0, TOWER_H / 2, 0]}>
           <cylinderGeometry args={[TOWER_R_TOP, TOWER_R_BOT, TOWER_H, TOWER_SIDES]} />
-          <CityGlass thickness={TOWER_R_BOT * 2} />
+          <LiveGlassMat slug="alliander-hololens" opacity={0.34} />
           <Edges threshold={15} color={NEUTRAL} />
         </mesh>
         {/* full-height mullion fins along the eight edges */}
@@ -1136,7 +1111,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
             mast + a slow-pulsing beacon — a tower crown, not a spike */}
         <mesh position={[0, TOWER_H + 0.05, 0]}>
           <cylinderGeometry args={[0.055, TOWER_R_TOP, 0.1, TOWER_SIDES]} />
-          <CityGlass thickness={0.12} />
+          <LiveGlassMat slug="alliander-hololens" opacity={0.34} />
           <Edges threshold={15} color={NEUTRAL} />
         </mesh>
         <mesh position={[0, TOWER_H + 0.15, 0]}>
@@ -2371,19 +2346,19 @@ function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color
   const study = caseBySlug(hotspot.slug);
   const label = study?.title ?? hotspot.slug;
   const { selected, visited } = useActive(hotspot.slug);
-  // markers follow the life mechanic: grey crosshairs over the ghost world,
-  // switching to the layer colour once their object has been brought alive
+  // The marker is the invitation to click — it always carries the layer
+  // accent so it stands out against the ghost world, growing a touch
+  // brighter once the object it points to has been brought alive.
   const alive = selected || visited;
-  const mark = alive ? color : '#93a6b1';
   const anchor: V3 = hotspot.anchor ?? [hotspot.position[0], 0, hotspot.position[2]];
   return (
     <group>
-      {/* subtle leader line from the object up to the floating crosshair */}
-      <Line points={[anchor, hotspot.position]} color={mark} lineWidth={1} transparent opacity={alive ? 0.45 : 0.26} />
-      {/* a faint flat ring marking the exact spot on the object */}
+      {/* leader line from the object up to the floating crosshair */}
+      <Line points={[anchor, hotspot.position]} color={color} lineWidth={1} transparent opacity={alive ? 0.55 : 0.4} />
+      {/* a ring marking the exact spot on the object */}
       <mesh position={anchor} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.016, 0.027, 20]} />
-        <meshBasicMaterial color={mark} transparent opacity={alive ? 0.55 : 0.3} side={2} toneMapped={false} />
+        <meshBasicMaterial color={color} transparent opacity={alive ? 0.65 : 0.48} side={2} toneMapped={false} />
       </mesh>
       <Html position={hotspot.position} center zIndexRange={[20, 0]} className="hotspot-wrap">
         <span
