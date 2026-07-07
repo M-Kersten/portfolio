@@ -918,25 +918,17 @@ html {
   background: color-mix(in srgb, var(--paper) 30%, transparent);
 }
 
-/* ---- Desktop: one full-bleed band, sheared into slanted regions ---- */
+/* ---- Desktop: one full-bleed band, sheared into slanted regions. It sits on
+   the page paper (no slab fill / wash / hard borders) so it flows with the rest
+   of the site; the faint motif + soft seams are its only texture. ---- */
 .cap-band {
   position: relative;
-  margin-top: var(--space-xl);
-  border-block: 1px solid var(--hairline);
+  margin-top: var(--space-l);
   overflow: hidden;
-  background: #06090c;
   transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
 }
 .cap-band:not([data-shown]) { opacity: 0; transform: translateY(24px); }
 .cap-band__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-/* legibility wash + a touch of vignette over the live motif */
-.cap-band::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(6, 9, 12, 0.14), rgba(6, 9, 12, 0.42));
-}
 .cap-band__content {
   position: relative;
   z-index: 1;

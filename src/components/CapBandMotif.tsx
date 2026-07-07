@@ -51,7 +51,10 @@ export function CapBandMotif({ active }: { active: Layer | null }) {
       const xt2 = (2 * w) / 3 + sh / 2;
       const xb2 = (2 * w) / 3 - sh / 2;
       const A = activeRef.current;
-      const baseOf = (l: Layer) => (A === l ? 1.05 : A ? 0.5 : 0.78);
+      // Kept faint so the band reads as a quiet living texture (like the site's
+      // static dot-fields) rather than a bright billboard; hovering a region
+      // still lifts it clear of the other two.
+      const baseOf = (l: Layer) => (A === l ? 0.62 : A ? 0.22 : 0.4);
       const speedOf = (l: Layer) => (A === l ? 1.8 : 1);
 
       const region = (pts: [number, number][], tx: number, rw: number, layer: Layer, fn: typeof drawCity) => {
@@ -70,13 +73,13 @@ export function CapBandMotif({ active }: { active: Layer | null }) {
       // the two diagonal seams — a soft under-glow plus a crisp hairline
       ctx.globalAlpha = 1;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(234, 234, 234, 0.10)';
+      ctx.strokeStyle = 'rgba(234, 234, 234, 0.06)';
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.moveTo(xt1, 0); ctx.lineTo(xb1, h);
       ctx.moveTo(xt2, 0); ctx.lineTo(xb2, h);
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(234, 234, 234, 0.42)';
+      ctx.strokeStyle = 'rgba(234, 234, 234, 0.2)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(xt1, 0); ctx.lineTo(xb1, h);
