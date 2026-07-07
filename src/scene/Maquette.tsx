@@ -1538,30 +1538,29 @@ function PottedPlant({ position }: { position: V3 }) {
         a: (i / 9) * Math.PI * 2 + (i % 2) * 0.4,
         tilt: 0.13 + (i % 3) * 0.08,
         len: 0.34 + ((i * 7) % 3) * 0.07,
-        c: i % 2 ? '#3f8f5e' : '#4fa86e',
       })),
     [],
   );
   return (
     <group position={position}>
-      {/* pot */}
+      {/* pot — kept to the scene's neutral glass, no terracotta */}
       <mesh position={[0, 0.08, 0]}>
         <cylinderGeometry args={[0.13, 0.1, 0.16, 22]} />
-        <GlassMat color="#9a6b4e" opacity={0.55} />
+        <GlassMat opacity={0.4} />
         <Edges threshold={24} color={NEUTRAL} />
       </mesh>
-      {/* soil */}
+      {/* soil, as understated glass rather than dark earth */}
       <mesh position={[0, 0.165, 0]}>
         <cylinderGeometry args={[0.12, 0.12, 0.012, 20]} />
-        <meshStandardMaterial color="#2b2420" roughness={0.95} />
+        <GlassMat opacity={0.3} />
       </mesh>
-      {/* leaf blades */}
+      {/* leaf blades — same neutral glass, no green, barely there */}
       {blades.map((b, i) => (
         <group key={i} position={[0, 0.17, 0]} rotation={[0, b.a, 0]}>
           <group rotation={[b.tilt, 0, 0]}>
             <mesh position={[0, b.len / 2, 0]} scale={[1, 1, 0.18]}>
               <coneGeometry args={[0.045, b.len, 5]} />
-              <GlassMat color={b.c} opacity={0.24} />
+              <GlassMat opacity={0.14} />
             </mesh>
           </group>
         </group>
@@ -1705,24 +1704,6 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   );
 }
 
-/** An under-shelf light strip that warms up when the Zwijsen book is engaged. */
-function ShelfLight({ y }: { y: number }) {
-  const { hovered, selected, visited } = useActive('zwijsen-ar-books');
-  const mat = useRef<MeshStandardMaterial>(null);
-  const k = useRef(0);
-  useFrame(() => {
-    const t = hovered || selected ? 1 : visited ? 0.35 : 0;
-    k.current += (t - k.current) * 0.1;
-    if (mat.current) mat.current.emissiveIntensity = k.current * 1.5;
-  });
-  return (
-    <mesh position={[0, y, 0.11]}>
-      <boxGeometry args={[0.66, 0.006, 0.014]} />
-      <meshStandardMaterial ref={mat} color="#ffe2b4" emissive="#ffe2b4" emissiveIntensity={0} roughness={0.4} toneMapped={false} />
-    </mesh>
-  );
-}
-
 /** A little mouse that lives behind the Zwijsen book. When the book is picked up
  *  it hops out of the gap it leaves, drops to the floor and then scurries a loop
  *  around the bookcase. Coords are bookcase-local; it lives outside the pop group
@@ -1830,8 +1811,8 @@ function BookcaseMouse({ gap }: { gap: V3 }) {
   );
 }
 
-/** The bookcase. Engaging the Zwijsen book "turns it on": the under-shelf strips
- *  warm up and the book spines glow, alongside the orange book lifting + opening. */
+/** The bookcase. Engaging the Zwijsen book "turns it on": the book spines glow,
+ *  alongside the orange book lifting + opening. */
 function Bookcase({ position }: { position: V3 }) {
   const { hovered, selected, visited } = useActive('zwijsen-ar-books');
   const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
@@ -1858,10 +1839,6 @@ function Bookcase({ position }: { position: V3 }) {
       {[0.16, 0.42, 0.68].map((sy, s) => (
         <SoftBox key={s} position={[0, sy, 0.04]} args={[0.7, 0.02, 0.24]} radius={0.006} opacity={0.3} />
       ))}
-      {/* under-shelf light strips — warm up when engaged (the bookcase turns on) */}
-      {[0.4, 0.66, 0.9].map((y, i) => (
-        <ShelfLight key={`l${i}`} y={y} />
-      ))}
       {/* books — their spines glow when the bookcase is on */}
       {BOOKS.map((bk, i) => (
         <mesh key={i} position={bk.p} rotation={bk.r}>
@@ -1884,15 +1861,15 @@ function Bookcase({ position }: { position: V3 }) {
           <meshStandardMaterial color="#4f74a6" emissive="#4f74a6" emissiveIntensity={0.12} roughness={0.6} />
         </mesh>
       </group>
-      {/* a little potted plant on top for detail */}
+      {/* a little potted plant on top for detail — neutral glass, no green/brown */}
       <group position={[0.25, 0.93, 0.05]}>
         <mesh position={[0, 0.018, 0]}>
           <cylinderGeometry args={[0.03, 0.024, 0.04, 16]} />
-          <GlassMat color="#8a6a4f" opacity={0.45} />
+          <GlassMat opacity={0.4} />
         </mesh>
         <mesh position={[0, 0.07, 0]}>
           <icosahedronGeometry args={[0.045, 0]} />
-          <meshStandardMaterial color="#3f7d62" flatShading roughness={0.7} />
+          <GlassMat opacity={0.16} />
         </mesh>
       </group>
       <LifeGroup slug="zwijsen-ar-books">
@@ -1963,8 +1940,8 @@ function RoomRig() {
         </group>
       </group>
 
-      {/* bookcase (back-right) — engaging the Zwijsen book turns its shelf lights
-          on + opens the orange book */}
+      {/* bookcase (back-right) — engaging the Zwijsen book lights its spine +
+          opens the orange book */}
       <Bookcase position={shelf.position} />
 
       {/* couch + phone — faces the coffee table / room front (+z) */}
