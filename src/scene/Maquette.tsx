@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, MeshTransmissionMaterial, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, TubeGeometry, Vector3, type Group, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, TubeGeometry, Vector3, type Group, type Material, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { useTweak } from './devTweak';
 import { sceneStore, useSceneSelector } from './store';
@@ -109,6 +109,101 @@ function bounceObject(obj: Object3D, selected: boolean, reduced: boolean, delta:
   obj.scale.set(1 - sq, 1 + sq, 1 - sq);
 }
 
+/* ---------- The life system — you give the world its colour ----------
+   Every interactive object starts as a DORMANT GHOST: a faint monochrome
+   wireframe (fills nearly gone, edges dimmed grey). Clicking it floods the
+   authored materials back in — with a brief glitch as it materialises — and it
+   stays alive for the rest of the session (store.visited). Non-interactive
+   props keep their quiet glass, so the ghosts read as the things to touch. */
+const GHOST_FILL = new Color('#7d8f9a'); // desaturated blue-grey for surfaces
+const GHOST_LINE = new Color('#93a6b1'); // slightly lighter for edges/outlines
+
+interface LifeSnap {
+  color: Color | null;
+  emissive: Color | null;
+  ei: number;
+  op: number;
+  isLine: boolean;
+}
+
+/** Wraps one hotspot's object subtree. Static materials are snapshotted on
+ *  first sight and per-frame lerped between the ghost preset and their authored
+ *  state by a life factor (hover lifts it a whisper; select/visited = 1).
+ *  Materials that animate themselves opt out via `userData.lifeSkip` and blend
+ *  their own ghost→alive keyed on the same selected/visited state. */
+function LifeGroup({ slug, children }: { slug: string; children: ReactNode }) {
+  const { hovered, selected, visited } = useActive(slug);
+  const reduced = useReducedMotion();
+  const grp = useRef<Group>(null);
+  const L = useRef(0);
+  const snaps = useRef(new WeakMap<Material, LifeSnap>());
+  const born = useRef(false);
+  const glitch = useRef(0);
+  const idle = useRef(8 + Math.random() * 9);
+
+  useFrame((s, delta) => {
+    const g = grp.current;
+    if (!g) return;
+    const dt = Math.min(delta, 1 / 30);
+    const alive = selected || visited;
+    const target = alive ? 1 : hovered ? 0.22 : 0;
+    if (reduced) L.current = target;
+    else L.current += (target - L.current) * 0.09;
+    // materialise: a short glitchy flicker the first time it comes alive…
+    if (alive && !born.current) {
+      born.current = true;
+      if (!reduced) glitch.current = 0.5;
+    }
+    if (glitch.current > 0) glitch.current = Math.max(0, glitch.current - dt);
+    else if (born.current && !reduced) {
+      // …and a rare single blink afterwards — the minimal glitch garnish
+      idle.current -= dt;
+      if (idle.current <= 0) {
+        glitch.current = 0.07;
+        idle.current = 9 + Math.random() * 12;
+      }
+    }
+    const flick = glitch.current > 0 && Math.sin(s.clock.elapsedTime * 93) > 0.35 ? 0.3 : 1;
+    const l = Math.max(0, Math.min(1, L.current)) * flick;
+
+    g.traverse((o) => {
+      const raw = (o as Mesh).material as Material | Material[] | undefined;
+      if (!raw) return;
+      const mats = Array.isArray(raw) ? raw : [raw];
+      for (const m of mats) {
+        if (m.userData.lifeSkip) continue;
+        const mm = m as MeshStandardMaterial; // duck-typed; guarded per property
+        let snap = snaps.current.get(m);
+        if (!snap) {
+          snap = {
+            color: mm.color ? mm.color.clone() : null,
+            emissive: mm.emissive ? mm.emissive.clone() : null,
+            ei: mm.emissiveIntensity ?? 0,
+            op: mm.opacity ?? 1,
+            isLine: (m as { isLineBasicMaterial?: boolean }).isLineBasicMaterial === true || (m as { isLineMaterial?: boolean }).isLineMaterial === true,
+          };
+          if (!m.transparent) {
+            m.transparent = true;
+            m.needsUpdate = true;
+          }
+          snaps.current.set(m, snap);
+        }
+        if (snap.isLine) {
+          // edges + outlines stay readable — they ARE the ghost's wireframe
+          if (snap.color && mm.color) mm.color.copy(GHOST_LINE).lerp(snap.color, l);
+          mm.opacity = snap.op * (0.5 + 0.5 * l);
+        } else {
+          if (snap.color && mm.color) mm.color.copy(GHOST_FILL).lerp(snap.color, l);
+          if (snap.emissive && mm.emissive) mm.emissive.copy(GHOST_FILL).lerp(snap.emissive, l);
+          mm.emissiveIntensity = snap.ei * (0.12 + 0.88 * l);
+          mm.opacity = snap.op * (0.16 + 0.84 * l);
+        }
+      }
+    });
+  });
+  return <group ref={grp}>{children}</group>;
+}
+
 /** An emissive surface that powers on when its hotspot is selected and stays lit
  *  once visited (no hover response) — a smooth "turn on" or a TV-style flicker.
  *  On select it also shifts toward a lifelike colour and blooms. */
@@ -142,22 +237,25 @@ function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest 
     // colour resolves to lifelike once selected, and stays that way once visited
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
     const t = s.clock.elapsedTime;
+    // dormant = a grey whisper of the rest level; colour + brightness are the
+    // visitor's to switch on (the life mechanic)
+    const restLvl = rest * (0.25 + 0.75 * k.current);
     let lvl;
     if (flicker) {
       const n = reduced ? 1 : Math.max(0.18, 0.55 + 0.5 * Math.sin(t * 46) * Math.sin(t * 8.7) + 0.2 * Math.sin(t * 113));
-      lvl = rest + k.current * peak * n;
+      lvl = restLvl + k.current * peak * n;
     } else {
       const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
-      lvl = rest + k.current * (peak + breathe);
+      lvl = restLvl + k.current * (peak + breathe);
     }
     mat.current.emissiveIntensity = lvl;
-    mat.current.color.copy(base).lerp(lifelike, live.current);
-    mat.current.emissive.copy(base).lerp(lifelike, live.current);
+    mat.current.color.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);
+    mat.current.emissive.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);
   });
   return (
     <mesh ref={meshRef} position={position} rotation={rotation}>
       <boxGeometry args={args} />
-      <meshStandardMaterial ref={mat} color={col} emissive={col} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
+      <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={col} emissive={col} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
     </mesh>
   );
 }
@@ -243,13 +341,15 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
         m.needsUpdate = true;
       }
       const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
-      m.emissiveIntensity = (wantImg ? 0.62 : 0.5) + k.current * (0.3 + breathe);
+      // ghost screen until it's opened: grey and dim; hover only brightens it a
+      // touch ("trying to wake"), colour floods in on click and stays
+      m.emissiveIntensity = (wantImg ? 0.62 : 0.14 + 0.38 * glow.current) + k.current * (0.3 + breathe);
       if (wantImg) {
         m.color.set('#ffffff');
         m.emissive.set('#ffffff');
       } else {
-        m.color.copy(base).lerp(lifelike, glow.current);
-        m.emissive.copy(base).lerp(lifelike, glow.current);
+        m.color.copy(GHOST_FILL).lerp(base, Math.max(glow.current, k.current * 0.3)).lerp(lifelike, glow.current);
+        m.emissive.copy(GHOST_FILL).lerp(base, Math.max(glow.current, k.current * 0.3)).lerp(lifelike, glow.current);
       }
     }
 
@@ -306,10 +406,10 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
           <boxGeometry args={args} />
           <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.28} roughness={0.4} toneMapped={false} />
         </mesh>
-        {/* screen face — glows at rest, shows the screenshot once loaded + visited */}
+        {/* screen face — a ghost glow until opened, then the screenshot */}
         <mesh position={[0, 0, args[2] / 2 + 0.0006]}>
           <planeGeometry args={[args[0] * 0.86, args[1] * 0.93]} />
-          <meshStandardMaterial ref={mat} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={false} />
+          <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={false} />
         </mesh>
       </group>
       {balls.map((b, i) => (
@@ -358,28 +458,39 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
       cancelled = true;
     };
   }, []);
+  const live = useRef(0);
+  const accentC = useMemo(() => new Color(accent), [accent]);
   useFrame((s, delta) => {
     if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta);
     const m = mat.current;
     if (!m) return;
     k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.3;
+    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.08;
     const wantImg = (selected || visited) && !!tex;
     if (wantImg !== shown.current) {
       shown.current = wantImg;
       m.map = wantImg ? tex : null;
       m.emissiveMap = wantImg ? tex : null;
-      m.color.set(wantImg ? '#ffffff' : accent);
-      m.emissive.set(wantImg ? '#ffffff' : accent);
       m.needsUpdate = true;
     }
     const t = s.clock.elapsedTime;
     const n = reduced ? 1 : Math.max(0.2, 0.6 + 0.45 * Math.sin(t * 46) * Math.sin(t * 8.7));
-    m.emissiveIntensity = shown.current ? 0.6 + k.current * 0.5 : 0.3 + k.current * 0.9 * n;
+    if (shown.current) {
+      m.color.set('#ffffff');
+      m.emissive.set('#ffffff');
+      m.emissiveIntensity = 0.6 + k.current * 0.5;
+    } else {
+      // ghost screen: grey + dim; hovering makes it flicker like it's trying to
+      // wake, the colour itself only arrives when the visitor opens it
+      m.color.copy(GHOST_FILL).lerp(accentC, live.current);
+      m.emissive.copy(GHOST_FILL).lerp(accentC, live.current);
+      m.emissiveIntensity = 0.08 + 0.34 * live.current + k.current * 0.9 * n;
+    }
   });
   return (
     <mesh ref={meshRef} position={position} rotation={rotation}>
       <boxGeometry args={args} />
-      <meshStandardMaterial ref={mat} color={accent} emissive={accent} emissiveIntensity={0.3} roughness={0.4} toneMapped={false} />
+      <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.3} roughness={0.4} toneMapped={false} />
     </mesh>
   );
 }
@@ -455,11 +566,15 @@ function LiveGlassMat({ slug, color = GLASS, opacity = 0.2 }: { slug: string; co
   const { selected, visited } = useActive(slug);
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
+  const baseC = useMemo(() => new Color(color), [color]);
   useFrame(() => {
     const m = mat.current;
     if (!m) return;
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
-    m.opacity = opacity + (0.94 - opacity) * k.current;
+    // dormant = a faint grey ghost of the body; visiting pours the glass in
+    m.color.copy(GHOST_FILL).lerp(baseC, 0.3 + 0.7 * k.current);
+    const rest = opacity * 0.3;
+    m.opacity = rest + (0.94 - rest) * k.current;
     m.roughness = 0.34 - 0.2 * k.current;
     m.metalness = 0.18 * k.current;
     m.depthWrite = k.current > 0.5;
@@ -467,6 +582,7 @@ function LiveGlassMat({ slug, color = GLASS, opacity = 0.2 }: { slug: string; co
   return (
     <meshStandardMaterial
       ref={mat}
+      userData={{ lifeSkip: true }}
       color={color}
       transparent
       opacity={opacity}
@@ -622,10 +738,11 @@ function TreeRound({ position, h = 0.45, swaySlug }: { position: V3; h?: number;
   const restCol = useMemo(() => new Color('#3f7d72'), []); // muted teal-green at rest
   const vivid = useMemo(() => new Color('#62c265'), []); // lifelike leaf green once visited
   // one shared canopy material so all the blobs green up together
-  const leaf = useMemo(
-    () => new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.2 }),
-    [],
-  );
+  const leaf = useMemo(() => {
+    const m = new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.2 });
+    m.userData.lifeSkip = true; // greens up + solidifies itself once visited
+    return m;
+  }, []);
   useFrame((s) => {
     if (swaySlug) {
       live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
@@ -777,10 +894,11 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
   const flash = useRef(0); // camera-flash level, decays each frame
   const lastShot = useRef(0);
   // one shared material for both objective lenses so they flash together
-  const lensMat = useMemo(
-    () => new MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5, roughness: 0.3, metalness: 0, toneMapped: false }),
-    [accent],
-  );
+  const lensMat = useMemo(() => {
+    const m = new MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5, roughness: 0.3, metalness: 0, toneMapped: false });
+    m.userData.lifeSkip = true; // flash-animated here; only ever shown alive
+    return m;
+  }, [accent]);
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
     const target = selected || visited ? 1 : 0;
@@ -962,10 +1080,12 @@ const TOWER_SIDES = 8;
 
 function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardMaterial }) {
   const { accent } = useAccent();
-  const { selected } = useActive('alliander-hololens');
+  const { selected, visited } = useActive('alliander-hololens');
   const beacon = useRef<MeshStandardMaterial>(null);
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
+  const lifeK = useRef(0);
+  const accentC = useMemo(() => new Color(accent), [accent]);
   // mullion fins hug the taper: each runs base-radius → top-radius up one edge
   const finL = Math.hypot(TOWER_R_BOT - TOWER_R_TOP, TOWER_H);
   const finTilt = Math.atan2(TOWER_R_BOT - TOWER_R_TOP, TOWER_H);
@@ -975,7 +1095,12 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, 0.18);
     if (!beacon.current) return;
     const t = reduced ? 0 : s.clock.elapsedTime;
-    beacon.current.emissiveIntensity = 0.45 + 0.55 * Math.abs(Math.sin(t * 2.1));
+    // the beacon barely smoulders on the ghost tower; it starts pulsing in
+    // colour once the visitor has brought the tower to life
+    lifeK.current += ((selected || visited ? 1 : 0) - lifeK.current) * 0.08;
+    beacon.current.color.copy(GHOST_FILL).lerp(accentC, lifeK.current);
+    beacon.current.emissive.copy(GHOST_FILL).lerp(accentC, lifeK.current);
+    beacon.current.emissiveIntensity = (0.45 + 0.55 * Math.abs(Math.sin(t * 2.1))) * (0.14 + 0.86 * lifeK.current);
   });
   return (
     <group position={position}>
@@ -1020,7 +1145,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
         </mesh>
         <mesh position={[0, TOWER_H + 0.21, 0]}>
           <sphereGeometry args={[0.014, 12, 12]} />
-          <meshStandardMaterial ref={beacon} color={accent} emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
+          <meshStandardMaterial ref={beacon} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
         </mesh>
       </group>
     </group>
@@ -1241,10 +1366,11 @@ function CityRig() {
   }, []);
   const { accent } = useAccent();
   // one shared material for every window, ramped by WindowDriver on town-hall hover
-  const winMat = useMemo(
-    () => new MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0, transparent: true, opacity: 0.1, roughness: 0.4, toneMapped: false, depthWrite: false }),
-    [accent],
-  );
+  const winMat = useMemo(() => {
+    const m = new MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0, transparent: true, opacity: 0.1, roughness: 0.4, toneMapped: false, depthWrite: false });
+    m.userData.lifeSkip = true; // WindowDriver animates it; shared with prop buildings
+    return m;
+  }, [accent]);
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const mill = useTweak('City.Windmill', { position: [-1.34, 0, 0.33] });
   const park = useTweak('City.Park', { position: [1.3, 0, -0.23] });
@@ -1262,18 +1388,24 @@ function CityRig() {
       {cluster.map((b, i) => (
         <Building key={i} {...b} winMat={winMat} />
       ))}
-      <Skyscraper position={[0, 0, 0]} winMat={winMat} />
+      <LifeGroup slug="alliander-hololens">
+        <Skyscraper position={[0, 0, 0]} winMat={winMat} />
+      </LifeGroup>
       {/* power lines from the central tower to every building — glow blue on select */}
       <PowerWires from={[0, 0.8, 0]} targets={cluster.map((b) => [b.x, b.h, b.z] as V3)} />
 
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}
-      <Windmill position={mill.position} slug="dtt-amsterdam" />
+      <LifeGroup slug="dtt-amsterdam">
+        <Windmill position={mill.position} slug="dtt-amsterdam" />
+      </LifeGroup>
       {/* the Big Dipper rises behind the windmill while it's selected */}
       <Constellation anchor={mill.position} />
 
       {/* parks (the first carries the arcam hotspot — its trees rustle) */}
-      <Park position={park.position} slug="arcam" />
+      <LifeGroup slug="arcam">
+        <Park position={park.position} slug="arcam" />
+      </LifeGroup>
     </group>
   );
 }
@@ -1319,14 +1451,18 @@ function RaceCar({ color }: { color: string }) {
  *  ride a circle, simply rotating around the table's centre pivot. */
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
-  const { selected } = useActive(hoverSlug ?? '');
+  const { hovered, selected, visited } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
   const ring = useRef<Group>(null);
   const popRef = useRef<Group>(null);
+  const speed = useRef(0.1);
   const R = 0.2; // track radius
   useFrame((_s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
-    if (ring.current && !reduced) ring.current.rotation.y += Math.min(delta, 1 / 30) * 1.0;
+    // ghost table: the cars barely creep; the race only runs once it's alive
+    const sT = selected || visited ? 1 : hovered ? 0.45 : 0.1;
+    speed.current += (sT - speed.current) * 0.05;
+    if (ring.current && !reduced) ring.current.rotation.y += Math.min(delta, 1 / 30) * speed.current;
   });
   return (
     <group position={position}>
@@ -1480,10 +1616,11 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const [tex, setTex] = useState<Texture | null>(null);
   const base = useMemo(() => new Color('#ff7a3d'), []);
   const lively = useMemo(() => new Color('#ffb066'), []);
-  const bodyMat = useMemo(
-    () => new MeshStandardMaterial({ color: '#ff7a3d', emissive: '#ff7a3d', emissiveIntensity: 0.3, roughness: 0.4, toneMapped: false }),
-    [],
-  );
+  const bodyMat = useMemo(() => {
+    const m = new MeshStandardMaterial({ color: '#ff7a3d', emissive: '#ff7a3d', emissiveIntensity: 0.3, roughness: 0.4, toneMapped: false });
+    m.userData.lifeSkip = true; // ghost→orange handled below
+    return m;
+  }, []);
   useEffect(() => {
     let cancelled = false;
     new TextureLoader().load(
@@ -1517,9 +1654,10 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
       g.position.set(position[0] - 0.03 * s, position[1] + 0.14 * s, position[2] + 0.02 + 0.26 * s);
     }
     if (cover.current) cover.current.rotation.z = 2.4 * s; // front cover swings open
-    bodyMat.emissiveIntensity = 0.28 + glow.current * 0.7;
-    bodyMat.color.copy(base).lerp(lively, live.current * 0.6);
-    bodyMat.emissive.copy(base).lerp(lively, live.current * 0.6);
+    // a grey ghost book on the shelf; opening it floods the orange back in
+    bodyMat.emissiveIntensity = 0.07 + live.current * 0.21 + glow.current * 0.55;
+    bodyMat.color.copy(GHOST_FILL).lerp(base, live.current).lerp(lively, live.current * 0.6);
+    bodyMat.emissive.copy(GHOST_FILL).lerp(base, live.current).lerp(lively, live.current * 0.6);
   });
   return (
     <group ref={grp} position={position}>
@@ -1757,7 +1895,9 @@ function Bookcase({ position }: { position: V3 }) {
           <meshStandardMaterial color="#3f7d62" flatShading roughness={0.7} />
         </mesh>
       </group>
-      <OpenBook slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} />
+      <LifeGroup slug="zwijsen-ar-books">
+        <OpenBook slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} />
+      </LifeGroup>
       </group>
       {/* a mouse hiding behind the book — hops out of the gap and scurries around */}
       <BookcaseMouse gap={[0.12, 0.52, 0.04]} />
@@ -1794,12 +1934,14 @@ function RoomRig() {
               <GlassMat opacity={0.26} />
             </mesh>
           ))}
-          <mesh position={[0, 0.45, -0.05]}>
-            <cylinderGeometry args={[0.016, 0.016, 0.14, 12]} />
-            <GlassMat opacity={0.26} />
-          </mesh>
-          <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} liveSlug="virtuele-brigade" />
-          <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
+          <LifeGroup slug="virtuele-brigade">
+            <mesh position={[0, 0.45, -0.05]}>
+              <cylinderGeometry args={[0.016, 0.016, 0.14, 12]} />
+              <GlassMat opacity={0.26} />
+            </mesh>
+            <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} liveSlug="virtuele-brigade" />
+            <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
+          </LifeGroup>
           <SoftBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} radius={0.012} opacity={0.26} />
           {/* desk clutter: a mug + papers */}
           <mesh position={[-0.36, 0.42, 0.12]}>
@@ -1832,11 +1974,15 @@ function RoomRig() {
         <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
         <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
         <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} />
-        <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor="#ff7a3d" />
+        <LifeGroup slug="popcore-games">
+          <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor="#ff7a3d" />
+        </LifeGroup>
       </group>
 
       {/* coffee table with AR racing (Lightship Drive), directly in front of the couch */}
-      <CoffeeTableAR position={table.position} hoverSlug="lightship-drive" />
+      <LifeGroup slug="lightship-drive">
+        <CoffeeTableAR position={table.position} hoverSlug="lightship-drive" />
+      </LifeGroup>
 
       {/* fill the diorama out, balanced around the centre */}
       <PottedPlant position={plant.position} />
@@ -1910,7 +2056,7 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         </RoundedBox>
         <mesh position={[0, 0, 0.026]}>
           <boxGeometry args={[0.1, 0.035, 0.004]} />
-          <meshStandardMaterial ref={stripMat} color="#9fb0bd" emissive="#9fb0bd" emissiveIntensity={0.4} roughness={0.4} toneMapped={false} />
+          <meshStandardMaterial ref={stripMat} userData={{ lifeSkip: true }} color="#9fb0bd" emissive="#9fb0bd" emissiveIntensity={0.4} roughness={0.4} toneMapped={false} />
         </mesh>
       </group>
       </group>
@@ -2114,12 +2260,16 @@ function LensComponent({ slug, position }: { slug: string; position: V3 }) {
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
   const popRef = useRef<Group>(null);
+  const lensC = useMemo(() => new Color('#7fe6ff'), []);
   useFrame((s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
     if (mat.current) {
       const breathe = reduced ? 0 : Math.sin(s.clock.elapsedTime * 2.2) * 0.06;
-      mat.current.emissiveIntensity = 0.14 + k.current * (1.0 + breathe);
+      // ghost glass until opened, then the lens lights ice-blue
+      mat.current.color.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * k.current);
+      mat.current.emissive.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * k.current);
+      mat.current.emissiveIntensity = 0.05 + k.current * (1.0 + breathe);
     }
   });
   return (
@@ -2139,7 +2289,7 @@ function LensComponent({ slug, position }: { slug: string; position: V3 }) {
       {/* convex glass lens that lights up */}
       <mesh position={[0, 0.108, 0]} scale={[1, 0.42, 1]}>
         <sphereGeometry args={[0.062, 24, 18]} />
-        <meshStandardMaterial ref={mat} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.14} transparent opacity={0.55} roughness={0.12} metalness={0.1} toneMapped={false} />
+        <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.14} transparent opacity={0.55} roughness={0.12} metalness={0.1} toneMapped={false} />
       </mesh>
       {/* lens element rings */}
       <Line points={circlePts(0.055, 28)} position={[0, 0.119, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
@@ -2174,9 +2324,11 @@ function ChipRig() {
       <Line points={roundedRectPts(2.0, 2.0, 0.06)} position={[0, 0.022, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
 
       {/* package + die (carries amsterdam-ai — the chip powers on) */}
-      <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.08} outline liveSlug="amsterdam-ai" />
-      <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
-      <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.175, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
+      <LifeGroup slug="amsterdam-ai">
+        <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.08} outline liveSlug="amsterdam-ai" />
+        <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
+        <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.175, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
+      </LifeGroup>
 
       {/* motherboard traces fill with current; a solder pad + flashing LED per part */}
       {traces.map((t, i) => (
@@ -2193,7 +2345,9 @@ function ChipRig() {
       ))}
 
       {/* custom-ar-framework — an AR camera lens that lights up (back-right) */}
-      <LensComponent slug="custom-ar-framework" position={[0.95, 0.02, -0.72]} />
+      <LifeGroup slug="custom-ar-framework">
+        <LensComponent slug="custom-ar-framework" position={[0.95, 0.02, -0.72]} />
+      </LifeGroup>
 
       {/* decorative round caps */}
       {([[-0.55, 0.95], [0.55, -1.0]] as [number, number][]).map(([cx, cz], i) => (
@@ -2228,7 +2382,9 @@ function ChipRig() {
       <PinHeader position={[0.0, 0, 1.08]} n={6} />
 
       {/* Philips medical XR & AI module (heart-rate signal animates on hover) — left side */}
-      <PhilipsModule position={[-0.95, 0, -0.74]} hoverSlug="philips-medical-xr" />
+      <LifeGroup slug="philips-medical-xr">
+        <PhilipsModule position={[-0.95, 0, -0.74]} hoverSlug="philips-medical-xr" />
+      </LifeGroup>
       <MiscComponents />
     </group>
   );
@@ -2237,19 +2393,28 @@ function ChipRig() {
 function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color: string; onActivate: (h: Hotspot) => void }) {
   const study = caseBySlug(hotspot.slug);
   const label = study?.title ?? hotspot.slug;
-  const { selected } = useActive(hotspot.slug);
+  const { selected, visited } = useActive(hotspot.slug);
+  // markers follow the life mechanic: grey crosshairs over the ghost world,
+  // switching to the layer colour once their object has been brought alive
+  const alive = selected || visited;
+  const mark = alive ? color : '#93a6b1';
   const anchor: V3 = hotspot.anchor ?? [hotspot.position[0], 0, hotspot.position[2]];
   return (
     <group>
-      {/* subtle leader line from the object up to the floating dot */}
-      <Line points={[anchor, hotspot.position]} color={color} lineWidth={1} transparent opacity={0.38} />
+      {/* subtle leader line from the object up to the floating crosshair */}
+      <Line points={[anchor, hotspot.position]} color={mark} lineWidth={1} transparent opacity={alive ? 0.45 : 0.26} />
       {/* a faint flat ring marking the exact spot on the object */}
       <mesh position={anchor} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.016, 0.027, 20]} />
-        <meshBasicMaterial color={color} transparent opacity={0.5} side={2} toneMapped={false} />
+        <meshBasicMaterial color={mark} transparent opacity={alive ? 0.55 : 0.3} side={2} toneMapped={false} />
       </mesh>
       <Html position={hotspot.position} center zIndexRange={[20, 0]} className="hotspot-wrap">
-        <span className="hotspot" data-open={selected || undefined} style={{ '--hot': color } as CSSProperties}>
+        <span
+          className="hotspot"
+          data-open={selected || undefined}
+          data-alive={alive || undefined}
+          style={{ '--hot': color } as CSSProperties}
+        >
           <button
             type="button"
             className="hotspot__dot"
@@ -2263,7 +2428,14 @@ function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color
               onActivate(hotspot);
             }}
           >
-            <span className="hotspot__ring" aria-hidden="true" />
+            {/* crosshair (always) + scanner brackets that lock on hover/open */}
+            <span className="hotspot__mark" aria-hidden="true">
+              <b />
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
             <span className="hotspot__label">{label}</span>
           </button>
         </span>

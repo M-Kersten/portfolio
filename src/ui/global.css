@@ -782,13 +782,22 @@ html {
   }
 }
 
-/* ---------- Hotspots (drei <Html>) ---------- */
+/* ---------- Hotspots (drei <Html>) ----------
+   A crosshair marks each interactive object (grey while its object is a
+   dormant ghost, layer-coloured once the visitor has brought it alive);
+   scanner brackets lock around it on hover — the same reticle grammar as the
+   project cards and the section frames. */
 
 .hotspot {
   position: relative;
+  /* the marker colour: ghost grey until the object is alive */
+  --hotc: rgba(234, 234, 234, 0.55);
 }
-/* Only the ring is in flow, so <Html center> centres the dot exactly on the
-   leader line's end point. The label floats absolutely, off the dot's box. */
+.hotspot[data-alive] {
+  --hotc: var(--hot, var(--accent));
+}
+/* Only the mark is in flow, so <Html center> centres the crosshair exactly on
+   the leader line's end point. The label floats absolutely, off its box. */
 .hotspot__dot {
   display: inline-flex;
   background: none;
@@ -797,44 +806,71 @@ html {
   cursor: pointer;
   font-family: var(--font-mono);
 }
-.hotspot__ring {
+.hotspot__mark {
   position: relative;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  background: var(--hot, var(--accent));
-  border: 2px solid rgba(10, 13, 16, 0.85);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--hot, var(--accent)) 55%, transparent),
-    0 0 10px color-mix(in srgb, var(--hot, var(--accent)) 65%, transparent), 0 1px 4px rgba(0, 0, 0, 0.6);
+  width: 24px;
+  height: 24px;
   flex: none;
-  transition: transform 0.18s var(--ease);
 }
-/* a small glyph marks the dot as openable (+), flips to × once it's open */
-.hotspot__ring::before {
-  content: '+';
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font: 700 12px/1 var(--font-mono);
-  color: rgba(10, 13, 16, 0.92);
-}
-.hotspot[data-open='true'] .hotspot__ring::before {
-  content: '×';
-}
-.hotspot__ring::after {
+/* crosshair — two hairlines with a gap at the centre, plus a tiny core */
+.hotspot__mark b::before,
+.hotspot__mark b::after {
   content: '';
   position: absolute;
-  inset: -7px;
-  border-radius: 50%;
-  border: 1.5px solid var(--hot, var(--accent));
-  animation: hotspot-pulse 2.2s var(--ease) infinite;
+  background: linear-gradient(to bottom, var(--hotc) 0 34%, transparent 34% 66%, var(--hotc) 66% 100%);
 }
-.hotspot__dot:hover .hotspot__ring,
-.hotspot__dot:focus-visible .hotspot__ring {
-  transform: scale(1.22);
+.hotspot__mark b::before {
+  left: 50%;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  margin-left: -0.5px;
 }
-/* Labels read by default (light caption) so it's obvious the dots are named,
+.hotspot__mark b::after {
+  top: 50%;
+  left: 3px;
+  right: 3px;
+  height: 1px;
+  margin-top: -0.5px;
+  background: linear-gradient(to right, var(--hotc) 0 34%, transparent 34% 66%, var(--hotc) 66% 100%);
+}
+.hotspot__mark::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  background: var(--hotc);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--hot, var(--accent)) 50%, transparent);
+}
+/* scanner brackets — hidden until the cursor locks on */
+.hotspot__mark i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--hotc);
+  opacity: 0;
+  transform: scale(1.6);
+  transition: opacity 0.16s var(--ease), transform 0.22s var(--ease);
+}
+.hotspot__mark i:nth-of-type(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.hotspot__mark i:nth-of-type(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.hotspot__mark i:nth-of-type(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.hotspot__mark i:nth-of-type(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.hotspot__dot:hover .hotspot__mark i,
+.hotspot__dot:focus-visible .hotspot__mark i,
+.hotspot[data-open='true'] .hotspot__mark i {
+  opacity: 1;
+  transform: none;
+}
+/* while locked on / alive the crosshair takes the layer colour too */
+.hotspot__dot:hover,
+.hotspot__dot:focus-visible {
+  --hotc: var(--hot, var(--accent));
+}
+/* Labels read by default (light caption) so it's obvious the marks are named,
    clickable things; on hover/open they gain a solid chip. */
 .hotspot__label {
   position: absolute;
@@ -848,7 +884,7 @@ html {
   border: 1px solid transparent;
   padding: 0.3em 0.65em;
   border-radius: var(--radius-s);
-  opacity: 0.78;
+  opacity: 0.62;
   pointer-events: none;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.7);
   transform: translate(0, -50%);
@@ -861,18 +897,6 @@ html {
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   border-color: var(--line);
   text-shadow: none;
-}
-
-@keyframes hotspot-pulse {
-  0% {
-    transform: scale(0.7);
-    opacity: 0.9;
-  }
-  70%,
-  100% {
-    transform: scale(1.9);
-    opacity: 0;
-  }
 }
 
 /* Cross-layer signal threads: a faint label naming what links two nodes. Its
@@ -2136,9 +2160,8 @@ main > * {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-  .hotspot__ring::after {
-    animation: none;
-    inset: -4px;
+  .hotspot__mark i {
+    transition: none;
   }
   .logo__aperture {
     animation: none;
