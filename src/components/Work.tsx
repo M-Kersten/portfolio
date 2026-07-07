@@ -341,7 +341,6 @@ export function Work() {
   return (
     <section id="work" className="section wall" data-reduced={reduced || undefined}>
       <div className="container">
-        <p className="section__eyebrow">{workIntro.eyebrow}</p>
         {workIntro.title && <h2 className="section__title">{workIntro.title}</h2>}
         <p className="section__lead">{workIntro.lead}</p>
       </div>

@@ -59,7 +59,6 @@ export function Capabilities() {
   return (
     <section id="capabilities" className="section capabilities">
       <div className="container" ref={headRef}>
-        <p className="section__eyebrow">{capabilitiesIntro.eyebrow}</p>
         <h2 className="section__title">{capabilitiesIntro.title}</h2>
         <p className="section__lead">{capabilitiesIntro.lead}</p>
       </div>

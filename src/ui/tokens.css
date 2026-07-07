@@ -96,8 +96,8 @@
   /* ---- Layout ---- */
   --measure: 62ch;
   --container: 80rem;
-  --radius: 14px; /* soft acrylic corners */
-  --radius-s: 8px;
+  --radius: 4px; /* crisp, tactile corners (was a soft acrylic 14px) */
+  --radius-s: 2px;
 
   --header-h: 4.25rem;
 

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { site } from '../content';
-import type { Company } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { ScanFrame } from './ScanFrame';
@@ -60,52 +59,6 @@ function AboutPortrait() {
   );
 }
 
-// A short horizontal row of past employers; hovering (or focusing / tapping) a
-// name swaps the detail panel below to that company's role, dates, location and
-// a short blurb. No modal — an inline preview, like a segmented control.
-function CompanyStrip({ companies }: { companies: Company[] }) {
-  const [active, setActive] = useState(0);
-  const c = companies[active];
-  return (
-    <div className="about__companies">
-      <p className="about__companies-label">Where I’ve worked</p>
-      <ul className="about__companies-row">
-        {companies.map((co, i) => (
-          <li key={co.name}>
-            <button
-              type="button"
-              className="about__company"
-              data-active={i === active || undefined}
-              aria-pressed={i === active}
-              onMouseEnter={() => setActive(i)}
-              onFocus={() => setActive(i)}
-              onClick={() => setActive(i)}
-            >
-              {co.name}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div className="about__company-detail" aria-live="polite">
-        <div className="cdetail__head">
-          <h3 className="cdetail__name">{c.name}</h3>
-          <span className="cdetail__period">{c.period}</span>
-        </div>
-        <p className="cdetail__meta">
-          <span className="cdetail__role">{c.role}</span>
-          {c.location && (
-            <>
-              <span className="cdetail__sep" aria-hidden="true">·</span>
-              <span className="cdetail__loc">{c.location}</span>
-            </>
-          )}
-        </p>
-        <p className="cdetail__blurb">{c.blurb}</p>
-      </div>
-    </div>
-  );
-}
-
 export function About() {
   const a = site.about;
   return (
@@ -114,7 +67,6 @@ export function About() {
       <div className="container">
         <div className="about__grid">
           <div>
-            <p className="section__eyebrow">{a.eyebrow}</p>
             <h2 className="section__title">{a.title}</h2>
             <p className="about__lead">{a.lead}</p>
             {a.body.map((p, i) => (
@@ -133,7 +85,6 @@ export function About() {
             </dl>
           </div>
         </div>
-        {a.companies && a.companies.length > 0 && <CompanyStrip companies={a.companies} />}
       </div>
     </section>
   );

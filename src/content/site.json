@@ -11,12 +11,10 @@
     "subheading": "Building things that survive outside the demo room"
   },
   "capabilitiesIntro": {
-    "eyebrow": "Three scales I like",
     "title": "From the scale of a city to that of a chip",
     "lead": "I tend to bounce between three sizes of thing."
   },
   "workIntro": {
-    "eyebrow": "Things I’ve made",
     "title": "A map of everything I’ve built",
     "lead": "A bunch of projects from over the years. Some ended up on thousands of devices, some were failures, but all of them taught me something."
   },
@@ -32,7 +30,6 @@
     { "company": "KMar", "from": "2025-07", "to": null, "color": "#d97f7f" }
   ],
   "about": {
-    "eyebrow": "Hello",
     "title": "From shaders to screws",
     "lead": "I’m a creative technologist from Utrecht. I've been working on it for about a decade, and I still get the same kick out of it: take some upcoming technology and push it until it does something slightly magical.",
     "body": [
@@ -46,47 +43,9 @@
       { "label": "Currently into", "value": "Music production, Multiplayer, UX design" },
       { "label": "Tools I reach for", "value": "Unity, Unreal, full-stack webdev, Arduino" },
       { "label": "Off the clock", "value": "Baking, History/theology, Fitness" }
-    ],
-    "companies": [
-      {
-        "name": "DTT",
-        "role": "XR & app developer",
-        "period": "2019",
-        "location": "Amsterdam, NL",
-        "blurb": "An Amsterdam studio where I worked across a run of projects — an interactive educational play-book, a room-scale VR experience, and an AR sample app built to show off what the tech could do."
-      },
-      {
-        "name": "Popcore",
-        "role": "Game developer",
-        "period": "2021",
-        "location": "Remote / Berlin, DE",
-        "blurb": "Casual mobile games at scale — the kind that end up on thousands of devices and have to stay fun while surviving real-world app stores and audiences."
-      },
-      {
-        "name": "Niantic",
-        "role": "AR developer",
-        "period": "2022 — 2023",
-        "location": "Remote",
-        "blurb": "Planet-scale AR on the Lightship platform: an explorer experience and location/driving features leaning hard on visual positioning and shared AR out in the real world."
-      },
-      {
-        "name": "Wonderment",
-        "role": "Creative technologist",
-        "period": "2023",
-        "location": "Netherlands",
-        "blurb": "Location-based XR — anchoring digital experiences to real places so the physical and the digital stop feeling like separate worlds."
-      },
-      {
-        "name": "Philips",
-        "role": "XR & AI engineer",
-        "period": "2024",
-        "location": "Eindhoven, NL",
-        "blurb": "Medical XR and AI prototyping — taking new spatial and machine-learning tech and pushing it toward something dependable enough to actually be useful."
-      }
     ]
   },
   "contact": {
-    "eyebrow": "Say hi",
     "title": "Let’s build something cool together",
     "lead": "I’m always up for a chat, drop me a line.",
     "email": "info@merijnkersten.nl",
