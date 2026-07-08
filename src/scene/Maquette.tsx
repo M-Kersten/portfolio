@@ -1699,17 +1699,50 @@ const BOOKS: { p: V3; s: V3; c: string; r?: V3 }[] = [
   { p: [0.03, 0.255, 0.02], s: [0.052, 0.16, 0.18], c: '#6f8cb6' },
 ];
 
-/** The Zwijsen AR-books hotspot — an open book: two THIN pages (planes, so
- *  nothing clips) meeting at the spine in a gentle V, with the spread artwork
- *  from public/textures/zwijsen-book.jpg split across them — left half on the
- *  left page, right half on the right. No cover. Plain cream pages until the
- *  image loads. It rests lying open in its shelf gap and, on select, lifts out
- *  and tilts back toward the player so the spread reads face-on. */
+/** The Zwijsen AR-books hotspot — a real little book. Two rigid halves (cover
+ *  board + page block + printed page) hinge at the spine: it stands CLOSED in
+ *  its shelf gap, and on select it lifts out, tilts toward the player and the
+ *  front half swings open to reveal the spread — the left/right halves of
+ *  public/textures/zwijsen-book.jpg (cream pages until it loads). The printed
+ *  pages sit on top of their blocks, so nothing clips through anything. */
+const BOOK_W = 0.17; // full open width
+const BOOK_H = 0.19; // page depth (spine length)
+const BOOK_T = 0.011; // cover board thickness
+const BOOK_PT = 0.009; // page block thickness per half
+const BOOK_ANG = 0.22; // resting V of the halves once open
+function BookHalf({ side, tex }: { side: -1 | 1; tex: Texture | null }) {
+  const x = (side * BOOK_W) / 4;
+  return (
+    <>
+      {/* cover board */}
+      <mesh position={[x, 0, 0]}>
+        <boxGeometry args={[BOOK_W / 2, BOOK_T, BOOK_H]} />
+        <meshStandardMaterial color="#ff7a3d" emissive="#ff7a3d" emissiveIntensity={0.16} roughness={0.5} />
+      </mesh>
+      {/* page block */}
+      <mesh position={[x, BOOK_T / 2 + BOOK_PT / 2, 0]}>
+        <boxGeometry args={[BOOK_W / 2 - 0.012, BOOK_PT, BOOK_H - 0.014]} />
+        <meshStandardMaterial color="#efe6d0" emissive="#efe6d0" emissiveIntensity={0.1} roughness={0.85} />
+      </mesh>
+      {/* the printed page on top of the block */}
+      <mesh position={[x, BOOK_T / 2 + BOOK_PT + 0.0008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[BOOK_W / 2 - 0.016, BOOK_H - 0.02]} />
+        {tex ? (
+          <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.5} roughness={0.75} toneMapped={false} side={DoubleSide} />
+        ) : (
+          <meshStandardMaterial color="#f3ead4" emissive="#f3ead4" emissiveIntensity={0.14} roughness={0.85} side={DoubleSide} />
+        )}
+      </mesh>
+    </>
+  );
+}
 function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const { selected } = useActive(slug);
   const reduced = useReducedMotion();
   const grp = useRef<Group>(null);
-  const sel = useRef(0); // 0 = resting in the gap, 1 = lifted + facing you
+  const frontHinge = useRef<Group>(null); // the half that swings open
+  const backHinge = useRef<Group>(null);
+  const sel = useRef(0); // 0 = closed in the gap, 1 = lifted + open + facing you
   const tex = useOptionalTexture('/textures/zwijsen-book.jpg');
   // the spread is one image — clone it into a left and a right half
   const [texL, texR] = useMemo(() => {
@@ -1730,37 +1763,42 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
     },
     [texL, texR],
   );
-  const W = 0.17; // full open width
-  const H = 0.19; // page depth
-  const ANG = 0.3; // each page's lift from flat — the open-book V
   useFrame(() => {
     sel.current += ((selected ? 1 : 0) - sel.current) * 0.09;
     const s = reduced ? (selected ? 1 : 0) : sel.current;
     const g = grp.current;
-    if (!g) return;
-    // lies open in the shelf gap; lifts forward + tilts to face the player
-    g.rotation.x = 1.12 * s;
-    g.rotation.y = 0.35 * s;
-    g.position.set(position[0] - 0.03 * s, position[1] + 0.02 + 0.13 * s, position[2] + 0.02 + 0.26 * s);
+    if (g) {
+      // stands closed in the gap (cover out); lifts forward + tilts back so
+      // the opening spread reads face-on. Closed, both halves fold onto the
+      // hinge's +x side, so the rest pose shifts −x to centre that mass in
+      // the gap and keep clear of the leaning neighbour.
+      g.rotation.x = (Math.PI / 2) * (1 - s) + 1.12 * s;
+      g.rotation.y = 0.35 * s;
+      g.position.set(position[0] - 0.04 + 0.01 * s, position[1] + 0.01 + 0.13 * s, position[2] + 0.02 + 0.26 * s);
+    }
+    // the front half swings 180° around the spine, from folded-shut to the
+    // open V; its hinge also drops level with the back half as it opens
+    if (frontHinge.current) {
+      frontHinge.current.rotation.z = Math.PI * (1 - s) - BOOK_ANG * s;
+      frontHinge.current.position.y = (BOOK_T + BOOK_PT * 2 + 0.001) * (1 - s);
+    }
+    if (backHinge.current) backHinge.current.rotation.z = BOOK_ANG * s;
   });
   return (
     <group ref={grp} position={position}>
-      {([-1, 1] as const).map((side) => {
-        const t = side < 0 ? texL : texR;
-        return (
-          // each page pivots at the spine, outer edge raised into the V
-          <group key={side} rotation={[0, 0, side * ANG]}>
-            <mesh position={[(side * W) / 4, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-              <planeGeometry args={[W / 2, H]} />
-              {t ? (
-                <meshStandardMaterial map={t} emissiveMap={t} emissive="#ffffff" emissiveIntensity={0.5} roughness={0.75} toneMapped={false} side={DoubleSide} />
-              ) : (
-                <meshStandardMaterial color="#efe6d0" emissive="#efe6d0" emissiveIntensity={0.14} roughness={0.85} side={DoubleSide} />
-              )}
-            </mesh>
-          </group>
-        );
-      })}
+      {/* back half — stays put, tilting into its side of the V */}
+      <group ref={backHinge}>
+        <BookHalf side={1} tex={texR} />
+      </group>
+      {/* front half — folded over when closed, swings open on select */}
+      <group ref={frontHinge}>
+        <BookHalf side={-1} tex={texL} />
+      </group>
+      {/* spine */}
+      <mesh position={[0, -0.001, 0]}>
+        <boxGeometry args={[0.015, BOOK_T + 0.003, BOOK_H]} />
+        <meshStandardMaterial color="#e06a30" emissive="#e06a30" emissiveIntensity={0.14} roughness={0.5} />
+      </mesh>
     </group>
   );
 }
