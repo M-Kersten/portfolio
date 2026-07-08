@@ -1731,10 +1731,14 @@ html {
 .contact > * {
   position: relative;
 }
-/* The contact story — a letter rides the dotted route into the mailbox. */
+/* The contact story — a scroll-driven backdrop behind the card's content: the
+   letter spawns just past the card's edge (clipped by its overflow) and rides
+   the dotted route down to the letterbox standing on the card's bottom edge. */
 .contact__motif {
-  height: clamp(120px, 16vw, 170px);
-  margin-bottom: var(--space-s);
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
 }
 .contact__motif canvas {
   width: 100%;
