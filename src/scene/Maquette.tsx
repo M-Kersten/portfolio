@@ -970,7 +970,7 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
           <LiveGlassMat slug="arcam" color="#4a96c0" opacity={0.3} />
         </mesh>
         {/* shoreline */}
-        <Line points={lake.shore} position={[0, 0.03, 0]} color={live ? '#5fc4ff' : accent} lineWidth={1.2} transparent opacity={0.6} />
+        <Line points={lake.shore} position={[0, 0.03, 0]} color={live ? '#27557d' : accent} lineWidth={1.2} transparent opacity={0.6} />
         {/* ripples */}
         <Line points={circlePts(0.06, 22)} position={[-0.03, 0.032, 0.02]} color={live ? '#7fd0ff' : NEUTRAL} lineWidth={1} transparent opacity={0.4} />
         <Line points={circlePts(0.035, 18)} position={[0.06, 0.032, -0.04]} color={live ? '#7fd0ff' : NEUTRAL} lineWidth={1} transparent opacity={0.35} />
@@ -1243,7 +1243,7 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
             ),
           );
         }
-        return new TubeGeometry(new CatmullRomCurve3(pts), 14, 0.006, 5, false);
+        return new TubeGeometry(new CatmullRomCurve3(pts), 14, 0.0025, 5, false);
       }),
     [from, targets],
   );
@@ -1285,8 +1285,6 @@ function CityRig() {
       [[0.3, 0.01, -0.9], [0.3, 0.01, 0.9]],
       [[-0.9, 0.01, -0.3], [0.9, 0.01, -0.3]],
       [[-0.9, 0.01, 0.3], [0.9, 0.01, 0.3]],
-      [[0.3, 0.01, 0.3], [1.0, 0.01, 0.6]],
-      [[-0.3, 0.01, 0.3], [-1.15, 0.01, 0.5]],
       [[-0.3, 0.01, -0.3], [-0.55, 0.01, -0.62]],
     ],
     [],
@@ -1297,15 +1295,15 @@ function CityRig() {
   const cluster = useMemo(() => {
     const rnd = makeRand(1872);
     const out: { x: number; z: number; w: number; d: number; h: number }[] = [];
-    const cells = [-0.58, 0, 0.58];
+    const cells = [-0.55, 0, 0.55];
     for (const cx of cells)
       for (const cz of cells) {
         if (cx === 0 && cz === 0) continue; // central plaza → town hall
-        const count = rnd() < 0.45 ? 2 : 1;
+        const count = 1;
         for (let k = 0; k < count; k++) {
-          const x = cx + (rnd() - 0.5) * 0.16;
-          const z = cz + (rnd() - 0.5) * 0.16;
-          const fall = Math.max(0.16, 1 - (x * x + z * z) * 0.8);
+          const x = cx + (rnd() - 0.5) * 0.12;
+          const z = cz + (rnd() - 0.5) * 0.12;
+          const fall = Math.max(0.1, 1 - (x * x + z * z) * 0.8);
           out.push({ x, z, w: 0.13 + rnd() * 0.05, d: 0.13 + rnd() * 0.05, h: 0.2 + fall * 0.4 + rnd() * 0.12 });
         }
       }
