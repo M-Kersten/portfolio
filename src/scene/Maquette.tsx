@@ -841,12 +841,17 @@ function blobPts(r: number, wobble: number, seg = 48, seed = 7): V3[] {
 
 /** The park's AR tower viewer — the ARCam installation, loaded from the real
  *  model at public/models/binoculars.gltf (single self-contained mesh). It's
- *  normalised at load (restyled to the maquette's metal, stood on the ground,
- *  scaled to viewer height) and keeps the exact behaviour of the old build:
- *  hidden until the ARCam hotspot is selected, then pops in with a spring,
- *  pans left↔right scanning the scene, and fires a camera flash at each end
- *  of the sweep. */
-const BINOS_H = 0.26; // world height the model is normalised to
+ *  normalised at load — the same frosted glass as the buildings and windmill,
+ *  stood on the ground, scaled to viewer height — and keeps the behaviour of
+ *  the old build: hidden until the ARCam hotspot is selected, then pops in
+ *  with a spring and pans left↔right scanning the scene. Taking a picture
+ *  flashes only the viewfinder screen: a separate plane parked on the model
+ *  (tweak BINOS_SCREEN_* below to fit it to the display). */
+const BINOS_H = 0.2; // world height the model is normalised to
+// The screen plane, in the viewer's local space (feet at y=0, height BINOS_H).
+const BINOS_SCREEN_POS: V3 = [0, 0.14, 0.045];
+const BINOS_SCREEN_ROT: V3 = [0, 0, 0];
+const BINOS_SCREEN_SIZE: [number, number] = [0.06, 0.045];
 function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY?: number; slug?: string }) {
   const { selected, visited } = useActive(slug ?? '');
   const reduced = useReducedMotion();
@@ -856,7 +861,7 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
   const vel = useRef(0);
   const flash = useRef(0); // camera-flash level, decays each frame
   const lastShot = useRef(0);
-  const flashMat = useRef<MeshStandardMaterial | null>(null);
+  const screenMat = useRef<MeshStandardMaterial>(null);
   const [model, setModel] = useState<Group | null>(null);
 
   useEffect(() => {
@@ -866,22 +871,22 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
       (g) => {
         if (cancelled) return;
         const scene = g.scene;
-        // one shared material in the maquette's language; its emissive is the
-        // camera flash (driven per frame below, so LifeGroup skips it)
-        const mat = new MeshStandardMaterial({
-          color: '#4a5560',
-          roughness: 0.45,
-          metalness: 0.3,
-          emissive: '#dff6ff',
-          emissiveIntensity: 0,
-          toneMapped: false,
+        // the same frosted glass as the buildings + windmill body
+        const glass = new MeshStandardMaterial({
+          color: GLASS,
+          transparent: true,
+          opacity: 0.5,
+          roughness: 0.34,
+          metalness: 0,
+          emissive: '#0c2a30',
+          emissiveIntensity: 0.14,
+          depthWrite: false,
         });
-        mat.userData.lifeSkip = true;
+        glass.onBeforeCompile = glassRim;
         scene.traverse((o) => {
           const mesh = o as Mesh;
-          if ((mesh as { isMesh?: boolean }).isMesh) mesh.material = mat;
+          if ((mesh as { isMesh?: boolean }).isMesh) mesh.material = glass;
         });
-        flashMat.current = mat;
         // normalise: viewer height, feet on the ground, centred on its footprint
         const box = new Box3().setFromObject(scene);
         const size = new Vector3();
@@ -930,13 +935,30 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
       head.rotation.y += (0 - head.rotation.y) * 0.1; // settle back to centre
     }
     flash.current = Math.max(0, flash.current - dt * 3.4);
-    if (flashMat.current) flashMat.current.emissiveIntensity = flash.current * 1.7;
+    if (screenMat.current) screenMat.current.emissiveIntensity = 0.2 + flash.current * 3.6;
   });
 
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       <group ref={popRef} visible={false}>
-        <group ref={headRef}>{model && <primitive object={model} />}</group>
+        <group ref={headRef}>
+          {model && <primitive object={model} />}
+          {/* the viewfinder screen — dimly lit, flaring white on each photo */}
+          {model && (
+            <mesh position={BINOS_SCREEN_POS} rotation={BINOS_SCREEN_ROT}>
+              <planeGeometry args={BINOS_SCREEN_SIZE} />
+              <meshStandardMaterial
+                ref={screenMat}
+                userData={{ lifeSkip: true }}
+                color="#0b1418"
+                emissive="#dff6ff"
+                emissiveIntensity={0.2}
+                toneMapped={false}
+                side={DoubleSide}
+              />
+            </mesh>
+          )}
+        </group>
       </group>
     </group>
   );
