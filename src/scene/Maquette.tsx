@@ -560,10 +560,12 @@ function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opacity?: 
   );
 }
 
-/** Like GlassMat, but a hotspot's body resolves from frosted glass to a
- *  near-solid, glossier material once it's been visited — so visited objects
- *  read as "real / high-definition" rather than abstract. */
-function LiveGlassMat({ slug, color = GLASS, opacity = 0.2 }: { slug: string; color?: string; opacity?: number }) {
+/** Like GlassMat, but the body resolves to a near-solid, glossier material once
+ *  its hotspot has been visited — so visited objects read as "real". Hotspot
+ *  bodies rest as a grey ghost (the life mechanic); companion furniture passes
+ *  `ghost={false}` to rest as its plain authored glass and only change material
+ *  when its hotspot is engaged. `solid` caps how opaque it becomes. */
+function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true, solid = 0.94 }: { slug: string; color?: string; opacity?: number; ghost?: boolean; solid?: number }) {
   const { selected, visited } = useActive(slug);
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
@@ -572,10 +574,9 @@ function LiveGlassMat({ slug, color = GLASS, opacity = 0.2 }: { slug: string; co
     const m = mat.current;
     if (!m) return;
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
-    // dormant = a faint grey ghost of the body; visiting pours the glass in
-    m.color.copy(GHOST_FILL).lerp(baseC, 0.3 + 0.7 * k.current);
-    const rest = opacity * 0.3;
-    m.opacity = rest + (0.94 - rest) * k.current;
+    m.color.copy(GHOST_FILL).lerp(baseC, ghost ? 0.3 + 0.7 * k.current : 1);
+    const rest = ghost ? opacity * 0.3 : opacity;
+    m.opacity = rest + (solid - rest) * k.current;
     m.roughness = 0.34 - 0.2 * k.current;
     m.metalness = 0.18 * k.current;
     m.depthWrite = k.current > 0.5;
@@ -699,72 +700,42 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
   );
 }
 
-/** A stylised low-poly tree: a slim trunk and a faceted canopy cluster. Park
- *  trees sway from their root and, once visited, the foliage greens up + solidifies. */
-function TreeRound({ position, h = 0.45, swaySlug }: { position: V3; h?: number; swaySlug?: string }) {
-  const { hovered, selected, visited } = useActive(swaySlug ?? '');
-  const reduced = useReducedMotion();
-  const ref = useRef<Group>(null);
-  const k = useRef(0);
+/** A stylised park tree — one faceted cone, a single mesh with no separate
+ *  trunk, so nothing shows through the canopy. Quiet teal at rest; greens up
+ *  once the park has been visited. */
+function ParkTree({ position, h = 0.45, slug }: { position: V3; h?: number; slug?: string }) {
+  const { selected, visited } = useActive(slug ?? '');
   const live = useRef(0);
-  // a per-tree phase so the trees rustle out of sync rather than as one block
-  const phase = useMemo(() => position[0] * 5.3 + position[2] * 3.7, [position]);
   const restCol = useMemo(() => new Color('#3f7d72'), []); // muted teal-green at rest
   const vivid = useMemo(() => new Color('#62c265'), []); // lifelike leaf green once visited
-  // one shared canopy material so all the blobs green up together
-  const leaf = useMemo(() => {
-    const m = new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.2 });
-    m.userData.lifeSkip = true; // greens up + solidifies itself once visited
+  const mat = useMemo(() => {
+    const m = new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.4 });
+    m.userData.lifeSkip = true; // greens up itself once visited
     return m;
   }, []);
-  useFrame((s) => {
-    if (swaySlug) {
-      live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
-      leaf.color.copy(restCol).lerp(vivid, live.current);
-      leaf.opacity = 0.55 + live.current * 0.4;
-    }
-    const g = ref.current;
-    if (!g || !swaySlug) return;
-    k.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - k.current) * 0.08;
-    const a = reduced ? 0 : k.current;
-    const t = s.clock.elapsedTime;
-    g.rotation.z = Math.sin(t * 2.0 + phase) * 0.12 * a;
-    g.rotation.x = Math.cos(t * 1.6 + phase * 1.3) * 0.075 * a;
+  useFrame(() => {
+    if (!slug) return;
+    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
+    mat.color.copy(restCol).lerp(vivid, live.current);
+    mat.opacity = 0.4 + live.current * 0.4;
   });
-  const r = 0.14;
   return (
-    <group position={position}>
-      {/* trunk + canopy pivot at the base (the root), so each tree sways alone */}
-      <group ref={ref}>
-        <mesh position={[0, h * 0.3, 0]}>
-          <cylinderGeometry args={[0.012, 0.022, h * 0.6, 6]} />
-          <meshStandardMaterial color="#586a61" roughness={0.85} metalness={0} />
-        </mesh>
-        <group position={[0, h * 0.62, 0]}>
-          <mesh material={leaf}>
-            <icosahedronGeometry args={[r, 0]} />
-          </mesh>
-          <mesh material={leaf} position={[r * 0.62, r * 0.5, -r * 0.2]} rotation={[0.5, 0.8, 0]}>
-            <icosahedronGeometry args={[r * 0.7, 0]} />
-          </mesh>
-          <mesh material={leaf} position={[-r * 0.55, r * 0.34, r * 0.28]} rotation={[0.2, -0.6, 0.3]}>
-            <icosahedronGeometry args={[r * 0.64, 0]} />
-          </mesh>
-        </group>
-      </group>
-    </group>
+    <mesh position={[position[0], h / 2, position[2]]} material={mat}>
+      <coneGeometry args={[h * 0.32, h, 6]} />
+    </mesh>
   );
 }
 
 /** Soft rounded box (furniture, the chip package). Optional top outline. With a
- *  `liveSlug` its glass solidifies once that hotspot is visited. */
-function SoftBox({ position, args, radius = 0.03, opacity = 0.2, outline = false, rotation, color, liveSlug }: { position: V3; args: V3; radius?: number; opacity?: number; outline?: boolean; rotation?: V3; color?: string; liveSlug?: string }) {
+ *  `liveSlug` its glass solidifies once that hotspot is visited; furniture that
+ *  shouldn't rest as a ghost also passes `liveGhost={false}`. */
+function SoftBox({ position, args, radius = 0.03, opacity = 0.2, outline = false, rotation, color, liveSlug, liveGhost = true }: { position: V3; args: V3; radius?: number; opacity?: number; outline?: boolean; rotation?: V3; color?: string; liveSlug?: string; liveGhost?: boolean }) {
   // Clamp so the corner radius never exceeds half the smallest side.
   const r = Math.min(radius, Math.min(args[0], args[1], args[2]) / 2 - 0.002);
   return (
     <group position={position} rotation={rotation}>
       <RoundedBox args={args} radius={r} smoothness={3}>
-        {liveSlug ? <LiveGlassMat slug={liveSlug} opacity={opacity} color={color} /> : <GlassMat opacity={opacity} color={color} />}
+        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={liveGhost} opacity={opacity} color={color} /> : <GlassMat opacity={opacity} color={color} />}
       </RoundedBox>
       {outline && (
         <Line points={roundedRectPts(args[0], args[2], radius * 1.6)} position={[0, args[1] / 2, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
@@ -1032,9 +1003,9 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
           </mesh>
         ))}
       </group>
-      <TreeRound position={[0.2, 0, -0.18]} h={0.44} />
-      <TreeRound position={[0.24, 0, 0.22]} h={0.36} />
-      <TreeRound position={[-0.22, 0, -0.24]} h={0.4} />
+      <ParkTree position={[0.2, 0, -0.18]} h={0.44} slug={slug} />
+      <ParkTree position={[0.24, 0, 0.22]} h={0.36} slug={slug} />
+      <ParkTree position={[-0.22, 0, -0.24]} h={0.4} slug={slug} />
       {/* the ARCam tower viewer — pops in and scans when the hotspot is selected */}
       <Binoculars position={[0.1, 0, 0.34]} rotationY={-0.15} slug={slug} />
       </group>
@@ -1451,7 +1422,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         {([[0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2]] as [number, number][]).map(([lx, lz], i) => (
           <mesh key={i} position={[lx, 0.09, lz]}>
             <cylinderGeometry args={[0.016, 0.016, 0.18, 10]} />
-            <GlassMat opacity={0.24} />
+            <LiveGlassMat slug="lightship-drive" opacity={0.24} />
           </mesh>
         ))}
         {/* the AR race loop — a circle */}
@@ -1506,8 +1477,9 @@ function FloorLamp({ position }: { position: V3 }) {
   );
 }
 
-/** A leafy potted houseplant — upright arching blades fanning out of a pot. */
-function PottedPlant({ position }: { position: V3 }) {
+/** A leafy potted houseplant — upright arching blades fanning out of a pot.
+ *  With a `liveSlug` it solidifies alongside that hotspot (the workstation). */
+function PottedPlant({ position, liveSlug }: { position: V3; liveSlug?: string }) {
   const blades = useMemo(
     () =>
       Array.from({ length: 9 }, (_, i) => ({
@@ -1522,21 +1494,21 @@ function PottedPlant({ position }: { position: V3 }) {
       {/* pot — kept to the scene's neutral glass, no terracotta */}
       <mesh position={[0, 0.08, 0]}>
         <cylinderGeometry args={[0.13, 0.1, 0.16, 22]} />
-        <GlassMat opacity={0.4} />
+        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} opacity={0.4} /> : <GlassMat opacity={0.4} />}
         <Edges threshold={24} color={NEUTRAL} />
       </mesh>
       {/* soil, as understated glass rather than dark earth */}
       <mesh position={[0, 0.165, 0]}>
         <cylinderGeometry args={[0.12, 0.12, 0.012, 20]} />
-        <GlassMat opacity={0.3} />
+        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} opacity={0.3} /> : <GlassMat opacity={0.3} />}
       </mesh>
-      {/* leaf blades — same neutral glass, no green, barely there */}
+      {/* leaf blades — same neutral glass, no green, barely there at rest */}
       {blades.map((b, i) => (
         <group key={i} position={[0, 0.17, 0]} rotation={[0, b.a, 0]}>
           <group rotation={[b.tilt, 0, 0]}>
             <mesh position={[0, b.len / 2, 0]} scale={[1, 1, 0.18]}>
               <coneGeometry args={[0.045, b.len, 5]} />
-              <GlassMat opacity={0.14} />
+              {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} opacity={0.14} solid={0.5} /> : <GlassMat opacity={0.14} />}
             </mesh>
           </group>
         </group>
@@ -1789,15 +1761,15 @@ function Bookcase({ position }: { position: V3 }) {
   return (
     <group position={position}>
       <group ref={popRef}>
-      {/* case frame: back, sides, top, base */}
-      <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} />
-      <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} />
-      <SoftBox position={[0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} />
-      <SoftBox position={[0, 0.915, 0.04]} args={[0.74, 0.03, 0.26]} radius={0.01} />
-      <SoftBox position={[0, 0.02, 0.04]} args={[0.74, 0.04, 0.26]} radius={0.01} />
+      {/* case frame: back, sides, top, base — solidifies once the book is opened */}
+      <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} liveSlug="zwijsen-ar-books" liveGhost={false} />
+      <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
+      <SoftBox position={[0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
+      <SoftBox position={[0, 0.915, 0.04]} args={[0.74, 0.03, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
+      <SoftBox position={[0, 0.02, 0.04]} args={[0.74, 0.04, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
       {/* shelves */}
       {[0.16, 0.42, 0.68].map((sy, s) => (
-        <SoftBox key={s} position={[0, sy, 0.04]} args={[0.7, 0.02, 0.24]} radius={0.006} opacity={0.3} />
+        <SoftBox key={s} position={[0, sy, 0.04]} args={[0.7, 0.02, 0.24]} radius={0.006} opacity={0.3} liveSlug="zwijsen-ar-books" liveGhost={false} />
       ))}
       {/* books — their spines glow when the bookcase is on */}
       {BOOKS.map((bk, i) => (
@@ -1852,23 +1824,25 @@ function RoomRig() {
   const lamp = useTweak('Room.Floor lamp', { position: [-0.32, 0, -1.57] });
   return (
     <group>
-      {/* round rug centred on the scene — lined up with the chip die below it */}
+      {/* round rug centred on the scene — lined up with the chip die below it;
+          kept very sheer so it reads as a floor marking, not a bright disc */}
       <mesh position={[0, 0.012, 0]}>
         <cylinderGeometry args={[1.05, 1.05, 0.02, 56]} />
-        <GlassMat opacity={0.12} />
+        <GlassMat opacity={0.06} />
       </mesh>
-      <Line points={circlePts(1.05)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
-      <Line points={circlePts(0.78)} position={[0, 0.026, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.16} />
+      <Line points={circlePts(1.05)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.2} />
+      <Line points={circlePts(0.78)} position={[0, 0.026, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.1} />
 
       {/* workstation (desk + monitor + chair) — front-left by the plant, angled
-          toward the centre; the monitor flickers on hover */}
+          toward the centre; the monitor flickers on hover. Engaging the monitor
+          solidifies the desk, chair + plant with it (the life spreads). */}
       <group position={desk.position} rotation={[0, desk.rotationY, 0]}>
         <group position={[0, 0, -0.3]}>
-          <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline />
+          <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline liveSlug="virtuele-brigade" liveGhost={false} />
           {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
             <mesh key={i} position={[lx, 0.18, lz]}>
               <cylinderGeometry args={[0.02, 0.02, 0.36, 12]} />
-              <GlassMat opacity={0.26} />
+              <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.26} />
             </mesh>
           ))}
           <LifeGroup slug="virtuele-brigade">
@@ -1891,11 +1865,11 @@ function RoomRig() {
         </group>
         {/* chair in front of the desk, facing the monitor */}
         <group position={[0, 0, 0.05]} rotation={[0, Math.PI, 0]}>
-          <SoftBox position={[0, 0.24, 0]} args={[0.3, 0.06, 0.3]} radius={0.05} />
-          <SoftBox position={[0, 0.42, -0.14]} args={[0.3, 0.32, 0.05]} radius={0.05} />
+          <SoftBox position={[0, 0.24, 0]} args={[0.3, 0.06, 0.3]} radius={0.05} liveSlug="virtuele-brigade" liveGhost={false} />
+          <SoftBox position={[0, 0.42, -0.14]} args={[0.3, 0.32, 0.05]} radius={0.05} liveSlug="virtuele-brigade" liveGhost={false} />
           <mesh position={[0, 0.12, 0]}>
             <cylinderGeometry args={[0.022, 0.022, 0.24, 12]} />
-            <GlassMat opacity={0.26} />
+            <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.26} />
           </mesh>
         </group>
       </group>
@@ -1904,13 +1878,14 @@ function RoomRig() {
           opens the orange book */}
       <Bookcase position={shelf.position} />
 
-      {/* couch + phone — faces the coffee table / room front (+z) */}
+      {/* couch + phone — faces the coffee table / room front (+z). Opening the
+          phone solidifies the couch it sits on. */}
       <group position={couch.position} rotation={[0, couch.rotationY, 0]}>
-        <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline />
-        <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} />
-        <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
-        <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} />
-        <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} />
+        <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline liveSlug="popcore-games" liveGhost={false} />
+        <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} liveSlug="popcore-games" liveGhost={false} />
+        <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} liveSlug="popcore-games" liveGhost={false} />
+        <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} liveSlug="popcore-games" liveGhost={false} />
+        <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} liveSlug="popcore-games" liveGhost={false} />
         <LifeGroup slug="popcore-games">
           <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor="#ff7a3d" />
         </LifeGroup>
@@ -1921,8 +1896,9 @@ function RoomRig() {
         <CoffeeTableAR position={table.position} hoverSlug="lightship-drive" />
       </LifeGroup>
 
-      {/* fill the diorama out, balanced around the centre */}
-      <PottedPlant position={plant.position} />
+      {/* fill the diorama out, balanced around the centre; the plant belongs to
+          the workstation corner, so it wakes with the monitor */}
+      <PottedPlant position={plant.position} liveSlug="virtuele-brigade" />
       <FloorLamp position={lamp.position} />
     </group>
   );
