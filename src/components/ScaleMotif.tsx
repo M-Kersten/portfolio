@@ -4,9 +4,9 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 export type MotifLayer = 'city' | 'room' | 'chip';
 
 // A small generative "window" into each scale, drawn from the site's signature
-// dots: a city street map with live traffic, a room of floating objects, and a
-// chip with current running through it. One tiny 2D-canvas loop per panel,
-// paused off-screen and frozen for reduced motion.
+// dots: a city street map with live traffic, a room-scale interface being
+// worked by a cursor, and a chip with current running through it. One tiny
+// 2D-canvas loop per panel, paused off-screen and frozen for reduced motion.
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -69,42 +69,123 @@ export function drawCity(ctx: Ctx, w: number, h: number, t: number, base: number
   );
 }
 
-// Room — floating "objects you can pick up": distinct dotted forms (two
-// counter-rotating rings around a beating core) spread across the whole
-// region, bobbing out of phase.
-const ROOM_OBJ: [number, number, number][] = [
-  // x fraction, y fraction, outer radius (px, scaled down on short canvases)
-  [0.14, 0.3, 24],
-  [0.33, 0.68, 32],
-  [0.52, 0.26, 20],
-  [0.7, 0.6, 28],
-  [0.87, 0.36, 22],
-];
+// Room — a little interface coming together, all in dots: a button, a toggle,
+// a slider, a progress bar and a checkbox, with a cursor drifting from control
+// to control and working them.
+function roundRectDots(ctx: Ctx, cx: number, cy: number, ww: number, hh: number, r: number, step: number, a: number) {
+  const hw = ww / 2;
+  const hv = hh / 2;
+  const edges: [number, number, number, number][] = [
+    [-hw + r, -hv, hw - r, -hv],
+    [hw, -hv + r, hw, hv - r],
+    [hw - r, hv, -hw + r, hv],
+    [-hw, hv - r, -hw, -hv + r],
+  ];
+  for (const [x0, y0, x1, y1] of edges) {
+    const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / step));
+    for (let i = 0; i <= n; i++) dot(ctx, cx + x0 + ((x1 - x0) * i) / n, cy + y0 + ((y1 - y0) * i) / n, 1.15, a);
+  }
+  const corners: [number, number, number][] = [
+    [hw - r, -hv + r, -Math.PI / 2],
+    [hw - r, hv - r, 0],
+    [-hw + r, hv - r, Math.PI / 2],
+    [-hw + r, -hv + r, Math.PI],
+  ];
+  for (const [ax, ay, a0] of corners)
+    for (let i = 1; i < 3; i++) {
+      const ang = a0 + (Math.PI / 2) * (i / 3);
+      dot(ctx, cx + ax + Math.cos(ang) * r, cy + ay + Math.sin(ang) * r, 1.15, a);
+    }
+}
+
 export function drawRoom(ctx: Ctx, w: number, h: number, t: number, base: number) {
   const sc = Math.max(0.55, Math.min(1, h / 300));
-  ROOM_OBJ.forEach(([fx, fy, r0], ci) => {
-    const r = r0 * sc;
-    const bob = Math.sin(t * 1.05 + ci * 1.9) * 8 * sc;
-    const cx = fx * w;
-    const cy = fy * h + bob;
-    // outer ring
-    const n1 = Math.max(10, Math.round(r * 0.62));
-    for (let i = 0; i < n1; i++) {
-      const ang = (i / n1) * Math.PI * 2 + t * 0.35 * (ci % 2 ? 1 : -1);
-      const tw = 0.5 + 0.5 * Math.sin(t * 2.4 + i * 1.7 + ci);
-      dot(ctx, cx + Math.cos(ang) * r, cy + Math.sin(ang) * r * 0.72, 1.3, base * (0.3 + 0.4 * tw));
+  // the cursor visits button → toggle → checkbox on a loop
+  const cycle = 2.4;
+  const stops = 3;
+  const target = Math.floor(t / cycle) % stops;
+  const pp = (t / cycle) % 1;
+  const clicking = pp > 0.45 && pp < 0.75;
+
+  // — button (pressed while the cursor clicks it)
+  const bx = 0.3 * w;
+  const by = 0.28 * h;
+  const bwd = 96 * sc;
+  const press = target === 0 && clicking ? 1 : 0;
+  roundRectDots(ctx, bx, by + press * 2, bwd, 34 * sc, 9 * sc, 6, base * (0.3 + press * 0.45));
+  for (let x = -bwd * 0.28; x <= bwd * 0.28; x += 5.5) dot(ctx, bx + x, by + press * 2, 1.1, base * (0.48 + press * 0.4));
+
+  // — toggle (flips as the cursor works it)
+  const tx = 0.71 * w;
+  const ty = 0.26 * h;
+  const tw = 52 * sc;
+  const th = 22 * sc;
+  const tOn = Math.floor((t + cycle) / (cycle * stops)) % 2 === 0;
+  roundRectDots(ctx, tx, ty, tw, th, th / 2, 5, base * 0.3);
+  dot(ctx, tx + (tOn ? 1 : -1) * (tw / 2 - th / 2), ty, 3 * sc + 1, base * 0.85);
+
+  // — slider, sweeping by itself
+  const sx = 0.47 * w;
+  const sy = 0.55 * h;
+  const sw2 = 140 * sc;
+  for (let x = -sw2 / 2; x <= sw2 / 2; x += 6) dot(ctx, sx + x, sy, 1, base * 0.24);
+  const kx = -sw2 / 2 + (0.5 + 0.5 * Math.sin(t * 0.7)) * sw2;
+  for (let x = -sw2 / 2; x <= kx; x += 6) dot(ctx, sx + x, sy, 1.15, base * 0.5);
+  dot(ctx, sx + kx, sy, 3.4 * sc, base * 0.9);
+
+  // — progress bar, filling then starting over
+  const px = 0.26 * w;
+  const py = 0.72 * h;
+  const pw2 = 120 * sc;
+  roundRectDots(ctx, px, py, pw2, 14 * sc, 7 * sc, 5.5, base * 0.26);
+  const pv = (t * 0.18) % 1;
+  for (let x = 0; x <= pv * (pw2 - 12 * sc); x += 5) dot(ctx, px - pw2 / 2 + 6 * sc + x, py, 1.3, base * 0.7);
+
+  // — checkbox (ticked and unticked as the cursor returns)
+  const cx2 = 0.77 * w;
+  const cy2 = 0.66 * h;
+  roundRectDots(ctx, cx2, cy2, 22 * sc, 22 * sc, 4 * sc, 4.5, base * 0.32);
+  if (Math.floor((t + cycle * 2) / (cycle * stops)) % 2 === 0) {
+    const tick: [number, number][] = [
+      [-5, 0],
+      [-2, 3.5],
+      [1, 0.5],
+      [4, -3.5],
+      [6, -6],
+    ];
+    for (const [dx, dy] of tick) dot(ctx, cx2 + dx * sc, cy2 + dy * sc, 1.3, base * 0.85);
+  }
+
+  // — the cursor: eases to its next control, bobbing slightly, and clicks
+  const spots: [number, number][] = [
+    [bx + bwd * 0.18, by + 4],
+    [tx + tw * 0.1, ty + 3],
+    [cx2 + 3, cy2 + 3],
+  ];
+  const from = spots[(target + stops - 1) % stops];
+  const to = spots[target];
+  const q = Math.min(1, pp / 0.4);
+  const e = q * q * (3 - 2 * q);
+  const cxp = from[0] + (to[0] - from[0]) * e;
+  const cyp = from[1] + (to[1] - from[1]) * e + Math.sin(t * 3.1) * 2;
+  const arrow: [number, number][] = [
+    [0, 0],
+    [1.8, 2.6],
+    [3.6, 5.2],
+    [5.4, 7.8],
+    [4.6, 8.6],
+    [7.4, 8.2],
+    [2.2, 9.4],
+  ];
+  for (const [ax, ay] of arrow) dot(ctx, cxp + ax * sc * 1.15, cyp + ay * sc * 1.15, 1.25, base * 0.9);
+  // click ripple blooming off the control
+  if (clicking) {
+    const k = (pp - 0.45) / 0.3;
+    for (let i = 0; i < 10; i++) {
+      const ang = (i / 10) * Math.PI * 2;
+      dot(ctx, to[0] + Math.cos(ang) * (4 + k * 14 * sc), to[1] + Math.sin(ang) * (4 + k * 14 * sc), 1, base * 0.7 * (1 - k));
     }
-    // inner ring, counter-rotating
-    const r2 = r * 0.55;
-    const n2 = Math.max(7, Math.round(r2 * 0.62));
-    for (let i = 0; i < n2; i++) {
-      const ang = (i / n2) * Math.PI * 2 - t * 0.55 * (ci % 2 ? 1 : -1);
-      dot(ctx, cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2 * 0.72, 1.2, base * 0.5);
-    }
-    // core
-    const p = 0.5 + 0.5 * Math.sin(t * 1.8 + ci);
-    dot(ctx, cx, cy, 1.8 + p * 0.6, base * (0.6 + 0.3 * p));
-  });
+  }
 }
 
 // Chip — a dim die grid with bright current pulses running along lanes and a

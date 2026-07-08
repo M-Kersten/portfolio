@@ -863,6 +863,37 @@ html {
 }
 .cap-band[data-active] .capc:not([data-on]) { opacity: 0.42; }
 
+/* The written content rises in piece by piece once its band/card is shown —
+   the column index (--i, set on .capc/.cap) offsets each column's turn. */
+.capc__inner > *,
+.cap__body > * {
+  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
+}
+.capc__inner > *:nth-child(1), .cap__body > *:nth-child(1) { transition-delay: calc(var(--i, 0) * 0.14s + 0.05s); }
+.capc__inner > *:nth-child(2), .cap__body > *:nth-child(2) { transition-delay: calc(var(--i, 0) * 0.14s + 0.13s); }
+.capc__inner > *:nth-child(3), .cap__body > *:nth-child(3) { transition-delay: calc(var(--i, 0) * 0.14s + 0.21s); }
+.capc__inner > *:nth-child(4), .cap__body > *:nth-child(4) { transition-delay: calc(var(--i, 0) * 0.14s + 0.29s); }
+.cap-band:not([data-shown]) .capc__inner > *,
+.cap-ladder:not([data-shown]) .cap__body > * {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* Decode-in titles — the invisible ghost copy reserves the final layout; the
+   live overlay resolves left to right out of glyph noise (see Scramble.tsx). */
+.scramble {
+  position: relative;
+  display: inline-block;
+}
+.scramble__ghost {
+  visibility: hidden;
+}
+.scramble__live {
+  position: absolute;
+  inset: 0 auto auto 0;
+  white-space: pre;
+}
+
 /* ---- Mobile: three stacked cards ---- */
 .cap-ladder { display: none; }
 .cap {

@@ -4,16 +4,20 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 import { ScaleMotif } from './ScaleMotif';
 import { CapBandMotif } from './CapBandMotif';
 import { ScanFrame } from './ScanFrame';
+import { Scramble } from './Scramble';
 import { SectionTitle } from './SectionTitle';
 
 const COLOR: Record<Layer, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
 
-// The written content, shared by the desktop band columns and the mobile cards.
-function CapText({ c }: { c: Capability }) {
+// The written content, shared by the desktop band columns and the mobile
+// cards. The title decodes in (scrambled → clear) when it scrolls into view.
+function CapText({ c, delay = 0 }: { c: Capability; delay?: number }) {
   return (
     <>
       <span className="capc__index">{c.index}</span>
-      <h3 className="capc__title">{c.title}</h3>
+      <h3 className="capc__title">
+        <Scramble text={c.title} delay={delay} />
+      </h3>
       <p className="capc__text">{c.body}</p>
       <ul className="capc__tags">
         {c.tags.map((t) => (
@@ -81,7 +85,7 @@ export function Capabilities() {
               onMouseLeave={() => leave(c.layer)}
             >
               <div className="capc__inner">
-                <CapText c={c} />
+                <CapText c={c} delay={i * 140} />
               </div>
             </article>
           ))}
@@ -111,7 +115,7 @@ export function Capabilities() {
                 </span>
               </div>
               <div className="cap__body">
-                <CapText c={c} />
+                <CapText c={c} delay={i * 140} />
               </div>
             </article>
           ))}

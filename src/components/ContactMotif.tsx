@@ -57,40 +57,41 @@ export function ContactMotif() {
       ctx.fill();
     };
 
-    // Scroll → progress: 0 as the card's top touches the viewport bottom, 1 a
-    // touch before the card is fully revealed, so the letter is posted right
-    // as the visitor reaches the end of the page.
+    // Scroll → progress: the flight only starts once a good third of the card
+    // is already on screen (so it plays in view), and the letter is posted a
+    // touch before the card is fully revealed — right at the end of the page.
     const onScroll = () => {
       const rect = cv.getBoundingClientRect();
       const vh = window.innerHeight || 1;
-      pTarget = Math.max(0, Math.min(1, (vh - rect.top) / (rect.height * 0.94 + 1)));
+      const reveal = (vh - rect.top) / (rect.height + 1);
+      pTarget = Math.max(0, Math.min(1, (reveal - 0.38) / (0.96 - 0.38)));
     };
 
     const render = (dt: number) => {
       if (!w || !h) return;
       ctx.clearRect(0, 0, w, h);
 
-      // --- letterbox geometry — standing on the card's bottom edge, right side ---
-      const bw = Math.min(88, Math.max(60, w * 0.09));
+      // --- letterbox geometry — large, sitting right down on the card's
+      // bottom edge (short dotted pole, no ground line needed) ---
+      const bw = Math.min(124, Math.max(86, w * 0.12));
       const bh = bw * 0.62;
       const cxB = w - bw / 2 - Math.max(28, w * 0.06);
-      const groundY = h - 14;
-      const poleH = Math.min(44, h * 0.12);
-      const byTop = groundY - poleH - bh;
+      const poleH = Math.min(30, h * 0.08);
+      const byTop = h - 8 - poleH - bh;
       const cyB = byTop + bh / 2;
       const slotY = byTop + bh * 0.3;
       const slotHalf = bw * 0.3;
 
       // --- flight route: spawns just past the card's left edge (clipped by
       // the card), sweeps across and drops into the slot ---
-      const x0 = -26;
-      const y0 = h * 0.2;
+      const x0 = -30;
+      const y0 = h * 0.26;
       const c1x = w * 0.36;
-      const c1y = h * 0.02;
+      const c1y = h * 0.03;
       const c2x = w * 0.95;
-      const c2y = h * 0.08;
+      const c2y = h * 0.12;
       const ex = cxB;
-      const ey = slotY - 5;
+      const ey = slotY - 8;
 
       // story state from scroll
       pCur += (pTarget - pCur) * Math.min(1, dt * 5);
@@ -122,53 +123,49 @@ export function ContactMotif() {
           dot(x, y, 1.05, sd > -4 ? 0.5 : 0.16); // bright rim, dim body
         }
       }
-      // the slot — the one solid detail on the box (cyan while it glows)
-      ctx.globalAlpha = 0.65 + glow * 0.35;
-      ctx.strokeStyle = glow > 0.05 ? CYAN : INK;
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cxB - slotHalf, slotY);
-      ctx.lineTo(cxB + slotHalf, slotY);
-      ctx.stroke();
+      // the slot — a brighter row of dots (cyan while it glows)
+      ctx.fillStyle = glow > 0.05 ? CYAN : INK;
+      for (let x = cxB - slotHalf; x <= cxB + slotHalf; x += 4.5) dot(x, slotY, 1.35, 0.7 + glow * 0.3);
       if (glow > 0.02) {
-        ctx.globalAlpha = glow * 0.55;
-        ctx.strokeStyle = CYAN;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(cxB, slotY, 6 + (1 - glow) * 18, 0, Math.PI * 2);
-        ctx.stroke();
+        // a dotted ring blooming off the slot as the letter lands
+        ctx.fillStyle = CYAN;
+        const rr = 7 + (1 - glow) * 20;
+        for (let i = 0; i < 14; i++) {
+          const ang = (i / 14) * Math.PI * 2;
+          dot(cxB + Math.cos(ang) * rr, slotY + Math.sin(ang) * rr * 0.7, 1.1, glow * 0.55);
+        }
       }
-      // pole + ground, in the site's dotted-hairline style
-      ctx.setLineDash([1.5, 4.5]);
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.45;
-      ctx.beginPath();
-      ctx.moveTo(cxB, byTop + bh);
-      ctx.lineTo(cxB, groundY);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cxB - bw, groundY);
-      ctx.lineTo(cxB + bw, groundY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      // the flag — pops up once the letter is posted
-      const fx = cxB + bw / 2 + 1;
+      // the pole — a short run of dots down to the card's bottom edge
+      ctx.fillStyle = INK;
+      for (let y = byTop + bh + 4; y <= h - 5; y += 5) dot(cxB, y, 1.05, 0.4);
+      // the flag — dots along the stem, a dot cluster at the tip; pops up
+      // once the letter is posted
+      const fx = cxB + bw / 2 + 2;
       const fy = byTop + bh * 0.35;
       const ang = -Math.PI / 2 + (1 - flagK) * (Math.PI * 0.6);
-      const tipX = fx + Math.cos(ang) * bh * 0.6;
-      const tipY = fy + Math.sin(ang) * bh * 0.6;
-      ctx.globalAlpha = 0.45 + flagK * 0.55;
-      ctx.strokeStyle = flagK > 0.5 ? CYAN : INK;
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(fx, fy);
-      ctx.lineTo(tipX, tipY);
-      ctx.stroke();
-      ctx.globalAlpha = 0.35 + flagK * 0.65;
+      const stem = bh * 0.6;
       ctx.fillStyle = flagK > 0.5 ? CYAN : INK;
-      ctx.fillRect(tipX - 3, tipY - 3, 7, 6);
+      for (let i = 0; i <= 4; i++) dot(fx + Math.cos(ang) * stem * (i / 4), fy + Math.sin(ang) * stem * (i / 4), 1.15, 0.4 + flagK * 0.6);
+      const tipX = fx + Math.cos(ang) * stem;
+      const tipY = fy + Math.sin(ang) * stem;
+      for (const [ox, oy] of [
+        [2.5, -2.5],
+        [6, -2.5],
+        [2.5, 2],
+        [6, 2],
+      ] as [number, number][]) {
+        dot(tipX + Math.cos(ang + Math.PI / 2) * oy + Math.cos(ang) * ox, tipY + Math.sin(ang + Math.PI / 2) * oy + Math.sin(ang) * ox, 1.3, 0.4 + flagK * 0.6);
+      }
+
+      // --- the fading cyan trail, rendered behind the letter ---
+      ctx.fillStyle = CYAN;
+      for (let i = trail.length - 1; i >= 0; i--) {
+        const d = trail[i];
+        d.a -= dt * 0.9;
+        if (d.a <= 0) trail.splice(i, 1);
+        else dot(d.x, d.y, 1.5, d.a);
+      }
+      ctx.fillStyle = INK;
 
       // --- the letter riding the route ---
       if (pCur < 0.992) {
@@ -185,25 +182,16 @@ export function ContactMotif() {
         ctx.scale(s, s);
         ctx.globalAlpha = 0.95;
         ctx.strokeStyle = INK;
-        ctx.lineWidth = 1.2;
-        ctx.strokeRect(-9, -6, 18, 12);
+        ctx.lineWidth = 1.3;
+        ctx.strokeRect(-13, -9, 26, 18);
         ctx.globalAlpha = 0.6;
         ctx.beginPath();
-        ctx.moveTo(-9, -6);
-        ctx.lineTo(0, 1);
-        ctx.lineTo(9, -6);
+        ctx.moveTo(-13, -9);
+        ctx.lineTo(0, 2);
+        ctx.lineTo(13, -9);
         ctx.stroke();
         ctx.restore();
       }
-      // fading cyan trail behind it
-      ctx.fillStyle = CYAN;
-      for (let i = trail.length - 1; i >= 0; i--) {
-        const d = trail[i];
-        d.a -= dt * 0.9;
-        if (d.a <= 0) trail.splice(i, 1);
-        else dot(d.x, d.y, 1.3, d.a);
-      }
-      ctx.fillStyle = INK;
     };
 
     let raf = 0;
