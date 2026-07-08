@@ -1731,6 +1731,16 @@ html {
 .contact > * {
   position: relative;
 }
+/* The contact story — a letter rides the dotted route into the mailbox. */
+.contact__motif {
+  height: clamp(120px, 16vw, 170px);
+  margin-bottom: var(--space-s);
+}
+.contact__motif canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 .contact h2 {
   color: var(--ink);
   font-size: var(--step-4);

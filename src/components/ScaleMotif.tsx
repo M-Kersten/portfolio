@@ -4,9 +4,9 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 export type MotifLayer = 'city' | 'room' | 'chip';
 
 // A small generative "window" into each scale, drawn from the site's signature
-// dots: a city seen from above (a grid with a render-sweep and pulsing blocks),
-// a room of floating things, and a chip with current running through it. One
-// tiny 2D-canvas loop per panel, paused off-screen and frozen for reduced motion.
+// dots: a city street map with live traffic, a room of floating objects, and a
+// chip with current running through it. One tiny 2D-canvas loop per panel,
+// paused off-screen and frozen for reduced motion.
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -17,49 +17,93 @@ function dot(ctx: Ctx, x: number, y: number, r: number, a: number) {
   ctx.fill();
 }
 
-// City — a top-down grid; some cells are "buildings" that breathe, and a
-// render-sweep runs across lighting the dots it passes.
+// City — a dotted street map: an irregular grid of streets with sparse blocks
+// between them, a diagonal avenue cutting through, traffic blips travelling
+// the routes and intersections pulsing like map markers.
+const CITY_V = [0.1, 0.3, 0.52, 0.74, 0.92]; // vertical streets (x fractions)
+const CITY_H = [0.16, 0.4, 0.64, 0.86]; // horizontal streets (y fractions)
+// the avenue runs corner to corner: y at a given x fraction
+const avenueY = (p: number, h: number) => h * 0.88 + p * (h * 0.12 - h * 0.88);
 export function drawCity(ctx: Ctx, w: number, h: number, t: number, base: number) {
-  const g = 15;
-  const scan = ((t * 55) % (w + 140)) - 70;
-  for (let y = g; y < h; y += g) {
-    for (let x = g; x < w; x += g) {
-      const bx = Math.floor(x / (g * 3));
-      const by = Math.floor(y / (g * 3));
-      const building = (bx * 7 + by * 13) % 5 === 0;
-      const pulse = 0.5 + 0.5 * Math.sin(t * 1.8 + bx * 1.3 + by);
-      let a = base * 0.3;
-      if (building) a = base * (0.5 + 0.4 * pulse);
-      const d = Math.abs(x - scan);
-      if (d < 42) a += (1 - d / 42) * base * 0.75;
-      dot(ctx, x, y, a > 0.85 ? 1.7 : 1.2, a);
+  // blocks — sparse, dim dots filling the space between the streets
+  for (let x = 7; x < w; x += 13) {
+    for (let y = 7; y < h; y += 13) {
+      if (CITY_V.some((f) => Math.abs(x - f * w) < 7) || CITY_H.some((f) => Math.abs(y - f * h) < 7)) continue;
+      if (Math.abs(y - avenueY(x / w, h)) < 9) continue;
+      dot(ctx, x, y, 1, base * 0.16);
     }
   }
+  // streets — brighter dotted lines
+  for (const f of CITY_V) for (let y = 4; y < h; y += 6.5) dot(ctx, f * w, y, 1.1, base * 0.4);
+  for (const f of CITY_H) for (let x = 4; x < w; x += 6.5) dot(ctx, x, f * h, 1.1, base * 0.4);
+  // the diagonal avenue
+  const steps = Math.max(12, Math.floor(Math.hypot(w, h * 0.76) / 6.5));
+  for (let i = 0; i <= steps; i++) {
+    const p = i / steps;
+    dot(ctx, p * w, avenueY(p, h), 1.1, base * 0.4);
+  }
+  // traffic — bright blips travelling the routes
+  for (let i = 0; i < 6; i++) {
+    const p = (t * (0.07 + (i % 3) * 0.023) + i * 0.37) % 1;
+    let x: number;
+    let y: number;
+    if (i % 3 === 0) {
+      x = CITY_V[(i * 2) % CITY_V.length] * w;
+      y = p * h;
+    } else if (i % 3 === 1) {
+      x = p * w;
+      y = CITY_H[i % CITY_H.length] * h;
+    } else {
+      x = p * w;
+      y = avenueY(p, h);
+    }
+    dot(ctx, x, y, 1.7, base);
+  }
+  // some intersections pulse like map markers
+  CITY_V.forEach((fx, i) =>
+    CITY_H.forEach((fy, j) => {
+      if ((i + j) % 2) return; // only alternate corners — keeps the map calm
+      const p = 0.5 + 0.5 * Math.sin(t * 1.7 + i * 1.9 + j * 1.1);
+      dot(ctx, fx * w, fy * h, 1.8, base * (0.35 + 0.45 * p));
+    }),
+  );
 }
 
-// Room — a few soft clusters of dots that bob and rotate, like objects you can
-// pick up.
+// Room — floating "objects you can pick up": distinct dotted forms (two
+// counter-rotating rings around a beating core) spread across the whole
+// region, bobbing out of phase.
+const ROOM_OBJ: [number, number, number][] = [
+  // x fraction, y fraction, outer radius (px, scaled down on short canvases)
+  [0.14, 0.3, 24],
+  [0.33, 0.68, 32],
+  [0.52, 0.26, 20],
+  [0.7, 0.6, 28],
+  [0.87, 0.36, 22],
+];
 export function drawRoom(ctx: Ctx, w: number, h: number, t: number, base: number) {
-  const clusters: [number, number, number][] = [
-    [0.2, 0.5, 5],
-    [0.42, 0.4, 5],
-    [0.62, 0.58, 4],
-    [0.82, 0.46, 6],
-  ];
-  clusters.forEach((c, ci) => {
-    const bob = Math.sin(t * 1.15 + ci * 1.9) * 9;
-    const cx = c[0] * w;
-    const cy = c[1] * h + bob;
-    const n = c[2];
-    for (let i = 0; i < n; i++) {
-      const ang = (i / n) * Math.PI * 2 + t * 0.45 * (ci % 2 ? 1 : -1);
-      const rr = 9 + i * 3.2;
-      const x = cx + Math.cos(ang) * rr;
-      const y = cy + Math.sin(ang) * rr * 0.72;
-      const tw = 0.5 + 0.5 * Math.sin(t * 2.8 + i * 1.3 + ci);
-      dot(ctx, x, y, 1.4, base * (0.35 + 0.5 * tw));
+  const sc = Math.max(0.55, Math.min(1, h / 300));
+  ROOM_OBJ.forEach(([fx, fy, r0], ci) => {
+    const r = r0 * sc;
+    const bob = Math.sin(t * 1.05 + ci * 1.9) * 8 * sc;
+    const cx = fx * w;
+    const cy = fy * h + bob;
+    // outer ring
+    const n1 = Math.max(10, Math.round(r * 0.62));
+    for (let i = 0; i < n1; i++) {
+      const ang = (i / n1) * Math.PI * 2 + t * 0.35 * (ci % 2 ? 1 : -1);
+      const tw = 0.5 + 0.5 * Math.sin(t * 2.4 + i * 1.7 + ci);
+      dot(ctx, cx + Math.cos(ang) * r, cy + Math.sin(ang) * r * 0.72, 1.3, base * (0.3 + 0.4 * tw));
     }
-    dot(ctx, cx, cy, 1.9, base * 0.85);
+    // inner ring, counter-rotating
+    const r2 = r * 0.55;
+    const n2 = Math.max(7, Math.round(r2 * 0.62));
+    for (let i = 0; i < n2; i++) {
+      const ang = (i / n2) * Math.PI * 2 - t * 0.55 * (ci % 2 ? 1 : -1);
+      dot(ctx, cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2 * 0.72, 1.2, base * 0.5);
+    }
+    // core
+    const p = 0.5 + 0.5 * Math.sin(t * 1.8 + ci);
+    dot(ctx, cx, cy, 1.8 + p * 0.6, base * (0.6 + 0.3 * p));
   });
 }
 

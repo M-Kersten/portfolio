@@ -1,5 +1,6 @@
 import { site } from '../content';
 import { ScanFrame } from './ScanFrame';
+import { ContactMotif } from './ContactMotif';
 
 export function Contact() {
   const c = site.contact;
@@ -8,6 +9,7 @@ export function Contact() {
       <ScanFrame variant="section" />
       <div className="container">
         <div className="contact">
+          <ContactMotif />
           <h2>{c.title}</h2>
           <p>{c.lead}</p>
           <a className="contact__email" href={`mailto:${c.email}`}>
