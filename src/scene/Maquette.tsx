@@ -1542,7 +1542,7 @@ const BOOKS: { p: V3; s: V3; c: string; r?: V3 }[] = [
   { p: [0.10, 0.78, 0.02], s: [0.055, 0.17, 0.18], c: '#2f4a6b' },
   { p: [0.185, 0.787, 0.02], s: [0.05, 0.185, 0.18], c: '#3a608a' },
   { p: [0.258, 0.742, 0.02], s: [0.05, 0.16, 0.18], c: '#4f74a6', r: [0, 0, 0.17] }, // leaning
-  // middle shelf (y ≈ 0.52) — gap at x ≈ 0.12 for the orange book
+  // middle shelf (y ≈ 0.52) — gap at x ≈ 0.12 for the open Zwijsen book
   { p: [-0.30, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#5b7cab' },
   { p: [-0.245, 0.515, 0.02], s: [0.048, 0.16, 0.18], c: '#26405f' },
   { p: [-0.185, 0.523, 0.02], s: [0.055, 0.18, 0.18], c: '#3a608a' },
@@ -1559,91 +1559,68 @@ const BOOKS: { p: V3; s: V3; c: string; r?: V3 }[] = [
   { p: [0.03, 0.255, 0.02], s: [0.052, 0.16, 0.18], c: '#6f8cb6' },
 ];
 
-/** The Zwijsen AR-books book — a closed orange book on the shelf that lifts out
- *  and opens on select, revealing its inner spread. Drop a JPG at
- *  public/textures/zwijsen-book.jpg and it maps onto both the cover (seen on the
- *  shelf) and the inner spread (on open); until then it falls back to a plain
- *  cream page + title plate, so nothing breaks. */
+/** The Zwijsen AR-books hotspot — an open book: two THIN pages (planes, so
+ *  nothing clips) meeting at the spine in a gentle V, with the spread artwork
+ *  from public/textures/zwijsen-book.jpg split across them — left half on the
+ *  left page, right half on the right. No cover. Plain cream pages until the
+ *  image loads. It rests lying open in its shelf gap and, on select, lifts out
+ *  and tilts back toward the player so the spread reads face-on. */
 function OpenBook({ slug, position }: { slug: string; position: V3 }) {
-  const { hovered, selected, visited } = useActive(slug);
+  const { selected } = useActive(slug);
   const reduced = useReducedMotion();
   const grp = useRef<Group>(null);
-  const cover = useRef<Group>(null);
-  const sel = useRef(0); // 0 = closed on the shelf, 1 = lifted + open
-  const glow = useRef(0);
-  const live = useRef(0);
+  const sel = useRef(0); // 0 = resting in the gap, 1 = lifted + facing you
   const tex = useOptionalTexture('/textures/zwijsen-book.jpg');
-  const base = useMemo(() => new Color('#ff7a3d'), []);
-  const lively = useMemo(() => new Color('#ffb066'), []);
-  const bodyMat = useMemo(() => {
-    const m = new MeshStandardMaterial({ color: '#ff7a3d', emissive: '#ff7a3d', emissiveIntensity: 0.3, roughness: 0.4, toneMapped: false });
-    m.userData.lifeSkip = true; // ghost→orange handled below
-    return m;
-  }, []);
-  const W = 0.16;
-  const H = 0.2;
-  const T = 0.012;
+  // the spread is one image — clone it into a left and a right half
+  const [texL, texR] = useMemo(() => {
+    if (!tex) return [null, null] as const;
+    const half = (off: number) => {
+      const t = tex.clone();
+      t.repeat.set(0.5, 1);
+      t.offset.set(off, 0);
+      t.needsUpdate = true;
+      return t;
+    };
+    return [half(0), half(0.5)] as const;
+  }, [tex]);
+  useEffect(
+    () => () => {
+      texL?.dispose();
+      texR?.dispose();
+    },
+    [texL, texR],
+  );
+  const W = 0.17; // full open width
+  const H = 0.19; // page depth
+  const ANG = 0.3; // each page's lift from flat — the open-book V
   useFrame(() => {
     sel.current += ((selected ? 1 : 0) - sel.current) * 0.09;
-    glow.current += ((hovered || selected ? 1 : visited ? 0.4 : 0) - glow.current) * 0.12;
-    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
     const s = reduced ? (selected ? 1 : 0) : sel.current;
     const g = grp.current;
-    if (g) {
-      // closed → standing cover-out (rot.x = 90°); open → tilted back toward the
-      // player and lifted forward so the spread reads face-on
-      g.rotation.x = (Math.PI / 2) * (1 - s) + 1.18 * s;
-      g.rotation.y = 0.4 * s;
-      g.position.set(position[0] - 0.03 * s, position[1] + 0.14 * s, position[2] + 0.02 + 0.26 * s);
-    }
-    if (cover.current) cover.current.rotation.z = 2.4 * s; // front cover swings open
-    // a grey ghost book on the shelf; opening it floods the orange back in
-    bodyMat.emissiveIntensity = 0.07 + live.current * 0.21 + glow.current * 0.55;
-    bodyMat.color.copy(GHOST_FILL).lerp(base, live.current).lerp(lively, live.current * 0.6);
-    bodyMat.emissive.copy(GHOST_FILL).lerp(base, live.current).lerp(lively, live.current * 0.6);
+    if (!g) return;
+    // lies open in the shelf gap; lifts forward + tilts to face the player
+    g.rotation.x = 1.12 * s;
+    g.rotation.y = 0.35 * s;
+    g.position.set(position[0] - 0.03 * s, position[1] + 0.02 + 0.13 * s, position[2] + 0.02 + 0.26 * s);
   });
   return (
     <group ref={grp} position={position}>
-      {/* page block (cream) between the covers */}
-      <mesh position={[0.006, 0, 0]}>
-        <boxGeometry args={[W - 0.02, 0.02, H - 0.012]} />
-        <meshStandardMaterial color="#efe6d0" emissive="#efe6d0" emissiveIntensity={0.1} roughness={0.85} />
-      </mesh>
-      {/* back cover */}
-      <mesh position={[0, -0.012, 0]} material={bodyMat}>
-        <boxGeometry args={[W, T, H]} />
-      </mesh>
-      {/* inner spread — the texture (or cream fallback), facing up */}
-      <mesh position={[0.006, 0.011, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[W - 0.022, H - 0.018]} />
-        {tex ? (
-          <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.55} roughness={0.7} toneMapped={false} />
-        ) : (
-          <meshStandardMaterial color="#f3ead4" emissive="#f3ead4" emissiveIntensity={0.16} roughness={0.85} />
-        )}
-      </mesh>
-      {/* spine */}
-      <mesh position={[-W / 2, 0, 0]} material={bodyMat}>
-        <boxGeometry args={[0.016, T + 0.03, H]} />
-      </mesh>
-      {/* front cover — hinged at the spine, lifts open on select */}
-      <group ref={cover} position={[-W / 2, 0.012, 0]}>
-        <mesh position={[W / 2, 0, 0]} material={bodyMat}>
-          <boxGeometry args={[W, T, H]} />
-        </mesh>
-        {/* cover art once the texture loads, else the plain title plate */}
-        {tex ? (
-          <mesh position={[W / 2, T / 2 + 0.0015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[W * 0.9, H * 0.9]} />
-            <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.3} roughness={0.8} toneMapped={false} />
-          </mesh>
-        ) : (
-          <mesh position={[W / 2, T * 0.6, 0.03]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[W * 0.52, 0.045]} />
-            <meshStandardMaterial color="#fff0db" emissive="#fff0db" emissiveIntensity={0.3} toneMapped={false} />
-          </mesh>
-        )}
-      </group>
+      {([-1, 1] as const).map((side) => {
+        const t = side < 0 ? texL : texR;
+        return (
+          // each page pivots at the spine, outer edge raised into the V
+          <group key={side} rotation={[0, 0, side * ANG]}>
+            <mesh position={[(side * W) / 4, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[W / 2, H]} />
+              {t ? (
+                <meshStandardMaterial map={t} emissiveMap={t} emissive="#ffffff" emissiveIntensity={0.5} roughness={0.75} toneMapped={false} side={DoubleSide} />
+              ) : (
+                <meshStandardMaterial color="#efe6d0" emissive="#efe6d0" emissiveIntensity={0.14} roughness={0.85} side={DoubleSide} />
+              )}
+            </mesh>
+          </group>
+        );
+      })}
     </group>
   );
 }
@@ -1756,7 +1733,7 @@ function BookcaseMouse({ gap }: { gap: V3 }) {
 }
 
 /** The bookcase. Engaging the Zwijsen book "turns it on": the book spines glow,
- *  alongside the orange book lifting + opening. */
+ *  alongside the open spread lifting out to face the player. */
 function Bookcase({ position }: { position: V3 }) {
   const { hovered, selected, visited } = useActive('zwijsen-ar-books');
   const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
@@ -1887,7 +1864,7 @@ function RoomRig() {
       </group>
 
       {/* bookcase (back-right) — engaging the Zwijsen book lights its spine +
-          opens the orange book */}
+          lifts the open book out of its gap */}
       <Bookcase position={shelf.position} />
 
       {/* couch + phone — faces the coffee table / room front (+z). Opening the
