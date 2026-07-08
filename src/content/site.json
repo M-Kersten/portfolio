@@ -1,10 +1,10 @@
 {
   "brand": "Merijn Kersten",
   "nav": [
-    { "href": "#capabilities", "label": "What I make" },
+    { "href": "#capabilities", "label": "What I do" },
     { "href": "#work", "label": "Projects" },
-    { "href": "#about", "label": "About" },
-    { "href": "#contact", "label": "Say hi" }
+    { "href": "#about", "label": "About me" },
+    { "href": "#contact", "label": "Contact" }
   ],
   "hero": {
     "name": "Merijn Kersten",
@@ -20,37 +20,37 @@
   },
   "spawn": "1997-03-16",
   "career": [
-    { "company": "Letink Design", "from": "2016-09", "to": "2018-09", "color": "#7f9cc0" },
-    { "company": "DTT", "from": "2019-01", "to": "2020-07", "color": "#46b8a4", "role": "XR & app developer", "location": "Amsterdam, NL", "blurb": "An Amsterdam studio where I bounced across projects — an interactive educational play-book, a room-scale VR experience and an AR showcase app." },
-    { "company": "Popcore", "from": "2020-06", "to": "2022-05", "color": "#b48ced", "role": "Game developer", "location": "Remote / Berlin, DE", "blurb": "Casual mobile games at scale — the kind that land on thousands of devices and have to stay fun while surviving real app stores and audiences." },
-    { "company": "Wonderment", "from": "2022-01", "to": "2024-02", "color": "#e6a95e", "role": "Creative technologist", "location": "Netherlands", "blurb": "Location-based XR — anchoring digital experiences to real places so the physical and the digital stop feeling like separate worlds." },
-    { "company": "Philips", "from": "2024-03", "to": "2024-06", "color": "#5b8fd6", "role": "XR & AI engineer", "location": "Eindhoven, NL", "blurb": "Medical XR and AI prototyping — pushing new spatial and machine-learning tech toward something dependable enough to actually be useful." },
-    { "company": "Alliander", "from": "2024-06", "to": "2024-11", "color": "#74c06a" },
-    { "company": "Philips", "from": "2024-11", "to": "2025-07", "color": "#5b8fd6", "role": "XR & AI engineer", "location": "Eindhoven, NL", "blurb": "Medical XR and AI prototyping — pushing new spatial and machine-learning tech toward something dependable enough to actually be useful." },
-    { "company": "KMar", "from": "2025-07", "to": null, "color": "#d97f7f" }
+    { "company": "Letink Design", "from": "2016-09", "to": "2018-09", "color": "#7f9cc0", "role": "VR developer", "location": "Enter, NL", "blurb": "Started my programming career at Letink, a digital 3D agency, as an intern. After that i got hired as a VR developer helping develop immersive experiences." },
+    { "company": "DTT", "from": "2019-01", "to": "2020-07", "color": "#46b8a4", "role": "XR & app developer", "location": "Amsterdam, NL", "blurb": "An Amsterdam studio where I worked across projects and grew from intern to team lead" },
+    { "company": "Popcore", "from": "2020-06", "to": "2022-05", "color": "#b48ced", "role": "Game developer", "location": "Berlin, DE", "blurb": "Casual mobile games at a big scale. These apps are on millions of devices and have to stay fun while surviving real app stores and audiences." },
+    { "company": "Wonderment", "from": "2022-01", "to": "2024-02", "color": "#e6a95e", "role": "Creative technologist", "location": "Amsterdam, NL", "blurb": "Wonderment specializes in Location-based XR. Anchoring digital experiences to real places to tell new and interesting stories, that's what i made happen working here." },
+    { "company": "Philips", "from": "2024-03", "to": "2024-06", "color": "#5b8fd6", "role": "XR & AI engineer", "location": "Eindhoven, NL", "blurb": "Medical XR and AI prototyping. Worked on pushing new spatial tech toward something dependable enough to actually be useful." },
+    { "company": "Alliander", "from": "2024-06", "to": "2024-11", "color": "#74c06a", "role": "XR engineer", "location": "Arnhem, NL", "blurb": "For Alliander i worked on integrating XR into their operations. In a small dedicated team we made a prototype for placing transformers in the real world." },
+    { "company": "Philips", "from": "2024-11", "to": "2025-07", "color": "#5b8fd6", "role": "XR & AI engineer", "location": "Eindhoven, NL", "blurb": "Worked on pushing new spatial tech toward something dependable enough to actually be useful." },
+    { "company": "Marechaussee", "from": "2025-07", "to": "2026-12", "color": "#d97f7f" , "role": "XR consultant & networking engineer", "location": "Apeldoorn, NL", "blurb": "The Marechaussee is the Dutch military police. I worked on a project to connect VR players in a complex system that has been in development for years." }
   ],
   "about": {
     "title": "From shaders\nto screws",
     "lead": "I’m a creative technologist from Utrecht. I've been working on it for about a decade, and I still get the same kick out of it: take some upcoming technology and push it until it does something slightly magical.",
     "body": [
       "I’m happiest somewhere between the screen and the physical world. I’ll jump from a shader to a backend to a soldering iron on the same day. I like seeing the whole thing, context is everything. A lot of what I make is really about connecting the digital and the physical so they stop feeling like separate worlds.",
-      "Most of what I actually know came from side projects and things that broke in interesting ways. I like grabbing tech before it’s really ready — ARKit and ARCore back when you still had to glue them together yourself, multiplayer AR, visual positioning, Vision Pro, whatever the new shiny thing is.",
-      "I have some opinions, and here’s the big one: the demo always lies. Something that works flawlessly on my desk will find a hundred new ways to break when it meets a real network, hardware, or person who didn’t read the manual.",
+      "Most of what I actually know came from side projects and things that broke in interesting ways. I like testing tech before it’s really ready, ARKit and ARCore back when you still had to glue them together yourself, multiplayer AR, VPS, Apple Vision Pro, whatever the new thing is.",
+      "I have some opinions, and here’s the main one: the demo always lies. Something that works flawlessly on my desk will find a hundred new ways to break when it meets a real network, hardware, or person who didn’t read the manual.",
       "Right now I’m connecting VR players without crossing wires (a real challenge it turns out) and a couple of side projects. If any of that sounds fun, come say hi!"
     ],
     "facts": [
       { "label": "Based in", "value": "Utrecht, Netherlands" },
-      { "label": "Currently into", "value": "Music production, Multiplayer, UX design" },
-      { "label": "Tools I reach for", "value": "Unity, Unreal, full-stack webdev, Arduino" },
-      { "label": "Off the clock", "value": "Baking, History/theology, Fitness" }
+      { "label": "Currently into", "value": "Music production, Multiplayer, UX design, AI experiments" },
+      { "label": "Tools I reach for", "value": "Unity, Ableton Live, full-stack webdev, Arduino" },
+      { "label": "Off the clock", "value": "Baking, Cooking, History, Church, Fitness" }
     ]
   },
   "contact": {
     "title": "Let’s build something cool together",
-    "lead": "I’m always up for a chat, drop me a line.",
+    "lead": "I’m always up for a chat, hit me up.",
     "email": "info@merijnkersten.nl",
     "links": [
-      { "href": "https://www.linkedin.com/", "label": "LinkedIn" },
+      { "href": "https://www.linkedin.com/in/merijn-kersten/", "label": "LinkedIn" },
       { "href": "https://github.com/m-kersten", "label": "GitHub" },
       { "href": "https://www.instagram.com/merijnkersten/", "label": "Instagram" },
       { "href": "https://www.youtube.com/@mrspazzout1/featured", "label": "YouTube" }

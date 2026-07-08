@@ -964,11 +964,11 @@ function blobPts(r: number, wobble: number, seg = 48, seed = 7): V3[] {
  *  with a spring and pans left↔right scanning the scene. Taking a picture
  *  flashes only the viewfinder screen: a separate plane parked on the model
  *  (tweak BINOS_SCREEN_* below to fit it to the display). */
-const BINOS_H = 0.2; // world height the model is normalised to
+const BINOS_H = 0.25; // world height the model is normalised to
 // The screen plane, in the viewer's local space (feet at y=0, height BINOS_H).
-const BINOS_SCREEN_POS: V3 = [0, 0.14, 0.045];
+const BINOS_SCREEN_POS: V3 = [0, 0.18, 0.005];
 const BINOS_SCREEN_ROT: V3 = [0, 0, 0];
-const BINOS_SCREEN_SIZE: [number, number] = [0.06, 0.045];
+const BINOS_SCREEN_SIZE: [number, number] = [0.07, 0.075];
 function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY?: number; slug?: string }) {
   const { selected, visited } = useActive(slug ?? '');
   const reduced = useReducedMotion();
@@ -1161,7 +1161,7 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
       {/* fireflies wandering between the trees */}
       <Fireflies slug={slug} />
       {/* the ARCam tower viewer — pops in and scans when the hotspot is selected */}
-      <Binoculars position={[0.1, 0, 0.34]} rotationY={-0.15} slug={slug} />
+      <Binoculars position={[0.1, 0.1, 0.34]} rotationY={-0.15} slug={slug} />
       </group>
     </group>
   );
