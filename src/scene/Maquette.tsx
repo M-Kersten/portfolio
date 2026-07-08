@@ -329,19 +329,32 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
     const dt = Math.min(delta, 1 / 30);
     const t = s.clock.elapsedTime;
 
-    // --- lift + rotate toward the user on select; buzz on hover while resting ---
+    // --- lift, scale, and rotate toward the user on select; buzz on hover while resting ---
     const rig = rigRef.current;
     if (rig) {
       turn.current += ((selected ? 1 : 0) - turn.current) * 0.1;
       const tt = reduced ? (selected ? 1 : 0) : turn.current;
       buzz.current += ((hovered || selected ? 1 : 0) - buzz.current) * 0.2;
       const a = reduced ? 0 : buzz.current * (1 - tt); // buzz fades as it stands up
-      rig.rotation.set(mix(-Math.PI / 2, -0.5, tt), Math.sin(t * 45) * 0.022 * a, mix(0.3, 0.15, tt));
+      
+      // Tweak this value to match your scene's camera angle:
+      // Positive values (e.g., 0.35) rotate it right; negative values (e.g., -0.35) rotate it left.
+      const YAW_OFFSET = 0.38; 
+
+      rig.rotation.set(
+        mix(-Math.PI / 2, -0.15, tt), 
+        mix(0, YAW_OFFSET, tt) + (Math.sin(t * 45) * 0.022 * a), 
+        mix(0.3, 0.0, tt)
+      );
+      
       rig.position.set(
         position[0] + Math.sin(t * 50) * 0.005 * a,
-        position[1] + tt * 0.085, // rises off the cushion so it doesn't clip
+        position[1] + tt * 0.14, 
         position[2] + Math.cos(t * 58) * 0.005 * a,
       );
+
+      const sLvl = mix(1, 1.35, tt);
+      rig.scale.set(sLvl, sLvl, sLvl);
     }
 
     // --- emissive screen: glows on hover/visit, and swaps to a screenshot once
@@ -353,7 +366,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
       const wantImg = (selected || visited) && !!tex;
       if (wantImg !== shown.current) {
         shown.current = wantImg;
-        m.map = wantImg ? tex : null;
+        m.map = null;
         m.emissiveMap = wantImg ? tex : null;
         m.needsUpdate = true;
       }
@@ -362,8 +375,9 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
       // touch ("trying to wake"), colour floods in on click and stays
       m.emissiveIntensity = (wantImg ? 0.62 : 0.14 + 0.38 * glow.current) + k.current * (0.3 + breathe);
       if (wantImg) {
-        m.color.set('#ffffff');
+        m.color.set('#000000');
         m.emissive.set('#ffffff');
+        m.emissiveIntensity = 0.8;
       } else {
         m.color.copy(GHOST_FILL).lerp(base, Math.max(glow.current, k.current * 0.3)).lerp(lifelike, glow.current);
         m.emissive.copy(GHOST_FILL).lerp(base, Math.max(glow.current, k.current * 0.3)).lerp(lifelike, glow.current);
@@ -426,7 +440,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
         {/* screen face — a ghost glow until opened, then the screenshot */}
         <mesh position={[0, 0, args[2] / 2 + 0.0006]}>
           <planeGeometry args={[args[0] * 0.86, args[1] * 0.93]} />
-          <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={false} />
+          <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={true} />
         </mesh>
       </group>
       {balls.map((b, i) => (
@@ -970,7 +984,7 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
           <LiveGlassMat slug="arcam" color="#4a96c0" opacity={0.3} />
         </mesh>
         {/* shoreline */}
-        <Line points={lake.shore} position={[0, 0.03, 0]} color={live ? '#27557d' : accent} lineWidth={1.2} transparent opacity={0.6} />
+        <Line points={lake.shore} position={[0, 0.03, 0]} color={live ? '#5fc4ff' : accent} lineWidth={1.2} transparent opacity={0.6} />
         {/* ripples */}
         <Line points={circlePts(0.06, 22)} position={[-0.03, 0.032, 0.02]} color={live ? '#7fd0ff' : NEUTRAL} lineWidth={1} transparent opacity={0.4} />
         <Line points={circlePts(0.035, 18)} position={[0.06, 0.032, -0.04]} color={live ? '#7fd0ff' : NEUTRAL} lineWidth={1} transparent opacity={0.35} />
@@ -1243,7 +1257,7 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
             ),
           );
         }
-        return new TubeGeometry(new CatmullRomCurve3(pts), 14, 0.0025, 5, false);
+        return new TubeGeometry(new CatmullRomCurve3(pts), 14, 0.006, 5, false);
       }),
     [from, targets],
   );
