@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, TubeGeometry, Vector3, type Group, type Material, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, TubeGeometry, Vector3, type Group, type Material, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { useTweak } from './devTweak';
 import { sceneStore, useSceneSelector } from './store';
@@ -838,26 +839,66 @@ function blobPts(r: number, wobble: number, seg = 48, seed = 7): V3[] {
   return pts;
 }
 
-/** The park's AR tower viewer — the ARCam installation. It stays hidden until
- *  the ARCam hotspot is selected, then pops in, pans left↔right scanning the
- *  scene and flashes its lenses at each end as if taking a photo. */
+/** The park's AR tower viewer — the ARCam installation, loaded from the real
+ *  model at public/models/binoculars.gltf (single self-contained mesh). It's
+ *  normalised at load (restyled to the maquette's metal, stood on the ground,
+ *  scaled to viewer height) and keeps the exact behaviour of the old build:
+ *  hidden until the ARCam hotspot is selected, then pops in with a spring,
+ *  pans left↔right scanning the scene, and fires a camera flash at each end
+ *  of the sweep. */
+const BINOS_H = 0.26; // world height the model is normalised to
 function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY?: number; slug?: string }) {
-  const { accent } = useAccent();
   const { selected, visited } = useActive(slug ?? '');
   const reduced = useReducedMotion();
-  const METAL = '#4a5560';
   const popRef = useRef<Group>(null);
   const headRef = useRef<Group>(null);
   const k = useRef(0); // pop-in scale progress
   const vel = useRef(0);
   const flash = useRef(0); // camera-flash level, decays each frame
   const lastShot = useRef(0);
-  // one shared material for both objective lenses so they flash together
-  const lensMat = useMemo(() => {
-    const m = new MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5, roughness: 0.3, metalness: 0, toneMapped: false });
-    m.userData.lifeSkip = true; // flash-animated here; only ever shown alive
-    return m;
-  }, [accent]);
+  const flashMat = useRef<MeshStandardMaterial | null>(null);
+  const [model, setModel] = useState<Group | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    new GLTFLoader().load(
+      asset('/models/binoculars.gltf'),
+      (g) => {
+        if (cancelled) return;
+        const scene = g.scene;
+        // one shared material in the maquette's language; its emissive is the
+        // camera flash (driven per frame below, so LifeGroup skips it)
+        const mat = new MeshStandardMaterial({
+          color: '#4a5560',
+          roughness: 0.45,
+          metalness: 0.3,
+          emissive: '#dff6ff',
+          emissiveIntensity: 0,
+          toneMapped: false,
+        });
+        mat.userData.lifeSkip = true;
+        scene.traverse((o) => {
+          const mesh = o as Mesh;
+          if ((mesh as { isMesh?: boolean }).isMesh) mesh.material = mat;
+        });
+        flashMat.current = mat;
+        // normalise: viewer height, feet on the ground, centred on its footprint
+        const box = new Box3().setFromObject(scene);
+        const size = new Vector3();
+        box.getSize(size);
+        scene.scale.setScalar(BINOS_H / (size.y || 1));
+        box.setFromObject(scene);
+        scene.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+        setModel(scene);
+      },
+      undefined,
+      () => {}, // absent model → the viewer simply never pops in
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
     const target = selected || visited ? 1 : 0;
@@ -877,7 +918,7 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
     }
     const head = headRef.current;
     if (!reduced && selected && k.current > 0.55) {
-      // sweep the head left↔right; snap a photo at each extreme
+      // sweep left↔right; snap a photo at each extreme
       const ph = s.clock.elapsedTime * 0.95;
       if (head) head.rotation.y = Math.sin(ph) * 0.6;
       const shot = Math.floor((ph - Math.PI / 2) / Math.PI);
@@ -889,60 +930,13 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
       head.rotation.y += (0 - head.rotation.y) * 0.1; // settle back to centre
     }
     flash.current = Math.max(0, flash.current - dt * 3.4);
-    lensMat.emissiveIntensity = 0.5 + flash.current * 4.4;
+    if (flashMat.current) flashMat.current.emissiveIntensity = flash.current * 1.7;
   });
+
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       <group ref={popRef} visible={false}>
-        {/* base + pole */}
-        <mesh position={[0, 0.012, 0]}>
-          <cylinderGeometry args={[0.04, 0.05, 0.024, 18]} />
-          <GlassMat color={METAL} opacity={0.5} />
-          <Edges threshold={30} color={NEUTRAL} />
-        </mesh>
-        <mesh position={[0, 0.12, 0]}>
-          <cylinderGeometry args={[0.013, 0.016, 0.2, 12]} />
-          <GlassMat color={METAL} opacity={0.5} />
-          <Edges threshold={30} color={NEUTRAL} />
-        </mesh>
-        {/* head — pans left↔right, tilted down toward the view */}
-        <group ref={headRef} position={[0, 0.225, 0]}>
-          <group rotation={[0.3, 0, 0]}>
-            <mesh>
-              <boxGeometry args={[0.07, 0.045, 0.05]} />
-              <GlassMat color={METAL} opacity={0.55} />
-              <Edges threshold={30} color={NEUTRAL} />
-            </mesh>
-            {/* two barrels reaching forward, each capped by a glowing objective lens */}
-            {[-0.02, 0.02].map((x, i) => (
-              <group key={i} position={[x, 0, 0.05]} rotation={[Math.PI / 2, 0, 0]}>
-                <mesh>
-                  <cylinderGeometry args={[0.014, 0.017, 0.1, 14]} />
-                  <GlassMat color={METAL} opacity={0.5} />
-                  <Edges threshold={30} color={NEUTRAL} />
-                </mesh>
-                <mesh position={[0, 0.052, 0]} material={lensMat}>
-                  <cylinderGeometry args={[0.015, 0.015, 0.006, 14]} />
-                </mesh>
-              </group>
-            ))}
-            {/* eyepieces at the back */}
-            {[-0.02, 0.02].map((x, i) => (
-              <mesh key={`e${i}`} position={[x, 0, -0.035]} rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[0.009, 0.011, 0.02, 10]} />
-                <GlassMat color={METAL} opacity={0.55} />
-                <Edges threshold={30} color={NEUTRAL} />
-              </mesh>
-            ))}
-            {/* side handlebars */}
-            {[-1, 1].map((sgn, i) => (
-              <mesh key={`h${i}`} position={[sgn * 0.045, -0.006, -0.018]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.005, 0.005, 0.035, 8]} />
-                <GlassMat color={METAL} opacity={0.55} />
-              </mesh>
-            ))}
-          </group>
-        </group>
+        <group ref={headRef}>{model && <primitive object={model} />}</group>
       </group>
     </group>
   );
