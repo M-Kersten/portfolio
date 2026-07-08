@@ -715,16 +715,22 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
   );
 }
 
-/** A stylised park tree — one faceted cone, a single mesh with no separate
- *  trunk, so nothing shows through the canopy. Quiet teal at rest; greens up
- *  once the park has been visited. */
-function ParkTree({ position, h = 0.45, slug }: { position: V3; h?: number; slug?: string }) {
+/** A stylised pine — three stacked faceted cones over a short trunk stub (the
+ *  stub ends below the lowest tier's skirt, so nothing shows through the
+ *  leaves). Quiet teal at rest; greens up once the park has been visited. */
+const PINE_TIERS: [number, number, number][] = [
+  // y centre, radius, height — fractions of the tree height
+  [0.3, 0.36, 0.44],
+  [0.55, 0.27, 0.36],
+  [0.78, 0.18, 0.3],
+];
+function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: number; yaw?: number; slug?: string }) {
   const { selected, visited } = useActive(slug ?? '');
   const live = useRef(0);
   const restCol = useMemo(() => new Color('#3f7d72'), []); // muted teal-green at rest
   const vivid = useMemo(() => new Color('#62c265'), []); // lifelike leaf green once visited
   const mat = useMemo(() => {
-    const m = new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.4 });
+    const m = new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.45 });
     m.userData.lifeSkip = true; // greens up itself once visited
     return m;
   }, []);
@@ -732,12 +738,123 @@ function ParkTree({ position, h = 0.45, slug }: { position: V3; h?: number; slug
     if (!slug) return;
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
     mat.color.copy(restCol).lerp(vivid, live.current);
-    mat.opacity = 0.4 + live.current * 0.4;
+    mat.opacity = 0.45 + live.current * 0.35;
   });
   return (
-    <mesh position={[position[0], h / 2, position[2]]} material={mat}>
-      <coneGeometry args={[h * 0.32, h, 6]} />
-    </mesh>
+    <group position={position} rotation={[0, yaw, 0]}>
+      <mesh position={[0, h * 0.05, 0]}>
+        <cylinderGeometry args={[h * 0.022, h * 0.03, h * 0.1, 6]} />
+        <GlassMat color="#6a7a72" opacity={0.5} />
+      </mesh>
+      {PINE_TIERS.map(([y, r, th], i) => (
+        <mesh key={i} position={[0, h * y, 0]} material={mat}>
+          <coneGeometry args={[h * r, h * th, 6]} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Fireflies over the park — soft green sparks that wander and blink. A faint
+ *  few while the park is dormant; visiting it brings them out properly. */
+const FLY_COUNT = 9;
+function Fireflies({ slug }: { slug?: string }) {
+  const { selected, visited } = useActive(slug ?? '');
+  const reduced = useReducedMotion();
+  const live = useRef(0);
+  const flies = useRef<(Mesh | null)[]>([]);
+  const seeds = useMemo(() => {
+    const rand = makeRand(97);
+    return Array.from({ length: FLY_COUNT }, () => ({
+      x: (rand() - 0.5) * 0.8,
+      z: (rand() - 0.5) * 0.8,
+      y: 0.1 + rand() * 0.22,
+      p: rand() * Math.PI * 2,
+      s: 0.5 + rand() * 0.9,
+    }));
+  }, []);
+  useFrame((st) => {
+    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.05;
+    const t = st.clock.elapsedTime;
+    seeds.forEach((sd, i) => {
+      const m = flies.current[i];
+      if (!m) return;
+      if (reduced) {
+        m.position.set(sd.x, sd.y, sd.z);
+        m.scale.setScalar(0.6 * (0.25 + live.current * 0.75));
+        return;
+      }
+      m.position.set(
+        sd.x + Math.sin(t * 0.24 * sd.s + sd.p) * 0.07,
+        sd.y + Math.sin(t * 0.5 * sd.s + sd.p * 2.1) * 0.035,
+        sd.z + Math.cos(t * 0.31 * sd.s + sd.p) * 0.07,
+      );
+      const blink = Math.max(0, Math.sin(t * (1.1 + sd.s) + sd.p * 3));
+      m.scale.setScalar(blink * (0.25 + live.current * 0.75));
+    });
+  });
+  return (
+    <group>
+      {Array.from({ length: FLY_COUNT }, (_, i) => (
+        <mesh
+          key={i}
+          ref={(m) => {
+            flies.current[i] = m;
+          }}
+        >
+          <sphereGeometry args={[0.009, 8, 6]} />
+          <meshBasicMaterial userData={{ lifeSkip: true }} color="#9fe8b0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Two little ducks drifting lazy loops on the lake (lake-local coordinates).
+ *  They ghost and solidify with the rest of the park. */
+function LakeDucks() {
+  const reduced = useReducedMotion();
+  const ducks = useRef<(Group | null)[]>([]);
+  useFrame((st) => {
+    const t = reduced ? 0 : st.clock.elapsedTime;
+    for (let i = 0; i < 2; i++) {
+      const g = ducks.current[i];
+      if (!g) continue;
+      const dir = i ? -1 : 1;
+      const a = t * 0.14 * dir + i * 2.4;
+      const rx = 0.095;
+      const rz = 0.062;
+      g.position.set(0.02 + Math.cos(a) * rx, 0.026, -0.015 + Math.sin(a) * rz);
+      // point the beak along the direction of travel
+      const vx = -Math.sin(a) * rx * dir;
+      const vz = Math.cos(a) * rz * dir;
+      g.rotation.y = Math.atan2(-vz, vx);
+    }
+  });
+  return (
+    <group>
+      {[0, 1].map((i) => (
+        <group
+          key={i}
+          ref={(g) => {
+            ducks.current[i] = g;
+          }}
+        >
+          <mesh scale={[1.3, 0.75, 1]}>
+            <sphereGeometry args={[0.014, 10, 8]} />
+            <GlassMat color="#cfc49e" opacity={0.55} />
+          </mesh>
+          <mesh position={[0.014, 0.012, 0]}>
+            <sphereGeometry args={[0.008, 8, 6]} />
+            <GlassMat color="#cfc49e" opacity={0.6} />
+          </mesh>
+          <mesh position={[0.024, 0.012, 0]} rotation={[0, 0, -Math.PI / 2]}>
+            <coneGeometry args={[0.003, 0.008, 6]} />
+            <GlassMat color="#e8b64f" opacity={0.7} />
+          </mesh>
+        </group>
+      ))}
+    </group>
   );
 }
 
@@ -1032,10 +1149,17 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
             <meshStandardMaterial color="#3f7d52" roughness={0.7} side={DoubleSide} />
           </mesh>
         ))}
+        {/* two ducks drifting their lazy loops */}
+        <LakeDucks />
       </group>
-      <ParkTree position={[0.2, 0, -0.18]} h={0.44} slug={slug} />
-      <ParkTree position={[0.24, 0, 0.22]} h={0.36} slug={slug} />
-      <ParkTree position={[-0.22, 0, -0.24]} h={0.4} slug={slug} />
+      {/* a small varied grove — each pine at its own height and turn */}
+      <ParkTree position={[0.2, 0, -0.18]} h={0.46} yaw={0.4} slug={slug} />
+      <ParkTree position={[0.24, 0, 0.22]} h={0.34} yaw={2.1} slug={slug} />
+      <ParkTree position={[-0.22, 0, -0.24]} h={0.4} yaw={1.2} slug={slug} />
+      <ParkTree position={[0.4, 0, 0.04]} h={0.3} yaw={3.6} slug={slug} />
+      <ParkTree position={[-0.04, 0, -0.42]} h={0.36} yaw={5.1} slug={slug} />
+      {/* fireflies wandering between the trees */}
+      <Fireflies slug={slug} />
       {/* the ARCam tower viewer — pops in and scans when the hotspot is selected */}
       <Binoculars position={[0.1, 0, 0.34]} rotationY={-0.15} slug={slug} />
       </group>
