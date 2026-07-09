@@ -2862,17 +2862,25 @@ export function Maquette({ onActivate }: MaquetteProps) {
       <DepthVeil />
       {MAQUETTE_LAYERS.map((layer) => {
         const Rig = RIGS[layer.id];
-        // Only the active layer and its immediate neighbour render their full
+        // Only the active layer and its immediate neighbour draw their full
         // geometry. A layer two steps away sits ~2.6 units deeper in the fog and
-        // never reads on screen, so drawing its ~140 meshes every frame is pure
-        // waste — culling it roughly halves the draw calls at the City/Chip ends.
+        // never reads on screen, so its ~140 meshes are pure waste — hiding it
+        // roughly halves the draw calls at the City/Chip ends.
+        //
+        // Crucially this is a `visible` toggle, NOT a mount/unmount: three.js
+        // skips invisible subtrees entirely (same draw-call saving), but the
+        // rigs stay mounted, so crossing a layer boundary while scrolling costs
+        // a boolean flip instead of allocating/disposing 140 meshes mid-scroll —
+        // that churn was making the scroll stutter and "catch up".
         const near = Math.abs(LAYER_STEP[layer.id] - journeyStep) <= 1;
         return (
           <AccentCtx.Provider key={layer.id} value={PALETTE[layer.id]}>
             <group position={[0, LAYER_Y[layer.id], 0]} scale={LAYER_SCALE[layer.id]}>
-              {near && <DotFloor step={layer.id === 'city' ? 0.17 : 0.26} />}
-              {near && <PointCloud seed={SEED[layer.id]} />}
-              {near && <Rig />}
+              <group visible={near}>
+                <DotFloor step={layer.id === 'city' ? 0.17 : 0.26} />
+                <PointCloud seed={SEED[layer.id]} />
+                <Rig />
+              </group>
               {activeLayer === layer.id &&
                 HOTSPOTS.filter((h) => h.layer === layer.id).map((h) => (
                   <HotspotMarker key={h.slug} hotspot={h} color={PALETTE[layer.id].accent} onActivate={onActivate} hidden={!!selectedSlug} />
