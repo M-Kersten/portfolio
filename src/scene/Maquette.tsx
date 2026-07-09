@@ -2607,6 +2607,8 @@ function HotspotMarker({ hotspot, color, onActivate, hidden }: { hotspot: Hotspo
 
 const RIGS: Record<LayerId, () => JSX.Element> = { city: CityRig, room: RoomRig, chip: ChipRig };
 const SEED: Record<LayerId, number> = { city: 11, room: 29, chip: 53 };
+// journeyStep index per layer (0 = City at top … 2 = Chip at bottom).
+const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };
 
 /* ---------- Cross-layer signal lines ----------
    Related projects on different layers are wired together like a tidy run of
@@ -2838,12 +2840,17 @@ export function Maquette({ onActivate }: MaquetteProps) {
       <DepthVeil />
       {MAQUETTE_LAYERS.map((layer) => {
         const Rig = RIGS[layer.id];
+        // Only the active layer and its immediate neighbour render their full
+        // geometry. A layer two steps away sits ~2.6 units deeper in the fog and
+        // never reads on screen, so drawing its ~140 meshes every frame is pure
+        // waste — culling it roughly halves the draw calls at the City/Chip ends.
+        const near = Math.abs(LAYER_STEP[layer.id] - journeyStep) <= 1;
         return (
           <AccentCtx.Provider key={layer.id} value={PALETTE[layer.id]}>
             <group position={[0, LAYER_Y[layer.id], 0]} scale={LAYER_SCALE[layer.id]}>
-              <DotFloor step={layer.id === 'city' ? 0.17 : 0.26} />
-              <PointCloud seed={SEED[layer.id]} />
-              <Rig />
+              {near && <DotFloor step={layer.id === 'city' ? 0.17 : 0.26} />}
+              {near && <PointCloud seed={SEED[layer.id]} />}
+              {near && <Rig />}
               {activeLayer === layer.id &&
                 HOTSPOTS.filter((h) => h.layer === layer.id).map((h) => (
                   <HotspotMarker key={h.slug} hotspot={h} color={PALETTE[layer.id].accent} onActivate={onActivate} hidden={!!selectedSlug} />

@@ -94,7 +94,7 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
       <Maquette onActivate={onActivate} />
 
       {/* A restrained glow — only the brightest accents lift, no neon halo. */}
-      <EffectComposer enableNormalPass={false} multisampling={4}>
+      <EffectComposer enableNormalPass={false} multisampling={2}>
         {/* ref cast: @react-three/postprocessing types the ref as the class, not the instance */}
         <Bloom ref={bloom as never} mipmapBlur luminanceThreshold={0.78} luminanceSmoothing={0.3} intensity={0.4} radius={0.6} />
       </EffectComposer>
