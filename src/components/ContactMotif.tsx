@@ -58,11 +58,11 @@ export function ContactMotif() {
     let delivered = false;
     const trail: { x: number; y: number; a: number }[] = [];
 
+    // Square marks — the site's dot language is squares, not circles.
     const dot = (x: number, y: number, radius: number, a: number) => {
       ctx.globalAlpha = a < 0 ? 0 : a > 1 ? 1 : a;
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fill();
+      const s = radius * 1.7;
+      ctx.fillRect(x - s / 2, y - s / 2, s, s);
     };
 
     // Scroll → progress: the flight only starts once a good third of the card

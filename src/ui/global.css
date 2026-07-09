@@ -1028,7 +1028,7 @@ html {
   top: 0;
   left: 0;
   will-change: transform;
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--ink) 13%, transparent) 1.1px, transparent 1.5px);
+  background-image: var(--dots-ink);
   background-size: 30px 30px;
   pointer-events: none;
 }
@@ -1285,7 +1285,7 @@ html {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--cyan) 92%, transparent) 1.3px, transparent 1.8px);
+  background-image: var(--dots-cyan);
   background-size: 30px 30px;
   background-position: var(--ox, 0px) var(--oy, 0px);
   -webkit-mask-image: radial-gradient(circle var(--r, 130px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.4) 42%, transparent 72%);
@@ -1716,7 +1716,7 @@ html {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--ink) 13%, transparent) 1.1px, transparent 1.5px);
+  background-image: var(--dots-ink);
   background-size: 30px 30px;
   opacity: 0.42;
   pointer-events: none;

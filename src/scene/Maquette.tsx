@@ -488,8 +488,10 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
         <mesh geometry={bodyGeo}>
           <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.28} roughness={0.4} toneMapped={false} />
         </mesh>
-        {/* screen face — a ghost glow until opened, then the screenshot */}
-        <mesh geometry={screenGeo} position={[0, 0, args[2] / 2 + 0.0006]}>
+        {/* screen face — a ghost glow until opened, then the screenshot. Sits
+            clear of the body's bevelled front cap (extrude depth d/2 + bevel
+            d·0.4 = d·0.9) or the opaque body would bury it. */}
+        <mesh geometry={screenGeo} position={[0, 0, args[2] * 0.9 + 0.0006]}>
           <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={true} side={DoubleSide} />
         </mesh>
       </group>

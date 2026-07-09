@@ -10,11 +10,11 @@ export type MotifLayer = 'city' | 'room' | 'chip';
 
 type Ctx = CanvasRenderingContext2D;
 
+// Every mark in the site's dot language is a little square, not a circle.
 function dot(ctx: Ctx, x: number, y: number, r: number, a: number) {
   ctx.globalAlpha = a < 0 ? 0 : a > 1 ? 1 : a;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
+  const s = r * 1.7; // side sized to read like the old circle of radius r
+  ctx.fillRect(x - s / 2, y - s / 2, s, s);
 }
 
 // City — a dotted street map: an irregular grid of streets with sparse blocks
