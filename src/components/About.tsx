@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { site } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { ScanFrame } from './ScanFrame';
+import { Scramble } from './Scramble';
 import { SectionTitle } from './SectionTitle';
 
 const PORTRAITS = 5;
@@ -60,6 +61,106 @@ function AboutPortrait() {
   );
 }
 
+/* The annotated specimen (§4, desktop): the portrait pinned with the four
+   facts using the maquette's own hotspot language — leader lines ending in
+   crosshairs locked onto the photo. Geometry lives in stage coordinates
+   (a 600×640 design box; the SVG and the % positions map onto the same
+   box, so they stay in register at any width). */
+interface PinGeo {
+  c: string; // accent — the value label + leader + crosshair
+  box: CSSProperties; // callout position in the stage
+  line: [number, number, number, number]; // leader, callout → crosshair edge
+  mark: [number, number]; // crosshair centre, on the portrait
+}
+const PINS: PinGeo[] = [
+  { c: '#27e8f2', box: { left: 0, top: '5.5%', width: '22%', textAlign: 'right' }, line: [136, 74, 173, 124], mark: [176, 128] },
+  { c: '#ff9068', box: { left: '77%', top: '19%', width: '23%' }, line: [458, 150, 418, 172], mark: [414, 174] },
+  { c: '#a9f75c', box: { left: '76.5%', top: '50%', width: '23.5%' }, line: [455, 349, 403, 356], mark: [398, 357] },
+  { c: '#27e8f2', box: { left: '4%', top: '71.5%', width: '25%', textAlign: 'right' }, line: [178, 486, 225, 428], mark: [228, 424] },
+];
+
+function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
+  const reduced = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+  const [hot, setHot] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (reduced) {
+      setShown(true);
+      return;
+    }
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (es) => {
+        if (es[0].isIntersecting) {
+          setShown(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.3 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [reduced]);
+
+  const list = facts.slice(0, PINS.length);
+  return (
+    <div
+      className="about__stage"
+      ref={ref}
+      data-shown={shown || undefined}
+      data-hot={hot != null || undefined}
+      style={hot != null ? ({ '--hotc': PINS[hot].c } as CSSProperties) : undefined}
+    >
+      <AboutPortrait />
+      <svg className="about__stage-svg" viewBox="0 0 600 640" preserveAspectRatio="none" aria-hidden="true">
+        {list.map((f, i) => {
+          const s = PINS[i];
+          return (
+            <g key={f.label} className="about__lead-g" data-on={hot === i || undefined} stroke={s.c} fill="none" strokeWidth="1">
+              <line
+                className="about__lead-line"
+                pathLength={1}
+                x1={s.line[0]}
+                y1={s.line[1]}
+                x2={s.line[2]}
+                y2={s.line[3]}
+                style={{ transitionDelay: `${0.12 + i * 0.16}s` }}
+              />
+              <g className="about__lead-mark" style={{ transitionDelay: `${0.3 + i * 0.16}s` }}>
+                <circle cx={s.mark[0]} cy={s.mark[1]} r="3.4" />
+                <line x1={s.mark[0]} y1={s.mark[1] - 9} x2={s.mark[0]} y2={s.mark[1] - 4.5} />
+                <line x1={s.mark[0]} y1={s.mark[1] + 4.5} x2={s.mark[0]} y2={s.mark[1] + 9} />
+                <line x1={s.mark[0] - 9} y1={s.mark[1]} x2={s.mark[0] - 4.5} y2={s.mark[1]} />
+                <line x1={s.mark[0] + 4.5} y1={s.mark[1]} x2={s.mark[0] + 9} y2={s.mark[1]} />
+              </g>
+            </g>
+          );
+        })}
+      </svg>
+      <dl className="about__pins">
+        {list.map((f, i) => (
+          <div
+            key={f.label}
+            className="about__callout"
+            data-on={hot === i || undefined}
+            style={{ ...PINS[i].box, '--c': PINS[i].c, transitionDelay: `${0.08 + i * 0.16}s` } as CSSProperties}
+            onMouseEnter={() => setHot(i)}
+            onMouseLeave={() => setHot((h) => (h === i ? null : h))}
+          >
+            <dt>{f.label}</dt>
+            <dd>
+              <Scramble text={f.value} delay={350 + i * 170} wrap />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 export function About() {
   const a = site.about;
   return (
@@ -75,15 +176,20 @@ export function About() {
             ))}
           </div>
           <div className="about__side">
-            <AboutPortrait />
-            <dl className="about__list">
-              {a.facts.map((f) => (
-                <div key={f.label}>
-                  <dt>{f.label}</dt>
-                  <dd>{f.value}</dd>
-                </div>
-              ))}
-            </dl>
+            <AboutStage facts={a.facts} />
+            {/* Narrow screens — the classic stack; the stage needs its ring of
+                callouts to breathe, so it only renders wide (CSS toggles). */}
+            <div className="about__fallback">
+              <AboutPortrait />
+              <dl className="about__list">
+                {a.facts.map((f) => (
+                  <div key={f.label}>
+                    <dt>{f.label}</dt>
+                    <dd>{f.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
         </div>
       </div>

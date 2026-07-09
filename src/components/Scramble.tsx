@@ -15,7 +15,11 @@ function noise(text: string): string {
   return s;
 }
 
-export function Scramble({ text, delay = 0 }: { text: string; delay?: number }) {
+// `wrap` lets the live overlay wrap like its ghost — only safe for mono
+// text, where the preserved spaces land at the same indices and give the
+// noise identical break points. Proportional text keeps the no-wrap default
+// (noise runs a touch wide to the right instead of spilling onto new lines).
+export function Scramble({ text, delay = 0, wrap = false }: { text: string; delay?: number; wrap?: boolean }) {
   const reduced = useReducedMotion();
   const ref = useRef<HTMLSpanElement>(null);
   const [out, setOut] = useState(() => (reduced ? text : noise(text)));
@@ -58,7 +62,7 @@ export function Scramble({ text, delay = 0 }: { text: string; delay?: number }) 
   }, [text, delay, reduced]);
 
   return (
-    <span ref={ref} className="scramble" aria-label={text}>
+    <span ref={ref} className={`scramble${wrap ? ' scramble--wrap' : ''}`} aria-label={text}>
       <span className="scramble__ghost" aria-hidden="true">
         {text}
       </span>

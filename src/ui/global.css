@@ -891,7 +891,14 @@ html {
 .scramble__live {
   position: absolute;
   inset: 0 auto auto 0;
+  width: 100%;
   white-space: pre;
+}
+/* Mono, multi-line text (the About fact values) opts into wrapping: spaces
+   survive the noise at the same indices, so the overlay breaks exactly
+   where its ghost does while it decodes. */
+.scramble--wrap .scramble__live {
+  white-space: pre-wrap;
 }
 
 /* ---- Mobile: three stacked cards ---- */
@@ -1683,6 +1690,9 @@ html {
 .about__side {
   display: grid;
   gap: var(--space-l);
+  /* centre the specimen stage against the taller bio column */
+  align-self: stretch;
+  align-content: center;
 }
 /* Scroll-scrubbed portrait — five stacked frames, the active one faded in.
    Kept compact so the bio + facts still read in one view. */
@@ -1739,6 +1749,129 @@ html {
 }
 .about__list dd {
   margin: 0 0 var(--space-s);
+}
+
+/* The annotated specimen — the portrait becomes the section's hotspot: facts
+   pinned to it with the maquette's leader-line + crosshair language. The SVG
+   overlay and the % positions share one 600×640 design box (the stage keeps
+   that aspect), so lines and text stay in register at any width. */
+.about__stage {
+  position: relative;
+  width: min(100%, 560px);
+  aspect-ratio: 600 / 640;
+  margin-inline: auto;
+}
+.about__stage .about__portrait {
+  position: absolute;
+  left: 27.5%;
+  top: 15%;
+  width: 41.5%;
+  max-width: none;
+}
+.about__stage .scanframe--portrait i {
+  transition: border-color 0.25s var(--ease);
+}
+/* the hovered fact's accent locks the viewfinder brackets */
+.about__stage[data-hot] .scanframe--portrait i {
+  border-color: color-mix(in srgb, var(--hotc) 80%, transparent);
+}
+.about__stage-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+/* leaders draw in (dash sweep), crosshairs pop, callouts rise — all staggered
+   via inline transition-delays once the stage scrolls into view */
+.about__lead-line {
+  opacity: 0.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition:
+    stroke-dashoffset 0.5s var(--ease),
+    opacity 0.25s var(--ease);
+}
+.about__lead-g[data-on] .about__lead-line {
+  opacity: 1;
+}
+.about__lead-mark {
+  opacity: 0;
+  transform: scale(0.3);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    opacity 0.3s var(--ease),
+    transform 0.3s var(--ease);
+}
+.about__lead-g[data-on] .about__lead-mark {
+  filter: drop-shadow(0 0 5px var(--hotc));
+}
+.about__stage[data-shown] .about__lead-line {
+  stroke-dashoffset: 0;
+}
+.about__stage[data-shown] .about__lead-mark {
+  opacity: 1;
+  transform: scale(1);
+}
+.about__pins {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  pointer-events: none;
+}
+.about__callout {
+  position: absolute;
+  margin: 0;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(7px);
+  transition:
+    opacity 0.45s var(--ease),
+    transform 0.45s var(--ease);
+}
+.about__stage[data-shown] .about__callout {
+  opacity: 1;
+  transform: none;
+}
+.about__callout dt {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c) 82%, transparent);
+  margin-bottom: 0.35em;
+}
+.about__callout dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--ink-60);
+  transition: color 0.25s var(--ease);
+}
+.about__callout[data-on] dd {
+  color: var(--ink);
+}
+.about__fallback {
+  display: none;
+}
+@media (max-width: 899px) {
+  .about__stage {
+    display: none;
+  }
+  .about__fallback {
+    display: grid;
+    gap: var(--space-l);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .about__lead-line,
+  .about__lead-mark,
+  .about__callout {
+    transition: none;
+  }
 }
 
 .contact {
