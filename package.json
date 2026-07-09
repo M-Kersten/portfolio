@@ -6,9 +6,10 @@
   "description": "Editorial, typography-led portfolio for enterprise VR/AR/digital-twin work. One React Three Fiber renderer, two scenes.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/gen-sitemap.mjs && tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sitemap": "node scripts/gen-sitemap.mjs"
   },
   "dependencies": {
     "@fontsource/space-grotesk": "^5.2.10",

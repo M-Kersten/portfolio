@@ -23,6 +23,20 @@ function fmtPeriod(from: string, to: string | null): string {
   return `${p(from)} – ${to ? p(to) : 'present'}`;
 }
 
+// The company mark for a route tooltip: an explicit logo if the entry provides
+// one, otherwise the site's own favicon derived from its domain (works for most
+// companies out of the box; swap in a local logo via CareerEntry.logo for a
+// crisper mark). Returns null when there's nothing to link to.
+function companyIcon(band: { url?: string; logo?: string }): string | null {
+  if (band.logo) return asset(band.logo);
+  if (!band.url) return null;
+  try {
+    return `https://icons.duckduckgo.com/ip3/${new URL(band.url).hostname}.ico`;
+  } catch {
+    return null;
+  }
+}
+
 // ---- Timeline layout ------------------------------------------------------
 // The map is a single route through time. Every project is a waypoint pinned at
 // its year; where a year holds more than one, they stack above and below the
@@ -43,6 +57,8 @@ interface CareerBand {
   location?: string;
   blurb?: string;
   period: string;
+  url?: string;
+  logo?: string;
 }
 interface Timeline {
   width: number;
@@ -61,7 +77,13 @@ function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig
   // the timeline reaches back to where the career actually began.
   const careerMin = career.length ? Math.min(...career.map((c) => Number(c.from.slice(0, 4)))) : Infinity;
   const minYear = Math.min(yearOf(ordered[0]), careerMin);
-  const maxYear = yearOf(ordered[ordered.length - 1]);
+  // The axis has to reach "now": the current job can start *after* the last
+  // logged project (e.g. Marechaussee began in 2025-07, past every project
+  // year), so end the route at the present rather than the last project —
+  // otherwise that band clamps to a zero-width sliver at the edge and vanishes.
+  const now = new Date();
+  const present = now.getFullYear() + now.getMonth() / 12;
+  const maxYear = Math.max(yearOf(ordered[ordered.length - 1]), present);
   const xOf = (y: number) => cfg.startX + (y - minYear) * cfg.yearGap;
 
   // Walk the ordered list year-group by year-group, deciding each stop's side.
@@ -93,8 +115,6 @@ function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig
   // resolve to a clean handoff. Work flagged `freelance` is drawn as a
   // concurrent overlay instead (e.g. Alliander during Philips), so nothing is
   // misrepresented as a single sequence.
-  const today = new Date();
-  const present = today.getFullYear() + today.getMonth() / 12;
   const frac = (s: string | null) => {
     if (!s) return present;
     const [y, m] = s.split('-').map(Number);
@@ -113,7 +133,7 @@ function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig
     const x1 = xFrac(c.s);
     const x2 = xFrac(end);
     if (x2 - x1 > 1)
-      bands.push({ company: c.company, color: c.color, x1, x2, freelance: false, role: c.role, location: c.location, blurb: c.blurb, period: fmtPeriod(c.from, c.to) });
+      bands.push({ company: c.company, color: c.color, x1, x2, freelance: false, role: c.role, location: c.location, blurb: c.blurb, period: fmtPeriod(c.from, c.to), url: c.url, logo: c.logo });
   });
   career
     .filter((c) => c.freelance)
@@ -121,7 +141,7 @@ function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig
       const x1 = xFrac(frac(c.from));
       const x2 = xFrac(frac(c.to));
       if (x2 - x1 > 1)
-        bands.push({ company: c.company, color: c.color, x1, x2, freelance: true, role: c.role, location: c.location, blurb: c.blurb, period: fmtPeriod(c.from, c.to) });
+        bands.push({ company: c.company, color: c.color, x1, x2, freelance: true, role: c.role, location: c.location, blurb: c.blurb, period: fmtPeriod(c.from, c.to), url: c.url, logo: c.logo });
     });
 
   return { width, routeLeft, routeW, stops, bands, minYear, maxYear };
@@ -390,22 +410,46 @@ export function Work() {
                 >
                   {b.company}
                 </span>
-                {/* Hover target over the line + label → tooltip about the stint. */}
-                <div
-                  className="tl-seg"
-                  style={{ left: `${b.x1}px`, width: `${b.x2 - b.x1}px`, '--band': b.color } as CSSProperties}
-                >
-                  <span className="tl-tip" role="tooltip">
-                    <span className="tl-tip__top">
-                      <b>{b.company}</b>
-                      <span className="tl-tip__period">{b.period}</span>
+                {/* Hover/focus target over the line + label → tooltip about the
+                    stint; when the company has a site, the whole band links to
+                    it (opens in a new tab). */}
+                {(() => {
+                  const logo = companyIcon(b);
+                  const tip = (
+                    <span className="tl-tip" role="tooltip">
+                      <span className="tl-tip__top">
+                        {logo && (
+                          <img
+                            className="tl-tip__logo"
+                            src={logo}
+                            alt=""
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <b>{b.company}</b>
+                        <span className="tl-tip__period">{b.period}</span>
+                      </span>
+                      {(b.role || b.location) && (
+                        <span className="tl-tip__role">{[b.role, b.location].filter(Boolean).join(' · ')}</span>
+                      )}
+                      {b.blurb && <span className="tl-tip__body">{b.blurb}</span>}
+                      {b.url && <span className="tl-tip__link">Visit website ↗</span>}
                     </span>
-                    {(b.role || b.location) && (
-                      <span className="tl-tip__role">{[b.role, b.location].filter(Boolean).join(' · ')}</span>
-                    )}
-                    {b.blurb && <span className="tl-tip__body">{b.blurb}</span>}
-                  </span>
-                </div>
+                  );
+                  const segStyle = { left: `${b.x1}px`, width: `${b.x2 - b.x1}px`, '--band': b.color } as CSSProperties;
+                  return b.url ? (
+                    <a className="tl-seg tl-seg--link" style={segStyle} href={b.url} target="_blank" rel="noreferrer" aria-label={`${b.company} — visit website`}>
+                      {tip}
+                    </a>
+                  ) : (
+                    <div className="tl-seg" style={segStyle}>
+                      {tip}
+                    </div>
+                  );
+                })()}
               </Fragment>
             ))}
             {site.spawn && (

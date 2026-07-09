@@ -73,6 +73,11 @@ export interface CareerEntry {
   location?: string;
   /** A sentence about the experience — shown in the route tooltip. */
   blurb?: string;
+  /** Company website — the route band links here (opens in a new tab). */
+  url?: string;
+  /** Optional explicit logo (public/ path). When omitted, the tooltip falls
+   *  back to the company's favicon derived from `url`. */
+  logo?: string;
 }
 
 export interface SiteContent {

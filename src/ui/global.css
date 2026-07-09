@@ -264,6 +264,38 @@ img {
 .nav__cta {
   margin-left: var(--space-xs);
 }
+/* Brand-icon links (YouTube · GitHub · Instagram · LinkedIn). */
+.social {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.nav__social {
+  margin-left: var(--space-2xs);
+  padding-left: var(--space-2xs);
+  border-left: 1px solid var(--hairline);
+}
+.social__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  color: var(--ink-60);
+  border-radius: var(--radius-s);
+  transition:
+    color 0.2s var(--ease),
+    background 0.2s var(--ease);
+}
+.social__link:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.social__icon {
+  width: 1.02rem;
+  height: 1.02rem;
+  display: block;
+}
 .nav__toggle {
   display: none;
 }
@@ -293,6 +325,14 @@ img {
   .nav__cta {
     margin: var(--space-s) 0 0;
     justify-content: center;
+  }
+  /* In the drawer the icons become a centered row, no divider. */
+  .nav__social {
+    margin: var(--space-s) 0 0;
+    padding: 0;
+    border-left: 0;
+    justify-content: center;
+    gap: var(--space-2xs);
   }
   .nav__toggle {
     display: inline-flex;
@@ -1053,6 +1093,17 @@ html {
   z-index: 3;
   cursor: help;
 }
+/* When the stint links to the company site, the whole band is a link. */
+.tl-seg--link {
+  display: block;
+  cursor: pointer;
+  text-decoration: none;
+  border-radius: var(--radius-s);
+}
+.tl-seg--link:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--band) 72%, var(--ink));
+  outline-offset: 3px;
+}
 .tl-tip {
   position: absolute;
   left: 50%;
@@ -1075,16 +1126,25 @@ html {
   pointer-events: none;
   z-index: 20;
 }
-.tl-seg:hover .tl-tip {
+.tl-seg:hover .tl-tip,
+.tl-seg:focus-visible .tl-tip {
   opacity: 1;
   visibility: visible;
   transform: translate(-50%, 0);
 }
 .tl-tip__top {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.8em;
+  align-items: center;
+  gap: 0.5em;
+}
+.tl-tip__logo {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 3px;
+  object-fit: contain;
+  background: #fff; /* favicons often assume a light backdrop */
+  padding: 1px;
 }
 .tl-tip__top b {
   font-family: var(--font-display);
@@ -1092,6 +1152,7 @@ html {
   color: var(--ink);
 }
 .tl-tip__period {
+  margin-left: auto;
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.06em;
@@ -1109,6 +1170,17 @@ html {
   font-size: 0.82rem;
   line-height: 1.45;
   color: var(--ink-60);
+}
+.tl-tip__link {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--band) 82%, var(--ink));
+}
+.tl-seg--link:hover .tl-tip__link {
+  color: var(--ink);
 }
 .tl-cap {
   position: absolute;

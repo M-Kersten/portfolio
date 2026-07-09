@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { site } from '../content';
 import { Logo } from './Logo';
+import { SocialLinks } from './SocialLinks';
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -18,6 +19,7 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          <SocialLinks className="nav__social" />
           <a className="btn nav__cta" href={`mailto:${site.contact.email}`} onClick={close}>
             Say hi
           </a>
