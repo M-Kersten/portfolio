@@ -86,7 +86,7 @@
     "year": "2023",
     "live": false,
     "media": [],
-    "video": "https://youtu.be/lmf0VN5xsI0",
+    "video": "https://www.youtube.com/watch?v=2JnAffOhn7c",
     "article": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-sxsw2023-gooutandplay-activity-7053733492467081216-_6Dx/?utm_source=share&utm_medium=member_desktop",
     "draft": false
   },
@@ -105,7 +105,7 @@
     "live": false,
     "media": [],
     "video": "https://youtu.be/QiTaakf7yRE",
-    "article": "https://merijnkersten.nl/",
+    "article": "https://www.d-tt.nl/apps/edu-play-book",
     "draft": false
   },
   {
@@ -140,8 +140,8 @@
     "year": "2020",
     "live": false,
     "media": [],
-    "video": "https://youtu.be/B_JJ0r52qrI",
-    "article": "https://merijnkersten.nl/",
+    "video": "https://www.youtube.com/watch?v=7N0ZFuyOyTs",
+    "article": "https://www.elkedageenprentenboek.nl/kleuters/de-droomreis-van-neef-karel/",
     "draft": false
   },
   {
@@ -159,7 +159,7 @@
     "live": false,
     "media": [],
     "video": "https://www.youtube.com/watch?v=yPMbXaRXjvk",
-    "article": "https://merijnkersten.nl/",
+    "article": "https://www.youtube.com/watch?v=hjyMNTZ0W0A",
     "draft": false
   },
   {
@@ -169,10 +169,10 @@
     "client": "Philips",
     "sector": "Healthcare · R&D",
     "challenge": "Could emerging XR and AI actually be useful in a clinical setting, or were we just making cool demos and calling it research?",
-    "built": "I poked at a few answers: VR equipment demos, some Vision Pro experiments, and a synthetic-data project that generated fake humans in Unreal to train heartbeat-detection from plain video.",
-    "outcome": "Research that actually matters and ended up being used in hospitals",
+    "built": "I worked on a few answers: we improved VR equipment demos, did Vision Pro experiments, and worked on a synthetic-data project that generated fake humans in Unreal to train heartbeat-detection from plain video.",
+    "outcome": "Research that matters and ended up being used in hospitals",
     "tech": ["Unreal Engine", "Computer vision", "Unity", "Vision Pro", "AI"],
-    "lesson": "Research is as much about finding out what you shouldn’t build as what you should. “This isn’t worth it” is a real, useful result, even if it feels anticlimactic.",
+    "lesson": "Research is as much about finding out what you shouldn’t build as what you should. “This isn’t worth it” that's still a valueable outcome, better to find that out early than late.",
     "year": "2024",
     "live": false,
     "media": [],
@@ -202,9 +202,9 @@
   {
     "slug": "custom-ar-framework",
     "title": "Custom AR framework",
-    "kind": "passion",
+    "kind": "graduation",
     "layer": "chip",
-    "client": "Graduation project",
+    "client": "Saxion",
     "sector": "R&D · tooling",
     "challenge": "Back before AR Foundation existed, ARKit and ARCore were two separate worlds, and cross-platform AR meant maintaining two codebases. Could we bridge this divide?",
     "built": "For my graduation I built a framework that unified both behind one API and even ran cloud anchors so the experience could be shared between an Android and iPhone",
@@ -214,7 +214,7 @@
     "year": "2018",
     "live": false,
     "media": [],
-    "video": "https://youtu.be/B_JJ0r52qrI",
+    "video": "https://youtu.be/iCZRpxt5iPc",
     "article": "https://docs.google.com/document/d/14nbCjnt5Q4B6Q_BJEFAJffhTqdmsfrQKgQVCw7nFURQ/edit?tab=t.0",
     "draft": false
   }
