@@ -53,9 +53,6 @@ function AboutPortrait() {
           style={{ backgroundImage: `url(${asset(`/profile/${i + 1}.png`)})`, opacity: i === frame ? 1 : 0 }}
         />
       ))}
-      <span className="about__portrait-idx" aria-hidden="true">
-        {String(frame + 1).padStart(2, '0')} / {String(PORTRAITS).padStart(2, '0')}
-      </span>
       <ScanFrame variant="portrait" />
     </figure>
   );
@@ -165,7 +162,6 @@ export function About() {
   const a = site.about;
   return (
     <section id="about" className="section section--instrument">
-      <ScanFrame variant="section" />
       <div className="container">
         <div className="about__grid">
           <div>

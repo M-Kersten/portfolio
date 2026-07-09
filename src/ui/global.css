@@ -110,6 +110,12 @@ img {
 .section + .section {
   border-top: 1px solid var(--hairline);
 }
+/* About + Contact read as open editorial pages — no scanner brackets, no
+   hairline seams boxing them off from their neighbours. */
+#about,
+#contact {
+  border-top: 0;
+}
 
 .section__title {
   font-size: var(--step-4);
@@ -1669,8 +1675,7 @@ html {
 .scanframe i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
 /* Section-scale — hugs the section a little in from the edges. */
 .scanframe--section { inset: var(--space-l) var(--space-m); }
-/* Portrait-scale — a small viewfinder lock-on just inside the photo, sitting
-   under the "01 / 05" readout (z-index 2). */
+/* Portrait-scale — a small viewfinder lock-on just inside the photo. */
 .scanframe--portrait { inset: 7px; z-index: 1; }
 .scanframe--portrait i {
   width: 13px;
@@ -1723,15 +1728,6 @@ html {
      cropped out and the face sits high in the frame. */
   background-size: 116%;
   background-position: center 85%;
-}
-.about__portrait-idx {
-  position: absolute;
-  right: 0.55em;
-  bottom: 0.5em;
-  z-index: 2;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.12em;
 }
 .about__list {
   list-style: none;
@@ -1874,23 +1870,14 @@ html {
   }
 }
 
+/* Open like About — no card border or raised fill boxing it in; it sits on the
+   section's own dot-field. `overflow: hidden` stays so the letter motif can
+   spawn just off the left edge and be clipped until it rides into view. */
 .contact {
   position: relative;
   overflow: hidden;
-  background: var(--paper-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--space-xl);
+  padding: var(--space-xl) 0 var(--space-2xl);
   text-align: center;
-}
-.contact::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--halftone);
-  background-size: var(--halftone-size);
-  opacity: 0.35;
-  pointer-events: none;
 }
 .contact > * {
   position: relative;

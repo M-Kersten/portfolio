@@ -40,7 +40,15 @@ export function ContactMotif() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
-    const ro = new ResizeObserver(resize);
+    // Setting canvas.width in resize() wipes the bitmap. The animated path
+    // repaints every frame so it never notices; the reduced-motion still is
+    // drawn just once, so repaint it after any resize (incl. the observer's
+    // initial fire) or it vanishes. `render` is defined below but this closure
+    // only runs asynchronously, well after it's assigned.
+    const ro = new ResizeObserver(() => {
+      resize();
+      if (reduced) render(0);
+    });
     ro.observe(cv);
 
     let pCur = 0; // smoothed letter progress along the route

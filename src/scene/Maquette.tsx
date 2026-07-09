@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, TubeGeometry, Vector3, type Group, type Material, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, ExtrudeGeometry, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, TubeGeometry, Vector3, type Group, type Material, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { useTweak } from './devTweak';
@@ -65,6 +65,34 @@ function roundedRectPts(w: number, d: number, r: number, seg = 6): V3[] {
 function smoothCurve(pts: V3[], n = 50): V3[] {
   const curve = new CatmullRomCurve3(pts.map((p) => new Vector3(p[0], p[1], p[2])));
   return curve.getPoints(n).map((v) => [v.x, v.y, v.z] as V3);
+}
+/** A rounded-rectangle Shape centred on the origin (XY plane) — the phone body
+ *  and its screen are both cut from this so nothing reads as a hard box. */
+function roundedRectShape(w: number, h: number, r: number): Shape {
+  const hw = w / 2;
+  const hh = h / 2;
+  const rr = Math.min(r, hw, hh);
+  const s = new Shape();
+  s.moveTo(-hw + rr, -hh);
+  s.lineTo(hw - rr, -hh);
+  s.quadraticCurveTo(hw, -hh, hw, -hh + rr);
+  s.lineTo(hw, hh - rr);
+  s.quadraticCurveTo(hw, hh, hw - rr, hh);
+  s.lineTo(-hw + rr, hh);
+  s.quadraticCurveTo(-hw, hh, -hw, hh - rr);
+  s.lineTo(-hw, -hh + rr);
+  s.quadraticCurveTo(-hw, -hh, -hw + rr, -hh);
+  return s;
+}
+/** A flat rounded-rect plane with UVs normalised to 0..1 over its bounds, so a
+ *  screenshot texture maps across it exactly (ShapeGeometry otherwise uses raw
+ *  vertex coordinates for UVs). */
+function roundedPlaneGeometry(w: number, h: number, r: number): ShapeGeometry {
+  const g = new ShapeGeometry(roundedRectShape(w, h, r), 8);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + w / 2) / w, (uv.getY(i) + h / 2) / h);
+  uv.needsUpdate = true;
+  return g;
 }
 function makeRand(seed: number) {
   let a = seed >>> 0;
@@ -326,6 +354,29 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
   const shown = useRef(false); // whether the screenshot is currently mapped on
   const tex = useOptionalTexture('/textures/room-phone.jpg');
 
+  // Rounded body (extruded rounded-rect with a soft bevelled edge) + rounded
+  // screen, so the handset reads as a real phone rather than a flat slab.
+  const bodyGeo = useMemo(() => {
+    const [w, h, d] = args;
+    const g = new ExtrudeGeometry(roundedRectShape(w, h, Math.min(w, h) * 0.22), {
+      depth: d,
+      bevelEnabled: true,
+      bevelThickness: d * 0.4,
+      bevelSize: d * 0.4,
+      bevelSegments: 2,
+      curveSegments: 10,
+    });
+    g.translate(0, 0, -d / 2);
+    return g;
+  }, [args]);
+  const screenGeo = useMemo(() => roundedPlaneGeometry(args[0] * 0.84, args[1] * 0.9, Math.min(args[0], args[1]) * 0.16), [args]);
+  useEffect(() => {
+    return () => {
+      bodyGeo.dispose();
+      screenGeo.dispose();
+    };
+  }, [bodyGeo, screenGeo]);
+
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
     const t = s.clock.elapsedTime;
@@ -433,15 +484,13 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
   return (
     <>
       <group ref={rigRef} position={position} rotation={[-Math.PI / 2, 0, 0.3]}>
-        {/* body / bezel */}
-        <mesh>
-          <boxGeometry args={args} />
+        {/* body / bezel — rounded corners + a soft bevelled edge */}
+        <mesh geometry={bodyGeo}>
           <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.28} roughness={0.4} toneMapped={false} />
         </mesh>
         {/* screen face — a ghost glow until opened, then the screenshot */}
-        <mesh position={[0, 0, args[2] / 2 + 0.0006]}>
-          <planeGeometry args={[args[0] * 0.86, args[1] * 0.93]} />
-          <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={true} />
+        <mesh geometry={screenGeo} position={[0, 0, args[2] / 2 + 0.0006]}>
+          <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={true} side={DoubleSide} />
         </mesh>
       </group>
       {balls.map((b, i) => (

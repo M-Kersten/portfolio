@@ -61,9 +61,6 @@
   --grad-spectrum: linear-gradient(105deg, #27e8f2 0%, #a89eff 42%, #ff9068 74%, #a9f75c 100%);
 
   /* ---- Textures (reusable backgrounds) ---- */
-  /* Fine halftone dot field. */
-  --halftone: radial-gradient(circle at center, rgba(234, 234, 234, 0.16) 0.6px, transparent 0.75px);
-  --halftone-size: 6px 6px;
   /* Gradient-dot accent field (for hero/section flourishes). */
   --dotfield: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 60%, transparent) 0.9px, transparent 1.1px);
   --dotfield-size: 14px 14px;

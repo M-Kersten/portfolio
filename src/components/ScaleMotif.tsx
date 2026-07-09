@@ -42,9 +42,17 @@ export function drawCity(ctx: Ctx, w: number, h: number, t: number, base: number
     const p = i / steps;
     dot(ctx, p * w, avenueY(p, h), 1.1, base * 0.4);
   }
-  // traffic — bright blips travelling the routes
+  // traffic — bright blips travelling the routes, each easing smoothly between
+  // faster and slower. The apparent speed is sp·(1 + 0.5·wobble) with wobble a
+  // sum of two slow, incommensurate sines (per-blip phase → looks random, not
+  // synchronised); position is the exact integral of that speed, so it never
+  // stutters or reverses — just surges and eases.
   for (let i = 0; i < 6; i++) {
-    const p = (t * (0.07 + (i % 3) * 0.023) + i * 0.37) % 1;
+    const sp = 0.11 + (i % 3) * 0.026; // base speed — a touch quicker than before
+    const a = 0.33 + (i % 3) * 0.07; // slow wobble
+    const b = 0.58 + (i % 4) * 0.05; // a second, faster wobble
+    const phase = sp * (t - 0.5 * ((0.6 / a) * Math.cos(a * t + i * 1.7) + (0.4 / b) * Math.cos(b * t + i * 2.3))) + i * 0.37;
+    const p = ((phase % 1) + 1) % 1;
     let x: number;
     let y: number;
     if (i % 3 === 0) {

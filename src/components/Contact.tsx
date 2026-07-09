@@ -1,12 +1,10 @@
 import { site } from '../content';
-import { ScanFrame } from './ScanFrame';
 import { ContactMotif } from './ContactMotif';
 
 export function Contact() {
   const c = site.contact;
   return (
     <section id="contact" className="section section--instrument">
-      <ScanFrame variant="section" />
       <div className="container">
         <div className="contact">
           <ContactMotif />
