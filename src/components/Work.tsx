@@ -24,14 +24,12 @@ function fmtPeriod(from: string, to: string | null): string {
 }
 
 // The company mark for a route tooltip: an explicit logo if the entry provides
-// one, otherwise the site's own favicon derived from its domain (works for most
-// companies out of the box; swap in a local logo via CareerEntry.logo for a
-// crisper mark). Returns null when there's nothing to link to.
-function companyIcon(band: { url?: string; logo?: string }): string | null {
-  if (band.logo) return asset(band.logo);
-  if (!band.url) return null;
+// crisper mark) with the site's own favicon as a fallback if the file is
+// missing. Returns null when there's nothing to show.
+function companyFavicon(url?: string): string | null {
+  if (!url) return null;
   try {
-    return `https://icons.duckduckgo.com/ip3/${new URL(band.url).hostname}.ico`;
+    return `https://icons.duckduckgo.com/ip3/${new URL(url).hostname}.ico`;
   } catch {
     return null;
   }
@@ -414,18 +412,28 @@ export function Work() {
                     stint; when the company has a site, the whole band links to
                     it (opens in a new tab). */}
                 {(() => {
-                  const logo = companyIcon(b);
+                  const logo = b.logo ? asset(b.logo) : null;
+                  const favicon = companyFavicon(b.url);
+                  const mark = logo ?? favicon;
                   const tip = (
                     <span className="tl-tip" role="tooltip">
                       <span className="tl-tip__top">
-                        {logo && (
+                        {mark && (
                           <img
-                            className="tl-tip__logo"
-                            src={logo}
+                            className={logo ? 'tl-tip__logo' : 'tl-tip__logo tl-tip__logo--favicon'}
+                            src={mark}
                             alt=""
                             loading="lazy"
+                            data-fallback={logo && favicon ? favicon : undefined}
                             onError={(e) => {
-                              e.currentTarget.style.display = 'none';
+                              const fb = e.currentTarget.getAttribute('data-fallback');
+                              if (fb && !e.currentTarget.src.endsWith(fb)) {
+                                e.currentTarget.src = fb;
+                                e.currentTarget.removeAttribute('data-fallback');
+                                e.currentTarget.classList.add('tl-tip__logo--favicon');
+                              } else {
+                                e.currentTarget.style.display = 'none';
+                              }
                             }}
                           />
                         )}

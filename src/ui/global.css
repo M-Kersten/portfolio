@@ -1191,12 +1191,16 @@ html {
   gap: 0.5em;
 }
 .tl-tip__logo {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   flex: none;
   border-radius: 3px;
   object-fit: contain;
-  background: #fff; /* favicons often assume a light backdrop */
+  /* explicit logos are white marks — they sit straight on the dark tooltip */
+}
+/* favicon fallbacks usually assume a light backdrop, so give them a chip */
+.tl-tip__logo--favicon {
+  background: #fff;
   padding: 1px;
 }
 .tl-tip__top b {
