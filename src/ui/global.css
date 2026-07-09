@@ -348,20 +348,19 @@ img {
   }
 }
 
-/* ---------- Hero stage (scroll-snap layer journey) ---------- */
-
-html {
-  scroll-snap-type: y proximity;
-}
+/* ---------- Hero stage (scroll layer journey) ---------- */
 
 .hero {
   position: relative;
 }
-/* Three full-height snap panels give the camera journey its scroll length and
-   are transparent so the fixed canvas shows through. */
+/* Three equal panels give the camera journey its scroll length and are
+   transparent so the fixed canvas shows through. Their combined height sets how
+   far you scroll per layer — HeroStage splits the travel into even thirds, so
+   each step (City→Room→Chip) is the same short distance. No scroll-snap: the
+   58svh snap points didn't line up with the viewport and made the page feel
+   like it stuck when you tried to scroll past the hero. */
 .hero__panel {
-  height: 58svh;
-  scroll-snap-align: start;
+  height: 42svh;
 }
 
 /* Minimal title — fixed, fades when a node is inspected or scrolled past. */
@@ -414,12 +413,6 @@ html {
     transform: none; /* no menu on mobile → keep the scene centred */
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-snap-type: none;
-  }
-}
-
 /* ---------- Node HUD (bottom dossier drawer) ---------- */
 
 .node-hud {
@@ -754,6 +747,37 @@ html {
   border-radius: 50%;
   background: var(--hotc);
   box-shadow: 0 0 12px color-mix(in srgb, var(--hot, var(--accent)) 75%, transparent);
+}
+/* Unvisited markers pulse to invite the first click: an expanding "ping" ring
+   (::before) plus a gently breathing core (::after). Both fall calm the instant
+   the node is visited (data-alive), so the eye is always led to what's left. */
+.hotspot__mark::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--hotc);
+  opacity: 0;
+  pointer-events: none;
+}
+.hotspot:not([data-alive]) .hotspot__mark::before {
+  animation: hotspot-ping 2.6s var(--ease) infinite;
+}
+.hotspot:not([data-alive]) .hotspot__mark::after {
+  animation: hotspot-core 2.6s var(--ease) infinite;
+}
+@keyframes hotspot-ping {
+  0% { transform: scale(0.3); opacity: 0; }
+  16% { opacity: 0.55; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+@keyframes hotspot-core {
+  0%, 100% { box-shadow: 0 0 7px color-mix(in srgb, var(--hot, var(--accent)) 55%, transparent); }
+  50% { box-shadow: 0 0 16px color-mix(in srgb, var(--hot, var(--accent)) 95%, transparent); }
 }
 /* scanner brackets — a whisper once alive (already "found"), locking fully
    into place on hover */
@@ -1914,24 +1938,33 @@ html {
   /* proud of the plane, so it parallaxes forward as the panel tilts */
   transform: translateZ(38px);
 }
-/* a thin scan line sweeping down the photo — the "instrument reading" cue */
+/* A thin scan line over the photo — the "instrument reading" cue. Rather than a
+   constant sweep it stays dark and only glitches down the frame now and then: a
+   short stuttery burst of flickers roughly every 11s, then quiet again. */
 .about__scan {
   position: absolute;
   left: -2%;
   right: -2%;
-  top: 0;
-  height: 20px;
+  top: 6%;
+  height: 16px;
   z-index: 3;
+  opacity: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--cyan) 26%, transparent) 55%, transparent);
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--cyan) 24%, transparent) 55%, transparent);
   mix-blend-mode: screen;
-  animation: about-scan 5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  animation: about-scan 11s linear infinite;
 }
 @keyframes about-scan {
-  0% { top: -6%; opacity: 0; }
-  12% { opacity: 1; }
-  88% { opacity: 1; }
-  100% { top: 100%; opacity: 0; }
+  0%, 80% { top: 6%; opacity: 0; transform: translateX(0); }
+  80.4% { top: 20%; opacity: 0.9; transform: translateX(-3px); }
+  81% { top: 20%; opacity: 0.06; transform: translateX(2px); }
+  81.8% { top: 42%; opacity: 0.85; transform: translateX(3px); }
+  82.4% { top: 42%; opacity: 0.1; transform: translateX(-2px); }
+  83.4% { top: 64%; opacity: 0.8; transform: translateX(2px); }
+  84% { top: 64%; opacity: 0.12; transform: translateX(-3px); }
+  85% { top: 86%; opacity: 0.9; transform: translateX(2px); }
+  85.6% { top: 94%; opacity: 0.3; transform: translateX(-1px); }
+  86.2%, 100% { top: 100%; opacity: 0; transform: translateX(0); }
 }
 .about__stage .scanframe--portrait i {
   transition: border-color 0.25s var(--ease);

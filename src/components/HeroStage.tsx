@@ -16,38 +16,37 @@ export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const heroRef = useRef<HTMLElement>(null);
-  const panelRefs = useRef<(HTMLDivElement | null)[]>([]);
   // Whether the hero itself is on screen — guards against `journeyStep` going
   // stale (e.g. an anchor jump straight to the wall never crosses a panel).
   const [heroInView, setHeroInView] = useState(true);
 
-  // Active layer = the panel crossing the viewport centre (robust to short panels).
-  useEffect(() => {
-    const panels = panelRefs.current.filter(Boolean) as HTMLDivElement[];
-    if (panels.length === 0) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) sceneStore.setJourneyStep(Number((e.target as HTMLElement).dataset.step));
-        });
-      },
-      { rootMargin: '-50% 0px -50% 0px', threshold: 0 },
-    );
-    panels.forEach((p) => io.observe(p));
-    return () => io.disconnect();
-  }, []);
-
-  // Is the hero on screen? Polled on a rAF loop rather than via scroll events or
-  // an IntersectionObserver — an instant anchor jump straight to the content
-  // below doesn't reliably trip either, which used to strand the title over the
-  // wall. One cheap rect read per frame; setState bails when the value is stable.
+  // The scroll journey and the "is the hero on screen?" flag are both derived
+  // from the hero's own scroll progress on one cheap rAF loop (no scroll events,
+  // no IntersectionObserver). An instant anchor jump straight to the content
+  // below doesn't reliably trip an observer, which used to strand the title over
+  // the wall — a per-frame rect read is robust to that.
+  //
+  // journeyStep = which even third of the hero's scroll travel we're in, so
+  // City→Room and Room→Chip cover the *same* distance. The old center-line
+  // observer gave the first/last panels only (H − ½vh) of travel and the middle
+  // panel its full height, which made Room→Chip feel ~7× longer than City→Room.
   useEffect(() => {
     let raf = 0;
+    let lastStep = -1;
     const loop = () => {
       const hero = heroRef.current;
       if (hero) {
+        const vh = window.innerHeight;
         const r = hero.getBoundingClientRect();
-        setHeroInView(r.bottom > 0 && r.top < window.innerHeight);
+        setHeroInView(r.bottom > 0 && r.top < vh);
+
+        const travel = Math.max(hero.offsetHeight - vh, 1);
+        const p = Math.min(Math.max(-r.top, 0), travel) / travel; // 0→1 across the hero
+        const step = p >= 2 / 3 ? 2 : p >= 1 / 3 ? 1 : 0;
+        if (step !== lastStep) {
+          lastStep = step;
+          sceneStore.setJourneyStep(step);
+        }
       }
       raf = requestAnimationFrame(loop);
     };
@@ -68,13 +67,7 @@ export function HeroStage() {
       </div>
 
       {STEPS.map((s) => (
-        <div
-          key={s.step}
-          ref={(el) => (panelRefs.current[s.step] = el)}
-          className="hero__panel"
-          data-step={s.step}
-          aria-hidden="true"
-        />
+        <div key={s.step} className="hero__panel" data-step={s.step} aria-hidden="true" />
       ))}
     </section>
   );
