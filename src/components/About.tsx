@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { site } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -10,7 +10,7 @@ const PORTRAITS = 5;
 
 // A portrait that scrubs through five photos as it rises up the screen, landing
 // on the last one the moment it reaches the vertical middle of the viewport.
-function AboutPortrait() {
+function AboutPortrait({ children }: { children?: ReactNode }) {
   const reduced = useReducedMotion();
   const boxRef = useRef<HTMLElement>(null);
   const [frame, setFrame] = useState(0);
@@ -53,6 +53,7 @@ function AboutPortrait() {
           style={{ backgroundImage: `url(${asset(`/profile/${i + 1}.png`)})`, opacity: i === frame ? 1 : 0 }}
         />
       ))}
+      {children}
       <ScanFrame variant="portrait" />
     </figure>
   );
@@ -69,11 +70,13 @@ interface PinGeo {
   line: [number, number, number, number]; // leader, callout → crosshair edge
   mark: [number, number]; // crosshair centre, on the portrait
 }
+// Design box is 600×720. The portrait occupies the centre; each fact is pinned
+// to a corner with a leader line ending in a crosshair on the photo's edge.
 const PINS: PinGeo[] = [
-  { c: '#27e8f2', box: { left: 0, top: '5.5%', width: '22%', textAlign: 'right' }, line: [136, 74, 173, 124], mark: [176, 128] },
-  { c: '#ff9068', box: { left: '77%', top: '19%', width: '23%' }, line: [458, 150, 418, 172], mark: [414, 174] },
-  { c: '#a9f75c', box: { left: '76.5%', top: '50%', width: '23.5%' }, line: [455, 349, 403, 356], mark: [398, 357] },
-  { c: '#27e8f2', box: { left: '4%', top: '71.5%', width: '25%', textAlign: 'right' }, line: [178, 486, 225, 428], mark: [228, 424] },
+  { c: '#27e8f2', box: { left: 0, top: '1%', width: '25%', textAlign: 'right' }, line: [126, 74, 184, 150], mark: [188, 154] },
+  { c: '#ff9068', box: { left: '75%', top: '12%', width: '25%' }, line: [470, 176, 418, 188], mark: [414, 190] },
+  { c: '#a9f75c', box: { left: '75%', top: '58%', width: '25%' }, line: [470, 430, 418, 380], mark: [414, 376] },
+  { c: '#27e8f2', box: { left: '1%', top: '80%', width: '26%', textAlign: 'right' }, line: [130, 566, 186, 408], mark: [190, 404] },
 ];
 
 function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
@@ -102,6 +105,37 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
     return () => io.disconnect();
   }, [reduced]);
 
+  // Cursor-driven holographic tilt: the whole specimen panel leans toward the
+  // pointer (everything tilts as one plane, so the leaders stay locked to the
+  // photo), while the portrait sits proud of the plane for a parallax pop.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || reduced) return;
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      const r = el.getBoundingClientRect();
+      const px = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - 0.5) * 2));
+      const py = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height - 0.5) * 2));
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        el.style.setProperty('--px', px.toFixed(3));
+        el.style.setProperty('--py', py.toFixed(3));
+      });
+    };
+    const reset = () => {
+      el.style.setProperty('--px', '0');
+      el.style.setProperty('--py', '0');
+    };
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerleave', reset);
+    return () => {
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerleave', reset);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [reduced]);
+
   const list = facts.slice(0, PINS.length);
   return (
     <div
@@ -111,49 +145,53 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
       data-hot={hot != null || undefined}
       style={hot != null ? ({ '--hotc': PINS[hot].c } as CSSProperties) : undefined}
     >
-      <AboutPortrait />
-      <svg className="about__stage-svg" viewBox="0 0 600 640" preserveAspectRatio="none" aria-hidden="true">
-        {list.map((f, i) => {
-          const s = PINS[i];
-          return (
-            <g key={f.label} className="about__lead-g" data-on={hot === i || undefined} stroke={s.c} fill="none" strokeWidth="1">
-              <line
-                className="about__lead-line"
-                pathLength={1}
-                x1={s.line[0]}
-                y1={s.line[1]}
-                x2={s.line[2]}
-                y2={s.line[3]}
-                style={{ transitionDelay: `${0.12 + i * 0.16}s` }}
-              />
-              <g className="about__lead-mark" style={{ transitionDelay: `${0.3 + i * 0.16}s` }}>
-                <circle cx={s.mark[0]} cy={s.mark[1]} r="3.4" />
-                <line x1={s.mark[0]} y1={s.mark[1] - 9} x2={s.mark[0]} y2={s.mark[1] - 4.5} />
-                <line x1={s.mark[0]} y1={s.mark[1] + 4.5} x2={s.mark[0]} y2={s.mark[1] + 9} />
-                <line x1={s.mark[0] - 9} y1={s.mark[1]} x2={s.mark[0] - 4.5} y2={s.mark[1]} />
-                <line x1={s.mark[0] + 4.5} y1={s.mark[1]} x2={s.mark[0] + 9} y2={s.mark[1]} />
+      <div className="about__stage-tilt">
+        <AboutPortrait>
+          <span className="about__scan" aria-hidden="true" />
+        </AboutPortrait>
+        <svg className="about__stage-svg" viewBox="0 0 600 720" preserveAspectRatio="none" aria-hidden="true">
+          {list.map((f, i) => {
+            const s = PINS[i];
+            return (
+              <g key={f.label} className="about__lead-g" data-on={hot === i || undefined} stroke={s.c} fill="none" strokeWidth="1">
+                <line
+                  className="about__lead-line"
+                  pathLength={1}
+                  x1={s.line[0]}
+                  y1={s.line[1]}
+                  x2={s.line[2]}
+                  y2={s.line[3]}
+                  style={{ transitionDelay: `${0.12 + i * 0.16}s` }}
+                />
+                <g className="about__lead-mark" style={{ transitionDelay: `${0.3 + i * 0.16}s` }}>
+                  <circle cx={s.mark[0]} cy={s.mark[1]} r="3.4" />
+                  <line x1={s.mark[0]} y1={s.mark[1] - 9} x2={s.mark[0]} y2={s.mark[1] - 4.5} />
+                  <line x1={s.mark[0]} y1={s.mark[1] + 4.5} x2={s.mark[0]} y2={s.mark[1] + 9} />
+                  <line x1={s.mark[0] - 9} y1={s.mark[1]} x2={s.mark[0] - 4.5} y2={s.mark[1]} />
+                  <line x1={s.mark[0] + 4.5} y1={s.mark[1]} x2={s.mark[0] + 9} y2={s.mark[1]} />
+                </g>
               </g>
-            </g>
-          );
-        })}
-      </svg>
-      <dl className="about__pins">
-        {list.map((f, i) => (
-          <div
-            key={f.label}
-            className="about__callout"
-            data-on={hot === i || undefined}
-            style={{ ...PINS[i].box, '--c': PINS[i].c, transitionDelay: `${0.08 + i * 0.16}s` } as CSSProperties}
-            onMouseEnter={() => setHot(i)}
-            onMouseLeave={() => setHot((h) => (h === i ? null : h))}
-          >
-            <dt>{f.label}</dt>
-            <dd>
-              <Scramble text={f.value} delay={350 + i * 170} wrap />
-            </dd>
-          </div>
-        ))}
-      </dl>
+            );
+          })}
+        </svg>
+        <dl className="about__pins">
+          {list.map((f, i) => (
+            <div
+              key={f.label}
+              className="about__callout"
+              data-on={hot === i || undefined}
+              style={{ ...PINS[i].box, '--c': PINS[i].c, transitionDelay: `${0.08 + i * 0.16}s` } as CSSProperties}
+              onMouseEnter={() => setHot(i)}
+              onMouseLeave={() => setHot((h) => (h === i ? null : h))}
+            >
+              <dt>{f.label}</dt>
+              <dd>
+                <Scramble text={f.value} delay={350 + i * 170} wrap />
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
     </div>
   );
 }

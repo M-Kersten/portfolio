@@ -1825,16 +1825,49 @@ html {
    that aspect), so lines and text stay in register at any width. */
 .about__stage {
   position: relative;
-  width: min(100%, 560px);
-  aspect-ratio: 600 / 640;
+  width: min(100%, 620px);
+  aspect-ratio: 600 / 720;
   margin-inline: auto;
+  perspective: 1100px;
+}
+/* Everything lives on one plane that leans toward the cursor (--px/--py set in
+   JS), so the leaders stay locked to the photo while the panel reads as a
+   floating holographic specimen. */
+.about__stage-tilt {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(calc(var(--py, 0) * -5deg)) rotateY(calc(var(--px, 0) * 6deg));
+  transition: transform 0.3s var(--ease);
+  will-change: transform;
 }
 .about__stage .about__portrait {
   position: absolute;
-  left: 27.5%;
-  top: 15%;
-  width: 41.5%;
+  left: 27%;
+  top: 12.5%;
+  width: 46%;
   max-width: none;
+  /* proud of the plane, so it parallaxes forward as the panel tilts */
+  transform: translateZ(38px);
+}
+/* a thin scan line sweeping down the photo — the "instrument reading" cue */
+.about__scan {
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  top: 0;
+  height: 20px;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--cyan) 26%, transparent) 55%, transparent);
+  mix-blend-mode: screen;
+  animation: about-scan 5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+@keyframes about-scan {
+  0% { top: -6%; opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
 }
 .about__stage .scanframe--portrait i {
   transition: border-color 0.25s var(--ease);
@@ -1875,6 +1908,17 @@ html {
 }
 .about__lead-g[data-on] .about__lead-mark {
   filter: drop-shadow(0 0 5px var(--hotc));
+}
+/* a hovered fact's leader reads as a live connection — a running dash flow
+   (pathLength=1, so the dash values are fractions of the leader's length) */
+.about__lead-g[data-on] .about__lead-line {
+  stroke-dasharray: 0.06 0.05;
+  animation: about-flow 0.7s linear infinite;
+}
+@keyframes about-flow {
+  to {
+    stroke-dashoffset: -0.11;
+  }
 }
 .about__stage[data-shown] .about__lead-line {
   stroke-dashoffset: 0;
@@ -1940,6 +1984,16 @@ html {
   .about__callout {
     transition: none;
   }
+  .about__scan,
+  .about__lead-g[data-on] .about__lead-line {
+    animation: none;
+  }
+  .about__scan {
+    display: none;
+  }
+  .about__stage-tilt {
+    transition: none;
+  }
 }
 
 /* Open like About — no card border or raised fill boxing it in; it sits on the
@@ -1950,6 +2004,11 @@ html {
   overflow: hidden;
   padding: var(--space-xl) 0 var(--space-2xl);
   text-align: center;
+}
+/* Trim the section's own bottom padding so the letterbox at the foot of the
+   motif canvas sits at the very bottom of the page, just above the footer. */
+#contact.section {
+  padding-bottom: var(--space-m);
 }
 .contact > * {
   position: relative;

@@ -11,6 +11,7 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 
 const INK = '#cfd6da';
 const CYAN = '#27e8f2';
+const PAPER = '#0a0d10'; // the page behind — fills the envelope so the trail reads as behind it
 
 // cubic bezier point
 function bez(p: number, a: number, b: number, c: number, d: number): number {
@@ -84,8 +85,8 @@ export function ContactMotif() {
       const bw = Math.min(124, Math.max(86, w * 0.12));
       const bh = bw * 0.62;
       const cxB = w - bw / 2 - Math.max(28, w * 0.06);
-      const poleH = Math.min(30, h * 0.08);
-      const byTop = h - 8 - poleH - bh;
+      const poleH = Math.min(20, h * 0.05);
+      const byTop = h - 4 - poleH - bh; // seated at the very bottom edge of the page
       const cyB = byTop + bh / 2;
       const slotY = byTop + bh * 0.3;
       const slotHalf = bw * 0.3;
@@ -188,6 +189,11 @@ export function ContactMotif() {
         ctx.translate(lx, ly);
         ctx.rotate(rot);
         ctx.scale(s, s);
+        // fill the envelope with the page colour first, so the cyan trail (drawn
+        // just above) is occluded by the letter's body and reads as behind it
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = PAPER;
+        ctx.fillRect(-13, -9, 26, 18);
         ctx.globalAlpha = 0.95;
         ctx.strokeStyle = INK;
         ctx.lineWidth = 1.3;
