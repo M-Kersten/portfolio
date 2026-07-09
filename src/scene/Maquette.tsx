@@ -1020,6 +1020,9 @@ const BINOS_H = 0.25; // world height the model is normalised to
 const BINOS_SCREEN_POS: V3 = [0, 0.18, 0.005];
 const BINOS_SCREEN_ROT: V3 = [0, 0, 0];
 const BINOS_SCREEN_SIZE: [number, number] = [0.07, 0.075];
+// A simple post the viewer stands on — raise BINOS_STAND_H to lift it higher.
+const BINOS_STAND_H = 0.14;
+const BINOS_STAND_R = 0.045;
 function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY?: number; slug?: string }) {
   const { selected, visited } = useActive(slug ?? '');
   const reduced = useReducedMotion();
@@ -1032,6 +1035,24 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
   const screenMat = useRef<MeshStandardMaterial>(null);
   const [model, setModel] = useState<Group | null>(null);
 
+  // The frosted glass shared by the buildings + windmill — the model and the
+  // post it stands on both wear it, so they read as one object.
+  const glass = useMemo(() => {
+    const m = new MeshStandardMaterial({
+      color: GLASS,
+      transparent: true,
+      opacity: 0.5,
+      roughness: 0.34,
+      metalness: 0,
+      emissive: '#0c2a30',
+      emissiveIntensity: 0.14,
+      depthWrite: false,
+    });
+    m.onBeforeCompile = glassRim;
+    return m;
+  }, []);
+  useEffect(() => () => glass.dispose(), [glass]);
+
   useEffect(() => {
     let cancelled = false;
     new GLTFLoader().load(
@@ -1039,18 +1060,6 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
       (g) => {
         if (cancelled) return;
         const scene = g.scene;
-        // the same frosted glass as the buildings + windmill body
-        const glass = new MeshStandardMaterial({
-          color: GLASS,
-          transparent: true,
-          opacity: 0.5,
-          roughness: 0.34,
-          metalness: 0,
-          emissive: '#0c2a30',
-          emissiveIntensity: 0.14,
-          depthWrite: false,
-        });
-        glass.onBeforeCompile = glassRim;
         scene.traverse((o) => {
           const mesh = o as Mesh;
           if ((mesh as { isMesh?: boolean }).isMesh) mesh.material = glass;
@@ -1070,11 +1079,14 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [glass]);
 
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
-    const target = selected || visited ? 1 : 0;
+    // Once brought to life it keeps working — it goes on panning and snapping
+    // photos after you deselect it, for as long as it's "alive" this session.
+    const live = selected || visited;
+    const target = live ? 1 : 0;
     if (reduced) {
       k.current = target;
       vel.current = 0;
@@ -1090,7 +1102,7 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
       pop.visible = sc > 0.002;
     }
     const head = headRef.current;
-    if (!reduced && selected && k.current > 0.55) {
+    if (!reduced && live && k.current > 0.55) {
       // sweep left↔right; snap a photo at each extreme
       const ph = s.clock.elapsedTime * 0.95;
       if (head) head.rotation.y = Math.sin(ph) * 0.6;
@@ -1103,24 +1115,37 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
       head.rotation.y += (0 - head.rotation.y) * 0.1; // settle back to centre
     }
     flash.current = Math.max(0, flash.current - dt * 3.4);
-    if (screenMat.current) screenMat.current.emissiveIntensity = 0.2 + flash.current * 3.6;
+    // the viewfinder is a transparent glass panel at rest, flaring bright on a shot
+    if (screenMat.current) {
+      screenMat.current.emissiveIntensity = 0.15 + flash.current * 3.8;
+      screenMat.current.opacity = 0.18 + flash.current * 0.75;
+    }
   });
 
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       <group ref={popRef} visible={false}>
-        <group ref={headRef}>
+        {/* the frosted-glass post it stands on (doesn't pan with the head) */}
+        <mesh position={[0, BINOS_STAND_H / 2, 0]}>
+          <cylinderGeometry args={[BINOS_STAND_R * 0.86, BINOS_STAND_R, BINOS_STAND_H, 20]} />
+          <primitive object={glass} attach="material" />
+        </mesh>
+        {/* the viewer head, lifted onto the post; pans + snaps photos */}
+        <group ref={headRef} position={[0, BINOS_STAND_H, 0]}>
           {model && <primitive object={model} />}
-          {/* the viewfinder screen — dimly lit, flaring white on each photo */}
+          {/* the viewfinder screen — a transparent glass panel that flares on a shot */}
           {model && (
             <mesh position={BINOS_SCREEN_POS} rotation={BINOS_SCREEN_ROT}>
               <planeGeometry args={BINOS_SCREEN_SIZE} />
               <meshStandardMaterial
                 ref={screenMat}
                 userData={{ lifeSkip: true }}
-                color="#0b1418"
+                color={GLASS}
                 emissive="#dff6ff"
-                emissiveIntensity={0.2}
+                emissiveIntensity={0.15}
+                transparent
+                opacity={0.18}
+                depthWrite={false}
                 toneMapped={false}
                 side={DoubleSide}
               />
@@ -1211,8 +1236,9 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
       <ParkTree position={[-0.04, 0, -0.42]} h={0.36} yaw={5.1} slug={slug} />
       {/* fireflies wandering between the trees */}
       <Fireflies slug={slug} />
-      {/* the ARCam tower viewer — pops in and scans when the hotspot is selected */}
-      <Binoculars position={[0.1, 0.1, 0.34]} rotationY={-0.15} slug={slug} />
+      {/* the ARCam tower viewer — pops in and scans when the hotspot is selected;
+          stands on its post (raise BINOS_STAND_H to lift it higher) */}
+      <Binoculars position={[0.1, 0, 0.34]} rotationY={-0.15} slug={slug} />
       </group>
     </group>
   );
