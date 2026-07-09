@@ -695,6 +695,12 @@ html {
   position: relative;
   /* the marker colour: the layer accent from the very first frame */
   --hotc: var(--hot, var(--accent));
+  transition: opacity 0.28s var(--ease);
+}
+/* When any node is selected every marker fades out — the HUD owns the frame. */
+.hotspot[data-hidden] {
+  opacity: 0;
+  pointer-events: none;
 }
 .hotspot[data-alive] {
   --hotc: color-mix(in srgb, var(--hot, var(--accent)) 85%, white 15%);

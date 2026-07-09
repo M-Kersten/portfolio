@@ -2547,29 +2547,31 @@ function ChipRig() {
   );
 }
 
-function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color: string; onActivate: (h: Hotspot) => void }) {
+function HotspotMarker({ hotspot, color, onActivate, hidden }: { hotspot: Hotspot; color: string; onActivate: (h: Hotspot) => void; hidden: boolean }) {
   const study = caseBySlug(hotspot.slug);
   const label = study?.title ?? hotspot.slug;
   const { selected, visited } = useActive(hotspot.slug);
   // The marker is the invitation to click — it always carries the layer
   // accent so it stands out against the ghost world, growing a touch
-  // brighter once the object it points to has been brought alive.
+  // brighter once the object it points to has been brought alive. While ANY
+  // node is open the markers all vanish, so the HUD gets a clean stage.
   const alive = selected || visited;
   const anchor: V3 = hotspot.anchor ?? [hotspot.position[0], 0, hotspot.position[2]];
   return (
     <group>
       {/* leader line from the object up to the floating crosshair */}
-      <Line points={[anchor, hotspot.position]} color={color} lineWidth={1} transparent opacity={alive ? 0.55 : 0.4} />
+      <Line points={[anchor, hotspot.position]} color={color} lineWidth={1} transparent opacity={hidden ? 0 : alive ? 0.55 : 0.4} />
       {/* a ring marking the exact spot on the object */}
       <mesh position={anchor} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.016, 0.027, 20]} />
-        <meshBasicMaterial color={color} transparent opacity={alive ? 0.65 : 0.48} side={2} toneMapped={false} />
+        <meshBasicMaterial color={color} transparent opacity={hidden ? 0 : alive ? 0.65 : 0.48} side={2} toneMapped={false} />
       </mesh>
       <Html position={hotspot.position} center zIndexRange={[20, 0]} className="hotspot-wrap">
         <span
           className="hotspot"
           data-open={selected || undefined}
           data-alive={alive || undefined}
+          data-hidden={hidden || undefined}
           style={{ '--hot': color } as CSSProperties}
         >
           <button
@@ -2829,6 +2831,7 @@ export interface MaquetteProps {
 
 export function Maquette({ onActivate }: MaquetteProps) {
   const journeyStep = useSceneSelector((s) => s.journeyStep);
+  const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const activeLayer = (['city', 'room', 'chip'] as LayerId[])[journeyStep] ?? 'city';
 
   return (
@@ -2844,7 +2847,7 @@ export function Maquette({ onActivate }: MaquetteProps) {
               <Rig />
               {activeLayer === layer.id &&
                 HOTSPOTS.filter((h) => h.layer === layer.id).map((h) => (
-                  <HotspotMarker key={h.slug} hotspot={h} color={PALETTE[layer.id].accent} onActivate={onActivate} />
+                  <HotspotMarker key={h.slug} hotspot={h} color={PALETTE[layer.id].accent} onActivate={onActivate} hidden={!!selectedSlug} />
                 ))}
             </group>
           </AccentCtx.Provider>
