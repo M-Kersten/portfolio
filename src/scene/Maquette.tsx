@@ -1015,14 +1015,14 @@ function blobPts(r: number, wobble: number, seg = 48, seed = 7): V3[] {
  *  with a spring and pans left↔right scanning the scene. Taking a picture
  *  flashes only the viewfinder screen: a separate plane parked on the model
  *  (tweak BINOS_SCREEN_* below to fit it to the display). */
-const BINOS_H = 0.25; // world height the model is normalised to
+const BINOS_H = 0.22; // world height the model is normalised to
 // The screen plane, in the viewer's local space (feet at y=0, height BINOS_H).
-const BINOS_SCREEN_POS: V3 = [0, 0.18, 0.005];
+const BINOS_SCREEN_POS: V3 = [0, 0.15, -0.01];
 const BINOS_SCREEN_ROT: V3 = [0, 0, 0];
 const BINOS_SCREEN_SIZE: [number, number] = [0.07, 0.075];
 // A simple post the viewer stands on — raise BINOS_STAND_H to lift it higher.
 const BINOS_STAND_H = 0.14;
-const BINOS_STAND_R = 0.045;
+const BINOS_STAND_R = 0.02;
 function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY?: number; slug?: string }) {
   const { selected, visited } = useActive(slug ?? '');
   const reduced = useReducedMotion();
@@ -1238,7 +1238,7 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
       <Fireflies slug={slug} />
       {/* the ARCam tower viewer — pops in and scans when the hotspot is selected;
           stands on its post (raise BINOS_STAND_H to lift it higher) */}
-      <Binoculars position={[0.1, 0, 0.34]} rotationY={-0.15} slug={slug} />
+      <Binoculars position={[-0.1, 0, 0.34]} rotationY={-0.35} slug={slug} />
       </group>
     </group>
   );
@@ -2629,13 +2629,12 @@ interface Relation {
 // and the city's Alliander grid work.
 const THREAD = { ar: '#46d6e6', xr: '#c79bff', data: '#bff06a' };
 const RELATIONS: Relation[] = [
-  { thread: 'AR', from: 'custom-ar-framework', to: 'lightship-drive', color: THREAD.ar },
-  { thread: 'AR', from: 'lightship-drive', to: 'arcam', color: THREAD.ar },
+  { thread: 'Location based AR', from: 'lightship-drive', to: 'arcam', color: THREAD.ar },
   { thread: 'AR', from: 'custom-ar-framework', to: 'zwijsen-ar-books', color: THREAD.ar },
-  { thread: 'AR games', from: 'dtt-amsterdam', to: 'lightship-drive', color: THREAD.ar },
-  { thread: 'XR · simulation', from: 'philips-medical-xr', to: 'virtuele-brigade', color: THREAD.xr },
-  { thread: 'AI · data', from: 'amsterdam-ai', to: 'popcore-games', color: THREAD.data },
-  { thread: 'AI · data', from: 'amsterdam-ai', to: 'alliander-hololens', color: THREAD.data },
+  { thread: 'Games', from: 'dtt-amsterdam', to: 'lightship-drive', color: THREAD.ar },
+  { thread: 'Simulation', from: 'philips-medical-xr', to: 'virtuele-brigade', color: THREAD.xr },
+  { thread: 'AI & data', from: 'amsterdam-ai', to: 'popcore-games', color: THREAD.data },
+  { thread: 'Big data', from: 'amsterdam-ai', to: 'alliander-hololens', color: THREAD.data },
 ];
 
 const HOTSPOT_BY_SLUG: Record<string, Hotspot> = Object.fromEntries(HOTSPOTS.map((h) => [h.slug, h]));

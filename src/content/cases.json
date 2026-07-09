@@ -14,12 +14,13 @@
     "year": "2025",
     "live": false,
     "media": [],
+    "video": "https://www.youtube.com/watch?v=8UI8EQKnCTY",
+    "article": "https://www.linkedin.com/pulse/purple-nectar-defensie-herontdekt-zijn-missie-en-wij-bouwen-door-bnoie/",
     "draft": false
   },
   {
     "slug": "alliander-hololens",
     "title": "Alliander HoloLens suite",
-    "kind": "freelance",
     "layer": "city",
     "client": "Alliander",
     "sector": "Energy · AR",
@@ -31,12 +32,13 @@
     "year": "2021",
     "live": false,
     "media": [],
+    "video": "https://www.youtube.com/watch?v=2HM8ZNnEKeU",
+    "article": "https://merijnkersten.nl/",
     "draft": false
   },
   {
     "slug": "alliander-digital-twin",
     "title": "Alliander digital twin",
-    "kind": "freelance",
     "layer": "city",
     "client": "Alliander",
     "sector": "Energy · web 3D",
@@ -48,13 +50,14 @@
     "year": "2022",
     "live": false,
     "media": [],
+    "article": "https://merijnkersten.nl/web-explorer",
     "draft": false
   },
   {
     "slug": "arcam",
     "title": "ARCam",
     "layer": "city",
-    "client": "Niantic",
+    "client": "Wonderment",
     "sector": "Location-based AR · Installation",
     "challenge": "Niantic wanted to hand event visitors a real photo with their favourite characters from the IP's they work with. Think Pokémon, Monster Hunter beasts, basketball stars, the Niantic mascot. It all had to work first time, on a busy show floor, in a different city every other week.",
     "built": "ARCam, an AR photo installation I built at Wonderment for Niantic. An iPad running the Lightship SDK drops the characters into the scene through a viewfinder that came in a few builds, a sturdy pedestal and 2 portable tripod rigs. Two modes: take a photo with the characters (the main event) or pan around to spot location-based highlights out in the world.",
@@ -64,7 +67,7 @@
     "year": "2022",
     "live": false,
     "media": [],
-    "video": "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+    "video": "https://youtu.be/lmf0VN5xsI0",
     "article": "https://merijnkersten.nl/",
     "draft": false
   },
@@ -83,6 +86,8 @@
     "year": "2023",
     "live": false,
     "media": [],
+    "video": "https://youtu.be/lmf0VN5xsI0",
+    "article": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-sxsw2023-gooutandplay-activity-7053733492467081216-_6Dx/?utm_source=share&utm_medium=member_desktop",
     "draft": false
   },
   {
@@ -99,6 +104,8 @@
     "year": "2019",
     "live": false,
     "media": [],
+    "video": "https://youtu.be/QiTaakf7yRE",
+    "article": "https://merijnkersten.nl/",
     "draft": false
   },
   {
@@ -115,6 +122,8 @@
     "year": "2023",
     "live": false,
     "media": [],
+    "video": "https://youtu.be/pXhApOdiq9g",
+    "article": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-wonderment-niantic-activity-7138816231519719424-gjDU/?utm_source=share&utm_medium=member_desktop",
     "draft": false
   },
   {
@@ -131,6 +140,8 @@
     "year": "2020",
     "live": false,
     "media": [],
+    "video": "https://youtu.be/B_JJ0r52qrI",
+    "article": "https://merijnkersten.nl/",
     "draft": false
   },
   {
@@ -147,6 +158,8 @@
     "year": "2021",
     "live": false,
     "media": [],
+    "video": "https://www.youtube.com/watch?v=yPMbXaRXjvk",
+    "article": "https://merijnkersten.nl/",
     "draft": false
   },
   {
@@ -163,6 +176,8 @@
     "year": "2024",
     "live": false,
     "media": [],
+    "video": "https://www.youtube.com/watch?v=lDBxik5v1e0",
+    "article": "https://unity.com/resources/philips-healthcare-innovations-xr",
     "draft": false
   },
   {
@@ -180,6 +195,8 @@
     "year": "2024",
     "live": false,
     "media": [],
+    "video": "https://youtu.be/8UI8EQKnCTY",
+    "article": "https://medium.com/@rebelscontent/ai-chatbots-for-augmented-reality-a0c06f0c599a",
     "draft": false
   },
   {
@@ -197,6 +214,8 @@
     "year": "2018",
     "live": false,
     "media": [],
+    "video": "https://youtu.be/B_JJ0r52qrI",
+    "article": "https://docs.google.com/document/d/14nbCjnt5Q4B6Q_BJEFAJffhTqdmsfrQKgQVCw7nFURQ/edit?tab=t.0",
     "draft": false
   }
 ]
