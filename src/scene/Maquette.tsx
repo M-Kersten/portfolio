@@ -2593,7 +2593,9 @@ function HotspotMarker({ hotspot, color, onActivate }: { hotspot: Hotspot; color
               <i />
               <i />
             </span>
-            <span className="hotspot__label">{label}</span>
+            <span className="hotspot__label">
+              <span className="hotspot__label-fill">{label}</span>
+            </span>
           </button>
         </span>
       </Html>

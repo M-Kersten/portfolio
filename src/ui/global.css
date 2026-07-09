@@ -788,14 +788,12 @@ html {
   white-space: nowrap;
   font-size: var(--step--1);
   letter-spacing: 0.04em;
-  color: var(--ink);
   background: transparent;
   border: 1px solid transparent;
   padding: 0.3em 0.65em;
   border-radius: var(--radius-s);
   opacity: 0.62;
   pointer-events: none;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.7);
   transform: translate(0, -50%);
   transition: opacity 0.2s var(--ease), background 0.2s var(--ease), border-color 0.2s var(--ease);
 }
@@ -805,7 +803,62 @@ html {
   opacity: 1;
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   border-color: var(--line);
+}
+/* The name reads white at rest; --fill sweeps the layer accent across it left
+   to right (0% → 100%). Registered so it can animate smoothly. */
+@property --fill {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+.hotspot__label-fill {
+  display: inline-block;
+  --fill: 0%;
+  background-image: linear-gradient(90deg, var(--hotc) 0 var(--fill), var(--ink) var(--fill) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.7);
+}
+.hotspot__dot:hover .hotspot__label-fill,
+.hotspot__dot:focus-visible .hotspot__label-fill,
+.hotspot[data-open='true'] .hotspot__label-fill {
   text-shadow: none;
+}
+/* once brought to life, the name stays lit in its accent */
+.hotspot[data-alive] .hotspot__label-fill {
+  --fill: 100%;
+}
+/* the exciting bit — selecting wipes the accent across, a little glitchy */
+.hotspot[data-open='true'] .hotspot__label-fill {
+  animation:
+    hotspot-fill 0.5s linear both,
+    hotspot-glitch 0.5s linear both;
+}
+@keyframes hotspot-fill {
+  0% { --fill: 0%; }
+  18% { --fill: 14%; }
+  30% { --fill: 56%; }
+  40% { --fill: 41%; }
+  56% { --fill: 76%; }
+  66% { --fill: 63%; }
+  84% { --fill: 100%; }
+  90% { --fill: 91%; }
+  100% { --fill: 100%; }
+}
+@keyframes hotspot-glitch {
+  0%, 24%, 44%, 70%, 100% { transform: none; text-shadow: none; }
+  30% { transform: translateX(-1.5px) skewX(-6deg); text-shadow: 1.5px 0 var(--hotc), -1.5px 0 #ff2d78; }
+  38% { transform: translateX(1px); text-shadow: none; }
+  58% { transform: translateX(1.5px) skewX(4deg); text-shadow: -1.5px 0 var(--hotc), 1.5px 0 #00e0ff; }
+  66% { transform: translateX(-1px); text-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hotspot[data-open='true'] .hotspot__label-fill {
+    animation: none;
+    --fill: 100%;
+  }
 }
 
 /* Cross-layer signal threads: a faint label naming what links two nodes. Its
