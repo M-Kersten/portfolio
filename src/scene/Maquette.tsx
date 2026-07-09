@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html, Line as DreiLine, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, ExtrudeGeometry, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, TubeGeometry, Vector3, type Group, type Material, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, ExtrudeGeometry, InstancedMesh, Line as ThreeLine, LineBasicMaterial, Matrix4, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, TubeGeometry, Vector3, type Group, type Material, type Mesh, type Object3D, type Points as ThreePoints, type Texture } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, anchorWorld, type Hotspot, type LayerId } from './framing';
 import { useTweak } from './devTweak';
@@ -682,20 +682,42 @@ function Accent({ position, args, intensity = 0.4, rotation, color }: { position
  *  `winMat`, it grows a grid of windows on its two camera-facing sides that
  *  light up when the town hall is hovered. */
 function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; d: number; h: number; winMat?: MeshStandardMaterial }) {
+  // Every window shares one material and one unit-plane geometry, so the whole
+  // grid collapses into a single instanced draw call instead of one mesh per
+  // pane (a tall tower is ~40 panes). Position, facing and size are baked into
+  // each instance's matrix.
   const windows = useMemo(() => {
-    if (!winMat) return [] as { p: V3; r?: V3; s: [number, number] }[];
-    const out: { p: V3; r?: V3; s: [number, number] }[] = [];
+    if (!winMat) return [] as { p: V3; ry: number; s: [number, number] }[];
+    const out: { p: V3; ry: number; s: [number, number] }[] = [];
     const rows = Math.max(1, Math.floor((h - 0.06) / 0.11));
     for (let r = 0; r < rows; r++) {
       const yy = 0.09 + r * 0.11;
       if (yy > h - 0.05) break;
       for (const c of [-1, 1]) {
-        out.push({ p: [c * w * 0.22, yy, d / 2 + 0.004], s: [w * 0.26, 0.05] });
-        out.push({ p: [w / 2 + 0.004, yy, c * d * 0.22], r: [0, Math.PI / 2, 0], s: [d * 0.26, 0.05] });
+        out.push({ p: [c * w * 0.22, yy, d / 2 + 0.004], ry: 0, s: [w * 0.26, 0.05] });
+        out.push({ p: [w / 2 + 0.004, yy, c * d * 0.22], ry: Math.PI / 2, s: [d * 0.26, 0.05] });
       }
     }
     return out;
   }, [w, d, h, winMat]);
+  const winRef = useRef<InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const im = winRef.current;
+    if (!im || windows.length === 0) return;
+    const mtx = new Matrix4();
+    const q = new Quaternion();
+    const e = new Euler();
+    const p = new Vector3();
+    const s = new Vector3();
+    windows.forEach((win, i) => {
+      p.set(win.p[0], win.p[1], win.p[2]);
+      q.setFromEuler(e.set(0, win.ry, 0));
+      s.set(win.s[0], win.s[1], 1);
+      im.setMatrixAt(i, mtx.compose(p, q, s));
+    });
+    im.instanceMatrix.needsUpdate = true;
+    im.computeBoundingSphere(); // so building-level frustum culling stays correct
+  }, [windows]);
   return (
     <group position={[x, 0, z]}>
       <mesh position={[0, h / 2, 0]}>
@@ -703,11 +725,11 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
         <GlassMat opacity={0.3} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
-      {windows.map((win, i) => (
-        <mesh key={i} position={win.p} rotation={win.r} material={winMat}>
-          <planeGeometry args={win.s} />
-        </mesh>
-      ))}
+      {windows.length > 0 && (
+        <instancedMesh ref={winRef} args={[undefined, undefined, windows.length]} material={winMat}>
+          <planeGeometry args={[1, 1]} />
+        </instancedMesh>
+      )}
     </group>
   );
 }
