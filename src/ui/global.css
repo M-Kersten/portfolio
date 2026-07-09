@@ -798,11 +798,14 @@ html {
   transition: opacity 0.2s var(--ease), background 0.2s var(--ease), border-color 0.2s var(--ease);
 }
 .hotspot__dot:hover .hotspot__label,
-.hotspot__dot:focus-visible .hotspot__label,
-.hotspot[data-open='true'] .hotspot__label {
+.hotspot__dot:focus-visible .hotspot__label {
   opacity: 1;
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   border-color: var(--line);
+}
+/* selecting hides the name — the title now lives in the HUD card */
+.hotspot[data-open='true'] .hotspot__label {
+  opacity: 0;
 }
 /* The name reads white at rest; --fill sweeps the layer accent across it left
    to right (0% → 100%). Registered so it can animate smoothly. */
@@ -821,17 +824,10 @@ html {
   color: transparent;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.7);
 }
+/* the exciting bit — HOVER wipes the accent across the name, a little glitchy */
 .hotspot__dot:hover .hotspot__label-fill,
-.hotspot__dot:focus-visible .hotspot__label-fill,
-.hotspot[data-open='true'] .hotspot__label-fill {
+.hotspot__dot:focus-visible .hotspot__label-fill {
   text-shadow: none;
-}
-/* once brought to life, the name stays lit in its accent */
-.hotspot[data-alive] .hotspot__label-fill {
-  --fill: 100%;
-}
-/* the exciting bit — selecting wipes the accent across, a little glitchy */
-.hotspot[data-open='true'] .hotspot__label-fill {
   animation:
     hotspot-fill 0.5s linear both,
     hotspot-glitch 0.5s linear both;
@@ -855,7 +851,8 @@ html {
   66% { transform: translateX(-1px); text-shadow: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hotspot[data-open='true'] .hotspot__label-fill {
+  .hotspot__dot:hover .hotspot__label-fill,
+  .hotspot__dot:focus-visible .hotspot__label-fill {
     animation: none;
     --fill: 100%;
   }
@@ -1672,8 +1669,12 @@ html {
   max-height: 88svh;
   overflow: hidden auto;
   display: block;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
+  /* the same square-dot field the rest of the site uses, faint on the raised
+     card; it stays fixed to the card as the content scrolls */
+  background: var(--dots-faint),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
     color-mix(in srgb, var(--paper-2) 90%, transparent);
+  background-size: 30px 30px, auto, auto;
   border: 1px solid color-mix(in srgb, var(--card-accent) 45%, var(--line));
   border-radius: var(--radius);
   box-shadow: 0 44px 96px rgba(0, 0, 0, 0.62);
