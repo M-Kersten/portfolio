@@ -353,14 +353,14 @@ img {
 .hero {
   position: relative;
 }
-/* Three equal panels give the camera journey its scroll length and are
-   transparent so the fixed canvas shows through. Their combined height sets how
-   far you scroll per layer — HeroStage splits the travel into even thirds, so
-   each step (City→Room→Chip) is the same short distance. No scroll-snap: the
-   58svh snap points didn't line up with the viewport and made the page feel
-   like it stuck when you tried to scroll past the hero. */
+/* Three panels give the camera journey its scroll length and are transparent so
+   the fixed canvas shows through. Their combined height sets how far you scroll
+   per layer — HeroStage weights the travel City<0.25 · Room 0.25–0.75 · Chip≥0.75
+   so Room (the only one you must stop mid-scroll to hold) gets the widest, most
+   forgiving band. No scroll-snap: the old snap points didn't line up with the
+   viewport and made the page feel like it stuck when scrolling past the hero. */
 .hero__panel {
-  height: 42svh;
+  height: 46svh;
 }
 
 /* Minimal title — fixed, fades when a node is inspected or scrolled past. */
@@ -427,9 +427,12 @@ img {
   grid-template-columns: minmax(18rem, 38%) 1fr;
   gap: var(--space-l);
   padding: var(--space-m) var(--space-l);
-  /* translucent acrylic dossier */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
+  /* translucent acrylic dossier, carrying the site's square-dot field so it
+     matches the focus card + section backgrounds */
+  background: var(--dots-faint),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
     color-mix(in srgb, var(--paper) 80%, transparent);
+  background-size: 30px 30px, auto, auto;
   border-top: 1px solid var(--line);
   box-shadow: 0 -24px 64px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(20px) saturate(1.3);

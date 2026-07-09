@@ -26,10 +26,11 @@ export function HeroStage() {
   // below doesn't reliably trip an observer, which used to strand the title over
   // the wall — a per-frame rect read is robust to that.
   //
-  // journeyStep = which even third of the hero's scroll travel we're in, so
-  // City→Room and Room→Chip cover the *same* distance. The old center-line
-  // observer gave the first/last panels only (H − ½vh) of travel and the middle
-  // panel its full height, which made Room→Chip feel ~7× longer than City→Room.
+  // journeyStep = which band of the hero's scroll travel we're in. City rests at
+  // the very top and Chip at the very bottom, so they're easy to land on at the
+  // extremes; Room is the only layer you have to stop *in the middle* to hold.
+  // So Room gets the widest band — the middle half of the travel — which makes
+  // it easy to reach, while City→Room stays a short first hop.
   useEffect(() => {
     let raf = 0;
     let lastStep = -1;
@@ -42,7 +43,7 @@ export function HeroStage() {
 
         const travel = Math.max(hero.offsetHeight - vh, 1);
         const p = Math.min(Math.max(-r.top, 0), travel) / travel; // 0→1 across the hero
-        const step = p >= 2 / 3 ? 2 : p >= 1 / 3 ? 1 : 0;
+        const step = p >= 0.75 ? 2 : p >= 0.25 ? 1 : 0; // City <0.25 · Room 0.25–0.75 · Chip ≥0.75
         if (step !== lastStep) {
           lastStep = step;
           sceneStore.setJourneyStep(step);

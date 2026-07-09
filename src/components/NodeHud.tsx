@@ -6,6 +6,9 @@ import { youtubeEmbed } from '../lib/youtube';
 import { sceneStore } from '../scene/store';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
+// Centre of each layer's scroll band on the hero (fraction of scroll travel),
+// matching the City <0.25 · Room 0.25–0.75 · Chip ≥0.75 split in HeroStage.
+const ZONE_CENTER = [0.125, 0.5, 0.875];
 
 // Bottom dossier drawer for an inspected node: a photo/video on the left and the
 // full detail on the right, while the 3D node stays visible above (the camera
@@ -48,16 +51,22 @@ export function NodeHud() {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   const study = slug ? caseBySlug(slug) : undefined;
-  // Closing drops you back on the layer you left from, not the top (City).
+  // Closing drops you back onto the layer you left from. Scroll to the *centre*
+  // of that layer's band on the hero so the journey lands squarely on it — the
+  // old per-panel scrollIntoView aimed at a panel top, which on the current
+  // (shorter) hero overshot past the travel and dumped you a layer down (Room →
+  // Chip) or into the content below (Chip → capabilities).
   const close = () => {
     navigate('/');
-    if (study) {
-      const step = LAYER_STEP[study.layer] ?? 0;
-      sceneStore.setJourneyStep(step);
-      requestAnimationFrame(() => {
-        document.querySelector<HTMLElement>(`.hero__panel[data-step="${step}"]`)?.scrollIntoView({ block: 'start' });
-      });
-    }
+    if (!study) return;
+    const step = LAYER_STEP[study.layer] ?? 0;
+    sceneStore.setJourneyStep(step);
+    requestAnimationFrame(() => {
+      const hero = document.getElementById('hero');
+      if (!hero) return;
+      const travel = Math.max(hero.offsetHeight - window.innerHeight, 0);
+      window.scrollTo({ top: hero.offsetTop + (ZONE_CENTER[step] ?? 0.125) * travel });
+    });
   };
 
   useEffect(() => {
