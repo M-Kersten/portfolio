@@ -42,7 +42,7 @@ function companyFavicon(url?: string): string | null {
 // visitor can read who Merijn was working for on each project at a glance.
 interface Stop {
   study: CaseStudy;
-  x: number; // horizontal position (px) — driven by the year
+  x: number; // horizontal position (px) — month-precise position on the axis
   side: 'above' | 'below';
 }
 interface CareerBand {
@@ -69,40 +69,52 @@ interface Timeline {
 }
 
 function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig): Timeline {
-  const yearOf = (c: CaseStudy) => Number(c.year ?? 0);
-  const ordered = [...list].sort((a, b) => yearOf(a) - yearOf(b));
+  // A project's position on the axis, at month precision. `year` may carry a
+  // month ("YYYY-MM"); a year-only value sits in the *middle* of its year
+  // rather than jammed on the 1-January tick, so it reads closer to when it
+  // happened and lines up better against the month-precise career bands. Add a
+  // month to any project's `year` (e.g. "2024" → "2024-09") to pin it exactly.
+  const posOf = (c: CaseStudy) => {
+    const [y, m] = String(c.year ?? '').split('-').map(Number);
+    if (!y) return 0;
+    return m ? y + (m - 1) / 12 : y + 0.5;
+  };
+  const ordered = [...list].sort((a, b) => posOf(a) - posOf(b));
   // Start the axis at the earliest of the first project or the first job, so
   // the timeline reaches back to where the career actually began.
   const careerMin = career.length ? Math.min(...career.map((c) => Number(c.from.slice(0, 4)))) : Infinity;
-  const minYear = Math.min(yearOf(ordered[0]), careerMin);
+  const minYear = Math.min(Math.floor(posOf(ordered[0])), careerMin);
   // The axis has to reach "now": the current job can start *after* the last
   // logged project (e.g. Marechaussee began in 2025-07, past every project
   // year), so end the route at the present rather than the last project —
   // otherwise that band clamps to a zero-width sliver at the edge and vanishes.
   const now = new Date();
   const present = now.getFullYear() + now.getMonth() / 12;
-  const maxYear = Math.max(yearOf(ordered[ordered.length - 1]), present);
-  const xOf = (y: number) => cfg.startX + (y - minYear) * cfg.yearGap;
+  const maxYear = Math.max(posOf(ordered[ordered.length - 1]), present);
+  const xAt = (f: number) => cfg.startX + (f - minYear) * cfg.yearGap;
 
-  // Walk the ordered list year-group by year-group, deciding each stop's side.
-  // Singles alternate above/below down the line; a shared year splits its
-  // members across both sides so they never collide.
+  // Place the stops left→right, each at its month-precise x. A stop takes
+  // whichever side (above/below) still has a clear card-width behind it,
+  // preferring to alternate; if several projects bunch into the same span and
+  // both sides are crowded, it slides right just far enough to clear the last
+  // card on its side. So no card ever hides behind its neighbour (four projects
+  // in one year fan into two clean columns), and giving bunched projects real
+  // months simply spreads them apart on their own.
   const stops: Stop[] = [];
+  const lastX: Record<'above' | 'below', number> = { above: -Infinity, below: -Infinity };
   let toggle: 'above' | 'below' = 'above';
-  for (let i = 0; i < ordered.length; ) {
-    const y = yearOf(ordered[i]);
-    const group: CaseStudy[] = [];
-    while (i < ordered.length && yearOf(ordered[i]) === y) group.push(ordered[i++]);
-    const x = xOf(y);
-    if (group.length === 1) {
-      stops.push({ study: group[0], x, side: toggle });
-      toggle = toggle === 'above' ? 'below' : 'above';
-    } else {
-      group.forEach((s, k) => stops.push({ study: s, x, side: k % 2 === 0 ? 'above' : 'below' }));
-    }
+  for (const study of ordered) {
+    let side: 'above' | 'below' = toggle;
+    const other: 'above' | 'below' = side === 'above' ? 'below' : 'above';
+    let x = xAt(posOf(study));
+    if (x - lastX[side] < cfg.cardW && x - lastX[other] >= cfg.cardW) side = other;
+    if (x - lastX[side] < cfg.cardW) x = lastX[side] + cfg.cardW;
+    stops.push({ study, x, side });
+    lastX[side] = x;
+    toggle = side === 'above' ? 'below' : 'above';
   }
 
-  const routeLeft = xOf(minYear);
+  const routeLeft = xAt(minYear);
   const routeW = (maxYear - minYear) * cfg.yearGap;
   const routeRight = routeLeft + routeW;
   const width = routeRight + cfg.startX;

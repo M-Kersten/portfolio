@@ -1189,7 +1189,9 @@ img {
   left: 50%;
   top: calc(100% + 9px);
   width: max-content;
-  max-width: 260px;
+  /* Roomy enough that the company name + its date range sit on one line and the
+     blurb doesn't wrap too tightly — the old 260px let the date spill out. */
+  max-width: 340px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1687,7 +1689,10 @@ img {
   z-index: 90;
   display: grid;
   place-items: center;
-  padding: var(--space-l) var(--space-m);
+  /* `main` is its own stacking context (z-index 1), so this overlay sits *below*
+     the fixed header — reserve the header's height at the top so the centred
+     card is nudged down and never tucks under it. */
+  padding: calc(var(--header-h) + var(--space-s)) var(--space-m) var(--space-l);
   background: color-mix(in srgb, var(--paper) 74%, transparent);
   backdrop-filter: blur(10px);
   animation: focus-fade 0.3s var(--ease);
@@ -1696,7 +1701,9 @@ img {
   --card-accent: var(--accent);
   position: relative;
   width: min(760px, 100%);
-  max-height: 88svh;
+  /* Fit inside the header-reserved area above so the card never overflows back
+     under the header on short viewports. */
+  max-height: calc(100svh - var(--header-h) - var(--space-xl));
   overflow: hidden auto;
   display: block;
   /* the same square-dot field the rest of the site uses, faint on the raised

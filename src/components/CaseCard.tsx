@@ -24,6 +24,9 @@ export function CaseCard({
   const kindLabel = study.kind === 'freelance' ? 'Freelance' : study.kind === 'passion' ? 'Passion' : null;
   const tagText = kindLabel ?? study.tag ?? study.client;
   const metaText = kindLabel ? `${study.client} · ${study.sector}` : study.sector;
+  // `year` may carry a month for timeline placement ("2024-09"); the stamp only
+  // ever shows the year itself.
+  const yearLabel = study.year?.slice(0, 4);
 
   return (
     <button
@@ -32,7 +35,7 @@ export function CaseCard({
       data-layer={study.layer}
       style={{ ...style, '--card-ang': `${120 + (seed % 90)}deg` } as CSSProperties}
       onClick={onOpen}
-      aria-label={`${study.title}, ${study.year} — open`}
+      aria-label={`${study.title}, ${yearLabel} — open`}
     >
       <div className="worktile__media">
         <div className="worktile__ph" aria-hidden="true" />
@@ -44,7 +47,7 @@ export function CaseCard({
       </div>
       <div className="worktile__body">
         <div className="worktile__stamp">
-          <span className="worktile__yr">{study.year}</span>
+          <span className="worktile__yr">{yearLabel}</span>
           <span className="worktile__tag" data-kind={study.kind}>{tagText}</span>
         </div>
         <h3 className="worktile__title">{study.title}</h3>
