@@ -46,6 +46,11 @@ const SIGNAL_PACKETS = 5;
 const PIPE_OFFSET = 0.7; // how far the vertical riser sits outside the link's midpoint
 const PIPE_REST = new Color('#5a6e82'); // unlit cable colour (before highlight)
 const _sv = new Vector3(); // scratch for sampling the curve each frame
+const _sc = new Color(); // scratch for the completion colour drift
+// Once every signal is found the cables stay calm — only their packets keep
+// flowing, slowly drifting through the three thread colours, so the network
+// reads as one quiet system exchanging everything.
+const CYCLE = [new Color('#46d6e6'), new Color('#c79bff'), new Color('#bff06a')];
 
 // A stable outward direction for links whose endpoints both sit on the spine.
 function hashDir(s: string): Vector3 {
@@ -128,12 +133,15 @@ export function SignalLine({ thread, from, to, color }: Relation) {
   const colArr = useMemo(() => new Float32Array(SIGNAL_PACKETS * 3), []);
   const baseCol = useMemo(() => new Color(color), [color]);
   const k = useRef(0); // eased activation: 0 idle, 0.5 hover, 1 selected
+  const ck = useRef(0); // eased completion: packets-only, cables stay at rest
   const u = useRef(0); // packet flow phase
 
   useFrame((_s, delta) => {
-    const target = selA || selB ? 1 : hovA || hovB ? 0.6 : complete ? 0.85 : 0;
+    const target = selA || selB ? 1 : hovA || hovB ? 0.6 : 0;
     k.current += (target - k.current) * 0.12;
+    ck.current += ((complete ? 1 : 0) - ck.current) * 0.03; // slow, quiet fade-in
     const kk = k.current;
+    const cc = ck.current;
 
     // The cable is always present (dim, neutral) and lights up in its thread
     // colour, brighter and a touch heavier, as the link is highlighted.
@@ -151,23 +159,38 @@ export function SignalLine({ thread, from, to, color }: Relation) {
       }
     }
 
-    // Data flows through the cable only while it's highlighted.
-    if (!reduced) u.current = (u.current + delta * 0.16) % 1;
+    // Data flows through the cable while it's highlighted — and, once all
+    // signals are found, forever: a calm stream whose colours drift through
+    // the thread palette while the cable itself stays at rest.
+    if (!reduced) u.current = (u.current + delta * (kk > 0.04 ? 0.16 : 0.09)) % 1;
     const pen = pointsRef.current;
     if (pen) {
-      const flowing = kk > 0.04;
+      const flowing = kk > 0.04 || cc > 0.04;
       pen.visible = flowing;
       if (flowing) {
+        const t = _s.clock.elapsedTime;
         for (let i = 0; i < SIGNAL_PACKETS; i++) {
           const f = (u.current + i / SIGNAL_PACKETS) % 1;
           curve.getPointAt(f, _sv);
           posArr[i * 3] = _sv.x;
           posArr[i * 3 + 1] = _sv.y;
           posArr[i * 3 + 2] = _sv.z;
-          const b = kk * (0.5 + 0.5 * Math.sin(f * Math.PI)); // fade in/out at the ends
-          colArr[i * 3] = baseCol.r * b;
-          colArr[i * 3 + 1] = baseCol.g * b;
-          colArr[i * 3 + 2] = baseCol.b * b;
+          const ends = 0.5 + 0.5 * Math.sin(f * Math.PI); // fade in/out at the ends
+          const bA = kk * ends;
+          const bC = cc * 0.5 * ends;
+          if (bA >= bC) {
+            colArr[i * 3] = baseCol.r * bA;
+            colArr[i * 3 + 1] = baseCol.g * bA;
+            colArr[i * 3 + 2] = baseCol.b * bA;
+          } else {
+            // drift through the palette, phase-offset per packet
+            const ph = (t * 0.1 + i / SIGNAL_PACKETS) % 1;
+            const j = Math.floor(ph * CYCLE.length);
+            _sc.copy(CYCLE[j]).lerp(CYCLE[(j + 1) % CYCLE.length], ph * CYCLE.length - j);
+            colArr[i * 3] = _sc.r * bC;
+            colArr[i * 3 + 1] = _sc.g * bC;
+            colArr[i * 3 + 2] = _sc.b * bC;
+          }
         }
         if (posAttr.current) posAttr.current.needsUpdate = true;
         if (colAttr.current) colAttr.current.needsUpdate = true;

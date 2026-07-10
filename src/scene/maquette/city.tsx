@@ -809,11 +809,11 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
 
 /* ---------- The completion reward: the next project ----------
    The moment every signal has been found (store.completedAt set), a new site
-   materialises beside the road into town: a building under construction with
-   a slow-turning crane — deliberately the only thing left as a ghost in a
-   fully coloured world, because it hasn't happened yet. Its marker invites
-   the visitor to be the one it gets built with. */
-const SITE_POS: V3 = [0.9, 0, 0.68];
+   materialises at the back of the skyline: a big, simple building shell going
+   up with a slow-turning crane — deliberately the only thing left as a ghost
+   in a fully coloured world, because it hasn't happened yet. Its marker
+   invites the visitor to be the one it gets built with. */
+const SITE_POS: V3 = [-0.95, 0, -0.9];
 
 function NextProjectSite() {
   const completedAt = useSceneSelector((s) => s.completedAt);
@@ -825,60 +825,52 @@ function NextProjectSite() {
     if (completedAt === null) return;
     const t = reduced ? 10 : (performance.now() - completedAt) / 1000;
     // ease up out of the ground, then idle: the crane keeps slowly working
-    const k = 1 - Math.exp(-Math.max(0, t - 0.4) * 1.8);
+    const k = 1 - Math.exp(-Math.max(0, t - 0.4) * 1.6);
     if (rise.current) {
-      rise.current.scale.set(0.65 + 0.35 * k, Math.max(0.001, k), 0.65 + 0.35 * k);
+      rise.current.scale.set(0.7 + 0.3 * k, Math.max(0.001, k), 0.7 + 0.3 * k);
     }
-    if (jib.current && !reduced) jib.current.rotation.y = Math.sin(t * 0.35) * 0.5 - 0.4;
+    if (jib.current && !reduced) jib.current.rotation.y = Math.sin(t * 0.3) * 0.55 + 0.5;
   });
 
   if (completedAt === null) return null;
 
-  const floors: { y: number; w: number; h: number; off: number }[] = [
-    { y: 0.055, w: 0.2, h: 0.11, off: 0 },
-    { y: 0.165, w: 0.19, h: 0.1, off: 0.008 },
-    { y: 0.26, w: 0.18, h: 0.08, off: -0.012 }, // top floor still going up
-  ];
-
   return (
-    <group position={SITE_POS} rotation={[0, -0.35, 0]}>
-      {/* staked-out foundation */}
-      <Line points={roundedRectPts(0.3, 0.3, 0.05)} color={GHOST_LINE} lineWidth={1} transparent opacity={0.5} />
+    <group position={SITE_POS} rotation={[0, 0.5, 0]}>
+      {/* staked-out plot */}
+      <Line points={roundedRectPts(0.56, 0.56, 0.07)} color={GHOST_LINE} lineWidth={1} transparent opacity={0.55} />
       <group ref={rise}>
-        {/* the unbuilt floors — wireframe ghost, never colours in */}
-        {floors.map((f, i) => (
-          <mesh key={i} position={[f.off, f.y, 0]}>
-            <boxGeometry args={[f.w, f.h, f.w]} />
-            <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.06} depthWrite={false} />
-            <Edges threshold={20} color={GHOST_LINE} />
+        {/* two simple shell volumes — the top one still going up */}
+        <mesh position={[0, 0.26, 0]}>
+          <boxGeometry args={[0.36, 0.52, 0.36]} />
+          <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.07} depthWrite={false} />
+          <Edges threshold={20} color={GHOST_LINE} />
+        </mesh>
+        <mesh position={[0.02, 0.64, -0.02]}>
+          <boxGeometry args={[0.3, 0.22, 0.3]} />
+          <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.05} depthWrite={false} />
+          <Edges threshold={20} color={GHOST_LINE} />
+        </mesh>
+        {/* tower crane on the corner — mast, jib, one cable mid-lift */}
+        <group position={[0.24, 0, 0.24]}>
+          <mesh position={[0, 0.55, 0]}>
+            <boxGeometry args={[0.022, 1.1, 0.022]} />
+            <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
           </mesh>
-        ))}
-        {/* tower crane on the corner */}
-        <group position={[0.13, 0, 0.13]}>
-          <mesh position={[0, 0.26, 0]}>
-            <boxGeometry args={[0.016, 0.52, 0.016]} />
-            <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
-          </mesh>
-          <group ref={jib} position={[0, 0.5, 0]}>
-            <mesh position={[-0.14, 0, 0]}>
-              <boxGeometry args={[0.3, 0.012, 0.012]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+          <group ref={jib} position={[0, 1.06, 0]}>
+            <mesh position={[-0.28, 0, 0]}>
+              <boxGeometry args={[0.6, 0.016, 0.016]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
             </mesh>
-            <mesh position={[0.07, 0, 0]}>
-              <boxGeometry args={[0.1, 0.012, 0.02]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
-            </mesh>
-            {/* cable + hook, mid-lift */}
-            <Line points={[[-0.24, 0, 0], [-0.24, -0.18, 0]]} color={GHOST_LINE} lineWidth={1} transparent opacity={0.5} />
-            <mesh position={[-0.24, -0.19, 0]}>
-              <boxGeometry args={[0.024, 0.024, 0.024]} />
-              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.4} />
+            <Line points={[[-0.5, 0, 0], [-0.5, -0.34, 0]]} color={GHOST_LINE} lineWidth={1} transparent opacity={0.55} />
+            <mesh position={[-0.5, -0.36, 0]}>
+              <boxGeometry args={[0.04, 0.04, 0.04]} />
+              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.45} />
             </mesh>
           </group>
         </group>
       </group>
       {/* the invitation — clicks through to contact */}
-      <Html position={[0, 0.66, 0]} center zIndexRange={[20, 0]} className="hotspot-wrap">
+      <Html position={[0, 0.92, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
         <button
           type="button"
           className="nextsite"
