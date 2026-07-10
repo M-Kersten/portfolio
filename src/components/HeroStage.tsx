@@ -82,7 +82,6 @@ export function HeroStage() {
       <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
         <h1 className="hero__name">{site.hero.name}</h1>
         <p className="hero__sub">{site.hero.subheading}</p>
-        <p className="hero__scrollcue" aria-hidden="true">have a poke around and see how it's all connected</p>
       </div>
 
       {/* Layer narration — remounts per step so the line slides in fresh. */}

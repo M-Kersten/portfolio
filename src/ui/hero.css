@@ -49,15 +49,6 @@
   margin: 0;
   text-wrap: balance;
 }
-.hero__scrollcue {
-  margin: var(--space-l) 0 0;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-
 /* Layer narration — one mono line, bottom-left on the container grid line,
    that introduces whichever layer the journey has centred. Remounted per step
    (keyed on journeyStep) so each line slides in fresh. */

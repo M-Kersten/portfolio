@@ -71,9 +71,6 @@
 .nav__link:hover {
   color: var(--ink);
 }
-.nav__cta {
-  margin-left: var(--space-xs);
-}
 /* Brand-icon links (YouTube · GitHub · Instagram · LinkedIn). */
 .social {
   display: inline-flex;
@@ -131,10 +128,6 @@
     padding: 0.85rem 0;
     border-bottom: 1px solid var(--hairline);
     font-size: var(--step-0);
-  }
-  .nav__cta {
-    margin: var(--space-s) 0 0;
-    justify-content: center;
   }
   /* In the drawer the icons become a centered row, no divider. */
   .nav__social {
