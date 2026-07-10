@@ -7,7 +7,9 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 // layout, so nothing reflows while the overlay animates. Reduced motion
 // renders the plain text.
 
-const GLYPHS = '#/\\<>[]{}=+*%!0123456789';
+// Light, narrow glyphs only — heavy marks (#, {}, %, digits) at display sizes
+// read like the title doubling in weight while it decodes.
+const GLYPHS = '/\\<>=+*!:;·';
 
 function noise(text: string): string {
   let s = '';
@@ -42,6 +44,11 @@ export function Scramble({ text, delay = 0, wrap = false }: { text: string; dela
     if (!el) return;
     let raf = 0;
     let t0 = 0;
+    // The noise shimmer re-randomises at ~12Hz, not per frame — a 60Hz churn
+    // of glyphs across a display-size title read as frantic.
+    let noiseAt = -1;
+    let noiseFrom = 0;
+    let cached = '';
     const dur = 420 + text.length * 9;
     const step = (now: number) => {
       raf = 0;
@@ -50,7 +57,12 @@ export function Scramble({ text, delay = 0, wrap = false }: { text: string; dela
       if (k < 1) raf = requestAnimationFrame(step);
       if (k < 0) return; // still waiting out the stagger delay
       const solved = Math.max(0, Math.floor(Math.min(1, k) * text.length));
-      setState({ solved, rest: noise(text.slice(solved)) });
+      if (now - noiseAt > 80) {
+        cached = noise(text.slice(solved));
+        noiseFrom = solved;
+        noiseAt = now;
+      }
+      setState({ solved, rest: cached.slice(solved - noiseFrom) });
     };
     const io = new IntersectionObserver(
       (es) => {

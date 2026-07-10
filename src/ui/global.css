@@ -1034,8 +1034,15 @@ img {
 }
 .scramble__live {
   position: absolute;
-  inset: 0 auto auto 0;
-  width: 100%;
+  /* Pinned to the ghost's box and clipped just past its edges: proportional
+     noise runs a touch wider than the real text, and unclipped a display-size
+     title could momentarily wrap to an extra line and spill over the content
+     below — which read as the scramble "blowing up". The clip reaches a few
+     tenths of an em past the box so glyph overshoot (the y/p descenders under
+     the titles' tight line-height) paints intact; a whole stray line (≈1em
+     down) stays hidden. */
+  inset: 0;
+  clip-path: inset(-0.25em -0.35em -0.3em -0.15em);
   white-space: pre;
 }
 /* The not-yet-decoded tail whispers instead of shouting: faint glyph static
