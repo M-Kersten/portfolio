@@ -15,10 +15,13 @@ function noise(text: string): string {
   return s;
 }
 
-// `wrap` lets the live overlay wrap like its ghost — only safe for mono
-// text, where the preserved spaces land at the same indices and give the
-// noise identical break points. Proportional text keeps the no-wrap default
-// (noise runs a touch wide to the right instead of spilling onto new lines).
+// `wrap` lets the live overlay wrap like its ghost. Spaces survive the noise
+// at the same indices, so the overlay only ever breaks at the ghost's own
+// break candidates; in mono the break points match exactly, in proportional
+// text they can shift by a word for the fraction of a second the noise is
+// wider than the real text. Any text that MUST wrap (section titles on a
+// phone) wants this — the no-wrap default instead paints one long clipped
+// line straight off the viewport edge.
 export function Scramble({ text, delay = 0, wrap = false }: { text: string; delay?: number; wrap?: boolean }) {
   const reduced = useReducedMotion();
   const ref = useRef<HTMLSpanElement>(null);

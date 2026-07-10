@@ -363,10 +363,13 @@ img {
   height: 46svh;
 }
 
-/* Minimal title — fixed, fades when a node is inspected or scrolled past. */
+/* Minimal title — fixed, fades when a node is inspected or scrolled past.
+   Its left offset mirrors the .container gutter so the name sits on the same
+   grid line as every section title below (flush-left it sat ~80px short of
+   that line on wide screens). */
 .hero__title {
   position: fixed;
-  left: 0;
+  left: max(0px, calc((100vw - var(--container)) / 2));
   top: 0;
   z-index: 5;
   padding: calc(var(--header-h) + var(--space-xl)) var(--space-m) 0;
@@ -974,9 +977,11 @@ img {
   --card-accent: var(--accent);
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* top-aligned to one shared line — centring three unequal columns left their
+     index/title rows at three different heights, which read as wobble */
+  justify-content: flex-start;
   min-height: clamp(320px, 30vw, 430px);
-  padding-block: clamp(2rem, 4vw, 3.5rem);
+  padding-block: clamp(2.75rem, 6vw, 4.5rem) clamp(2rem, 4vw, 3.5rem);
   /* inline padding + a capped inner width keep the copy clear of the seams */
   padding-inline: clamp(1.5rem, 4vw, 3.5rem);
   transition: opacity 0.4s var(--ease);
@@ -984,6 +989,15 @@ img {
 .capc[data-layer='city'] { --card-accent: var(--cyan); align-items: flex-start; }
 .capc[data-layer='room'] { --card-accent: var(--coral); align-items: center; }
 .capc[data-layer='chip'] { --card-accent: var(--lime); align-items: flex-end; }
+/* The outer columns' text edges sit on the container grid (same line as the
+   section title above); interior seams are untouched because padding inside a
+   1fr grid item doesn't move the track boundaries the hover regions map to. */
+.capc[data-layer='city'] {
+  padding-left: max(clamp(1.5rem, 4vw, 3.5rem), calc((100vw - var(--container)) / 2 + var(--space-m)));
+}
+.capc[data-layer='chip'] {
+  padding-right: max(clamp(1.5rem, 4vw, 3.5rem), calc((100vw - var(--container)) / 2 + var(--space-m)));
+}
 .capc__inner {
   display: flex;
   flex-direction: column;
@@ -1023,9 +1037,9 @@ img {
   width: 100%;
   white-space: pre;
 }
-/* Mono, multi-line text (the About fact values) opts into wrapping: spaces
-   survive the noise at the same indices, so the overlay breaks exactly
-   where its ghost does while it decodes. */
+/* Text that has to wrap (section titles on a phone, the About fact values)
+   opts into wrapping: spaces survive the noise at the same indices, so the
+   overlay breaks at the ghost's own break points while it decodes. */
 .scramble--wrap .scramble__live {
   white-space: pre-wrap;
 }
@@ -1089,6 +1103,9 @@ img {
     gap: var(--space-m);
     margin-top: var(--space-l);
     max-width: 34rem;
+    /* centred under the intro — left-hugging cards left a bare right half
+       between ~560px and the 900px breakpoint */
+    margin-inline: auto;
   }
 }
 
@@ -1413,7 +1430,8 @@ img {
 }
 .wall__cue {
   position: absolute;
-  left: max(var(--space-m), (100% - var(--container)) / 2);
+  /* same left grid line as the section titles (container gutter + inset) */
+  left: max(var(--space-m), calc((100% - var(--container)) / 2 + var(--space-m)));
   bottom: var(--space-l);
   font-family: var(--font-mono);
   font-size: var(--step--1);
@@ -1608,8 +1626,9 @@ img {
 .worktile__body {
   display: flex;
   flex-direction: column;
-  gap: 0.3em;
-  padding: var(--space-s);
+  gap: 0.35em;
+  /* a touch more floor than walls so the meta line clears the reticle corner */
+  padding: var(--space-s) var(--space-s) calc(var(--space-s) + 0.3rem);
 }
 .worktile__meta {
   font-family: var(--font-mono);
@@ -2109,12 +2128,16 @@ img {
 .contact {
   position: relative;
   overflow: hidden;
-  padding: var(--space-xl) 0 var(--space-2xl);
+  padding: var(--space-s) 0 var(--space-2xl);
   text-align: center;
 }
-/* Trim the section's own bottom padding so the letterbox at the foot of the
-   motif canvas sits at the very bottom of the page, just above the footer. */
+/* Rebalance the section's own padding: About's tall exit plus this section's
+   full 2xl entrance plus .contact's old xl inner pad stacked to ~340px of
+   empty black before the title — trim the entrance, keep the theatrical exit
+   (the motif letterbox lives in .contact's bottom padding) and pull the
+   letterbox down to sit just above the footer. */
 #contact.section {
+  padding-top: var(--space-xl);
   padding-bottom: var(--space-m);
 }
 .contact > * {
@@ -2138,7 +2161,10 @@ img {
   color: var(--ink);
   font-size: var(--step-4);
 }
+/* Hierarchy ladder: step-4 title → step-1 lead → step-2 email (the CTA) →
+   quiet mono buttons, with the gaps widening down the ladder. */
 .contact p {
+  font-size: var(--step-1);
   color: var(--ink-60);
   margin-inline: auto;
 }
@@ -2147,14 +2173,21 @@ img {
   font-family: var(--font-display);
   font-size: var(--step-2);
   color: var(--accent-ink);
-  margin-top: var(--space-s);
+  margin-top: var(--space-m);
 }
 .contact__links {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-s);
   justify-content: center;
-  margin-top: var(--space-m);
+  margin-top: var(--space-l);
+}
+/* On a phone the four buttons wrap 3+1; cap the row so they land 2+2. */
+@media (max-width: 480px) {
+  .contact__links {
+    max-width: 19rem;
+    margin-inline: auto;
+  }
 }
 
 @media (max-width: 760px) {
