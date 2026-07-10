@@ -1,0 +1,248 @@
+/* The node HUD — the bottom dossier drawer that opens when a 3D hotspot
+   is selected (media left, project detail right). */
+
+/* ---------- Node HUD (bottom dossier drawer) ---------- */
+
+.node-hud {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  height: 46svh;
+  min-height: 19rem;
+  display: grid;
+  grid-template-columns: minmax(18rem, 38%) 1fr;
+  gap: var(--space-l);
+  padding: var(--space-m) var(--space-l);
+  /* translucent acrylic dossier, carrying the site's square-dot field so it
+     matches the focus card + section backgrounds */
+  background: var(--dots-faint),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
+    color-mix(in srgb, var(--paper) 80%, transparent);
+  background-size: 30px 30px, auto, auto;
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -24px 64px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(20px) saturate(1.3);
+  animation: hud-rise 0.36s var(--ease);
+}
+/* solid accent edge along the top of the drawer (per the project's layer) */
+.node-hud {
+  --card-accent: var(--accent);
+}
+.node-hud[data-layer='city'] { --card-accent: var(--cyan); }
+.node-hud[data-layer='room'] { --card-accent: var(--coral); }
+.node-hud[data-layer='chip'] { --card-accent: var(--lime); }
+.node-hud::before {
+  content: '';
+  position: absolute;
+  inset: -1px 0 auto 0;
+  height: 2px;
+  background: var(--card-accent);
+}
+@keyframes hud-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+.node-hud__close {
+  position: absolute;
+  top: var(--space-s);
+  right: var(--space-s);
+  z-index: 2;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 1.05rem;
+}
+.node-hud__close:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* media (left column) */
+.node-hud__media {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  object-fit: cover;
+  background: #06080a;
+}
+.node-hud__media--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  color: var(--ink-40);
+  background: radial-gradient(120% 100% at 50% 38%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
+    #06080a;
+}
+.node-hud__play {
+  width: 3.4rem;
+  height: 3.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line));
+  color: var(--accent-ink);
+  font-size: 1rem;
+  padding-left: 0.2rem;
+}
+.node-hud__mediahint {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+/* An embedded YouTube player filling the media slot. */
+.node-hud__media--video {
+  position: relative;
+  overflow: hidden;
+  background: #06080a;
+}
+.node-hud__media--video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.node-hud__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+  align-items: center;
+  margin-top: 0.2em;
+}
+
+/* detail (right column) */
+.node-hud__detail {
+  min-width: 0;
+  overflow: auto;
+  padding-right: var(--space-s);
+}
+
+/* The overlay views (node HUD + case popup) scroll, but without a visible
+   scrollbar — it reads cleaner over the frozen page behind them. */
+.node-hud,
+.node-hud__detail,
+.focus__card {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+.node-hud::-webkit-scrollbar,
+.node-hud__detail::-webkit-scrollbar,
+.focus__card::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.node-hud__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em 1em;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-60);
+  margin-bottom: var(--space-2xs);
+}
+.node-hud__layer {
+  color: var(--card-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.node-hud__title {
+  font-size: var(--step-2);
+  margin: 0;
+}
+.node-hud__outcome {
+  font-family: var(--font-display);
+  color: var(--accent-ink);
+  font-size: var(--step-1);
+  margin: var(--space-2xs) 0 var(--space-s);
+}
+.node-hud__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-m);
+  margin-bottom: var(--space-s);
+}
+.node-hud__cols p {
+  color: var(--ink-60);
+  font-size: var(--step--1);
+  margin: 0;
+}
+.node-hud__h {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  margin: 0 0 0.4em;
+}
+.node-hud__tech {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-s);
+}
+.node-hud__tech li {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--accent-ink);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: var(--radius-s);
+  padding: 0.15em 0.5em;
+}
+.node-hud__lesson {
+  font-size: var(--step--1);
+  font-style: italic;
+  color: var(--ink);
+  margin: 0 0 var(--space-s);
+  padding-left: var(--space-s);
+  border-left: 2px solid var(--accent);
+}
+.node-hud__lesson span {
+  display: block;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.node-hud__discuss {
+  display: inline-flex;
+}
+
+@media (max-width: 760px) {
+  .node-hud {
+    grid-template-columns: 1fr;
+    height: auto;
+    max-height: 82svh;
+    overflow: auto;
+    gap: var(--space-s);
+  }
+  .node-hud__media {
+    height: 9rem;
+    flex: none;
+  }
+  .node-hud__cols {
+    grid-template-columns: 1fr;
+    gap: var(--space-s);
+  }
+  .node-hud__detail {
+    overflow: visible;
+  }
+}
+

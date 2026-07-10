@@ -1,0 +1,71 @@
+/* The hero: three invisible scroll panels that give the 3D layer journey
+   its length, plus the fixed name/subtitle block over the maquette. */
+
+/* ---------- Hero stage (scroll layer journey) ---------- */
+
+.hero {
+  position: relative;
+}
+/* Three panels give the camera journey its scroll length and are transparent so
+   the fixed canvas shows through. Their combined height sets how far you scroll
+   per layer — HeroStage weights the travel City<0.25 · Room 0.25–0.75 · Chip≥0.75
+   so Room (the only one you must stop mid-scroll to hold) gets the widest, most
+   forgiving band. No scroll-snap: the old snap points didn't line up with the
+   viewport and made the page feel like it stuck when scrolling past the hero. */
+.hero__panel {
+  height: 46svh;
+}
+
+/* Minimal title — fixed, fades when a node is inspected or scrolled past.
+   Its left offset mirrors the .container gutter so the name sits on the same
+   grid line as every section title below (flush-left it sat ~80px short of
+   that line on wide screens). */
+.hero__title {
+  position: fixed;
+  left: max(0px, calc((100vw - var(--container)) / 2));
+  top: 0;
+  z-index: 5;
+  padding: calc(var(--header-h) + var(--space-xl)) var(--space-m) 0;
+  max-width: 32rem;
+  pointer-events: none;
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+}
+.hero__title[data-visible='false'] {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+.hero__name {
+  font-size: var(--step-5);
+  font-weight: 700; /* Space Grotesk's heaviest weight */
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+  margin: 0 0 0.4em;
+  color: var(--ink);
+}
+.hero__sub {
+  font-size: var(--step-2);
+  color: var(--ink-60);
+  max-width: 26ch;
+  margin: 0;
+  text-wrap: balance;
+}
+.hero__scrollcue {
+  margin: var(--space-l) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .hero__name {
+    font-size: var(--step-4);
+  }
+  .hero__title {
+    max-width: 86vw;
+  }
+  .scene-canvas {
+    transform: none; /* no menu on mobile → keep the scene centred */
+  }
+}

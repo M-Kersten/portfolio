@@ -1,0 +1,210 @@
+/* The capabilities band — three scales as one slanted full-bleed band on
+   desktop, stacked cards on mobile — plus the Scramble decode-in effect. */
+
+/* ---------- Capabilities — the three scales as one slanted band ---------- */
+
+/* Shared written content — used by the band columns and the mobile cards. */
+.capc__index {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.1em;
+  color: var(--card-accent);
+  margin-top: 0.3em;
+}
+.capc__title {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  line-height: 1.1;
+  margin: 0;
+}
+.capc__text {
+  color: var(--ink-60);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  margin: 0;
+}
+.capc__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  list-style: none;
+  padding: 0;
+  margin: 0.3em 0 0;
+}
+.capc__tags li {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-60);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 26%, var(--hairline));
+  border-radius: var(--radius-s);
+  padding: 0.2em 0.55em;
+  background: color-mix(in srgb, var(--paper) 30%, transparent);
+}
+
+/* ---- Desktop: one full-bleed band, sheared into slanted regions. It sits on
+   the page paper (no slab fill / wash / hard borders) so it flows with the rest
+   of the site; the faint motif + soft seams are its only texture. ---- */
+.cap-band {
+  position: relative;
+  margin-top: var(--space-l);
+  overflow: hidden;
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+}
+.cap-band:not([data-shown]) { opacity: 0; transform: translateY(24px); }
+.cap-band__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cap-band__content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.capc {
+  --card-accent: var(--accent);
+  display: flex;
+  flex-direction: column;
+  /* top-aligned to one shared line — centring three unequal columns left their
+     index/title rows at three different heights, which read as wobble */
+  justify-content: flex-start;
+  min-height: clamp(250px, 22vw, 330px);
+  padding-block: clamp(2rem, 4vw, 3rem) clamp(1.75rem, 3vw, 2.5rem);
+  /* inline padding + a capped inner width keep the copy clear of the seams */
+  padding-inline: clamp(1.5rem, 4vw, 3.5rem);
+  transition: opacity 0.4s var(--ease);
+}
+.capc[data-layer='city'] { --card-accent: var(--cyan); align-items: flex-start; }
+.capc[data-layer='room'] { --card-accent: var(--coral); align-items: center; }
+.capc[data-layer='chip'] { --card-accent: var(--lime); align-items: flex-end; }
+/* The outer columns' text edges sit exactly on the container grid (same line
+   as the section title above) at every width; the outer edges carry no seams,
+   and padding inside a 1fr grid item doesn't move the track boundaries the
+   hover regions map to. */
+.capc[data-layer='city'] {
+  padding-left: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
+}
+.capc[data-layer='chip'] {
+  padding-right: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
+}
+.capc__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  max-width: 33ch;
+}
+.cap-band[data-active] .capc:not([data-on]) { opacity: 0.42; }
+
+/* The written content rises in piece by piece once its band/card is shown —
+   the column index (--i, set on .capc/.cap) offsets each column's turn. */
+.capc__inner > *,
+.cap__body > * {
+  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
+}
+.capc__inner > *:nth-child(1), .cap__body > *:nth-child(1) { transition-delay: calc(var(--i, 0) * 0.14s + 0.05s); }
+.capc__inner > *:nth-child(2), .cap__body > *:nth-child(2) { transition-delay: calc(var(--i, 0) * 0.14s + 0.13s); }
+.capc__inner > *:nth-child(3), .cap__body > *:nth-child(3) { transition-delay: calc(var(--i, 0) * 0.14s + 0.21s); }
+.capc__inner > *:nth-child(4), .cap__body > *:nth-child(4) { transition-delay: calc(var(--i, 0) * 0.14s + 0.29s); }
+.cap-band:not([data-shown]) .capc__inner > *,
+.cap-ladder:not([data-shown]) .cap__body > * {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* Decode-in titles — the invisible ghost copy reserves the final layout; the
+   live overlay resolves left to right out of glyph noise (see Scramble.tsx). */
+.scramble {
+  position: relative;
+  display: inline-block;
+}
+.scramble__ghost {
+  visibility: hidden;
+}
+.scramble__live {
+  position: absolute;
+  /* Pinned to the ghost's box and clipped just past its edges: proportional
+     noise runs a touch wider than the real text, and unclipped a display-size
+     title could momentarily wrap to an extra line and spill over the content
+     below — which read as the scramble "blowing up". The clip reaches a few
+     tenths of an em past the box so glyph overshoot (the y/p descenders under
+     the titles' tight line-height) paints intact; a whole stray line (≈1em
+     down) stays hidden. */
+  inset: 0;
+  clip-path: inset(-0.25em -0.35em -0.3em -0.15em);
+  white-space: pre;
+}
+/* The not-yet-decoded tail whispers instead of shouting: faint glyph static
+   the real text writes itself over, rather than a full-ink glyph storm. */
+.scramble__rest {
+  opacity: 0.22;
+}
+/* Text that has to wrap (section titles on a phone, the About fact values)
+   opts into wrapping: spaces survive the noise at the same indices, so the
+   overlay breaks at the ghost's own break points while it decodes. */
+.scramble--wrap .scramble__live {
+  white-space: pre-wrap;
+}
+
+/* ---- Mobile: three stacked cards ---- */
+.cap-ladder { display: none; }
+.cap {
+  --card-accent: var(--accent);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card-accent) 8%, var(--paper-2)), var(--paper-2));
+  border: 1px solid color-mix(in srgb, var(--card-accent) 30%, var(--line));
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: transform 0.4s var(--ease), border-color 0.3s var(--ease), box-shadow 0.3s var(--ease), opacity 0.5s var(--ease);
+  transition-delay: calc(var(--i) * 0.09s);
+}
+.cap[data-layer='city'] { --card-accent: var(--cyan); }
+.cap[data-layer='room'] { --card-accent: var(--coral); }
+.cap[data-layer='chip'] { --card-accent: var(--lime); }
+.cap-ladder:not([data-shown]) .cap { opacity: 0; transform: translateY(26px); }
+.cap[data-on] {
+  border-color: color-mix(in srgb, var(--card-accent) 65%, var(--line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent);
+}
+.cap__motif {
+  position: relative;
+  height: 150px;
+  overflow: hidden;
+  background: radial-gradient(120% 110% at 50% 0%, color-mix(in srgb, var(--card-accent) 13%, transparent), transparent 68%), #06090c;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-accent) 26%, var(--line));
+}
+.cap__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cap__motif::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 52%, color-mix(in srgb, var(--paper-2) 88%, transparent));
+  pointer-events: none;
+}
+.cap__reticle { position: absolute; inset: 8px; z-index: 2; pointer-events: none; }
+.cap__reticle i {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--card-accent) 38%, transparent);
+}
+.cap[data-on] .cap__reticle i { border-color: var(--card-accent); }
+.cap__reticle i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.cap__reticle i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.cap__reticle i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.cap__reticle i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.cap__body { display: flex; flex-direction: column; gap: 0.5em; padding: var(--space-m); flex: 1; }
+
+@media (max-width: 900px) {
+  .cap-band { display: none; }
+  .cap-ladder {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-m);
+    margin-top: var(--space-l);
+    max-width: 34rem;
+    /* centred under the intro — left-hugging cards left a bare right half
+       between ~560px and the 900px breakpoint */
+    margin-inline: auto;
+  }
+}
+
