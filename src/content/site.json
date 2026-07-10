@@ -15,7 +15,7 @@
     "lead": "I tend to bounce between three sizes of thing."
   },
   "workIntro": {
-    "title": "A map of everything\nI’ve built",
+    "title": "A map of the highlights\nof my work",
     "lead": "A bunch of projects from over the years. Some ended up on thousands of devices, some were failures, but all of them taught me something."
   },
   "spawn": "1997-03-16",
@@ -31,17 +31,18 @@
   ],
   "about": {
     "title": "From shaders\nto screws",
-    "lead": "I’m a creative technologist from Utrecht. I've been working on it for about a decade, and I still get the same kick out of it: take some upcoming technology and push it until it does something slightly magical.",
+    "lead": "I’m a creative technologist from Utrecht. For almost a decade I’ve been chasing the same little moment: when a piece of technology stops feeling like technology and starts feeling like a small magic trick.",
     "body": [
-      "I’m happiest somewhere between the screen and the physical world. I’ll jump from a shader to a backend to a soldering iron on the same day. I like seeing the whole thing, context is everything. A lot of what I make is really about connecting the digital and the physical so they stop feeling like separate worlds.",
-      "Most of what I actually know came from side projects and things that broke in interesting ways. I like testing tech before it’s really ready, ARKit and ARCore back when you still had to glue them together yourself, multiplayer AR, VPS, Apple Vision Pro, whatever the new thing is.",
-      "I have some opinions, and here’s the main one: the demo always lies. Something that works flawlessly on my desk will find a hundred new ways to break when it meets a real network, hardware, or person who didn’t read the manual.",
-      "Right now I’m connecting VR players without crossing wires (a real challenge it turns out) and a couple of side projects. If any of that sounds fun, come say hi!"
+      "Most of my work lives somewhere between the screen and the real world. I’ve built things that put virtual objects on streets, turned books into interactive worlds, connected strangers through AR and convinced people to have conversations with fictional characters. I like being close to the entire machine — the pixels, the code, the hardware, the people using it and the weird things that happen when all of those collide.",
+      "A lot of what I know came from breaking things on purpose. I like finding technology before it has a comfortable workflow, when the documentation is incomplete and everyone is still figuring out what it can become. ARKit before it had a friendly abstraction layer. Multiplayer AR before the tools were ready. Spatial computing before anyone knew what to call it. The unfinished parts are usually where the interesting questions live.",
+      "I have one theory I keep coming back to: the demo is a liar. A prototype on my desk can look like the future, but the real world always gets the final word. Networks disappear, hardware behaves strangely and someone will always use your carefully designed interface in a way you never imagined. That is where the real engineering starts.",
+      "Right now I’m connecting VR players without letting them physically connect with each other (which sounds easier than it is), experimenting with new ideas and building things that probably have no business working yet. If you enjoy exploring the edges of what technology can do, we’ll probably have something to talk about."
+
     ],
     "facts": [
       { "label": "Based in", "value": "Utrecht, Netherlands" },
       { "label": "Currently into", "value": "Music production, Multiplayer, UX design, AI experiments" },
-      { "label": "Tools I reach for", "value": "Unity, Ableton Live, full-stack webdev, Arduino" },
+      { "label": "Studied", "value": "Creative media & game technology at Saxion" },
       { "label": "Off the clock", "value": "Baking, Cooking, History, Church, Fitness" }
     ]
   },
