@@ -105,10 +105,10 @@ the layer), and give it an object in that layer's rig
 
 **Moving things in 3D**: run `npm run dev` — two tweak panels appear. The
 top-left **wall layout** panel scrubs the timeline's spacing *and its motion
-feel* (velocity skew, card lag, dolly zoom/tilt, response — set any to 0 to
-disable); the **scene** panel (from `useTweak` calls in the rigs) scrubs
-object positions live. Both print the values to copy back into code, and both
-are stripped from production builds.
+feel* (dolly zoom/tilt + response — set to 0 to disable); the **scene** panel
+(from `useTweak` calls in the rigs) scrubs object positions live. Both print
+the values to copy back into code, and both are stripped from production
+builds.
 
 **Look & feel**: start at `src/ui/tokens.css` (colours, type scale, spacing,
 container width — the whole grid derives from `--container`). Section styling

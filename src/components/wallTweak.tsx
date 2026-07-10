@@ -15,12 +15,10 @@ export interface WallConfig {
   rise: number; // gap between the route line and a card's near edge (% of plane height)
   parallax: number; // dot-field drift vs the timeline (0 = fixed, 1 = moves with it)
 
-  // ---- Motion feel (all velocity-driven; 0 disables the effect) ----
-  skewMax: number; // A: max shear (deg) at full pan speed — the wall leans with travel
-  skewLag: number; // A: how far the cards trail the route's lean (0 = rigid, 1 = loose)
-  dollyZoom: number; // B: how far the wall pulls back at full speed (0.05 = to 95%)
-  dollyTilt: number; // B: backward tilt (deg) at full speed (needs perspective)
-  motionEase: number; // response of all of the above (higher = snappier, lower = floatier)
+  // ---- Motion feel (velocity-driven; 0 disables the effect) ----
+  dollyZoom: number; // how far the wall pulls back at full pan speed (0.05 = to 95%)
+  dollyTilt: number; // backward tilt (deg) at full speed (needs perspective)
+  motionEase: number; // response (higher = snappier, lower = floatier)
 }
 
 const WALL_DEFAULTS: WallConfig = {
@@ -31,8 +29,6 @@ const WALL_DEFAULTS: WallConfig = {
   rise: 6,
   parallax: 0.72,
 
-  skewMax: 2.6,
-  skewLag: 0.45,
   dollyZoom: 0.04,
   dollyTilt: 1.1,
   motionEase: 0.12,
@@ -75,8 +71,6 @@ const FIELDS: FieldSpec[] = [
   { k: 'yearGap', label: 'year spacing', min: 160, max: 560, step: 10 },
   { k: 'rise', label: 'route → card %', min: 0, max: 20, step: 0.5 },
   { k: 'parallax', label: 'dot parallax', min: 0, max: 1, step: 0.02 },
-  { k: 'skewMax', label: 'velocity skew °', min: -8, max: 8, step: 0.2 },
-  { k: 'skewLag', label: 'card lag', min: 0, max: 1, step: 0.05 },
   { k: 'dollyZoom', label: 'dolly zoom', min: 0, max: 0.15, step: 0.005 },
   { k: 'dollyTilt', label: 'dolly tilt °', min: 0, max: 6, step: 0.1 },
   { k: 'motionEase', label: 'motion response', min: 0.03, max: 0.3, step: 0.01 },

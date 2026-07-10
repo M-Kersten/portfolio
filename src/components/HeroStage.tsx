@@ -30,6 +30,10 @@ export function HeroStage() {
   // Whether the hero itself is on screen — guards against `journeyStep` going
   // stale (e.g. an anchor jump straight to the wall never crosses a panel).
   const [heroInView, setHeroInView] = useState(true);
+  // Whether the hero still owns the bottom edge of the viewport. The caption +
+  // signals tally live down there, so they clear as soon as the capabilities
+  // section scrolls up over that spot instead of lingering on top of it.
+  const [heroOwnsBottom, setHeroOwnsBottom] = useState(true);
 
   // The scroll journey and the "is the hero on screen?" flag are both derived
   // from the hero's own scroll progress on one cheap rAF loop (no scroll events,
@@ -51,6 +55,7 @@ export function HeroStage() {
         const vh = window.innerHeight;
         const r = hero.getBoundingClientRect();
         setHeroInView(r.bottom > 0 && r.top < vh);
+        setHeroOwnsBottom(r.bottom > vh - 32);
 
         const travel = Math.max(hero.offsetHeight - vh, 1);
         const p = Math.min(Math.max(-r.top, 0), travel) / travel; // 0→1 across the hero
@@ -69,8 +74,9 @@ export function HeroStage() {
   // Title lives only on the City layer (and only while the hero is on screen);
   // it clears the moment you scroll to Room or leave the hero entirely.
   const opacity = selectedSlug ? 0 : heroInView && journeyStep === 0 ? 1 : 0;
-  // The caption + signal tally ride the whole journey, clearing with the HUD.
-  const overlayOpacity = selectedSlug || !heroInView ? 0 : 1;
+  // The caption + signal tally ride the whole journey, clearing with the HUD
+  // and the moment the next section takes over the bottom of the screen.
+  const overlayOpacity = selectedSlug || !heroOwnsBottom ? 0 : 1;
   const caption = CAPTIONS[journeyStep] ?? CAPTIONS[0];
   const found = useSceneSelector(
     (s) => HOTSPOTS.filter((h) => s.visited.includes(h.slug)).length,

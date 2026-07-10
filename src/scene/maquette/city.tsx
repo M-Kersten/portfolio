@@ -951,10 +951,11 @@ function NextProjectSite() {
   );
 }
 
-/* A one-shot fountain of accent-coloured particles over the city — fired at
-   the homecoming (celebrateAt), fading out over ~4s. Pure celebration. */
-const BURST_N = 90;
-const BURST_COLORS = ['#27e8f2', '#ff9068', '#a9f75c', '#a89eff', '#ff74b0'];
+/* A one-shot drift of accent-coloured sparks over the city — fired at the
+   homecoming (celebrateAt), gone within ~3s. A quiet glass-raise, not
+   fireworks. */
+const BURST_N = 32;
+const BURST_COLORS = ['#27e8f2', '#ff9068', '#a9f75c'];
 
 function CelebrationBurst() {
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
@@ -977,15 +978,15 @@ function CelebrationBurst() {
       p0[i * 3] = Math.cos(ang) * r;
       p0[i * 3 + 1] = 0.25 + rnd() * 0.25;
       p0[i * 3 + 2] = Math.sin(ang) * r;
-      vel[i * 3] = Math.cos(ang) * (0.06 + rnd() * 0.22);
-      vel[i * 3 + 1] = 0.85 + rnd() * 0.8;
-      vel[i * 3 + 2] = Math.sin(ang) * (0.06 + rnd() * 0.22);
+      vel[i * 3] = Math.cos(ang) * (0.04 + rnd() * 0.12);
+      vel[i * 3 + 1] = 0.5 + rnd() * 0.55;
+      vel[i * 3 + 2] = Math.sin(ang) * (0.04 + rnd() * 0.12);
       c.set(BURST_COLORS[(rnd() * BURST_COLORS.length) | 0]);
       base[i * 3] = c.r;
       base[i * 3 + 1] = c.g;
       base[i * 3 + 2] = c.b;
-      delay[i] = (i % 3) * 0.35 + rnd() * 0.25; // three loose waves
-      life[i] = 2.1 + rnd() * 1.5;
+      delay[i] = rnd() * 0.5; // one soft, loose wave
+      life[i] = 1.6 + rnd() * 1.0;
     }
     return { p0, vel, base, delay, life, posArr: new Float32Array(BURST_N * 3), colArr: new Float32Array(BURST_N * 3) };
   }, []);
@@ -994,7 +995,7 @@ function CelebrationBurst() {
     const pts = ref.current;
     if (!pts || celebrateAt === null) return;
     const t = (performance.now() - celebrateAt) / 1000;
-    if (t > 4.6) {
+    if (t > 3.2) {
       pts.visible = false;
       return;
     }
@@ -1002,10 +1003,10 @@ function CelebrationBurst() {
     for (let i = 0; i < BURST_N; i++) {
       const tt = t - delay[i];
       const alive = tt > 0 && tt < life[i];
-      const a = alive ? Math.min(1, tt * 6) * (1 - tt / life[i]) : 0;
+      const a = alive ? Math.min(1, tt * 6) * (1 - tt / life[i]) * 0.75 : 0;
       const ttc = Math.max(0, tt);
       posArr[i * 3] = p0[i * 3] + vel[i * 3] * ttc;
-      posArr[i * 3 + 1] = p0[i * 3 + 1] + vel[i * 3 + 1] * ttc - 0.42 * ttc * ttc;
+      posArr[i * 3 + 1] = p0[i * 3 + 1] + vel[i * 3 + 1] * ttc - 0.3 * ttc * ttc;
       posArr[i * 3 + 2] = p0[i * 3 + 2] + vel[i * 3 + 2] * ttc;
       colArr[i * 3] = base[i * 3] * a;
       colArr[i * 3 + 1] = base[i * 3 + 1] * a;
@@ -1023,7 +1024,7 @@ function CelebrationBurst() {
         <bufferAttribute ref={posAttr} attach="attributes-position" args={[posArr, 3]} />
         <bufferAttribute ref={colAttr} attach="attributes-color" args={[colArr, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.05} vertexColors transparent blending={AdditiveBlending} depthWrite={false} sizeAttenuation toneMapped={false} />
+      <pointsMaterial size={0.035} vertexColors transparent blending={AdditiveBlending} depthWrite={false} sizeAttenuation toneMapped={false} />
     </points>
   );
 }
