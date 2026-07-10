@@ -9,7 +9,7 @@ import { useSceneSelector } from './store';
 import { caseBySlug } from '../content';
 import { type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
-import { Maquette } from './Maquette';
+import { Maquette } from './maquette';
 
 // The layer accents — the whole stage washes toward the picked node's colour.
 const LAYER_ACCENT: Record<string, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
