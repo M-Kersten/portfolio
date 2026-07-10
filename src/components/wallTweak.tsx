@@ -16,7 +16,7 @@ export interface WallConfig {
   parallax: number; // dot-field drift vs the timeline (0 = fixed, 1 = moves with it)
 }
 
-export const WALL_DEFAULTS: WallConfig = {
+const WALL_DEFAULTS: WallConfig = {
   cardW: 250,
   planeVh: 1,
   startX: 210,

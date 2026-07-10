@@ -1,7 +1,7 @@
 // Turn any of the usual YouTube link shapes into an embeddable player URL.
 
 /** The 11-char video id from a watch / youtu.be / embed / shorts / live URL. */
-export function youtubeId(url?: string): string | null {
+function youtubeId(url?: string): string | null {
   if (!url) return null;
   const m = url.match(
     /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/))([\w-]{11})/,

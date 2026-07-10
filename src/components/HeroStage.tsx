@@ -2,15 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { site } from '../content';
 import { sceneStore, useSceneSelector } from '../scene/store';
 
-// Three short snap panels give the camera journey its scroll length and drive
-// `journeyStep` (which layer is centred). The minimal title lives only on the
-// City layer and clears the moment you scroll down to Room (or inspect a node).
+// Three invisible scroll panels give the camera journey its length and drive
+// `journeyStep` (0 City · 1 Room · 2 Chip). The minimal title lives only on
+// the City layer and clears the moment you scroll down (or inspect a node).
 
-const STEPS = [
-  { step: 0, label: 'City', tag: 'maps & the real world' },
-  { step: 1, label: 'Room', tag: 'games, apps & toys' },
-  { step: 2, label: 'Chip', tag: 'tools & nerdy bits' },
-];
+const STEPS = [0, 1, 2];
 
 export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
@@ -67,8 +63,8 @@ export function HeroStage() {
         <p className="hero__scrollcue" aria-hidden="true">have a poke around and see how it's all connected</p>
       </div>
 
-      {STEPS.map((s) => (
-        <div key={s.step} className="hero__panel" data-step={s.step} aria-hidden="true" />
+      {STEPS.map((step) => (
+        <div key={step} className="hero__panel" data-step={step} aria-hidden="true" />
       ))}
     </section>
   );

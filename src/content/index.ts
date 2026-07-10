@@ -22,14 +22,4 @@ export const LAYER_LABEL: Record<CaseStudy['layer'], string> = {
   chip: 'Chip',
 };
 
-/** Largest → smallest scale; the order the maquette stacks (top→bottom) and the
- *  work grid groups. */
-export const LAYER_ORDER: CaseStudy['layer'][] = ['city', 'room', 'chip'];
-
-export const LAYER_TAGLINE: Record<CaseStudy['layer'], string> = {
-  city: 'maps & the real world',
-  room: 'games, apps & toys',
-  chip: 'tools & the nerdy bits',
-};
-
 export * from './types';

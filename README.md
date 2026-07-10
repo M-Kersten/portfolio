@@ -38,36 +38,81 @@ Useful while developing:
 
 ```
 src/
-  app/App.tsx          router + layout
+  app/App.tsx          router + layout (dev-only tweak panels mount here)
   components/
     SceneCanvas.tsx    the hero canvas: lazy three/R3F boundary, WebGL fallback
-    HeroStage.tsx      hero copy over the scene
+    HeroStage.tsx      hero copy + the scroll panels that drive the layer journey
     Capabilities.tsx   the three scales as one full-bleed slanted band
     Work.tsx           the projects map: a pinned, scroll-driven timeline
     CaseCard.tsx       a waypoint card on the timeline
     NodeHud.tsx        the /work/:slug dossier drawer
     About / Contact / Header / Footer / Poster / ScanFrame / SectionTitle
   scene/
-    Maquette.tsx       the three-layer world: objects, life system, hotspots
+    maquette/          the three-layer 3D world, one file per concern:
+      index.tsx        composition root — stacks the layers, culls the far one
+      city.tsx         City rig: skyline, windmill, park + ARCam, skyscraper
+      room.tsx         Room rig: desk/monitor, couch + phone, AR table, bookcase
+      chip.tsx         Chip rig: PCB, die, lens, traces, LEDs
+      hotspots.tsx     the floating crosshair markers
+      signals.tsx      cross-layer relation cables (edit RELATIONS here)
+      life.tsx         the ghost→alive life system (LifeGroup, EmissiveHover)
+      materials.tsx    holographic glass + rim shader, accents, SoftBox
+      backdrop.tsx     dot floors, point fields, depth veil
+      shared.tsx       palette, math helpers, useActive, fog-aware Line
     CameraRig.tsx      journey scroll + node fly-to
     Stage.tsx          lighting, fog, bloom, scene root
-    framing.ts         layers, hotspots, camera framings (pure data/math)
+    framing.ts         layer stack + hotspot positions + camera framings (data)
     store.ts           tiny cross-reconciler store (selected/hovered/visited)
-    devTweak.tsx       dev-only position scrubbers (tree-shaken from prod)
+    devTweak.tsx       dev-only 3D position scrubbers (tree-shaken from prod)
   content/             cases.json · capabilities.json · site.json (+ types)
   lib/                 asset base-path, reduced-motion, WebGL support, youtube
-  ui/                  tokens.css (design tokens, locked colour system)
-                       + global.css
-public/textures/       optional real screenshots (room-screen / room-phone /
-                       zwijsen-book .jpg) — objects fall back to procedural
-                       looks when absent
+  ui/                  tokens.css (design tokens) + one stylesheet per page
+                       section (global.css just imports them in order)
+public/
+  posters/<slug>.jpg   timeline/card artwork per project
+  textures/            optional real screenshots (room-screen / room-phone /
+                       zwijsen-book) — objects fall back to procedural looks
+  logos/               employer marks for the timeline tooltips
+  profile/1..5.png     the About portrait frames
 ```
 
-**The life system** (`LifeGroup` in `Maquette.tsx`): each hotspot object's
-materials are snapshotted and lerped between a grey wireframe ghost and their
-authored state. Self-animating materials opt out via `userData.lifeSkip` and
-blend their own ghost→alive keyed on the same store state. Colour policy lives
-in `src/ui/tokens.css`: cyan = interactive + City, coral = Room, lime = Chip.
+**The life system** (`life.tsx`): each hotspot object's materials are
+snapshotted and lerped between a grey wireframe ghost and their authored
+state. Self-animating materials opt out via `userData.lifeSkip` and blend
+their own ghost→alive keyed on the same store state. Colour policy lives in
+`src/ui/tokens.css`: cyan = interactive + City, coral = Room, lime = Chip.
+
+## Editing guide
+
+**Copy & content** — everything written lives in `src/content/`:
+
+- `site.json` — name, hero lines, section intros, career timeline (dates are
+  `YYYY-MM`), about facts, contact links.
+- `cases.json` — one entry per project. `year` accepts `"2024"` (centres on
+  the year) or `"2024-09"` (pins the month on the timeline). Drop a matching
+  poster in `public/posters/<slug>.jpg`.
+- `capabilities.json` — the three band columns.
+- `types.ts` documents every field.
+
+**Adding a project to the 3D scene**: add the case to `cases.json`, then add a
+hotspot for it in `src/scene/framing.ts` (`HOTSPOTS` — positions are local to
+the layer), and give it an object in that layer's rig
+(`scene/maquette/city|room|chip.tsx`). Wrap the object in
+`<LifeGroup slug="...">` so it ghosts until visited. Link related projects in
+`scene/maquette/signals.tsx` (`RELATIONS`).
+
+**Moving things in 3D**: run `npm run dev` — two tweak panels appear. The
+top-left **wall layout** panel scrubs the timeline's spacing; the **scene**
+panel (from `useTweak` calls in the rigs) scrubs object positions live. Both
+print the values to copy back into code, and both are stripped from
+production builds.
+
+**Look & feel**: start at `src/ui/tokens.css` (colours, type scale, spacing,
+container width — the whole grid derives from `--container`). Section styling
+lives in the `src/ui/*.css` file named after the section.
+
+**Camera & layout of the 3D stack**: `src/scene/framing.ts` — layer heights,
+scales, and the three camera framings (home, journey, node close-up).
 
 ## Deploy
 

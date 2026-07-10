@@ -6,19 +6,8 @@ import { Vector3 } from 'three';
 
 export type LayerId = 'chip' | 'room' | 'city';
 
-export interface MaquetteLayer {
-  id: LayerId;
-  /** vertical position of the platform in the stack */
-  y: number;
-  title: string;
-}
-
 // A scale ladder, bottom → top (small → large): the chip, the room, the city.
-export const MAQUETTE_LAYERS: MaquetteLayer[] = [
-  { id: 'chip', y: -1.32, title: 'Chip · tools, CV & data' },
-  { id: 'room', y: 0, title: 'Room · games, apps & web' },
-  { id: 'city', y: 1.32, title: 'City · GIS & location' },
-];
+export const MAQUETTE_LAYERS: LayerId[] = ['chip', 'room', 'city'];
 
 export const LAYER_Y: Record<LayerId, number> = { city: 1.32, room: 0, chip: -1.32 };
 // Sized so the scale ladder reads — City largest, Chip smallest.
@@ -55,12 +44,6 @@ export const HOTSPOTS: Hotspot[] = [
 export interface Framing {
   pos: Vector3;
   target: Vector3;
-}
-
-/** World position of a hotspot dot, accounting for its layer's offset + scale. */
-export function hotspotWorld(h: Hotspot): Vector3 {
-  const s = LAYER_SCALE[h.layer];
-  return new Vector3(h.position[0] * s, LAYER_Y[h.layer] + h.position[1] * s, h.position[2] * s);
 }
 
 /** World position of the object the hotspot points to (its anchor). */
