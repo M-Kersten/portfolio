@@ -13,14 +13,15 @@ export interface CaseStudy {
   layer: Layer;
   client: string;
   sector: string;
-  challenge: string;
-  built: string;
-  /** Exactly one hard outcome metric per case (§7). */
+  /** The story, told in three beats — these carry the case dialogs. */
+  problem: string;
+  approach: string;
+  /** One "key lesson" — the third beat; optional but almost always worth it. */
+  lesson?: string;
+  /** Exactly one hard outcome metric per case (§7) — the big summary line. */
   outcome: string;
   /** Tech stack, shown as tags in the case dialog. */
   tech?: string[];
-  /** One "key lesson" — the systems-thinking throughline of Merijn's work. */
-  lesson?: string;
   /** Year the project was worked on — shown as a stamped date on the wall tile. */
   year?: string;
   /** Map tag override — a short company/label for the waypoint. Defaults to

@@ -168,24 +168,9 @@
   font-size: var(--step-1);
   margin: var(--space-2xs) 0 var(--space-s);
 }
-.node-hud__cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-m);
-  margin-bottom: var(--space-s);
-}
-.node-hud__cols p {
-  color: var(--ink-60);
-  font-size: var(--step--1);
-  margin: 0;
-}
-.node-hud__h {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-40);
-  margin: 0 0 0.4em;
+/* The story block (see base.css) gets breathing room before the tech chips. */
+.node-hud__story {
+  margin-bottom: var(--space-m);
 }
 .node-hud__tech {
   display: flex;
@@ -204,23 +189,6 @@
   border-radius: var(--radius-s);
   padding: 0.15em 0.5em;
 }
-.node-hud__lesson {
-  font-size: var(--step--1);
-  font-style: italic;
-  color: var(--ink);
-  margin: 0 0 var(--space-s);
-  padding-left: var(--space-s);
-  border-left: 2px solid var(--accent);
-}
-.node-hud__lesson span {
-  display: block;
-  font-style: normal;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-40);
-}
 .node-hud__discuss {
   display: inline-flex;
 }
@@ -236,10 +204,6 @@
   .node-hud__media {
     height: 9rem;
     flex: none;
-  }
-  .node-hud__cols {
-    grid-template-columns: 1fr;
-    gap: var(--space-s);
   }
   .node-hud__detail {
     overflow: visible;

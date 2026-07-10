@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { caseBySlug, LAYER_LABEL, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
+import { useFocusTrap } from '../lib/useFocusTrap';
 import { sceneStore } from '../scene/store';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
@@ -49,6 +50,8 @@ export function NodeHud() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const hudRef = useRef<HTMLElement>(null);
+  useFocusTrap(hudRef); // Tab stays inside; focus returns to the hotspot on close
 
   const study = slug ? caseBySlug(slug) : undefined;
   // Closing drops you back onto the layer you left from. Scroll to the *centre*
@@ -88,7 +91,7 @@ export function NodeHud() {
   if (!study) return <Navigate to="/" replace />;
 
   return (
-    <aside className="node-hud" data-layer={study.layer} role="dialog" aria-label={study.title}>
+    <aside ref={hudRef} className="node-hud" data-layer={study.layer} role="dialog" aria-modal="true" aria-label={study.title}>
       <button ref={closeRef} type="button" className="node-hud__close" onClick={close} aria-label="Close node">
         <span aria-hidden="true">✕</span>
       </button>
@@ -107,15 +110,22 @@ export function NodeHud() {
         <h2 className="node-hud__title">{study.title}</h2>
         <p className="node-hud__outcome">{study.outcome}</p>
 
-        <div className="node-hud__cols">
+        {/* The story — the three beats visitors come for. */}
+        <div className="story node-hud__story">
           <section>
-            <h3 className="node-hud__h">The problem</h3>
-            <p>{study.challenge}</p>
+            <h3 className="story__h">The problem</h3>
+            <p>{study.problem}</p>
           </section>
           <section>
-            <h3 className="node-hud__h">What I made</h3>
-            <p>{study.built}</p>
+            <h3 className="story__h">The approach</h3>
+            <p>{study.approach}</p>
           </section>
+          {study.lesson && (
+            <section>
+              <h3 className="story__h">The lesson</h3>
+              <p>{study.lesson}</p>
+            </section>
+          )}
         </div>
 
         {study.tech && study.tech.length > 0 && (
@@ -124,13 +134,6 @@ export function NodeHud() {
               <li key={t}>{t}</li>
             ))}
           </ul>
-        )}
-
-        {study.lesson && (
-          <p className="node-hud__lesson">
-            <span>What I learned</span>
-            {study.lesson}
-          </p>
         )}
 
         <div className="node-hud__actions">

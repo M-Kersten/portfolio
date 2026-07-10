@@ -182,3 +182,30 @@ img {
   box-shadow: none;
 }
 
+/* ---------- Case story ---------- */
+
+/* The three beats every case is told in — the problem, the approach, the
+   lesson — shared by the focus dialog and the node HUD. This text is what
+   visitors come for, so it reads at full body size on a comfortable measure,
+   with only a quiet mono kicker per beat (the dialog's layer colour). */
+.story {
+  display: grid;
+  gap: var(--space-m);
+}
+.story__h {
+  margin: 0 0 0.5em;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--card-accent, var(--accent));
+}
+.story p {
+  margin: 0;
+  max-width: 58ch;
+  font-size: var(--step-0);
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--ink) 88%, transparent);
+}
+

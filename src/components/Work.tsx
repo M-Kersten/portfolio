@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } fr
 import { cases, caseBySlug, site, type CareerEntry, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
+import { useFocusTrap } from '../lib/useFocusTrap';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard } from './CaseCard';
 import { SectionTitle } from './SectionTitle';
@@ -166,6 +167,8 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
   // fall back to the poster placeholder so the card still has a header image.
   const photo = embed ? study.media?.[0] : study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(cardRef); // Tab stays inside; focus returns to the card on close
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -184,6 +187,7 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
   return (
     <div className="focus" onClick={onClose}>
       <div
+        ref={cardRef}
         className="focus__card"
         data-layer={study.layer}
         role="dialog"
@@ -223,15 +227,22 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
           </span>
           <h3 className="focus__title">{study.title}</h3>
           <p className="focus__outcome">{study.outcome}</p>
-          <div className="worktile__cols">
+          {/* The story — the three beats visitors come for. */}
+          <div className="story">
             <section>
-              <h4 className="worktile__h">The problem</h4>
-              <p>{study.challenge}</p>
+              <h4 className="story__h">The problem</h4>
+              <p>{study.problem}</p>
             </section>
             <section>
-              <h4 className="worktile__h">What I made</h4>
-              <p>{study.built}</p>
+              <h4 className="story__h">The approach</h4>
+              <p>{study.approach}</p>
             </section>
+            {study.lesson && (
+              <section>
+                <h4 className="story__h">The lesson</h4>
+                <p>{study.lesson}</p>
+              </section>
+            )}
           </div>
           {study.tech && study.tech.length > 0 && (
             <ul className="worktile__tech" aria-label="Technologies">
@@ -239,12 +250,6 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
                 <li key={t}>{t}</li>
               ))}
             </ul>
-          )}
-          {study.lesson && (
-            <p className="worktile__lesson">
-              <span>What I learned</span>
-              {study.lesson}
-            </p>
           )}
           <div className="focus__actions">
             <a
