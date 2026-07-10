@@ -99,7 +99,10 @@
 
   /* ---- Layout ---- */
   --measure: 62ch;
-  --container: 80rem;
+  /* Wide canvas: slimmer gutters keep the fixed hero title clear of the
+     maquette and let every section breathe. All the "one grid line" math
+     (hero title, band gutters, wall cue) derives from this token. */
+  --container: 87.5rem;
   --radius: 4px; /* crisp, tactile corners (was a soft acrylic 14px) */
   --radius-s: 2px;
 

@@ -980,8 +980,8 @@ img {
   /* top-aligned to one shared line — centring three unequal columns left their
      index/title rows at three different heights, which read as wobble */
   justify-content: flex-start;
-  min-height: clamp(320px, 30vw, 430px);
-  padding-block: clamp(2.75rem, 6vw, 4.5rem) clamp(2rem, 4vw, 3.5rem);
+  min-height: clamp(250px, 22vw, 330px);
+  padding-block: clamp(2rem, 4vw, 3rem) clamp(1.75rem, 3vw, 2.5rem);
   /* inline padding + a capped inner width keep the copy clear of the seams */
   padding-inline: clamp(1.5rem, 4vw, 3.5rem);
   transition: opacity 0.4s var(--ease);
@@ -989,14 +989,15 @@ img {
 .capc[data-layer='city'] { --card-accent: var(--cyan); align-items: flex-start; }
 .capc[data-layer='room'] { --card-accent: var(--coral); align-items: center; }
 .capc[data-layer='chip'] { --card-accent: var(--lime); align-items: flex-end; }
-/* The outer columns' text edges sit on the container grid (same line as the
-   section title above); interior seams are untouched because padding inside a
-   1fr grid item doesn't move the track boundaries the hover regions map to. */
+/* The outer columns' text edges sit exactly on the container grid (same line
+   as the section title above) at every width; the outer edges carry no seams,
+   and padding inside a 1fr grid item doesn't move the track boundaries the
+   hover regions map to. */
 .capc[data-layer='city'] {
-  padding-left: max(clamp(1.5rem, 4vw, 3.5rem), calc((100vw - var(--container)) / 2 + var(--space-m)));
+  padding-left: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
 }
 .capc[data-layer='chip'] {
-  padding-right: max(clamp(1.5rem, 4vw, 3.5rem), calc((100vw - var(--container)) / 2 + var(--space-m)));
+  padding-right: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
 }
 .capc__inner {
   display: flex;
@@ -1036,6 +1037,11 @@ img {
   inset: 0 auto auto 0;
   width: 100%;
   white-space: pre;
+}
+/* The not-yet-decoded tail whispers instead of shouting: faint glyph static
+   the real text writes itself over, rather than a full-ink glyph storm. */
+.scramble__rest {
+  opacity: 0.22;
 }
 /* Text that has to wrap (section titles on a phone, the About fact values)
    opts into wrapping: spaces survive the noise at the same indices, so the

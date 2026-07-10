@@ -25,19 +25,24 @@ function noise(text: string): string {
 export function Scramble({ text, delay = 0, wrap = false }: { text: string; delay?: number; wrap?: boolean }) {
   const reduced = useReducedMotion();
   const ref = useRef<HTMLSpanElement>(null);
-  const [out, setOut] = useState(() => (reduced ? text : noise(text)));
+  // solved chars render as real text at full ink; the rest is a FAINT noise
+  // tail (see .scramble__rest) — the title writes itself in over a whisper of
+  // static instead of a full-brightness glyph storm.
+  const [state, setState] = useState(() =>
+    reduced ? { solved: text.length, rest: '' } : { solved: 0, rest: noise(text) },
+  );
   const started = useRef(false);
 
   useEffect(() => {
     if (reduced) {
-      setOut(text);
+      setState({ solved: text.length, rest: '' });
       return;
     }
     const el = ref.current;
     if (!el) return;
     let raf = 0;
     let t0 = 0;
-    const dur = 620 + text.length * 14;
+    const dur = 420 + text.length * 9;
     const step = (now: number) => {
       raf = 0;
       if (!t0) t0 = now;
@@ -45,7 +50,7 @@ export function Scramble({ text, delay = 0, wrap = false }: { text: string; dela
       if (k < 1) raf = requestAnimationFrame(step);
       if (k < 0) return; // still waiting out the stagger delay
       const solved = Math.max(0, Math.floor(Math.min(1, k) * text.length));
-      setOut(text.slice(0, solved) + noise(text.slice(solved)));
+      setState({ solved, rest: noise(text.slice(solved)) });
     };
     const io = new IntersectionObserver(
       (es) => {
@@ -70,7 +75,8 @@ export function Scramble({ text, delay = 0, wrap = false }: { text: string; dela
         {text}
       </span>
       <span className="scramble__live" aria-hidden="true">
-        {out}
+        {text.slice(0, state.solved)}
+        {state.rest && <span className="scramble__rest">{state.rest}</span>}
       </span>
     </span>
   );
