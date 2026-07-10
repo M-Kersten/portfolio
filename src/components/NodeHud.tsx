@@ -60,17 +60,30 @@ export function NodeHud() {
   // old per-panel scrollIntoView aimed at a panel top, which on the current
   // (shorter) hero overshot past the travel and dumped you a layer down (Room →
   // Chip) or into the content below (Chip → capabilities).
+  //
+  // Except once: closing the TENTH signal's HUD is the homecoming — the journey
+  // pulls up to the City overview instead, where the celebration plays out
+  // (particle burst, bloom surge, and the ghost "next project" site rising).
   const close = () => {
     navigate('/');
     if (!study) return;
-    const step = LAYER_STEP[study.layer] ?? 0;
+    const homecoming = sceneStore.snapshot().celebrationPending;
+    const step = homecoming ? 0 : LAYER_STEP[study.layer] ?? 0;
+    if (homecoming) sceneStore.celebrate();
     sceneStore.setJourneyStep(step);
-    requestAnimationFrame(() => {
-      const hero = document.getElementById('hero');
-      if (!hero) return;
-      const travel = Math.max(hero.offsetHeight - window.innerHeight, 0);
-      window.scrollTo({ top: hero.offsetTop + (ZONE_CENTER[step] ?? 0.125) * travel });
-    });
+    // Lift the HUD's body-scroll lock before scrolling — the unmount cleanup
+    // that normally restores it can land after the scroll call, which silently
+    // swallowed the move whenever the target differed from where we already
+    // were. Double-rAF so the scroll runs after the route commit + paint.
+    document.body.style.overflow = '';
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const hero = document.getElementById('hero');
+        if (!hero) return;
+        const travel = Math.max(hero.offsetHeight - window.innerHeight, 0);
+        window.scrollTo({ top: hero.offsetTop + (ZONE_CENTER[step] ?? 0.125) * travel });
+      }),
+    );
   };
 
   useEffect(() => {

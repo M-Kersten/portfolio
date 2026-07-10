@@ -5,7 +5,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html } from '@react-three/drei';
-import { AdditiveBlending, Box3, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
 import { useSceneSelector } from '../store';
@@ -808,69 +808,137 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
 }
 
 /* ---------- The completion reward: the next project ----------
-   The moment every signal has been found (store.completedAt set), a new site
-   materialises at the back of the skyline: a big, simple building shell going
-   up with a slow-turning crane — deliberately the only thing left as a ghost
-   in a fully coloured world, because it hasn't happened yet. Its marker
-   invites the visitor to be the one it gets built with. */
-const SITE_POS: V3 = [-0.95, 0, -0.9];
+   When the 10th signal's HUD closes, the journey pulls home to the City view
+   (see NodeHud) and this celebration plays out where the visitor can see it:
+   a short burst of accent-coloured particles over the city, and a new site
+   materialising on the quiet lot between the city blocks and the park — a
+   staked plot with a proper little tower crane, deliberately the only thing
+   left as a ghost in a fully coloured world, because it hasn't happened yet.
+   Its marker invites the visitor to be the one it gets built with. */
+const SITE_POS: V3 = [0.85, 0, -0.52];
 
 function NextProjectSite() {
-  const completedAt = useSceneSelector((s) => s.completedAt);
+  const celebrateAt = useSceneSelector((s) => s.celebrateAt);
   const reduced = useReducedMotion();
   const rise = useRef<Group>(null);
-  const jib = useRef<Group>(null);
+  const slew = useRef<Group>(null);
+
+  // Lattice mast: rung rings + alternating face diagonals, as line segments.
+  const MAST_W = 0.055; // post spacing
+  const MAST_H = 0.82;
+  const lattice = useMemo(() => {
+    const h = MAST_W / 2;
+    const rungs: V3[][] = [];
+    const diags: V3[] = [];
+    const steps = 5;
+    for (let i = 1; i <= steps; i++) {
+      const y = (MAST_H / steps) * i - 0.02;
+      rungs.push([[-h, y, -h], [h, y, -h], [h, y, h], [-h, y, h], [-h, y, -h]]);
+      // one zigzag diagonal per bay on the two camera-facing faces
+      const y0 = (MAST_H / steps) * (i - 1);
+      const dir = i % 2 ? 1 : -1;
+      diags.push([dir * -h, y0, h], [dir * h, y, h]);
+      diags.push([h, y0, dir * -h], [h, y, dir * h]);
+    }
+    return { rungs, diags };
+  }, []);
 
   useFrame(() => {
-    if (completedAt === null) return;
-    const t = reduced ? 10 : (performance.now() - completedAt) / 1000;
+    if (celebrateAt === null) return;
+    const t = reduced ? 10 : (performance.now() - celebrateAt) / 1000;
     // ease up out of the ground, then idle: the crane keeps slowly working
-    const k = 1 - Math.exp(-Math.max(0, t - 0.4) * 1.6);
-    if (rise.current) {
-      rise.current.scale.set(0.7 + 0.3 * k, Math.max(0.001, k), 0.7 + 0.3 * k);
-    }
-    if (jib.current && !reduced) jib.current.rotation.y = Math.sin(t * 0.3) * 0.55 + 0.5;
+    const k = 1 - Math.exp(-Math.max(0, t - 0.5) * 1.5);
+    if (rise.current) rise.current.scale.set(0.75 + 0.25 * k, Math.max(0.001, k), 0.75 + 0.25 * k);
+    if (slew.current && !reduced) slew.current.rotation.y = Math.sin(t * 0.22) * 0.7 + 0.6;
   });
 
-  if (completedAt === null) return null;
+  if (celebrateAt === null) return null;
 
+  const post = MAST_W / 2;
   return (
-    <group position={SITE_POS} rotation={[0, 0.5, 0]}>
+    <group position={SITE_POS} rotation={[0, 0.25, 0]}>
       {/* staked-out plot */}
-      <Line points={roundedRectPts(0.56, 0.56, 0.07)} color={GHOST_LINE} lineWidth={1} transparent opacity={0.55} />
+      <Line points={roundedRectPts(0.44, 0.44, 0.06)} color={GHOST_LINE} lineWidth={1} transparent opacity={0.55} />
       <group ref={rise}>
-        {/* two simple shell volumes — the top one still going up */}
-        <mesh position={[0, 0.26, 0]}>
-          <boxGeometry args={[0.36, 0.52, 0.36]} />
-          <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.07} depthWrite={false} />
+        {/* the started frame — one storey of ghost shell, off to the side */}
+        <mesh position={[-0.11, 0.1, 0.1]}>
+          <boxGeometry args={[0.2, 0.2, 0.2]} />
+          <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.06} depthWrite={false} />
           <Edges threshold={20} color={GHOST_LINE} />
         </mesh>
-        <mesh position={[0.02, 0.64, -0.02]}>
-          <boxGeometry args={[0.3, 0.22, 0.3]} />
-          <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.05} depthWrite={false} />
-          <Edges threshold={20} color={GHOST_LINE} />
-        </mesh>
-        {/* tower crane on the corner — mast, jib, one cable mid-lift */}
-        <group position={[0.24, 0, 0.24]}>
-          <mesh position={[0, 0.55, 0]}>
-            <boxGeometry args={[0.022, 1.1, 0.022]} />
-            <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+
+        {/* ---- the tower crane ---- */}
+        <group position={[0.1, 0, -0.08]}>
+          {/* concrete base + four lattice posts */}
+          <mesh position={[0, 0.015, 0]}>
+            <boxGeometry args={[0.14, 0.03, 0.14]} />
+            <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.3} />
           </mesh>
-          <group ref={jib} position={[0, 1.06, 0]}>
-            <mesh position={[-0.28, 0, 0]}>
-              <boxGeometry args={[0.6, 0.016, 0.016]} />
+          {([[-post, -post], [post, -post], [-post, post], [post, post]] as [number, number][]).map(([x, z], i) => (
+            <mesh key={i} position={[x, MAST_H / 2 + 0.03, z]}>
+              <boxGeometry args={[0.012, MAST_H, 0.012]} />
               <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
             </mesh>
-            <Line points={[[-0.5, 0, 0], [-0.5, -0.34, 0]]} color={GHOST_LINE} lineWidth={1} transparent opacity={0.55} />
-            <mesh position={[-0.5, -0.36, 0]}>
-              <boxGeometry args={[0.04, 0.04, 0.04]} />
+          ))}
+          {/* rung rings + face diagonals give it the lattice read */}
+          {lattice.rungs.map((r, i) => (
+            <Line key={i} points={r} color={GHOST_LINE} lineWidth={1} transparent opacity={0.45} position={[0, 0.03, 0]} />
+          ))}
+          <Line points={lattice.diags} segments color={GHOST_LINE} lineWidth={1} transparent opacity={0.4} position={[0, 0.03, 0]} />
+
+          {/* everything above the mast slews slowly as the crane works */}
+          <group ref={slew} position={[0, MAST_H + 0.05, 0]}>
+            {/* slewing platform + operator cab */}
+            <mesh position={[0, 0.01, 0]}>
+              <boxGeometry args={[0.08, 0.02, 0.08]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.5} />
+            </mesh>
+            <mesh position={[0.045, 0.045, 0.03]}>
+              <boxGeometry args={[0.045, 0.05, 0.05]} />
+              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.25} />
+              <Edges threshold={20} color={GHOST_LINE} />
+            </mesh>
+            {/* tower head */}
+            <mesh position={[0, 0.09, 0]}>
+              <boxGeometry args={[0.014, 0.16, 0.014]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+            </mesh>
+            {/* main jib: twin chords + tie bar from the tower head */}
+            <mesh position={[-0.31, 0.02, -0.012]}>
+              <boxGeometry args={[0.62, 0.012, 0.012]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+            </mesh>
+            <mesh position={[-0.31, 0.02, 0.012]}>
+              <boxGeometry args={[0.62, 0.012, 0.012]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+            </mesh>
+            <Line points={[[0, 0.17, 0], [-0.6, 0.03, 0]]} color={GHOST_LINE} lineWidth={1} transparent opacity={0.5} />
+            {/* counter-jib + counterweight + its tie bar */}
+            <mesh position={[0.13, 0.02, 0]}>
+              <boxGeometry args={[0.26, 0.012, 0.03]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+            </mesh>
+            <mesh position={[0.24, -0.02, 0]}>
+              <boxGeometry args={[0.05, 0.06, 0.05]} />
+              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.35} />
+              <Edges threshold={20} color={GHOST_LINE} />
+            </mesh>
+            <Line points={[[0, 0.17, 0], [0.24, 0.035, 0]]} color={GHOST_LINE} lineWidth={1} transparent opacity={0.5} />
+            {/* trolley + hoist cable + hook block, mid-lift */}
+            <mesh position={[-0.42, 0.005, 0]}>
+              <boxGeometry args={[0.03, 0.014, 0.03]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+            </mesh>
+            <Line points={[[-0.42, 0, 0], [-0.42, -0.3, 0]]} color={GHOST_LINE} lineWidth={1} transparent opacity={0.55} />
+            <mesh position={[-0.42, -0.315, 0]}>
+              <boxGeometry args={[0.028, 0.03, 0.028]} />
               <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.45} />
             </mesh>
           </group>
         </group>
       </group>
       {/* the invitation — clicks through to contact */}
-      <Html position={[0, 0.92, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
+      <Html position={[-0.12, 0.42, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
         <button
           type="button"
           className="nextsite"
@@ -880,6 +948,83 @@ function NextProjectSite() {
         </button>
       </Html>
     </group>
+  );
+}
+
+/* A one-shot fountain of accent-coloured particles over the city — fired at
+   the homecoming (celebrateAt), fading out over ~4s. Pure celebration. */
+const BURST_N = 90;
+const BURST_COLORS = ['#27e8f2', '#ff9068', '#a9f75c', '#a89eff', '#ff74b0'];
+
+function CelebrationBurst() {
+  const celebrateAt = useSceneSelector((s) => s.celebrateAt);
+  const reduced = useReducedMotion();
+  const ref = useRef<ThreePoints>(null);
+  const posAttr = useRef<BufferAttribute>(null);
+  const colAttr = useRef<BufferAttribute>(null);
+
+  const { p0, vel, base, delay, life, posArr, colArr } = useMemo(() => {
+    const rnd = makeRand(97);
+    const p0 = new Float32Array(BURST_N * 3);
+    const vel = new Float32Array(BURST_N * 3);
+    const base = new Float32Array(BURST_N * 3);
+    const delay = new Float32Array(BURST_N);
+    const life = new Float32Array(BURST_N);
+    const c = new Color();
+    for (let i = 0; i < BURST_N; i++) {
+      const ang = rnd() * Math.PI * 2;
+      const r = 0.25 + Math.sqrt(rnd()) * 1.05;
+      p0[i * 3] = Math.cos(ang) * r;
+      p0[i * 3 + 1] = 0.25 + rnd() * 0.25;
+      p0[i * 3 + 2] = Math.sin(ang) * r;
+      vel[i * 3] = Math.cos(ang) * (0.06 + rnd() * 0.22);
+      vel[i * 3 + 1] = 0.85 + rnd() * 0.8;
+      vel[i * 3 + 2] = Math.sin(ang) * (0.06 + rnd() * 0.22);
+      c.set(BURST_COLORS[(rnd() * BURST_COLORS.length) | 0]);
+      base[i * 3] = c.r;
+      base[i * 3 + 1] = c.g;
+      base[i * 3 + 2] = c.b;
+      delay[i] = (i % 3) * 0.35 + rnd() * 0.25; // three loose waves
+      life[i] = 2.1 + rnd() * 1.5;
+    }
+    return { p0, vel, base, delay, life, posArr: new Float32Array(BURST_N * 3), colArr: new Float32Array(BURST_N * 3) };
+  }, []);
+
+  useFrame(() => {
+    const pts = ref.current;
+    if (!pts || celebrateAt === null) return;
+    const t = (performance.now() - celebrateAt) / 1000;
+    if (t > 4.6) {
+      pts.visible = false;
+      return;
+    }
+    pts.visible = true;
+    for (let i = 0; i < BURST_N; i++) {
+      const tt = t - delay[i];
+      const alive = tt > 0 && tt < life[i];
+      const a = alive ? Math.min(1, tt * 6) * (1 - tt / life[i]) : 0;
+      const ttc = Math.max(0, tt);
+      posArr[i * 3] = p0[i * 3] + vel[i * 3] * ttc;
+      posArr[i * 3 + 1] = p0[i * 3 + 1] + vel[i * 3 + 1] * ttc - 0.42 * ttc * ttc;
+      posArr[i * 3 + 2] = p0[i * 3 + 2] + vel[i * 3 + 2] * ttc;
+      colArr[i * 3] = base[i * 3] * a;
+      colArr[i * 3 + 1] = base[i * 3 + 1] * a;
+      colArr[i * 3 + 2] = base[i * 3 + 2] * a;
+    }
+    if (posAttr.current) posAttr.current.needsUpdate = true;
+    if (colAttr.current) colAttr.current.needsUpdate = true;
+  });
+
+  if (celebrateAt === null || reduced) return null;
+
+  return (
+    <points ref={ref} visible={false}>
+      <bufferGeometry>
+        <bufferAttribute ref={posAttr} attach="attributes-position" args={[posArr, 3]} />
+        <bufferAttribute ref={colAttr} attach="attributes-color" args={[colArr, 3]} />
+      </bufferGeometry>
+      <pointsMaterial size={0.05} vertexColors transparent blending={AdditiveBlending} depthWrite={false} sizeAttenuation toneMapped={false} />
+    </points>
   );
 }
 
@@ -959,8 +1104,9 @@ export function CityRig() {
         <Park position={park.position} slug="arcam" />
       </LifeGroup>
 
-      {/* materialises only once every signal has been found */}
+      {/* the homecoming celebration + the site that materialises with it */}
       <NextProjectSite />
+      <CelebrationBurst />
     </group>
   );
 }

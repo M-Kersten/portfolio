@@ -19,10 +19,15 @@ interface SceneState {
    *  (lifelike colour + a gentle idle), so exploring brings the scene to life. */
   visited: string[];
   /** Set (once, to performance.now()) the moment every hotspot has been
-   *  visited — "all systems live". The scene celebrates diegetically: the
-   *  signal threads stay lit, the city fully illuminates, the bloom surges
-   *  once, and the ghost "next project" site materialises on the city plaza. */
+   *  visited — "all systems live". Drives the 10/10 tally state. */
   completedAt: number | null;
+  /** True between finding the 10th signal and closing its HUD — the close
+   *  handler consumes it to run the homecoming (scroll to the City layer). */
+  celebrationPending: boolean;
+  /** The homecoming moment: set when the 10th node is deselected. Anchors the
+   *  celebration — the particle burst, the bloom surge and the ghost
+   *  "next project" site materialising — so it all happens in full view. */
+  celebrateAt: number | null;
 }
 
 let state: SceneState = {
@@ -31,6 +36,8 @@ let state: SceneState = {
   hoveredSlug: null,
   visited: [],
   completedAt: null,
+  celebrationPending: false,
+  celebrateAt: null,
 };
 
 const listeners = new Set<() => void>();
@@ -60,7 +67,11 @@ export const sceneStore = {
     if (state.visited.includes(slug)) return;
     const visited = [...state.visited, slug];
     const complete = state.completedAt === null && HOTSPOTS.every((h) => visited.includes(h.slug));
-    set(complete ? { visited, completedAt: performance.now() } : { visited });
+    set(complete ? { visited, completedAt: performance.now(), celebrationPending: true } : { visited });
+  },
+  /** Consume the pending celebration (called when the 10th node's HUD closes). */
+  celebrate() {
+    if (state.celebrationPending) set({ celebrationPending: false, celebrateAt: performance.now() });
   },
 };
 
