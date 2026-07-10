@@ -282,6 +282,7 @@ export function Work() {
   const [open, setOpen] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const planeRef = useRef<HTMLDivElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
   const farRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
@@ -306,6 +307,19 @@ export function Work() {
         glow.style.setProperty('--r', `${lastCursor.current.r}px`);
       }
     };
+    // ---- Motion feel: velocity skew + dolly -------------------------------
+    // The wall reacts to how fast you pan. Everything derives from a smoothed
+    // pan velocity: the plane shears with travel (and the card layer trails the
+    // route a beat behind, so the wall reads as having mass), while at speed
+    // the whole plane eases back and tilts away — a camera pulling out — then
+    // settles back in when you stop. All intensities live in the wall tweak
+    // panel (skewMax / skewLag / dollyZoom / dollyTilt / motionEase); any set
+    // to 0 disables that part. At rest every value decays to exactly zero, so
+    // the resting wall is pixel-identical to a wall without this code.
+    const SPEED_REF = 50; // px/frame that counts as "full speed"
+    let lastX = -1; // pan position on the previous frame (-1 = not measured yet)
+    let vRoute = 0; // smoothed velocity driving the route/plane lean + dolly
+    let vCards = 0; // slower-smoothed velocity — the card layer trails with it
     const update = () => {
       raf = 0;
       const el = scrollRef.current;
@@ -315,12 +329,48 @@ export function Work() {
       const p = scrollable > 0 ? Math.min(1, Math.max(0, -el.getBoundingClientRect().top / scrollable)) : 0;
       const maxX = Math.max(0, timeline.width - window.innerWidth);
       const maxY = Math.max(0, plane.offsetHeight - window.innerHeight);
-      plane.style.transform = `translate3d(${-(p * maxX)}px, ${-(p * maxY)}px, 0)`;
+      const x = p * maxX;
+
+      // Smoothed velocities (px/frame). dv is 0 on settle frames, so both ease
+      // back to rest through the same lerp that ramps them up.
+      const dv = lastX < 0 ? 0 : x - lastX;
+      lastX = x;
+      vRoute += (dv - vRoute) * cfg.motionEase;
+      vCards += (dv - vCards) * cfg.motionEase * Math.max(0.05, 1 - cfg.skewLag);
+      const n = Math.max(-1, Math.min(1, vRoute / SPEED_REF)); // −1..1 of full speed
+      const nCards = Math.max(-1, Math.min(1, vCards / SPEED_REF));
+
+      // A — shear with travel (top trails the direction of motion)…
+      const skewRoute = -n * cfg.skewMax;
+      // …with the cards lagging the route by the difference of the two speeds.
+      const skewCards = -(nCards - n) * cfg.skewMax;
+      // B — at speed, pull back and tilt away; settle back in at rest.
+      const speed = Math.abs(n);
+      const scale = 1 - cfg.dollyZoom * speed;
+      const tilt = cfg.dollyTilt * speed;
+
+      // Scale/tilt/skew around the point currently at the viewport's centre.
+      plane.style.transformOrigin = `${x + window.innerWidth / 2}px 50%`;
+      plane.style.transform =
+        `translate3d(${-x}px, ${-(p * maxY)}px, 0) skewX(${skewRoute}deg) scale(${scale}) rotateX(${tilt}deg)`;
+      const cards = cardsRef.current;
+      if (cards) {
+        cards.style.transformOrigin = `${x + window.innerWidth / 2}px 50%`;
+        cards.style.transform = `skewX(${skewCards}deg)`;
+      }
       // Parallax: the dot field drifts slower, so the timeline reads as the near
-      // layer floating in front of a receding space.
+      // layer floating in front of a receding space. It shears at half strength —
+      // one more depth cue while the wall is moving.
       farOffset.current = { x: p * maxX * cfg.parallax, y: p * maxY * cfg.parallax };
-      if (farRef.current) farRef.current.style.transform = `translate3d(${-farOffset.current.x}px, ${-farOffset.current.y}px, 0)`;
+      if (farRef.current) {
+        farRef.current.style.transformOrigin = `${farOffset.current.x + window.innerWidth / 2}px 50%`;
+        farRef.current.style.transform =
+          `translate3d(${-farOffset.current.x}px, ${-farOffset.current.y}px, 0) skewX(${skewRoute * 0.5}deg)`;
+      }
       syncGlow();
+      // Keep animating (even without scroll events) until the motion settles.
+      const settled = Math.abs(vRoute) < 0.05 && Math.abs(vCards) < 0.05;
+      if (!settled && !raf) raf = requestAnimationFrame(update);
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
@@ -368,7 +418,7 @@ export function Work() {
       window.removeEventListener('mousemove', onMove);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [reduced, timeline.width, cfg.parallax]);
+  }, [reduced, timeline.width, cfg]);
 
   const openStudy = open ? caseBySlug(open) : undefined;
   // The spawn point sits a short lead-in left of where the route proper starts.
@@ -497,21 +547,25 @@ export function Work() {
               now →
             </span>
 
-            {timeline.stops.map((s) => (
-              <Fragment key={s.study.slug}>
-                <span className="tl-node" aria-hidden="true" style={{ left: `${s.x}px` }} />
-                <span className={`tl-leader tl-leader--${s.side}`} aria-hidden="true" style={{ left: `${s.x}px` }} />
-                <CaseCard
-                  study={s.study}
-                  onOpen={() => setOpen(s.study.slug)}
-                  style={
-                    s.side === 'above'
-                      ? { left: `${s.x}px`, bottom: 'calc(50% + var(--rise))' }
-                      : { left: `${s.x}px`, top: 'calc(50% + var(--rise))' }
-                  }
-                />
-              </Fragment>
-            ))}
+            {/* The waypoints live on their own layer so the motion system can
+                let them trail the route's velocity-skew by a beat (mass). */}
+            <div className="wall__cardlayer" ref={cardsRef}>
+              {timeline.stops.map((s) => (
+                <Fragment key={s.study.slug}>
+                  <span className="tl-node" aria-hidden="true" style={{ left: `${s.x}px` }} />
+                  <span className={`tl-leader tl-leader--${s.side}`} aria-hidden="true" style={{ left: `${s.x}px` }} />
+                  <CaseCard
+                    study={s.study}
+                    onOpen={() => setOpen(s.study.slug)}
+                    style={
+                      s.side === 'above'
+                        ? { left: `${s.x}px`, bottom: 'calc(50% + var(--rise))' }
+                        : { left: `${s.x}px`, top: 'calc(50% + var(--rise))' }
+                    }
+                  />
+                </Fragment>
+              ))}
+            </div>
           </div>
           <span className="wall__cue" aria-hidden="true">scroll through time →</span>
           {/* Razor-thin scanner-frame corners around the viewport. */}

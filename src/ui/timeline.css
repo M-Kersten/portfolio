@@ -12,6 +12,21 @@
   top: 0;
   height: 100svh;
   overflow: hidden;
+  /* Gives the motion system's dolly tilt (rotateX at pan speed) its depth. */
+  perspective: 1400px;
+}
+/* The waypoint layer — cards, leader stems and station dots — sits in its own
+   full-size layer inside the plane so the velocity-skew can let it trail the
+   route a beat behind (see the motion block in Work.tsx). Pointer-events pass
+   through the empty layer so the route tooltips underneath keep working. */
+.wall__cardlayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+.wall__cardlayer > * {
+  pointer-events: auto;
 }
 /* The dot field, on its own layer so it can drift slower than the cards for a
    parallax depth cue (transform set per frame in JS). */
