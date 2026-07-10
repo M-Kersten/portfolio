@@ -27,6 +27,7 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
   bloom: RefObject<BloomEffect | null>;
 }) {
   const selected = useSceneSelector((s) => s.selectedSlug);
+  const completedAt = useSceneSelector((s) => s.completedAt);
   const reduced = useReducedMotion();
   const scene = useThree((s) => s.scene);
   const d = useRef(0);
@@ -55,7 +56,13 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
     }
     if (scene.background instanceof Color) scene.background.copy(bg).lerp(accent, k * 0.22);
     if (bloom.current) {
-      bloom.current.intensity = 0.4 + k * 0.75;
+      // One power surge the moment every signal is found ("all systems live"),
+      // decaying back over ~3s while the newly lit network takes over.
+      const surge =
+        completedAt !== null && !reduced
+          ? Math.exp(-(performance.now() - completedAt) / 1100) * 0.9
+          : 0;
+      bloom.current.intensity = 0.4 + k * 0.75 + surge;
       (bloom.current.luminanceMaterial as unknown as { threshold: number }).threshold = 0.78 - k * 0.34;
     }
   });

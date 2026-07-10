@@ -16,6 +16,7 @@
       "Networking",
       "UX"
     ],
+    "follows": "philips-medical-xr",
     "lesson": "Adding tech to a system that already exists is often harder than starting from scratch. Before i implement a feature i should ask: 'will this even be maintained?'",
     "year": "2026",
     "live": false,
@@ -63,6 +64,7 @@
       "WebGL",
       "Geo-data"
     ],
+    "follows": "alliander-hololens",
     "lesson": "Technically it worked great, but the organisation wasn’t quite ready to change how it worked so it never fully landed.",
     "year": "2024-06",
     "live": false,
@@ -110,6 +112,7 @@
       "Unity",
       "Maps"
     ],
+    "follows": "arcam",
     "lesson": "The real world is messy: GPS drifts, places change and people wander into frame. So designing for that mess up front beats pretending it isn't there.",
     "year": "2023-04",
     "live": false,
@@ -157,6 +160,7 @@
       "VPS",
       "Lightship ARDK"
     ],
+    "follows": "arcam",
     "lesson": "Build assuming things will fail, because on a show floor they absolutely will. In this case the server SDK was brand new and cut off sessions after some 10 minutes, not seeing a fix i introduced a 'you won! give the phone to the next visitor' popup when the server decided to close.",
     "year": "2023-06",
     "live": false,
@@ -180,6 +184,7 @@
       "iOS",
       "Android"
     ],
+    "follows": "custom-ar-framework",
     "lesson": "Owning something end to end teaches you the whole lifecycle and that the last 10% (support, store reviews, weird customer feedback) is most of the work.",
     "year": "2020-02",
     "live": false,
@@ -203,6 +208,7 @@
       "CI/CD",
       "Mobile"
     ],
+    "follows": "dtt-amsterdam",
     "lesson": "Shipping fast and iterating beats elegant code. The market really doesn’t care how pretty your architecture is.",
     "year": "2020-06",
     "live": false,

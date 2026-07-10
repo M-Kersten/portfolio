@@ -1,12 +1,27 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { site } from '../content';
 import { sceneStore, useSceneSelector } from '../scene/store';
+import { HOTSPOTS } from '../scene/framing';
 
 // Three invisible scroll panels give the camera journey its length and drive
 // `journeyStep` (0 City · 1 Room · 2 Chip). The minimal title lives only on
 // the City layer and clears the moment you scroll down (or inspect a node).
 
 const STEPS = [0, 1, 2];
+
+// One line of narration per layer, so the descent reads as a told story
+// instead of a silent slideshow. The index carries the layer's accent.
+const CAPTIONS = [
+  { index: '01', name: 'city', blurb: 'work at the scale of streets', accent: 'var(--cyan)' },
+  { index: '02', name: 'room', blurb: 'the things people pick up and play', accent: 'var(--coral)' },
+  { index: '03', name: 'chip', blurb: 'the tools underneath it all', accent: 'var(--lime)' },
+];
+
+// The exploration game: every 3D hotspot brought alive counts as a found
+// signal. The tally is quiet instrument chrome; 10/10 triggers the world's
+// completion state (see scene/maquette — threads stay lit, the city fully
+// illuminates, and the "next project" ghost materialises).
+const TOTAL_SIGNALS = HOTSPOTS.length;
 
 export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
@@ -54,6 +69,13 @@ export function HeroStage() {
   // Title lives only on the City layer (and only while the hero is on screen);
   // it clears the moment you scroll to Room or leave the hero entirely.
   const opacity = selectedSlug ? 0 : heroInView && journeyStep === 0 ? 1 : 0;
+  // The caption + signal tally ride the whole journey, clearing with the HUD.
+  const overlayOpacity = selectedSlug || !heroInView ? 0 : 1;
+  const caption = CAPTIONS[journeyStep] ?? CAPTIONS[0];
+  const found = useSceneSelector(
+    (s) => HOTSPOTS.filter((h) => s.visited.includes(h.slug)).length,
+  );
+  const complete = found === TOTAL_SIGNALS;
 
   return (
     <section id="hero" className="hero" ref={heroRef} aria-label="Introduction">
@@ -61,6 +83,28 @@ export function HeroStage() {
         <h1 className="hero__name">{site.hero.name}</h1>
         <p className="hero__sub">{site.hero.subheading}</p>
         <p className="hero__scrollcue" aria-hidden="true">have a poke around and see how it's all connected</p>
+      </div>
+
+      {/* Layer narration — remounts per step so the line slides in fresh. */}
+      <div
+        key={journeyStep}
+        className="hero__caption"
+        style={{ opacity: overlayOpacity, '--cap-accent': caption.accent } as CSSProperties}
+        aria-hidden="true"
+      >
+        <b>{caption.index}</b> · {caption.name} <span>— {caption.blurb}</span>
+      </div>
+
+      {/* Signals found — the exploration tally. */}
+      <div className="hero__signals" style={{ opacity: overlayOpacity }} data-complete={complete || undefined} aria-hidden="true">
+        <span className="hero__signals-pips">
+          {HOTSPOTS.map((h, i) => (
+            <i key={h.slug} data-on={i < found || undefined} />
+          ))}
+        </span>
+        <span className="hero__signals-label">
+          {complete ? `signals ${TOTAL_SIGNALS}/${TOTAL_SIGNALS} — all live` : `signals ${found}/${TOTAL_SIGNALS}`}
+        </span>
       </div>
 
       {STEPS.map((step) => (

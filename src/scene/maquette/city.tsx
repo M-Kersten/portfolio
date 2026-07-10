@@ -4,22 +4,25 @@
 // constellation. CityRig at the bottom composes and places everything.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges } from '@react-three/drei';
+import { Edges, Html } from '@react-three/drei';
 import { AdditiveBlending, Box3, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
+import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { asset } from '../../lib/asset';
-import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
-import { GHOST_FILL, LifeGroup } from './life';
+import { NEUTRAL, GLASS, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
+import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, LiveGlassMat } from './materials';
 
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   const { hovered, visited } = useActive('alliander-hololens');
+  // Every hotspot visited -> the whole city stays lit ("all systems live").
+  const complete = useSceneSelector((s) => s.completedAt !== null);
   const reduced = useReducedMotion();
   const k = useRef(0);
   useFrame((s) => {
-    const kT = hovered ? 1 : visited ? 0.5 : 0;
+    const kT = hovered || complete ? 1 : visited ? 0.5 : 0;
     k.current += (kT - k.current) * 0.09;
     const t = s.clock.elapsedTime;
     const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26) * Math.sin(t * 6.3);
@@ -804,6 +807,90 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
   );
 }
 
+/* ---------- The completion reward: the next project ----------
+   The moment every signal has been found (store.completedAt set), a new site
+   materialises beside the road into town: a building under construction with
+   a slow-turning crane — deliberately the only thing left as a ghost in a
+   fully coloured world, because it hasn't happened yet. Its marker invites
+   the visitor to be the one it gets built with. */
+const SITE_POS: V3 = [0.9, 0, 0.68];
+
+function NextProjectSite() {
+  const completedAt = useSceneSelector((s) => s.completedAt);
+  const reduced = useReducedMotion();
+  const rise = useRef<Group>(null);
+  const jib = useRef<Group>(null);
+
+  useFrame(() => {
+    if (completedAt === null) return;
+    const t = reduced ? 10 : (performance.now() - completedAt) / 1000;
+    // ease up out of the ground, then idle: the crane keeps slowly working
+    const k = 1 - Math.exp(-Math.max(0, t - 0.4) * 1.8);
+    if (rise.current) {
+      rise.current.scale.set(0.65 + 0.35 * k, Math.max(0.001, k), 0.65 + 0.35 * k);
+    }
+    if (jib.current && !reduced) jib.current.rotation.y = Math.sin(t * 0.35) * 0.5 - 0.4;
+  });
+
+  if (completedAt === null) return null;
+
+  const floors: { y: number; w: number; h: number; off: number }[] = [
+    { y: 0.055, w: 0.2, h: 0.11, off: 0 },
+    { y: 0.165, w: 0.19, h: 0.1, off: 0.008 },
+    { y: 0.26, w: 0.18, h: 0.08, off: -0.012 }, // top floor still going up
+  ];
+
+  return (
+    <group position={SITE_POS} rotation={[0, -0.35, 0]}>
+      {/* staked-out foundation */}
+      <Line points={roundedRectPts(0.3, 0.3, 0.05)} color={GHOST_LINE} lineWidth={1} transparent opacity={0.5} />
+      <group ref={rise}>
+        {/* the unbuilt floors — wireframe ghost, never colours in */}
+        {floors.map((f, i) => (
+          <mesh key={i} position={[f.off, f.y, 0]}>
+            <boxGeometry args={[f.w, f.h, f.w]} />
+            <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.06} depthWrite={false} />
+            <Edges threshold={20} color={GHOST_LINE} />
+          </mesh>
+        ))}
+        {/* tower crane on the corner */}
+        <group position={[0.13, 0, 0.13]}>
+          <mesh position={[0, 0.26, 0]}>
+            <boxGeometry args={[0.016, 0.52, 0.016]} />
+            <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+          </mesh>
+          <group ref={jib} position={[0, 0.5, 0]}>
+            <mesh position={[-0.14, 0, 0]}>
+              <boxGeometry args={[0.3, 0.012, 0.012]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+            </mesh>
+            <mesh position={[0.07, 0, 0]}>
+              <boxGeometry args={[0.1, 0.012, 0.02]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+            </mesh>
+            {/* cable + hook, mid-lift */}
+            <Line points={[[-0.24, 0, 0], [-0.24, -0.18, 0]]} color={GHOST_LINE} lineWidth={1} transparent opacity={0.5} />
+            <mesh position={[-0.24, -0.19, 0]}>
+              <boxGeometry args={[0.024, 0.024, 0.024]} />
+              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.4} />
+            </mesh>
+          </group>
+        </group>
+      </group>
+      {/* the invitation — clicks through to contact */}
+      <Html position={[0, 0.66, 0]} center zIndexRange={[20, 0]} className="hotspot-wrap">
+        <button
+          type="button"
+          className="nextsite"
+          onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <b>next project</b> — could be yours
+        </button>
+      </Html>
+    </group>
+  );
+}
+
 export function CityRig() {
   // Roads: a grid threading between the blocks, three avenues out toward the
   // church / windmill / park, and two curved roads sweeping around the side.
@@ -879,6 +966,9 @@ export function CityRig() {
       <LifeGroup slug="arcam">
         <Park position={park.position} slug="arcam" />
       </LifeGroup>
+
+      {/* materialises only once every signal has been found */}
+      <NextProjectSite />
     </group>
   );
 }

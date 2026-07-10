@@ -47,6 +47,11 @@ for (const c of cases) {
   if (c.video && !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(c.video))
     warnings.push(`${who}: video isn't a YouTube URL — the embed only understands YouTube`);
 }
+// `follows` storyline links must point at real cases (checked after the slug
+// set is complete, so forward references work too).
+for (const c of cases)
+  if (c.follows && !slugs.has(c.follows))
+    errors.push(`cases.json → "${c.slug}": follows "${c.follows}", which isn't a case slug`);
 
 // ---- hotspots + relations reference real cases ------------------------------
 // These live in TypeScript, so pull the slugs out with targeted regexes.

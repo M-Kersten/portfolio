@@ -209,3 +209,42 @@ img {
   color: color-mix(in srgb, var(--ink) 88%, transparent);
 }
 
+/* Storyline footer — "← builds on X · led to Y →" — threads the cases into
+   walkable plots (see StoryLinks.tsx; authored via `follows` in cases.json). */
+.story-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5em 1.5em;
+  padding-top: var(--space-s);
+  border-top: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+  color: var(--ink-40);
+}
+.story-links__fwd {
+  margin-left: auto;
+  text-align: right;
+}
+.story-links__jump {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--ink-40);
+  cursor: pointer;
+}
+.story-links__jump b {
+  font-weight: 400;
+  color: var(--ink-60);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+  text-decoration-color: color-mix(in srgb, var(--card-accent, var(--accent)) 45%, transparent);
+  transition: color 0.2s var(--ease);
+}
+.story-links__jump:hover b {
+  color: var(--card-accent, var(--accent));
+}
+

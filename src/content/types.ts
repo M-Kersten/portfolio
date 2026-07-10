@@ -22,6 +22,10 @@ export interface CaseStudy {
   outcome: string;
   /** Tech stack, shown as tags in the case dialog. */
   tech?: string[];
+  /** Slug of the earlier case this one builds on. Renders as a "← builds on"
+   *  link in the dialogs, and the reverse ("led to →") is derived, so one
+   *  field threads the cases into walkable storylines. */
+  follows?: string;
   /** Year the project was worked on — shown as a stamped date on the wall tile. */
   year?: string;
   /** Map tag override — a short company/label for the waypoint. Defaults to

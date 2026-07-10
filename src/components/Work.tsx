@@ -6,6 +6,7 @@ import { useFocusTrap } from '../lib/useFocusTrap';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard } from './CaseCard';
 import { SectionTitle } from './SectionTitle';
+import { StoryLinks } from './StoryLinks';
 import { useWallConfig, type WallConfig } from './wallTweak';
 
 const SPAWN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -160,7 +161,7 @@ function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
 // backdrop. Not the old bottom HUD — a focused card. Esc / ✕ / backdrop closes.
-function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }) {
+function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClose: () => void; onJump: (slug: string) => void }) {
   const [imgOk, setImgOk] = useState(true);
   const embed = youtubeEmbed(study.video);
   // With a video, only show a photo if a real one is provided; without a video,
@@ -264,6 +265,7 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
               </a>
             )}
           </div>
+          <StoryLinks study={study} onJump={onJump} />
         </div>
       </div>
     </div>
@@ -578,7 +580,7 @@ export function Work() {
         </div>
       </div>
 
-      {openStudy && <FocusCard study={openStudy} onClose={() => setOpen(null)} />}
+      {openStudy && <FocusCard study={openStudy} onClose={() => setOpen(null)} onJump={setOpen} />}
     </section>
   );
 }

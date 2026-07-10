@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { HOTSPOTS } from './framing';
 
 // One renderer, one scene. DOM components (hotspots, routes, overlay) and the
 // in-Canvas components (CameraRig, scene) live in different React reconcilers,
@@ -17,6 +18,11 @@ interface SceneState {
   /** Slugs the visitor has opened at least once. Their objects stay "alive"
    *  (lifelike colour + a gentle idle), so exploring brings the scene to life. */
   visited: string[];
+  /** Set (once, to performance.now()) the moment every hotspot has been
+   *  visited — "all systems live". The scene celebrates diegetically: the
+   *  signal threads stay lit, the city fully illuminates, the bloom surges
+   *  once, and the ghost "next project" site materialises on the city plaza. */
+  completedAt: number | null;
 }
 
 let state: SceneState = {
@@ -24,6 +30,7 @@ let state: SceneState = {
   selectedSlug: null,
   hoveredSlug: null,
   visited: [],
+  completedAt: null,
 };
 
 const listeners = new Set<() => void>();
@@ -50,7 +57,10 @@ export const sceneStore = {
     if (hoveredSlug !== state.hoveredSlug) set({ hoveredSlug });
   },
   markVisited(slug: string) {
-    if (!state.visited.includes(slug)) set({ visited: [...state.visited, slug] });
+    if (state.visited.includes(slug)) return;
+    const visited = [...state.visited, slug];
+    const complete = state.completedAt === null && HOTSPOTS.every((h) => visited.includes(h.slug));
+    set(complete ? { visited, completedAt: performance.now() } : { visited });
   },
 };
 

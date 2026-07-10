@@ -192,6 +192,10 @@
 .node-hud__discuss {
   display: inline-flex;
 }
+.node-hud .story-links {
+  margin-top: var(--space-m);
+  padding-bottom: var(--space-s);
+}
 
 @media (max-width: 760px) {
   .node-hud {

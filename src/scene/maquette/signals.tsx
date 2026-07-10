@@ -8,6 +8,7 @@ import { Html, Line as DreiLine } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, CatmullRomCurve3, Color, Vector3, type Points as ThreePoints } from 'three';
 
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useSceneSelector } from '../store';
 import { HOTSPOTS, anchorWorld, type Hotspot } from '../framing';
 import { useActive } from './shared';
 
@@ -104,6 +105,9 @@ export function SignalLine({ thread, from, to, color }: Relation) {
   const reduced = useReducedMotion();
   const { hovered: hovA, selected: selA } = useActive(from);
   const { hovered: hovB, selected: selB } = useActive(to);
+  // "All systems live": once every hotspot has been visited the whole network
+  // stays lit — packets streaming on every thread — as the completion state.
+  const complete = useSceneSelector((s) => s.completedAt !== null);
 
   // The cable route + a curve along it for sampling the flowing packets. The
   // label sits beside the vertical riser, the most "between-layers" point.
@@ -127,7 +131,7 @@ export function SignalLine({ thread, from, to, color }: Relation) {
   const u = useRef(0); // packet flow phase
 
   useFrame((_s, delta) => {
-    const target = selA || selB ? 1 : hovA || hovB ? 0.6 : 0;
+    const target = selA || selB ? 1 : hovA || hovB ? 0.6 : complete ? 0.85 : 0;
     k.current += (target - k.current) * 0.12;
     const kk = k.current;
 

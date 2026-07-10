@@ -89,8 +89,10 @@ their own ghost→alive keyed on the same store state. Colour policy lives in
 - `site.json` — name, hero lines, section intros, career timeline (dates are
   `YYYY-MM`), about facts, contact links.
 - `cases.json` — one entry per project. `year` accepts `"2024"` (centres on
-  the year) or `"2024-09"` (pins the month on the timeline). Drop a matching
-  poster in `public/posters/<slug>.jpg`.
+  the year) or `"2024-09"` (pins the month on the timeline). `follows` names
+  the earlier case this one builds on — it renders as the "← builds on /
+  led to →" storyline links in the dialogs. Drop a matching poster in
+  `public/posters/<slug>.jpg`.
 - `capabilities.json` — the three band columns.
 - `types.ts` documents every field.
 

@@ -233,3 +233,36 @@
   will-change: opacity;
 }
 
+
+/* The "next project" invitation on the completion site — kin to the hotspot
+   labels but an open door rather than a data point. Appears with the ghost
+   construction site once all signals are found; clicks through to contact. */
+.nextsite {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  color: var(--ink-60);
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: var(--radius-s);
+  padding: 0.4em 0.75em;
+  cursor: pointer;
+  white-space: nowrap;
+  animation: nextsite-in 1.2s var(--ease) 0.9s both;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.nextsite b {
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+.nextsite:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+}
+@keyframes nextsite-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}

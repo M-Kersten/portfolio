@@ -5,6 +5,7 @@ import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { sceneStore } from '../scene/store';
+import { StoryLinks } from './StoryLinks';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // Centre of each layer's scroll band on the hero (fraction of scroll travel),
@@ -149,6 +150,9 @@ export function NodeHud() {
             </a>
           )}
         </div>
+
+        {/* Walk the storyline without leaving the HUD — the camera flies along. */}
+        <StoryLinks study={study} onJump={(s) => navigate(`/work/${s}`)} />
       </div>
     </aside>
   );
