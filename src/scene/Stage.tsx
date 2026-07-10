@@ -1,6 +1,6 @@
 import { useMemo, useRef, type RefObject } from 'react';
 import { Environment, Lightformer } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, BrightnessContrast, Vignette } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
 import type { BloomEffect } from 'postprocessing';
@@ -100,10 +100,14 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
 
       <Maquette onActivate={onActivate} />
 
-      {/* A restrained glow — only the brightest accents lift, no neon halo. */}
+      {/* A restrained glow — only the brightest accents lift, no neon halo —
+          then a touch more contrast and a soft vignette that pools the light
+          in the centre of the frame, where the maquette lives. */}
       <EffectComposer enableNormalPass={false} multisampling={2}>
         {/* ref cast: @react-three/postprocessing types the ref as the class, not the instance */}
         <Bloom ref={bloom as never} mipmapBlur luminanceThreshold={0.78} luminanceSmoothing={0.3} intensity={0.4} radius={0.6} />
+        <BrightnessContrast contrast={0.08} />
+        <Vignette eskil={false} offset={0.3} darkness={0.45} />
       </EffectComposer>
     </>
   );

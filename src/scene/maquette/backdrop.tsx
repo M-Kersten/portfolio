@@ -1,11 +1,12 @@
 // Stage dressing behind the objects: each layer's dot floor, its slowly
-// drifting point field, and the soft radial veil that grounds the stack.
+// drifting point field, the soft radial veil that grounds the stack, and the
+// blob shadows that ground each object cluster onto its floor.
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, Color, type Mesh, type Points as ThreePoints } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useSceneSelector } from '../store';
-import { BG, NEUTRAL, makeRand } from './shared';
+import { BG, NEUTRAL, makeRand, type V3 } from './shared';
 
 export function DotFloor({ step = 0.26 }: { step?: number }) {
   const R = 2.2;
@@ -64,6 +65,41 @@ export function PointCloud({ seed }: { seed: number }) {
       </bufferGeometry>
       <pointsMaterial size={0.016} color={NEUTRAL} transparent opacity={0.22} sizeAttenuation depthWrite={false} />
     </points>
+  );
+}
+
+/* ---------- Grounding: a soft dark pool under each object cluster, so things
+   sit ON their floor instead of hovering over it. One shared radial texture;
+   every blob is a cheap transparent disc — no real shadow rendering. */
+let blobTex: CanvasTexture | null = null;
+function blobShadowTexture() {
+  if (blobTex) return blobTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(2,4,6,0.9)');
+    g.addColorStop(0.55, 'rgba(2,4,6,0.42)');
+    g.addColorStop(1, 'rgba(2,4,6,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 64, 64);
+  }
+  blobTex = new CanvasTexture(c);
+  return blobTex;
+}
+
+/** A soft contact-shadow disc under an object. `radius` is the half-size along
+ *  X; `aspect` squashes Z for rectangular footprints (desk, couch). Rendered
+ *  before the other transparents so glass always draws over it, and exempt
+ *  from the life system (lifeSkip). */
+export function BlobShadow({ position, radius, aspect = 1, opacity = 0.4 }: { position: V3; radius: number; aspect?: number; opacity?: number }) {
+  const tex = useMemo(blobShadowTexture, []);
+  return (
+    <mesh position={position} rotation={[-Math.PI / 2, 0, 0]} scale={[radius, radius * aspect, 1]} renderOrder={-1}>
+      <circleGeometry args={[1, 28]} />
+      <meshBasicMaterial userData={{ lifeSkip: true }} map={tex} transparent opacity={opacity} depthWrite={false} />
+    </mesh>
   );
 }
 

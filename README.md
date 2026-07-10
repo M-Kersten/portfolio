@@ -56,8 +56,9 @@ src/
       hotspots.tsx     the floating crosshair markers
       signals.tsx      cross-layer relation cables (edit RELATIONS here)
       life.tsx         the ghost→alive life system (LifeGroup, EmissiveHover)
+      presence.tsx     active-layer focus: neighbour layers rest dimmed
       materials.tsx    holographic glass + rim shader, accents, SoftBox
-      backdrop.tsx     dot floors, point fields, depth veil
+      backdrop.tsx     dot floors, point fields, depth veil, blob shadows
       shared.tsx       palette, math helpers, useActive, fog-aware Line
     CameraRig.tsx      journey scroll + node fly-to
     Stage.tsx          lighting, fog, bloom, scene root

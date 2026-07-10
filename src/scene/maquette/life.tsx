@@ -109,7 +109,9 @@ export function LifeGroup({ slug, children }: { slug: string; children: ReactNod
       }
     });
   });
-  return <group ref={grp}>{children}</group>;
+  // userData.lifeGroup marks the subtree as life-system territory, so the
+  // layer-level presence dimmer (presence.tsx) keeps its hands off it.
+  return <group ref={grp} userData={{ lifeGroup: true }}>{children}</group>;
 }
 
 /** An emissive surface that powers on when its hotspot is selected and stays lit

@@ -96,7 +96,13 @@ export function makeRand(seed: number) {
 }
 
 /** Wrap drei's Line so every maquette line participates in the scene fog (its
- *  LineMaterial otherwise ignores fog), fading with depth like the meshes. */
+ *  LineMaterial otherwise ignores fog), fading with depth like the meshes.
+ *
+ *  Line discipline (so the drawing reads as ONE hand): mesh `<Edges>` are
+ *  always NEUTRAL (GHOST_LINE on unbuilt/ghost things); drei Line widths stay
+ *  on a three-step scale — 1 structure · 1.2 detail · 1.5 signature accents
+ *  (the constellation, drawn far away in the sky, is the one licensed
+ *  exception). Accent-coloured lines belong to interactive objects only. */
 export function Line(props: ComponentProps<typeof DreiLine>) {
   return <DreiLine fog {...props} />;
 }

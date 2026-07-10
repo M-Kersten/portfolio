@@ -11,6 +11,7 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
 import { GlassMat, SoftBox } from './materials';
+import { BlobShadow } from './backdrop';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
 
@@ -65,7 +66,7 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       <group ref={popRef}>
       <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline liveSlug="philips-medical-xr" />
       {/* the ECG waveform + a blip that sweeps it once engaged (the heart-rate signal) */}
-      <Line points={ecg} position={[0, 0.22, 0]} color={selected || visited ? '#5fd07a' : '#9fb0bd'} lineWidth={1.8} transparent opacity={0.85} />
+      <Line points={ecg} position={[0, 0.22, 0]} color={selected || visited ? '#5fd07a' : '#9fb0bd'} lineWidth={1.5} transparent opacity={0.85} />
       <mesh ref={dot} visible={false}>
         <sphereGeometry args={[0.014, 12, 12]} />
         <meshStandardMaterial color="#9fb0bd" emissive="#9fb0bd" emissiveIntensity={2.2} roughness={0.3} toneMapped={false} />
@@ -157,14 +158,16 @@ function useChipEnergyTarget() {
 // The board's components, spread well out around the die. Each gets a trace from
 // the die and a coloured status LED that flashes (its own rhythm) when live.
 // `ly` sits each LED on top of its component rather than floating above the board.
+// LED palette stays inside the site's accents: cyan, lime, the coral from the
+// Room layer, and the die's amber — no stray primary reds.
 const CHIP_NODES: { x: number; z: number; ly: number; led: string; phase: number; speed: number }[] = [
   { x: 0.95, z: -0.72, ly: 0.2, led: '#7fe6ff', phase: 0.0, speed: 6.5 }, // custom-ar (back-right)
-  { x: -0.95, z: -0.74, ly: 0.175, led: '#ff6a6a', phase: 1.1, speed: 5.0 }, // philips (left)
+  { x: -0.95, z: -0.74, ly: 0.175, led: '#ff9068', phase: 1.1, speed: 5.0 }, // philips (left)
   { x: 0.92, z: 0.62, ly: 0.225, led: '#a9f75c', phase: 2.0, speed: 7.5 }, // database (front-right)
   { x: -0.98, z: 0.56, ly: 0.27, led: '#ffcf5e', phase: 0.7, speed: 5.8 }, // heatsink
   { x: 0.9, z: 0.92, ly: 0.17, led: '#7fe6ff', phase: 2.6, speed: 6.0 }, // computer vision
   { x: 0.0, z: 1.08, ly: 0.165, led: '#a9f75c', phase: 1.6, speed: 8.0 }, // pin header
-  { x: -0.55, z: 0.95, ly: 0.195, led: '#ff6a6a', phase: 3.1, speed: 6.8 }, // cap
+  { x: -0.55, z: 0.95, ly: 0.195, led: '#ff9068', phase: 3.1, speed: 6.8 }, // cap
   { x: 0.55, z: -1.0, ly: 0.195, led: '#7fe6ff', phase: 0.4, speed: 7.0 }, // cap
 ];
 
@@ -339,10 +342,21 @@ export function ChipRig() {
   return (
     <group>
       {/* the PCB substrate — every part mounts on it, so it reads as one board */}
+      <BlobShadow position={[0, 0.002, 0]} radius={1.4} opacity={0.34} />
       <RoundedBox args={[2.05, 0.02, 2.05]} radius={0.04} smoothness={2} position={[0, 0.01, 0]}>
         <meshStandardMaterial color="#10303a" transparent opacity={0.5} roughness={0.6} metalness={0.1} />
       </RoundedBox>
       <Line points={roundedRectPts(2.0, 2.0, 0.06)} position={[0, 0.022, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+
+      {/* soft pads under the raised parts, so they sit ON the board */}
+      <BlobShadow position={[0, 0.024, 0]} radius={0.68} opacity={0.26} />
+      <BlobShadow position={[-0.98, 0.024, 0.56]} radius={0.2} opacity={0.3} />
+      <BlobShadow position={[0.92, 0.024, 0.62]} radius={0.18} opacity={0.3} />
+      <BlobShadow position={[0.95, 0.024, -0.72]} radius={0.13} opacity={0.3} />
+      <BlobShadow position={[-0.95, 0.024, -0.74]} radius={0.22} aspect={0.72} opacity={0.3} />
+      <BlobShadow position={[0, 0.024, 1.08]} radius={0.18} aspect={0.5} opacity={0.28} />
+      <BlobShadow position={[-0.55, 0.024, 0.95]} radius={0.09} opacity={0.3} />
+      <BlobShadow position={[0.55, 0.024, -1.0]} radius={0.09} opacity={0.3} />
 
       {/* package + die (carries amsterdam-ai — the chip powers on) */}
       <LifeGroup slug="amsterdam-ai">
@@ -396,7 +410,7 @@ export function ChipRig() {
       </group>
 
       {/* computer-vision frame (neutral — not a hotspot) */}
-      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[0.9, 0.16, 0.92]} color={NEUTRAL} lineWidth={1.4} transparent opacity={0.75} />
+      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[0.9, 0.16, 0.92]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.6} />
 
       {/* secondary IC + heatsink and a pin-header connector fill the board out */}
       <Heatsink position={[-0.98, 0, 0.56]} />

@@ -175,7 +175,7 @@ export function SignalLine({ thread, from, to, color }: Relation) {
 
   return (
     <group>
-      <DreiLine ref={lineRef} points={points} color={PIPE_REST.getStyle()} lineWidth={1.8} transparent opacity={0.22} depthWrite={false} toneMapped={false} fog={false} />
+      <DreiLine ref={lineRef} points={points} color={PIPE_REST.getStyle()} lineWidth={1.5} transparent opacity={0.22} depthWrite={false} toneMapped={false} fog={false} />
       <points ref={pointsRef} visible={false}>
         <bufferGeometry>
           <bufferAttribute ref={posAttr} attach="attributes-position" args={[posArr, 3]} />

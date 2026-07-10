@@ -14,6 +14,7 @@ import { asset } from '../../lib/asset';
 import { NEUTRAL, GLASS, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, LiveGlassMat } from './materials';
+import { BlobShadow } from './backdrop';
 
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   const { hovered, visited } = useActive('alliander-hololens');
@@ -75,6 +76,7 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
   }, [windows]);
   return (
     <group position={[x, 0, z]}>
+      <BlobShadow position={[0, 0.004, 0]} radius={Math.max(w, d) * 0.95} opacity={0.4} />
       <mesh position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
         <GlassMat opacity={0.3} />
@@ -108,11 +110,12 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
   });
   return (
     <group position={position}>
+      <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.38} />
       <group ref={popRef}>
-      {/* grassy mound */}
+      {/* grassy mound — desaturated toward the scene's glass language */}
       <mesh position={[0, 0.03, 0]}>
         <cylinderGeometry args={[0.24, 0.3, 0.06, 20]} />
-        <GlassMat color="#2f8a6e" opacity={0.18} />
+        <GlassMat color="#3e6459" opacity={0.18} />
       </mesh>
       {/* tapered octagonal body */}
       <mesh position={[0, 0.34, 0]}>
@@ -132,7 +135,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
           <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
             <mesh position={[0, 0.24, 0]}>
               <boxGeometry args={[0.05, 0.46, 0.01]} />
-              <GlassMat color="#3f8f8a" opacity={0.34} />
+              <GlassMat color="#4f7d92" opacity={0.34} />
               <Edges threshold={30} color={NEUTRAL} />
             </mesh>
           </group>
@@ -145,7 +148,9 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
 
 /** A stylised pine — three stacked faceted cones over a short trunk stub (the
  *  stub ends below the lowest tier's skirt, so nothing shows through the
- *  leaves). Quiet teal at rest; greens up once the park has been visited. */
+ *  leaves). Neutral glass at rest, like the rest of the furniture; visiting
+ *  the park breathes a quiet sea-green into the foliage — a hint of life, not
+ *  a lawn-ornament green. */
 const PINE_TIERS: [number, number, number][] = [
   // y centre, radius, height — fractions of the tree height
   [0.3, 0.36, 0.44],
@@ -155,10 +160,10 @@ const PINE_TIERS: [number, number, number][] = [
 function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: number; yaw?: number; slug?: string }) {
   const { selected, visited } = useActive(slug ?? '');
   const live = useRef(0);
-  const restCol = useMemo(() => new Color('#3f7d72'), []); // muted teal-green at rest
-  const vivid = useMemo(() => new Color('#62c265'), []); // lifelike leaf green once visited
+  const restCol = useMemo(() => new Color('#47656b'), []); // neutral glass-teal at rest
+  const vivid = useMemo(() => new Color('#5ea78d'), []); // restrained sea-green once visited
   const mat = useMemo(() => {
-    const m = new MeshStandardMaterial({ color: '#3f7d72', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.45 });
+    const m = new MeshStandardMaterial({ color: '#47656b', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.4 });
     m.userData.lifeSkip = true; // greens up itself once visited
     return m;
   }, []);
@@ -166,13 +171,13 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: num
     if (!slug) return;
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
     mat.color.copy(restCol).lerp(vivid, live.current);
-    mat.opacity = 0.45 + live.current * 0.35;
+    mat.opacity = 0.4 + live.current * 0.35;
   });
   return (
     <group position={position} rotation={[0, yaw, 0]}>
       <mesh position={[0, h * 0.05, 0]}>
         <cylinderGeometry args={[h * 0.022, h * 0.03, h * 0.1, 6]} />
-        <GlassMat color="#6a7a72" opacity={0.5} />
+        <GlassMat color="#70828e" opacity={0.5} />
       </mesh>
       {PINE_TIERS.map(([y, r, th], i) => (
         <mesh key={i} position={[0, h * y, 0]} material={mat}>
@@ -270,15 +275,15 @@ function LakeDucks() {
         >
           <mesh scale={[1.3, 0.75, 1]}>
             <sphereGeometry args={[0.014, 10, 8]} />
-            <GlassMat color="#cfc49e" opacity={0.55} />
+            <GlassMat color="#c6d0d8" opacity={0.55} />
           </mesh>
           <mesh position={[0.014, 0.012, 0]}>
             <sphereGeometry args={[0.008, 8, 6]} />
-            <GlassMat color="#cfc49e" opacity={0.6} />
+            <GlassMat color="#c6d0d8" opacity={0.6} />
           </mesh>
           <mesh position={[0.024, 0.012, 0]} rotation={[0, 0, -Math.PI / 2]}>
             <coneGeometry args={[0.003, 0.008, 6]} />
-            <GlassMat color="#e8b64f" opacity={0.7} />
+            <GlassMat color="#d3b06e" opacity={0.7} />
           </mesh>
         </group>
       ))}
@@ -476,10 +481,11 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
   });
   return (
     <group position={position}>
+      <BlobShadow position={[0, 0.003, 0]} radius={0.68} opacity={0.34} />
       <group ref={popRef}>
       <mesh position={[0, 0.012, 0]}>
         <cylinderGeometry args={[0.5, 0.5, 0.02, 44]} />
-        <LiveGlassMat slug="arcam" color="#2f8a6e" opacity={0.15} />
+        <LiveGlassMat slug="arcam" color="#3e6459" opacity={0.15} />
       </mesh>
       <Line points={circlePts(0.5)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
       {/* lake — an irregular water body with shore, ripples, a jetty + reeds */}
@@ -497,32 +503,32 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
         {/* ripples */}
         <Line points={circlePts(0.06, 22)} position={[-0.03, 0.032, 0.02]} color={live ? '#7fd0ff' : NEUTRAL} lineWidth={1} transparent opacity={0.4} />
         <Line points={circlePts(0.035, 18)} position={[0.06, 0.032, -0.04]} color={live ? '#7fd0ff' : NEUTRAL} lineWidth={1} transparent opacity={0.35} />
-        {/* a little jetty over the water */}
+        {/* a little jetty over the water — neutral grey, no timber brown */}
         <group position={[0.13, 0, -0.07]} rotation={[0, -0.5, 0]}>
           <mesh position={[0, 0.045, 0]}>
             <boxGeometry args={[0.13, 0.012, 0.035]} />
-            <GlassMat color="#9a7150" opacity={0.55} />
+            <GlassMat color="#7e8b94" opacity={0.55} />
             <Edges threshold={30} color={NEUTRAL} />
           </mesh>
           {[-0.05, 0.04].map((px, i) => (
             <mesh key={i} position={[px, 0.022, 0.013]}>
               <cylinderGeometry args={[0.005, 0.005, 0.05, 6]} />
-              <GlassMat color="#9a7150" opacity={0.5} />
+              <GlassMat color="#7e8b94" opacity={0.5} />
             </mesh>
           ))}
         </group>
-        {/* reeds at the far edge */}
+        {/* reeds at the far edge — the same quiet glass-green as the trees */}
         {([[-0.16, 0.03], [-0.185, -0.02], [-0.15, -0.06]] as [number, number][]).map(([rx, rz], i) => (
           <mesh key={`r${i}`} position={[rx, 0.06, rz]} rotation={[0.12 * (i - 1), 0, 0.13]}>
             <cylinderGeometry args={[0.003, 0.005, 0.11, 5]} />
-            <meshStandardMaterial color="#5f8a52" roughness={0.8} />
+            <GlassMat color="#597a6d" opacity={0.6} />
           </mesh>
         ))}
         {/* lily pads */}
         {([[0.07, 0.06], [-0.02, -0.08]] as [number, number][]).map(([lx, lz], i) => (
           <mesh key={`l${i}`} position={[lx, 0.028, lz]} rotation={[-Math.PI / 2, 0, 0]}>
             <circleGeometry args={[0.022, 12]} />
-            <meshStandardMaterial color="#3f7d52" roughness={0.7} side={DoubleSide} />
+            <meshStandardMaterial color="#4a6f66" roughness={0.7} transparent opacity={0.75} side={DoubleSide} />
           </mesh>
         ))}
         {/* two ducks drifting their lazy loops */}
@@ -581,6 +587,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   });
   return (
     <group position={position}>
+      <BlobShadow position={[0, 0.004, 0]} radius={0.34} opacity={0.45} />
       <group ref={popRef}>
         {/* one continuous tapered octagonal shaft — the same frosted glass as
             the rest of the scene, set apart by its shape; ghost grey until the
@@ -723,6 +730,7 @@ function Constellation({ anchor }: { anchor: V3 }) {
     });
     const lm = lineRef.current?.material;
     if (lm) {
+      lm.userData.lifeSkip = true; // self-animated — presence stays out
       const op = kk * 0.95;
       lm.opacity = op;
       if (lm.uniforms?.opacity) lm.uniforms.opacity.value = op;
@@ -738,6 +746,7 @@ function Constellation({ anchor }: { anchor: V3 }) {
             ref={(m) => {
               starMats.current[i] = m;
             }}
+            userData={{ lifeSkip: true }}
             color="#eaf6ff"
             emissive="#cfe8ff"
             emissiveIntensity={0}
@@ -778,19 +787,19 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
       }),
     [from, targets],
   );
-  const mat = useMemo(
-    () =>
-      new MeshStandardMaterial({
-        color: '#284a5c',
-        emissive: '#4fd8ff',
-        emissiveIntensity: 0.12,
-        transparent: true,
-        opacity: 0.55,
-        roughness: 0.4,
-        toneMapped: false,
-      }),
-    [],
-  );
+  const mat = useMemo(() => {
+    const m = new MeshStandardMaterial({
+      color: '#284a5c',
+      emissive: '#4fd8ff',
+      emissiveIntensity: 0.12,
+      transparent: true,
+      opacity: 0.55,
+      roughness: 0.4,
+      toneMapped: false,
+    });
+    m.userData.lifeSkip = true; // animates its own opacity — presence stays out
+    return m;
+  }, []);
   useFrame(() => {
     const target = selected ? 1 : hovered ? 0.5 : visited ? 0.28 : 0;
     k.current += (target - k.current) * 0.09;

@@ -7,6 +7,7 @@ import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, type Hotspot, type Lay
 import { useSceneSelector } from '../store';
 import { AccentCtx, PALETTE } from './shared';
 import { DotFloor, PointCloud, DepthVeil } from './backdrop';
+import { PresenceGroup } from './presence';
 import { CityRig } from './city';
 import { RoomRig } from './room';
 import { ChipRig } from './chip';
@@ -22,6 +23,9 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const activeLayer = (['city', 'room', 'chip'] as LayerId[])[journeyStep] ?? 'city';
+  // The layer that holds the light: the selected node's home while one is open
+  // (a deep link can select a node the scroll hasn't reached), else the scroll's.
+  const presenceLayer = HOTSPOTS.find((h) => h.slug === selectedSlug)?.layer ?? activeLayer;
 
   return (
     <group>
@@ -43,9 +47,14 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
           <AccentCtx.Provider key={id} value={PALETTE[id]}>
             <group position={[0, LAYER_Y[id], 0]} scale={LAYER_SCALE[id]}>
               <group visible={near}>
-                <DotFloor step={id === 'city' ? 0.17 : 0.26} />
-                <PointCloud seed={SEED[id]} />
-                <Rig />
+                {/* Presence: the layer in focus keeps full brightness, the
+                    others rest dimmed (see presence.tsx). Only the dressing —
+                    the life system's objects are exempt inside. */}
+                <PresenceGroup active={presenceLayer === id}>
+                  <DotFloor step={id === 'city' ? 0.17 : 0.26} />
+                  <PointCloud seed={SEED[id]} />
+                  <Rig />
+                </PresenceGroup>
               </group>
               {activeLayer === id &&
                 HOTSPOTS.filter((h) => h.layer === id).map((h) => (

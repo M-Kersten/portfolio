@@ -11,6 +11,7 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, smoothCurve, roundedRectShape, roundedPlaneGeometry, Line, useActive, bounceObject, useOptionalTexture, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { GlassMat, LiveGlassMat, Accent, SoftBox } from './materials';
+import { BlobShadow } from './backdrop';
 
 const PHONE_BALLS = 6;
 const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
@@ -306,6 +307,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   });
   return (
     <group position={position}>
+      <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.4} />
       <group ref={popRef}>
         <mesh position={[0, 0.18, 0]}>
           <cylinderGeometry args={[0.32, 0.32, 0.03, 40]} />
@@ -319,14 +321,15 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
           </mesh>
         ))}
         {/* the AR race loop — a circle */}
-        <Line points={circlePts(R)} position={[0, 0.2, 0]} color={accent} lineWidth={1.6} transparent opacity={0.7} />
-        {/* two cars circling the centre pivot, facing their direction of travel */}
+        <Line points={circlePts(R)} position={[0, 0.2, 0]} color={accent} lineWidth={1.5} transparent opacity={0.7} />
+        {/* two cars circling the centre pivot, facing their direction of travel —
+            one wears the room's coral, its rival the neutral white-blue */}
         <group ref={ring} position={[0, 0.202, 0]}>
           <group position={[R, 0, 0]} rotation={[0, Math.PI, 0]}>
-            <RaceCar color="#ff5a4d" />
+            <RaceCar color="#ff9068" />
           </group>
           <group position={[-R, 0, 0]}>
-            <RaceCar color="#4d9bff" />
+            <RaceCar color="#9fb6c6" />
           </group>
         </group>
       </group>
@@ -352,6 +355,7 @@ function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
 function FloorLamp({ position }: { position: V3 }) {
   return (
     <group position={position}>
+      <BlobShadow position={[0, 0.003, 0]} radius={0.2} opacity={0.34} />
       <mesh position={[0, 0.006, 0]}>
         <cylinderGeometry args={[0.12, 0.13, 0.012, 24]} />
         <GlassMat opacity={0.22} />
@@ -384,6 +388,7 @@ function PottedPlant({ position, liveSlug }: { position: V3; liveSlug?: string }
   );
   return (
     <group position={position}>
+      <BlobShadow position={[0, 0.003, 0]} radius={0.2} opacity={0.34} />
       {/* pot — kept to the scene's neutral glass, no terracotta */}
       <mesh position={[0, 0.08, 0]}>
         <cylinderGeometry args={[0.13, 0.1, 0.16, 22]} />
@@ -668,6 +673,7 @@ function Bookcase({ position }: { position: V3 }) {
   });
   return (
     <group position={position}>
+      <BlobShadow position={[0, 0.004, 0.04]} radius={0.52} aspect={0.55} opacity={0.4} />
       <group ref={popRef}>
       {/* case frame: back, sides, top, base — solidifies once the book is opened */}
       <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} liveSlug="zwijsen-ar-books" liveGhost={false} />
@@ -745,6 +751,7 @@ export function RoomRig() {
           toward the centre; the monitor flickers on hover. Engaging the monitor
           solidifies the desk, chair + plant with it (the life spreads). */}
       <group position={desk.position} rotation={[0, desk.rotationY, 0]}>
+        <BlobShadow position={[0, 0.004, -0.16]} radius={0.6} aspect={0.72} opacity={0.38} />
         <group position={[0, 0, -0.3]}>
           <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline liveSlug="virtuele-brigade" liveGhost={false} />
           {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
@@ -789,6 +796,7 @@ export function RoomRig() {
       {/* couch + phone — faces the coffee table / room front (+z). Opening the
           phone solidifies the couch it sits on. */}
       <group position={couch.position} rotation={[0, couch.rotationY, 0]}>
+        <BlobShadow position={[0, 0.004, -0.02]} radius={0.6} aspect={0.58} opacity={0.4} />
         <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline liveSlug="popcore-games" liveGhost={false} />
         <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} liveSlug="popcore-games" liveGhost={false} />
         <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} liveSlug="popcore-games" liveGhost={false} />
