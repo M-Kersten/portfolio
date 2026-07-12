@@ -84,8 +84,6 @@ for (const cap of capabilities ?? [])
   if (!LAYERS.has(cap.layer)) errors.push(`capabilities.json → "${cap.title}": layer must be city | room | chip`);
 
 // ---- cv.json -----------------------------------------------------------------
-for (const slug of cv.projects ?? [])
-  if (!slugs.has(slug)) errors.push(`cv.json: selected project "${slug}" has no case in cases.json`);
 for (const field of ['tagline', 'stack', 'education', 'languages', 'offTheClock'])
   if (!cv[field] || cv[field].length === 0) errors.push(`cv.json: missing "${field}"`);
 for (const c of cv.contact ?? [])

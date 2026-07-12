@@ -1,6 +1,6 @@
-// CV PDF generator — snapshots the /cv route (and its ?dark twin) into
-// public/cv.pdf + public/cv-dark.pdf, and mirrors them into dist/ so the
-// build you just made is complete too.
+// CV PDF generator — prints the /cv route into public/cv.pdf (as many A4
+// pages as the content needs) and mirrors it into dist/ so the build you
+// just made is complete too.
 //
 //   npm run cv        (= full build, then this script)
 //
@@ -62,31 +62,13 @@ async function launch() {
 const browser = await launch();
 const page = await browser.newPage();
 
-for (const [route, out] of [
-  ['/cv', 'cv.pdf'],
-  ['/cv?dark', 'cv-dark.pdf'],
-]) {
-  await page.goto(`http://127.0.0.1:${port}${route}`, { waitUntil: 'networkidle' });
-  await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(150);
-  // One-page guard: if the sheet no longer fits an A4 page (content grew),
-  // fail loudly instead of shipping a silently truncated CV.
-  await page.emulateMedia({ media: 'print' });
-  const over = await page.evaluate(() => {
-    const mm = (v) => (v * 96) / 25.4; // CSS px per mm
-    const h = document.querySelector('.cv')?.getBoundingClientRect().height ?? 0;
-    return Math.ceil(h - mm(297));
-  });
-  if (over > 0) {
-    console.error(`✗ ${route}: the sheet overflows one A4 page by ~${over}px — trim a career blurb,`);
-    console.error('  drop a cv.json list entry, or tighten src/ui/cv.css, then rerun `npm run cv`.');
-    process.exit(1);
-  }
-  const pdf = await page.pdf({ format: 'A4', printBackground: true, pageRanges: '1' });
-  writeFileSync(join(root, 'public', out), pdf);
-  copyFileSync(join(root, 'public', out), join(dist, out));
-  console.log(`✓ ${out} — ${(pdf.length / 1024).toFixed(0)} kB`);
-}
+await page.goto(`http://127.0.0.1:${port}/cv`, { waitUntil: 'networkidle' });
+await page.evaluate(() => document.fonts.ready);
+await page.waitForTimeout(150);
+const pdf = await page.pdf({ format: 'A4', printBackground: true });
+writeFileSync(join(root, 'public', 'cv.pdf'), pdf);
+copyFileSync(join(root, 'public', 'cv.pdf'), join(dist, 'cv.pdf'));
+console.log(`✓ cv.pdf — ${(pdf.length / 1024).toFixed(0)} kB`);
 
 await browser.close();
 server.close();
