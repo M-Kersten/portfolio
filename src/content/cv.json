@@ -1,0 +1,22 @@
+{
+  "tagline": "Creative technologist — building things that survive outside the demo room.",
+  "contact": [
+    { "label": "info@merijnkersten.nl", "href": "mailto:info@merijnkersten.nl" },
+    { "label": "merijnkersten.nl", "href": "https://merijnkersten.nl" },
+    { "label": "Utrecht, NL" },
+    { "label": "in/merijn-kersten", "href": "https://www.linkedin.com/in/merijn-kersten/" },
+    { "label": "gh/m-kersten", "href": "https://github.com/m-kersten" }
+  ],
+  "stack": [
+    "Unity · C#",
+    "ARKit · Lightship VPS",
+    "TypeScript · React · R3F",
+    "Computer vision · AI & LLMs",
+    "Multiplayer networking",
+    "Backends & databases"
+  ],
+  "education": [{ "school": "Saxion", "degree": "Creative media & game technology" }],
+  "languages": ["Dutch — native", "English — fluent"],
+  "offTheClock": "Music production, baking, cooking, history, fitness",
+  "projects": ["arcam", "zwijsen-ar-books", "lightship-drive", "philips-medical-xr"]
+}

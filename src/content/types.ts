@@ -85,6 +85,26 @@ export interface CareerEntry {
   logo?: string;
 }
 
+/** The CV-only extras (src/content/cv.json). Everything else on the /cv page
+ *  — name, tagline default, career, the three scales, project one-liners — is
+ *  pulled from site.json / capabilities.json / cases.json, so the CV always
+ *  matches the site. `npm run cv` snapshots the page to public/cv(.dark).pdf. */
+export interface CvContent {
+  /** One-line role statement under the name. */
+  tagline: string;
+  /** Contact rows, in order. `href` makes it a live link in the PDF. */
+  contact: { label: string; href?: string }[];
+  /** Tools & skills list for the side column. */
+  stack: string[];
+  education: { school: string; degree: string }[];
+  languages: string[];
+  /** One relaxed line of interests. */
+  offTheClock: string;
+  /** Case slugs to feature under "selected projects" (title + outcome are
+   *  pulled from cases.json). */
+  projects: string[];
+}
+
 export interface SiteContent {
   brand: string;
   nav: NavItem[];

@@ -26,6 +26,7 @@ function readJson(rel) {
 const site = readJson('src/content/site.json');
 const cases = readJson('src/content/cases.json');
 const capabilities = readJson('src/content/capabilities.json');
+const cv = readJson('src/content/cv.json');
 if (errors.length) fail(); // JSON that doesn't parse blocks every other check
 
 const LAYERS = new Set(['city', 'room', 'chip']);
@@ -81,6 +82,17 @@ if ((capabilities ?? []).length !== 3)
   errors.push(`capabilities.json: expected exactly 3 entries (the three band columns), got ${capabilities?.length}`);
 for (const cap of capabilities ?? [])
   if (!LAYERS.has(cap.layer)) errors.push(`capabilities.json → "${cap.title}": layer must be city | room | chip`);
+
+// ---- cv.json -----------------------------------------------------------------
+for (const slug of cv.projects ?? [])
+  if (!slugs.has(slug)) errors.push(`cv.json: selected project "${slug}" has no case in cases.json`);
+for (const field of ['tagline', 'stack', 'education', 'languages', 'offTheClock'])
+  if (!cv[field] || cv[field].length === 0) errors.push(`cv.json: missing "${field}"`);
+for (const c of cv.contact ?? [])
+  if (c.href && !/^(https?:\/\/|mailto:)/.test(c.href))
+    errors.push(`cv.json → contact "${c.label}": href should be a full URL or mailto:`);
+if (!existsSync(root + 'public/cv.pdf'))
+  warnings.push('public/cv.pdf missing — run `npm run cv` to generate the downloadable CV');
 
 // ---- report ------------------------------------------------------------------
 for (const w of warnings) console.warn('  ⚠ ' + w);

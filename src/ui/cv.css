@@ -1,0 +1,301 @@
+/* The /cv page — an A4 sheet in the site's language, light ("blueprint") by
+   default and dark ("holo") with ?dark. One layout, themed entirely through
+   the --cv-* variables below. `npm run cv` prints it to public/cv(.dark).pdf;
+   the print rules at the bottom are what the PDF actually sees. */
+
+.cv-stage {
+  min-height: 100svh;
+  background: #14181c;
+  padding: 4rem 1rem 5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+}
+.cv-tools {
+  display: flex;
+  gap: 1.6rem;
+  font: 400 0.72rem/1 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.08em;
+}
+.cv-tools a {
+  color: rgba(234, 234, 234, 0.66);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(234, 234, 234, 0.25);
+  padding-bottom: 2px;
+}
+.cv-tools a:hover {
+  color: var(--cyan, #27e8f2);
+  border-color: currentColor;
+}
+
+/* ---------- the sheet ---------- */
+.cv {
+  /* blueprint (light) theme */
+  --cv-paper: #f6f8f9;
+  --cv-ink: #10161b;
+  --cv-mut: rgba(16, 22, 27, 0.6);
+  --cv-soft: rgba(16, 22, 27, 0.5);
+  --cv-line: rgba(16, 22, 27, 0.16);
+  --cv-dot: rgba(16, 22, 27, 0.12);
+  --cv-c1: #0f9fae; /* city  */
+  --cv-c2: #e56a44; /* room  */
+  --cv-c3: #6fae2e; /* chip  */
+  --cv-glow: 0px; /* accent glow radius (dark theme turns it on) */
+
+  width: 210mm;
+  min-height: 297mm;
+  flex: none;
+  position: relative;
+  background: var(--cv-paper);
+  background-image: radial-gradient(var(--cv-dot) 1px, transparent 1.4px);
+  background-size: 24px 24px;
+  color: var(--cv-ink);
+  font-family: var(--font-sans, 'Space Grotesk', sans-serif);
+  padding: 44px 56px 84px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+}
+.cv[data-theme='dark'] {
+  --cv-paper: #0a0d10;
+  --cv-ink: #eaeaea;
+  --cv-mut: rgba(234, 234, 234, 0.62);
+  --cv-soft: rgba(234, 234, 234, 0.45);
+  --cv-line: rgba(234, 234, 234, 0.16);
+  --cv-dot: rgba(234, 234, 234, 0.07);
+  --cv-c1: var(--cyan, #27e8f2);
+  --cv-c2: var(--coral, #ff9068);
+  --cv-c3: var(--lime, #a9f75c);
+  --cv-glow: 9px;
+}
+
+.cv .cv-lbl {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 700 8.5px/1 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cv-soft);
+}
+.cv .cv-lbl s {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  text-decoration: none;
+  box-shadow: 0 0 var(--cv-glow) currentColor;
+}
+
+/* header */
+.cv .cv-top {
+  display: flex;
+  justify-content: space-between;
+  font: 700 8.5px/1 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cv-soft);
+}
+.cv .cv-frame {
+  position: relative;
+  padding: 20px 0 18px;
+  margin: 0 0 4px;
+}
+.cv .cv-ck {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--cv-c1);
+}
+.cv .cv-tl { left: -16px; top: 6px; border-right: 0; border-bottom: 0; }
+.cv .cv-tr { right: -16px; top: 6px; border-left: 0; border-bottom: 0; }
+.cv .cv-bl { left: -16px; bottom: 2px; border-right: 0; border-top: 0; }
+.cv .cv-br { right: -16px; bottom: 2px; border-left: 0; border-top: 0; }
+.cv h1 {
+  font: 500 42px/1.02 var(--font-sans, 'Space Grotesk', sans-serif);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.cv .cv-tagline {
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--cv-mut);
+  margin: 10px 0 0;
+}
+.cv .cv-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 14px;
+  font: 400 10px/1 var(--font-mono, 'Space Mono', monospace);
+  color: var(--cv-mut);
+}
+.cv .cv-contact a {
+  color: var(--cv-c1);
+  text-decoration: none;
+}
+
+/* the three scales */
+.cv .cv-scales {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 22px;
+  padding: 14px 0 14px;
+  border-top: 1px solid var(--cv-line);
+}
+.cv .cv-scale p {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--cv-mut);
+  margin: 7px 0 0;
+}
+.cv .cv-scale p::first-letter {
+  text-transform: uppercase;
+}
+.cv .cv-tags {
+  font: 400 8.5px/1.6 var(--font-mono, 'Space Mono', monospace);
+  color: var(--cv-soft);
+  margin-top: 5px;
+}
+
+/* experience + side column */
+.cv .cv-cols {
+  display: grid;
+  grid-template-columns: 1fr 218px;
+  gap: 34px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cv-line);
+}
+.cv .cv-xp {
+  position: relative;
+  padding-left: 22px;
+}
+.cv .cv-route {
+  position: absolute;
+  left: 3px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--cv-line);
+}
+.cv .cv-job {
+  position: relative;
+  margin-bottom: 12px;
+}
+.cv .cv-job > s {
+  position: absolute;
+  left: -24.5px;
+  top: 3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cv-paper);
+  border: 2px solid var(--cv-c1);
+  box-shadow: 0 0 var(--cv-glow) var(--cv-c1);
+  text-decoration: none;
+}
+.cv .cv-when {
+  font: 400 8.5px/1 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.12em;
+  color: var(--cv-soft);
+}
+.cv .cv-job h3 {
+  font: 700 14px/1.2 var(--font-sans, 'Space Grotesk', sans-serif);
+  margin: 3px 0 0;
+}
+.cv .cv-co {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--cv-mut);
+  margin-top: 2px;
+}
+.cv .cv-job p {
+  font-size: 10.5px;
+  line-height: 1.38;
+  color: var(--cv-mut);
+  margin: 3px 0 0;
+  max-width: 430px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cv .cv-side section {
+  margin-bottom: 14px;
+}
+.cv .cv-side .cv-lbl {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--cv-line);
+}
+.cv .cv-side ul {
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+}
+.cv .cv-side li {
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--cv-mut);
+}
+.cv .cv-side li b {
+  font-weight: 500;
+  color: var(--cv-ink);
+}
+.cv .cv-proj {
+  margin-bottom: 7px;
+}
+.cv .cv-proj b {
+  display: block;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.cv .cv-proj span {
+  display: block;
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+/* footer */
+.cv .cv-foot {
+  position: absolute;
+  left: 56px;
+  right: 56px;
+  bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--cv-line);
+  padding-top: 12px;
+}
+.cv .cv-pips i {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 3px;
+  background: var(--cv-c3);
+  box-shadow: 0 0 var(--cv-glow) var(--cv-c3);
+}
+.cv .cv-foot > span:last-child {
+  font: 400 8.5px/1.4 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.08em;
+  color: var(--cv-soft);
+}
+
+/* ---------- print / PDF ---------- */
+@page {
+  size: A4;
+  margin: 0;
+}
+@media print {
+  .cv-stage {
+    padding: 0;
+    background: none;
+    display: block;
+  }
+  .cv-tools {
+    display: none;
+  }
+  .cv {
+    box-shadow: none;
+    width: auto;
+    min-height: 296mm; /* a hair under A4 so rounding never spills to page 2 */
+  }
+}

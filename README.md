@@ -31,6 +31,8 @@ Useful while developing:
 - `/` — home (hero maquette, capabilities, projects timeline, about, contact)
 - `/work/:slug` — deep link to a project: the camera flies to its object and a
   dossier HUD opens
+- `/cv` — the CV as a web page (add `?dark` for the holo theme); `npm run cv`
+  snapshots it to `public/cv.pdf` + `public/cv-dark.pdf`
 - add `?nogl` to any URL to preview the **no-WebGL static fallback**
 - OS reduced-motion is respected everywhere (states snap, no glitches)
 
@@ -46,6 +48,7 @@ src/
     Work.tsx           the projects map: a pinned, scroll-driven timeline
     CaseCard.tsx       a waypoint card on the timeline
     NodeHud.tsx        the /work/:slug dossier drawer
+    CvPage.tsx         the /cv sheet (A4, light + ?dark) that npm run cv prints
     About / Contact / Header / Footer / Poster / ScanFrame / SectionTitle
   scene/
     maquette/          the three-layer 3D world, one file per concern:
@@ -65,7 +68,7 @@ src/
     framing.ts         layer stack + hotspot positions + camera framings (data)
     store.ts           tiny cross-reconciler store (selected/hovered/visited)
     devTweak.tsx       dev-only 3D position scrubbers (tree-shaken from prod)
-  content/             cases.json · capabilities.json · site.json (+ types)
+  content/             cases.json · capabilities.json · site.json · cv.json (+ types)
   lib/                 asset base-path, reduced-motion, WebGL support, youtube
   ui/                  tokens.css (design tokens) + one stylesheet per page
                        section (global.css just imports them in order)
@@ -95,6 +98,14 @@ their own ghost→alive keyed on the same store state. Colour policy lives in
   led to →" storyline links in the dialogs. Drop a matching poster in
   `public/posters/<slug>.jpg`.
 - `capabilities.json` — the three band columns.
+- `cv.json` — the CV-only extras (tagline, contact rows, stack, education,
+  languages, selected-project slugs). Everything else on `/cv` — career, the
+  three scales, project one-liners — comes from the JSONs above, so the CV
+  always matches the site. After editing, run **`npm run cv`**: it rebuilds
+  and prints `/cv` to `public/cv.pdf` and `public/cv-dark.pdf` using your
+  installed Chrome (`CHROME_PATH=` overrides). The script refuses to ship a
+  CV that overflows one A4 page — trim a blurb or a list entry if it does.
+  The "CV (PDF)" button in Contact serves the committed light PDF.
 - `types.ts` documents every field.
 
 **Adding a project to the 3D scene**: add the case to `cases.json`, then add a
