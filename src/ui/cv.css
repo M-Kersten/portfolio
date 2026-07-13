@@ -39,17 +39,18 @@
   --cv-line: rgba(16, 22, 27, 0.16);
   --cv-dot: rgba(16, 22, 27, 0.12);
   --cv-accent: #0f9fae; /* the site's cyan, darkened for paper */
-  --cv-pip: #6fae2e; /* the site's lime, darkened for paper */
+  --cv-ink-hdr: #0a0d10; /* the black header band (matches the site bg) */
 
   width: 210mm;
   min-height: 297mm;
   flex: none;
   position: relative;
+  overflow: hidden; /* clip the full-bleed header to the sheet's corners */
   background: var(--cv-paper);
   /* the dot grid. Deliberately OPAQUE (dot colour pre-blended onto the
      paper colour): print rasterizes this layer, and without an alpha
-     channel it compresses ~10× better in the PDF. */
-  background-image: radial-gradient(#dadde0 1.1px, var(--cv-paper) 1.5px);
+     channel it compresses ~10× better in the PDF. Kept faint. */
+  background-image: radial-gradient(#e7eaec 1px, var(--cv-paper) 1.4px);
   background-size: 24px 24px;
   color: var(--cv-ink);
   font-family: var(--font-sans, 'Space Grotesk', sans-serif);
@@ -70,45 +71,46 @@
   margin: 20px 0 16px;
 }
 
-/* header */
-.cv .cv-top {
+/* header — a full-bleed black band; the dithered portrait emerges from it */
+.cv .cv-head {
+  /* negative margins cancel the sheet padding, so the band reaches the top
+     and side edges of the sheet (which clips it to its corners) */
+  margin: -44px -56px 0;
+  padding: 0 56px;
+  height: 224px;
+  background: var(--cv-ink-hdr);
+  color: #eaeaea;
   display: flex;
   justify-content: space-between;
-  font: 700 8.5px/1 var(--font-mono, 'Space Mono', monospace);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--cv-soft);
-}
-.cv .cv-frame {
-  position: relative;
-  padding: 24px 0 22px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 28px;
+  align-items: flex-end;
+  gap: 24px;
+  overflow: hidden;
 }
 .cv .cv-id {
   min-width: 0;
+  padding-bottom: 34px; /* lift the name off the band's bottom edge */
 }
+.cv .cv-head h1 {
+  color: #f5f8fa;
+}
+.cv .cv-head .cv-tagline {
+  color: rgba(234, 234, 234, 0.66);
+}
+.cv .cv-head .cv-contact {
+  color: rgba(234, 234, 234, 0.5);
+}
+.cv .cv-head .cv-contact a {
+  color: #2ad3de; /* the site cyan, bright enough to read on black */
+}
+/* the portrait fills the band height and stands on its bottom edge */
 .cv .cv-photo {
   flex: none;
-  width: 104px;
-  height: 130px;
-  object-fit: cover;
-  border-radius: 3px;
-  border: 1px solid var(--cv-line);
-  margin-right: 4px;
+  align-self: flex-end;
+  height: 224px;
+  width: auto;
+  object-fit: contain;
+  object-position: bottom center;
 }
-.cv .cv-ck {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--cv-accent);
-}
-.cv .cv-tl { left: -16px; top: 6px; border-right: 0; border-bottom: 0; }
-.cv .cv-tr { right: -16px; top: 6px; border-left: 0; border-bottom: 0; }
-.cv .cv-bl { left: -16px; bottom: 2px; border-right: 0; border-top: 0; }
-.cv .cv-br { right: -16px; bottom: 2px; border-left: 0; border-top: 0; }
 .cv h1 {
   font: 500 44px/1.02 var(--font-sans, 'Space Grotesk', sans-serif);
   letter-spacing: -0.01em;
@@ -119,6 +121,7 @@
   line-height: 1.4;
   color: var(--cv-mut);
   margin: 10px 0 0;
+  max-width: 30rem;
 }
 .cv .cv-contact {
   display: flex;
@@ -131,6 +134,12 @@
 .cv .cv-contact a {
   color: var(--cv-accent);
   text-decoration: none;
+}
+/* the first section sits right under the black band — no divider hairline */
+.cv .cv-head + section .cv-sec {
+  border-top: 0;
+  margin-top: 22px;
+  padding-top: 0;
 }
 
 /* profile paragraph */
@@ -249,28 +258,6 @@
   color: var(--cv-mut);
 }
 
-/* footer signature */
-.cv .cv-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 1px solid var(--cv-line);
-  margin-top: 22px;
-  padding-top: 12px;
-}
-.cv .cv-pips i {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin-right: 3px;
-  background: var(--cv-pip);
-}
-.cv .cv-foot > span:last-child {
-  font: 400 8.5px/1.4 var(--font-mono, 'Space Mono', monospace);
-  letter-spacing: 0.08em;
-  color: var(--cv-soft);
-}
-
 /* ---------- print / PDF ---------- */
 @page {
   size: A4;
@@ -313,9 +300,13 @@
   .cv .cv-edu,
   .cv .cv-certs,
   .cv .cv-extras section,
-  .cv .cv-foot,
   .cv .cv-keep {
     break-inside: avoid;
+  }
+  /* the black header must print its background */
+  .cv .cv-head {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .cv .cv-sec {
     break-after: avoid; /* a section header stays with its first entry */

@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { site, cv } from '../content';
-import { HOTSPOTS } from '../scene/framing';
 import { asset } from '../lib/asset';
 
 // The CV page (/cv) — an A4 document in the site's visual language, focused
@@ -37,7 +36,6 @@ export function CvPage() {
   }, []);
 
   const career = [...(site.career ?? [])].reverse(); // newest first
-  const siteHost = cv.contact.find((c) => c.href?.startsWith('https://'))?.label ?? 'merijnkersten.nl';
   // Years of experience, computed from the earliest career start.
   const first = (site.career ?? []).reduce((a, j) => (j.from < a ? j.from : a), '9999-12');
   const years = Math.floor((Date.now() - new Date(`${first}-01`).getTime()) / 31557600000);
@@ -53,30 +51,24 @@ export function CvPage() {
       </nav>
 
       <article className="cv">
-        <header>
-          <div className="cv-top">
-            <span>Curriculum vitae — {new Date().getFullYear()}</span>
-            <span>{siteHost}</span>
-          </div>
-          <div className="cv-frame">
-            <u className="cv-ck cv-tl" /><u className="cv-ck cv-tr" /><u className="cv-ck cv-bl" /><u className="cv-ck cv-br" />
-            <div className="cv-id">
-              <h1>{site.hero.name}</h1>
-              <p className="cv-tagline">{cv.tagline}</p>
-              <div className="cv-contact">
-                {cv.contact.map((c) =>
-                  c.href ? (
-                    <a key={c.label} href={c.href}>
-                      {c.label}
-                    </a>
-                  ) : (
-                    <span key={c.label}>{c.label}</span>
-                  ),
-                )}
-              </div>
+        {/* black header band — the dithered portrait (5.png) emerges from it */}
+        <header className="cv-head">
+          <div className="cv-id">
+            <h1>{site.hero.name}</h1>
+            <p className="cv-tagline">{cv.tagline}</p>
+            <div className="cv-contact">
+              {cv.contact.map((c) =>
+                c.href ? (
+                  <a key={c.label} href={c.href}>
+                    {c.label}
+                  </a>
+                ) : (
+                  <span key={c.label}>{c.label}</span>
+                ),
+              )}
             </div>
-            {cv.photo && <img className="cv-photo" src={asset(cv.photo)} alt={site.hero.name} />}
           </div>
+          {cv.photo && <img className="cv-photo" src={asset(cv.photo)} alt={site.hero.name} />}
         </header>
 
         <section aria-label="Profile">
@@ -163,17 +155,6 @@ export function CvPage() {
             </ul>
           </section>
         </div>
-
-        <footer className="cv-foot">
-          <span className="cv-pips" aria-hidden="true">
-            {HOTSPOTS.map((h) => (
-              <i key={h.slug} />
-            ))}
-          </span>
-          <span>
-            signals {HOTSPOTS.length}/{HOTSPOTS.length} — full project dossiers at {siteHost}
-          </span>
-        </footer>
       </article>
     </main>
   );
