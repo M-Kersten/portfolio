@@ -131,9 +131,6 @@
   .hero__title {
     max-width: 86vw;
   }
-  .scene-canvas {
-    transform: none; /* no menu on mobile → keep the scene centred */
-  }
   /* Small screens: the tally yields the floor to the caption. */
   .hero__signals {
     display: none;

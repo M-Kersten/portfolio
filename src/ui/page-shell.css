@@ -67,9 +67,8 @@
   position: fixed;
   inset: 0;
   z-index: 0;
-  /* nudged right into the space the old layer menu used to occupy (page bg
-     matches the scene clear colour, so the left edge stays seamless) */
-  transform: translateX(3.4vw);
+  /* fills the viewport edge to edge — no horizontal nudge (an earlier offset
+     left for a since-removed layer menu showed up as a left margin) */
 }
 .scene-canvas canvas {
   display: block;
