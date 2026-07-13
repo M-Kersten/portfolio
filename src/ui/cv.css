@@ -42,6 +42,7 @@
   --cv-blue: #2456d6; /* spot colour — the technologies print in this blue */
   --cv-ink-hdr: #0a0d10; /* the black header band (matches the site bg) */
   --cv-gutter: 38px; /* the body's inset from the sheet edge — tight, so text follows the bleed */
+  --cv-entry-pad: 30px; /* top padding on each entry — doubles as the space a page break lands into */
   --cv-dots: radial-gradient(#e7eaec 1px, var(--cv-paper) 1.4px); /* the faint grid */
   --cv-measure: 35rem; /* one comfortable reading width for every body text */
 
@@ -73,11 +74,13 @@
   text-transform: uppercase;
   color: var(--cv-soft);
 }
-/* section headers (Experience, Education) — a hairline, then the label */
+/* section headers (Experience, Education) — a hairline, then the label. No
+   bottom margin: the following entry's own top padding provides that gap (so
+   at a page break the dots still show in the padding, right to the edge). */
 .cv .cv-sec {
   border-top: 1px solid var(--cv-line);
   padding-top: 14px;
-  margin: 20px 0 16px;
+  margin: 22px 0 0;
 }
 
 /* header — a black band that bleeds to the top + left/right paper edges; the
@@ -170,12 +173,12 @@
   padding-top: 0;
 }
 
-/* profile paragraph */
+/* profile paragraph — the label carries no bottom margin, so add it here */
 .cv .cv-profile {
   font-size: 11.5px;
   line-height: 1.55;
   color: var(--cv-mut);
-  margin: 0;
+  margin: 13px 0 0;
   max-width: var(--cv-measure);
 }
 
@@ -186,16 +189,19 @@
 .cv .cv-job,
 .cv .cv-edu {
   position: relative;
-  margin-bottom: 17px;
-  padding-right: 92px; /* clear space for the right-aligned logo */
+  /* the gap between entries lives in the TOP padding (not a bottom margin), so
+     when a page break lands on an entry the dot grid still fills the padding
+     right up to the top edge — nothing white */
+  padding: var(--cv-entry-pad) 92px 0 0;
 }
 .cv .cv-edu {
   padding-right: 0; /* education entries carry no logo */
 }
-/* the black company mark, top-right, following the right bleed */
+/* the black company mark, top-right, aligned with the entry's content (which
+   starts below the top padding), following the right bleed */
 .cv .cv-logo {
   position: absolute;
-  top: 1px;
+  top: var(--cv-entry-pad);
   right: 0;
   max-width: 84px;
   max-height: 26px;
@@ -239,10 +245,10 @@
   max-width: var(--cv-measure);
 }
 
-/* certificates */
+/* certificates — the label carries no bottom margin, so add the gap here */
 .cv .cv-certs {
   list-style: none;
-  margin: 0;
+  margin: 13px 0 0;
   padding: 0;
 }
 .cv .cv-certs li {
@@ -283,10 +289,7 @@
    ZERO on the first page's top, so the header bleeds straight to the top. */
 @page {
   size: A4;
-  margin: 15mm 0 0; /* a top inset only — sides + bottom still bleed to the edge */
-}
-@page :first {
-  margin-top: 0; /* page 1's header bleeds straight to the top edge */
+  margin: 0; /* zero margin → the dot grid fills every page to all four edges */
 }
 @media print {
   /* the dot grid lives on the ROOT element in print: Chromium propagates the
