@@ -13,10 +13,12 @@
 // Nothing is downloaded by this script.
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, copyFileSync, existsSync, statSync } from 'node:fs';
-import { extname, join } from 'node:path';
+import { dirname, extname, join } from 'node:path';
 import { chromium } from 'playwright-core';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const root = join(scriptDir, '..');
 const dist = join(root, 'dist');
 if (!existsSync(join(dist, 'index.html'))) {
   console.error('✗ dist/index.html missing — run `npm run build` first (or use `npm run cv`).');
