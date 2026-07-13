@@ -76,29 +76,25 @@ export function CvPage() {
           <p className="cv-profile">{cv.profile}</p>
         </section>
 
-        {/* work history — the site's timeline as a route line with month pins */}
+        {/* work history — flush-left entries, newest first */}
         <section aria-label="Experience">
           <div className="cv-lbl cv-sec">Experience</div>
-          <div className="cv-xp">
-            <div className="cv-route" />
-            {career.map((job) => {
-              const story = job.detail ?? job.blurb;
-              const meta = [job.sector, job.tech?.join(' · ')].filter(Boolean).join(' — ');
-              return (
-                <div key={`${job.company}${job.from}`} className="cv-job">
-                  <s />
-                  <div className="cv-when">{fmtRange(job.from, job.to)}</div>
-                  <h3>{job.role ?? job.company}</h3>
-                  <div className="cv-co">
-                    {job.company}
-                    {job.location ? ` · ${job.location}` : ''}
-                  </div>
-                  {meta && <div className="cv-meta">{meta}</div>}
-                  {story && <p>{formal(story)}</p>}
+          {career.map((job) => {
+            const story = job.detail ?? job.blurb;
+            const meta = [job.sector, job.tech?.join(' · ')].filter(Boolean).join('  —  ');
+            return (
+              <div key={`${job.company}${job.from}`} className="cv-job">
+                <div className="cv-when">{fmtRange(job.from, job.to)}</div>
+                <h3>{job.role ?? job.company}</h3>
+                <div className="cv-co">
+                  {job.company}
+                  {job.location ? ` · ${job.location}` : ''}
                 </div>
-              );
-            })}
-          </div>
+                {meta && <div className="cv-meta">{meta}</div>}
+                {story && <p>{formal(story)}</p>}
+              </div>
+            );
+          })}
         </section>
 
         <section aria-label="Education" className="cv-keep">

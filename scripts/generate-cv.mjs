@@ -65,7 +65,14 @@ const page = await browser.newPage();
 await page.goto(`http://127.0.0.1:${port}/cv`, { waitUntil: 'networkidle' });
 await page.evaluate(() => document.fonts.ready);
 await page.waitForTimeout(150);
-const pdf = await page.pdf({ format: 'A4', printBackground: true });
+// Explicit page margins (not left to CSS @page / viewer defaults) so every
+// page gets the same top/bottom breathing room and nothing is clipped. The
+// header bleeds to the sheet's left/right edges, so those margins are 0.
+const pdf = await page.pdf({
+  format: 'A4',
+  printBackground: true,
+  margin: { top: '12mm', bottom: '14mm', left: '0mm', right: '0mm' },
+});
 writeFileSync(join(root, 'public', 'cv.pdf'), pdf);
 copyFileSync(join(root, 'public', 'cv.pdf'), join(dist, 'cv.pdf'));
 console.log(`✓ cv.pdf — ${(pdf.length / 1024).toFixed(0)} kB`);
