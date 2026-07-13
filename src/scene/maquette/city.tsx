@@ -11,7 +11,7 @@ import { useTweak } from '../devTweak';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { asset } from '../../lib/asset';
-import { NEUTRAL, GLASS, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
+import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, LiveGlassMat } from './materials';
 import { BlobShadow } from './backdrop';

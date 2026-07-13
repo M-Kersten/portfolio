@@ -108,14 +108,14 @@ for (const [name, pack, isNl] of [['cv.json', cv, false], ['cv.nl.json', cvNl, t
     });
   }
 }
-if (cv.photo && !existsSync(root + 'public' + cv.photo))
+if (cv.photo && !existsSync(join(root,'public',cv.photo)))
   errors.push(`cv.json: photo ${cv.photo} not found in public/`);
 // every career stint should carry a black logo on the CV — warn on the gaps
 for (const j of site.career ?? [])
   if (!j.logo) warnings.push(`site.json → career "${j.company}": no logo — the CV entry will have no mark`);
-  else if (!existsSync(root + 'public' + j.logo)) warnings.push(`site.json → career "${j.company}": logo ${j.logo} not found`);
+  else if (!existsSync(join(root,'public',j.logo))) warnings.push(`site.json → career "${j.company}": logo ${j.logo} not found`);
 for (const f of ['cv.pdf', 'cv-nl.pdf'])
-  if (!existsSync(root + 'public/' + f))
+  if (!existsSync(join(root ,'public', f)))
     warnings.push(`public/${f} missing — run \`npm run cv\` to generate the downloadable CVs`);
 
 // ---- report ------------------------------------------------------------------
