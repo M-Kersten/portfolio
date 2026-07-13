@@ -10,6 +10,12 @@ import { AdditiveBlending, BufferAttribute, CatmullRomCurve3, Color, Vector3, ty
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { HOTSPOTS, anchorWorld, type Hotspot } from '../framing';
 import { useActive } from './shared';
+import { useSceneSelector } from '../store';
+
+// journeyStep per layer (same mapping the layer culling uses in ./index.tsx):
+// a layer more than one step from the centred one is hidden, so a thread into it
+// would route to an empty spot — we hide the whole thread in that case.
+const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 
 /* ---------- Cross-layer signal lines ----------
    Related projects on different layers are wired together like a tidy run of
@@ -105,6 +111,13 @@ export function SignalLine({ thread, from, to, color }: Relation) {
   const { hovered: hovA, selected: selA } = useActive(from);
   const { hovered: hovB, selected: selB } = useActive(to);
 
+  // Only show the thread while BOTH endpoints are on visible (un-culled) layers;
+  // otherwise it would trail off to where a hidden layer's node used to be.
+  const journeyStep = useSceneSelector((s) => s.journeyStep);
+  const bothVisible =
+    Math.abs(LAYER_STEP[HOTSPOT_BY_SLUG[from].layer] - journeyStep) <= 1 &&
+    Math.abs(LAYER_STEP[HOTSPOT_BY_SLUG[to].layer] - journeyStep) <= 1;
+
   // The cable route + a curve along it for sampling the flowing packets. The
   // label sits beside the vertical riser, the most "between-layers" point.
   const { curve, points, apex } = useMemo(() => {
@@ -152,7 +165,7 @@ export function SignalLine({ thread, from, to, color }: Relation) {
     const pen = pointsRef.current;
     if (pen) {
       const flowing = kk > 0.04;
-      pen.visible = flowing;
+      pen.visible = flowing && bothVisible;
       if (flowing) {
         for (let i = 0; i < SIGNAL_PACKETS; i++) {
           const f = (u.current + i / SIGNAL_PACKETS) % 1;
@@ -170,11 +183,11 @@ export function SignalLine({ thread, from, to, color }: Relation) {
       }
     }
 
-    if (labelRef.current) labelRef.current.style.opacity = String(kk > 0.04 ? Math.min(1, kk * 1.25) : 0);
+    if (labelRef.current) labelRef.current.style.opacity = String(bothVisible && kk > 0.04 ? Math.min(1, kk * 1.25) : 0);
   });
 
   return (
-    <group>
+    <group visible={bothVisible}>
       <DreiLine ref={lineRef} points={points} color={PIPE_REST.getStyle()} lineWidth={1.5} transparent opacity={0.22} depthWrite={false} toneMapped={false} fog={false} />
       <points ref={pointsRef} visible={false}>
         <bufferGeometry>

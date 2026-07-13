@@ -198,42 +198,27 @@
 }
 
 @media (max-width: 760px) {
-  /* On phones the drawer becomes a full-screen sheet: a media banner on top with
-     the detail scrolling beneath it — the site's standard mobile detail view
-     (cf. .focus__card). It still rises from the bottom. This replaces the old
-     82svh half-cover that left the 3D awkwardly peeking above it. */
+  /* A peek sheet, not a cover-all. It docks to the bottom at ~54svh so the
+     selected node stays visible in the 3D above (the camera lifts it clear).
+     A compact media banner on top, the detail scrolling beneath it. */
   .node-hud {
-    top: 0;
-    height: 100svh;
-    height: 100dvh;
-    /* a full-screen sheet must sit above the fixed site header (z-index 50),
-       otherwise the header covers the close button in the top-right corner */
-    z-index: 55;
+    height: 54svh;
+    min-height: 20rem;
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
     gap: var(--space-s);
-    overflow: hidden; /* the detail column scrolls, not the whole sheet */
-    border-top: 0;
-    padding: max(var(--space-m), env(safe-area-inset-top))
-             max(var(--space-m), env(safe-area-inset-right))
-             max(var(--space-s), env(safe-area-inset-bottom))
-             max(var(--space-m), env(safe-area-inset-left));
+    padding: var(--space-s) var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
   }
   .node-hud__media {
     height: auto;
     aspect-ratio: 16 / 9;
-    max-height: 32svh;
+    max-height: 20svh;
     flex: none;
   }
   .node-hud__detail {
     overflow: auto; /* media stays pinned on top; the story scrolls under it */
     min-height: 0;
     padding-right: 0;
-  }
-  /* keep the close button clear of a notch */
-  .node-hud__close {
-    top: max(var(--space-s), env(safe-area-inset-top));
-    right: max(var(--space-s), env(safe-area-inset-right));
   }
 }
 

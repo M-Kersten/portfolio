@@ -95,14 +95,9 @@ export function NodeHud() {
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden'; // pause the journey while inspecting
-    // The mobile HUD is a full-screen sheet; flag the body so the fixed site
-    // header (a sibling stacking context the sheet can't out-z-index) hides
-    // behind it, keeping the close button reachable. No-op on desktop.
-    document.body.dataset.hudOpen = '1';
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
-      delete document.body.dataset.hudOpen;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [study]);

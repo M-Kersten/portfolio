@@ -49,13 +49,25 @@ export interface Framing {
 // Viewport-aspect fit. The maquette is wide and short, so on a narrow/tall
 // screen (a phone in portrait) its width spills past the fixed-lens camera and
 // the hotspots fall off the sides. Rather than a hard media-query "zoom out",
-// the CameraRig eases the camera straight back by this factor — a continuous
-// function of aspect, so it stays framed across every width and orientation.
-// 1 at the authored desktop aspect, growing (clamped) as the frame narrows.
-const BASE_ASPECT = 1.6; // the framing offsets below are authored for this
-const MAX_FIT = 3.0; // enough to seat the widest hotspots on a phone in portrait
+// the CameraRig adapts continuously to aspect: it WIDENS THE LENS (fitFov) and
+// eases the camera back only a little (fitScale). Widening the lens fits the
+// width while keeping the camera close, so the maquette stays large and gains
+// depth — a much nicer phone view than retreating far enough to shrink it.
+const BASE_ASPECT = 1.6; // the framing offsets + base FOV are authored for this
+const MAX_FIT = 1.6; // a gentle pull-back — the wider lens does most of the work
+const BASE_FOV = 42; // the authored desktop vertical FOV
+const FOV_MAX = 62; // widen toward this as the frame narrows (more width, more depth)
+
+/** Modest pull-back for narrow/tall viewports (paired with fitFov). 1 on desktop. */
 export function fitScale(aspect: number): number {
   return Math.min(Math.max(BASE_ASPECT / aspect, 1), MAX_FIT);
+}
+
+/** Vertical FOV for the viewport aspect: the authored 42° on desktop, widening
+ *  toward 62° as the frame narrows so the maquette's width fits with the camera
+ *  kept close (a bigger subject + more perspective than retreating would give). */
+export function fitFov(aspect: number): number {
+  return Math.min(Math.max(BASE_FOV * Math.sqrt(BASE_ASPECT / aspect), BASE_FOV), FOV_MAX);
 }
 
 /** World position of the object the hotspot points to (its anchor). */

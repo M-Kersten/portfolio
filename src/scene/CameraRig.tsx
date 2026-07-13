@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Vector3 } from 'three';
+import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useSceneSelector } from './store';
-import { HOTSPOTS, journeyView, nodeView, fitScale } from './framing';
+import { HOTSPOTS, journeyView, nodeView, fitScale, fitFov } from './framing';
 
 // The camera is driven by the scroll journey (which layer is centred) and by the
 // selected node (zoom in).
@@ -22,9 +22,17 @@ export function CameraRig() {
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
 
-  // State changes need at least one frame in demand mode (a resize changes the
-  // fit factor, so it must re-render too).
-  useEffect(() => invalidate(), [journeyStep, selectedSlug, size, invalidate]);
+  // State changes need at least one frame in demand mode. A resize also changes
+  // the fit + FOV, so re-project the lens and re-render on resize too.
+  useEffect(() => {
+    const cam = camera as PerspectiveCamera;
+    const fov = fitFov(size.width / size.height);
+    if (cam.isPerspectiveCamera && cam.fov !== fov) {
+      cam.fov = fov;
+      cam.updateProjectionMatrix();
+    }
+    invalidate();
+  }, [journeyStep, selectedSlug, size, camera, invalidate]);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -32,6 +40,13 @@ export function CameraRig() {
     const hotspot = selectedSlug ? HOTSPOTS.find((h) => h.slug === selectedSlug) : undefined;
     const base = hotspot ? nodeView(hotspot) : journeyView(journeyStep);
     desiredTarget.current.copy(base.target);
+
+    // On a phone the node HUD is a bottom sheet, so lift a selected node into the
+    // visible upper area by aiming lower. Portrait only — no effect on desktop.
+    if (hotspot) {
+      const a = size.width / size.height;
+      if (a < 1) desiredTarget.current.y -= 0.7 * (1 - a);
+    }
 
     // Ease the camera back on narrow/tall viewports so the whole active layer
     // stays in frame (see fitScale). The offset keeps its direction — the same
