@@ -11,11 +11,11 @@
     "subheading": "Connecting dots until things start getting interesting"
   },
   "capabilitiesIntro": {
-    "title": "Everything is connected\nif you zoom out enough",
+    "title": "Everything is connected if you zoom out enough",
     "lead": "I enjoy connecting the pieces"
   },
   "workIntro": {
-    "title": "From shaders\n to screws",
+    "title": "From shaders to screws",
     "lead": "A bunch of projects from over the years. Some ended up on thousands of devices, some were failures, but all of them taught me something."
   },
   "spawn": "1997-03-16",
@@ -31,7 +31,7 @@
     { "company": "Marechaussee", "from": "2025-07", "to": "2026-12", "color": "#d97f7f" , "role": "XR consultant & networking engineer", "location": "Apeldoorn, NL", "blurb": "The Marechaussee is the Dutch military police. I worked on a project to connect VR players in a complex system that has been in development for years.", "url": "https://www.defensie.nl/onderwerpen/marechaussee", "logo": "/logos/kmar.png", "sector": "Defence", "tech": ["Unity · C#", "VR", "Multiplayer networking"], "detail": "The Marechaussee is the Dutch military police. I work on connecting VR players inside a complex training system that has been in development for years — multiplayer networking where failure isn't an option." }
   ],
   "about": {
-    "title": "making computers do unusual things\n since 2016",
+    "title": "making computers do unusual things since 2016",
     "lead": "I’m a creative technologist from Utrecht. For almost a decade I’ve been chasing the same little moment: when a piece of technology stops feeling like technology and starts feeling like a small magic trick.",
     "body": [
       "Most of my work lives somewhere between the screen and the real world. I’ve built things that put virtual objects on streets, turned books into interactive worlds, connected strangers through AR and convinced people to have conversations with fictional characters. I like being close to the entire machine — the pixels, the code, the hardware, the people using it and the weird things that happen when all of those collide.",
