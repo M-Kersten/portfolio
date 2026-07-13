@@ -36,16 +36,20 @@
   --cv-ink: #10161b;
   --cv-mut: rgba(16, 22, 27, 0.6);
   --cv-soft: rgba(16, 22, 27, 0.5);
-  --cv-line: rgba(16, 22, 27, 0.16);
+  --cv-line: rgba(16, 22, 27, 0.14);
   --cv-dot: rgba(16, 22, 27, 0.12);
   --cv-accent: #0f9fae; /* the site's cyan, darkened for paper */
   --cv-ink-hdr: #0a0d10; /* the black header band (matches the site bg) */
+  --cv-gutter: 56px; /* the body's left/right margin — the whole page aligns to it */
+  --cv-measure: 35rem; /* one comfortable reading width for every body text */
 
   width: 210mm;
   min-height: 297mm;
   flex: none;
   position: relative;
-  overflow: hidden; /* clip the full-bleed header to the sheet's corners */
+  /* NB: no `overflow: hidden` — it would clip this multi-page element down to
+     one page when Chromium prints it. The header bleeds sideways with exact
+     negative margins instead, so nothing spills past the sheet edge anyway. */
   background: var(--cv-paper);
   /* the dot grid. Deliberately OPAQUE (dot colour pre-blended onto the
      paper colour): print rasterizes this layer, and without an alpha
@@ -54,7 +58,9 @@
   background-size: 24px 24px;
   color: var(--cv-ink);
   font-family: var(--font-sans, 'Space Grotesk', sans-serif);
-  padding: 44px 56px 48px;
+  /* no top padding — the black header owns the top edge; the body keeps the
+     gutter on the sides and a little breathing room at the very bottom */
+  padding: 0 var(--cv-gutter) 36px;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
 }
 
@@ -71,30 +77,29 @@
   margin: 20px 0 16px;
 }
 
-/* header — a full-bleed black band; the dithered portrait emerges from it */
+/* header — a black band that bleeds to the sheet's left/right edges; the
+   dithered portrait emerges from it. Only the sides use negative margins
+   (they exactly cancel the gutter), so the band never spills or clips. */
 .cv .cv-head {
-  /* negative margins cancel the sheet padding, so the band reaches the top
-     and side edges of the sheet (which clips it to its corners) */
-  margin: -44px -56px 0;
-  padding: 0 56px;
-  height: 224px;
+  margin: 0 calc(-1 * var(--cv-gutter)) 0;
+  padding: 26px var(--cv-gutter) 0;
+  min-height: 210px;
   background: var(--cv-ink-hdr);
   color: #eaeaea;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 24px;
-  overflow: hidden;
+  gap: 28px;
 }
 .cv .cv-id {
   min-width: 0;
-  padding-bottom: 34px; /* lift the name off the band's bottom edge */
+  padding-bottom: 30px; /* lift the name off the band's bottom edge */
 }
 .cv .cv-head h1 {
   color: #f5f8fa;
 }
 .cv .cv-head .cv-tagline {
-  color: rgba(234, 234, 234, 0.66);
+  color: rgba(234, 234, 234, 0.64);
 }
 .cv .cv-head .cv-contact {
   color: rgba(234, 234, 234, 0.5);
@@ -102,33 +107,32 @@
 .cv .cv-head .cv-contact a {
   color: #2ad3de; /* the site cyan, bright enough to read on black */
 }
-/* the portrait fills the band height and stands on its bottom edge */
+/* the portrait stands on the band's bottom edge, reaching its full height */
 .cv .cv-photo {
   flex: none;
-  align-self: flex-end;
-  height: 224px;
-  width: auto;
+  align-self: stretch;
+  width: 150px;
   object-fit: contain;
   object-position: bottom center;
 }
 .cv h1 {
-  font: 500 44px/1.02 var(--font-sans, 'Space Grotesk', sans-serif);
+  font: 500 42px/1.04 var(--font-sans, 'Space Grotesk', sans-serif);
   letter-spacing: -0.01em;
   margin: 0;
 }
 .cv .cv-tagline {
-  font-size: 15px;
-  line-height: 1.4;
+  font-size: 14px;
+  line-height: 1.45;
   color: var(--cv-mut);
-  margin: 10px 0 0;
-  max-width: 30rem;
+  margin: 9px 0 0;
+  max-width: 26rem;
 }
 .cv .cv-contact {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
+  gap: 8px 16px;
   margin-top: 14px;
-  font: 400 10px/1 var(--font-mono, 'Space Mono', monospace);
+  font: 400 9.5px/1 var(--font-mono, 'Space Mono', monospace);
   color: var(--cv-mut);
 }
 .cv .cv-contact a {
@@ -138,7 +142,7 @@
 /* the first section sits right under the black band — no divider hairline */
 .cv .cv-head + section .cv-sec {
   border-top: 0;
-  margin-top: 22px;
+  margin-top: 26px;
   padding-top: 0;
 }
 
@@ -148,82 +152,45 @@
   line-height: 1.55;
   color: var(--cv-mut);
   margin: 0;
-  max-width: 600px;
+  max-width: var(--cv-measure);
 }
 
-/* work history — the route line with month pins */
-.cv .cv-xp {
-  position: relative;
-  padding-left: 24px;
-}
-.cv .cv-route {
-  position: absolute;
-  left: 3px;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  background: var(--cv-line);
-}
-.cv .cv-job {
-  position: relative;
-  margin-bottom: 19px;
-}
-.cv .cv-job > s {
-  position: absolute;
-  left: -26.5px;
-  top: 3px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--cv-paper);
-  border: 2px solid var(--cv-accent);
-  text-decoration: none;
+/* work history + education share one flat, flush-left entry layout, so both
+   sections line up to the same gutter (no indent, no rail) */
+.cv .cv-job,
+.cv .cv-edu {
+  margin-bottom: 17px;
+  max-width: var(--cv-measure);
 }
 .cv .cv-when {
   font: 400 9px/1 var(--font-mono, 'Space Mono', monospace);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   color: var(--cv-soft);
 }
-.cv .cv-job h3 {
-  font: 700 15px/1.2 var(--font-sans, 'Space Grotesk', sans-serif);
-  margin: 4px 0 0;
+.cv .cv-job h3,
+.cv .cv-edu h3 {
+  font: 700 14.5px/1.25 var(--font-sans, 'Space Grotesk', sans-serif);
+  margin: 5px 0 0;
 }
 .cv .cv-co {
   font-size: 11.5px;
-  line-height: 1.3;
+  line-height: 1.35;
   color: var(--cv-mut);
-  margin-top: 2px;
+  margin-top: 1px;
 }
-/* sector — tech stack, quiet mono under the company line */
+/* sector · tech stack — quiet mono under the company line */
 .cv .cv-meta {
-  font: 400 8.5px/1.5 var(--font-mono, 'Space Mono', monospace);
-  letter-spacing: 0.04em;
+  font: 400 9px/1.55 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.02em;
   color: var(--cv-soft);
-  margin-top: 3px;
-  max-width: 560px;
+  margin-top: 5px;
 }
-.cv .cv-job p {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--cv-mut);
-  margin: 5px 0 0;
-  max-width: 560px;
-}
-
-/* education — same anatomy as a job entry, minus the route line */
-.cv .cv-edu {
-  margin-bottom: 16px;
-}
-.cv .cv-edu h3 {
-  font: 700 14px/1.2 var(--font-sans, 'Space Grotesk', sans-serif);
-  margin: 3px 0 0;
-}
+.cv .cv-job p,
 .cv .cv-edu p {
   font-size: 11px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--cv-mut);
-  margin: 5px 0 0;
-  max-width: 560px;
+  margin: 6px 0 0;
 }
 
 /* certificates */
@@ -259,9 +226,12 @@
 }
 
 /* ---------- print / PDF ---------- */
+/* `npm run cv` sets the real page margins on page.pdf() (12mm top / 14mm
+   bottom / 0 sides) so every page is spaced identically. This @page is the
+   fallback for a browser "save as PDF" from /cv and matches those numbers. */
 @page {
   size: A4;
-  margin: 10mm 0; /* clean top/bottom margins on every page of the PDF */
+  margin: 12mm 0 14mm;
 }
 @media print {
   /* Paper everywhere beyond the sheet's content. The page canvas paints from
@@ -291,8 +261,9 @@
     box-shadow: none;
     width: auto;
     min-height: 0;
-    padding-top: 24px;
-    padding-bottom: 24px;
+    /* keep the padding identical to screen so the header's negative side
+       margins still cancel the gutter exactly (no top override — the header
+       owns the top edge, and the page margin gives the white strip above it) */
   }
   /* entries never split across a page break; education (the focus section)
      stays together as a whole */
