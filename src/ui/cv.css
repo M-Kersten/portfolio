@@ -29,6 +29,18 @@
   color: var(--cyan, #27e8f2);
   border-color: currentColor;
 }
+/* EN · NL language switch in the toolbar */
+.cv-langs {
+  display: inline-flex;
+  gap: 0.7rem;
+}
+.cv-langs a {
+  border-bottom-color: transparent;
+}
+.cv-langs a[data-on] {
+  color: var(--cyan, #27e8f2);
+  border-bottom-color: currentColor;
+}
 
 /* ---------- the sheet ---------- */
 .cv {
@@ -126,12 +138,16 @@
   text-decoration: none;
   font-variant-numeric: tabular-nums;
 }
-/* the web / social links — quieter, smaller, mono, under the location line */
+/* the web / social links — clearly blue, underlined, so they read as
+   clickable links (on the black header a bright sky-blue carries best) */
 .cv .cv-head .cv-contact {
   color: rgba(234, 234, 234, 0.5);
 }
 .cv .cv-head .cv-contact a {
-  color: rgba(234, 234, 234, 0.72);
+  color: #6ea8ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 0.5px;
 }
 /* the portrait fills the band's full height, grounded, bleeding to the right */
 .cv .cv-photo {

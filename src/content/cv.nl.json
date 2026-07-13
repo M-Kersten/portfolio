@@ -1,0 +1,93 @@
+{
+  "ui": {
+    "profile": "Profiel",
+    "yearsUnit": "jaar in XR",
+    "experience": "Werkervaring",
+    "education": "Opleiding",
+    "certificates": "Certificaten",
+    "stack": "Stack",
+    "languages": "Talen",
+    "offTheClockLabel": "Vrije tijd",
+    "now": "heden",
+    "back": "terug naar de site",
+    "download": "download PDF"
+  },
+  "tagline": "Creative technologist — dingen bouwen die het buiten de demo overleven.",
+  "profile": "Als XR developer heb ik met veel enthousiasme bijgedragen aan projecten op het gebied van AR, VR, mobile games en interactieve installaties. Het verbinden van de virtuele en fysieke wereld en mijn drive om de grenzen van technieken te verkennen staan centraal in mijn werk. Elk project is weer een kans om anderen een fris perspectief te bieden.",
+  "photo": "/profile/5.png",
+  "location": "Utrecht, Nederland",
+  "phone": "+31 6 21173954",
+  "links": [
+    { "label": "merijnkersten.nl", "href": "https://merijnkersten.nl" },
+    { "label": "in/merijn-kersten", "href": "https://www.linkedin.com/in/merijn-kersten/" },
+    { "label": "gh/m-kersten", "href": "https://github.com/m-kersten" }
+  ],
+  "stack": [
+    "Unity · C# · ECS",
+    "AR — ARKit · ARFoundation · Lightship VPS",
+    "VR — Quest · Vision Pro · HoloLens",
+    "JavaScript · TypeScript · React · Node.js",
+    "Python · computervisie · AI & LLM's",
+    "Firebase · AWS · CI/CD",
+    "Blender · Figma"
+  ],
+  "education": [
+    {
+      "school": "Saxion",
+      "degree": "Creatieve media & gametechnologie",
+      "location": "Enschede, NL",
+      "from": "2014-10",
+      "to": "2019-06",
+      "note": "Ik heb game development gestudeerd en aan individuele en groepsprojecten gewerkt. Mijn ervaring hier betreft voornamelijk het ontwikkelen van games, webapplicaties, interactieve installaties en 3D-modellen. Voor mijn afstudeerproject onderzocht ik de compatibiliteit van AR-frameworks via cloud anchors en ontwikkelde ik een eigen framework dat ARCore en ARKit integreerde, voordat ARFoundation beschikbaar was."
+    },
+    {
+      "school": "OAMK",
+      "degree": "Minor — indie game-ontwikkeling",
+      "location": "Oulu, FI",
+      "from": "2017-01",
+      "to": "2017-08",
+      "note": "In Oulu heb ik een team geleid in het ontwikkelen van een indie game die het verhaal van de laatste stam van Europa, de Sami, vertelt. Als team lead en developer heb ik het project door elke ronde geleid en uiteindelijk de eerste plek gewonnen voor het leerjaar."
+    }
+  ],
+  "certificates": ["Unity Certified Professional — Programmer"],
+  "languages": ["Nederlands — moedertaal", "Engels — vloeiend", "Frans · Duits — basis", "Fins — een beetje"],
+  "offTheClock": "Muziekproductie, bakken, koken, geschiedenis, fitness",
+  "career": [
+    {
+      "sector": "Immersive reality",
+      "detail": "Mijn werk als developer begon bij Letink Design, waar ik voornamelijk werkte aan VR- en AR-applicaties voor de bouwsector, toerisme en overheidsinstanties. Deze publiceerde ik online en ik ondersteunde klanten op locatie tijdens beurzen en andere events. Daarnaast maakte ik explainer-animaties in After Effects, bouwde ik interactieve installaties en schafte en bouwde ik pc's aan op kantoor."
+    },
+    {
+      "sector": "Digital agency",
+      "detail": "Bij DTT ben ik begonnen als stagiair en uiteindelijk doorgegroeid tot het helpen leiden van een team van ontwikkelaars op projecten gericht op VR, Android, iOS en web. Mijn verantwoordelijkheden waren onder andere het selecteren en begeleiden van nieuwe ontwikkelaars, het verbeteren van de werkprocessen van het team en het werken aan functies zoals deeplinking, iOS-plugins, XR, multiplayer, in-app purchases en optimalisatie."
+    },
+    {
+      "sector": "Uitgeverij",
+      "detail": "Bij uitgeverij Zwijsen ben ik als freelancer actief geweest om AR-zoekboek- en luisterboek-apps te ontwikkelen voor kinderboeken. De apps zijn van A tot Z door mij ontworpen, ontwikkeld en gepubliceerd op de storepagina's van Zwijsen. Ze waren te downloaden via QR-codes in de boeken en hebben in totaal tienduizenden downloads verworven, met uitsluitend positieve reviews."
+    },
+    {
+      "sector": "Casual games",
+      "detail": "Op zoek naar een nieuwe uitdaging ben ik bij Popcore gekomen om hyper-casual games te bouwen voor een groot publiek op Android en iOS. Ik deed hier live-ops voor bestaande titels zoals Parking Jam, Pull the Pin en Wrecking Ball. Ook implementeerde ik nieuwe game modes, multiplayer-functies en tools voor editors en game-/leveldesigners. Alle projecten zijn gebouwd met een ECS-framework voor snelheid en flexibiliteit. Bij Popcore ben ik als developer snel gegroeid — een plek waar je werd uitgedaagd om jezelf constant te toetsen en bij te schaven om games te maken die daadwerkelijk presteren op de overvolle mobile-gamingmarkt."
+    },
+    {
+      "sector": "Immersive reality",
+      "detail": "Om mijn enthousiasme voor AR te volgen ben ik bij Wonderment gaan werken om AR-ervaringen te ontwikkelen, met de nadruk op locatiegebonden ervaringen. Ik heb bijgedragen aan de ontwikkeling van visualisaties, games en webapplicaties met Node.js en Firebase, en werkte aan R&D-projecten gericht op beeldherkenning via machine learning binnen Unity en Lens Studio. Mijn grootste focus lag op VPS en Cesium — technologieën die AR-lokalisatie op centimeternauwkeurigheid in de buitenwereld mogelijk maken. Door geodata als GIS, 3D-map-tiles en geoJSON te integreren konden we omgevingen op een innovatieve manier verrijken. Ik ben vooral trots op mijn leidende rol bij het ontwikkelen van een multiplayer-racegame en een foto-applicatie voor Niantic — een voortdurende balans tussen het testen van risicovolle technieken en het halen van deadlines, een uitdaging die ik met veel plezier aanging."
+    },
+    {
+      "sector": "Gezondheidszorg",
+      "detail": "Bij het immersive lab van Philips visualiseerde ik medische apparatuur en ontwikkelde ik VR-ervaringen die zowel educatief als informatief zijn — bedoeld om mensen vertrouwd te maken met nieuwe medische ontwikkelingen en om ze te presenteren op beurzen."
+    },
+    {
+      "sector": "Energie",
+      "detail": "Bij Alliander ontwikkelde ik software voor de HoloLens waarmee gebruikers hun omgeving kunnen verrijken met informatie uit de netdatabase, om zo de aanleg van middenspanningsruimtes efficiënter te maken. Ik was verantwoordelijk voor de ontwikkeling, optimalisatie en UX van deze apps, naast innovatieve projecten zoals het visualiseren van complete wijken door middel van 3D-scanning. Bij Alliander leerde ik dat het bouwen van complexe applicaties kennis vereist vanuit vele hoeken — achterhalen welke KPI's van belang zijn en wie je bij het ontwikkelproces betrekt was een interessante uitdaging op zich."
+    },
+    {
+      "sector": "Gezondheidszorg",
+      "detail": "Terug bij het immersive lab: nieuwe spatial tech doorontwikkelen tot iets dat betrouwbaar genoeg is om echt van waarde te zijn, waaronder onderzoek naar hoe Apple Vision Pro binnen Philips toegepast kan worden. De vrijheid om nieuwe technieken te testen en in te schatten of ze waarde hebben, was het meest leerzame aspect van deze periode."
+    },
+    {
+      "sector": "Defensie",
+      "detail": "De Marechaussee is de Nederlandse militaire politie. Ik werk aan het verbinden van VR-spelers binnen een complex trainingssysteem dat al jaren in ontwikkeling is — multiplayer-netwerken waar falen geen optie is."
+    }
+  ]
+}
