@@ -174,6 +174,7 @@
     "title": "Zwijsen AR books",
     "layer": "room",
     "client": "Zwijsen",
+    "kind": "Freelance",
     "sector": "Education · mobile AR",
     "problem": "Zwijsen approached me with an interesting assignment. There was a new edition of a classic book coming out, they wanted to spotlight this release with a companion app that would bring the book to life.",
     "approach": "I designed, built and shipped the AR app, from concepting and UX to the technical details of store page submissions. The release was so succesful that we ended up doing 6 more book releases and a series of audiobook apps tied to printed books via QR codes.",

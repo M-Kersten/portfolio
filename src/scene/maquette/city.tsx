@@ -947,13 +947,13 @@ function NextProjectSite() {
         </group>
       </group>
       {/* the invitation — clicks through to contact */}
-      <Html position={[-0.12, 0.42, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
+      <Html position={[-0.12, 1.02, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
         <button
           type="button"
           className="nextsite"
           onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
         >
-          <b>next project</b> — could be yours
+          <b>next project</b> - let's build it together
         </button>
       </Html>
     </group>
@@ -1061,6 +1061,7 @@ export function CityRig() {
     for (const cx of cells)
       for (const cz of cells) {
         if (cx === 0 && cz === 0) continue; // central plaza → town hall
+        if (cx < 0 && cz < 0) continue;
         const count = 1;
         for (let k = 0; k < count; k++) {
           const x = cx + (rnd() - 0.5) * 0.12;

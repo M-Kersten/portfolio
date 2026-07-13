@@ -163,7 +163,7 @@
   z-index: 3;
   opacity: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--cyan) 24%, transparent) 55%, transparent);
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent-glow) 24%, transparent) 55%, transparent);
   mix-blend-mode: screen;
   animation: about-scan 11s linear infinite;
 }
