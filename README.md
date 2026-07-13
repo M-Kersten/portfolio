@@ -97,13 +97,15 @@ their own ghost→alive keyed on the same store state. Colour policy lives in
   led to →" storyline links in the dialogs. Drop a matching poster in
   `public/posters/<slug>.jpg`.
 - `capabilities.json` — the three band columns.
-- `cv.json` — the CV-only extras (tagline, contact rows, stack, education,
-  languages, interests). The work history itself comes from `site.json`'s
-  career, so the CV always matches the site. After editing, run
-  **`npm run cv`**: it rebuilds and prints `/cv` to `public/cv.pdf` using
-  your installed Chrome (`CHROME_PATH=` overrides), flowing to as many A4
-  pages as the content needs (entries never split across a page break).
-  The "CV (PDF)" button in Contact serves the committed PDF.
+- `cv.json` — the CV-only extras (tagline, profile paragraph, photo,
+  location, phone, links, stack, education, certificates, languages,
+  interests). The work history itself — including each company's black
+  logo, pulled from `career[].logo` — comes from `site.json`, so the CV
+  always matches the site. After editing, run **`npm run cv`**: it rebuilds
+  and prints the full-bleed `/cv` to `public/cv.pdf` using your installed
+  Chrome (`CHROME_PATH=` overrides), flowing to as many A4 pages as the
+  content needs (entries never split across a page break). The "CV (PDF)"
+  button in Contact serves the committed PDF.
 - `types.ts` documents every field.
 
 **Adding a project to the 3D scene**: add the case to `cases.json`, then add a

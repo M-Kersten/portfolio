@@ -6,6 +6,7 @@ import siteJson from './site.json';
 import capabilitiesJson from './capabilities.json';
 import casesJson from './cases.json';
 import cvJson from './cv.json';
+import cvNlJson from './cv.nl.json';
 import type { SiteContent, Capability, CaseStudy, CvContent } from './types';
 
 // JSON string values widen to `string`, so the union-typed fields (layer) need
@@ -14,6 +15,9 @@ export const site = siteJson as unknown as SiteContent;
 export const capabilities = capabilitiesJson as unknown as Capability[];
 export const cases = casesJson as unknown as CaseStudy[];
 export const cv = cvJson as unknown as CvContent;
+export const cvNl = cvNlJson as unknown as CvContent;
+/** CV content packs by language code (the /cv route picks via ?lang). */
+export const cvByLang: Record<string, CvContent> = { en: cv, nl: cvNl };
 
 export const caseBySlug = (slug: string): CaseStudy | undefined =>
   cases.find((c) => c.slug === slug);

@@ -1,41 +1,55 @@
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { site, cv } from '../content';
+import { Link, useLocation } from 'react-router-dom';
+import { site, cvByLang } from '../content';
 import { asset } from '../lib/asset';
 
-// The CV page (/cv) — an A4 document in the site's visual language, focused
-// on work history and education. It is assembled from the same content as
-// the site: career from site.json, plus the CV-only extras in cv.json.
-// `npm run cv` prints it to public/cv.pdf (as many pages as the content
-// needs); on screen it doubles as a shareable web CV with a small toolbar
-// that print/PDF never sees.
+// The CV page (/cv) — an A4 document in the site's visual language, focused on
+// work history and education. Bilingual: English by default, Dutch at
+// /cv?lang=nl. The work-history STRUCTURE comes from site.json; the language
+// packs (cv.json / cv.nl.json) carry every string plus each entry's Dutch
+// sector/detail. `npm run cv` prints both public/cv.pdf and public/cv-nl.pdf.
 
-/** "2024-06" + "2024-11" → "2024-06 — 2024-11"; open/future end → "now". */
-function fmtRange(from: string, to: string | null) {
+/** "2024-06" + "2024-11" → "2024-06 — 2024-11"; open/future end → the "now"
+ *  label for the current language. */
+function fmtRange(from: string, to: string | null, now: string) {
   const thisMonth = new Date().toISOString().slice(0, 7);
-  return `${from} — ${!to || to >= thisMonth ? 'now' : to}`;
+  return `${from} — ${!to || to >= thisMonth ? now : to}`;
 }
 
 /** The site's blurbs are deliberately casual ("i worked…"); on a CV the
- *  standalone i reads as a typo, so it gets its capital here only. */
+ *  standalone i reads as a typo, so it gets its capital here only. (Harmless
+ *  for Dutch, which has no standalone "i".) */
 const formal = (text: string) => text.replace(/(^|\s)i(?=[\s'’])/g, '$1I');
 
 export function CvPage() {
+  const lang = new URLSearchParams(useLocation().search).get('lang') === 'nl' ? 'nl' : 'en';
+  const cv = cvByLang[lang];
+  const t = cv.ui;
+
   useEffect(() => {
     const prev = document.title;
     document.title = `CV — ${site.hero.name}`;
+    document.documentElement.lang = lang;
     // Lets print CSS give the whole page canvas the paper background + a
     // light colour-scheme (html carries the site's dark scheme otherwise).
     document.documentElement.dataset.cv = '1';
     document.body.dataset.cv = '1';
     return () => {
       document.title = prev;
+      document.documentElement.lang = 'en';
       delete document.documentElement.dataset.cv;
       delete document.body.dataset.cv;
     };
-  }, []);
+  }, [lang]);
 
-  const career = [...(site.career ?? [])].reverse(); // newest first
+  // Merge the language pack's per-entry text onto the site's career structure,
+  // then reverse to newest-first. (site.career + cv.career share one order.)
+  const career = (site.career ?? [])
+    .map((job, i) => {
+      const tr = cv.career?.[i];
+      return { ...job, sector: tr?.sector ?? job.sector, detail: tr?.detail ?? job.detail };
+    })
+    .reverse();
   // Years of experience, computed from the earliest career start.
   const first = (site.career ?? []).reduce((a, j) => (j.from < a ? j.from : a), '9999-12');
   const years = Math.floor((Date.now() - new Date(`${first}-01`).getTime()) / 31557600000);
@@ -44,9 +58,17 @@ export function CvPage() {
     <main id="main" className="cv-stage">
       {/* screen-only chrome — @media print hides it, so the PDF never sees it */}
       <nav className="cv-tools">
-        <Link to="/">← back to the site</Link>
-        <a href={asset('/cv.pdf')} download>
-          download PDF
+        <Link to="/">← {t.back}</Link>
+        <span className="cv-langs" aria-label="Language">
+          <Link to="/cv" data-on={lang === 'en' || undefined}>
+            EN
+          </Link>
+          <Link to="/cv?lang=nl" data-on={lang === 'nl' || undefined}>
+            NL
+          </Link>
+        </span>
+        <a href={asset(lang === 'nl' ? '/cv-nl.pdf' : '/cv.pdf')} download>
+          {t.download}
         </a>
       </nav>
 
@@ -56,8 +78,17 @@ export function CvPage() {
           <div className="cv-id">
             <h1>{site.hero.name}</h1>
             <p className="cv-tagline">{cv.tagline}</p>
+            {/* home base + phone lead; the web/social links sit quieter below */}
+            <div className="cv-where">
+              <span className="cv-loc">{cv.location}</span>
+              {cv.phone && (
+                <a className="cv-phone" href={`tel:${cv.phone.replace(/\s/g, '')}`}>
+                  {cv.phone}
+                </a>
+              )}
+            </div>
             <div className="cv-contact">
-              {cv.contact.map((c) =>
+              {cv.links.map((c) =>
                 c.href ? (
                   <a key={c.label} href={c.href}>
                     {c.label}
@@ -71,20 +102,34 @@ export function CvPage() {
           {cv.photo && <img className="cv-photo" src={asset(cv.photo)} alt={site.hero.name} />}
         </header>
 
-        <section aria-label="Profile">
-          <div className="cv-lbl cv-sec">Profile — {years}+ years in XR</div>
+        <section aria-label={t.profile}>
+          <div className="cv-lbl cv-sec">
+            {t.profile} — {years}+ {t.yearsUnit}
+          </div>
           <p className="cv-profile">{cv.profile}</p>
         </section>
 
         {/* work history — flush-left entries, newest first */}
-        <section aria-label="Experience">
-          <div className="cv-lbl cv-sec">Experience</div>
+        <section aria-label={t.experience}>
+          <div className="cv-lbl cv-sec">{t.experience}</div>
           {career.map((job) => {
             const story = job.detail ?? job.blurb;
             const meta = [job.sector, job.tech?.join(' · ')].filter(Boolean).join('  —  ');
             return (
               <div key={`${job.company}${job.from}`} className="cv-job">
-                <div className="cv-when">{fmtRange(job.from, job.to)}</div>
+                {/* black company mark, aligned to the right edge; missing files
+                    (e.g. no DTT logo) hide themselves rather than break */}
+                {job.logo && (
+                  <img
+                    className="cv-logo"
+                    src={asset(job.logo)}
+                    alt={job.company}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
+                <div className="cv-when">{fmtRange(job.from, job.to, t.now)}</div>
                 <h3>{job.role ?? job.company}</h3>
                 <div className="cv-co">
                   {job.company}
@@ -97,8 +142,8 @@ export function CvPage() {
           })}
         </section>
 
-        <section aria-label="Education" className="cv-keep">
-          <div className="cv-lbl cv-sec">Education</div>
+        <section aria-label={t.education} className="cv-keep">
+          <div className="cv-lbl cv-sec">{t.education}</div>
           {cv.education.map((e) => (
             <div key={e.school} className="cv-edu">
               {e.from && e.to && (
@@ -117,8 +162,8 @@ export function CvPage() {
         </section>
 
         {cv.certificates && cv.certificates.length > 0 && (
-          <section aria-label="Certificates">
-            <div className="cv-lbl cv-sec">Certificates</div>
+          <section aria-label={t.certificates}>
+            <div className="cv-lbl cv-sec">{t.certificates}</div>
             <ul className="cv-certs">
               {cv.certificates.map((c) => (
                 <li key={c}>{c}</li>
@@ -129,15 +174,15 @@ export function CvPage() {
 
         <div className="cv-extras">
           <section>
-            <div className="cv-lbl">Stack</div>
-            <ul>
+            <div className="cv-lbl">{t.stack}</div>
+            <ul className="cv-stack">
               {cv.stack.map((s) => (
                 <li key={s}>{s}</li>
               ))}
             </ul>
           </section>
           <section>
-            <div className="cv-lbl">Languages</div>
+            <div className="cv-lbl">{t.languages}</div>
             <ul>
               {cv.languages.map((l) => (
                 <li key={l}>{l}</li>
@@ -145,7 +190,7 @@ export function CvPage() {
             </ul>
           </section>
           <section>
-            <div className="cv-lbl">Off the clock</div>
+            <div className="cv-lbl">{t.offTheClockLabel}</div>
             <ul>
               <li>{cv.offTheClock}</li>
             </ul>

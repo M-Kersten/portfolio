@@ -15,9 +15,13 @@ export function Contact() {
             {c.email}
           </a>
           <div className="contact__links">
-            {/* generated from the same content as the site — see `npm run cv` */}
+            {/* CV in both languages — generated from the site's own content
+                (see `npm run cv`); /cv is the on-screen version with a toggle */}
             <a className="btn btn--ghost" href={asset('/cv.pdf')} download="merijn-kersten-cv.pdf">
-              CV (PDF)
+              CV — EN
+            </a>
+            <a className="btn btn--ghost" href={asset('/cv-nl.pdf')} download="merijn-kersten-cv-nl.pdf">
+              CV — NL
             </a>
             {c.links.map((l) => (
               <a key={l.label} className="btn btn--ghost" href={l.href} target="_blank" rel="noreferrer">

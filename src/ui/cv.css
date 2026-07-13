@@ -29,6 +29,18 @@
   color: var(--cyan, #27e8f2);
   border-color: currentColor;
 }
+/* EN · NL language switch in the toolbar */
+.cv-langs {
+  display: inline-flex;
+  gap: 0.7rem;
+}
+.cv-langs a {
+  border-bottom-color: transparent;
+}
+.cv-langs a[data-on] {
+  color: var(--cyan, #27e8f2);
+  border-bottom-color: currentColor;
+}
 
 /* ---------- the sheet ---------- */
 .cv {
@@ -39,8 +51,11 @@
   --cv-line: rgba(16, 22, 27, 0.14);
   --cv-dot: rgba(16, 22, 27, 0.12);
   --cv-accent: #0f9fae; /* the site's cyan, darkened for paper */
+  --cv-blue: #2456d6; /* spot colour — the technologies print in this blue */
   --cv-ink-hdr: #0a0d10; /* the black header band (matches the site bg) */
-  --cv-gutter: 56px; /* the body's left/right margin — the whole page aligns to it */
+  --cv-gutter: 38px; /* the body's inset from the sheet edge — tight, so text follows the bleed */
+  --cv-entry-pad: 30px; /* top padding on each entry — doubles as the space a page break lands into */
+  --cv-dots: radial-gradient(#e7eaec 1px, var(--cv-paper) 1.4px); /* the faint grid */
   --cv-measure: 35rem; /* one comfortable reading width for every body text */
 
   width: 210mm;
@@ -51,10 +66,11 @@
      one page when Chromium prints it. The header bleeds sideways with exact
      negative margins instead, so nothing spills past the sheet edge anyway. */
   background: var(--cv-paper);
-  /* the dot grid. Deliberately OPAQUE (dot colour pre-blended onto the
-     paper colour): print rasterizes this layer, and without an alpha
-     channel it compresses ~10× better in the PDF. Kept faint. */
-  background-image: radial-gradient(#e7eaec 1px, var(--cv-paper) 1.4px);
+  /* the dot grid. Deliberately OPAQUE (dot colour pre-blended onto the paper):
+     print rasterizes this layer, and without an alpha channel it compresses
+     ~10× better. With zero page margin the sheet fills each page, so this grid
+     bleeds to every paper edge on every page. */
+  background-image: var(--cv-dots);
   background-size: 24px 24px;
   color: var(--cv-ink);
   font-family: var(--font-sans, 'Space Grotesk', sans-serif);
@@ -70,50 +86,77 @@
   text-transform: uppercase;
   color: var(--cv-soft);
 }
-/* section headers (Experience, Education) — a hairline, then the label */
+/* section headers (Experience, Education) — a hairline, then the label. No
+   bottom margin: the following entry's own top padding provides that gap (so
+   at a page break the dots still show in the padding, right to the edge). */
 .cv .cv-sec {
   border-top: 1px solid var(--cv-line);
   padding-top: 14px;
-  margin: 20px 0 16px;
+  margin: 22px 0 0;
 }
 
-/* header — a black band that bleeds to the sheet's left/right edges; the
-   dithered portrait emerges from it. Only the sides use negative margins
-   (they exactly cancel the gutter), so the band never spills or clips. */
+/* header — a black band that bleeds to the top + left/right paper edges; the
+   dithered portrait fills its full height on the right, bleeding to the top
+   and right edges (no float, no gap). The text column is vertically centred. */
 .cv .cv-head {
   margin: 0 calc(-1 * var(--cv-gutter)) 0;
-  padding: 26px var(--cv-gutter) 0;
-  min-height: 210px;
+  padding: 0 0 0 var(--cv-gutter); /* left gutter for text; the photo bleeds right */
+  min-height: 218px;
   background: var(--cv-ink-hdr);
   color: #eaeaea;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 28px;
+  align-items: stretch;
+  gap: 24px;
 }
 .cv .cv-id {
   min-width: 0;
-  padding-bottom: 30px; /* lift the name off the band's bottom edge */
+  align-self: center; /* text sits centred in the band's height */
+  padding: 24px 0;
 }
 .cv .cv-head h1 {
   color: #f5f8fa;
 }
 .cv .cv-head .cv-tagline {
-  color: rgba(234, 234, 234, 0.64);
+  color: rgba(234, 234, 234, 0.62);
 }
+/* home base + phone — the prominent contact line */
+.cv .cv-where {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 16px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: #eaeaea;
+}
+.cv .cv-loc {
+  font-weight: 500;
+}
+.cv .cv-phone {
+  color: #eaeaea;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+/* the web / social links — clearly blue, underlined, so they read as
+   clickable links (on the black header a bright sky-blue carries best) */
 .cv .cv-head .cv-contact {
   color: rgba(234, 234, 234, 0.5);
 }
 .cv .cv-head .cv-contact a {
-  color: #2ad3de; /* the site cyan, bright enough to read on black */
+  color: #6ea8ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 0.5px;
 }
-/* the portrait stands on the band's bottom edge, reaching its full height */
+/* the portrait fills the band's full height, grounded, bleeding to the right */
 .cv .cv-photo {
   flex: none;
   align-self: stretch;
-  width: 150px;
+  height: 218px;
+  width: auto;
   object-fit: contain;
-  object-position: bottom center;
+  object-position: bottom right;
 }
 .cv h1 {
   font: 500 42px/1.04 var(--font-sans, 'Space Grotesk', sans-serif);
@@ -130,8 +173,8 @@
 .cv .cv-contact {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
-  margin-top: 14px;
+  gap: 7px 16px;
+  margin-top: 9px;
   font: 400 9.5px/1 var(--font-mono, 'Space Mono', monospace);
   color: var(--cv-mut);
 }
@@ -146,21 +189,44 @@
   padding-top: 0;
 }
 
-/* profile paragraph */
+/* profile paragraph — the label carries no bottom margin, so add it here */
 .cv .cv-profile {
   font-size: 11.5px;
   line-height: 1.55;
   color: var(--cv-mut);
-  margin: 0;
+  margin: 13px 0 0;
   max-width: var(--cv-measure);
 }
 
 /* work history + education share one flat, flush-left entry layout, so both
-   sections line up to the same gutter (no indent, no rail) */
+   sections line up to the same gutter (no indent, no rail). The entry spans
+   the full width so the company logo can sit at the far right (following the
+   bleed); the text lines cap at the reading measure on the left. */
 .cv .cv-job,
 .cv .cv-edu {
-  margin-bottom: 17px;
-  max-width: var(--cv-measure);
+  position: relative;
+  /* the gap between entries lives in the TOP padding (not a bottom margin), so
+     when a page break lands on an entry the dot grid still fills the padding
+     right up to the top edge — nothing white */
+  padding: var(--cv-entry-pad) 92px 0 0;
+}
+.cv .cv-edu {
+  padding-right: 0; /* education entries carry no logo */
+}
+/* the black company mark, top-right, aligned with the entry's content (which
+   starts below the top padding), following the right bleed */
+.cv .cv-logo {
+  position: absolute;
+  top: var(--cv-entry-pad);
+  right: 0;
+  max-width: 84px;
+  max-height: 26px;
+  object-fit: contain;
+  object-position: top right;
+  /* the source marks are white-on-transparent (built for the dark site);
+     brightness(0) turns them solid black for the light CV */
+  filter: brightness(0);
+  opacity: 0.82;
 }
 .cv .cv-when {
   font: 400 9px/1 var(--font-mono, 'Space Mono', monospace);
@@ -178,12 +244,13 @@
   color: var(--cv-mut);
   margin-top: 1px;
 }
-/* sector · tech stack — quiet mono under the company line */
+/* sector · tech stack — the blue spot colour, so the technologies stand out */
 .cv .cv-meta {
   font: 400 9px/1.55 var(--font-mono, 'Space Mono', monospace);
   letter-spacing: 0.02em;
-  color: var(--cv-soft);
+  color: var(--cv-blue);
   margin-top: 5px;
+  max-width: var(--cv-measure);
 }
 .cv .cv-job p,
 .cv .cv-edu p {
@@ -191,12 +258,13 @@
   line-height: 1.55;
   color: var(--cv-mut);
   margin: 6px 0 0;
+  max-width: var(--cv-measure);
 }
 
-/* certificates */
+/* certificates — the label carries no bottom margin, so add the gap here */
 .cv .cv-certs {
   list-style: none;
-  margin: 0;
+  margin: 13px 0 0;
   padding: 0;
 }
 .cv .cv-certs li {
@@ -224,24 +292,35 @@
   line-height: 1.7;
   color: var(--cv-mut);
 }
+/* the stack is technologies too — same blue spot colour as the job meta */
+.cv .cv-stack li {
+  color: var(--cv-blue);
+}
 
 /* ---------- print / PDF ---------- */
-/* `npm run cv` sets the real page margins on page.pdf() (12mm top / 14mm
-   bottom / 0 sides) so every page is spaced identically. This @page is the
-   fallback for a browser "save as PDF" from /cv and matches those numbers. */
+/* Full-bleed design. The dot grid + black header reach all four paper edges
+   (the grid is painted on the page canvas, so page margins don't create white
+   strips — see the html rule below). The page keeps a 14mm text inset top and
+   bottom so continuation pages breathe and lines never sit on the edge — but
+   ZERO on the first page's top, so the header bleeds straight to the top. */
 @page {
   size: A4;
-  margin: 12mm 0 14mm;
+  margin: 0; /* zero margin → the dot grid fills every page to all four edges */
 }
 @media print {
-  /* Paper everywhere beyond the sheet's content. The page canvas paints from
-     the ROOT element (which also carries the site's dark color-scheme), so
-     html needs both the background and a light scheme — body alone leaves
-     dark bands in the page margins. */
-  html[data-cv],
-  body[data-cv] {
+  /* the dot grid lives on the ROOT element in print: Chromium propagates the
+     html background to every printed page's canvas, so the grid fills all four
+     edges of EVERY page — including empty areas on the last page — with no
+     white margin. (This is reliable, unlike a position:fixed layer.) */
+  html[data-cv] {
     color-scheme: light;
-    background: #f6f8f9;
+    /* literal values — the --cv-* vars are scoped to .cv and don't reach html */
+    background-color: #f6f8f9;
+    background-image: radial-gradient(#e7eaec 1px, #f6f8f9 1.4px);
+    background-size: 24px 24px;
+  }
+  body[data-cv] {
+    background: transparent;
   }
   .cv-stage {
     padding: 0;
@@ -261,9 +340,9 @@
     box-shadow: none;
     width: auto;
     min-height: 0;
-    /* keep the padding identical to screen so the header's negative side
-       margins still cancel the gutter exactly (no top override — the header
-       owns the top edge, and the page margin gives the white strip above it) */
+    background: none; /* the dots come from the page canvas (html) now */
+    /* only the side gutter here — the @page rule owns the top/bottom insets */
+    padding: 0 var(--cv-gutter);
   }
   /* entries never split across a page break; education (the focus section)
      stays together as a whole */

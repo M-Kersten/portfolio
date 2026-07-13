@@ -64,20 +64,23 @@ async function launch() {
 const browser = await launch();
 const page = await browser.newPage();
 
-await page.goto(`http://127.0.0.1:${port}/cv`, { waitUntil: 'networkidle' });
-await page.evaluate(() => document.fonts.ready);
-await page.waitForTimeout(150);
-// Explicit page margins (not left to CSS @page / viewer defaults) so every
-// page gets the same top/bottom breathing room and nothing is clipped. The
-// header bleeds to the sheet's left/right edges, so those margins are 0.
-const pdf = await page.pdf({
-  format: 'A4',
-  printBackground: true,
-  margin: { top: '12mm', bottom: '14mm', left: '0mm', right: '0mm' },
-});
-writeFileSync(join(root, 'public', 'cv.pdf'), pdf);
-copyFileSync(join(root, 'public', 'cv.pdf'), join(dist, 'cv.pdf'));
-console.log(`✓ cv.pdf — ${(pdf.length / 1024).toFixed(0)} kB`);
+// One PDF per language: /cv → cv.pdf (English), /cv?lang=nl → cv-nl.pdf.
+for (const [route, out] of [
+  ['/cv', 'cv.pdf'],
+  ['/cv?lang=nl', 'cv-nl.pdf'],
+]) {
+  await page.goto(`http://127.0.0.1:${port}${route}`, { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(150);
+  // The CSS `@page` is the single source of page size + margins (A4, zero
+  // margin → full bleed). `preferCSSPageSize: true` + no format/margin here
+  // means Chromium takes both from the CSS, so the script and a browser "save
+  // as PDF" produce the identical file and no Chrome version can override them.
+  const pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
+  writeFileSync(join(root, 'public', out), pdf);
+  copyFileSync(join(root, 'public', out), join(dist, out));
+  console.log(`✓ ${out} — ${(pdf.length / 1024).toFixed(0)} kB`);
+}
 
 await browser.close();
 server.close();

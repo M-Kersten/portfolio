@@ -30,6 +30,7 @@ const site = readJson('src/content/site.json');
 const cases = readJson('src/content/cases.json');
 const capabilities = readJson('src/content/capabilities.json');
 const cv = readJson('src/content/cv.json');
+const cvNl = readJson('src/content/cv.nl.json');
 if (errors.length) fail(); // JSON that doesn't parse blocks every other check
 
 const LAYERS = new Set(['city', 'room', 'chip']);
@@ -86,18 +87,36 @@ if ((capabilities ?? []).length !== 3)
 for (const cap of capabilities ?? [])
   if (!LAYERS.has(cap.layer)) errors.push(`capabilities.json → "${cap.title}": layer must be city | room | chip`);
 
-// ---- cv.json -----------------------------------------------------------------
-for (const field of ['tagline', 'profile', 'stack', 'education', 'languages', 'offTheClock'])
-  if (!cv[field] || cv[field].length === 0) errors.push(`cv.json: missing "${field}"`);
-if (cv.photo && !existsSync(join(root, 'public', cv.photo)))
+// ---- cv.json + cv.nl.json ----------------------------------------------------
+const nCareer = (site.career ?? []).length;
+for (const [name, pack, isNl] of [['cv.json', cv, false], ['cv.nl.json', cvNl, true]]) {
+  for (const field of ['ui', 'tagline', 'profile', 'location', 'links', 'stack', 'education', 'languages', 'offTheClock'])
+    if (!pack[field] || pack[field].length === 0) errors.push(`${name}: missing "${field}"`);
+  for (const u of ['profile', 'experience', 'education', 'stack', 'languages', 'now', 'back', 'download'])
+    if (!pack.ui?.[u]) errors.push(`${name} → ui: missing "${u}"`);
+  for (const e of pack.education ?? [])
+    if (!e.school || !e.degree) errors.push(`${name}: every education entry needs "school" and "degree"`);
+  for (const c of pack.links ?? [])
+    if (c.href && !/^(https?:\/\/|mailto:)/.test(c.href))
+      errors.push(`${name} → link "${c.label}": href should be a full URL or mailto:`);
+  // a non-English pack must translate every career entry, in site.json's order
+  if (isNl) {
+    if ((pack.career ?? []).length !== nCareer)
+      errors.push(`${name}: career has ${pack.career?.length ?? 0} entries but site.json has ${nCareer} (same order required)`);
+    (pack.career ?? []).forEach((c, i) => {
+      if (!c.detail) errors.push(`${name} → career[${i}]: missing "detail"`);
+    });
+  }
+}
+if (cv.photo && !existsSync(root + 'public' + cv.photo))
   errors.push(`cv.json: photo ${cv.photo} not found in public/`);
-for (const e of cv.education ?? [])
-  if (!e.school || !e.degree) errors.push('cv.json: every education entry needs "school" and "degree"');
-for (const c of cv.contact ?? [])
-  if (c.href && !/^(https?:\/\/|mailto:)/.test(c.href))
-    errors.push(`cv.json → contact "${c.label}": href should be a full URL or mailto:`);
-if (!existsSync(join(root, 'public', 'cv.pdf')))
-  warnings.push(`${join(root, 'public', 'cv.pdf')} missing — run npm run cv to generate the downloadable CV`);
+// every career stint should carry a black logo on the CV — warn on the gaps
+for (const j of site.career ?? [])
+  if (!j.logo) warnings.push(`site.json → career "${j.company}": no logo — the CV entry will have no mark`);
+  else if (!existsSync(root + 'public' + j.logo)) warnings.push(`site.json → career "${j.company}": logo ${j.logo} not found`);
+for (const f of ['cv.pdf', 'cv-nl.pdf'])
+  if (!existsSync(root + 'public/' + f))
+    warnings.push(`public/${f} missing — run \`npm run cv\` to generate the downloadable CVs`);
 
 // ---- report ------------------------------------------------------------------
 for (const w of warnings) console.warn('  ⚠ ' + w);

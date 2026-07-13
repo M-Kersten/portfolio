@@ -92,18 +92,41 @@ export interface CareerEntry {
   logo?: string;
 }
 
-/** The CV-only extras (src/content/cv.json). The work history itself comes
- *  from site.json's career, so the CV always matches the site. `npm run cv`
- *  snapshots the /cv page to public/cv.pdf (as many pages as it needs). */
+/** UI strings for one CV language (labels + toolbar). */
+export interface CvUi {
+  profile: string;
+  yearsUnit: string;
+  experience: string;
+  education: string;
+  certificates: string;
+  stack: string;
+  languages: string;
+  offTheClockLabel: string;
+  now: string;
+  back: string;
+  download: string;
+}
+
+/** The CV-only extras (src/content/cv.json = English, cv.nl.json = Dutch).
+ *  The work-history STRUCTURE comes from site.json's career; a non-English
+ *  pack overrides each entry's sector/detail via `career` (same order as
+ *  site.json). `npm run cv` snapshots the /cv page to public/cv.pdf and its
+ *  Dutch twin public/cv-nl.pdf. */
 export interface CvContent {
+  /** Labels + toolbar strings for this language. */
+  ui: CvUi;
   /** One-line role statement under the name. */
   tagline: string;
   /** The "about" paragraph at the top of the CV. */
   profile: string;
   /** Head shot (public/ path), shown beside the header. */
   photo?: string;
-  /** Contact rows, in order. `href` makes it a live link in the PDF. */
-  contact: { label: string; href?: string }[];
+  /** Home base — shown prominently in the header. */
+  location: string;
+  /** Phone number (display form; the tel: link strips the spaces). */
+  phone?: string;
+  /** Web / social links — the quieter row under the location line. */
+  links: { label: string; href?: string }[];
   /** Tools & skills list for the extras strip. */
   stack: string[];
   education: {
@@ -120,6 +143,10 @@ export interface CvContent {
   languages: string[];
   /** One relaxed line of interests. */
   offTheClock: string;
+  /** Per-career-entry text overrides, in the same order as site.json's
+   *  career. Present on non-English packs; English reads sector/detail from
+   *  site.json directly. */
+  career?: { sector?: string; detail: string }[];
 }
 
 export interface SiteContent {
