@@ -54,9 +54,10 @@ export interface Framing {
 // width while keeping the camera close, so the maquette stays large and gains
 // depth — a much nicer phone view than retreating far enough to shrink it.
 const BASE_ASPECT = 1.6; // the framing offsets + base FOV are authored for this
-const MAX_FIT = 1.6; // a gentle pull-back — the wider lens does most of the work
+const MAX_FIT = 1.8; // a gentle pull-back — the wider lens does most of the work
 const BASE_FOV = 42; // the authored desktop vertical FOV
 const FOV_MAX = 62; // widen toward this as the frame narrows (more width, more depth)
+const GAP_MAX = 1.5; // on a tall phone, spread the layers this much further apart
 
 /** Modest pull-back for narrow/tall viewports (paired with fitFov). 1 on desktop. */
 export function fitScale(aspect: number): number {
@@ -70,11 +71,21 @@ export function fitFov(aspect: number): number {
   return Math.min(Math.max(BASE_FOV * Math.sqrt(BASE_ASPECT / aspect), BASE_FOV), FOV_MAX);
 }
 
-/** World position of the object the hotspot points to (its anchor). */
-export function anchorWorld(h: Hotspot): Vector3 {
+/** Vertical spacing multiplier between the three layers. 1 on desktop, growing
+ *  toward GAP_MAX as the screen turns tall/narrow so the tiers read as distinct
+ *  (a phone has vertical room to spare). Applied identically to the layer groups,
+ *  the camera targets and the hotspot anchors so they all stay aligned. */
+export function layerGap(aspect: number): number {
+  return Math.min(Math.max(1 + (BASE_ASPECT / aspect - 1) * 0.28, 1), GAP_MAX);
+}
+
+/** World position of the object the hotspot points to (its anchor). `gap` spreads
+ *  the layers vertically on tall screens (see layerGap) — scales only the layer's
+ *  Y offset, not the local anchor within the layer. */
+export function anchorWorld(h: Hotspot, gap = 1): Vector3 {
   const a = h.anchor ?? h.position;
   const s = LAYER_SCALE[h.layer];
-  return new Vector3(a[0] * s, LAYER_Y[h.layer] + a[1] * s, a[2] * s);
+  return new Vector3(a[0] * s, LAYER_Y[h.layer] * gap + a[1] * s, a[2] * s);
 }
 
 /** Establishing three-quarter view used as the camera's initial pose. */
@@ -92,8 +103,8 @@ const JOURNEY_Y = [1.32, 0, -1.32];
 // layers behind it, so one layer reads as the subject at a time.
 const JOURNEY_OFFSET = new Vector3(2.8, 1.15, 3.8);
 
-export function journeyView(step: number): Framing {
-  const y = JOURNEY_Y[Math.max(0, Math.min(2, step))] ?? 0;
+export function journeyView(step: number, gap = 1): Framing {
+  const y = (JOURNEY_Y[Math.max(0, Math.min(2, step))] ?? 0) * gap;
   const target = new Vector3(0, y, 0);
   return { pos: target.clone().add(JOURNEY_OFFSET), target };
 }
@@ -102,8 +113,8 @@ const NODE_OFFSET = new Vector3(1.55, 1.15, 2.55);
 
 /** Closer look at a selected node. Pulled back a touch and aimed below the
  *  object so it sits high in the upper area, clear of the bottom dossier HUD. */
-export function nodeView(hotspot: Hotspot): Framing {
-  const obj = anchorWorld(hotspot);
+export function nodeView(hotspot: Hotspot, gap = 1): Framing {
+  const obj = anchorWorld(hotspot, gap);
   return {
     pos: obj.clone().add(NODE_OFFSET),
     target: obj.clone().add(new Vector3(0, -0.38, 0)),

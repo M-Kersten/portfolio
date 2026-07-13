@@ -43,7 +43,10 @@
   color: var(--ink);
 }
 .hero__sub {
-  font-size: var(--step-2);
+  /* Fluid with the viewport width: keeps the desktop size but shrinks further
+     than --step-2's floor on a phone, so it no longer eats the hero and crowds
+     the maquette. */
+  font-size: clamp(1.05rem, 0.7rem + 1.8vw, 2.25rem);
   color: var(--ink-60);
   max-width: 26ch;
   margin: 0;

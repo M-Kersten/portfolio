@@ -3,7 +3,8 @@
 // is a dot floor + point field + one rig of objects, stacked at LAYER_Y and
 // scaled by LAYER_SCALE (see ../framing.ts, where the hotspots are authored
 // too). The per-layer content lives in city.tsx / room.tsx / chip.tsx.
-import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, type Hotspot, type LayerId } from '../framing';
+import { useThree } from '@react-three/fiber';
+import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, layerGap, type Hotspot, type LayerId } from '../framing';
 import { useSceneSelector } from '../store';
 import { AccentCtx, PALETTE } from './shared';
 import { DotFloor, PointCloud, DepthVeil } from './backdrop';
@@ -26,6 +27,9 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
   // The layer that holds the light: the selected node's home while one is open
   // (a deep link can select a node the scroll hasn't reached), else the scroll's.
   const presenceLayer = HOTSPOTS.find((h) => h.slug === selectedSlug)?.layer ?? activeLayer;
+  // Spread the layers vertically on tall/narrow screens (matched by the camera
+  // targets + hotspot anchors in ../framing, so everything stays aligned).
+  const gap = layerGap(useThree((s) => s.size.width / s.size.height));
 
   return (
     <group>
@@ -45,7 +49,7 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
         const near = Math.abs(LAYER_STEP[id] - journeyStep) <= 1;
         return (
           <AccentCtx.Provider key={id} value={PALETTE[id]}>
-            <group position={[0, LAYER_Y[id], 0]} scale={LAYER_SCALE[id]}>
+            <group position={[0, LAYER_Y[id] * gap, 0]} scale={LAYER_SCALE[id]}>
               <group visible={near}>
                 {/* Presence: the layer in focus keeps full brightness, the
                     others rest dimmed (see presence.tsx). Only the dressing —

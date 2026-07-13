@@ -3,12 +3,12 @@
 // fade in while either end is hovered/selected. Edit RELATIONS to change
 // which projects are linked and what the thread is called.
 import { useMemo, useRef, type CSSProperties } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Html, Line as DreiLine } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, CatmullRomCurve3, Color, Vector3, type Points as ThreePoints } from 'three';
 
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { HOTSPOTS, anchorWorld, type Hotspot } from '../framing';
+import { HOTSPOTS, anchorWorld, layerGap, type Hotspot } from '../framing';
 import { useActive } from './shared';
 import { useSceneSelector } from '../store';
 
@@ -120,13 +120,16 @@ export function SignalLine({ thread, from, to, color }: Relation) {
 
   // The cable route + a curve along it for sampling the flowing packets. The
   // label sits beside the vertical riser, the most "between-layers" point.
+  // Recomputed when the layer spacing changes (see layerGap) so the ends stay
+  // pinned to their nodes on tall screens.
+  const gap = layerGap(useThree((s) => s.size.width / s.size.height));
   const { curve, points, apex } = useMemo(() => {
-    const pA = anchorWorld(HOTSPOT_BY_SLUG[from]);
-    const pB = anchorWorld(HOTSPOT_BY_SLUG[to]);
+    const pA = anchorWorld(HOTSPOT_BY_SLUG[from], gap);
+    const pB = anchorWorld(HOTSPOT_BY_SLUG[to], gap);
     const { points: route, riser } = pipeRoute(pA, pB, from + to);
     const c = new CatmullRomCurve3(route, false, 'catmullrom', 0);
     return { curve: c, points: route, apex: riser.add(new Vector3(0, 0.1, 0)) };
-  }, [from, to]);
+  }, [from, to, gap]);
 
   const lineRef = useRef<any>(null);
   const pointsRef = useRef<ThreePoints>(null);
