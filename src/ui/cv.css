@@ -276,13 +276,17 @@
 }
 
 /* ---------- print / PDF ---------- */
-/* Full-bleed design: zero page margin, so the sheet — its dot grid and the
-   black header — reaches all four paper edges on every page (no white frame
-   anywhere). The body keeps its own generous inset via .cv's padding + each
-   entry's spacing, so text never sits right on the edge. */
+/* Full-bleed design. The dot grid + black header reach all four paper edges
+   (the grid is painted on the page canvas, so page margins don't create white
+   strips — see the html rule below). The page keeps a 14mm text inset top and
+   bottom so continuation pages breathe and lines never sit on the edge — but
+   ZERO on the first page's top, so the header bleeds straight to the top. */
 @page {
   size: A4;
-  margin: 0;
+  margin: 15mm 0 0; /* a top inset only — sides + bottom still bleed to the edge */
+}
+@page :first {
+  margin-top: 0; /* page 1's header bleeds straight to the top edge */
 }
 @media print {
   /* the dot grid lives on the ROOT element in print: Chromium propagates the
@@ -318,9 +322,8 @@
     width: auto;
     min-height: 0;
     background: none; /* the dots come from the page canvas (html) now */
-    /* zero page margin → the black header bleeds to every paper edge; the
-       body keeps its inset via this padding + each entry's spacing */
-    padding: 0 var(--cv-gutter) 15mm;
+    /* only the side gutter here — the @page rule owns the top/bottom insets */
+    padding: 0 var(--cv-gutter);
   }
   /* entries never split across a page break; education (the focus section)
      stays together as a whole */
