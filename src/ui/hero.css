@@ -1,0 +1,141 @@
+/* The hero: three invisible scroll panels that give the 3D layer journey
+   its length, plus the fixed name/subtitle block over the maquette. */
+
+/* ---------- Hero stage (scroll layer journey) ---------- */
+
+.hero {
+  position: relative;
+}
+/* Three panels give the camera journey its scroll length and are transparent so
+   the fixed canvas shows through. Their combined height sets how far you scroll
+   per layer — HeroStage weights the travel City<0.25 · Room 0.25–0.75 · Chip≥0.75
+   so Room (the only one you must stop mid-scroll to hold) gets the widest, most
+   forgiving band. No scroll-snap: the old snap points didn't line up with the
+   viewport and made the page feel like it stuck when scrolling past the hero. */
+.hero__panel {
+  height: 46svh;
+}
+
+/* Minimal title — fixed, fades when a node is inspected or scrolled past.
+   Its left offset mirrors the .container gutter so the name sits on the same
+   grid line as every section title below (flush-left it sat ~80px short of
+   that line on wide screens). */
+.hero__title {
+  position: fixed;
+  left: max(0px, calc((100vw - var(--container)) / 2));
+  top: 0;
+  z-index: 5;
+  padding: calc(var(--header-h) + var(--space-xl)) var(--space-m) 0;
+  max-width: 32rem;
+  pointer-events: none;
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+}
+.hero__title[data-visible='false'] {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+.hero__name {
+  font-size: var(--step-5);
+  font-weight: 700; /* Space Grotesk's heaviest weight */
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+  margin: 0 0 0.4em;
+  color: var(--ink);
+}
+.hero__sub {
+  font-size: var(--step-2);
+  color: var(--ink-60);
+  max-width: 26ch;
+  margin: 0;
+  text-wrap: balance;
+}
+/* Layer narration — one mono line, bottom-left on the container grid line,
+   that introduces whichever layer the journey has centred. Remounted per step
+   (keyed on journeyStep) so each line slides in fresh. */
+.hero__caption {
+  position: fixed;
+  left: max(0px, calc((100vw - var(--container)) / 2));
+  bottom: var(--space-l);
+  z-index: 5;
+  padding-inline: var(--space-m);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease);
+  animation: caption-in 0.5s var(--ease);
+}
+.hero__caption b {
+  font-weight: 700;
+  color: var(--cap-accent, var(--accent));
+}
+.hero__caption span {
+  color: var(--ink-40);
+  letter-spacing: 0.08em;
+  text-transform: none;
+}
+@keyframes caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Signals found — the exploration tally, quiet instrument chrome bottom-right.
+   Pips fill as hotspots are brought alive; at 10/10 the readout takes the
+   accent and the scene's completion state does the real celebrating. */
+.hero__signals {
+  position: fixed;
+  right: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
+  bottom: var(--space-l);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease);
+}
+.hero__signals-pips {
+  display: inline-flex;
+  gap: 4px;
+}
+.hero__signals-pips i {
+  width: 5px;
+  height: 5px;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+  transition: background 0.4s var(--ease), box-shadow 0.4s var(--ease);
+}
+.hero__signals-pips i[data-on] {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+.hero__signals-label {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.4s var(--ease);
+}
+.hero__signals[data-complete] .hero__signals-label {
+  color: var(--accent-ink);
+}
+
+@media (max-width: 760px) {
+  .hero__name {
+    font-size: var(--step-4);
+  }
+  .hero__title {
+    max-width: 86vw;
+  }
+  .scene-canvas {
+    transform: none; /* no menu on mobile → keep the scene centred */
+  }
+  /* Small screens: the tally yields the floor to the caption. */
+  .hero__signals {
+    display: none;
+  }
+}

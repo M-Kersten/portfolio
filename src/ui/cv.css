@@ -1,0 +1,314 @@
+/* The /cv page — an A4 document in the site's language ("blueprint" light:
+   paper, dot grid, mono labels, the career as a route line). Focused on work
+   history and education; it grows to as many pages as the content needs.
+   `npm run cv` prints it to public/cv.pdf; the print rules at the bottom are
+   what the PDF actually sees. */
+
+.cv-stage {
+  min-height: 100svh;
+  background: #14181c;
+  padding: 4rem 1rem 5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+}
+.cv-tools {
+  display: flex;
+  gap: 1.6rem;
+  font: 400 0.72rem/1 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.08em;
+}
+.cv-tools a {
+  color: rgba(234, 234, 234, 0.66);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(234, 234, 234, 0.25);
+  padding-bottom: 2px;
+}
+.cv-tools a:hover {
+  color: var(--cyan, #27e8f2);
+  border-color: currentColor;
+}
+
+/* ---------- the sheet ---------- */
+.cv {
+  --cv-paper: #f6f8f9;
+  --cv-ink: #10161b;
+  --cv-mut: rgba(16, 22, 27, 0.6);
+  --cv-soft: rgba(16, 22, 27, 0.5);
+  --cv-line: rgba(16, 22, 27, 0.16);
+  --cv-dot: rgba(16, 22, 27, 0.12);
+  --cv-accent: #0f9fae; /* the site's cyan, darkened for paper */
+  --cv-ink-hdr: #0a0d10; /* the black header band (matches the site bg) */
+
+  width: 210mm;
+  min-height: 297mm;
+  flex: none;
+  position: relative;
+  overflow: hidden; /* clip the full-bleed header to the sheet's corners */
+  background: var(--cv-paper);
+  /* the dot grid. Deliberately OPAQUE (dot colour pre-blended onto the
+     paper colour): print rasterizes this layer, and without an alpha
+     channel it compresses ~10× better in the PDF. Kept faint. */
+  background-image: radial-gradient(#e7eaec 1px, var(--cv-paper) 1.4px);
+  background-size: 24px 24px;
+  color: var(--cv-ink);
+  font-family: var(--font-sans, 'Space Grotesk', sans-serif);
+  padding: 44px 56px 48px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+}
+
+.cv .cv-lbl {
+  font: 700 8.5px/1 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cv-soft);
+}
+/* section headers (Experience, Education) — a hairline, then the label */
+.cv .cv-sec {
+  border-top: 1px solid var(--cv-line);
+  padding-top: 14px;
+  margin: 20px 0 16px;
+}
+
+/* header — a full-bleed black band; the dithered portrait emerges from it */
+.cv .cv-head {
+  /* negative margins cancel the sheet padding, so the band reaches the top
+     and side edges of the sheet (which clips it to its corners) */
+  margin: -44px -56px 0;
+  padding: 0 56px;
+  height: 224px;
+  background: var(--cv-ink-hdr);
+  color: #eaeaea;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  overflow: hidden;
+}
+.cv .cv-id {
+  min-width: 0;
+  padding-bottom: 34px; /* lift the name off the band's bottom edge */
+}
+.cv .cv-head h1 {
+  color: #f5f8fa;
+}
+.cv .cv-head .cv-tagline {
+  color: rgba(234, 234, 234, 0.66);
+}
+.cv .cv-head .cv-contact {
+  color: rgba(234, 234, 234, 0.5);
+}
+.cv .cv-head .cv-contact a {
+  color: #2ad3de; /* the site cyan, bright enough to read on black */
+}
+/* the portrait fills the band height and stands on its bottom edge */
+.cv .cv-photo {
+  flex: none;
+  align-self: flex-end;
+  height: 224px;
+  width: auto;
+  object-fit: contain;
+  object-position: bottom center;
+}
+.cv h1 {
+  font: 500 44px/1.02 var(--font-sans, 'Space Grotesk', sans-serif);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.cv .cv-tagline {
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--cv-mut);
+  margin: 10px 0 0;
+  max-width: 30rem;
+}
+.cv .cv-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 14px;
+  font: 400 10px/1 var(--font-mono, 'Space Mono', monospace);
+  color: var(--cv-mut);
+}
+.cv .cv-contact a {
+  color: var(--cv-accent);
+  text-decoration: none;
+}
+/* the first section sits right under the black band — no divider hairline */
+.cv .cv-head + section .cv-sec {
+  border-top: 0;
+  margin-top: 22px;
+  padding-top: 0;
+}
+
+/* profile paragraph */
+.cv .cv-profile {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--cv-mut);
+  margin: 0;
+  max-width: 600px;
+}
+
+/* work history — the route line with month pins */
+.cv .cv-xp {
+  position: relative;
+  padding-left: 24px;
+}
+.cv .cv-route {
+  position: absolute;
+  left: 3px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--cv-line);
+}
+.cv .cv-job {
+  position: relative;
+  margin-bottom: 19px;
+}
+.cv .cv-job > s {
+  position: absolute;
+  left: -26.5px;
+  top: 3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cv-paper);
+  border: 2px solid var(--cv-accent);
+  text-decoration: none;
+}
+.cv .cv-when {
+  font: 400 9px/1 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.12em;
+  color: var(--cv-soft);
+}
+.cv .cv-job h3 {
+  font: 700 15px/1.2 var(--font-sans, 'Space Grotesk', sans-serif);
+  margin: 4px 0 0;
+}
+.cv .cv-co {
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--cv-mut);
+  margin-top: 2px;
+}
+/* sector — tech stack, quiet mono under the company line */
+.cv .cv-meta {
+  font: 400 8.5px/1.5 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.04em;
+  color: var(--cv-soft);
+  margin-top: 3px;
+  max-width: 560px;
+}
+.cv .cv-job p {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--cv-mut);
+  margin: 5px 0 0;
+  max-width: 560px;
+}
+
+/* education — same anatomy as a job entry, minus the route line */
+.cv .cv-edu {
+  margin-bottom: 16px;
+}
+.cv .cv-edu h3 {
+  font: 700 14px/1.2 var(--font-sans, 'Space Grotesk', sans-serif);
+  margin: 3px 0 0;
+}
+.cv .cv-edu p {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--cv-mut);
+  margin: 5px 0 0;
+  max-width: 560px;
+}
+
+/* certificates */
+.cv .cv-certs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cv .cv-certs li {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--cv-mut);
+}
+
+/* the quiet extras strip — stack / languages / interests */
+.cv .cv-extras {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 22px;
+  border-top: 1px solid var(--cv-line);
+  margin-top: 20px;
+  padding-top: 14px;
+}
+.cv .cv-extras ul {
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+}
+.cv .cv-extras li {
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--cv-mut);
+}
+
+/* ---------- print / PDF ---------- */
+@page {
+  size: A4;
+  margin: 10mm 0; /* clean top/bottom margins on every page of the PDF */
+}
+@media print {
+  /* Paper everywhere beyond the sheet's content. The page canvas paints from
+     the ROOT element (which also carries the site's dark color-scheme), so
+     html needs both the background and a light scheme — body alone leaves
+     dark bands in the page margins. */
+  html[data-cv],
+  body[data-cv] {
+    color-scheme: light;
+    background: #f6f8f9;
+  }
+  .cv-stage {
+    padding: 0;
+    background: none;
+    display: block;
+    min-height: 0;
+  }
+  .cv-tools {
+    display: none;
+  }
+  /* the site's film-grain veil (base.css body::after) — invisible on paper,
+     but printed it rasterizes to ~700 kB of noise PER PAGE. Off. */
+  body[data-cv]::after {
+    display: none;
+  }
+  .cv {
+    box-shadow: none;
+    width: auto;
+    min-height: 0;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+  /* entries never split across a page break; education (the focus section)
+     stays together as a whole */
+  .cv .cv-job,
+  .cv .cv-edu,
+  .cv .cv-certs,
+  .cv .cv-extras section,
+  .cv .cv-keep {
+    break-inside: avoid;
+  }
+  /* the black header must print its background */
+  .cv .cv-head {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .cv .cv-sec {
+    break-after: avoid; /* a section header stays with its first entry */
+  }
+}

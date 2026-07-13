@@ -2,9 +2,11 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } fr
 import { cases, caseBySlug, site, type CareerEntry, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
+import { useFocusTrap } from '../lib/useFocusTrap';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard } from './CaseCard';
 import { SectionTitle } from './SectionTitle';
+import { StoryLinks } from './StoryLinks';
 import { useWallConfig, type WallConfig } from './wallTweak';
 
 const SPAWN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -159,13 +161,15 @@ function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
 // backdrop. Not the old bottom HUD — a focused card. Esc / ✕ / backdrop closes.
-function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }) {
+function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClose: () => void; onJump: (slug: string) => void }) {
   const [imgOk, setImgOk] = useState(true);
   const embed = youtubeEmbed(study.video);
   // With a video, only show a photo if a real one is provided; without a video,
   // fall back to the poster placeholder so the card still has a header image.
   const photo = embed ? study.media?.[0] : study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(cardRef); // Tab stays inside; focus returns to the card on close
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -184,6 +188,7 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
   return (
     <div className="focus" onClick={onClose}>
       <div
+        ref={cardRef}
         className="focus__card"
         data-layer={study.layer}
         role="dialog"
@@ -223,15 +228,22 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
           </span>
           <h3 className="focus__title">{study.title}</h3>
           <p className="focus__outcome">{study.outcome}</p>
-          <div className="worktile__cols">
+          {/* The story — the three beats visitors come for. */}
+          <div className="story">
             <section>
-              <h4 className="worktile__h">The problem</h4>
-              <p>{study.challenge}</p>
+              <h4 className="story__h">The problem</h4>
+              <p>{study.problem}</p>
             </section>
             <section>
-              <h4 className="worktile__h">What I made</h4>
-              <p>{study.built}</p>
+              <h4 className="story__h">The approach</h4>
+              <p>{study.approach}</p>
             </section>
+            {study.lesson && (
+              <section>
+                <h4 className="story__h">The lesson</h4>
+                <p>{study.lesson}</p>
+              </section>
+            )}
           </div>
           {study.tech && study.tech.length > 0 && (
             <ul className="worktile__tech" aria-label="Technologies">
@@ -239,12 +251,6 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
                 <li key={t}>{t}</li>
               ))}
             </ul>
-          )}
-          {study.lesson && (
-            <p className="worktile__lesson">
-              <span>What I learned</span>
-              {study.lesson}
-            </p>
           )}
           <div className="focus__actions">
             <a
@@ -259,6 +265,7 @@ function FocusCard({ study, onClose }: { study: CaseStudy; onClose: () => void }
               </a>
             )}
           </div>
+          <StoryLinks study={study} onJump={onJump} />
         </div>
       </div>
     </div>
@@ -301,6 +308,16 @@ export function Work() {
         glow.style.setProperty('--r', `${lastCursor.current.r}px`);
       }
     };
+    // ---- Motion feel: the dolly -------------------------------------------
+    // The wall reacts to how fast you pan: at speed the whole plane eases back
+    // and tilts away a touch — a camera pulling out to travel — then settles
+    // back in when you stop. Intensity lives in the wall tweak panel
+    // (dollyZoom / dollyTilt / motionEase); set to 0 to disable. At rest the
+    // values decay to exactly zero, so the resting wall is pixel-identical to
+    // a wall without this code.
+    const SPEED_REF = 50; // px/frame that counts as "full speed"
+    let lastX = -1; // pan position on the previous frame (-1 = not measured yet)
+    let vel = 0; // smoothed pan velocity
     const update = () => {
       raf = 0;
       const el = scrollRef.current;
@@ -310,12 +327,28 @@ export function Work() {
       const p = scrollable > 0 ? Math.min(1, Math.max(0, -el.getBoundingClientRect().top / scrollable)) : 0;
       const maxX = Math.max(0, timeline.width - window.innerWidth);
       const maxY = Math.max(0, plane.offsetHeight - window.innerHeight);
-      plane.style.transform = `translate3d(${-(p * maxX)}px, ${-(p * maxY)}px, 0)`;
+      const x = p * maxX;
+
+      // Smoothed velocity (px/frame). dv is 0 on settle frames, so it eases
+      // back to rest through the same lerp that ramps it up.
+      const dv = lastX < 0 ? 0 : x - lastX;
+      lastX = x;
+      vel += (dv - vel) * cfg.motionEase;
+      const speed = Math.min(1, Math.abs(vel) / SPEED_REF); // 0..1 of full speed
+      const scale = 1 - cfg.dollyZoom * speed;
+      const tilt = cfg.dollyTilt * speed;
+
+      // Scale/tilt around the point currently at the viewport's centre.
+      plane.style.transformOrigin = `${x + window.innerWidth / 2}px 50%`;
+      plane.style.transform =
+        `translate3d(${-x}px, ${-(p * maxY)}px, 0) scale(${scale}) rotateX(${tilt}deg)`;
       // Parallax: the dot field drifts slower, so the timeline reads as the near
       // layer floating in front of a receding space.
       farOffset.current = { x: p * maxX * cfg.parallax, y: p * maxY * cfg.parallax };
       if (farRef.current) farRef.current.style.transform = `translate3d(${-farOffset.current.x}px, ${-farOffset.current.y}px, 0)`;
       syncGlow();
+      // Keep animating (even without scroll events) until the motion settles.
+      if (Math.abs(vel) >= 0.05 && !raf) raf = requestAnimationFrame(update);
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
@@ -363,7 +396,7 @@ export function Work() {
       window.removeEventListener('mousemove', onMove);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [reduced, timeline.width, cfg.parallax]);
+  }, [reduced, timeline.width, cfg]);
 
   const openStudy = open ? caseBySlug(open) : undefined;
   // The spawn point sits a short lead-in left of where the route proper starts.
@@ -519,7 +552,7 @@ export function Work() {
         </div>
       </div>
 
-      {openStudy && <FocusCard study={openStudy} onClose={() => setOpen(null)} />}
+      {openStudy && <FocusCard study={openStudy} onClose={() => setOpen(null)} onJump={setOpen} />}
     </section>
   );
 }

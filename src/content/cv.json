@@ -1,0 +1,42 @@
+{
+  "tagline": "Creative technologist — building things that survive outside the demo room.",
+  "profile": "As an XR developer I've contributed with a lot of enthusiasm to projects across AR, VR, mobile games and interactive installations. Connecting the virtual and physical world — and my drive to explore the edges of what technology can do — are central to my work. Every project is another chance to give people a fresh perspective.",
+  "photo": "/profile/5.png",
+  "contact": [
+    { "label": "info@merijnkersten.nl", "href": "mailto:info@merijnkersten.nl" },
+    { "label": "merijnkersten.nl", "href": "https://merijnkersten.nl" },
+    { "label": "Utrecht, NL" },
+    { "label": "in/merijn-kersten", "href": "https://www.linkedin.com/in/merijn-kersten/" },
+    { "label": "gh/m-kersten", "href": "https://github.com/m-kersten" }
+  ],
+  "stack": [
+    "Unity · C# · ECS",
+    "AR — ARKit · ARFoundation · Lightship VPS",
+    "VR — Quest · Vision Pro · HoloLens",
+    "JavaScript · TypeScript · React · Node.js",
+    "Python · computer vision · AI & LLMs",
+    "Firebase · AWS · CI/CD",
+    "Blender · Figma"
+  ],
+  "education": [
+    {
+      "school": "Saxion",
+      "degree": "Creative media & game technology",
+      "location": "Enschede, NL",
+      "from": "2014-10",
+      "to": "2019-06",
+      "note": "Studied game development across individual and group projects: games, web applications, interactive installations and 3D. For my graduation project I researched AR-framework compatibility through cloud anchors and built my own framework integrating ARCore and ARKit — before ARFoundation existed."
+    },
+    {
+      "school": "OAMK",
+      "degree": "Minor — indie game development",
+      "location": "Oulu, FI",
+      "from": "2017-01",
+      "to": "2017-08",
+      "note": "Led a team building an indie game telling the story of the Sámi, the last tribe of Europe — guiding the project through every round and winning first place for the year."
+    }
+  ],
+  "certificates": ["Unity Certified Professional — Programmer"],
+  "languages": ["Dutch — native", "English — fluent"],
+  "offTheClock": "Music production, baking, cooking, history, fitness"
+}

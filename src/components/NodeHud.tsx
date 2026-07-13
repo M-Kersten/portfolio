@@ -3,7 +3,9 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { caseBySlug, LAYER_LABEL, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
+import { useFocusTrap } from '../lib/useFocusTrap';
 import { sceneStore } from '../scene/store';
+import { StoryLinks } from './StoryLinks';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // Centre of each layer's scroll band on the hero (fraction of scroll travel),
@@ -49,6 +51,8 @@ export function NodeHud() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const hudRef = useRef<HTMLElement>(null);
+  useFocusTrap(hudRef); // Tab stays inside; focus returns to the hotspot on close
 
   const study = slug ? caseBySlug(slug) : undefined;
   // Closing drops you back onto the layer you left from. Scroll to the *centre*
@@ -56,17 +60,30 @@ export function NodeHud() {
   // old per-panel scrollIntoView aimed at a panel top, which on the current
   // (shorter) hero overshot past the travel and dumped you a layer down (Room →
   // Chip) or into the content below (Chip → capabilities).
+  //
+  // Except once: closing the TENTH signal's HUD is the homecoming — the journey
+  // pulls up to the City overview instead, where the celebration plays out
+  // (particle burst, bloom surge, and the ghost "next project" site rising).
   const close = () => {
     navigate('/');
     if (!study) return;
-    const step = LAYER_STEP[study.layer] ?? 0;
+    const homecoming = sceneStore.snapshot().celebrationPending;
+    const step = homecoming ? 0 : LAYER_STEP[study.layer] ?? 0;
+    if (homecoming) sceneStore.celebrate();
     sceneStore.setJourneyStep(step);
-    requestAnimationFrame(() => {
-      const hero = document.getElementById('hero');
-      if (!hero) return;
-      const travel = Math.max(hero.offsetHeight - window.innerHeight, 0);
-      window.scrollTo({ top: hero.offsetTop + (ZONE_CENTER[step] ?? 0.125) * travel });
-    });
+    // Lift the HUD's body-scroll lock before scrolling — the unmount cleanup
+    // that normally restores it can land after the scroll call, which silently
+    // swallowed the move whenever the target differed from where we already
+    // were. Double-rAF so the scroll runs after the route commit + paint.
+    document.body.style.overflow = '';
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const hero = document.getElementById('hero');
+        if (!hero) return;
+        const travel = Math.max(hero.offsetHeight - window.innerHeight, 0);
+        window.scrollTo({ top: hero.offsetTop + (ZONE_CENTER[step] ?? 0.125) * travel });
+      }),
+    );
   };
 
   useEffect(() => {
@@ -88,7 +105,7 @@ export function NodeHud() {
   if (!study) return <Navigate to="/" replace />;
 
   return (
-    <aside className="node-hud" data-layer={study.layer} role="dialog" aria-label={study.title}>
+    <aside ref={hudRef} className="node-hud" data-layer={study.layer} role="dialog" aria-modal="true" aria-label={study.title}>
       <button ref={closeRef} type="button" className="node-hud__close" onClick={close} aria-label="Close node">
         <span aria-hidden="true">✕</span>
       </button>
@@ -107,15 +124,22 @@ export function NodeHud() {
         <h2 className="node-hud__title">{study.title}</h2>
         <p className="node-hud__outcome">{study.outcome}</p>
 
-        <div className="node-hud__cols">
+        {/* The story — the three beats visitors come for. */}
+        <div className="story node-hud__story">
           <section>
-            <h3 className="node-hud__h">The problem</h3>
-            <p>{study.challenge}</p>
+            <h3 className="story__h">The problem</h3>
+            <p>{study.problem}</p>
           </section>
           <section>
-            <h3 className="node-hud__h">What I made</h3>
-            <p>{study.built}</p>
+            <h3 className="story__h">The approach</h3>
+            <p>{study.approach}</p>
           </section>
+          {study.lesson && (
+            <section>
+              <h3 className="story__h">The lesson</h3>
+              <p>{study.lesson}</p>
+            </section>
+          )}
         </div>
 
         {study.tech && study.tech.length > 0 && (
@@ -124,13 +148,6 @@ export function NodeHud() {
               <li key={t}>{t}</li>
             ))}
           </ul>
-        )}
-
-        {study.lesson && (
-          <p className="node-hud__lesson">
-            <span>What I learned</span>
-            {study.lesson}
-          </p>
         )}
 
         <div className="node-hud__actions">
@@ -146,6 +163,9 @@ export function NodeHud() {
             </a>
           )}
         </div>
+
+        {/* Walk the storyline without leaving the HUD — the camera flies along. */}
+        <StoryLinks study={study} onJump={(s) => navigate(`/work/${s}`)} />
       </div>
     </aside>
   );

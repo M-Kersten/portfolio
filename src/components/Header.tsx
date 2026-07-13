@@ -20,9 +20,6 @@ export function Header() {
             </Link>
           ))}
           <SocialLinks className="nav__social" />
-          <a className="btn nav__cta" href={`mailto:${site.contact.email}`} onClick={close}>
-            Say hi
-          </a>
         </nav>
 
         <button

@@ -1,6 +1,6 @@
 import { useMemo, useRef, type RefObject } from 'react';
 import { Environment, Lightformer } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, BrightnessContrast, Vignette } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
 import type { BloomEffect } from 'postprocessing';
@@ -9,7 +9,7 @@ import { useSceneSelector } from './store';
 import { caseBySlug } from '../content';
 import { type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
-import { Maquette } from './Maquette';
+import { Maquette } from './maquette';
 
 // The layer accents — the whole stage washes toward the picked node's colour.
 const LAYER_ACCENT: Record<string, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
@@ -27,6 +27,7 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
   bloom: RefObject<BloomEffect | null>;
 }) {
   const selected = useSceneSelector((s) => s.selectedSlug);
+  const celebrateAt = useSceneSelector((s) => s.celebrateAt);
   const reduced = useReducedMotion();
   const scene = useThree((s) => s.scene);
   const d = useRef(0);
@@ -55,7 +56,13 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
     }
     if (scene.background instanceof Color) scene.background.copy(bg).lerp(accent, k * 0.22);
     if (bloom.current) {
-      bloom.current.intensity = 0.4 + k * 0.75;
+      // One power surge at the homecoming (the 10th node's HUD closing),
+      // decaying back over ~3s while the celebration plays out in view.
+      const surge =
+        celebrateAt !== null && !reduced
+          ? Math.exp(-(performance.now() - celebrateAt) / 1100) * 0.9
+          : 0;
+      bloom.current.intensity = 0.4 + k * 0.75 + surge;
       (bloom.current.luminanceMaterial as unknown as { threshold: number }).threshold = 0.78 - k * 0.34;
     }
   });
@@ -93,10 +100,14 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
 
       <Maquette onActivate={onActivate} />
 
-      {/* A restrained glow — only the brightest accents lift, no neon halo. */}
+      {/* A restrained glow — only the brightest accents lift, no neon halo —
+          then a touch more contrast and a soft vignette that pools the light
+          in the centre of the frame, where the maquette lives. */}
       <EffectComposer enableNormalPass={false} multisampling={2}>
         {/* ref cast: @react-three/postprocessing types the ref as the class, not the instance */}
         <Bloom ref={bloom as never} mipmapBlur luminanceThreshold={0.78} luminanceSmoothing={0.3} intensity={0.4} radius={0.6} />
+        <BrightnessContrast contrast={0.08} />
+        <Vignette eskil={false} offset={0.3} darkness={0.45} />
       </EffectComposer>
     </>
   );

@@ -13,14 +13,19 @@ export interface CaseStudy {
   layer: Layer;
   client: string;
   sector: string;
-  challenge: string;
-  built: string;
-  /** Exactly one hard outcome metric per case (§7). */
+  /** The story, told in three beats — these carry the case dialogs. */
+  problem: string;
+  approach: string;
+  /** One "key lesson" — the third beat; optional but almost always worth it. */
+  lesson?: string;
+  /** Exactly one hard outcome metric per case (§7) — the big summary line. */
   outcome: string;
   /** Tech stack, shown as tags in the case dialog. */
   tech?: string[];
-  /** One "key lesson" — the systems-thinking throughline of Merijn's work. */
-  lesson?: string;
+  /** Slug of the earlier case this one builds on. Renders as a "← builds on"
+   *  link in the dialogs, and the reverse ("led to →") is derived, so one
+   *  field threads the cases into walkable storylines. */
+  follows?: string;
   /** Year the project was worked on — shown as a stamped date on the wall tile. */
   year?: string;
   /** Map tag override — a short company/label for the waypoint. Defaults to
@@ -73,11 +78,48 @@ export interface CareerEntry {
   location?: string;
   /** A sentence about the experience — shown in the route tooltip. */
   blurb?: string;
+  /** The industry, e.g. "Health care" — shown on the CV's meta line. */
+  sector?: string;
+  /** Tech used there — shown on the CV's meta line. */
+  tech?: string[];
+  /** The full CV paragraph for this stint. The CV falls back to `blurb`
+   *  when absent; the site's tooltips always use the short `blurb`. */
+  detail?: string;
   /** Company website — the route band links here (opens in a new tab). */
   url?: string;
   /** Optional explicit logo (public/ path). When omitted, the tooltip falls
    *  back to the company's favicon derived from `url`. */
   logo?: string;
+}
+
+/** The CV-only extras (src/content/cv.json). The work history itself comes
+ *  from site.json's career, so the CV always matches the site. `npm run cv`
+ *  snapshots the /cv page to public/cv.pdf (as many pages as it needs). */
+export interface CvContent {
+  /** One-line role statement under the name. */
+  tagline: string;
+  /** The "about" paragraph at the top of the CV. */
+  profile: string;
+  /** Head shot (public/ path), shown beside the header. */
+  photo?: string;
+  /** Contact rows, in order. `href` makes it a live link in the PDF. */
+  contact: { label: string; href?: string }[];
+  /** Tools & skills list for the extras strip. */
+  stack: string[];
+  education: {
+    school: string;
+    degree: string;
+    location?: string;
+    /** "YYYY-MM" bounds, both required to show a period. */
+    from?: string;
+    to?: string;
+    /** A short paragraph about it. */
+    note?: string;
+  }[];
+  certificates?: string[];
+  languages: string[];
+  /** One relaxed line of interests. */
+  offTheClock: string;
 }
 
 export interface SiteContent {

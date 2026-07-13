@@ -1,0 +1,268 @@
+/* Hotspot markers projected over the 3D scene (crosshair, scanner
+   brackets, decode label) and the cross-layer signal-thread labels. */
+
+/* ---------- Hotspots (drei <Html>) ----------
+   A crosshair marks each interactive object — always in the layer accent, so
+   it reads clearly as "click me" against the ghost/dormant 3D objects, and
+   brightens further once the visitor has brought that object to life.
+   Scanner brackets lock around it on hover — the same reticle grammar as the
+   project cards and the section frames. */
+
+.hotspot {
+  position: relative;
+  /* the marker colour: the layer accent from the very first frame */
+  --hotc: var(--hot, var(--accent));
+  transition: opacity 0.28s var(--ease);
+}
+/* When any node is selected every marker fades out — the HUD owns the frame. */
+.hotspot[data-hidden] {
+  opacity: 0;
+  pointer-events: none;
+}
+.hotspot[data-alive] {
+  --hotc: color-mix(in srgb, var(--hot, var(--accent)) 85%, white 15%);
+}
+/* Only the mark is in flow, so <Html center> centres the crosshair exactly on
+   the leader line's end point. The label floats absolutely, off its box. */
+.hotspot__dot {
+  display: inline-flex;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+.hotspot__mark {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+/* crosshair — two hairlines with a gap at the centre, plus a glowing core */
+.hotspot__mark b::before,
+.hotspot__mark b::after {
+  content: '';
+  position: absolute;
+  background: linear-gradient(to bottom, var(--hotc) 0 30%, transparent 30% 70%, var(--hotc) 70% 100%);
+}
+.hotspot__mark b::before {
+  left: 50%;
+  top: 2px;
+  bottom: 2px;
+  width: 1.5px;
+  margin-left: -0.75px;
+}
+.hotspot__mark b::after {
+  top: 50%;
+  left: 2px;
+  right: 2px;
+  height: 1.5px;
+  margin-top: -0.75px;
+  background: linear-gradient(to right, var(--hotc) 0 30%, transparent 30% 70%, var(--hotc) 70% 100%);
+}
+.hotspot__mark::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 50%;
+  background: var(--hotc);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--hot, var(--accent)) 75%, transparent);
+}
+/* Unvisited markers pulse to invite the first click: an expanding "ping" ring
+   (::before) plus a gently breathing core (::after). Both fall calm the instant
+   the node is visited (data-alive), so the eye is always led to what's left. */
+.hotspot__mark::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--hotc);
+  opacity: 0;
+  pointer-events: none;
+}
+.hotspot:not([data-alive]) .hotspot__mark::before {
+  animation: hotspot-ping 2.6s var(--ease) infinite;
+}
+.hotspot:not([data-alive]) .hotspot__mark::after {
+  animation: hotspot-core 2.6s var(--ease) infinite;
+}
+@keyframes hotspot-ping {
+  0% { transform: scale(0.3); opacity: 0; }
+  16% { opacity: 0.55; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+@keyframes hotspot-core {
+  0%, 100% { box-shadow: 0 0 7px color-mix(in srgb, var(--hot, var(--accent)) 55%, transparent); }
+  50% { box-shadow: 0 0 16px color-mix(in srgb, var(--hot, var(--accent)) 95%, transparent); }
+}
+/* scanner brackets — a whisper once alive (already "found"), locking fully
+   into place on hover */
+.hotspot__mark i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--hotc);
+  opacity: 0;
+  transform: scale(1.6);
+  transition: opacity 0.16s var(--ease), transform 0.22s var(--ease);
+}
+.hotspot__mark i:nth-of-type(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.hotspot__mark i:nth-of-type(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.hotspot__mark i:nth-of-type(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.hotspot__mark i:nth-of-type(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.hotspot[data-alive] .hotspot__mark i {
+  opacity: 0.5;
+  transform: none;
+}
+.hotspot__dot:hover .hotspot__mark i,
+.hotspot__dot:focus-visible .hotspot__mark i,
+.hotspot[data-open='true'] .hotspot__mark i {
+  opacity: 1;
+  transform: none;
+}
+/* hovering brightens the mark further still, whether or not it's alive yet */
+.hotspot__dot:hover,
+.hotspot__dot:focus-visible {
+  --hotc: color-mix(in srgb, var(--hot, var(--accent)) 90%, white 10%);
+}
+/* Labels read by default (light caption) so it's obvious the marks are named,
+   clickable things; on hover/open they gain a solid chip. */
+.hotspot__label {
+  position: absolute;
+  left: calc(100% + 0.55em);
+  top: 50%;
+  white-space: nowrap;
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.3em 0.65em;
+  border-radius: var(--radius-s);
+  opacity: 0.62;
+  pointer-events: none;
+  transform: translate(0, -50%);
+  transition: opacity 0.2s var(--ease), background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+.hotspot__dot:hover .hotspot__label,
+.hotspot__dot:focus-visible .hotspot__label {
+  opacity: 1;
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  border-color: var(--line);
+}
+/* selecting hides the name — the title now lives in the HUD card */
+.hotspot[data-open='true'] .hotspot__label {
+  opacity: 0;
+}
+/* The name reads white at rest; --fill sweeps the layer accent across it left
+   to right (0% → 100%). Registered so it can animate smoothly. */
+@property --fill {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+.hotspot__label-fill {
+  display: inline-block;
+  --fill: 0%;
+  background-image: linear-gradient(90deg, var(--hotc) 0 var(--fill), var(--ink) var(--fill) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.7);
+}
+/* the exciting bit — HOVER wipes the accent across the name, a little glitchy */
+.hotspot__dot:hover .hotspot__label-fill,
+.hotspot__dot:focus-visible .hotspot__label-fill {
+  text-shadow: none;
+  animation:
+    hotspot-fill 0.5s linear both,
+    hotspot-glitch 0.5s linear both;
+}
+@keyframes hotspot-fill {
+  0% { --fill: 0%; }
+  18% { --fill: 14%; }
+  30% { --fill: 56%; }
+  40% { --fill: 41%; }
+  56% { --fill: 76%; }
+  66% { --fill: 63%; }
+  84% { --fill: 100%; }
+  90% { --fill: 91%; }
+  100% { --fill: 100%; }
+}
+@keyframes hotspot-glitch {
+  0%, 24%, 44%, 70%, 100% { transform: none; text-shadow: none; }
+  30% { transform: translateX(-1.5px) skewX(-6deg); text-shadow: 1.5px 0 var(--hotc), -1.5px 0 #ff2d78; }
+  38% { transform: translateX(1px); text-shadow: none; }
+  58% { transform: translateX(1.5px) skewX(4deg); text-shadow: -1.5px 0 var(--hotc), 1.5px 0 #00e0ff; }
+  66% { transform: translateX(-1px); text-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hotspot__dot:hover .hotspot__label-fill,
+  .hotspot__dot:focus-visible .hotspot__label-fill {
+    animation: none;
+    --fill: 100%;
+  }
+}
+
+/* Cross-layer signal threads: a faint label naming what links two nodes. Its
+   opacity is driven from the scene, fading in only while the link is active. */
+.signal-wrap {
+  pointer-events: none;
+}
+.signal-label {
+  display: inline-block;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: calc(var(--step--1) * 0.82);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--sig, var(--accent));
+  background: color-mix(in srgb, var(--paper) 64%, transparent);
+  padding: 0.16em 0.55em;
+  border-radius: var(--radius-s);
+  text-shadow: 0 0 9px color-mix(in srgb, var(--sig, var(--accent)) 70%, transparent);
+  transform: translateY(-2px);
+  will-change: opacity;
+}
+
+
+/* The "next project" invitation on the completion site — kin to the hotspot
+   labels but an open door rather than a data point. Appears with the ghost
+   construction site once all signals are found; clicks through to contact. */
+.nextsite {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  color: var(--ink-60);
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: var(--radius-s);
+  padding: 0.4em 0.75em;
+  cursor: pointer;
+  white-space: nowrap;
+  animation: nextsite-in 1.2s var(--ease) 0.9s both;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.nextsite b {
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+.nextsite:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+}
+@keyframes nextsite-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}

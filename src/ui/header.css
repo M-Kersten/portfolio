@@ -1,0 +1,153 @@
+/* The fixed site header: logo (blinking aperture), nav, social icons and
+   the mobile drawer. */
+
+/* ---------- Header ---------- */
+
+.header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--header-h);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+  backdrop-filter: saturate(1.2) blur(12px);
+  border-bottom: 1px solid var(--hairline);
+}
+.header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-m);
+}
+
+/* Logo — Merijn's real MK + aperture vector, inlined in Logo.tsx. */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--ink);
+}
+.logo__svg {
+  height: 1.5rem;
+  width: auto;
+  display: block;
+  overflow: visible;
+}
+.logo__mark {
+  fill: currentColor;
+}
+.logo__aperture {
+  fill: currentColor; /* white — inherits --ink */
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: aperture-blink 7s ease-in-out infinite;
+}
+.logo:hover .logo__aperture {
+  animation-duration: 2s;
+}
+/* the "eye" blinks occasionally */
+@keyframes aperture-blink {
+  0%, 92%, 100% {
+    transform: scaleY(1);
+  }
+  95%, 96% {
+    transform: scaleY(0.08);
+  }
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-m);
+}
+.nav__link {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+  color: var(--ink-60);
+  text-decoration: none;
+}
+.nav__link:hover {
+  color: var(--ink);
+}
+/* Brand-icon links (YouTube · GitHub · Instagram · LinkedIn). */
+.social {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.nav__social {
+  margin-left: var(--space-2xs);
+  padding-left: var(--space-2xs);
+  border-left: 1px solid var(--hairline);
+}
+.social__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  color: var(--ink-60);
+  border-radius: var(--radius-s);
+  transition:
+    color 0.2s var(--ease),
+    background 0.2s var(--ease);
+}
+.social__link:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.social__icon {
+  width: 1.02rem;
+  height: 1.02rem;
+  display: block;
+}
+.nav__toggle {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .nav {
+    position: fixed;
+    inset: var(--header-h) 0 auto 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    padding: var(--space-xs) var(--space-m) var(--space-m);
+    transform: translateY(-130%);
+    transition: transform 0.3s var(--ease);
+    box-shadow: 0 20px 40px var(--shadow);
+  }
+  .nav[data-open='true'] {
+    transform: translateY(0);
+  }
+  .nav__link {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--hairline);
+    font-size: var(--step-0);
+  }
+  /* In the drawer the icons become a centered row, no divider. */
+  .nav__social {
+    margin: var(--space-s) 0 0;
+    padding: 0;
+    border-left: 0;
+    justify-content: center;
+    gap: var(--space-2xs);
+  }
+  .nav__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-s);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+  }
+}
+
