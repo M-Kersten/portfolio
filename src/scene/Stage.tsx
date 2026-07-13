@@ -7,7 +7,7 @@ import type { BloomEffect } from 'postprocessing';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useSceneSelector } from './store';
 import { caseBySlug } from '../content';
-import { type Hotspot } from './framing';
+import { fitScale, type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
 import { Maquette } from './maquette';
 
@@ -30,6 +30,7 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
   const reduced = useReducedMotion();
   const scene = useThree((s) => s.scene);
+  const size = useThree((s) => s.size);
   const d = useRef(0);
   const accentHex = (selected && LAYER_ACCENT[caseBySlug(selected)?.layer ?? '']) || RIM_HEX;
   const bg = useMemo(() => new Color(BG_HEX), []);
@@ -51,7 +52,11 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
     }
     const fog = scene.fog as Fog | null;
     if (fog) {
-      fog.far = 14 - 4.5 * k;
+      // The camera eases back on narrow screens (CameraRig/fitScale), so scale
+      // the fog band with it — otherwise the pulled-back subject hazes out.
+      const fit = fitScale(size.width / size.height);
+      fog.near = 4.5 * fit;
+      fog.far = (14 - 4.5 * k) * fit;
       fog.color.copy(bg).lerp(accent, k * 0.45);
     }
     if (scene.background instanceof Color) scene.background.copy(bg).lerp(accent, k * 0.22);

@@ -46,6 +46,18 @@ export interface Framing {
   target: Vector3;
 }
 
+// Viewport-aspect fit. The maquette is wide and short, so on a narrow/tall
+// screen (a phone in portrait) its width spills past the fixed-lens camera and
+// the hotspots fall off the sides. Rather than a hard media-query "zoom out",
+// the CameraRig eases the camera straight back by this factor — a continuous
+// function of aspect, so it stays framed across every width and orientation.
+// 1 at the authored desktop aspect, growing (clamped) as the frame narrows.
+const BASE_ASPECT = 1.6; // the framing offsets below are authored for this
+const MAX_FIT = 3.0; // enough to seat the widest hotspots on a phone in portrait
+export function fitScale(aspect: number): number {
+  return Math.min(Math.max(BASE_ASPECT / aspect, 1), MAX_FIT);
+}
+
 /** World position of the object the hotspot points to (its anchor). */
 export function anchorWorld(h: Hotspot): Vector3 {
   const a = h.anchor ?? h.position;

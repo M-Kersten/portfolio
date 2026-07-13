@@ -14,6 +14,14 @@
   backdrop-filter: saturate(1.2) blur(12px);
   border-bottom: 1px solid var(--hairline);
 }
+/* On phones the node HUD is a full-screen sheet; it lives inside <main> (a lower
+   stacking context) so it can't paint over this fixed header. Hide the header
+   while a node is open so its close button in the top-right stays reachable. */
+@media (max-width: 760px) {
+  body[data-hud-open] .header {
+    display: none;
+  }
+}
 .header__inner {
   display: flex;
   align-items: center;

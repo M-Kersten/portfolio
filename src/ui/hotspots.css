@@ -161,6 +161,15 @@
 .hotspot[data-open='true'] .hotspot__label {
   opacity: 0;
 }
+/* On phones there's no room for the resting name beside the marker (it would
+   run off the right edge and crowd the hero title), and no hover to reveal it.
+   Drop the label — the pulsing crosshair is the tap target, and a tap opens the
+   HUD where the full title lives. Tablets/desktop keep the labels. */
+@media (max-width: 760px) {
+  .hotspot__label {
+    display: none;
+  }
+}
 /* The name reads white at rest; --fill sweeps the layer accent across it left
    to right (0% → 100%). Registered so it can animate smoothly. */
 @property --fill {
