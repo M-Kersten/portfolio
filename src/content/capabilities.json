@@ -17,7 +17,7 @@
     "layer": "chip",
     "index": "03",
     "title": "Chip: tools & the nerdy bits",
-    "body": "The smallest scale, and maybe my favourite one: the tools that make my work easier, computer vision, AI and work nobody sees. Cross-platform frameworks, synthetic data generation, npc's you can talk to, a solid backend. The stuff needed to run everything.",
+    "body": "The smallest scale is the one that make my work easier: tools, computer vision, AI and work nobody sees. From SDK's, synthetic data generation, npc's you can talk to, to a simple but solid backend. The stuff needed to run everything.",
     "tags": ["Computer vision", "AI · LLMs", "Backends", "Databases"]
   }
 ]

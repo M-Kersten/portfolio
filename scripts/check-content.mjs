@@ -8,13 +8,16 @@
 // a card without artwork. This script fails the build instead, with a message
 // that says exactly what to fix. Warnings (⚠) don't fail the build.
 import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
-const root = new URL('..', import.meta.url).pathname;
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const root = join(scriptDir, '..');
 const errors = [];
 const warnings = [];
 
 function readJson(rel) {
-  const text = readFileSync(root + rel, 'utf8');
+  const text = readFileSync(join(root, rel), 'utf8');
   try {
     return JSON.parse(text);
   } catch (e) {
@@ -44,7 +47,7 @@ for (const c of cases) {
     errors.push(`${who}: year must be "YYYY" or "YYYY-MM" (got "${c.year}")`);
   for (const field of ['title', 'problem', 'approach', 'outcome'])
     if (!c[field]) errors.push(`${who}: missing "${field}"`);
-  if (!existsSync(`${root}public/posters/${c.slug}.jpg`))
+  if (!existsSync(join(root, 'public', 'posters', `${c.slug}.jpg`)))
     errors.push(`${who}: no poster at public/posters/${c.slug}.jpg`);
   if (c.video && !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(c.video))
     warnings.push(`${who}: video isn't a YouTube URL — the embed only understands YouTube`);
@@ -57,11 +60,11 @@ for (const c of cases)
 
 // ---- hotspots + relations reference real cases ------------------------------
 // These live in TypeScript, so pull the slugs out with targeted regexes.
-const framing = readFileSync(root + 'src/scene/framing.ts', 'utf8');
+const framing = readFileSync(join(root, 'src/scene/framing.ts'), 'utf8');
 for (const m of framing.matchAll(/\{\s*slug:\s*'([^']+)'/g))
   if (!slugs.has(m[1])) errors.push(`framing.ts: hotspot slug "${m[1]}" has no case in cases.json`);
 
-const signals = readFileSync(root + 'src/scene/maquette/signals.tsx', 'utf8');
+const signals = readFileSync(join(root, 'src/scene/maquette/signals.tsx'), 'utf8');
 for (const m of signals.matchAll(/(?:from|to):\s*'([^']+)'/g))
   if (!slugs.has(m[1])) errors.push(`signals.tsx: relation endpoint "${m[1]}" has no case in cases.json`);
 
@@ -72,7 +75,7 @@ for (const j of site.career ?? []) {
   if (j.to !== null && !/^\d{4}-(0[1-9]|1[0-2])$/.test(j.to ?? ''))
     errors.push(`${who}: "to" must be YYYY-MM or null for the current role (got "${j.to}")`);
   if (j.url && !/^https?:\/\//.test(j.url)) errors.push(`${who}: url should start with https://`);
-  if (j.logo && !existsSync(root + 'public' + j.logo))
+  if (j.logo && !existsSync(join(root,'public',j.logo)))
     warnings.push(`${who}: logo ${j.logo} not found — the tooltip falls back to the site favicon`);
 }
 for (const l of site.contact?.links ?? [])
@@ -105,14 +108,14 @@ for (const [name, pack, isNl] of [['cv.json', cv, false], ['cv.nl.json', cvNl, t
     });
   }
 }
-if (cv.photo && !existsSync(root + 'public' + cv.photo))
+if (cv.photo && !existsSync(join(root,'public',cv.photo)))
   errors.push(`cv.json: photo ${cv.photo} not found in public/`);
 // every career stint should carry a black logo on the CV — warn on the gaps
 for (const j of site.career ?? [])
   if (!j.logo) warnings.push(`site.json → career "${j.company}": no logo — the CV entry will have no mark`);
-  else if (!existsSync(root + 'public' + j.logo)) warnings.push(`site.json → career "${j.company}": logo ${j.logo} not found`);
+  else if (!existsSync(join(root,'public',j.logo))) warnings.push(`site.json → career "${j.company}": logo ${j.logo} not found`);
 for (const f of ['cv.pdf', 'cv-nl.pdf'])
-  if (!existsSync(root + 'public/' + f))
+  if (!existsSync(join(root ,'public', f)))
     warnings.push(`public/${f} missing — run \`npm run cv\` to generate the downloadable CVs`);
 
 // ---- report ------------------------------------------------------------------

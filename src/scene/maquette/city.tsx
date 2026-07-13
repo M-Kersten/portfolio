@@ -11,7 +11,7 @@ import { useTweak } from '../devTweak';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { asset } from '../../lib/asset';
-import { NEUTRAL, GLASS, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
+import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, LiveGlassMat } from './materials';
 import { BlobShadow } from './backdrop';
@@ -866,16 +866,7 @@ function NextProjectSite() {
   const post = MAST_W / 2;
   return (
     <group position={SITE_POS} rotation={[0, 0.25, 0]}>
-      {/* staked-out plot */}
-      <Line points={roundedRectPts(0.44, 0.44, 0.06)} color={GHOST_LINE} lineWidth={1} transparent opacity={0.55} />
-      <group ref={rise}>
-        {/* the started frame — one storey of ghost shell, off to the side */}
-        <mesh position={[-0.11, 0.1, 0.1]}>
-          <boxGeometry args={[0.2, 0.2, 0.2]} />
-          <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.06} depthWrite={false} />
-          <Edges threshold={20} color={GHOST_LINE} />
-        </mesh>
-
+      <group ref={rise}>        
         {/* ---- the tower crane ---- */}
         <group position={[0.1, 0, -0.08]}>
           {/* concrete base + four lattice posts */}
@@ -964,7 +955,7 @@ function NextProjectSite() {
    homecoming (celebrateAt), gone within ~3s. A quiet glass-raise, not
    fireworks. */
 const BURST_N = 32;
-const BURST_COLORS = ['#27e8f2', '#ff9068', '#a9f75c'];
+const BURST_COLORS = ['#27e8f2', '#ff9068'];
 
 function CelebrationBurst() {
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
