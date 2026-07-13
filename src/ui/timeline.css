@@ -292,7 +292,7 @@
           mask-image: radial-gradient(circle var(--r, 130px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.4) 42%, transparent 72%);
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--cyan) 50%, transparent));
 }
-.wall[data-reduced] .wall__glow { display: none; }
+.wall[data-static] .wall__glow { display: none; }
 
 /* (The BASEMAP instrument HUD, scattered map labels and land features were
    removed — the timeline route is the map's single organising device now.) */
@@ -314,13 +314,17 @@
 .wall__frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
 .wall__frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
 .wall__frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-.wall[data-reduced] .wall__frame { display: none; }
-/* Reduced-motion fallback: no scroll-jack — pan the (2D) wall by hand. */
-.wall[data-reduced] .wall__scroll { height: auto; }
-.wall[data-reduced] .wall__pin {
+.wall[data-static] .wall__frame { display: none; }
+/* Manual-pan mode (reduced-motion + phones): no scroll-jack — the pinned region
+   becomes a plain horizontally-scrollable strip you swipe/drag by hand. The plane
+   is one viewport tall (planeVh: 1), so this scrolls horizontally only. */
+.wall[data-static] .wall__scroll { height: auto; }
+.wall[data-static] .wall__pin {
   position: relative;
   overflow: auto;
   scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .wall__cue {
   position: absolute;

@@ -279,6 +279,12 @@ function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClose: () =
 export function Work() {
   const { workIntro } = site;
   const reduced = useReducedMotion();
+  // Phones (and reduced-motion) skip the scroll-jack: the timeline becomes a
+  // plain horizontally-scrollable strip you swipe through by hand.
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches,
+  );
+  const manualPan = reduced || isNarrow;
   const cfg = useWallConfig();
   const timeline = useMemo(() => buildTimeline(cases, site.career ?? [], cfg), [cfg]);
   const [open, setOpen] = useState<string | null>(null);
@@ -292,8 +298,16 @@ export function Work() {
   const farOffset = useRef({ x: 0, y: 0 });
   const lastCursor = useRef<{ x: number; y: number; r: number } | null>(null);
 
+  // Track the narrow breakpoint so orientation / resize flips the mode live.
   useEffect(() => {
-    if (reduced) return;
+    const mq = window.matchMedia('(max-width: 760px)');
+    const on = () => setIsNarrow(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+
+  useEffect(() => {
+    if (manualPan) return;
     let raf = 0;
     // Keep the bright dot layer sitting exactly over the (parallaxed) base dots,
     // and the glow pool under the last-known cursor.
@@ -396,14 +410,14 @@ export function Work() {
       window.removeEventListener('mousemove', onMove);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [reduced, timeline.width, cfg]);
+  }, [manualPan, timeline.width, cfg]);
 
   const openStudy = open ? caseBySlug(open) : undefined;
   // The spawn point sits a short lead-in left of where the route proper starts.
   const spawnX = Math.max(74, timeline.routeLeft - 96);
 
   return (
-    <section id="work" className="section wall" data-reduced={reduced || undefined}>
+    <section id="work" className="section wall" data-reduced={reduced || undefined} data-static={manualPan || undefined}>
       <div className="container">
         {workIntro.title && <SectionTitle>{workIntro.title}</SectionTitle>}
         <p className="section__lead">{workIntro.lead}</p>
@@ -412,7 +426,7 @@ export function Work() {
       <div
         className="wall__scroll"
         ref={scrollRef}
-        style={reduced ? undefined : { height: `calc(100svh + ${timeline.width}px - 100vw)` }}
+        style={manualPan ? undefined : { height: `calc(100svh + ${timeline.width}px - 100vw)` }}
       >
         <div className="wall__pin" ref={pinRef}>
           <div
