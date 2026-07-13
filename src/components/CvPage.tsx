@@ -56,8 +56,17 @@ export function CvPage() {
           <div className="cv-id">
             <h1>{site.hero.name}</h1>
             <p className="cv-tagline">{cv.tagline}</p>
+            {/* home base + phone lead; the web/social links sit quieter below */}
+            <div className="cv-where">
+              <span className="cv-loc">{cv.location}</span>
+              {cv.phone && (
+                <a className="cv-phone" href={`tel:${cv.phone.replace(/\s/g, '')}`}>
+                  {cv.phone}
+                </a>
+              )}
+            </div>
             <div className="cv-contact">
-              {cv.contact.map((c) =>
+              {cv.links.map((c) =>
                 c.href ? (
                   <a key={c.label} href={c.href}>
                     {c.label}
@@ -84,6 +93,18 @@ export function CvPage() {
             const meta = [job.sector, job.tech?.join(' · ')].filter(Boolean).join('  —  ');
             return (
               <div key={`${job.company}${job.from}`} className="cv-job">
+                {/* black company mark, aligned to the right edge; missing files
+                    (e.g. no DTT logo) hide themselves rather than break */}
+                {job.logo && (
+                  <img
+                    className="cv-logo"
+                    src={asset(job.logo)}
+                    alt={job.company}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
                 <div className="cv-when">{fmtRange(job.from, job.to)}</div>
                 <h3>{job.role ?? job.company}</h3>
                 <div className="cv-co">
@@ -130,7 +151,7 @@ export function CvPage() {
         <div className="cv-extras">
           <section>
             <div className="cv-lbl">Stack</div>
-            <ul>
+            <ul className="cv-stack">
               {cv.stack.map((s) => (
                 <li key={s}>{s}</li>
               ))}

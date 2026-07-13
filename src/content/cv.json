@@ -2,10 +2,10 @@
   "tagline": "Creative technologist — building things that survive outside the demo room.",
   "profile": "As an XR developer I've contributed with a lot of enthusiasm to projects across AR, VR, mobile games and interactive installations. Connecting the virtual and physical world — and my drive to explore the edges of what technology can do — are central to my work. Every project is another chance to give people a fresh perspective.",
   "photo": "/profile/5.png",
-  "contact": [
-    { "label": "info@merijnkersten.nl", "href": "mailto:info@merijnkersten.nl" },
+  "location": "Utrecht, Netherlands",
+  "phone": "+31 6 21173954",
+  "links": [
     { "label": "merijnkersten.nl", "href": "https://merijnkersten.nl" },
-    { "label": "Utrecht, NL" },
     { "label": "in/merijn-kersten", "href": "https://www.linkedin.com/in/merijn-kersten/" },
     { "label": "gh/m-kersten", "href": "https://github.com/m-kersten" }
   ],
@@ -37,6 +37,6 @@
     }
   ],
   "certificates": ["Unity Certified Professional — Programmer"],
-  "languages": ["Dutch — native", "English — fluent"],
+  "languages": ["Dutch — native", "English — fluent", "French · German — basic", "Finnish — a little"],
   "offTheClock": "Music production, baking, cooking, history, fitness"
 }

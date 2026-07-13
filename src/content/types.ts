@@ -102,8 +102,12 @@ export interface CvContent {
   profile: string;
   /** Head shot (public/ path), shown beside the header. */
   photo?: string;
-  /** Contact rows, in order. `href` makes it a live link in the PDF. */
-  contact: { label: string; href?: string }[];
+  /** Home base — shown prominently in the header. */
+  location: string;
+  /** Phone number (display form; the tel: link strips the spaces). */
+  phone?: string;
+  /** Web / social links — the quieter row under the location line. */
+  links: { label: string; href?: string }[];
   /** Tools & skills list for the extras strip. */
   stack: string[];
   education: {
