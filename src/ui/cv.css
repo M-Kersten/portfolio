@@ -40,7 +40,8 @@
   --cv-dot: rgba(16, 22, 27, 0.12);
   --cv-accent: #0f9fae; /* the site's cyan, darkened for paper */
   --cv-ink-hdr: #0a0d10; /* the black header band (matches the site bg) */
-  --cv-gutter: 42px; /* the body's inset from the sheet edge — the whole page aligns to it */
+  --cv-gutter: 48px; /* the body's inset from the sheet edge — the whole page aligns to it */
+  --cv-dots: radial-gradient(#e7eaec 1px, var(--cv-paper) 1.4px); /* the faint grid */
   --cv-measure: 35rem; /* one comfortable reading width for every body text */
 
   width: 210mm;
@@ -51,10 +52,11 @@
      one page when Chromium prints it. The header bleeds sideways with exact
      negative margins instead, so nothing spills past the sheet edge anyway. */
   background: var(--cv-paper);
-  /* the dot grid. Deliberately OPAQUE (dot colour pre-blended onto the
-     paper colour): print rasterizes this layer, and without an alpha
-     channel it compresses ~10× better in the PDF. Kept faint. */
-  background-image: radial-gradient(#e7eaec 1px, var(--cv-paper) 1.4px);
+  /* the dot grid. Deliberately OPAQUE (dot colour pre-blended onto the paper):
+     print rasterizes this layer, and without an alpha channel it compresses
+     ~10× better. With zero page margin the sheet fills each page, so this grid
+     bleeds to every paper edge on every page. */
+  background-image: var(--cv-dots);
   background-size: 24px 24px;
   color: var(--cv-ink);
   font-family: var(--font-sans, 'Space Grotesk', sans-serif);
@@ -226,23 +228,19 @@
 }
 
 /* ---------- print / PDF ---------- */
-/* `npm run cv` sets the real page margins on page.pdf() (14mm, all four sides)
-   so every page is spaced identically and nothing bleeds to the paper edge —
-   which is what let viewers/printers scale-to-fit and crop the top and bottom.
-   This @page matches, for a browser "save as PDF" from /cv. */
+/* Full-bleed design: zero page margin, so the sheet — its dot grid and the
+   black header — reaches all four paper edges on every page (no white frame
+   anywhere). The body keeps its own generous inset via .cv's padding + each
+   entry's spacing, so text never sits right on the edge. */
 @page {
   size: A4;
-  margin: 14mm;
+  margin: 0;
 }
 @media print {
-  /* Paper everywhere beyond the sheet's content. The page canvas paints from
-     the ROOT element (which also carries the site's dark color-scheme), so
-     html needs both the background and a light scheme — body alone leaves
-     dark bands in the page margins. */
   html[data-cv],
   body[data-cv] {
     color-scheme: light;
-    background: #f6f8f9;
+    background: var(--cv-paper);
   }
   .cv-stage {
     padding: 0;
@@ -262,9 +260,10 @@
     box-shadow: none;
     width: auto;
     min-height: 0;
-    /* keep the padding identical to screen so the header's negative side
-       margins still cancel the gutter exactly (no top override — the header
-       owns the top edge, and the page margin gives the white strip above it) */
+    /* the sheet fills the whole page (zero page margin), so its dot grid + the
+       black header bleed to every paper edge. Its own padding keeps the body
+       text off the edges; the header cancels the top/side padding to bleed. */
+    padding: 0 var(--cv-gutter) 15mm;
   }
   /* entries never split across a page break; education (the focus section)
      stays together as a whole */

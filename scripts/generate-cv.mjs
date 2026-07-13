@@ -65,12 +65,10 @@ const page = await browser.newPage();
 await page.goto(`http://127.0.0.1:${port}/cv`, { waitUntil: 'networkidle' });
 await page.evaluate(() => document.fonts.ready);
 await page.waitForTimeout(150);
-// ONE source of truth for page size + margins: the CSS `@page` (A4, 14mm all
-// round). `preferCSSPageSize: true` + no format/margin here means Chromium
-// takes both from the CSS, so the script and a browser "save as PDF" produce
-// the identical file and no Chrome version can double or drop the margins.
-// Symmetric margins keep the content off the paper edge, so nothing gets
-// scaled-to-fit and cropped.
+// The CSS `@page` is the single source of page size + margins (A4, zero
+// margin → full bleed). `preferCSSPageSize: true` + no format/margin here
+// means Chromium takes both from the CSS, so the script and a browser "save
+// as PDF" produce the identical file and no Chrome version can override them.
 const pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
 writeFileSync(join(root, 'public', 'cv.pdf'), pdf);
 copyFileSync(join(root, 'public', 'cv.pdf'), join(dist, 'cv.pdf'));
