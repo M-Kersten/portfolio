@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useSceneSelector } from './store';
-import { HOTSPOTS, journeyView, nodeView, fitScale, fitFov, layerGap } from './framing';
+import { HOTSPOTS, journeyView, nodeView, fitScale, fitFov, layerGap, CAMERA } from './framing';
 
 // The camera is driven by the scroll journey (which layer is centred) and by the
 // selected node (zoom in).
@@ -45,7 +45,7 @@ export function CameraRig() {
 
     // On a phone the node HUD is a bottom sheet, so lift a selected node into the
     // visible upper area by aiming lower. Portrait only — no effect on desktop.
-    if (hotspot && aspect < 1) desiredTarget.current.y -= 0.7 * (1 - aspect);
+    if (hotspot && aspect < 1) desiredTarget.current.y -= CAMERA.mobileNodeLift * (1 - aspect);
 
     // Ease the camera back on narrow/tall viewports so the whole active layer
     // stays in frame (see fitScale). The offset keeps its direction — the same

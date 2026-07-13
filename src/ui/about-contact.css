@@ -379,5 +379,19 @@
     grid-template-columns: 1fr;
     gap: var(--space-l);
   }
+  /* Flatten the side + fallback wrappers so the portrait and the facts become
+     direct items of the single-column grid — then the portrait sits ABOVE the
+     bio, centred, with the facts below it. */
+  .about__side,
+  .about__fallback {
+    display: contents;
+  }
+  .about__fallback .about__portrait {
+    order: -1;
+    margin-inline: auto;
+  }
+  .about__list {
+    order: 1;
+  }
 }
 

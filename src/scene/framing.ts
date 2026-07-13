@@ -46,37 +46,66 @@ export interface Framing {
   target: Vector3;
 }
 
-// Viewport-aspect fit. The maquette is wide and short, so on a narrow/tall
-// screen (a phone in portrait) its width spills past the fixed-lens camera and
-// the hotspots fall off the sides. Rather than a hard media-query "zoom out",
-// the CameraRig adapts continuously to aspect: it WIDENS THE LENS (fitFov) and
-// eases the camera back only a little (fitScale). Widening the lens fits the
-// width while keeping the camera close, so the maquette stays large and gains
-// depth — a much nicer phone view than retreating far enough to shrink it.
-const BASE_ASPECT = 1.6; // the framing offsets + base FOV are authored for this
-const MAX_FIT = 1.8; // a gentle pull-back — the wider lens does most of the work
-const BASE_FOV = 42; // the authored desktop vertical FOV
-const FOV_MAX = 62; // widen toward this as the frame narrows (more width, more depth)
-const GAP_MAX = 1.5; // on a tall phone, spread the layers this much further apart
+type Vec3 = [number, number, number];
+
+// ============================================================================
+// CAMERA TUNING — the knobs for how the maquette is framed. Edit these freely,
+// then `npm run dev` (live) or `npm run build`. Everything about the zoom, the
+// lens and the layer spacing lives in this one object so the feel is easy to
+// dial in.
+//
+// How the phone view stays framed: instead of a hard media-query "zoom out",
+// the rig adapts continuously to the viewport's aspect — it widens the lens
+// (fitFov) and eases the camera back a little (fitScale), so the maquette stays
+// large and gains depth rather than shrinking.
+// ============================================================================
+export const CAMERA = {
+  // Overview framing — the scroll journey down the stack. The camera sits at
+  // `centred-layer + overviewOffset`, read as [right, up, back] in world units.
+  // Scale all three UP together to dolly out (smaller maquette), DOWN to zoom in.
+  overviewOffset: [2.8, 1.15, 3.8] as Vec3,
+
+  // Close-up framing when a project node is opened. Shorter = tighter on the node.
+  nodeOffset: [1.55, 1.15, 2.55] as Vec3,
+  nodeAimDown: 0.38, // aim this far below the node so it sits above the HUD
+
+  // The lens — vertical field of view, in degrees.
+  baseFov: 42, // on a wide desktop
+  fovMax: 62, // widen up to this as the screen gets narrow/tall (more depth)
+  fovRamp: 0.5, // how eagerly it widens as the screen narrows (higher = sooner)
+
+  // Mobile fit. `baseAspect` is the width:height the numbers above are tuned for
+  // (treated as "desktop" at/above it). As the screen narrows the camera also
+  // eases back by up to `maxFit`× — RAISE maxFit to zoom OUT more on a phone.
+  baseAspect: 1.6,
+  maxFit: 1.8,
+
+  // Layer spacing on tall screens. `gapMax` is how much further apart the three
+  // layers spread on a phone; `gapRamp` is how fast they spread as it narrows.
+  gapMax: 1.5,
+  gapRamp: 0.28,
+  mobileNodeLift: 0.7, // extra downward aim for an open node in portrait (clears the sheet)
+};
 
 /** Modest pull-back for narrow/tall viewports (paired with fitFov). 1 on desktop. */
 export function fitScale(aspect: number): number {
-  return Math.min(Math.max(BASE_ASPECT / aspect, 1), MAX_FIT);
+  return Math.min(Math.max(CAMERA.baseAspect / aspect, 1), CAMERA.maxFit);
 }
 
-/** Vertical FOV for the viewport aspect: the authored 42° on desktop, widening
- *  toward 62° as the frame narrows so the maquette's width fits with the camera
- *  kept close (a bigger subject + more perspective than retreating would give). */
+/** Vertical FOV for the viewport aspect: the authored FOV on desktop, widening
+ *  toward CAMERA.fovMax as the frame narrows so the maquette's width fits with
+ *  the camera kept close (a bigger subject + more depth than retreating). */
 export function fitFov(aspect: number): number {
-  return Math.min(Math.max(BASE_FOV * Math.sqrt(BASE_ASPECT / aspect), BASE_FOV), FOV_MAX);
+  const f = CAMERA.baseFov * Math.pow(CAMERA.baseAspect / aspect, CAMERA.fovRamp);
+  return Math.min(Math.max(f, CAMERA.baseFov), CAMERA.fovMax);
 }
 
 /** Vertical spacing multiplier between the three layers. 1 on desktop, growing
- *  toward GAP_MAX as the screen turns tall/narrow so the tiers read as distinct
- *  (a phone has vertical room to spare). Applied identically to the layer groups,
- *  the camera targets and the hotspot anchors so they all stay aligned. */
+ *  toward CAMERA.gapMax as the screen turns tall/narrow so the tiers read as
+ *  distinct. Applied identically to the layer groups, the camera targets and the
+ *  hotspot anchors so they all stay aligned. */
 export function layerGap(aspect: number): number {
-  return Math.min(Math.max(1 + (BASE_ASPECT / aspect - 1) * 0.28, 1), GAP_MAX);
+  return Math.min(Math.max(1 + (CAMERA.baseAspect / aspect - 1) * CAMERA.gapRamp, 1), CAMERA.gapMax);
 }
 
 /** World position of the object the hotspot points to (its anchor). `gap` spreads
@@ -99,25 +128,20 @@ export const MAQUETTE_HOME: Framing = {
 // glides straight down the stack, one layer centred per snap stop. A constant
 // frame means the per-layer scale difference actually reads on screen.
 const JOURNEY_Y = [1.32, 0, -1.32];
-// Tighter than before so each layer fills more of the frame; the fog hazes the
-// layers behind it, so one layer reads as the subject at a time.
-const JOURNEY_OFFSET = new Vector3(2.8, 1.15, 3.8);
 
 export function journeyView(step: number, gap = 1): Framing {
   const y = (JOURNEY_Y[Math.max(0, Math.min(2, step))] ?? 0) * gap;
   const target = new Vector3(0, y, 0);
-  return { pos: target.clone().add(JOURNEY_OFFSET), target };
+  return { pos: target.clone().add(new Vector3(...CAMERA.overviewOffset)), target };
 }
-
-const NODE_OFFSET = new Vector3(1.55, 1.15, 2.55);
 
 /** Closer look at a selected node. Pulled back a touch and aimed below the
  *  object so it sits high in the upper area, clear of the bottom dossier HUD. */
 export function nodeView(hotspot: Hotspot, gap = 1): Framing {
   const obj = anchorWorld(hotspot, gap);
   return {
-    pos: obj.clone().add(NODE_OFFSET),
-    target: obj.clone().add(new Vector3(0, -0.38, 0)),
+    pos: obj.clone().add(new Vector3(...CAMERA.nodeOffset)),
+    target: obj.clone().add(new Vector3(0, -CAMERA.nodeAimDown, 0)),
   };
 }
 
