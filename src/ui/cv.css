@@ -40,7 +40,7 @@
   --cv-dot: rgba(16, 22, 27, 0.12);
   --cv-accent: #0f9fae; /* the site's cyan, darkened for paper */
   --cv-ink-hdr: #0a0d10; /* the black header band (matches the site bg) */
-  --cv-gutter: 56px; /* the body's left/right margin — the whole page aligns to it */
+  --cv-gutter: 42px; /* the body's inset from the sheet edge — the whole page aligns to it */
   --cv-measure: 35rem; /* one comfortable reading width for every body text */
 
   width: 210mm;
@@ -226,12 +226,13 @@
 }
 
 /* ---------- print / PDF ---------- */
-/* `npm run cv` sets the real page margins on page.pdf() (12mm top / 14mm
-   bottom / 0 sides) so every page is spaced identically. This @page is the
-   fallback for a browser "save as PDF" from /cv and matches those numbers. */
+/* `npm run cv` sets the real page margins on page.pdf() (14mm, all four sides)
+   so every page is spaced identically and nothing bleeds to the paper edge —
+   which is what let viewers/printers scale-to-fit and crop the top and bottom.
+   This @page matches, for a browser "save as PDF" from /cv. */
 @page {
   size: A4;
-  margin: 12mm 0 14mm;
+  margin: 14mm;
 }
 @media print {
   /* Paper everywhere beyond the sheet's content. The page canvas paints from

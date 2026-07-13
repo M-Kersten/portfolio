@@ -65,13 +65,14 @@ const page = await browser.newPage();
 await page.goto(`http://127.0.0.1:${port}/cv`, { waitUntil: 'networkidle' });
 await page.evaluate(() => document.fonts.ready);
 await page.waitForTimeout(150);
-// Explicit page margins (not left to CSS @page / viewer defaults) so every
-// page gets the same top/bottom breathing room and nothing is clipped. The
-// header bleeds to the sheet's left/right edges, so those margins are 0.
+// Symmetric margins on all four sides so the PDF is a normal, printable A4 —
+// nothing bleeds to the paper edge, so no viewer or printer needs to scale it
+// "to fit" (which is what was cropping the top and bottom). These margins are
+// authoritative; the CSS @page matches them for a browser "save as PDF".
 const pdf = await page.pdf({
   format: 'A4',
   printBackground: true,
-  margin: { top: '12mm', bottom: '14mm', left: '0mm', right: '0mm' },
+  margin: { top: '14mm', bottom: '14mm', left: '14mm', right: '14mm' },
 });
 writeFileSync(join(root, 'public', 'cv.pdf'), pdf);
 copyFileSync(join(root, 'public', 'cv.pdf'), join(dist, 'cv.pdf'));
