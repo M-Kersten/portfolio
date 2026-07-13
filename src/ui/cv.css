@@ -82,6 +82,22 @@
 .cv .cv-frame {
   position: relative;
   padding: 24px 0 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 28px;
+}
+.cv .cv-id {
+  min-width: 0;
+}
+.cv .cv-photo {
+  flex: none;
+  width: 104px;
+  height: 130px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid var(--cv-line);
+  margin-right: 4px;
 }
 .cv .cv-ck {
   position: absolute;
@@ -115,6 +131,15 @@
 .cv .cv-contact a {
   color: var(--cv-accent);
   text-decoration: none;
+}
+
+/* profile paragraph */
+.cv .cv-profile {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--cv-mut);
+  margin: 0;
+  max-width: 600px;
 }
 
 /* work history — the route line with month pins */
@@ -160,6 +185,14 @@
   color: var(--cv-mut);
   margin-top: 2px;
 }
+/* sector — tech stack, quiet mono under the company line */
+.cv .cv-meta {
+  font: 400 8.5px/1.5 var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: 0.04em;
+  color: var(--cv-soft);
+  margin-top: 3px;
+  max-width: 560px;
+}
 .cv .cv-job p {
   font-size: 11px;
   line-height: 1.5;
@@ -168,20 +201,32 @@
   max-width: 560px;
 }
 
-/* education */
+/* education — same anatomy as a job entry, minus the route line */
 .cv .cv-edu {
+  margin-bottom: 16px;
+}
+.cv .cv-edu h3 {
+  font: 700 14px/1.2 var(--font-sans, 'Space Grotesk', sans-serif);
+  margin: 3px 0 0;
+}
+.cv .cv-edu p {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--cv-mut);
+  margin: 5px 0 0;
+  max-width: 560px;
+}
+
+/* certificates */
+.cv .cv-certs {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.cv .cv-edu li {
-  font-size: 13px;
+.cv .cv-certs li {
+  font-size: 12px;
   line-height: 1.6;
   color: var(--cv-mut);
-}
-.cv .cv-edu b {
-  font-weight: 600;
-  color: var(--cv-ink);
 }
 
 /* the quiet extras strip — stack / languages / interests */
@@ -262,11 +307,14 @@
     padding-top: 24px;
     padding-bottom: 24px;
   }
-  /* entries never split across a page break */
+  /* entries never split across a page break; education (the focus section)
+     stays together as a whole */
   .cv .cv-job,
-  .cv .cv-edu li,
+  .cv .cv-edu,
+  .cv .cv-certs,
   .cv .cv-extras section,
-  .cv .cv-foot {
+  .cv .cv-foot,
+  .cv .cv-keep {
     break-inside: avoid;
   }
   .cv .cv-sec {

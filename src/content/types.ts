@@ -78,6 +78,13 @@ export interface CareerEntry {
   location?: string;
   /** A sentence about the experience — shown in the route tooltip. */
   blurb?: string;
+  /** The industry, e.g. "Health care" — shown on the CV's meta line. */
+  sector?: string;
+  /** Tech used there — shown on the CV's meta line. */
+  tech?: string[];
+  /** The full CV paragraph for this stint. The CV falls back to `blurb`
+   *  when absent; the site's tooltips always use the short `blurb`. */
+  detail?: string;
   /** Company website — the route band links here (opens in a new tab). */
   url?: string;
   /** Optional explicit logo (public/ path). When omitted, the tooltip falls
@@ -91,11 +98,25 @@ export interface CareerEntry {
 export interface CvContent {
   /** One-line role statement under the name. */
   tagline: string;
+  /** The "about" paragraph at the top of the CV. */
+  profile: string;
+  /** Head shot (public/ path), shown beside the header. */
+  photo?: string;
   /** Contact rows, in order. `href` makes it a live link in the PDF. */
   contact: { label: string; href?: string }[];
   /** Tools & skills list for the extras strip. */
   stack: string[];
-  education: { school: string; degree: string }[];
+  education: {
+    school: string;
+    degree: string;
+    location?: string;
+    /** "YYYY-MM" bounds, both required to show a period. */
+    from?: string;
+    to?: string;
+    /** A short paragraph about it. */
+    note?: string;
+  }[];
+  certificates?: string[];
   languages: string[];
   /** One relaxed line of interests. */
   offTheClock: string;

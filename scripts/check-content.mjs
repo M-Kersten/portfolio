@@ -84,8 +84,12 @@ for (const cap of capabilities ?? [])
   if (!LAYERS.has(cap.layer)) errors.push(`capabilities.json → "${cap.title}": layer must be city | room | chip`);
 
 // ---- cv.json -----------------------------------------------------------------
-for (const field of ['tagline', 'stack', 'education', 'languages', 'offTheClock'])
+for (const field of ['tagline', 'profile', 'stack', 'education', 'languages', 'offTheClock'])
   if (!cv[field] || cv[field].length === 0) errors.push(`cv.json: missing "${field}"`);
+if (cv.photo && !existsSync(root + 'public' + cv.photo))
+  errors.push(`cv.json: photo ${cv.photo} not found in public/`);
+for (const e of cv.education ?? [])
+  if (!e.school || !e.degree) errors.push('cv.json: every education entry needs "school" and "degree"');
 for (const c of cv.contact ?? [])
   if (c.href && !/^(https?:\/\/|mailto:)/.test(c.href))
     errors.push(`cv.json → contact "${c.label}": href should be a full URL or mailto:`);
