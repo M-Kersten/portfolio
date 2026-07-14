@@ -16,7 +16,6 @@
       "Networking",
       "UX"
     ],
-    "follows": "philips-medical-xr",
     "lesson": "Adding tech to a system that already exists is often harder than starting from scratch. Before i implement a feature i should ask: 'will this even be maintained?'",
     "year": "2026",
     "live": false,
@@ -64,7 +63,6 @@
       "WebGL",
       "Geo-data"
     ],
-    "follows": "alliander-hololens",
     "lesson": "Technically it worked great, but the organisation wasn’t quite ready to change how it worked so it never fully landed.",
     "year": "2024-06",
     "live": false,
@@ -112,7 +110,6 @@
       "Unity",
       "Maps"
     ],
-    "follows": "arcam",
     "lesson": "The real world is messy: GPS drifts, places change and people wander into frame. So designing for that mess up front beats pretending it isn't there.",
     "year": "2023-04",
     "live": false,
@@ -185,7 +182,6 @@
       "iOS",
       "Android"
     ],
-    "follows": "custom-ar-framework",
     "lesson": "Owning something end to end teaches you the whole lifecycle and that the last 10% (support, store reviews, weird customer feedback) is most of the work.",
     "year": "2020-02",
     "live": false,
@@ -262,6 +258,7 @@
     "lesson": "Just because you can automate the human out of something doesn’t mean you should. This prototype was functional and i made tutorials, documentation, everything. Still it wasn't doing what we hoped it did and ended up on the shelf.",
     "year": "2025-06",
     "live": false,
+    "follows": "philips-medical-xr",
     "media": [],
     "video": "https://youtu.be/8UI8EQKnCTY",
     "article": "https://medium.com/@rebelscontent/ai-chatbots-for-augmented-reality-a0c06f0c599a",

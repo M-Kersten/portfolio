@@ -329,7 +329,7 @@ export function Work() {
     // (dollyZoom / dollyTilt / motionEase); set to 0 to disable. At rest the
     // values decay to exactly zero, so the resting wall is pixel-identical to
     // a wall without this code.
-    const SPEED_REF = 50; // px/frame that counts as "full speed"
+    const SPEED_REF = 35; // px/frame that counts as "full speed"
     let lastX = -1; // pan position on the previous frame (-1 = not measured yet)
     let vel = 0; // smoothed pan velocity
     const update = () => {
@@ -348,14 +348,15 @@ export function Work() {
       const dv = lastX < 0 ? 0 : x - lastX;
       lastX = x;
       vel += (dv - vel) * cfg.motionEase;
-      const speed = Math.min(1, Math.abs(vel) / SPEED_REF); // 0..1 of full speed
-      const scale = 1 - cfg.dollyZoom * speed;
+      const speed = Math.min(1, vel / SPEED_REF); // 0..1 of full speed
+      const absoluteSpeed = Math.min(1, Math.abs(vel) / SPEED_REF); // 0..1 of full speed
+      const scale = 1 - cfg.dollyZoom * absoluteSpeed;
       const tilt = cfg.dollyTilt * speed;
 
       // Scale/tilt around the point currently at the viewport's centre.
       plane.style.transformOrigin = `${x + window.innerWidth / 2}px 50%`;
       plane.style.transform =
-        `translate3d(${-x}px, ${-(p * maxY)}px, 0) scale(${scale}) rotateX(${tilt}deg)`;
+        `translate3d(${-x}px, ${-(p * maxY)}px, 0) scale(${scale}) rotateY(${tilt}deg)`;
       // Parallax: the dot field drifts slower, so the timeline reads as the near
       // layer floating in front of a receding space.
       farOffset.current = { x: p * maxX * cfg.parallax, y: p * maxY * cfg.parallax };

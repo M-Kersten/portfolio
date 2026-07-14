@@ -29,8 +29,8 @@ const WALL_DEFAULTS: WallConfig = {
   rise: 6,
   parallax: 0.72,
 
-  dollyZoom: 0.04,
-  dollyTilt: 1.1,
+  dollyZoom: 0.08,
+  dollyTilt: -5,
   motionEase: 0.12,
 };
 

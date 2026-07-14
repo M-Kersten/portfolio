@@ -12,9 +12,9 @@ const STEPS = [0, 1, 2];
 // One line of narration per layer, so the descent reads as a told story
 // instead of a silent slideshow. The index carries the layer's accent.
 const CAPTIONS = [
-  { index: '01', name: 'city', blurb: 'work at the scale of streets', accent: 'var(--cyan)' },
-  { index: '02', name: 'room', blurb: 'the things people pick up and play', accent: 'var(--coral)' },
-  { index: '03', name: 'chip', blurb: 'the tools underneath it all', accent: 'var(--lime)' },
+  { index: '01', name: 'city', blurb: 'at the scale of streets', accent: 'var(--cyan)' },
+  { index: '02', name: 'room', blurb: 'the things you pick up and use', accent: 'var(--coral)' },
+  { index: '03', name: 'chip', blurb: 'the tools supporting it all', accent: 'var(--lime)' },
 ];
 
 // The exploration game: every 3D hotspot brought alive counts as a found
