@@ -67,7 +67,9 @@ export const CAMERA = {
 
   // Close-up framing when a project node is opened. Shorter = tighter on the node.
   nodeOffset: [1.55, 1.15, 2.55] as Vec3,
-  nodeAimDown: 0.38, // aim this far below the node so it sits above the HUD
+  // How far below the node the camera aims, in world units. RAISE this to push
+  // the selected object higher up the frame, clear above the HUD drawer.
+  nodeAimDown: 0.62,
 
   // The lens — vertical field of view, in degrees.
   baseFov: 42, // on a wide desktop
@@ -84,7 +86,11 @@ export const CAMERA = {
   // layers spread on a phone; `gapRamp` is how fast they spread as it narrows.
   gapMax: 1.5,
   gapRamp: 0.28,
-  mobileNodeLift: 0.7, // extra downward aim for an open node in portrait (clears the sheet)
+  // Extra downward aim for an open node in portrait, on top of nodeAimDown.
+  // It needs to be larger than you'd expect: the phone camera sits further back
+  // (fitScale), so a given aim shifts the object less on screen. RAISE to push
+  // the node higher above the mobile sheet.
+  mobileNodeLift: 1.5,
 };
 
 /** Modest pull-back for narrow/tall viewports (paired with fitFov). 1 on desktop. */
