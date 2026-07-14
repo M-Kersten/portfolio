@@ -159,6 +159,28 @@ function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig
   return { width, routeLeft, routeW, stops, bands, minYear, maxYear };
 }
 
+// The career band under a given x on the timeline — used by the mobile info bar,
+// which can't rely on hover. Prefers the primary (spine) band, falls back to the
+// nearest when x sits in a gap (the spawn lead-in), and reports a concurrent
+// freelance stint if one overlaps at the same spot.
+function bandsAt(bands: CareerBand[], x: number): { main: CareerBand; concurrent?: CareerBand } | null {
+  if (!bands.length) return null;
+  const primary = bands.filter((b) => !b.freelance);
+  const pool = primary.length ? primary : bands;
+  let main = pool.find((b) => x >= b.x1 && x <= b.x2);
+  if (!main) {
+    main = pool.reduce(
+      (best, b) => {
+        const d = Math.abs((b.x1 + b.x2) / 2 - x);
+        return d < best.d ? { b, d } : best;
+      },
+      { b: pool[0], d: Infinity },
+    ).b;
+  }
+  const concurrent = bands.find((b) => b.freelance && b !== main && x >= b.x1 && x <= b.x2);
+  return { main, concurrent };
+}
+
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
 // backdrop. Not the old bottom HUD — a focused card. Esc / ✕ / backdrop closes.
 function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClose: () => void; onJump: (slug: string) => void }) {
@@ -288,6 +310,10 @@ export function Work() {
   const cfg = useWallConfig();
   const timeline = useMemo(() => buildTimeline(cases, site.career ?? [], cfg), [cfg]);
   const [open, setOpen] = useState<string | null>(null);
+  // The mobile sticky company bar: which band is at the scroll position, and
+  // whether the timeline is on screen (so the bar only shows while it's in view).
+  const [now, setNow] = useState<{ main: CareerBand; concurrent?: CareerBand } | null>(null);
+  const [pinIn, setPinIn] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const planeRef = useRef<HTMLDivElement>(null);
   const farRef = useRef<HTMLDivElement>(null);
@@ -305,6 +331,45 @@ export function Work() {
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
   }, []);
+
+  // Mobile: drive the sticky company bar from the horizontal scroll position —
+  // touch has no hover, so the per-band tooltip is otherwise unreachable. The
+  // band under the viewport's centre is the "current" employer; an
+  // IntersectionObserver hides the bar while the timeline is off screen.
+  useEffect(() => {
+    if (!isNarrow) {
+      setNow(null);
+      setPinIn(false);
+      return;
+    }
+    const pin = pinRef.current;
+    if (!pin) return;
+    let raf = 0;
+    const compute = () => {
+      raf = 0;
+      const centerX = pin.scrollLeft + pin.clientWidth / 2;
+      const next = bandsAt(timeline.bands, centerX);
+      setNow((prev) =>
+        prev?.main.company === next?.main.company &&
+        prev?.main.x1 === next?.main.x1 &&
+        prev?.concurrent?.company === next?.concurrent?.company
+          ? prev
+          : next,
+      );
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(compute);
+    };
+    pin.addEventListener('scroll', onScroll, { passive: true });
+    const io = new IntersectionObserver((es) => setPinIn(es[0].isIntersecting), { threshold: 0.35 });
+    io.observe(pin);
+    compute();
+    return () => {
+      pin.removeEventListener('scroll', onScroll);
+      io.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [isNarrow, timeline.bands]);
 
   useEffect(() => {
     if (manualPan) return;
@@ -566,6 +631,64 @@ export function Work() {
           </div>
         </div>
       </div>
+
+      {/* Mobile — a sticky bar reading out the employer at the current scroll
+          position (touch can't reach the per-band hover tooltips). */}
+      {isNarrow && (
+        <div
+          className="tl-now"
+          data-in={pinIn && now ? '' : undefined}
+          style={now ? ({ '--band': now.main.color } as CSSProperties) : undefined}
+          aria-live="polite"
+        >
+          {now &&
+            (() => {
+              const b = now.main;
+              const logo = b.logo ? asset(b.logo) : companyFavicon(b.url);
+              const body = (
+                <>
+                  {logo && (
+                    <img
+                      className="tl-now__logo"
+                      src={logo}
+                      alt=""
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  )}
+                  <span className="tl-now__text">
+                    <span className="tl-now__head">
+                      <b>{b.company}</b>
+                      <span className="tl-now__period">{b.period}</span>
+                    </span>
+                    {(b.role || b.location) && (
+                      <span className="tl-now__role">{[b.role, b.location].filter(Boolean).join(' · ')}</span>
+                    )}
+                    {now.concurrent && (
+                      <span className="tl-now__free" style={{ '--band': now.concurrent.color } as CSSProperties}>
+                        + {now.concurrent.company} · freelance
+                      </span>
+                    )}
+                  </span>
+                  {b.url && (
+                    <span className="tl-now__link" aria-hidden="true">
+                      ↗
+                    </span>
+                  )}
+                </>
+              );
+              return b.url ? (
+                <a className="tl-now__card" href={b.url} target="_blank" rel="noreferrer" aria-label={`${b.company} — visit website`}>
+                  {body}
+                </a>
+              ) : (
+                <span className="tl-now__card">{body}</span>
+              );
+            })()}
+        </div>
+      )}
 
       {openStudy && <FocusCard study={openStudy} onClose={() => setOpen(null)} onJump={setOpen} />}
     </section>

@@ -338,6 +338,94 @@
   color: var(--ink-40);
   pointer-events: none;
 }
+/* On phones the sticky company bar owns the bottom, so drop the scroll cue. */
+.wall[data-static] .wall__cue { display: none; }
+
+/* ---- Mobile sticky company bar ----
+   The timeline can't be hovered on touch, so this fixed bar reads out the
+   employer at the current horizontal scroll position. It slides up while the
+   timeline is on screen (data-in) and takes the current band's colour. */
+.tl-now {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  padding: 0.7rem var(--space-m) max(0.7rem, env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--paper-2) 92%, transparent);
+  border-top: 2px solid color-mix(in srgb, var(--band, var(--accent)) 70%, var(--line));
+  backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow: 0 -14px 32px rgba(0, 0, 0, 0.5);
+  transform: translateY(110%);
+  opacity: 0;
+  transition: transform 0.32s var(--ease), opacity 0.32s var(--ease), border-color 0.3s var(--ease);
+  pointer-events: none;
+}
+.tl-now[data-in] {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+.tl-now__card {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  text-decoration: none;
+  color: inherit;
+}
+.tl-now__logo {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  object-fit: contain;
+  border-radius: 4px;
+}
+.tl-now__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.tl-now__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+}
+.tl-now__head b {
+  font-family: var(--font-display);
+  font-size: var(--step-0);
+  color: var(--ink);
+}
+.tl-now__period {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--band) 82%, var(--ink));
+  white-space: nowrap;
+}
+.tl-now__role {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-60);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tl-now__free {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--band) 85%, var(--ink));
+}
+.tl-now__link {
+  margin-left: auto;
+  flex: none;
+  font-size: 1.15em;
+  color: color-mix(in srgb, var(--band) 82%, var(--ink));
+}
 
 /* Poster tile — absolutely placed on the wall, tilted a touch; straightens and
    lifts on hover. */
