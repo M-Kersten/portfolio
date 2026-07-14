@@ -143,68 +143,69 @@
   white-space: pre-wrap;
 }
 
-/* ---- Mobile: three stacked cards ---- */
+/* ---- Mobile: the desktop band's look, stacked. Each scale's own animated
+   motif fills its row full-bleed and the copy is laid over the top (same as the
+   desktop columns), one scale per row, split by a hairline seam. ---- */
 .cap-ladder { display: none; }
 .cap {
   --card-accent: var(--accent);
   position: relative;
-  display: flex;
-  flex-direction: column;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card-accent) 8%, var(--paper-2)), var(--paper-2));
-  border: 1px solid color-mix(in srgb, var(--card-accent) 30%, var(--line));
-  border-radius: var(--radius);
   overflow: hidden;
-  transition: transform 0.4s var(--ease), border-color 0.3s var(--ease), box-shadow 0.3s var(--ease), opacity 0.5s var(--ease);
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
   transition-delay: calc(var(--i) * 0.09s);
 }
 .cap[data-layer='city'] { --card-accent: var(--cyan); }
 .cap[data-layer='room'] { --card-accent: var(--coral); }
 .cap[data-layer='chip'] { --card-accent: var(--lime); }
 .cap-ladder:not([data-shown]) .cap { opacity: 0; transform: translateY(26px); }
-.cap[data-on] {
-  border-color: color-mix(in srgb, var(--card-accent) 65%, var(--line));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent);
-}
+/* the motif fills the whole row, behind the copy */
 .cap__motif {
-  position: relative;
-  height: 150px;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
-  background: radial-gradient(120% 110% at 50% 0%, color-mix(in srgb, var(--card-accent) 13%, transparent), transparent 68%), #06090c;
-  border-bottom: 1px solid color-mix(in srgb, var(--card-accent) 26%, var(--line));
 }
-.cap__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cap__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* faint, like the desktop band, so the copy stays readable over it */
+  opacity: 0.6;
+  transition: opacity 0.4s var(--ease);
+}
+.cap[data-on] .cap__canvas { opacity: 0.9; }
+/* a soft scrim on the copy side (left) so the text is always legible */
 .cap__motif::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 52%, color-mix(in srgb, var(--paper-2) 88%, transparent));
   pointer-events: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--paper) 82%, transparent), color-mix(in srgb, var(--paper) 34%, transparent) 55%, transparent 88%);
 }
-.cap__reticle { position: absolute; inset: 8px; z-index: 2; pointer-events: none; }
-.cap__reticle i {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border: 1.5px solid color-mix(in srgb, var(--card-accent) 38%, transparent);
+.cap__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  max-width: 34ch;
 }
-.cap[data-on] .cap__reticle i { border-color: var(--card-accent); }
-.cap__reticle i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-.cap__reticle i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
-.cap__reticle i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
-.cap__reticle i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-.cap__body { display: flex; flex-direction: column; gap: 0.5em; padding: var(--space-m); flex: 1; }
+.cap-ladder[data-active] .cap:not([data-on]) { opacity: 0.5; }
 
 @media (max-width: 900px) {
   .cap-band { display: none; }
-  .cap-ladder {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-m);
-    margin-top: var(--space-l);
-    max-width: 34rem;
-    /* centred under the intro — left-hugging cards left a bare right half
-       between ~560px and the 900px breakpoint */
-    margin-inline: auto;
+  .cap-ladder { display: block; margin-top: var(--space-l); }
+  .cap {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: clamp(240px, 60vw, 340px);
+    padding-block: clamp(1.75rem, 6vw, 2.75rem);
+    /* the copy sits on the same left grid line as the section title above */
+    padding-inline: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
+    border-top: 1px solid var(--line); /* seam between the stacked scales */
   }
+  .cap:first-child { border-top: 0; }
 }
 

@@ -92,34 +92,27 @@ export function Capabilities() {
         </div>
       </div>
 
-      {/* Mobile — three stacked cards. */}
-      <div className="container">
-        <div className="cap-ladder" data-shown={shown || undefined} data-active={active || undefined}>
-          {capabilities.map((c, i) => (
-            <article
-              key={c.layer}
-              className="cap"
-              data-layer={c.layer}
-              data-on={active === c.layer || undefined}
-              style={{ '--i': i } as CSSProperties}
-              onMouseEnter={() => enter(c.layer)}
-              onMouseLeave={() => leave(c.layer)}
-            >
-              <div className="cap__motif">
-                <ScaleMotif layer={c.layer} color={COLOR[c.layer]} active={active === c.layer} />
-                <span className="cap__reticle" aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                </span>
-              </div>
-              <div className="cap__body">
-                <CapText c={c} delay={i * 140} />
-              </div>
-            </article>
-          ))}
-        </div>
+      {/* Mobile — the desktop band's look, stacked: the copy sits over each
+          scale's own animated motif, full-bleed, one scale per row. */}
+      <div className="cap-ladder" data-shown={shown || undefined} data-active={active || undefined}>
+        {capabilities.map((c, i) => (
+          <article
+            key={c.layer}
+            className="cap"
+            data-layer={c.layer}
+            data-on={active === c.layer || undefined}
+            style={{ '--i': i } as CSSProperties}
+            onMouseEnter={() => enter(c.layer)}
+            onMouseLeave={() => leave(c.layer)}
+          >
+            <div className="cap__motif">
+              <ScaleMotif layer={c.layer} color={COLOR[c.layer]} active={active === c.layer} />
+            </div>
+            <div className="cap__body">
+              <CapText c={c} delay={i * 140} />
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   );
