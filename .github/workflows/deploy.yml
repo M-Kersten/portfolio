@@ -4,7 +4,7 @@ on:
   push:
     # Deploy branch (no `main` in this repo yet). Change here if you adopt main.
     # NB: branch filters match the ref name only — no `origin/` remote prefix.
-    branches: [claude/editorial-spatial-redesign]
+    branches: [claude/cleanup-refactor]
   workflow_dispatch:
 
 permissions:
