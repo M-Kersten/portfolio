@@ -46,18 +46,18 @@ export interface HotspotView {
 // (placed at LAYER_Y and scaled).
 export const HOTSPOTS: Hotspot[] = [
   // Chip — the die sits centre; parts fan outwards
-  { slug: 'amsterdam-ai', layer: 'chip', position: [0.03, 0.49, 0], anchor: [0, 0.16, 0] }, // the die
-  { slug: 'custom-ar-framework', layer: 'chip', position: [0.9, 0.54, -0.72], anchor: [0.95, 0, -0.72] }, // AR lens (moved to the back-right)
-  { slug: 'philips-medical-xr', layer: 'chip', position: [-0.97, 0.63, -0.74], anchor: [-0.95, 0.24, -0.74] }, // ECG / Vision Pro module (moved to the left to balance)
+  { slug: 'amsterdam-ai', layer: 'chip', position: [0.03, 0.49, 0], anchor: [0, 0.16, 0], view: { offset: [0.35, 1.75, 1.85], aimDown: 0.62, fovZoom: 14, mobileLift: 1.5 } }, // the die
+  { slug: 'custom-ar-framework', layer: 'chip', position: [0.9, 0.54, -0.72], anchor: [0.95, 0, -0.72], view: { offset: [2.2, 0.8, 1.8], aimDown: 0.3, fovZoom: -2.5, mobileLift: 1.5 } }, // AR lens (moved to the back-right)
+  { slug: 'philips-medical-xr', layer: 'chip', position: [-0.97, 0.63, -0.74], anchor: [-0.95, 0.24, -0.74], view: { offset: [0.5, 0.55, 1.25], aimDown: 0.25, fovZoom: 19.5, mobileLift: 1.5 } }, // ECG / Vision Pro module (moved to the left to balance)
   // Room — spread into a corner diorama
-  { slug: 'virtuele-brigade', layer: 'room', position: [-1.83, 0.95, 0.14], anchor: [-1.8, 0.65, 0.14] }, // the monitor
-  { slug: 'popcore-games', layer: 'room', position: [0.25, 0.62, -0.14], anchor: [0.23, 0.22, -0.14] }, // phone on the couch
-  { slug: 'lightship-drive', layer: 'room', position: [-0.03, 0.52, 0.52], anchor: [0, 0.2, 0.52] }, // the AR race table
-  { slug: 'zwijsen-ar-books', layer: 'room', position: [1.2, 1.1, -0.28], anchor: [1.02, 0.52, -0.78] }, // the orange book on the shelf
+  { slug: 'virtuele-brigade', layer: 'room', position: [-1.83, 0.95, 0.14], anchor: [-1.8, 0.65, 0.14], view: { offset: [2.05, 0.2, 0.3], aimDown: 0.45, fovZoom: 0.5, mobileLift: 1.5 } }, // the monitor
+  { slug: 'popcore-games', layer: 'room', position: [0.25, 0.62, -0.14], anchor: [0.23, 0.22, -0.14], view: { offset: [0.6, 0.55, 0.95], aimDown: 0.05, fovZoom: 19.5, mobileLift: 1.5 } }, // phone on the couch
+  { slug: 'lightship-drive', layer: 'room', position: [-0.03, 0.52, 0.52], anchor: [0, 0.2, 0.52], view: { offset: [0.95, 0.5, 0.75], aimDown: 0.25, fovZoom: 30, mobileLift: 1.5 } }, // the AR race table
+  { slug: 'zwijsen-ar-books', layer: 'room', position: [1.2, 1.1, -0.28], anchor: [1.02, 0.52, -0.78], view: { offset: [0.05, 0.2, 1.35], aimDown: 0.05, fovZoom: 16, mobileLift: 1.5 } }, // the orange book on the shelf
   // City — GIS / location work
-  { slug: 'arcam', layer: 'city', position: [1.15, 0.66, -0.32], anchor: [1.25, 0.0, -0.22] }, // the park
-  { slug: 'alliander-hololens', layer: 'city', position: [.05, 1.2, 0], anchor: [0, 0.85, 0] }, // the skyscraper (skyline peak)
-  { slug: 'dtt-amsterdam', layer: 'city', position: [-1.15, 1.15, 0.4], anchor: [-1.31, 0.63, 0.36] }, // the windmill
+  { slug: 'arcam', layer: 'city', position: [1.15, 0.66, -0.32], anchor: [1.25, 0.0, -0.22], view: { offset: [1.45, 1.15, 2.1], aimDown: 0.3, fovZoom: 17, mobileLift: 1.7 } }, // the park
+  { slug: 'alliander-hololens', layer: 'city', position: [.05, 1.2, 0], anchor: [0, 0.85, 0], view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26, mobileLift: 1.5 } }, // the skyscraper (skyline peak)
+  { slug: 'dtt-amsterdam', layer: 'city', position: [-1.15, 1.15, 0.4], anchor: [-1.31, 0.63, 0.36], view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19, mobileLift: 1.5 } }, // the windmill
 ];
 
 export interface Framing {
