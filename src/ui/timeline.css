@@ -292,7 +292,20 @@
           mask-image: radial-gradient(circle var(--r, 130px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.4) 42%, transparent 72%);
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--cyan) 50%, transparent));
 }
-.wall[data-static] .wall__glow { display: none; }
+/* Mobile (data-static, non-reduced): the glow follows your scroll instead of
+   the cursor — a wave that lights the dots as you travel and fades when you stop
+   (driven in Work.tsx). Here it's pinned to the viewport via a JS transform and
+   sized to it; a horizontally-stretched crest reads as a wave, not a spotlight. */
+.wall[data-static] .wall__glow {
+  inset: 0 auto auto 0;
+  width: 100vw;
+  height: 100%;
+  opacity: 0;
+  -webkit-mask-image: radial-gradient(ellipse var(--r, 160px) calc(var(--r, 160px) * 0.62) at var(--mx, 50%) var(--my, 50%), #000 0%, rgba(0, 0, 0, 0.45) 46%, transparent 74%);
+          mask-image: radial-gradient(ellipse var(--r, 160px) calc(var(--r, 160px) * 0.62) at var(--mx, 50%) var(--my, 50%), #000 0%, rgba(0, 0, 0, 0.45) 46%, transparent 74%);
+}
+/* Reduced motion: no wave at all. */
+.wall[data-reduced] .wall__glow { display: none; }
 
 /* (The BASEMAP instrument HUD, scattered map labels and land features were
    removed — the timeline route is the map's single organising device now.) */

@@ -478,6 +478,85 @@ export function Work() {
     };
   }, [manualPan, timeline.width, cfg]);
 
+  // Mobile: touch has no hover, so the dot field lights up along your *scroll*
+  // instead of the cursor — a soft wave that travels with you through the
+  // timeline and recedes when you stop. Reuses the .wall__glow layer, but here
+  // it's pinned to the viewport (a transform counters the native scroll) with
+  // its bright dots kept aligned to the base field (--ox), while a velocity-
+  // driven crest sweeps across it. Skipped under reduced motion.
+  useEffect(() => {
+    if (!isNarrow || reduced) return;
+    const pin = pinRef.current;
+    const glow = glowRef.current;
+    if (!pin || !glow) return;
+
+    // ---- Wave feel — all tweakable. Speeds are px per ~60fps frame. ----
+    const SPEED_REF = 26; // scroll px/frame that reads as "full speed"
+    const VEL_EASE = 0.22; // how quickly the smoothed velocity tracks the scroll
+    const RISE = 0.3; // how fast the wave lights up while you're moving
+    const FALL = 0.05; // how slowly it recedes once you stop (the fade-out)
+    const LEAD = 0.16; // how far ahead of you the crest rides (fraction of width)
+    const WAVE_AMP = 26; // vertical undulation of the crest (px)
+    const WAVE_SPEED = 0.07; // undulation speed
+    const R_BASE = 150; // crest radius at rest
+    const R_GROW = 120; // extra crest radius at full speed
+
+    let raf = 0;
+    let lastLeft = pin.scrollLeft;
+    let vel = 0; // smoothed scroll velocity (px/frame)
+    let intensity = 0; // 0..1 → glow opacity
+    let phase = 0; // undulation phase
+
+    const frame = () => {
+      raf = 0;
+      const left = pin.scrollLeft;
+      const dv = left - lastLeft;
+      lastLeft = left;
+      vel += (dv - vel) * VEL_EASE;
+      const speed = Math.min(1, Math.abs(vel) / SPEED_REF);
+      // rise fast on movement, fall slowly on stop → a wave that lingers then fades
+      intensity += (speed - intensity) * (speed > intensity ? RISE : FALL);
+      phase += WAVE_SPEED;
+
+      const vw = pin.clientWidth;
+      const vh = pin.clientHeight;
+      // Pin the layer to the viewport and keep its bright dots over the base
+      // field as the content scrolls beneath.
+      glow.style.transform = `translateX(${left}px)`;
+      glow.style.setProperty('--ox', `${-left}px`);
+      glow.style.setProperty('--oy', '0px');
+      // The crest: centred on the viewport, riding a little ahead in the scroll
+      // direction and undulating vertically so it reads as a wave, not a spotlight.
+      const cx = vw / 2 + Math.sign(vel) * speed * LEAD * vw;
+      const cy = vh / 2 + Math.sin(phase) * WAVE_AMP;
+      glow.style.setProperty('--mx', `${cx}px`);
+      glow.style.setProperty('--my', `${cy}px`);
+      glow.style.setProperty('--r', `${R_BASE + speed * R_GROW + Math.sin(phase * 1.3) * 10}px`);
+      glow.style.opacity = `${intensity}`;
+
+      // Keep animating until the wave has fully receded, even after scroll stops.
+      if (intensity > 0.01 || Math.abs(vel) > 0.05) {
+        raf = requestAnimationFrame(frame);
+      } else {
+        vel = 0;
+        intensity = 0;
+        glow.style.opacity = '0';
+      }
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(frame);
+    };
+    pin.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      pin.removeEventListener('scroll', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+      glow.style.opacity = '';
+      glow.style.transform = '';
+      glow.style.removeProperty('--ox');
+      glow.style.removeProperty('--oy');
+    };
+  }, [isNarrow, reduced]);
+
   const openStudy = open ? caseBySlug(open) : undefined;
   // The spawn point sits a short lead-in left of where the route proper starts.
   const spawnX = Math.max(74, timeline.routeLeft - 96);
