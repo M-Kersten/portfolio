@@ -3,15 +3,15 @@
     "layer": "city",
     "index": "01",
     "title": "City: maps & the real world",
-    "body": "The big scale, i love taking real-world data. Open building maps, point clouds, GPS, and turning it into something you can actually move through. Digital twins, location based AR. The fact that these work is still magical to me",
-    "tags": ["VPS", "RTK GPS", "Point clouds", "GIS"]
+    "body": "The big scale, i love playing with real-world data like maps, point clouds, GPS. Turning it into something you can actually move through, be it digital twins or location based AR. The fact that this is possible is still magical to me",
+    "tags": ["VPS", "RTK", "Point clouds", "GIS"]
   },
   {
     "layer": "room",
     "index": "02",
     "title": "Room: games, apps & toys",
-    "body": "The human scale, what people pick up and play with. Games, apps, websites, UX design. This is where I get to be rapidly prototype, a tiny mobile game one week, a training sim or quick visualization. If it makes someone smile or learn something i did my job.",
-    "tags": ["Unity", "VR", "Mobile", "Web"]
+    "body": "The human scale, what people pick up and play with. Games, apps, websites, buttons and sliders. This is where I get to be rapidly prototype, from a tiny mobile game, training sim to whole UX overhaul. If it makes someone smile or learn something i did my job.",
+    "tags": ["Unity", "VR", "Mobile", "Web", "UX"]
   },
   {
     "layer": "chip",

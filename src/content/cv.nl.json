@@ -1,19 +1,19 @@
 {
   "ui": {
-    "profile": "Profiel",
-    "yearsUnit": "jaar in XR",
+    "profile": "Kort over mijzelf",
+    "yearsUnit": "jaar ervaring",
     "experience": "Werkervaring",
     "education": "Opleiding",
     "certificates": "Certificaten",
     "stack": "Stack",
     "languages": "Talen",
     "offTheClockLabel": "Vrije tijd",
-    "now": "heden",
+    "now": "Nu",
     "back": "terug naar de site",
     "download": "download PDF"
   },
-  "tagline": "Creative technologist — dingen bouwen die het buiten de demo overleven.",
-  "profile": "Als XR developer heb ik met veel enthousiasme bijgedragen aan projecten op het gebied van AR, VR, mobile games en interactieve installaties. Het verbinden van de virtuele en fysieke wereld en mijn drive om de grenzen van technieken te verkennen staan centraal in mijn werk. Elk project is weer een kans om anderen een fris perspectief te bieden.",
+  "tagline": "Creative technologist, dingen bouwen die het buiten de demo overleven.",
+  "profile": "Als XR developer heb ik met veel enthousiasme bijgedragen aan projecten op het gebied van AR, VR, mobile games en interactieve installaties. Het verbinden van de virtuele en fysieke wereld en de grenzen van technieken verkennen maken dit het mooiste werk wat ik kan bedenken. Elk project is weer een kans om anderen een fris perspectief te bieden.",
   "photo": "/profile/5.png",
   "location": "Utrecht, Nederland",
   "phone": "+31 6 21173954",
@@ -49,9 +49,9 @@
       "note": "In Oulu heb ik een team geleid in het ontwikkelen van een indie game die het verhaal van de laatste stam van Europa, de Sami, vertelt. Als team lead en developer heb ik het project door elke ronde geleid en uiteindelijk de eerste plek gewonnen voor het leerjaar."
     }
   ],
-  "certificates": ["Unity Certified Professional — Programmer"],
-  "languages": ["Nederlands — moedertaal", "Engels — vloeiend", "Frans · Duits — basis", "Fins — een beetje"],
-  "offTheClock": "Muziekproductie, bakken, koken, geschiedenis, fitness",
+  "certificates": ["Unity Certified Professional - Programmer"],
+  "languages": ["Nederlands - moedertaal", "Engels - vloeiend", "Duits - semi-vloeiend", "Frans - basis", "Fins - beginner"],
+  "offTheClock": "Muziekproductie, bakken, koken, de kerk, geschiedenis, fitness",
   "career": [
     {
       "sector": "Immersive reality",
@@ -75,7 +75,7 @@
     },
     {
       "sector": "Gezondheidszorg",
-      "detail": "Bij het immersive lab van Philips visualiseerde ik medische apparatuur en ontwikkelde ik VR-ervaringen die zowel educatief als informatief zijn — bedoeld om mensen vertrouwd te maken met nieuwe medische ontwikkelingen en om ze te presenteren op beurzen."
+      "detail": "Bij het immersive lab van Philips visualiseerde ik medische apparatuur en ontwikkelde ik VR-ervaringen die zowel educatief als informatief zijn. Bedoeld om mensen vertrouwd te maken met nieuwe medische ontwikkelingen en om ze te presenteren op beurzen."
     },
     {
       "sector": "Energie",
@@ -83,11 +83,11 @@
     },
     {
       "sector": "Gezondheidszorg",
-      "detail": "Terug bij het immersive lab: nieuwe spatial tech doorontwikkelen tot iets dat betrouwbaar genoeg is om echt van waarde te zijn, waaronder onderzoek naar hoe Apple Vision Pro binnen Philips toegepast kan worden. De vrijheid om nieuwe technieken te testen en in te schatten of ze waarde hebben, was het meest leerzame aspect van deze periode."
+      "detail": "Terug bij het immersive lab ondernamen we een project waarin we in research papers doken en als eerste met metahumans in Unreal de hartslag van mensen simuleerden voor syntethyse data generatie, technisch uitdagend maar ook betekenisvol werk."
     },
     {
       "sector": "Defensie",
-      "detail": "De Marechaussee is de Nederlandse militaire politie. Ik werk aan het verbinden van VR-spelers binnen een complex trainingssysteem dat al jaren in ontwikkeling is — multiplayer-netwerken waar falen geen optie is."
+      "detail": "Bij de Marechaussee werk ik aan het verbinden van VR-spelers binnen een complex trainingssysteem dat al jaren in ontwikkeling is, multiplayer-netwerken waar falen geen optie is in een omgeving waar ik veel zelf moet doen vanwege security."
     }
   ]
 }
