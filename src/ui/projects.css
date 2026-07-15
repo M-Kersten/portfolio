@@ -1,0 +1,208 @@
+/* The /projects view — a "signal constellation" of every project (highlights +
+   the long tail) over the site's square-dot field. Each node is a thumbnail +
+   name that opens the same case card the timeline uses. */
+
+.pc-stage {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+}
+
+/* top bar — back home, the title, the count */
+.pc-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-m);
+  padding: var(--space-m) var(--space-l);
+  border-bottom: 1px solid var(--hairline);
+}
+.pc-back {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.02em;
+  color: var(--ink-60);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pc-back:hover {
+  color: var(--ink);
+}
+.pc-title {
+  font-size: var(--step-1);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.pc-count {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  white-space: nowrap;
+}
+
+/* the field — the constellation lives here, over the square-dot pattern */
+.pc-field {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 32rem;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 62%),
+    var(--dots-ink) 0 0 / 30px 30px,
+    var(--paper);
+}
+/* faint threads between projects that share a layer */
+.pc-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+.pc-links line {
+  stroke-width: 1;
+  stroke-opacity: 0.1;
+  transition: stroke-opacity 0.22s var(--ease);
+}
+.pc-links line.lit {
+  stroke-opacity: 0.5;
+}
+
+/* a project node — thumbnail over a caption, drifting; JS sets the transform */
+.pc-node {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: 148px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-60);
+  cursor: pointer;
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+}
+.pc-node[data-big] {
+  color: var(--ink);
+}
+.pc-thumb {
+  position: relative;
+  width: 74px;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--c) 38%, var(--line));
+  background: #06080a;
+  box-shadow: 0 8px 20px -10px #000;
+  transition: transform 0.24s var(--ease), box-shadow 0.24s var(--ease), border-color 0.24s var(--ease);
+}
+.pc-node[data-big] .pc-thumb {
+  width: 106px;
+}
+.pc-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0.82;
+  transition: opacity 0.24s var(--ease);
+}
+/* poster missing (e.g. a fresh archive entry) → a quiet layer-tinted marker */
+.pc-thumb[data-empty] {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 100% at 50% 40%, color-mix(in srgb, var(--c) 16%, transparent), transparent 70%), #06080a;
+}
+.pc-thumb[data-empty]::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--c) 70%, transparent);
+  border-radius: 50%;
+  opacity: 0.7;
+}
+.pc-label {
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  line-height: 1.16;
+  text-align: center;
+  letter-spacing: -0.01em;
+  max-width: 140px;
+  transition: color 0.2s var(--ease), text-shadow 0.2s var(--ease);
+}
+.pc-node[data-big] .pc-label {
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+.pc-node:focus-visible {
+  outline: none;
+}
+.pc-node:hover,
+.pc-node:focus-visible {
+  z-index: 5;
+}
+.pc-node:hover .pc-thumb,
+.pc-node:focus-visible .pc-thumb {
+  transform: scale(1.09);
+  border-color: var(--c);
+  box-shadow: 0 12px 28px -10px #000, 0 0 22px color-mix(in srgb, var(--c) 42%, transparent);
+}
+.pc-node:hover .pc-thumb img,
+.pc-node:focus-visible .pc-thumb img {
+  opacity: 1;
+}
+.pc-node:hover .pc-label,
+.pc-node:focus-visible .pc-label {
+  color: color-mix(in srgb, var(--c) 74%, var(--ink));
+  text-shadow: 0 0 14px color-mix(in srgb, var(--c) 45%, transparent);
+}
+
+@media (max-width: 640px) {
+  .pc-top {
+    padding: var(--space-s) var(--space-m);
+  }
+  .pc-node {
+    max-width: 116px;
+  }
+  .pc-thumb {
+    width: 62px;
+  }
+  .pc-node[data-big] .pc-thumb {
+    width: 84px;
+  }
+  .pc-label {
+    font-size: 0.68rem;
+  }
+  .pc-node[data-big] .pc-label {
+    font-size: 0.78rem;
+  }
+}
+
+/* The way in — a centred CTA under the timeline (rendered in Work.tsx). */
+.wall__more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-2xl) var(--space-m);
+  text-align: center;
+}
+.wall__more-btn {
+  font-size: var(--step-0);
+  padding: 0.7em 1.3em;
+}
+.wall__more-note {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.05em;
+  color: var(--ink-40);
+}

@@ -1,12 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import { cases, caseBySlug, site, type CareerEntry, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
-import { youtubeEmbed } from '../lib/youtube';
-import { useFocusTrap } from '../lib/useFocusTrap';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard } from './CaseCard';
+import { FocusCard } from './FocusCard';
 import { SectionTitle } from './SectionTitle';
-import { StoryLinks } from './StoryLinks';
 import { useWallConfig, type WallConfig } from './wallTweak';
 
 const SPAWN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -181,119 +180,6 @@ function bandsAt(bands: CareerBand[], x: number): { main: CareerBand; concurrent
   return { main, concurrent };
 }
 
-// A project lifted off the wall: scaled-up card with the full detail, over a dim
-// backdrop. Not the old bottom HUD — a focused card. Esc / ✕ / backdrop closes.
-function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClose: () => void; onJump: (slug: string) => void }) {
-  const [imgOk, setImgOk] = useState(true);
-  const embed = youtubeEmbed(study.video);
-  // With a video, only show a photo if a real one is provided; without a video,
-  // fall back to the poster placeholder so the card still has a header image.
-  const photo = embed ? study.media?.[0] : study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(cardRef); // Tab stays inside; focus returns to the card on close
-
-  useEffect(() => {
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden'; // freeze the wall while focused
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
-
-  return (
-    <div className="focus" onClick={onClose}>
-      <div
-        ref={cardRef}
-        className="focus__card"
-        data-layer={study.layer}
-        role="dialog"
-        aria-modal="true"
-        aria-label={study.title}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button ref={closeRef} type="button" className="focus__close" onClick={onClose} aria-label="Close">
-          <span aria-hidden="true">✕</span>
-        </button>
-        {embed && (
-          <div className="focus__video">
-            <iframe
-              src={embed}
-              title={`${study.title} — video`}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              loading="lazy"
-            />
-          </div>
-        )}
-        {photo && (
-          <div className="focus__photo worktile__media">
-            <div className="worktile__ph" aria-hidden="true" />
-            {imgOk && <img className="worktile__img" src={photo} alt="" onError={() => setImgOk(false)} />}
-            <div className="worktile__scrim" aria-hidden="true" />
-            {study.live && (
-              <div className="worktile__badges">
-                <span className="worktile__live">Live</span>
-              </div>
-            )}
-          </div>
-        )}
-        <div className="focus__body">
-          <span className="worktile__meta">
-            {study.client} · {study.sector}
-          </span>
-          <h3 className="focus__title">{study.title}</h3>
-          <p className="focus__outcome">{study.outcome}</p>
-          {/* The story — the three beats visitors come for. */}
-          <div className="story">
-            <section>
-              <h4 className="story__h">The problem</h4>
-              <p>{study.problem}</p>
-            </section>
-            <section>
-              <h4 className="story__h">The approach</h4>
-              <p>{study.approach}</p>
-            </section>
-            {study.lesson && (
-              <section>
-                <h4 className="story__h">The lesson</h4>
-                <p>{study.lesson}</p>
-              </section>
-            )}
-          </div>
-          {study.tech && study.tech.length > 0 && (
-            <ul className="worktile__tech" aria-label="Technologies">
-              {study.tech.map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
-          )}
-          <div className="focus__actions">
-            <a
-              className="btn worktile__discuss"
-              href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}
-            >
-              Ask me about it
-            </a>
-            {study.article && (
-              <a className="btn btn--ghost" href={study.article} target="_blank" rel="noreferrer">
-                Read more <span aria-hidden="true">↗</span>
-              </a>
-            )}
-          </div>
-          <StoryLinks study={study} onJump={onJump} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // The projects map: a timeline you pan through. While the section is pinned,
 // page scroll drives the wall sideways — you travel from the first project to
 // the most recent, each pinned to the route at the year it happened. Clicking a
@@ -308,7 +194,9 @@ export function Work() {
   );
   const manualPan = reduced || isNarrow;
   const cfg = useWallConfig();
-  const timeline = useMemo(() => buildTimeline(cases, site.career ?? [], cfg), [cfg]);
+  // The curated route only carries the highlights; long-tail (archive) projects
+  // live in the /projects wordcloud instead.
+  const timeline = useMemo(() => buildTimeline(cases.filter((c) => !c.archive), site.career ?? [], cfg), [cfg]);
   const [open, setOpen] = useState<string | null>(null);
   // The mobile sticky company bar: which band is at the scroll position, and
   // whether the timeline is on screen (so the bar only shows while it's in view).
@@ -709,6 +597,15 @@ export function Work() {
             <i />
           </div>
         </div>
+      </div>
+
+      {/* Underneath the timeline: the way into the full index — every project,
+          not just the highlights on the route. */}
+      <div className="wall__more">
+        <Link className="btn btn--ghost wall__more-btn" to="/projects">
+          Every project <span aria-hidden="true">↗</span>
+        </Link>
+        <span className="wall__more-note">the full index — more than the highlights on the route</span>
       </div>
 
       {/* Mobile — a sticky bar reading out the employer at the current scroll

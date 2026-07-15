@@ -4,6 +4,7 @@ import { SceneCanvas } from '../components/SceneCanvas';
 import { HomeLayout } from '../components/HomeLayout';
 import { NodeHud } from '../components/NodeHud';
 import { CvPage } from '../components/CvPage';
+import { ProjectsPage } from '../components/ProjectsPage';
 import { ScrollToHash } from '../components/ScrollToHash';
 import { DevTweakPanel } from '../scene/devTweak';
 import { NodeTweakPanel } from '../scene/nodeTweak';
@@ -44,6 +45,7 @@ export function App() {
           </Route>
         </Route>
         <Route path="cv" element={<CvPage />} />
+        <Route path="projects" element={<ProjectsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

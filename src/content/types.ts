@@ -43,6 +43,9 @@ export interface CaseStudy {
   article?: string;
   /** Sample content pending sign-off; rendered with a quiet tag. */
   draft?: boolean;
+  /** A long-tail project: it appears in the /projects wordcloud (the full index)
+   *  but is kept off the curated hero + timeline. Highlights leave this unset. */
+  archive?: boolean;
 }
 
 export interface Capability {
