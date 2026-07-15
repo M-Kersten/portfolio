@@ -12,9 +12,10 @@ const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // matching the City <0.25 · Room 0.25–0.75 · Chip ≥0.75 split in HeroStage.
 const ZONE_CENTER = [0.125, 0.5, 0.875];
 
-// Bottom dossier drawer for an inspected node: a photo/video on the left and the
-// full detail on the right, while the 3D node stays visible above (the camera
-// lifts it clear). Route-driven so deep links + the back button keep working.
+// Bottom dossier drawer for an inspected node: the title + subtitle band on top,
+// then the media and the full detail below, while the 3D node stays visible above
+// (the camera lifts it clear). Route-driven so deep links + the back button keep
+// working.
 
 function Media({ study }: { study: CaseStudy }) {
   const embed = youtubeEmbed(study.video);
@@ -110,9 +111,7 @@ export function NodeHud() {
         <span aria-hidden="true">✕</span>
       </button>
 
-      <Media study={study} />
-
-      <div className="node-hud__detail">
+      <header className="node-hud__head">
         <div className="node-hud__meta">
           <span className="node-hud__layer">{LAYER_LABEL[study.layer]}</span>
           <span>{study.sector}</span>
@@ -120,10 +119,13 @@ export function NodeHud() {
           {study.live && <span className="case-card__live">Live</span>}
           {study.draft && <span className="modal__draft">Sample</span>}
         </div>
-
         <h2 className="node-hud__title">{study.title}</h2>
         <p className="node-hud__outcome">{study.outcome}</p>
+      </header>
 
+      <Media study={study} />
+
+      <div className="node-hud__detail">
         {/* The story — the three beats visitors come for. */}
         <div className="story node-hud__story">
           <section>

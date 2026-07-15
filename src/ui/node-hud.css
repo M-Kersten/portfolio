@@ -1,5 +1,5 @@
 /* The node HUD — the bottom dossier drawer that opens when a 3D hotspot
-   is selected (media left, project detail right). */
+   is selected (title + subtitle on top, then media + project detail below). */
 
 /* ---------- Node HUD (bottom dossier drawer) ---------- */
 
@@ -10,10 +10,15 @@
   bottom: 0;
   z-index: 45;
   height: 46svh;
-  min-height: 19rem;
+  min-height: 20rem;
   display: grid;
-  grid-template-columns: minmax(18rem, 38%) 1fr;
-  gap: var(--space-l);
+  grid-template-columns: minmax(16rem, 34%) 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'head head'
+    'media detail';
+  column-gap: var(--space-l);
+  row-gap: var(--space-m);
   padding: var(--space-m) var(--space-l);
   /* translucent acrylic dossier, carrying the site's square-dot field so it
      matches the focus card + section backgrounds */
@@ -64,8 +69,15 @@
   color: var(--accent-ink);
 }
 
-/* media (left column) */
+/* title + subtitle band (full width, on top) */
+.node-hud__head {
+  grid-area: head;
+  min-width: 0;
+}
+
+/* media (lower-left) */
 .node-hud__media {
+  grid-area: media;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -122,8 +134,9 @@
   margin-top: 0.2em;
 }
 
-/* detail (right column) */
+/* detail (lower-right) */
 .node-hud__detail {
+  grid-area: detail;
   min-width: 0;
   overflow: auto;
   padding-right: var(--space-s);
@@ -166,7 +179,7 @@
   font-family: var(--font-display);
   color: var(--accent-ink);
   font-size: var(--step-1);
-  margin: var(--space-2xs) 0 var(--space-s);
+  margin: var(--space-2xs) 0 0; /* last line of the head band */
 }
 /* The story block (see base.css) gets breathing room before the tech chips. */
 .node-hud__story {
@@ -198,25 +211,30 @@
 }
 
 @media (max-width: 760px) {
-  /* A peek sheet, not a cover-all. It docks to the bottom at ~54svh so the
-     selected node stays visible in the 3D above (the camera lifts it clear).
-     A compact media banner on top, the detail scrolling beneath it. */
+  /* A peek sheet, not a cover-all. It docks to the bottom so the selected node
+     stays visible in the 3D above (the camera lifts it clear). The title +
+     subtitle band on top, then a compact media banner, then the scrolling
+     detail. */
   .node-hud {
-    height: 54svh;
-    min-height: 20rem;
+    height: 56svh;
+    min-height: 22rem;
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: var(--space-s);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      'head'
+      'media'
+      'detail';
+    row-gap: var(--space-s);
     padding: var(--space-s) var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
   }
   .node-hud__media {
     height: auto;
     aspect-ratio: 16 / 9;
-    max-height: 20svh;
+    max-height: 18svh;
     flex: none;
   }
   .node-hud__detail {
-    overflow: auto; /* media stays pinned on top; the story scrolls under it */
+    overflow: auto; /* head + media stay pinned on top; the story scrolls under */
     min-height: 0;
     padding-right: 0;
   }

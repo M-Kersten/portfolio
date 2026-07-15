@@ -18,28 +18,35 @@ export function CameraRig() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
 
   const sway = useRef(0);
+  const nodeAge = useRef(0); // seconds since the current node was selected
+  const prevSel = useRef<string | null>(null);
   const target = useRef(new Vector3().copy(journeyView(0).target));
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
 
-  // State changes need at least one frame in demand mode. A resize also changes
-  // the fit + FOV, so re-project the lens and re-render on resize too.
+  // State changes (and resizes) need at least one frame in demand mode; the FOV
+  // itself is driven per-frame in useFrame so it can ease when zooming in/out.
   useEffect(() => {
-    const cam = camera as PerspectiveCamera;
-    const fov = fitFov(size.width / size.height);
-    if (cam.isPerspectiveCamera && cam.fov !== fov) {
-      cam.fov = fov;
-      cam.updateProjectionMatrix();
-    }
     invalidate();
   }, [journeyStep, selectedSlug, size, camera, invalidate]);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
+    const DEG = Math.PI / 180;
 
     const aspect = size.width / size.height;
     const gap = layerGap(aspect); // layers spread apart on tall screens
     const hotspot = selectedSlug ? HOTSPOTS.find((h) => h.slug === selectedSlug) : undefined;
+
+    // Restart the pan (and its ease-in) whenever the selection changes, so it
+    // begins centred on the freshly-framed node and drifts out from there.
+    if (selectedSlug !== prevSel.current) {
+      prevSel.current = selectedSlug;
+      nodeAge.current = 0;
+      sway.current = 0;
+    }
+    if (hotspot) nodeAge.current += dt;
+
     const base = hotspot ? nodeView(hotspot, gap) : journeyView(journeyStep, gap);
     desiredTarget.current.copy(base.target);
 
@@ -50,19 +57,46 @@ export function CameraRig() {
     // Ease the camera back on narrow/tall viewports so the whole active layer
     // stays in frame (see fitScale). The offset keeps its direction — the same
     // three-quarter angle — just longer, so the maquette reads smaller but whole.
-    const off = base.pos.clone().sub(base.target).multiplyScalar(fitScale(size.width / size.height));
+    const baseFov = fitFov(aspect);
+    const wantFov = baseFov + (hotspot ? CAMERA.fovZoom : 0);
+    const off = base.pos.clone().sub(base.target).multiplyScalar(fitScale(aspect));
+    // Zooming into a node widens the lens (wantFov); pull the camera in by the
+    // matching amount so the node keeps its framing — the wider FOV then only
+    // warps perspective, it doesn't throw the subject around the frame.
+    if (hotspot) off.multiplyScalar(Math.tan((baseFov / 2) * DEG) / Math.tan((wantFov / 2) * DEG));
 
-    if (!hotspot && !reduced) {
-      // gentle idle sway around the centred layer
-      sway.current += dt * 0.25;
-      const a = Math.sin(sway.current) * 0.07;
+    if (!reduced) {
+      // Once a node has settled (nodeOrbitDelay), a slow pan eases in over
+      // nodeOrbitRamp and drifts the camera around it; the overview keeps a
+      // smaller, always-on idle sway.
+      let ease = 1;
+      if (hotspot) {
+        const e = Math.min(Math.max((nodeAge.current - CAMERA.nodeOrbitDelay) / CAMERA.nodeOrbitRamp, 0), 1);
+        ease = e * e * (3 - 2 * e); // smoothstep
+      }
+      const amp = (hotspot ? CAMERA.nodeOrbitAmp : CAMERA.idleSwayAmp) * ease;
+      const speed = hotspot ? CAMERA.nodeOrbitSpeed : CAMERA.idleSwaySpeed;
+      sway.current += dt * speed;
+      const a = Math.sin(sway.current) * amp;
+      const bob = hotspot ? Math.cos(sway.current) * CAMERA.nodeOrbitBob * ease : 0;
       desiredPos.current.set(
         base.target.x + off.x * Math.cos(a) - off.z * Math.sin(a),
-        base.target.y + off.y,
+        base.target.y + off.y + bob,
         base.target.z + off.x * Math.sin(a) + off.z * Math.cos(a),
       );
     } else {
       desiredPos.current.copy(base.target).add(off);
+    }
+
+    // The lens breathes with the zoom: ease the FOV toward wantFov so zooming in
+    // visibly widens it and zooming out settles it back.
+    const cam = camera as PerspectiveCamera;
+    if (cam.isPerspectiveCamera) {
+      const nextFov = reduced ? wantFov : cam.fov + (wantFov - cam.fov) * (1 - Math.exp(-CAMERA.fovLerp * dt));
+      if (Math.abs(nextFov - cam.fov) > 0.002) {
+        cam.fov = nextFov;
+        cam.updateProjectionMatrix();
+      }
     }
 
     if (reduced) {

@@ -91,6 +91,25 @@ export const CAMERA = {
   // (fitScale), so a given aim shifts the object less on screen. RAISE to push
   // the node higher above the mobile sheet.
   mobileNodeLift: 1.5,
+
+  // ---- Cinematic motion (driven per-frame in CameraRig) ----
+  // Zooming into a node WIDENS the lens (see fovZoom) as the camera dollies in —
+  // an exaggerated-perspective push. Then, once it has arrived, a slow "pan"
+  // eases in and drifts the camera around the object. All of this is tweakable
+  // and all of it is skipped under prefers-reduced-motion.
+  nodeOrbitAmp: 0.12, // how far the pan swings around the node (radians, ~7°)
+  nodeOrbitSpeed: 0.3, // pan speed (~21s per full left→right→left cycle)
+  nodeOrbitBob: 0.03, // slight vertical drift paired with the pan (world units)
+  nodeOrbitDelay: 0.7, // seconds to wait after selecting before the pan begins
+  nodeOrbitRamp: 1.6, // seconds over which the pan eases up to full amplitude
+  idleSwayAmp: 0.07, // the overview idle sway (unchanged feel)
+  idleSwaySpeed: 0.25,
+  // The lens breathes with the zoom: on a node close-up the FOV eases WIDER by
+  // this many degrees (paired with the dolly-in — an exaggerated-perspective
+  // push). The camera pulls in to match so the node keeps its framing whatever
+  // you set here. `fovLerp` = how fast it settles.
+  fovZoom: 8,
+  fovLerp: 2.2,
 };
 
 /** Modest pull-back for narrow/tall viewports (paired with fitFov). 1 on desktop. */
