@@ -3,7 +3,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useSceneSelector } from './store';
-import { HOTSPOTS, journeyView, nodeView, fitScale, fitFov, layerGap, CAMERA } from './framing';
+import { HOTSPOTS, journeyView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA } from './framing';
+import { tweakedView } from './nodeTweak';
 
 // The camera is driven by the scroll journey (which layer is centred) and by the
 // selected node (zoom in).
@@ -37,6 +38,9 @@ export function CameraRig() {
     const aspect = size.width / size.height;
     const gap = layerGap(aspect); // layers spread apart on tall screens
     const hotspot = selectedSlug ? HOTSPOTS.find((h) => h.slug === selectedSlug) : undefined;
+    // The close-up framing for this node: its own `view` overrides falling back
+    // to the CAMERA defaults, and in dev the live-dragged values from the tuner.
+    const view = hotspot ? (import.meta.env.DEV ? tweakedView(hotspot) : hotspotView(hotspot)) : undefined;
 
     // Restart the pan (and its ease-in) whenever the selection changes, so it
     // begins centred on the freshly-framed node and drifts out from there.
@@ -47,18 +51,18 @@ export function CameraRig() {
     }
     if (hotspot) nodeAge.current += dt;
 
-    const base = hotspot ? nodeView(hotspot, gap) : journeyView(journeyStep, gap);
+    const base = hotspot ? nodeView(hotspot, gap, view!) : journeyView(journeyStep, gap);
     desiredTarget.current.copy(base.target);
 
     // On a phone the node HUD is a bottom sheet, so lift a selected node into the
     // visible upper area by aiming lower. Portrait only — no effect on desktop.
-    if (hotspot && aspect < 1) desiredTarget.current.y -= CAMERA.mobileNodeLift * (1 - aspect);
+    if (hotspot && aspect < 1) desiredTarget.current.y -= view!.mobileLift * (1 - aspect);
 
     // Ease the camera back on narrow/tall viewports so the whole active layer
     // stays in frame (see fitScale). The offset keeps its direction — the same
     // three-quarter angle — just longer, so the maquette reads smaller but whole.
     const baseFov = fitFov(aspect);
-    const wantFov = baseFov + (hotspot ? CAMERA.fovZoom : 0);
+    const wantFov = baseFov + (hotspot ? view!.fovZoom : 0);
     const off = base.pos.clone().sub(base.target).multiplyScalar(fitScale(aspect));
     // Zooming into a node widens the lens (wantFov); pull the camera in by the
     // matching amount so the node keeps its framing — the wider FOV then only

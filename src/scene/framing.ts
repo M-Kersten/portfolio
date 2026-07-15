@@ -20,6 +20,25 @@ export interface Hotspot {
   position: [number, number, number];
   /** Point ON the object the leader line points down to (local). */
   anchor?: [number, number, number];
+  /** Per-hotspot close-up framing. Any field left out falls back to the global
+   *  CAMERA defaults — so you only override what a given object needs. Tune it
+   *  live with the dev panel (open a node in `npm run dev`) and paste the
+   *  `view: { … }` it copies right here. */
+  view?: HotspotView;
+}
+
+/** Per-hotspot overrides for the node close-up (see hotspotView + CameraRig). */
+export interface HotspotView {
+  /** Camera offset from the object, world units [right, up, back]. Smaller =
+   *  tighter/closer; this sets both the zoom distance and the three-quarter angle. */
+  offset?: [number, number, number];
+  /** How far below the object the camera aims — raise it to push the object
+   *  higher up the frame (clear of the HUD). */
+  aimDown?: number;
+  /** Degrees the lens widens on this close-up (the perspective push). */
+  fovZoom?: number;
+  /** Extra downward aim in portrait, on top of aimDown (lifts it above the sheet). */
+  mobileLift?: number;
 }
 
 // Each hotspot is a dot floating clear of the diorama with a leader line down to
@@ -160,13 +179,27 @@ export function journeyView(step: number, gap = 1): Framing {
   return { pos: target.clone().add(new Vector3(...CAMERA.overviewOffset)), target };
 }
 
+/** The effective close-up framing for a hotspot: its own `view` overrides,
+ *  falling back to the global CAMERA defaults for anything it doesn't set. */
+export function hotspotView(h: Hotspot): Required<HotspotView> {
+  const v = h.view;
+  return {
+    offset: v?.offset ?? CAMERA.nodeOffset,
+    aimDown: v?.aimDown ?? CAMERA.nodeAimDown,
+    fovZoom: v?.fovZoom ?? CAMERA.fovZoom,
+    mobileLift: v?.mobileLift ?? CAMERA.mobileNodeLift,
+  };
+}
+
 /** Closer look at a selected node. Pulled back a touch and aimed below the
- *  object so it sits high in the upper area, clear of the bottom dossier HUD. */
-export function nodeView(hotspot: Hotspot, gap = 1): Framing {
+ *  object so it sits high in the upper area, clear of the bottom dossier HUD.
+ *  `view` is resolved per hotspot (hotspotView) but can be passed in — the dev
+ *  tuner feeds it the live-dragged values. */
+export function nodeView(hotspot: Hotspot, gap = 1, view: Required<HotspotView> = hotspotView(hotspot)): Framing {
   const obj = anchorWorld(hotspot, gap);
   return {
-    pos: obj.clone().add(new Vector3(...CAMERA.nodeOffset)),
-    target: obj.clone().add(new Vector3(0, -CAMERA.nodeAimDown, 0)),
+    pos: obj.clone().add(new Vector3(...view.offset)),
+    target: obj.clone().add(new Vector3(0, -view.aimDown, 0)),
   };
 }
 

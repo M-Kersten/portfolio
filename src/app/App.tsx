@@ -6,6 +6,7 @@ import { NodeHud } from '../components/NodeHud';
 import { CvPage } from '../components/CvPage';
 import { ScrollToHash } from '../components/ScrollToHash';
 import { DevTweakPanel } from '../scene/devTweak';
+import { NodeTweakPanel } from '../scene/nodeTweak';
 import { WallTweakPanel } from '../components/wallTweak';
 
 // One Router, one persistent <SceneCanvas/> (§6). Every case study is a modal
@@ -19,6 +20,7 @@ function SiteChrome() {
       <Header />
       <SceneCanvas />
       {import.meta.env.DEV && <DevTweakPanel />}
+      {import.meta.env.DEV && <NodeTweakPanel />}
       {import.meta.env.DEV && <WallTweakPanel />}
       <main id="main">
         <Outlet />
