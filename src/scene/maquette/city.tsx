@@ -637,6 +637,93 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   );
 }
 
+/* ---------- The transformer house — powers the city ---------- */
+// A Dutch "transformatorhuisje": the little neighbourhood substation that steps
+// the grid down for the surrounding blocks. A squat frosted-glass box in the same
+// language as the rest of the city, set apart by its overhanging roof, a door and
+// the ceramic bushings on the roof. A prop (not a hotspot), like the buildings —
+// but its bushing caps carry the city's power: a faint hum at rest, brightening
+// with the Alliander grid when the tower is engaged or the whole city goes live.
+const TRAFO_W = 0.18;
+const TRAFO_D = 0.14;
+const TRAFO_H = 0.11;
+// a small lightning bolt for the door's hazard plate (local +z-face coords)
+const TRAFO_BOLT: V3[] = [
+  [0.007, 0.024, 0],
+  [-0.004, 0.005, 0],
+  [0.005, 0.002, 0],
+  [-0.007, -0.022, 0],
+];
+
+function TransformerHouse({ position }: { position: V3 }) {
+  const { accent } = useAccent();
+  const { hovered, selected, visited } = useActive('alliander-hololens');
+  const complete = useSceneSelector((s) => s.completedAt !== null);
+  const reduced = useReducedMotion();
+  const accentC = useMemo(() => new Color(accent), [accent]);
+  // one shared emissive material for the bushing caps — the live "power". It opts
+  // out of the life system and drives its own ghost→accent glow, like the windows.
+  const capMat = useMemo(() => {
+    const m = new MeshStandardMaterial({ color: GHOST_FILL, emissive: GHOST_FILL, emissiveIntensity: 0.3, roughness: 0.35, metalness: 0.2, toneMapped: false });
+    m.userData.lifeSkip = true;
+    return m;
+  }, []);
+  useEffect(() => () => capMat.dispose(), [capMat]);
+  const k = useRef(0.12);
+  useFrame((s) => {
+    // rest to a faint smoulder; brighten with the grid (hover < visited < live/complete)
+    const kT = selected || complete ? 1 : hovered ? 0.7 : visited ? 0.42 : 0.12;
+    k.current += (kT - k.current) * 0.08;
+    const t = reduced ? 0 : s.clock.elapsedTime;
+    const hum = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 3.2); // a faint electrical hum
+    capMat.color.copy(GHOST_FILL).lerp(accentC, k.current);
+    capMat.emissive.copy(GHOST_FILL).lerp(accentC, k.current);
+    capMat.emissiveIntensity = (0.3 + 2.6 * k.current) * hum;
+  });
+  return (
+    <group position={position}>
+      <BlobShadow position={[0, 0.004, 0]} radius={Math.max(TRAFO_W, TRAFO_D) * 0.85} opacity={0.42} />
+      {/* body — the same quiet frosted glass as the buildings */}
+      <mesh position={[0, TRAFO_H / 2, 0]}>
+        <boxGeometry args={[TRAFO_W, TRAFO_H, TRAFO_D]} />
+        <GlassMat opacity={0.34} />
+        <Edges threshold={20} color={NEUTRAL} />
+      </mesh>
+      {/* overhanging flat roof — the trafohuisje signature */}
+      <mesh position={[0, TRAFO_H + 0.007, 0]}>
+        <boxGeometry args={[TRAFO_W + 0.03, 0.014, TRAFO_D + 0.03]} />
+        <GlassMat color="#828f98" opacity={0.5} />
+        <Edges threshold={20} color={NEUTRAL} />
+      </mesh>
+      {/* door + a small glowing hazard bolt on the camera-facing (+z) face */}
+      <mesh position={[-TRAFO_W * 0.2, TRAFO_H * 0.44, TRAFO_D / 2 + 0.002]}>
+        <planeGeometry args={[TRAFO_W * 0.26, TRAFO_H * 0.72]} />
+        <meshStandardMaterial color="#16232c" roughness={0.6} metalness={0.1} transparent opacity={0.72} side={DoubleSide} />
+      </mesh>
+      <Line points={TRAFO_BOLT} position={[TRAFO_W * 0.18, TRAFO_H * 0.52, TRAFO_D / 2 + 0.004]} color={accent} lineWidth={1.4} transparent opacity={0.85} />
+      {/* louvre vents on the +x side */}
+      {[0.32, 0.52, 0.72].map((f, i) => (
+        <mesh key={i} position={[TRAFO_W / 2 + 0.001, TRAFO_H * f, 0]}>
+          <boxGeometry args={[0.003, 0.006, TRAFO_D * 0.5]} />
+          <GlassMat color="#6f7d86" opacity={0.6} />
+        </mesh>
+      ))}
+      {/* ceramic bushings on the roof — the electrical bit; the caps carry power */}
+      {[-TRAFO_W * 0.28, 0, TRAFO_W * 0.28].map((bx, i) => (
+        <group key={i} position={[bx, TRAFO_H + 0.014, -TRAFO_D * 0.14]}>
+          <mesh position={[0, 0.02, 0]}>
+            <cylinderGeometry args={[0.009, 0.012, 0.04, 10]} />
+            <meshStandardMaterial color="#c7d0d6" roughness={0.5} metalness={0.1} transparent opacity={0.9} />
+          </mesh>
+          <mesh position={[0, 0.045, 0]} material={capMat}>
+            <sphereGeometry args={[0.0075, 10, 10]} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
 /** A flat ground ribbon built from a centre-line — reads as a paved road (a
  *  faint surface with crisp edges) rather than a single hairline. */
 function roadRibbon(points: V3[], width: number) {
@@ -1073,6 +1160,16 @@ export function CityRig() {
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const mill = useTweak('City.Windmill', { position: [-1.34, 0, 0.33] });
   const park = useTweak('City.Park', { position: [1.3, 0, -0.23] });
+  // The transformer house sits on the one free plot in the 3×3 block grid — the
+  // back-left corner (−0.55, −0.55), where a service road already stubs out to
+  // it. Drag City.Transformer in the dev panel to move it to any of the 9 spots.
+  const trafo = useTweak('City.Transformer', { position: [-0.55, 0, -0.55] });
+  // Power lines fan from the tower to every building AND to the transformer house,
+  // so it reads as part of the grid that powers the city.
+  const wireTargets = useMemo(
+    () => [...cluster.map((b) => [b.x, b.h, b.z] as V3), [trafo.position[0], TRAFO_H + 0.03, trafo.position[2]] as V3],
+    [cluster, trafo.position],
+  );
   return (
     <group>
       {/* roads through the city */}
@@ -1090,8 +1187,12 @@ export function CityRig() {
       <LifeGroup slug="alliander-hololens">
         <Skyscraper position={[0, 0, 0]} winMat={winMat} />
       </LifeGroup>
-      {/* power lines from the central tower to every building — glow blue on select */}
-      <PowerWires from={[0, 0.8, 0]} targets={cluster.map((b) => [b.x, b.h, b.z] as V3)} />
+      {/* the neighbourhood transformer house — the substation that powers the
+          city, on the free plot behind the tower */}
+      <TransformerHouse position={trafo.position} />
+      {/* power lines from the central tower to every building + the transformer —
+          glow blue on select */}
+      <PowerWires from={[0, 0.8, 0]} targets={wireTargets} />
 
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}
