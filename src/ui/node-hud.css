@@ -37,8 +37,6 @@
   content: '';
   position: absolute;
   inset: -1px 0 auto 0;
-  height: 2px;
-  background: var(--card-accent);
 }
 @keyframes hud-rise {
   from {
