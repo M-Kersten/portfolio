@@ -12,10 +12,10 @@ const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // matching the City <0.25 · Room 0.25–0.75 · Chip ≥0.75 split in HeroStage.
 const ZONE_CENTER = [0.125, 0.5, 0.875];
 
-// Bottom dossier drawer for an inspected node: the title + subtitle band on top,
-// then the media and the full detail below, while the 3D node stays visible above
-// (the camera lifts it clear). Route-driven so deep links + the back button keep
-// working.
+// Inspected node: the title + subtitle sit as a caption at the top of the view
+// (over the 3D node), and the bottom dossier drawer below holds the media + the
+// full detail, while the 3D node stays visible between them (the camera lifts it
+// clear). Route-driven so deep links + the back button keep working.
 
 function Media({ study }: { study: CaseStudy }) {
   const embed = youtubeEmbed(study.video);
@@ -106,12 +106,11 @@ export function NodeHud() {
   if (!study) return <Navigate to="/" replace />;
 
   return (
-    <aside ref={hudRef} className="node-hud" data-layer={study.layer} role="dialog" aria-modal="true" aria-label={study.title}>
-      <button ref={closeRef} type="button" className="node-hud__close" onClick={close} aria-label="Close node">
-        <span aria-hidden="true">✕</span>
-      </button>
-
-      <header className="node-hud__head">
+    <>
+      {/* Title card, lifted out of the drawer and pinned to the top of the view
+          over the 3D node, so the drawer below keeps all its room for the media
+          and story. Decorative for AT — the dialog's label carries the same. */}
+      <header className="node-hud__caption" data-layer={study.layer} aria-hidden="true">
         <div className="node-hud__meta">
           <span className="node-hud__layer">{LAYER_LABEL[study.layer]}</span>
           <span>{study.sector}</span>
@@ -123,52 +122,65 @@ export function NodeHud() {
         <p className="node-hud__outcome">{study.outcome}</p>
       </header>
 
-      <Media study={study} />
+      <aside
+        ref={hudRef}
+        className="node-hud"
+        data-layer={study.layer}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${study.title} — ${study.outcome}`}
+      >
+        <button ref={closeRef} type="button" className="node-hud__close" onClick={close} aria-label="Close node">
+          <span aria-hidden="true">✕</span>
+        </button>
 
-      <div className="node-hud__detail">
-        {/* The story — the three beats visitors come for. */}
-        <div className="story node-hud__story">
-          <section>
-            <h3 className="story__h">The problem</h3>
-            <p>{study.problem}</p>
-          </section>
-          <section>
-            <h3 className="story__h">The approach</h3>
-            <p>{study.approach}</p>
-          </section>
-          {study.lesson && (
+        <Media study={study} />
+
+        <div className="node-hud__detail">
+          {/* The story — the three beats visitors come for. */}
+          <div className="story node-hud__story">
             <section>
-              <h3 className="story__h">The lesson</h3>
-              <p>{study.lesson}</p>
+              <h3 className="story__h">The problem</h3>
+              <p>{study.problem}</p>
             </section>
+            <section>
+              <h3 className="story__h">The approach</h3>
+              <p>{study.approach}</p>
+            </section>
+            {study.lesson && (
+              <section>
+                <h3 className="story__h">The lesson</h3>
+                <p>{study.lesson}</p>
+              </section>
+            )}
+          </div>
+
+          {study.tech && study.tech.length > 0 && (
+            <ul className="node-hud__tech" aria-label="Technologies">
+              {study.tech.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
           )}
-        </div>
 
-        {study.tech && study.tech.length > 0 && (
-          <ul className="node-hud__tech" aria-label="Technologies">
-            {study.tech.map((t) => (
-              <li key={t}>{t}</li>
-            ))}
-          </ul>
-        )}
-
-        <div className="node-hud__actions">
-          <a
-            className="btn node-hud__discuss"
-            href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}
-          >
-            Ask me about it
-          </a>
-          {study.article && (
-            <a className="btn btn--ghost" href={study.article} target="_blank" rel="noreferrer">
-              Read more <span aria-hidden="true">↗</span>
+          <div className="node-hud__actions">
+            <a
+              className="btn node-hud__discuss"
+              href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}
+            >
+              Ask me about it
             </a>
-          )}
-        </div>
+            {study.article && (
+              <a className="btn btn--ghost" href={study.article} target="_blank" rel="noreferrer">
+                Read more <span aria-hidden="true">↗</span>
+              </a>
+            )}
+          </div>
 
-        {/* Walk the storyline without leaving the HUD — the camera flies along. */}
-        <StoryLinks study={study} onJump={(s) => navigate(`/work/${s}`)} />
-      </div>
-    </aside>
+          {/* Walk the storyline without leaving the HUD — the camera flies along. */}
+          <StoryLinks study={study} onJump={(s) => navigate(`/work/${s}`)} />
+        </div>
+      </aside>
+    </>
   );
 }

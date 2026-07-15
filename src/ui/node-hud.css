@@ -1,5 +1,5 @@
-/* The node HUD — the bottom dossier drawer that opens when a 3D hotspot
-   is selected (title + subtitle on top, then media + project detail below). */
+/* The node HUD — a title caption pinned to the top of the view (over the 3D
+   node) plus the bottom dossier drawer (media left, project detail right). */
 
 /* ---------- Node HUD (bottom dossier drawer) ---------- */
 
@@ -10,15 +10,10 @@
   bottom: 0;
   z-index: 45;
   height: 46svh;
-  min-height: 20rem;
+  min-height: 19rem;
   display: grid;
-  grid-template-columns: minmax(16rem, 34%) 1fr;
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-template-areas:
-    'head head'
-    'media detail';
-  column-gap: var(--space-l);
-  row-gap: var(--space-m);
+  grid-template-columns: minmax(18rem, 38%) 1fr;
+  gap: var(--space-l);
   padding: var(--space-m) var(--space-l);
   /* translucent acrylic dossier, carrying the site's square-dot field so it
      matches the focus card + section backgrounds */
@@ -69,15 +64,44 @@
   color: var(--accent-ink);
 }
 
-/* title + subtitle band (full width, on top) */
-.node-hud__head {
-  grid-area: head;
-  min-width: 0;
+/* Title caption — lifted out of the drawer and pinned to the top of the view,
+   over the live 3D node, so the drawer keeps all its room for the media + story.
+   Left edge tracks the site container's gutter, like the hero name. Decorative
+   over the scene, so it never captures clicks. */
+.node-hud__caption {
+  position: fixed;
+  z-index: 44;
+  top: calc(var(--header-h) + var(--space-s));
+  left: max(0px, calc((100vw - var(--container)) / 2));
+  max-width: min(42rem, 100vw);
+  padding-inline: var(--space-m);
+  pointer-events: none;
+  --card-accent: var(--accent);
+  animation: caption-in 0.45s var(--ease) both;
+}
+.node-hud__caption[data-layer='city'] { --card-accent: var(--cyan); }
+.node-hud__caption[data-layer='room'] { --card-accent: var(--coral); }
+.node-hud__caption[data-layer='chip'] { --card-accent: var(--lime); }
+/* legible over the moving 3D behind it */
+.node-hud__caption .node-hud__meta {
+  color: color-mix(in srgb, var(--ink) 78%, transparent);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+}
+.node-hud__caption .node-hud__title {
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.85), 0 1px 3px rgba(0, 0, 0, 0.92);
+}
+.node-hud__caption .node-hud__outcome {
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.88);
+}
+@keyframes caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
 }
 
-/* media (lower-left) */
+/* media (left column) */
 .node-hud__media {
-  grid-area: media;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -134,9 +158,8 @@
   margin-top: 0.2em;
 }
 
-/* detail (lower-right) */
+/* detail (right column) */
 .node-hud__detail {
-  grid-area: detail;
   min-width: 0;
   overflow: auto;
   padding-right: var(--space-s);
@@ -179,7 +202,7 @@
   font-family: var(--font-display);
   color: var(--accent-ink);
   font-size: var(--step-1);
-  margin: var(--space-2xs) 0 0; /* last line of the head band */
+  margin: var(--space-2xs) 0 0; /* last line of the title caption */
 }
 /* The story block (see base.css) gets breathing room before the tech chips. */
 .node-hud__story {
@@ -211,30 +234,35 @@
 }
 
 @media (max-width: 760px) {
-  /* A peek sheet, not a cover-all. It docks to the bottom so the selected node
-     stays visible in the 3D above (the camera lifts it clear). The title +
-     subtitle band on top, then a compact media banner, then the scrolling
-     detail. */
+  /* The caption stays at the very top over the node (compact so it doesn't crowd
+     it); the drawer is a peek sheet — a media banner on top, the detail scrolling
+     beneath — leaving the node visible between the two. */
+  .node-hud__caption {
+    top: calc(var(--header-h) + var(--space-2xs));
+    max-width: calc(100vw - 2 * var(--space-m));
+  }
+  .node-hud__caption .node-hud__title {
+    font-size: var(--step-1);
+  }
+  .node-hud__caption .node-hud__outcome {
+    font-size: var(--step-0);
+  }
   .node-hud {
-    height: 56svh;
-    min-height: 22rem;
+    height: 54svh;
+    min-height: 20rem;
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto minmax(0, 1fr);
-    grid-template-areas:
-      'head'
-      'media'
-      'detail';
-    row-gap: var(--space-s);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: var(--space-s);
     padding: var(--space-s) var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
   }
   .node-hud__media {
     height: auto;
     aspect-ratio: 16 / 9;
-    max-height: 18svh;
+    max-height: 20svh;
     flex: none;
   }
   .node-hud__detail {
-    overflow: auto; /* head + media stay pinned on top; the story scrolls under */
+    overflow: auto; /* media stays pinned on top; the story scrolls under it */
     min-height: 0;
     padding-right: 0;
   }
