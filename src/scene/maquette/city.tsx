@@ -1138,14 +1138,18 @@ export function CityRig() {
     const cells = [-0.55, 0, 0.55];
     for (const cx of cells)
       for (const cz of cells) {
-        if (cx === 0 && cz === 0) continue; // central plaza → town hall
-        if (cx < 0 && cz < 0) continue;
+        if (cx === 0 && cz === 0) continue; // central plaza → the tower
+        if (cx < 0 && cz < 0) continue; // back-left plot — deliberately left open
         const count = 1;
         for (let k = 0; k < count; k++) {
           const x = cx + (rnd() - 0.5) * 0.12;
           const z = cz + (rnd() - 0.5) * 0.12;
           const fall = Math.max(0.1, 1 - (x * x + z * z) * 0.8);
-          out.push({ x, z, w: 0.13 + rnd() * 0.05, d: 0.13 + rnd() * 0.05, h: 0.2 + fall * 0.4 + rnd() * 0.12 });
+          const bld = { x, z, w: 0.13 + rnd() * 0.05, d: 0.13 + rnd() * 0.05, h: 0.2 + fall * 0.4 + rnd() * 0.12 };
+          // front-centre plot goes to the transformer house — build the RNG for it
+          // (so the rest of the skyline is unchanged), then drop the building.
+          if (cx === 0 && cz === 0.55) continue;
+          out.push(bld);
         }
       }
     return out;
@@ -1160,10 +1164,11 @@ export function CityRig() {
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const mill = useTweak('City.Windmill', { position: [-1.34, 0, 0.33] });
   const park = useTweak('City.Park', { position: [1.3, 0, -0.23] });
-  // The transformer house sits on the one free plot in the 3×3 block grid — the
-  // back-left corner (−0.55, −0.55), where a service road already stubs out to
-  // it. Drag City.Transformer in the dev panel to move it to any of the 9 spots.
-  const trafo = useTweak('City.Transformer', { position: [-0.55, 0, -0.55] });
+  // The transformer house sits on the front-centre plot of the 3×3 block grid,
+  // just across the road from the tower and facing the camera (its own building
+  // is dropped so the spot isn't doubled up). Drag City.Transformer in the dev
+  // panel to move it to any of the 9 spots.
+  const trafo = useTweak('City.Transformer', { position: [0, 0, 0.55] });
   // Power lines fan from the tower to every building AND to the transformer house,
   // so it reads as part of the grid that powers the city.
   const wireTargets = useMemo(
@@ -1188,7 +1193,7 @@ export function CityRig() {
         <Skyscraper position={[0, 0, 0]} winMat={winMat} />
       </LifeGroup>
       {/* the neighbourhood transformer house — the substation that powers the
-          city, on the free plot behind the tower */}
+          city, on the front-centre plot facing the camera */}
       <TransformerHouse position={trafo.position} />
       {/* power lines from the central tower to every building + the transformer —
           glow blue on select */}
