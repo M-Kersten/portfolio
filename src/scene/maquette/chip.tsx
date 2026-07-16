@@ -395,16 +395,19 @@ function pcbTrace(bx: number, bz: number, y: number): V3[] {
   return densify([[ex, y, ez], ...pcbRoute(px, pz, bx, bz, y, xEdge)]);
 }
 
-/** custom-ar-framework as a fixed security / computer-vision camera — a faceted
- *  low-poly bullet head on a twin-strut mount, aimed out past the back of the
- *  board. Once visited it slowly pans, searching the dark; selecting it spins
- *  the head one quick turn and locks on, casting a clean cone of light onto a
- *  holographic wireframe cube that bobs and turns gently in the beam. */
+/** custom-ar-framework as a fixed security / computer-vision camera. A faceted
+ *  low-poly bullet head hangs from an articulated two-segment leg — base puck →
+ *  knee joint → overhead grip, circular joint discs like a lamp arm — aimed out
+ *  past the back of the board. Selecting it spins the head one quick turn and
+ *  spawns the hologram: a clean cone of light onto a wireframe cube that bobs
+ *  and turns in the beam. Once alive it keeps scanning — small continuous pans
+ *  and nods around the cube, selected or not (visited things stay awake). */
 const CAM_LENS_Z = 0.17; // cone apex, just past the hood
 const CAM_CUBE_Z = 0.78; // hologram centre, out in front of the lens
 const CAM_CUBE = 0.22; // hologram cube edge length
 const CAM_CONE_R = 0.22; // vision-cone radius where it meets the cube
 const FACET = Math.PI / 8; // spin octagonal parts so a flat facet faces up
+const HEAD_DROP = -0.08; // head centre, hanging below the grip pivot
 function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
@@ -412,11 +415,12 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const headRef = useRef<Group>(null);
   const lensMat = useRef<MeshStandardMaterial>(null);
   const coneMat = useRef<MeshBasicMaterial>(null);
-  const holoRef = useRef<Group>(null);
+  const holoRef = useRef<Group>(null); // the cube hologram, fixed on the aim axis
+  const beamRef = useRef<Group>(null); // the cone + rim, attached to the lens
   const cubeRef = useRef<Group>(null);
   const k = useRef(0); // lens power
   const holo = useRef(0); // hologram presence
-  const searchW = useRef(0); // idle-pan weight (visited but deselected)
+  const scanW = useRef(0); // continuous look-around weight (alive)
   const spinT = useRef(0); // select-spin envelope, 1 → 0
   const wasSel = useRef(false);
   const lensC = useMemo(() => new Color('#7fe6ff'), []);
@@ -443,11 +447,11 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   useFrame((s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
     const t = s.clock.elapsedTime;
-    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
-    // the cube only shows while the camera is locked on (selected); on deselect
-    // it vanishes and the camera goes back to searching for it
-    holo.current += ((selected ? 1 : 0) - holo.current) * (reduced ? 1 : 0.09);
-    searchW.current += ((visited && !selected ? 1 : 0) - searchW.current) * 0.04;
+    const alive = selected || visited ? 1 : 0;
+    k.current += (alive - k.current) * 0.12;
+    // selecting spawns the hologram — and it stays once visited (life mechanic)
+    holo.current += (alive - holo.current) * (reduced ? 1 : 0.09);
+    scanW.current += (alive - scanW.current) * 0.04;
     if (selected && !wasSel.current && !reduced) spinT.current = 1; // rising edge
     wasSel.current = selected;
     spinT.current = Math.max(0, spinT.current - delta * 1.15);
@@ -458,18 +462,24 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
       lensMat.current.emissive.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * on);
       lensMat.current.emissiveIntensity = 0.05 + on * (1.0 + breathe);
     }
-    // head: one quick unwinding turn as it locks on; a slow scanning pan while
-    // deselected, like it's looking for the cube again
+    // head: one quick unwinding turn as the hologram spawns, then a continuous
+    // slight scan — panning and nodding around the cube like it's tracking it.
+    // The cube holds its spot (it lives outside headRef), so the beam plays
+    // over it as the camera looks around.
     if (headRef.current && !reduced) {
       const spin = -Math.PI * 2 * spinT.current * spinT.current;
-      const pan = searchW.current * (Math.sin(t * 0.5) * 0.38 + Math.sin(t * 0.23) * 0.12);
-      headRef.current.rotation.y = spin + pan;
+      headRef.current.rotation.y = spin + scanW.current * (Math.sin(t * 0.45) * 0.16 + Math.sin(t * 0.21) * 0.07);
+      headRef.current.rotation.x = scanW.current * Math.sin(t * 0.33) * 0.045;
     }
     // the projected hologram materialises out of the lens
     const h = holo.current;
     if (holoRef.current) {
       holoRef.current.visible = h > 0.02;
       holoRef.current.scale.setScalar(h);
+    }
+    if (beamRef.current) {
+      beamRef.current.visible = h > 0.02;
+      beamRef.current.scale.setScalar(h);
     }
     cube.mat.opacity = 0.85 * h;
     if (coneMat.current) coneMat.current.opacity = 0.1 * h;
@@ -485,76 +495,116 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   return (
     <group position={position} rotation={[0, aimYaw, 0]}>
       <group ref={popRef}>
-        {/* mount: a base puck + twin struts up to the pivot pin */}
-        <mesh position={[0, 0.02, 0]} rotation={[0, FACET, 0]}>
-          <cylinderGeometry args={[0.052, 0.06, 0.035, 8]} />
+        {/* ---- the leg stand: base puck → knee joint → overhead grip ---- */}
+        <mesh position={[0, 0.02, -0.09]} rotation={[0, FACET, 0]}>
+          <cylinderGeometry args={[0.05, 0.058, 0.035, 8]} />
           <GlassMat opacity={0.5} />
           <Edges threshold={12} color={NEUTRAL} />
         </mesh>
+        {/* lower segment — twin plates leaning forward to the knee */}
         {[-0.026, 0.026].map((x, i) => (
-          <mesh key={i} position={[x, 0.17, 0]}>
-            <boxGeometry args={[0.012, 0.27, 0.032]} />
+          <mesh key={`l${i}`} position={[x, 0.118, -0.053]} rotation={[0.43, 0, 0]}>
+            <boxGeometry args={[0.011, 0.19, 0.034]} />
             <GlassMat opacity={0.44} />
             <Edges threshold={12} color={NEUTRAL} />
           </mesh>
         ))}
-        <mesh position={[0, 0.305, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.013, 0.013, 0.08, 12]} />
-          <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.25} roughness={0.4} metalness={0.3} />
+        {/* knee joint disc */}
+        <mesh position={[0, 0.2, -0.015]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.032, 0.032, 0.064, 18]} />
+          <GlassMat opacity={0.5} />
+          <Edges threshold={30} color={NEUTRAL} />
         </mesh>
-        {/* the head — pans on the pivot; pitched a whisker up toward the dark */}
-        <group position={[0, 0.305, 0]}>
+        {/* upper segment — twin plates leaning back up to the grip hub */}
+        {[-0.026, 0.026].map((x, i) => (
+          <mesh key={`u${i}`} position={[x, 0.278, -0.045]} rotation={[-0.37, 0, 0]}>
+            <boxGeometry args={[0.011, 0.17, 0.034]} />
+            <GlassMat opacity={0.44} />
+            <Edges threshold={12} color={NEUTRAL} />
+          </mesh>
+        ))}
+        {/* grip hub + the horizontal arm reaching over the head */}
+        <mesh position={[0, 0.355, -0.075]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.028, 0.028, 0.058, 18]} />
+          <GlassMat opacity={0.5} />
+          <Edges threshold={30} color={NEUTRAL} />
+        </mesh>
+        <mesh position={[0, 0.358, -0.036]}>
+          <boxGeometry args={[0.026, 0.02, 0.1]} />
+          <GlassMat opacity={0.46} />
+          <Edges threshold={12} color={NEUTRAL} />
+        </mesh>
+
+        {/* ---- the pivot: the head hangs from the grip and pans/nods on it ---- */}
+        <group position={[0, 0.33, 0]}>
+          {/* the hologram cube holds its spot on the aim axis while the camera
+              scans around it — so the beam plays over the tracked target */}
+          <group rotation={[aimPitch, 0, 0]}>
+            <group ref={holoRef} visible={false} position={[0, HEAD_DROP, 0]}>
+              <group ref={cubeRef} position={[0, 0, CAM_CUBE_Z]}>
+                <primitive object={cube.obj} />
+                <mesh>
+                  <boxGeometry args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
+                  <meshStandardMaterial color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
+                </mesh>
+                {corners.map((c, i) => (
+                  <mesh key={i} position={c}>
+                    <sphereGeometry args={[0.006, 8, 8]} />
+                    <meshStandardMaterial color="#d6f2ff" emissive="#8fd8ff" emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
+                  </mesh>
+                ))}
+              </group>
+            </group>
+          </group>
           <group ref={headRef}>
             <group rotation={[aimPitch, 0, 0]}>
-              {/* faceted bullet body (octagonal, tapering toward the lens) */}
-              <mesh position={[0, 0, -0.01]} rotation={[Math.PI / 2, FACET, 0]}>
-                <cylinderGeometry args={[0.054, 0.06, 0.2, 8]} />
-                <GlassMat opacity={0.44} />
-                <Edges threshold={12} color={NEUTRAL} />
+              {/* pivot stub + yoke cap the head hangs from */}
+              <mesh position={[0, 0.008, 0]}>
+                <cylinderGeometry args={[0.012, 0.012, 0.045, 10]} />
+                <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.25} roughness={0.4} metalness={0.3} />
               </mesh>
-              {/* back cap */}
-              <mesh position={[0, 0, -0.12]} rotation={[Math.PI / 2, FACET, 0]}>
-                <cylinderGeometry args={[0.06, 0.046, 0.025, 8]} />
+              <mesh position={[0, -0.015, 0]}>
+                <boxGeometry args={[0.034, 0.014, 0.034]} />
                 <GlassMat opacity={0.5} />
                 <Edges threshold={12} color={NEUTRAL} />
               </mesh>
-              {/* hood — an open octagonal shade past the lens */}
-              <mesh position={[0, 0, 0.135]} rotation={[Math.PI / 2, FACET, 0]}>
-                <cylinderGeometry args={[0.062, 0.058, 0.075, 8, 1, true]} />
-                <GlassMat opacity={0.32} />
-                <Edges threshold={12} color={NEUTRAL} />
-              </mesh>
-              {/* dark lens recess + the glass element that lights up */}
-              <mesh position={[0, 0, 0.104]} rotation={[Math.PI / 2, FACET, 0]}>
-                <cylinderGeometry args={[0.048, 0.048, 0.012, 8]} />
-                <meshStandardMaterial color="#0b1418" roughness={0.5} metalness={0.2} />
-              </mesh>
-              <mesh position={[0, 0, 0.114]} scale={[1, 1, 0.5]}>
-                <sphereGeometry args={[0.04, 24, 18]} />
-                <meshStandardMaterial ref={lensMat} userData={{ lifeSkip: true }} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.14} transparent opacity={0.6} roughness={0.12} metalness={0.1} toneMapped={false} />
-              </mesh>
-
-              {/* the projection — a clean cone of light onto the tracked cube */}
-              <group ref={holoRef} visible={false}>
-                <mesh position={[0, 0, (CAM_LENS_Z + CAM_CUBE_Z) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
-                  <coneGeometry args={[CAM_CONE_R, CAM_CUBE_Z - CAM_LENS_Z, 32, 1, true]} />
-                  <meshBasicMaterial ref={coneMat} userData={{ lifeSkip: true }} color="#7fe6ff" transparent opacity={0} blending={AdditiveBlending} toneMapped={false} depthWrite={false} side={DoubleSide} />
+              <group position={[0, HEAD_DROP, 0]}>
+                {/* faceted bullet body (octagonal, tapering toward the lens) */}
+                <mesh position={[0, 0, -0.01]} rotation={[Math.PI / 2, FACET, 0]}>
+                  <cylinderGeometry args={[0.054, 0.06, 0.2, 8]} />
+                  <GlassMat opacity={0.44} />
+                  <Edges threshold={12} color={NEUTRAL} />
                 </mesh>
-                {/* the beam's rim where it reaches the cube */}
-                <Line points={circlePts(CAM_CONE_R, 48)} position={[0, 0, CAM_CUBE_Z]} rotation={[Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.35} />
-                {/* the tracked cube: wireframe + faint faces + corner feature dots */}
-                <group ref={cubeRef} position={[0, 0, CAM_CUBE_Z]}>
-                  <primitive object={cube.obj} />
-                  <mesh>
-                    <boxGeometry args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
-                    <meshStandardMaterial color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
+                {/* back cap */}
+                <mesh position={[0, 0, -0.12]} rotation={[Math.PI / 2, FACET, 0]}>
+                  <cylinderGeometry args={[0.06, 0.046, 0.025, 8]} />
+                  <GlassMat opacity={0.5} />
+                  <Edges threshold={12} color={NEUTRAL} />
+                </mesh>
+                {/* hood — an open octagonal shade past the lens */}
+                <mesh position={[0, 0, 0.135]} rotation={[Math.PI / 2, FACET, 0]}>
+                  <cylinderGeometry args={[0.062, 0.058, 0.075, 8, 1, true]} />
+                  <GlassMat opacity={0.32} />
+                  <Edges threshold={12} color={NEUTRAL} />
+                </mesh>
+                {/* dark lens recess + the glass element that lights up */}
+                <mesh position={[0, 0, 0.104]} rotation={[Math.PI / 2, FACET, 0]}>
+                  <cylinderGeometry args={[0.048, 0.048, 0.012, 8]} />
+                  <meshStandardMaterial color="#0b1418" roughness={0.5} metalness={0.2} />
+                </mesh>
+                <mesh position={[0, 0, 0.114]} scale={[1, 1, 0.5]}>
+                  <sphereGeometry args={[0.04, 24, 18]} />
+                  <meshStandardMaterial ref={lensMat} userData={{ lifeSkip: true }} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.14} transparent opacity={0.6} roughness={0.12} metalness={0.1} toneMapped={false} />
+                </mesh>
+
+                {/* the beam — a clean cone of light, swinging with the head */}
+                <group ref={beamRef} visible={false}>
+                  <mesh position={[0, 0, (CAM_LENS_Z + CAM_CUBE_Z) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <coneGeometry args={[CAM_CONE_R, CAM_CUBE_Z - CAM_LENS_Z, 32, 1, true]} />
+                    <meshBasicMaterial ref={coneMat} userData={{ lifeSkip: true }} color="#7fe6ff" transparent opacity={0} blending={AdditiveBlending} toneMapped={false} depthWrite={false} side={DoubleSide} />
                   </mesh>
-                  {corners.map((c, i) => (
-                    <mesh key={i} position={c}>
-                      <sphereGeometry args={[0.006, 8, 8]} />
-                      <meshStandardMaterial color="#d6f2ff" emissive="#8fd8ff" emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
-                    </mesh>
-                  ))}
+                  {/* the beam's rim where it reaches the cube */}
+                  <Line points={circlePts(CAM_CONE_R, 48)} position={[0, 0, CAM_CUBE_Z]} rotation={[Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.35} />
                 </group>
               </group>
             </group>
