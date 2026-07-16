@@ -210,7 +210,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       ship.dead = 0;
       hud();
       spawnWave();
-      toast('everyone’s first Unity game — welcome home.');
+      toast('you’ve got the stick — climb for orbit.');
       // e2e playtest hook (sessionStorage 'mk-ast-test' = 'rud'): last booster +
       // a rock dead ahead, so automation can reach the RUD screen determinis-
       // tically. Unreachable in normal play — nothing sets the flag.
@@ -418,11 +418,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         }
         ctx.stroke();
         if (rk.label) {
-          ctx.globalAlpha = 0.62;
+          ctx.globalAlpha = 0.85;
           ctx.fillStyle = INK;
-          ctx.font = '10px "Space Mono", monospace';
+          ctx.font = `${rk.tier === 0 ? 13 : 11}px "Space Mono", monospace`;
           ctx.textAlign = 'center';
-          ctx.fillText(rk.label, rk.x, rk.y + 3);
+          ctx.fillText(rk.label, rk.x, rk.y + 4);
         }
       }
       ctx.globalAlpha = 1;
@@ -446,16 +446,19 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       sv.y = ship.y;
       sv.a = ship.a;
       sv.thrust = ship.thrust && ship.dead <= 0;
-      sv.visible = ship.dead <= 0 && !(ship.inv > 0 && Math.sin(t * 24) > 0);
+      // hidden during the respawn hold, while blinking invulnerable, and once
+      // the vehicle has RUD'd (it's particles now — don't leave it intact over
+      // the game-over card)
+      sv.visible = !over && ship.dead <= 0 && !(ship.inv > 0 && Math.sin(t * 24) > 0);
 
       if (paused && !over) {
         ctx.fillStyle = INK;
-        ctx.font = '600 22px "Space Mono", monospace';
+        ctx.font = '600 30px "Space Mono", monospace';
         ctx.textAlign = 'center';
         ctx.fillText('HOLD HOLD HOLD', W / 2, H / 2);
-        ctx.font = '11px "Space Mono", monospace';
+        ctx.font = '14px "Space Mono", monospace';
         ctx.globalAlpha = 0.6;
-        ctx.fillText('press P to resume the count', W / 2, H / 2 + 24);
+        ctx.fillText('press P to resume the count', W / 2, H / 2 + 30);
         ctx.globalAlpha = 1;
       }
       ctx.restore();
@@ -504,6 +507,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           abort to pad <kbd>Esc</kbd>
         </button>
       </div>
+      {phase === 'play' && (
+        <p className="ast__objective">climb to orbit — shoot the hazards that sink projects · each one’s a signal</p>
+      )}
       <div className="ast__toast" ref={toastRef} aria-live="polite" />
       <div className="ast__hint">← → rotate · ↑ thrust · space fire · P hold{' '}
         <span className="ast__hint-touch">— or steer left half, fire right half</span>

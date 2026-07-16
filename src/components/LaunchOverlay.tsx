@@ -76,8 +76,9 @@ export function LaunchOverlay() {
     <div className="launch" role="dialog" aria-label="Launch control">
       {launch === 'pad' && (
         <div className="launch__panel">
-          <span className="launch__mission">MK-01 · NEXT LAUNCH</span>
-          <p className="launch__brief">vehicle: ghost-class, two-stage · payload: whatever we build together</p>
+          <span className="launch__mission">MK-01 · THE NEXT LAUNCH</span>
+          <p className="launch__lede">You just toured ten signals that shipped. This is the one we haven’t built yet.</p>
+          <p className="launch__brief">You’re the pilot — fly it to orbit, past everything that sinks a project.</p>
           <div className="launch__row">
             <button type="button" className="btn launch__go" onClick={() => sceneStore.setLaunch('countdown')}>
               LAUNCH
@@ -93,7 +94,7 @@ export function LaunchOverlay() {
           T−{count}
         </div>
       )}
-      {launch === 'ascend' && <div className="launch__telemetry">stage 1 nominal · throttle 100% · hold on</div>}
+      {launch === 'ascend' && <div className="launch__telemetry">stage 1 nominal · throttle 100% · next stop: orbit</div>}
     </div>,
     document.body,
   );

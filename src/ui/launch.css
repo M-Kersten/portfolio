@@ -18,9 +18,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.55rem;
-  padding: 1rem 1.4rem 1.2rem;
-  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  gap: 0.5rem;
+  padding: 1.2rem 1.6rem 1.3rem;
+  max-width: min(92vw, 32rem);
+  text-align: center;
+  background: color-mix(in srgb, var(--paper) 80%, transparent);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   backdrop-filter: blur(8px);
@@ -28,16 +30,25 @@
 }
 .launch__mission {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   letter-spacing: 0.22em;
   color: var(--accent-ink);
+}
+.launch__lede {
+  margin: 0.1rem 0 0;
+  font-size: 1.02rem;
+  line-height: 1.35;
+  color: var(--ink);
+  text-wrap: balance;
 }
 .launch__brief {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--ink-40);
-  letter-spacing: 0.03em;
+  font-size: 0.78rem;
+  color: var(--ink-60);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  text-wrap: balance;
 }
 .launch__row {
   display: flex;
@@ -92,7 +103,7 @@
 }
 .launch__telemetry {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.84rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-60);
@@ -136,10 +147,10 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-m);
-  padding: 0.8rem 1.2rem;
+  padding: 0.9rem 1.3rem;
   font-family: var(--font-mono);
-  font-size: 0.74rem;
-  letter-spacing: 0.12em;
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
   color: var(--ink-60);
   pointer-events: none;
 }
@@ -149,12 +160,12 @@
 .ast__lives {
   color: var(--accent-ink);
   letter-spacing: 0.3em;
-  font-size: 0.66rem;
+  font-size: 0.82rem;
 }
 .ast__exit {
   pointer-events: auto;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.86rem;
   letter-spacing: 0.06em;
   color: var(--ink-40);
   background: none;
@@ -164,14 +175,37 @@
 .ast__exit:hover {
   color: var(--ink);
 }
+/* always-on objective, just under the HUD — the one line that says why you're
+   flying: climb to orbit, clear the things that actually kill projects */
+.ast__objective {
+  position: absolute;
+  top: 2.9rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  /* explicit width, not max-width: an absolutely-positioned box with left:50%
+     and no right shrinks to fit within only half the viewport, which forces a
+     wrap. A fixed width lets the centred line run full-length. max-width:none
+     defeats the global p{max-width:var(--measure)} readability cap. */
+  width: min(94vw, 46rem);
+  max-width: none;
+  text-align: center;
+  text-wrap: balance;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  color: var(--accent-ink);
+  opacity: 0.82;
+  pointer-events: none;
+}
 .ast__toast {
   position: absolute;
-  top: 18%;
+  top: 20%;
   left: 50%;
   transform: translateX(-50%);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
-  letter-spacing: 0.14em;
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink);
   opacity: 0;
@@ -192,7 +226,7 @@
   left: 50%;
   transform: translateX(-50%);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.82rem;
   letter-spacing: 0.06em;
   color: var(--ink-40);
   pointer-events: none;
@@ -217,6 +251,7 @@
 .rud {
   position: absolute;
   inset: 0;
+  z-index: 2; /* over the ship3d overlay (z-index 1) — card owns the screen now */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,26 +273,27 @@
 }
 .rud__eyebrow {
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   letter-spacing: 0.24em;
   color: var(--ink-40);
 }
 .rud__title {
   margin: 0;
-  font-size: clamp(1.2rem, 4vw, 1.7rem);
+  font-size: clamp(1.3rem, 4.4vw, 1.85rem);
   letter-spacing: 0.04em;
   color: var(--ink);
   text-wrap: balance;
 }
 .rud__sub {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
   color: var(--ink-60);
 }
 .rud__score {
   margin: 0.2rem 0 0;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   letter-spacing: 0.14em;
   color: var(--accent-ink);
   text-transform: uppercase;
@@ -345,13 +381,13 @@
 .rud__foot {
   margin: 0.7rem 0 0;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.78rem;
   letter-spacing: 0.04em;
   color: var(--ink-40);
 }
 .rud__link {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.78rem;
   color: var(--accent-ink);
   background: none;
   border: 0;
