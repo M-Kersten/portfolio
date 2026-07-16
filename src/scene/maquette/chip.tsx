@@ -11,7 +11,7 @@ import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
-import { GlassMat, SoftBox } from './materials';
+import { GlassMat, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
@@ -149,12 +149,12 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
     <group position={position}>
       <group ref={popRef}>
         {/* base pad on the board */}
-        <SoftBox position={[0, 0.035, 0.02]} args={[0.36, 0.05, 0.16]} radius={0.02} opacity={0.34} />
+        <SoftBox position={[0, 0.035, 0.02]} args={[0.36, 0.05, 0.16]} radius={0.02} opacity={0.34} liveSlug={slug} />
         {/* the monitor unit, tilted to face up-and-forward */}
         <group position={[0, 0.21, 0]} rotation={[-0.34, 0, 0]}>
-          {/* casing (ghosts with the life system) */}
+          {/* casing — solidifies once visited, like every hotspot body */}
           <RoundedBox args={[0.42, 0.3, 0.05]} radius={0.02} smoothness={3}>
-            <GlassMat opacity={0.44} />
+            <LiveGlassMat slug={slug} opacity={0.44} />
           </RoundedBox>
           <Line points={roundedRectPts(0.42, 0.3, 0.03)} position={[0, 0, 0.026]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
           {/* dark screen (drives its own glow) */}
@@ -196,7 +196,7 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
           {[-0.15, -0.11, -0.07].map((bx, i) => (
             <mesh key={i} position={[bx, -0.12, 0.028]} rotation={[Math.PI / 2, 0, 0]}>
               <cylinderGeometry args={[0.013, 0.013, 0.01, 16]} />
-              <GlassMat opacity={0.5} />
+              <LiveGlassMat slug={slug} opacity={0.5} />
             </mesh>
           ))}
         </group>
@@ -495,44 +495,45 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   return (
     <group position={position} rotation={[0, aimYaw, 0]}>
       <group ref={popRef}>
-        {/* ---- the leg stand: base puck → knee joint → overhead grip ---- */}
+        {/* ---- the leg stand: base puck → knee joint → overhead grip ----
+            Line discipline: only the round joints keep rim edges (threshold 30,
+            like the board's other cylinders); plates and boxes go edge-free so
+            the mount doesn't read as a wireframe tangle. LiveGlassMat solidifies
+            it all once visited, like every other hotspot body. */}
         <mesh position={[0, 0.02, -0.09]} rotation={[0, FACET, 0]}>
           <cylinderGeometry args={[0.05, 0.058, 0.035, 8]} />
-          <GlassMat opacity={0.5} />
-          <Edges threshold={12} color={NEUTRAL} />
+          <LiveGlassMat slug={slug} opacity={0.5} />
+          <Edges threshold={50} color={NEUTRAL} />
         </mesh>
         {/* lower segment — twin plates leaning forward to the knee */}
         {[-0.026, 0.026].map((x, i) => (
           <mesh key={`l${i}`} position={[x, 0.118, -0.053]} rotation={[0.43, 0, 0]}>
             <boxGeometry args={[0.011, 0.19, 0.034]} />
-            <GlassMat opacity={0.44} />
-            <Edges threshold={12} color={NEUTRAL} />
+            <LiveGlassMat slug={slug} opacity={0.44} />
           </mesh>
         ))}
         {/* knee joint disc */}
         <mesh position={[0, 0.2, -0.015]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.032, 0.032, 0.064, 18]} />
-          <GlassMat opacity={0.5} />
+          <LiveGlassMat slug={slug} opacity={0.5} />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
         {/* upper segment — twin plates leaning back up to the grip hub */}
         {[-0.026, 0.026].map((x, i) => (
           <mesh key={`u${i}`} position={[x, 0.278, -0.045]} rotation={[-0.37, 0, 0]}>
             <boxGeometry args={[0.011, 0.17, 0.034]} />
-            <GlassMat opacity={0.44} />
-            <Edges threshold={12} color={NEUTRAL} />
+            <LiveGlassMat slug={slug} opacity={0.44} />
           </mesh>
         ))}
         {/* grip hub + the horizontal arm reaching over the head */}
         <mesh position={[0, 0.355, -0.075]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.028, 0.028, 0.058, 18]} />
-          <GlassMat opacity={0.5} />
+          <LiveGlassMat slug={slug} opacity={0.5} />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
         <mesh position={[0, 0.358, -0.036]}>
           <boxGeometry args={[0.026, 0.02, 0.1]} />
-          <GlassMat opacity={0.46} />
-          <Edges threshold={12} color={NEUTRAL} />
+          <LiveGlassMat slug={slug} opacity={0.46} />
         </mesh>
 
         {/* ---- the pivot: the head hangs from the grip and pans/nods on it ---- */}
@@ -565,27 +566,26 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
               </mesh>
               <mesh position={[0, -0.015, 0]}>
                 <boxGeometry args={[0.034, 0.014, 0.034]} />
-                <GlassMat opacity={0.5} />
-                <Edges threshold={12} color={NEUTRAL} />
+                <LiveGlassMat slug={slug} opacity={0.5} />
               </mesh>
               <group position={[0, HEAD_DROP, 0]}>
-                {/* faceted bullet body (octagonal, tapering toward the lens) */}
+                {/* faceted bullet body — threshold 50 hides the 45° facet seams,
+                    so only the octagonal rims draw (the facets read via shading) */}
                 <mesh position={[0, 0, -0.01]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.054, 0.06, 0.2, 8]} />
-                  <GlassMat opacity={0.44} />
-                  <Edges threshold={12} color={NEUTRAL} />
+                  <LiveGlassMat slug={slug} opacity={0.44} />
+                  <Edges threshold={50} color={NEUTRAL} />
                 </mesh>
                 {/* back cap */}
                 <mesh position={[0, 0, -0.12]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.06, 0.046, 0.025, 8]} />
-                  <GlassMat opacity={0.5} />
-                  <Edges threshold={12} color={NEUTRAL} />
+                  <LiveGlassMat slug={slug} opacity={0.5} />
                 </mesh>
                 {/* hood — an open octagonal shade past the lens */}
                 <mesh position={[0, 0, 0.135]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.062, 0.058, 0.075, 8, 1, true]} />
-                  <GlassMat opacity={0.32} />
-                  <Edges threshold={12} color={NEUTRAL} />
+                  <LiveGlassMat slug={slug} opacity={0.32} />
+                  <Edges threshold={50} color={NEUTRAL} />
                 </mesh>
                 {/* dark lens recess + the glass element that lights up */}
                 <mesh position={[0, 0, 0.104]} rotation={[Math.PI / 2, FACET, 0]}>
