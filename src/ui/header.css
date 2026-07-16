@@ -20,6 +20,12 @@
   justify-content: space-between;
   gap: var(--space-m);
 }
+/* right cluster: the Find button, the nav, and the mobile menu toggle */
+.header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-m);
+}
 
 /* Logo — Merijn's real MK + aperture vector, inlined in Logo.tsx. */
 .logo {

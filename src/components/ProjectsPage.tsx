@@ -4,6 +4,7 @@ import { cases, caseBySlug, site } from '../content';
 import { FocusCard } from './FocusCard';
 import { ProjectsCloud } from './ProjectsCloud';
 import { Scramble } from './Scramble';
+import { Search } from './Search';
 
 // The fullscreen "all projects" view (/projects) — reached from the button under
 // the timeline. A standalone route (no header / no 3D), a constellation of every
@@ -30,7 +31,10 @@ export function ProjectsPage() {
         <h1 className="pc-title">
           <Scramble text="Every project" />
         </h1>
-        <span className="pc-count">{items.length} projects</span>
+        <div className="pc-top-right">
+          <Search />
+          <span className="pc-count">{items.length} projects</span>
+        </div>
       </header>
 
       <ProjectsCloud items={items} onOpen={setOpen} />

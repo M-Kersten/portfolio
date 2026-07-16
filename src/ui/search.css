@@ -1,0 +1,287 @@
+/* Site-wide "find a project": the top-bar trigger (glass + "Find" + an "F"
+   keycap) and the command-palette overlay it opens. Styled to match the rest
+   of the system — dark acrylic surface, hairline rules, mono metadata, the
+   layer palette on the result thumbnails. */
+
+/* ---------- the top-bar trigger ---------- */
+.find {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2rem;
+  padding: 0 0.6rem 0 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  color: var(--ink-60);
+  cursor: pointer;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.find:hover,
+.find:focus-visible {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: var(--surface-2);
+  outline: none;
+}
+.find__glass {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+.find__label {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+}
+.find__key {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--ink-60);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 0.2em 0.42em;
+}
+.find:hover .find__key,
+.find:focus-visible .find__key {
+  color: var(--accent-ink);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+/* ---------- the overlay ---------- */
+.search {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(3rem, 11vh, 8rem) var(--space-m) var(--space-m);
+  background: color-mix(in srgb, var(--paper) 68%, transparent);
+  backdrop-filter: blur(6px) saturate(1.1);
+  animation: search-fade 0.18s var(--ease);
+}
+.search__panel {
+  width: min(94vw, 40rem);
+  max-height: min(72vh, 40rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 30px 80px -20px #000, 0 0 0 1px var(--hairline);
+  animation: search-rise 0.22s var(--ease);
+}
+
+/* the input row */
+.search__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.85rem;
+  border-bottom: 1px solid var(--hairline);
+  flex: none;
+}
+.search__glass {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: none;
+  color: var(--accent-ink);
+}
+.search__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  letter-spacing: -0.01em;
+  padding: 0.95rem 0;
+}
+.search__input::placeholder {
+  color: var(--ink-40);
+}
+.search__esc {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-40);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.28em 0.5em;
+  cursor: pointer;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+.search__esc:hover {
+  color: var(--ink);
+  border-color: var(--ink-40);
+}
+
+/* the scrolling results */
+.search__results {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.search__empty {
+  margin: 0;
+  padding: 2rem 1.1rem 2.4rem;
+  color: var(--ink-40);
+  font-size: var(--step-0);
+  text-align: center;
+}
+
+.search__hit {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  scroll-margin: 0.4rem;
+}
+.search__hit[data-active] {
+  background: var(--surface-2);
+  box-shadow: inset 2px 0 0 var(--c);
+}
+.search__thumb {
+  position: relative;
+  flex: none;
+  width: 56px;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--c) 40%, var(--line));
+  background: #06080a;
+}
+.search__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0.9;
+}
+.search__thumb[data-empty] {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 100% at 50% 40%, color-mix(in srgb, var(--c) 16%, transparent), transparent 70%), #06080a;
+}
+.search__thumb[data-empty]::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid color-mix(in srgb, var(--c) 70%, transparent);
+  border-radius: 50%;
+}
+.search__hit-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.search__hit-title {
+  font-family: var(--font-display);
+  font-size: var(--step-0);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search__hit-meta {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-40);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search__hit-layer {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c) 80%, var(--ink));
+}
+
+/* footer hints */
+.search__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-s);
+  padding: 0.55rem 0.85rem;
+  border-top: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-40);
+}
+.search__foot kbd {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  color: var(--ink-60);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.12em 0.36em;
+  margin-right: 0.1rem;
+}
+.search__foot-count {
+  color: var(--ink-40);
+}
+
+@keyframes search-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes search-rise {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+  }
+}
+
+@media (max-width: 720px) {
+  /* on the phone bar, the trigger collapses to just the glass */
+  .find {
+    padding: 0;
+    width: 2rem;
+    justify-content: center;
+    gap: 0;
+    border-radius: var(--radius-s);
+  }
+  .find__label,
+  .find__key {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search,
+  .search__panel {
+    animation: none;
+  }
+}
