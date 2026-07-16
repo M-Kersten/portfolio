@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '../lib/useReducedMotion';
+import { GameRocket, type ShipView } from './GameRocket';
 
 // ASTEROIDS — the launch easter egg's payload. Everyone's first Unity game,
-// rebuilt in the site's own wireframe language: the ship is the little rocket
-// you just launched, the asteroids are labelled with the real hazards of a
-// decade in XR (SCOPE CREEP splits into MORE SCOPE CREEP; MERGE CONFLICT
-// splits into YOURS and THEIRS), and death is a Rapid Unscheduled Disassembly
-// with an [ITERATE] button. Hand-rolled canvas 2D — no engine, obviously.
+// rebuilt in the site's own wireframe language: the ship is the actual 3D
+// launch vehicle (GameRocket, layered over this canvas), the asteroids are
+// labelled with the real hazards of a decade in XR (SCOPE CREEP splits into
+// MORE SCOPE CREEP; MERGE CONFLICT splits into YOURS and THEIRS), and death is
+// a Rapid Unscheduled Disassembly with an [ITERATE] button. Everything but the
+// ship is hand-rolled canvas 2D — no engine, obviously.
 
 const CYAN = '#27e8f2';
 const NEUTRAL = '#9fb6c6';
@@ -62,6 +64,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const [finalScore, setFinalScore] = useState(0);
   const [best, setBest] = useState(() => Number(localStorage.getItem('mk-asteroids-best') ?? 0));
   const restartRef = useRef<() => void>(() => {});
+  // the ship's live pose, handed to the 3D rocket overlay every frame
+  const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, thrust: false, visible: true });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -435,33 +439,14 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       }
       ctx.globalAlpha = 1;
 
-      // ship — the little rocket, blinking while invulnerable
-      if (ship.dead <= 0 && !(ship.inv > 0 && Math.sin(t * 24) > 0)) {
-        ctx.save();
-        ctx.translate(ship.x, ship.y);
-        ctx.rotate(ship.a + Math.PI / 2);
-        ctx.strokeStyle = CYAN;
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.moveTo(0, -14); // nose
-        ctx.lineTo(5, -2);
-        ctx.lineTo(5, 8);
-        ctx.lineTo(9, 13); // right fin
-        ctx.lineTo(-9, 13); // left fin
-        ctx.lineTo(-5, 8);
-        ctx.lineTo(-5, -2);
-        ctx.closePath();
-        ctx.stroke();
-        if (ship.thrust) {
-          ctx.strokeStyle = '#ffb46a';
-          ctx.beginPath();
-          ctx.moveTo(-3, 14);
-          ctx.lineTo(0, 20 + Math.random() * 7);
-          ctx.lineTo(3, 14);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
+      // the ship is a real 3D rocket now (the GameRocket overlay); hand it the
+      // live pose. It blinks while invulnerable, hides during the respawn hold.
+      const sv = shipView.current;
+      sv.x = ship.x;
+      sv.y = ship.y;
+      sv.a = ship.a;
+      sv.thrust = ship.thrust && ship.dead <= 0;
+      sv.visible = ship.dead <= 0 && !(ship.inv > 0 && Math.sin(t * 24) > 0);
 
       if (paused && !over) {
         ctx.fillStyle = INK;
@@ -509,6 +494,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   return (
     <div className="ast" role="dialog" aria-label="Asteroids">
       <canvas ref={canvasRef} className="ast__canvas" />
+      <GameRocket view={shipView} />
       <div className="ast__hud">
         <span className="ast__score">
           SIGNALS <span ref={scoreRef}>0000</span> · BEST {String(best).padStart(4, '0')}

@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sceneStore, useSceneSelector } from '../scene/store';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { AsteroidsGame } from './AsteroidsGame';
+
+// The game pulls in a second R3F canvas (the 3D rocket ship), so it's lazily
+// loaded — it can't reach the entry chunk and only fetches once someone has
+// actually flown. The three.js chunk is already in memory by then (the home
+// scene uses it), so it appears instantly.
+const AsteroidsGame = lazy(() => import('./AsteroidsGame').then((m) => ({ default: m.AsteroidsGame })));
 
 // The DOM half of the launch easter egg (the rocket itself lives in the city
 // scene — see maquette/city.tsx NextProjectSite). Stage-driven off the scene
@@ -59,7 +64,13 @@ export function LaunchOverlay() {
   // the fixed header, so anything rendered inside it — whatever its z-index —
   // paints under the header. Mission control outranks navigation.
   if (launch === 'idle') return null;
-  if (launch === 'game') return createPortal(<AsteroidsGame onExit={() => sceneStore.setLaunch('idle')} />, document.body);
+  if (launch === 'game')
+    return createPortal(
+      <Suspense fallback={<div className="ast" />}>
+        <AsteroidsGame onExit={() => sceneStore.setLaunch('idle')} />
+      </Suspense>,
+      document.body,
+    );
 
   return createPortal(
     <div className="launch" role="dialog" aria-label="Launch control">

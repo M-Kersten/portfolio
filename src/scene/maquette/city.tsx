@@ -15,6 +15,7 @@ import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useA
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, LiveGlassMat } from './materials';
 import { BlobShadow } from './backdrop';
+import { RocketBody } from './rocket';
 
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   const { hovered, visited } = useActive('alliander-hololens');
@@ -1038,37 +1039,7 @@ function NextProjectSite() {
             onPointerOver={() => (document.body.style.cursor = 'pointer')}
             onPointerOut={() => (document.body.style.cursor = '')}
           >
-            {/* booster */}
-            <mesh position={[0, 0.09 + 0.21, 0]}>
-              <cylinderGeometry args={[0.034, 0.036, 0.42, 14]} />
-              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.32} />
-              <Edges threshold={30} color={GHOST_LINE} />
-            </mesh>
-            {/* interstage seam + upper stage + nose */}
-            <mesh position={[0, 0.09 + 0.42 + 0.055, 0]}>
-              <cylinderGeometry args={[0.03, 0.034, 0.11, 14]} />
-              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.36} />
-              <Edges threshold={30} color={GHOST_LINE} />
-            </mesh>
-            <mesh position={[0, 0.09 + 0.53 + 0.05, 0]}>
-              <coneGeometry args={[0.03, 0.1, 14]} />
-              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.4} />
-              <Edges threshold={30} color={GHOST_LINE} />
-            </mesh>
-            {/* grid fins, folded */}
-            {([[-0.042, 0], [0.042, 0], [0, -0.042], [0, 0.042]] as [number, number][]).map(([x, z], i) => (
-              <mesh key={`f${i}`} position={[x, 0.475, z]} rotation={[0, i < 2 ? 0 : Math.PI / 2, 0]}>
-                <boxGeometry args={[0.008, 0.034, 0.026]} />
-                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
-              </mesh>
-            ))}
-            {/* landing legs against the tail */}
-            {([[-0.03, 0.03], [0.03, 0.03], [-0.03, -0.03], [0.03, -0.03]] as [number, number][]).map(([x, z], i) => (
-              <mesh key={`l${i}`} position={[x * 1.15, 0.15, z * 1.15]} rotation={[z === 0 ? 0 : (z > 0 ? -0.12 : 0.12), 0, x === 0 ? 0 : (x > 0 ? 0.12 : -0.12)]}>
-                <boxGeometry args={[0.008, 0.13, 0.008]} />
-                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.5} />
-              </mesh>
-            ))}
+            <RocketBody mode="ghost" />
             {/* exhaust — hidden until the count */}
             <group ref={exhaust} position={[0, 0.075, 0]} visible={false}>
               <mesh position={[0, -0.1, 0]}>

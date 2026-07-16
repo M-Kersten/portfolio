@@ -22,6 +22,8 @@ export function CameraRig() {
   const sway = useRef(0);
   const nodeAge = useRef(0); // seconds since the current node was selected
   const prevSel = useRef<string | null>(null);
+  const prevLaunch = useRef(launch);
+  const shake = useRef(0); // launch camera-shake impulse, 1 → 0
   const target = useRef(new Vector3().copy(journeyView(0).target));
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
@@ -70,6 +72,20 @@ export function CameraRig() {
         const k = 1 - Math.exp(-(ascending ? 2.6 : 3.4) * dt);
         camera.position.lerp(desiredPos.current, k);
         target.current.lerp(desiredTarget.current, k);
+        // ---- camera shake ----
+        if (launch !== prevLaunch.current) {
+          if (launch === 'ascend') shake.current = 1; // the ignition kick
+          prevLaunch.current = launch;
+        }
+        shake.current = Math.max(0, shake.current - dt * 0.55);
+        // hold-down rumble through the count; a big kick at lift-off settling
+        // into the ascent's sustained rattle
+        const amp = launch === 'countdown' ? 0.012 : launch === 'ascend' ? 0.03 + 0.13 * shake.current : 0;
+        if (amp > 0) {
+          camera.position.x += (Math.random() - 0.5) * amp;
+          camera.position.y += (Math.random() - 0.5) * amp;
+          camera.position.z += (Math.random() - 0.5) * amp;
+        }
       }
       camera.lookAt(target.current);
       return;

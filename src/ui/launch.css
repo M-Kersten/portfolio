@@ -120,6 +120,13 @@
   display: block;
   touch-action: none;
 }
+/* the 3D rocket ship, layered over the 2D canvas; input passes through to it */
+.ast__ship3d {
+  position: absolute !important;
+  inset: 0;
+  pointer-events: none !important;
+  z-index: 1;
+}
 .ast__hud {
   position: absolute;
   top: 0;
