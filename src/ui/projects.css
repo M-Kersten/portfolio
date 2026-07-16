@@ -43,16 +43,26 @@
   white-space: nowrap;
 }
 
-/* the field — the constellation lives here, over the square-dot pattern */
+/* the field — the constellation lives here, over the square-dot pattern.
+   `perspective` gives the cursor-driven lens + parallax their depth. */
 .pc-field {
   position: relative;
   flex: 1 1 auto;
   min-height: 32rem;
   overflow: hidden;
+  perspective: 1200px;
   background:
     radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 62%),
     var(--dots-ink) 0 0 / 30px 30px,
     var(--paper);
+}
+/* the group that holds the threads + nodes — the cursor pans and tilts this
+   whole plane (parallax "look-around"); JS sets its transform each frame. */
+.pc-plane {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 /* faint threads between projects that share a layer */
 .pc-links {
@@ -60,6 +70,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  overflow: visible;
   pointer-events: none;
   z-index: 1;
 }
@@ -89,6 +100,7 @@
   color: var(--ink-60);
   cursor: pointer;
   will-change: transform;
+  transform-style: preserve-3d;
   -webkit-tap-highlight-color: transparent;
 }
 .pc-node[data-big] {
@@ -114,6 +126,7 @@
   object-fit: cover;
   display: block;
   opacity: 0.82;
+  will-change: transform;
   transition: opacity 0.24s var(--ease);
 }
 /* poster missing (e.g. a fresh archive entry) → a quiet layer-tinted marker */
