@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, Shape, ShapeGeometry, type Group, type Mesh, type MeshBasicMaterial } from 'three';
+import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, type V3 } from './shared';
@@ -17,9 +17,8 @@ import { BlobShadow } from './backdrop';
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
 
 /* ---- Philips medical XR & AI — a bedside vital-signs monitor ----
-   A dark, ghosted screen at rest; once engaged it powers on — a green ECG trace
-   sweeps with a bright blip, a heart icon beats in time with each QRS spike, a
-   cyan SpO₂ pleth runs underneath and a little vitals bar-graph ticks. */
+   A dark, ghosted screen at rest; once engaged it powers on to just two clean
+   traces: a green ECG swept by a bright blip, and a cyan SpO₂ pleth below. */
 
 // One PQRST heartbeat, laid out left→right from x0 (screen-local units).
 const ecgBeat = (x0: number): V3[] => [
@@ -47,29 +46,14 @@ function traceObject(points: V3[], hex: string) {
   return { line: new ThreeLine(g, m), mat: m };
 }
 
-// A small upright heart outline (point at the bottom), for the monitor's icon.
-function heartGeometry() {
-  const s = new Shape();
-  s.moveTo(0, 0.3);
-  s.bezierCurveTo(0.05, 0.55, 0.55, 0.72, 0.55, 0.3);
-  s.bezierCurveTo(0.55, 0.03, 0.2, -0.12, 0, -0.42);
-  s.bezierCurveTo(-0.2, -0.12, -0.55, 0.03, -0.55, 0.3);
-  s.bezierCurveTo(-0.55, 0.72, -0.05, 0.55, 0, 0.3);
-  return new ShapeGeometry(s);
-}
-
 function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
   const screenMat = useRef<MeshStandardMaterial>(null);
-  const heartRef = useRef<Group>(null);
-  const heartMat = useRef<MeshStandardMaterial>(null);
   const blip = useRef<Mesh>(null);
-  const barsRef = useRef<Group>(null);
   const live = useRef(0); // 0 dormant → 1 alive
   const k = useRef(0); // hover/select brightness
-  const beat = useRef(0); // heart pulse envelope
 
   const grey = useMemo(() => new Color('#8fa1ad'), []);
   const green = useMemo(() => new Color('#5fd07a'), []);
@@ -86,16 +70,14 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
   }, []);
   const ecgObj = useMemo(() => traceObject(ecg, '#5fd07a'), [ecg]);
   const plethObj = useMemo(() => traceObject(pleth, '#7fe6ff'), [pleth]);
-  const heartGeo = useMemo(() => heartGeometry(), []);
   useEffect(
     () => () => {
       ecgObj.line.geometry.dispose();
       ecgObj.mat.dispose();
       plethObj.line.geometry.dispose();
       plethObj.mat.dispose();
-      heartGeo.dispose();
     },
-    [ecgObj, plethObj, heartGeo],
+    [ecgObj, plethObj],
   );
 
   const yAtX = (x: number) => {
@@ -123,25 +105,11 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
     const x = -0.15 + sweep * 0.28;
     if (blip.current) {
       blip.current.visible = on > 0.05;
-      blip.current.position.set(x, 0.02 + yAtX(x), 0.004);
+      blip.current.position.set(x, 0.035 + yAtX(x), 0.004);
       blip.current.scale.setScalar(0.55 + 0.7 * on);
       const bm = blip.current.material as MeshStandardMaterial;
       bm.color.copy(grey).lerp(green, on);
       bm.emissive.copy(grey).lerp(green, on);
-    }
-    // heart beats as the sweep crosses either QRS spike
-    const near = Math.max(Math.exp(-((x - (-0.088)) ** 2) / 0.0004), Math.exp(-((x - 0.054) ** 2) / 0.0004));
-    beat.current = Math.max(beat.current - delta * 3.5, reduced ? 0.25 * on : near * on);
-    if (heartRef.current) heartRef.current.scale.setScalar(0.05 * (1 + beat.current * 0.55));
-    if (heartMat.current) {
-      heartMat.current.color.copy(grey).lerp(green, on);
-      heartMat.current.emissive.copy(grey).lerp(green, on);
-      heartMat.current.emissiveIntensity = 0.2 + on * (0.5 + beat.current * 1.5);
-    }
-    if (barsRef.current) {
-      barsRef.current.children.forEach((c, i) => {
-        c.scale.y = on > 0.05 && !reduced ? 0.4 + 0.6 * Math.abs(Math.sin(t * (2 + i * 0.6) + i)) : 0.25;
-      });
     }
   });
 
@@ -162,35 +130,14 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
             <planeGeometry args={[0.35, 0.22]} />
             <meshStandardMaterial ref={screenMat} userData={{ lifeSkip: true }} color="#050f16" emissive="#0c2734" emissiveIntensity={0.06} roughness={0.5} toneMapped={false} />
           </mesh>
-          {/* screen contents, sitting just proud of the panel */}
+          {/* screen contents — just the two traces, sitting proud of the panel */}
           <group position={[0, 0.012, 0.03]}>
-            {[-0.06, 0, 0.06].map((gy, i) => (
-              <Line key={`h${i}`} points={[[-0.16, gy, 0], [0.16, gy, 0]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.1} />
-            ))}
-            {[-0.12, -0.06, 0, 0.06, 0.12].map((gx, i) => (
-              <Line key={`v${i}`} points={[[gx, -0.09, 0], [gx, 0.09, 0]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.08} />
-            ))}
-            <primitive object={ecgObj.line} position={[0, 0.02, 0.001]} />
-            <primitive object={plethObj.line} position={[0, -0.062, 0.001]} />
+            <primitive object={ecgObj.line} position={[0, 0.035, 0.001]} />
+            <primitive object={plethObj.line} position={[0, -0.045, 0.001]} />
             <mesh ref={blip} visible={false}>
               <sphereGeometry args={[0.009, 12, 12]} />
               <meshStandardMaterial color="#5fd07a" emissive="#5fd07a" emissiveIntensity={1.8} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
             </mesh>
-            {/* beating heart icon (top-left) */}
-            <group ref={heartRef} position={[-0.135, 0.055, 0.002]} scale={0.05}>
-              <mesh geometry={heartGeo}>
-                <meshStandardMaterial ref={heartMat} color="#5fd07a" emissive="#5fd07a" emissiveIntensity={0.2} roughness={0.4} toneMapped={false} side={DoubleSide} userData={{ lifeSkip: true }} />
-              </mesh>
-            </group>
-            {/* vitals bar-graph (top-right) */}
-            <group ref={barsRef} position={[0.088, 0.052, 0.002]}>
-              {[0, 1, 2, 3].map((i) => (
-                <mesh key={i} position={[i * 0.017, 0, 0]}>
-                  <boxGeometry args={[0.009, 0.032, 0.002]} />
-                  <meshStandardMaterial color="#5fd07a" emissive="#5fd07a" emissiveIntensity={0.7} roughness={0.4} toneMapped={false} userData={{ lifeSkip: true }} />
-                </mesh>
-              ))}
-            </group>
           </group>
           {/* control buttons along the chin */}
           {[-0.15, -0.11, -0.07].map((bx, i) => (
