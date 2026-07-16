@@ -402,24 +402,26 @@ function pcbTrace(bx: number, bz: number, y: number): V3[] {
  *  by its view cone, a feature dot on every corner and a sweeping scan line —
  *  floating in front of its view, as if the CV system is tracking a target. */
 const CAM_LENS_Z = 0.12; // lens tip, head-local
-const CAM_CUBE_Z = 0.4; // hologram centre, out in front of the lens
-const CAM_H = 0.09; // view-frame half-size at the cube's near face
-function SecurityCamera({ slug, position, aimYaw = -0.95, aimPitch = 0.34 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
+const CAM_CUBE_Z = 0.72; // hologram centre, well out in front of the lens
+const CAM_CUBE = 0.22; // hologram cube edge length
+const CAM_H = 0.15; // view-frame half-size at the cube's near face
+// The camera is panned to look out past the board's edge, into open space, so
+// its silhouette reads clean and the hologram floats clear of the busy PCB.
+function SecurityCamera({ slug, position, aimYaw = 0.82, aimPitch = 0.16 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
   const lensMat = useRef<MeshStandardMaterial>(null);
-  const statusMat = useRef<MeshStandardMaterial>(null);
   const holoRef = useRef<Group>(null);
   const spinRef = useRef<Group>(null);
   const scanRef = useRef<Mesh>(null);
-  const k = useRef(0); // lens/status power
+  const k = useRef(0); // lens power
   const holo = useRef(0); // hologram presence
   const lensC = useMemo(() => new Color('#7fe6ff'), []);
 
   // the tracked cube's wireframe, on an owned material (opted out of ghosting)
   const cube = useMemo(() => {
-    const geo = new EdgesGeometry(new BoxGeometry(0.15, 0.15, 0.15));
+    const geo = new EdgesGeometry(new BoxGeometry(CAM_CUBE, CAM_CUBE, CAM_CUBE));
     const mat = new LineBasicMaterial({ color: new Color('#8fd8ff'), transparent: true, toneMapped: false, opacity: 0.9, depthWrite: false });
     mat.userData.lifeSkip = true;
     return { obj: new LineSegments(geo, mat), mat, geo };
@@ -429,14 +431,15 @@ function SecurityCamera({ slug, position, aimYaw = -0.95, aimPitch = 0.34 }: { s
     cube.mat.dispose();
   }, [cube]);
 
-  const near = CAM_CUBE_Z - CAM_H;
+  const near = CAM_CUBE_Z - CAM_CUBE / 2;
   const frameCorners = useMemo<V3[]>(
     () => ([[CAM_H, CAM_H], [-CAM_H, CAM_H], [-CAM_H, -CAM_H], [CAM_H, -CAM_H]] as [number, number][]).map(([x, y]) => [x, y, near]),
     [near],
   );
   const corners = useMemo<V3[]>(() => {
     const c: V3[] = [];
-    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) c.push([sx * 0.075, sy * 0.075, sz * 0.075]);
+    const h = CAM_CUBE / 2;
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) c.push([sx * h, sy * h, sz * h]);
     return c;
   }, []);
 
@@ -452,7 +455,6 @@ function SecurityCamera({ slug, position, aimYaw = -0.95, aimPitch = 0.34 }: { s
       lensMat.current.emissive.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * on);
       lensMat.current.emissiveIntensity = 0.05 + on * (1.0 + breathe);
     }
-    if (statusMat.current) statusMat.current.emissiveIntensity = 0.1 + on * (reduced ? 0.9 : Math.sin(t * 5) > 0.4 ? 1.4 : 0.15);
     // the projected hologram materialises out of the lens
     const h = holo.current;
     if (holoRef.current) {
@@ -465,7 +467,7 @@ function SecurityCamera({ slug, position, aimYaw = -0.95, aimPitch = 0.34 }: { s
       if (!reduced) spinRef.current.rotation.y = t * 0.5;
     }
     if (scanRef.current) {
-      scanRef.current.position.y = reduced ? 0 : Math.sin(t * 1.3) * 0.075;
+      scanRef.current.position.y = reduced ? 0 : Math.sin(t * 1.3) * (CAM_CUBE / 2);
       (scanRef.current.material as MeshStandardMaterial).opacity = 0.45 * h;
     }
   });
@@ -516,21 +518,6 @@ function SecurityCamera({ slug, position, aimYaw = -0.95, aimPitch = 0.34 }: { s
             <sphereGeometry args={[0.042, 24, 18]} />
             <meshStandardMaterial ref={lensMat} userData={{ lifeSkip: true }} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.14} transparent opacity={0.6} roughness={0.12} metalness={0.1} toneMapped={false} />
           </mesh>
-          {/* IR-LED ring around the lens */}
-          {Array.from({ length: 8 }).map((_, i) => {
-            const a = (i / 8) * Math.PI * 2;
-            return (
-              <mesh key={i} position={[Math.cos(a) * 0.045, Math.sin(a) * 0.045, 0.116]}>
-                <sphereGeometry args={[0.006, 8, 8]} />
-                <meshStandardMaterial color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.5} roughness={0.4} toneMapped={false} userData={{ lifeSkip: true }} />
-              </mesh>
-            );
-          })}
-          {/* status LED on top */}
-          <mesh position={[0, 0.058, -0.06]}>
-            <sphereGeometry args={[0.008, 10, 10]} />
-            <meshStandardMaterial ref={statusMat} color="#a9f75c" emissive="#a9f75c" emissiveIntensity={0.1} roughness={0.4} toneMapped={false} userData={{ lifeSkip: true }} />
-          </mesh>
 
           {/* the projected hologram — appears when the camera powers on */}
           <group ref={holoRef} visible={false}>
@@ -541,14 +528,14 @@ function SecurityCamera({ slug, position, aimYaw = -0.95, aimPitch = 0.34 }: { s
             <Line points={[...frameCorners, frameCorners[0]]} color="#7fe6ff" lineWidth={1} transparent opacity={0.32} />
             {/* sweeping scan plane */}
             <mesh ref={scanRef} position={[0, 0, CAM_CUBE_Z]}>
-              <boxGeometry args={[0.17, 0.002, 0.17]} />
+              <boxGeometry args={[CAM_CUBE + 0.04, 0.002, CAM_CUBE + 0.04]} />
               <meshStandardMaterial color="#8fd8ff" emissive="#8fd8ff" emissiveIntensity={1.2} transparent opacity={0.45} toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
             </mesh>
             {/* the tracked cube: spinning wireframe + faint faces + corner feature dots */}
             <group ref={spinRef} position={[0, 0, CAM_CUBE_Z]}>
               <primitive object={cube.obj} />
               <mesh>
-                <boxGeometry args={[0.15, 0.15, 0.15]} />
+                <boxGeometry args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
                 <meshStandardMaterial color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
               </mesh>
               {corners.map((c, i) => (
