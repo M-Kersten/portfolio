@@ -8,7 +8,7 @@ import { Edges, Html } from '@react-three/drei';
 import { AdditiveBlending, Box3, BufferAttribute, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
-import { useSceneSelector } from '../store';
+import { launchTrack, sceneStore, useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { asset } from '../../lib/asset';
 import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
@@ -903,23 +903,32 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
   );
 }
 
-/* ---------- The completion reward: the next project ----------
+/* ---------- The completion reward: the next launch ----------
    When the 10th signal's HUD closes, the journey pulls home to the City view
    (see NodeHud) and this celebration plays out where the visitor can see it:
-   a short burst of accent-coloured particles over the city, and a new site
+   a short burst of accent-coloured particles over the city, and a launch pad
    materialising on the quiet lot between the city blocks and the park — a
-   staked plot with a proper little tower crane, deliberately the only thing
-   left as a ghost in a fully coloured world, because it hasn't happened yet.
-   Its marker invites the visitor to be the one it gets built with. */
+   little two-stage rocket on its mount beside a lattice service tower,
+   deliberately the only thing left as a ghost in a fully coloured world,
+   because it hasn't flown yet. Clicking it moves the camera to the pad and
+   offers a LAUNCH button (components/LaunchOverlay); lift-off carries the
+   visitor up into the asteroids easter egg. */
 const SITE_POS: V3 = [0.85, 0, -0.52];
 
 function NextProjectSite() {
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
+  const launch = useSceneSelector((s) => s.launch);
   const reduced = useReducedMotion();
   const rise = useRef<Group>(null);
-  const slew = useRef<Group>(null);
+  const rocket = useRef<Group>(null);
+  const exhaust = useRef<Group>(null);
+  const beaconMat = useRef<MeshStandardMaterial>(null);
+  const vel = useRef(0);
+  const alt = useRef(0);
+  const ascendT0 = useRef(0); // wall-clock ignition time (staging fallback)
 
-  // Lattice mast: rung rings + alternating face diagonals, as line segments.
+  // Lattice service tower: rung rings + alternating face diagonals (the same
+  // construction the old crane mast used — the site kept its scaffolding).
   const MAST_W = 0.055; // post spacing
   const MAST_H = 0.82;
   const lattice = useMemo(() => {
@@ -930,7 +939,6 @@ function NextProjectSite() {
     for (let i = 1; i <= steps; i++) {
       const y = (MAST_H / steps) * i - 0.02;
       rungs.push([[-h, y, -h], [h, y, -h], [h, y, h], [-h, y, h], [-h, y, -h]]);
-      // one zigzag diagonal per bay on the two camera-facing faces
       const y0 = (MAST_H / steps) * (i - 1);
       const dir = i % 2 ? 1 : -1;
       diags.push([dir * -h, y0, h], [dir * h, y, h]);
@@ -939,24 +947,144 @@ function NextProjectSite() {
     return { rungs, diags };
   }, []);
 
-  useFrame(() => {
+  useFrame((s, delta) => {
     if (celebrateAt === null) return;
+    const dt = Math.min(delta, 1 / 30);
     const t = reduced ? 10 : (performance.now() - celebrateAt) / 1000;
-    // ease up out of the ground, then idle: the crane keeps slowly working
+    // ease up out of the ground once the celebration fires
     const k = 1 - Math.exp(-Math.max(0, t - 0.5) * 1.5);
     if (rise.current) rise.current.scale.set(0.75 + 0.25 * k, Math.max(0.001, k), 0.75 + 0.25 * k);
-    if (slew.current && !reduced) slew.current.rotation.y = Math.sin(t * 0.22) * 0.7 + 0.6;
+    if (beaconMat.current) beaconMat.current.emissiveIntensity = reduced ? 0.8 : 0.3 + (Math.sin(s.clock.elapsedTime * 2.4) > 0.7 ? 1.6 : 0);
+
+    const r = rocket.current;
+    if (!r) return;
+    // ---- launch dynamics ----
+    if (launch === 'idle' && alt.current !== 0) {
+      // back from the game: the booster is quietly back on the mount (it landed)
+      alt.current = 0;
+      vel.current = 0;
+      ascendT0.current = 0;
+      r.position.set(0, 0, 0);
+      r.rotation.z = 0;
+    }
+    if (launch === 'countdown' && !reduced) {
+      // hold-down rumble while the count runs
+      r.position.x = (Math.random() - 0.5) * 0.004;
+      r.position.z = (Math.random() - 0.5) * 0.004;
+    }
+    if (launch === 'ascend') {
+      if (reduced) {
+        sceneStore.setLaunch('game'); // no ascent animation — cut to the game
+      } else {
+        if (ascendT0.current === 0) ascendT0.current = performance.now();
+        vel.current += 1.7 * dt; // throttle up
+        alt.current += vel.current * dt;
+        r.position.y = alt.current;
+        r.rotation.z = -Math.min(alt.current * 0.05, 0.16); // a hint of gravity turn
+        // staging → the game takes over. The wall-clock fallback matters: the
+        // sim's dt is clamped (1/30), so on a slow device the integration runs
+        // below real time and altitude alone could keep the visitor waiting.
+        if (alt.current > 3.2 || performance.now() - ascendT0.current > 4500) sceneStore.setLaunch('game');
+      }
+    }
+    // exhaust: builds through the count, roars during ascent
+    const ex = exhaust.current;
+    if (ex) {
+      const on = launch === 'ascend' ? 1 : launch === 'countdown' ? 0.25 : 0;
+      ex.visible = on > 0 && !reduced;
+      if (ex.visible) {
+        const flick = 0.85 + Math.random() * 0.3;
+        ex.scale.set(on * flick, on * (0.9 + Math.random() * 0.35), on * flick);
+      }
+    }
+    // the camera reads the vehicle's live world position from here
+    r.getWorldPosition(launchTrack);
+    launchTrack.y += 0.35 * 1.15; // aim at the stack's middle, not its tail
   });
 
   if (celebrateAt === null) return null;
 
   const post = MAST_W / 2;
+  const engage = () => {
+    if (sceneStore.snapshot().launch === 'idle') sceneStore.setLaunch('pad');
+  };
   return (
     <group position={SITE_POS} rotation={[0, 0.25, 0]}>
-      <group ref={rise}>        
-        {/* ---- the tower crane ---- */}
-        <group position={[0.1, 0, -0.08]}>
-          {/* concrete base + four lattice posts */}
+      <group ref={rise}>
+        {/* ---- the pad: apron + four-legged launch mount ---- */}
+        <mesh position={[-0.02, 0.012, 0.03]}>
+          <cylinderGeometry args={[0.17, 0.18, 0.024, 24]} />
+          <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.28} />
+        </mesh>
+        <group position={[-0.02, 0, 0.03]}>
+          {([[-0.05, -0.05], [0.05, -0.05], [-0.05, 0.05], [0.05, 0.05]] as [number, number][]).map(([x, z], i) => (
+            <mesh key={i} position={[x, 0.045, z]}>
+              <boxGeometry args={[0.014, 0.065, 0.014]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.08, 0]}>
+            <cylinderGeometry args={[0.052, 0.052, 0.016, 16]} />
+            <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+          </mesh>
+
+          {/* ---- the rocket (clickable — the whole point) ---- */}
+          <group
+            ref={rocket}
+            onClick={(e) => {
+              e.stopPropagation();
+              engage();
+            }}
+            onPointerOver={() => (document.body.style.cursor = 'pointer')}
+            onPointerOut={() => (document.body.style.cursor = '')}
+          >
+            {/* booster */}
+            <mesh position={[0, 0.09 + 0.21, 0]}>
+              <cylinderGeometry args={[0.034, 0.036, 0.42, 14]} />
+              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.32} />
+              <Edges threshold={30} color={GHOST_LINE} />
+            </mesh>
+            {/* interstage seam + upper stage + nose */}
+            <mesh position={[0, 0.09 + 0.42 + 0.055, 0]}>
+              <cylinderGeometry args={[0.03, 0.034, 0.11, 14]} />
+              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.36} />
+              <Edges threshold={30} color={GHOST_LINE} />
+            </mesh>
+            <mesh position={[0, 0.09 + 0.53 + 0.05, 0]}>
+              <coneGeometry args={[0.03, 0.1, 14]} />
+              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.4} />
+              <Edges threshold={30} color={GHOST_LINE} />
+            </mesh>
+            {/* grid fins, folded */}
+            {([[-0.042, 0], [0.042, 0], [0, -0.042], [0, 0.042]] as [number, number][]).map(([x, z], i) => (
+              <mesh key={`f${i}`} position={[x, 0.475, z]} rotation={[0, i < 2 ? 0 : Math.PI / 2, 0]}>
+                <boxGeometry args={[0.008, 0.034, 0.026]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+              </mesh>
+            ))}
+            {/* landing legs against the tail */}
+            {([[-0.03, 0.03], [0.03, 0.03], [-0.03, -0.03], [0.03, -0.03]] as [number, number][]).map(([x, z], i) => (
+              <mesh key={`l${i}`} position={[x * 1.15, 0.15, z * 1.15]} rotation={[z === 0 ? 0 : (z > 0 ? -0.12 : 0.12), 0, x === 0 ? 0 : (x > 0 ? 0.12 : -0.12)]}>
+                <boxGeometry args={[0.008, 0.13, 0.008]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.5} />
+              </mesh>
+            ))}
+            {/* exhaust — hidden until the count */}
+            <group ref={exhaust} position={[0, 0.075, 0]} visible={false}>
+              <mesh position={[0, -0.1, 0]}>
+                <coneGeometry args={[0.03, 0.22, 12, 1, true]} />
+                <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+              </mesh>
+              <mesh position={[0, -0.02, 0]}>
+                <sphereGeometry args={[0.05, 12, 12]} />
+                <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+              </mesh>
+            </group>
+          </group>
+        </group>
+
+        {/* ---- the service tower (the crane's lattice, repurposed) ---- */}
+        <group position={[0.13, 0, -0.07]}>
           <mesh position={[0, 0.015, 0]}>
             <boxGeometry args={[0.14, 0.03, 0.14]} />
             <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.3} />
@@ -967,73 +1095,30 @@ function NextProjectSite() {
               <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
             </mesh>
           ))}
-          {/* rung rings + face diagonals give it the lattice read */}
           {lattice.rungs.map((r, i) => (
             <Line key={i} points={r} color={GHOST_LINE} lineWidth={1} transparent opacity={0.45} position={[0, 0.03, 0]} />
           ))}
           <Line points={lattice.diags} segments color={GHOST_LINE} lineWidth={1} transparent opacity={0.4} position={[0, 0.03, 0]} />
-
-          {/* everything above the mast slews slowly as the crane works */}
-          <group ref={slew} position={[0, MAST_H + 0.05, 0]}>
-            {/* slewing platform + operator cab */}
-            <mesh position={[0, 0.01, 0]}>
-              <boxGeometry args={[0.08, 0.02, 0.08]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.5} />
-            </mesh>
-            <mesh position={[0.045, 0.045, 0.03]}>
-              <boxGeometry args={[0.045, 0.05, 0.05]} />
-              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.25} />
-              <Edges threshold={20} color={GHOST_LINE} />
-            </mesh>
-            {/* tower head */}
-            <mesh position={[0, 0.09, 0]}>
-              <boxGeometry args={[0.014, 0.16, 0.014]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
-            </mesh>
-            {/* main jib: twin chords + tie bar from the tower head */}
-            <mesh position={[-0.31, 0.02, -0.012]}>
-              <boxGeometry args={[0.62, 0.012, 0.012]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
-            </mesh>
-            <mesh position={[-0.31, 0.02, 0.012]}>
-              <boxGeometry args={[0.62, 0.012, 0.012]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
-            </mesh>
-            <Line points={[[0, 0.17, 0], [-0.6, 0.03, 0]]} color={GHOST_LINE} lineWidth={1} transparent opacity={0.5} />
-            {/* counter-jib + counterweight + its tie bar */}
-            <mesh position={[0.13, 0.02, 0]}>
-              <boxGeometry args={[0.26, 0.012, 0.03]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
-            </mesh>
-            <mesh position={[0.24, -0.02, 0]}>
-              <boxGeometry args={[0.05, 0.06, 0.05]} />
-              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.35} />
-              <Edges threshold={20} color={GHOST_LINE} />
-            </mesh>
-            <Line points={[[0, 0.17, 0], [0.24, 0.035, 0]]} color={GHOST_LINE} lineWidth={1} transparent opacity={0.5} />
-            {/* trolley + hoist cable + hook block, mid-lift */}
-            <mesh position={[-0.42, 0.005, 0]}>
-              <boxGeometry args={[0.03, 0.014, 0.03]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
-            </mesh>
-            <Line points={[[-0.42, 0, 0], [-0.42, -0.3, 0]]} color={GHOST_LINE} lineWidth={1} transparent opacity={0.55} />
-            <mesh position={[-0.42, -0.315, 0]}>
-              <boxGeometry args={[0.028, 0.03, 0.028]} />
-              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.45} />
-            </mesh>
-          </group>
+          {/* crew access arm across to the upper stage */}
+          <mesh position={[-0.085, 0.6, 0.045]} rotation={[0, 0.6, 0]}>
+            <boxGeometry args={[0.14, 0.014, 0.03]} />
+            <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+          </mesh>
+          {/* beacon — blinks like a real pad at night */}
+          <mesh position={[0, MAST_H + 0.06, 0]}>
+            <sphereGeometry args={[0.012, 10, 10]} />
+            <meshStandardMaterial ref={beaconMat} color="#ff9068" emissive="#ff9068" emissiveIntensity={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
+          </mesh>
         </group>
       </group>
-      {/* the invitation — clicks through to contact */}
-      <Html position={[-0.12, 1.02, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
-        <button
-          type="button"
-          className="nextsite"
-          onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
-        >
-          <b>next project</b> - let's build it together
-        </button>
-      </Html>
+      {/* the invitation — engages the pad camera + LAUNCH button */}
+      {launch === 'idle' && (
+        <Html position={[-0.12, 1.02, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
+          <button type="button" className="nextsite" onClick={engage}>
+            <b>my next launch</b> — let's build it together
+          </button>
+        </Html>
+      )}
     </group>
   );
 }

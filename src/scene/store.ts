@@ -1,5 +1,17 @@
 import { useSyncExternalStore } from 'react';
+import { Vector3 } from 'three';
 import { HOTSPOTS } from './framing';
+
+/** The launch easter egg's stage machine (see city.tsx LaunchSite +
+ *  components/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;
+ *  'countdown' = T-minus running; 'ascend' = rocket flying, camera chasing;
+ *  'game' = the asteroids overlay is up. */
+export type LaunchStage = 'idle' | 'pad' | 'countdown' | 'ascend' | 'game';
+
+/** Where the rocket is RIGHT NOW, in world space — written by the rocket every
+ *  frame, read by the CameraRig to aim at the pad and chase the ascent. Plain
+ *  mutable vector (per-frame data, deliberately not reactive state). */
+export const launchTrack = new Vector3(0, 0, 0);
 
 // One renderer, one scene. DOM components (hotspots, routes, overlay) and the
 // in-Canvas components (CameraRig, scene) live in different React reconcilers,
@@ -26,8 +38,10 @@ interface SceneState {
   celebrationPending: boolean;
   /** The homecoming moment: set when the 10th node is deselected. Anchors the
    *  celebration — the particle burst, the bloom surge and the ghost
-   *  "next project" site materialising — so it all happens in full view. */
+   *  "next launch" pad materialising — so it all happens in full view. */
   celebrateAt: number | null;
+  /** The launch easter egg's current stage (idle when not engaged). */
+  launch: LaunchStage;
 }
 
 let state: SceneState = {
@@ -38,6 +52,7 @@ let state: SceneState = {
   completedAt: null,
   celebrationPending: false,
   celebrateAt: null,
+  launch: 'idle',
 };
 
 const listeners = new Set<() => void>();
@@ -72,6 +87,9 @@ export const sceneStore = {
   /** Consume the pending celebration (called when the 10th node's HUD closes). */
   celebrate() {
     if (state.celebrationPending) set({ celebrationPending: false, celebrateAt: performance.now() });
+  },
+  setLaunch(launch: LaunchStage) {
+    if (launch !== state.launch) set({ launch });
   },
 };
 

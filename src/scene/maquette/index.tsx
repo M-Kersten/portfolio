@@ -23,6 +23,7 @@ const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };
 export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => void }) {
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
+  const launching = useSceneSelector((s) => s.launch) !== 'idle';
   const activeLayer = (['city', 'room', 'chip'] as LayerId[])[journeyStep] ?? 'city';
   // The layer that holds the light: the selected node's home while one is open
   // (a deep link can select a node the scroll hasn't reached), else the scroll's.
@@ -62,7 +63,7 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
               </group>
               {activeLayer === id &&
                 HOTSPOTS.filter((h) => h.layer === id).map((h) => (
-                  <HotspotMarker key={h.slug} hotspot={h} color={PALETTE[id].accent} onActivate={onActivate} hidden={!!selectedSlug} />
+                  <HotspotMarker key={h.slug} hotspot={h} color={PALETTE[id].accent} onActivate={onActivate} hidden={!!selectedSlug || launching} />
                 ))}
             </group>
           </AccentCtx.Provider>

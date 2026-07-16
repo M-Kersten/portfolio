@@ -131,6 +131,16 @@ export const CAMERA = {
   fovLerp: 2.2,
 };
 
+// The launch easter egg's camera (see CameraRig's launch branch). The rig aims
+// at the rocket's live world position (store.launchTrack); these set how it
+// stands off from it on the pad and while chasing the ascent.
+export const LAUNCH = {
+  padOffset: [1.15, 0.55, 1.9] as Vec3, // three-quarter view of the pad
+  padAim: 0.1, // aim this far below the rocket's centre (frames it high)
+  ascendOffset: [1.5, -0.4, 2.4] as Vec3, // slightly below → looking UP at the climb
+  fovZoom: 10, // the lens widens a touch for the pad/ascent drama
+};
+
 /** Modest pull-back for narrow/tall viewports (paired with fitFov). 1 on desktop. */
 export function fitScale(aspect: number): number {
   return Math.min(Math.max(CAMERA.baseAspect / aspect, 1), CAMERA.maxFit);

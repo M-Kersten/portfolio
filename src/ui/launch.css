@@ -1,0 +1,373 @@
+/* The launch easter egg: the pad's mission panel + countdown (LaunchOverlay)
+   and the asteroids game (AsteroidsGame). Everything mono, hairline, on the
+   scene's dark paper — mission control, not arcade cabinet. */
+
+/* ---------- launch control ---------- */
+.launch {
+  position: fixed;
+  inset: 0;
+  z-index: 70; /* over the header (50), under the game (95) */
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: clamp(2rem, 9vh, 6rem);
+}
+.launch__panel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 1rem 1.4rem 1.2rem;
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  backdrop-filter: blur(8px);
+  animation: launch-rise 0.4s var(--ease);
+}
+.launch__mission {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  color: var(--accent-ink);
+}
+.launch__brief {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-40);
+  letter-spacing: 0.03em;
+}
+.launch__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  margin-top: 0.3rem;
+}
+.launch__go {
+  font-family: var(--font-mono);
+  font-size: var(--step-0);
+  letter-spacing: 0.3em;
+  padding: 0.75em 2.2em 0.75em 2.5em; /* optical: tracking pads the right */
+  animation: launch-arm 1.6s var(--ease) infinite alternate;
+}
+@keyframes launch-arm {
+  from { box-shadow: 0 0 0 0 transparent; }
+  to { box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 45%, transparent); }
+}
+.launch__abort {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-40);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+}
+.launch__abort:hover {
+  color: var(--ink);
+}
+.launch__abort kbd,
+.ast__exit kbd {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  margin-left: 0.3em;
+  color: var(--ink-60);
+}
+.launch__count {
+  font-family: var(--font-mono);
+  font-size: clamp(4rem, 14vw, 9rem);
+  font-weight: 700;
+  color: var(--ink);
+  text-shadow: 0 0 44px var(--accent-glow);
+  animation: launch-count 0.9s var(--ease);
+}
+@keyframes launch-count {
+  from { opacity: 0; transform: scale(1.35); }
+  30% { opacity: 1; }
+}
+.launch__telemetry {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+  animation: launch-rise 0.3s var(--ease);
+}
+@keyframes launch-rise {
+  from { opacity: 0; transform: translateY(10px); }
+}
+
+/* ---------- asteroids ---------- */
+.ast {
+  position: fixed;
+  inset: 0;
+  z-index: 95; /* above everything — the sky is yours now */
+  animation: ast-in 0.6s var(--ease);
+}
+@keyframes ast-in {
+  from { opacity: 0; }
+}
+.ast__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+.ast__hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-m);
+  padding: 0.8rem 1.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-60);
+  pointer-events: none;
+}
+.ast__score span {
+  color: var(--accent-ink);
+}
+.ast__lives {
+  color: var(--accent-ink);
+  letter-spacing: 0.3em;
+  font-size: 0.66rem;
+}
+.ast__exit {
+  pointer-events: auto;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-40);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.ast__exit:hover {
+  color: var(--ink);
+}
+.ast__toast {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.ast__toast--show {
+  animation: ast-toast 2.6s var(--ease);
+}
+@keyframes ast-toast {
+  0% { opacity: 0; transform: translate(-50%, 8px); }
+  12%, 72% { opacity: 0.9; transform: translate(-50%, 0); }
+  100% { opacity: 0; }
+}
+.ast__hint {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-40);
+  pointer-events: none;
+  animation: ast-hint 9s var(--ease) forwards;
+  text-align: center;
+  padding: 0 1rem;
+}
+@keyframes ast-hint {
+  0%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.ast__hint-touch {
+  display: none;
+}
+@media (pointer: coarse) {
+  .ast__hint-touch {
+    display: inline;
+  }
+}
+
+/* ---------- the RUD screen ---------- */
+.rud {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
+  animation: ast-in 0.4s var(--ease);
+}
+.rud__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  text-align: center;
+  padding: 2rem 2.4rem;
+  max-width: min(92vw, 34rem);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 30px 80px -20px #000;
+}
+.rud__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.24em;
+  color: var(--ink-40);
+}
+.rud__title {
+  margin: 0;
+  font-size: clamp(1.2rem, 4vw, 1.7rem);
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.rud__sub {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-60);
+}
+.rud__score {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  color: var(--accent-ink);
+  text-transform: uppercase;
+}
+.rud__actions {
+  display: flex;
+  gap: var(--space-s);
+  margin-top: 0.5rem;
+}
+.rud__actions .btn {
+  font-family: var(--font-mono);
+  letter-spacing: 0.14em;
+}
+
+/* the droneship, downrange */
+.rud__barge {
+  position: relative;
+  width: min(78%, 15rem);
+  height: 4.6rem;
+  margin-top: 0.9rem;
+  overflow: hidden;
+}
+.rud__booster {
+  position: absolute;
+  left: 50%;
+  top: -1.4rem;
+  width: 7px;
+  height: 22px;
+  margin-left: -3.5px;
+  border: 1px solid var(--accent-ink);
+  border-radius: 2px 2px 0 0;
+  animation: rud-land 2.6s cubic-bezier(0.3, 0.7, 0.4, 1) 0.5s forwards;
+}
+.rud__booster::after {
+  /* the landing burn, killed at touchdown */
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 3px;
+  height: 10px;
+  margin-left: -1.5px;
+  background: linear-gradient(#ffb46a, transparent);
+  animation: rud-burn 2.6s linear 0.5s forwards;
+}
+@keyframes rud-land {
+  from { transform: translateY(0); }
+  85%, 100% { transform: translateY(2.55rem); }
+}
+@keyframes rud-burn {
+  0%, 80% { opacity: 1; }
+  88%, 100% { opacity: 0; }
+}
+.rud__deck {
+  position: absolute;
+  left: 50%;
+  bottom: 0.9rem;
+  transform: translateX(-50%);
+  width: 72%;
+  height: 0.55rem;
+  border: 1px solid var(--line);
+  border-bottom-width: 3px;
+  border-radius: 2px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.rud__deck span {
+  position: absolute;
+  top: 100%;
+  margin-top: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.2em;
+  color: var(--ink-40);
+  white-space: nowrap;
+}
+.rud__sea {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1.05rem;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.rud__foot {
+  margin: 0.7rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-40);
+}
+.rud__link {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--accent-ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.rud__link:hover {
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch__go,
+  .launch__count,
+  .rud__booster,
+  .rud__booster::after {
+    animation: none;
+  }
+  .rud__booster {
+    transform: translateY(2.55rem);
+  }
+  .ast__hint {
+    animation: none;
+  }
+}

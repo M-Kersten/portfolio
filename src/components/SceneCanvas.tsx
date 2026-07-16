@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Poster } from './Poster';
-import { sceneStore } from '../scene/store';
+import { sceneStore, useSceneSelector } from '../scene/store';
 import { type Hotspot } from '../scene/framing';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useWebGLSupport } from '../lib/useWebGLSupport';
@@ -55,7 +55,10 @@ export function SceneCanvas() {
     [navigate],
   );
 
-  const frameloop = reduced ? 'demand' : heroInView ? 'always' : 'never';
+  // While the asteroids overlay is up it fully covers the scene — freeze the
+  // 3D frameloop so the game gets the whole frame budget to itself.
+  const gameUp = useSceneSelector((s) => s.launch) === 'game';
+  const frameloop = gameUp ? 'never' : reduced ? 'demand' : heroInView ? 'always' : 'never';
 
   return (
     <div className="scene-canvas">

@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { useSceneSelector } from './store';
-import { HOTSPOTS, journeyView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA } from './framing';
+import { launchTrack, useSceneSelector } from './store';
+import { HOTSPOTS, journeyView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
 import { tweakedView } from './nodeTweak';
 
 // The camera is driven by the scroll journey (which layer is centred) and by the
@@ -17,6 +17,7 @@ export function CameraRig() {
 
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
+  const launch = useSceneSelector((s) => s.launch);
 
   const sway = useRef(0);
   const nodeAge = useRef(0); // seconds since the current node was selected
@@ -29,7 +30,7 @@ export function CameraRig() {
   // itself is driven per-frame in useFrame so it can ease when zooming in/out.
   useEffect(() => {
     invalidate();
-  }, [journeyStep, selectedSlug, size, camera, invalidate]);
+  }, [journeyStep, selectedSlug, launch, size, camera, invalidate]);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -37,6 +38,43 @@ export function CameraRig() {
 
     const aspect = size.width / size.height;
     const gap = layerGap(aspect); // layers spread apart on tall screens
+
+    // ---- Launch mode: the camera belongs to the rocket -------------------
+    // On the pad it frames the vehicle three-quarter; during the ascent it
+    // chases the live position (launchTrack, written by the rocket each frame)
+    // from slightly below, looking up at the climb. Overrides journey + node.
+    if (launch !== 'idle') {
+      const ascending = launch === 'ascend' || launch === 'game';
+      const offRaw = ascending ? LAUNCH.ascendOffset : LAUNCH.padOffset;
+      desiredTarget.current.set(launchTrack.x, launchTrack.y - (ascending ? 0 : LAUNCH.padAim), launchTrack.z);
+      desiredPos.current.set(
+        launchTrack.x + offRaw[0] * fitScale(aspect),
+        launchTrack.y + offRaw[1],
+        launchTrack.z + offRaw[2] * fitScale(aspect),
+      );
+      const cam = camera as PerspectiveCamera;
+      const wantFov = fitFov(aspect) + LAUNCH.fovZoom;
+      if (cam.isPerspectiveCamera) {
+        const nextFov = reduced ? wantFov : cam.fov + (wantFov - cam.fov) * (1 - Math.exp(-CAMERA.fovLerp * dt));
+        if (Math.abs(nextFov - cam.fov) > 0.002) {
+          cam.fov = nextFov;
+          cam.updateProjectionMatrix();
+        }
+      }
+      if (reduced) {
+        camera.position.copy(desiredPos.current);
+        target.current.copy(desiredTarget.current);
+      } else {
+        // the chase lags a little harder than the normal glide — the rocket
+        // visibly pulls ahead, then the camera catches up
+        const k = 1 - Math.exp(-(ascending ? 2.6 : 3.4) * dt);
+        camera.position.lerp(desiredPos.current, k);
+        target.current.lerp(desiredTarget.current, k);
+      }
+      camera.lookAt(target.current);
+      return;
+    }
+
     const hotspot = selectedSlug ? HOTSPOTS.find((h) => h.slug === selectedSlug) : undefined;
     // The close-up framing for this node: its own `view` overrides falling back
     // to the CAMERA defaults, and in dev the live-dragged values from the tuner.
