@@ -1,11 +1,12 @@
 // The CHIP layer (bottom) — tools, CV & data. A PCB with the pulsing die
-// (Amsterdam AI), the AR camera (custom AR framework) and the Philips bedside
-// heart-rate monitor, wired together with animated traces and LEDs that surge
-// while a chip project is engaged. ChipRig composes and places everything.
+// (Amsterdam AI), a security/CV camera projecting a tracked hologram cube
+// (custom AR framework) and the Philips bedside heart-rate monitor, wired
+// together with animated traces and LEDs that surge while a chip project is
+// engaged. ChipRig composes and places everything.
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, type Group, type Mesh } from 'three';
+import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, Shape, ShapeGeometry, type Group, type Mesh } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, type V3 } from './shared';
@@ -394,96 +395,170 @@ function pcbTrace(bx: number, bz: number, y: number): V3[] {
   return densify([[ex, y, ez], ...pcbRoute(px, pz, bx, bz, y, xEdge)]);
 }
 
-/** custom-ar-framework as a small AR camera — a body with a viewfinder hump,
- *  mode dial, shutter and flash, and a protruding lens whose convex glass
- *  element (and a projected AR capture frame) light up ice-blue on select. */
-function ARCamera({ slug, position, rotationY = 0.6 }: { slug: string; position: V3; rotationY?: number }) {
+/** custom-ar-framework as a fixed security / computer-vision camera — a bullet
+ *  body on a wall-mount arm, with a lens-shade hood, an IR-LED ring and a status
+ *  light. It fits the chip layer's tooling/CV theme; the lens element lights
+ *  ice-blue when engaged and it projects a holographic wireframe cube — framed
+ *  by its view cone, a feature dot on every corner and a sweeping scan line —
+ *  floating in front of its view, as if the CV system is tracking a target. */
+const CAM_LENS_Z = 0.12; // lens tip, head-local
+const CAM_CUBE_Z = 0.4; // hologram centre, out in front of the lens
+const CAM_H = 0.09; // view-frame half-size at the cube's near face
+function SecurityCamera({ slug, position, aimYaw = -0.95, aimPitch = 0.34 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
-  const lensMat = useRef<MeshStandardMaterial>(null);
-  const shutterMat = useRef<MeshStandardMaterial>(null);
-  const frameRef = useRef<Group>(null);
-  const k = useRef(0);
   const popRef = useRef<Group>(null);
+  const lensMat = useRef<MeshStandardMaterial>(null);
+  const statusMat = useRef<MeshStandardMaterial>(null);
+  const holoRef = useRef<Group>(null);
+  const spinRef = useRef<Group>(null);
+  const scanRef = useRef<Mesh>(null);
+  const k = useRef(0); // lens/status power
+  const holo = useRef(0); // hologram presence
   const lensC = useMemo(() => new Color('#7fe6ff'), []);
+
+  // the tracked cube's wireframe, on an owned material (opted out of ghosting)
+  const cube = useMemo(() => {
+    const geo = new EdgesGeometry(new BoxGeometry(0.15, 0.15, 0.15));
+    const mat = new LineBasicMaterial({ color: new Color('#8fd8ff'), transparent: true, toneMapped: false, opacity: 0.9, depthWrite: false });
+    mat.userData.lifeSkip = true;
+    return { obj: new LineSegments(geo, mat), mat, geo };
+  }, []);
+  useEffect(() => () => {
+    cube.geo.dispose();
+    cube.mat.dispose();
+  }, [cube]);
+
+  const near = CAM_CUBE_Z - CAM_H;
+  const frameCorners = useMemo<V3[]>(
+    () => ([[CAM_H, CAM_H], [-CAM_H, CAM_H], [-CAM_H, -CAM_H], [CAM_H, -CAM_H]] as [number, number][]).map(([x, y]) => [x, y, near]),
+    [near],
+  );
+  const corners = useMemo<V3[]>(() => {
+    const c: V3[] = [];
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) c.push([sx * 0.075, sy * 0.075, sz * 0.075]);
+    return c;
+  }, []);
+
   useFrame((s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
+    const t = s.clock.elapsedTime;
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
+    holo.current += ((selected || visited ? 1 : 0) - holo.current) * 0.08;
     const on = k.current;
     if (lensMat.current) {
-      const breathe = reduced ? 0 : Math.sin(s.clock.elapsedTime * 2.2) * 0.06;
-      // ghost glass until opened, then the lens lights ice-blue
+      const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.06;
       lensMat.current.color.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * on);
       lensMat.current.emissive.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * on);
       lensMat.current.emissiveIntensity = 0.05 + on * (1.0 + breathe);
     }
-    if (shutterMat.current) shutterMat.current.emissiveIntensity = 0.12 + on * 0.9;
-    if (frameRef.current) {
-      frameRef.current.visible = on > 0.04;
-      frameRef.current.scale.setScalar(reduced ? 1 : 0.92 + 0.08 * Math.sin(s.clock.elapsedTime * 1.6));
+    if (statusMat.current) statusMat.current.emissiveIntensity = 0.1 + on * (reduced ? 0.9 : Math.sin(t * 5) > 0.4 ? 1.4 : 0.15);
+    // the projected hologram materialises out of the lens
+    const h = holo.current;
+    if (holoRef.current) {
+      holoRef.current.visible = h > 0.02;
+      holoRef.current.scale.setScalar(h);
+    }
+    cube.mat.opacity = 0.85 * h;
+    if (spinRef.current) {
+      spinRef.current.rotation.x = 0.42;
+      if (!reduced) spinRef.current.rotation.y = t * 0.5;
+    }
+    if (scanRef.current) {
+      scanRef.current.position.y = reduced ? 0 : Math.sin(t * 1.3) * 0.075;
+      (scanRef.current.material as MeshStandardMaterial).opacity = 0.45 * h;
     }
   });
+
   return (
-    <group position={position} rotation={[0, rotationY, 0]}>
+    <group position={position} rotation={[0, aimYaw, 0]}>
       <group ref={popRef}>
-        {/* body */}
-        <RoundedBox args={[0.28, 0.16, 0.12]} radius={0.02} smoothness={3} position={[0, 0.1, 0]}>
-          <GlassMat opacity={0.44} />
-        </RoundedBox>
-        <Line points={roundedRectPts(0.28, 0.12, 0.03)} position={[0, 0.18, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-        {/* viewfinder prism hump */}
-        <RoundedBox args={[0.1, 0.05, 0.09]} radius={0.015} smoothness={3} position={[-0.05, 0.2, 0]}>
-          <GlassMat opacity={0.4} />
-          <Edges threshold={24} color={NEUTRAL} />
-        </RoundedBox>
-        {/* mode dial */}
-        <mesh position={[0.075, 0.19, -0.025]}>
-          <cylinderGeometry args={[0.026, 0.026, 0.02, 22]} />
+        {/* wall-mount base + arm + pan/tilt knuckle */}
+        <mesh position={[0, 0.02, -0.08]}>
+          <cylinderGeometry args={[0.05, 0.055, 0.03, 20]} />
           <GlassMat opacity={0.5} />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
-        {/* shutter button (lights on select) */}
-        <mesh position={[0.11, 0.198, 0.03]}>
-          <cylinderGeometry args={[0.016, 0.016, 0.016, 18]} />
-          <meshStandardMaterial ref={shutterMat} userData={{ lifeSkip: true }} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.12} roughness={0.4} toneMapped={false} />
+        <mesh position={[0, 0.16, -0.09]} rotation={[0.18, 0, 0]}>
+          <cylinderGeometry args={[0.016, 0.016, 0.28, 14]} />
+          <GlassMat opacity={0.5} />
+          <Edges threshold={30} color={NEUTRAL} />
         </mesh>
-        {/* flash strip */}
-        <mesh position={[0.1, 0.155, 0.062]}>
-          <boxGeometry args={[0.05, 0.022, 0.006]} />
-          <meshStandardMaterial color="#dfeefc" emissive="#bfe6ff" emissiveIntensity={0.35} roughness={0.3} toneMapped={false} />
+        <mesh position={[0, 0.29, -0.05]}>
+          <sphereGeometry args={[0.032, 16, 14]} />
+          <GlassMat opacity={0.5} />
         </mesh>
-        {/* grip ridges */}
-        <group position={[0.115, 0.1, 0.055]}>
-          {[-0.028, -0.008, 0.012, 0.032].map((gy, i) => (
-            <mesh key={i} position={[0, gy, 0]}>
-              <boxGeometry args={[0.026, 0.008, 0.008]} />
-              <GlassMat opacity={0.5} />
-            </mesh>
-          ))}
-        </group>
-        {/* lens assembly on the front (+z), protruding */}
-        <group position={[-0.02, 0.1, 0.06]} rotation={[Math.PI / 2, 0, 0]}>
-          <mesh position={[0, 0.04, 0]}>
-            <cylinderGeometry args={[0.06, 0.066, 0.09, 30]} />
-            <GlassMat opacity={0.42} />
+        {/* the camera head — pitched down to survey the board */}
+        <group position={[0, 0.3, -0.03]} rotation={[aimPitch, 0, 0]}>
+          {/* bullet body */}
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.058, 0.058, 0.22, 26]} />
+            <GlassMat opacity={0.44} />
             <Edges threshold={20} color={NEUTRAL} />
           </mesh>
-          {/* aperture ring */}
-          <mesh position={[0, 0.088, 0]}>
-            <cylinderGeometry args={[0.062, 0.062, 0.014, 30]} />
-            <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.25} roughness={0.4} metalness={0.3} />
+          {/* back cap */}
+          <mesh position={[0, 0, -0.11]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.05, 0.058, 0.02, 26]} />
+            <GlassMat opacity={0.5} />
           </mesh>
-          {/* convex glass element (lights up) */}
-          <mesh position={[0, 0.096, 0]} scale={[1, 0.42, 1]}>
-            <sphereGeometry args={[0.048, 24, 18]} />
+          {/* lens-shade hood (open tube) */}
+          <mesh position={[0, 0, 0.13]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.062, 0.062, 0.07, 26, 1, true]} />
+            <GlassMat opacity={0.32} />
+            <Edges threshold={30} color={NEUTRAL} />
+          </mesh>
+          {/* dark lens recess + convex glass element that lights up */}
+          <mesh position={[0, 0, 0.108]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.05, 0.05, 0.012, 26]} />
+            <meshStandardMaterial color="#0b1418" roughness={0.5} metalness={0.2} />
+          </mesh>
+          <mesh position={[0, 0, 0.118]} scale={[1, 1, 0.5]}>
+            <sphereGeometry args={[0.042, 24, 18]} />
             <meshStandardMaterial ref={lensMat} userData={{ lifeSkip: true }} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.14} transparent opacity={0.6} roughness={0.12} metalness={0.1} toneMapped={false} />
           </mesh>
-          <Line points={circlePts(0.044, 28)} position={[0, 0.104, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
-          <Line points={circlePts(0.024, 20)} position={[0, 0.112, 0]} color="#7fe6ff" lineWidth={1.2} transparent opacity={0.6} />
-        </group>
-        {/* a faint AR capture frame projected out of the lens (reads "AR") */}
-        <group ref={frameRef} position={[-0.02, 0.1, 0.25]} visible={false}>
-          <Line points={roundedRectPts(0.17, 0.12, 0.02)} rotation={[Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.4} />
+          {/* IR-LED ring around the lens */}
+          {Array.from({ length: 8 }).map((_, i) => {
+            const a = (i / 8) * Math.PI * 2;
+            return (
+              <mesh key={i} position={[Math.cos(a) * 0.045, Math.sin(a) * 0.045, 0.116]}>
+                <sphereGeometry args={[0.006, 8, 8]} />
+                <meshStandardMaterial color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.5} roughness={0.4} toneMapped={false} userData={{ lifeSkip: true }} />
+              </mesh>
+            );
+          })}
+          {/* status LED on top */}
+          <mesh position={[0, 0.058, -0.06]}>
+            <sphereGeometry args={[0.008, 10, 10]} />
+            <meshStandardMaterial ref={statusMat} color="#a9f75c" emissive="#a9f75c" emissiveIntensity={0.1} roughness={0.4} toneMapped={false} userData={{ lifeSkip: true }} />
+          </mesh>
+
+          {/* the projected hologram — appears when the camera powers on */}
+          <group ref={holoRef} visible={false}>
+            {/* view-cone frustum from the lens to the near frame */}
+            {frameCorners.map((c, i) => (
+              <Line key={i} points={[[0, 0, CAM_LENS_Z], c]} color="#7fe6ff" lineWidth={1} transparent opacity={0.3} />
+            ))}
+            <Line points={[...frameCorners, frameCorners[0]]} color="#7fe6ff" lineWidth={1} transparent opacity={0.32} />
+            {/* sweeping scan plane */}
+            <mesh ref={scanRef} position={[0, 0, CAM_CUBE_Z]}>
+              <boxGeometry args={[0.17, 0.002, 0.17]} />
+              <meshStandardMaterial color="#8fd8ff" emissive="#8fd8ff" emissiveIntensity={1.2} transparent opacity={0.45} toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
+            </mesh>
+            {/* the tracked cube: spinning wireframe + faint faces + corner feature dots */}
+            <group ref={spinRef} position={[0, 0, CAM_CUBE_Z]}>
+              <primitive object={cube.obj} />
+              <mesh>
+                <boxGeometry args={[0.15, 0.15, 0.15]} />
+                <meshStandardMaterial color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
+              </mesh>
+              {corners.map((c, i) => (
+                <mesh key={i} position={c}>
+                  <sphereGeometry args={[0.006, 8, 8]} />
+                  <meshStandardMaterial color="#d6f2ff" emissive="#8fd8ff" emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
+                </mesh>
+              ))}
+            </group>
+          </group>
         </group>
       </group>
     </group>
@@ -546,9 +621,10 @@ export function ChipRig() {
         </group>
       ))}
 
-      {/* custom-ar-framework — a small AR camera that lights up (back-right) */}
+      {/* custom-ar-framework — a security / CV camera projecting a tracked
+          hologram cube (back-right) */}
       <LifeGroup slug="custom-ar-framework">
-        <ARCamera slug="custom-ar-framework" position={[0.95, 0.02, -0.72]} />
+        <SecurityCamera slug="custom-ar-framework" position={[0.95, 0.02, -0.72]} />
       </LifeGroup>
 
       {/* decorative round caps */}
