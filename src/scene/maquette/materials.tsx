@@ -71,8 +71,11 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
     m.color.copy(GHOST_FILL).lerp(baseC, ghost ? 0.3 + 0.7 * k.current : 1);
     const rest = ghost ? opacity * 0.3 : opacity;
     m.opacity = rest + (solid - rest) * k.current;
-    m.roughness = 0.34 - 0.2 * k.current;
-    m.metalness = 0.18 * k.current;
+    // Keep a gloss floor: fully-alive surfaces used to drop to 0.14 roughness /
+    // 0.18 metalness, which turned them near-mirror and caught a hot specular
+    // blob off the key light + environment. A softer floor calms that glare.
+    m.roughness = 0.34 - 0.1 * k.current;
+    m.metalness = 0.08 * k.current;
     m.depthWrite = k.current > 0.5;
   });
   return (

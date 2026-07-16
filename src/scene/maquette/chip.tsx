@@ -1,11 +1,11 @@
 // The CHIP layer (bottom) — tools, CV & data. A PCB with the pulsing die
-// (Amsterdam AI), the AR lens component (custom AR framework) and the Philips
-// ECG module, wired together with animated traces and LEDs that surge while a
-// chip project is engaged. ChipRig composes and places everything.
-import { useMemo, useRef } from 'react';
+// (Amsterdam AI), the AR camera (custom AR framework) and the Philips bedside
+// heart-rate monitor, wired together with animated traces and LEDs that surge
+// while a chip project is engaged. ChipRig composes and places everything.
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, type Group, type Mesh } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, DoubleSide, Line as ThreeLine, LineBasicMaterial, MeshStandardMaterial, Shape, ShapeGeometry, type Group, type Mesh } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, type V3 } from './shared';
@@ -15,25 +15,88 @@ import { BlobShadow } from './backdrop';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
 
-/** Philips medical XR & AI — an ECG module with a tiny Vision Pro headset. On
- *  hover a bright blip sweeps the heart-rate waveform like a monitor trace. */
-function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
-  const { selected, visited } = useActive(hoverSlug ?? '');
+/* ---- Philips medical XR & AI — a bedside vital-signs monitor ----
+   A dark, ghosted screen at rest; once engaged it powers on — a green ECG trace
+   sweeps with a bright blip, a heart icon beats in time with each QRS spike, a
+   cyan SpO₂ pleth runs underneath and a little vitals bar-graph ticks. */
+
+// One PQRST heartbeat, laid out left→right from x0 (screen-local units).
+const ecgBeat = (x0: number): V3[] => [
+  [x0 + 0.0, 0, 0], [x0 + 0.02, 0, 0],
+  [x0 + 0.028, 0.012, 0], [x0 + 0.037, 0, 0], // P
+  [x0 + 0.05, 0, 0],
+  [x0 + 0.056, -0.014, 0], [x0 + 0.062, 0.055, 0], [x0 + 0.069, -0.02, 0], [x0 + 0.075, 0, 0], // QRS
+  [x0 + 0.092, 0, 0], [x0 + 0.106, 0.02, 0], [x0 + 0.12, 0, 0], // T
+  [x0 + 0.14, 0, 0],
+];
+
+// A raw additive line for a glowing screen trace, its material opted out of the
+// life-system ghosting (we drive its colour/opacity ourselves).
+function traceObject(points: V3[], hex: string) {
+  const pos = new Float32Array(points.length * 3);
+  points.forEach((p, i) => {
+    pos[i * 3] = p[0];
+    pos[i * 3 + 1] = p[1];
+    pos[i * 3 + 2] = p[2];
+  });
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(pos, 3));
+  const m = new LineBasicMaterial({ color: new Color(hex), transparent: true, toneMapped: false, opacity: 0.9, depthWrite: false, blending: AdditiveBlending });
+  m.userData.lifeSkip = true;
+  return { line: new ThreeLine(g, m), mat: m };
+}
+
+// A small upright heart outline (point at the bottom), for the monitor's icon.
+function heartGeometry() {
+  const s = new Shape();
+  s.moveTo(0, 0.3);
+  s.bezierCurveTo(0.05, 0.55, 0.55, 0.72, 0.55, 0.3);
+  s.bezierCurveTo(0.55, 0.03, 0.2, -0.12, 0, -0.42);
+  s.bezierCurveTo(-0.2, -0.12, -0.55, 0.03, -0.55, 0.3);
+  s.bezierCurveTo(-0.55, 0.72, -0.05, 0.55, 0, 0.3);
+  return new ShapeGeometry(s);
+}
+
+function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
+  const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
-  const live = useRef(0);
-  const base = useMemo(() => new Color('#9fb0bd'), []); // grey at rest
-  const green = useMemo(() => new Color('#5fd07a'), []); // green on select
-  const stripMat = useRef<MeshStandardMaterial>(null);
-  const ecg = useMemo<V3[]>(
-    () => [
-      [-0.13, 0, 0], [-0.06, 0, 0], [-0.045, 0.05, 0], [-0.03, -0.035, 0], [-0.015, 0, 0],
-      [0.04, 0, 0], [0.06, 0.06, 0], [0.08, -0.03, 0], [0.1, 0, 0], [0.13, 0, 0],
-    ],
-    [],
-  );
-  const dot = useRef<Mesh>(null);
-  const k = useRef(0);
   const popRef = useRef<Group>(null);
+  const screenMat = useRef<MeshStandardMaterial>(null);
+  const heartRef = useRef<Group>(null);
+  const heartMat = useRef<MeshStandardMaterial>(null);
+  const blip = useRef<Mesh>(null);
+  const barsRef = useRef<Group>(null);
+  const live = useRef(0); // 0 dormant → 1 alive
+  const k = useRef(0); // hover/select brightness
+  const beat = useRef(0); // heart pulse envelope
+
+  const grey = useMemo(() => new Color('#8fa1ad'), []);
+  const green = useMemo(() => new Color('#5fd07a'), []);
+  const cyan = useMemo(() => new Color('#7fe6ff'), []);
+
+  const ecg = useMemo<V3[]>(() => [...ecgBeat(-0.15), ...ecgBeat(-0.008)], []);
+  const pleth = useMemo<V3[]>(() => {
+    const p: V3[] = [];
+    for (let i = 0; i <= 64; i++) {
+      const x = -0.15 + (i / 64) * 0.29;
+      p.push([x, Math.pow(Math.max(0, Math.sin((x + 0.15) * 34)), 1.6) * 0.02, 0]);
+    }
+    return p;
+  }, []);
+  const ecgObj = useMemo(() => traceObject(ecg, '#5fd07a'), [ecg]);
+  const plethObj = useMemo(() => traceObject(pleth, '#7fe6ff'), [pleth]);
+  const heartGeo = useMemo(() => heartGeometry(), []);
+  useEffect(
+    () => () => {
+      ecgObj.line.geometry.dispose();
+      ecgObj.mat.dispose();
+      plethObj.line.geometry.dispose();
+      plethObj.mat.dispose();
+      heartGeo.dispose();
+    },
+    [ecgObj, plethObj, heartGeo],
+  );
+
   const yAtX = (x: number) => {
     for (let i = 0; i < ecg.length - 1; i++) {
       const [x0, y0] = ecg[i];
@@ -42,45 +105,100 @@ function PhilipsModule({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     }
     return 0;
   };
+
   useFrame((s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
-    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
-    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07; // green stays after select
-    if (stripMat.current) {
-      stripMat.current.color.copy(base).lerp(green, live.current);
-      stripMat.current.emissive.copy(base).lerp(green, live.current);
+    const t = s.clock.elapsedTime;
+    k.current += ((hovered || selected ? 1 : visited ? 0.5 : 0) - k.current) * 0.12;
+    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
+    const on = live.current;
+    if (screenMat.current) screenMat.current.emissiveIntensity = 0.05 + 0.14 * on + 0.05 * k.current;
+    ecgObj.mat.color.copy(grey).lerp(green, on);
+    ecgObj.mat.opacity = 0.4 + 0.5 * on;
+    plethObj.mat.color.copy(grey).lerp(cyan, on);
+    plethObj.mat.opacity = 0.24 + 0.42 * on;
+    // the sweeping blip
+    const sweep = reduced ? 0.66 : (t * 0.7) % 1;
+    const x = -0.15 + sweep * 0.28;
+    if (blip.current) {
+      blip.current.visible = on > 0.05;
+      blip.current.position.set(x, 0.02 + yAtX(x), 0.004);
+      blip.current.scale.setScalar(0.55 + 0.7 * on);
+      const bm = blip.current.material as MeshStandardMaterial;
+      bm.color.copy(grey).lerp(green, on);
+      bm.emissive.copy(grey).lerp(green, on);
     }
-    const d = dot.current;
-    if (!d) return;
-    d.visible = k.current > 0.04;
-    const sweep = reduced ? 0.5 : (s.clock.elapsedTime * 0.6) % 1;
-    const x = -0.13 + sweep * 0.26;
-    d.position.set(x, 0.22 + yAtX(x), 0);
-    d.scale.setScalar(0.5 + k.current + live.current * 0.6);
-    const m = d.material as MeshStandardMaterial;
-    m.color.copy(base).lerp(green, live.current);
-    m.emissive.copy(base).lerp(green, live.current);
+    // heart beats as the sweep crosses either QRS spike
+    const near = Math.max(Math.exp(-((x - (-0.088)) ** 2) / 0.0004), Math.exp(-((x - 0.054) ** 2) / 0.0004));
+    beat.current = Math.max(beat.current - delta * 3.5, reduced ? 0.25 * on : near * on);
+    if (heartRef.current) heartRef.current.scale.setScalar(0.05 * (1 + beat.current * 0.55));
+    if (heartMat.current) {
+      heartMat.current.color.copy(grey).lerp(green, on);
+      heartMat.current.emissive.copy(grey).lerp(green, on);
+      heartMat.current.emissiveIntensity = 0.2 + on * (0.5 + beat.current * 1.5);
+    }
+    if (barsRef.current) {
+      barsRef.current.children.forEach((c, i) => {
+        c.scale.y = on > 0.05 && !reduced ? 0.4 + 0.6 * Math.abs(Math.sin(t * (2 + i * 0.6) + i)) : 0.25;
+      });
+    }
   });
+
   return (
     <group position={position}>
       <group ref={popRef}>
-      <SoftBox position={[0, 0.14, 0]} args={[0.3, 0.05, 0.2]} radius={0.02} opacity={0.3} outline liveSlug="philips-medical-xr" />
-      {/* the ECG waveform + a blip that sweeps it once engaged (the heart-rate signal) */}
-      <Line points={ecg} position={[0, 0.22, 0]} color={selected || visited ? '#5fd07a' : '#9fb0bd'} lineWidth={1.5} transparent opacity={0.85} />
-      <mesh ref={dot} visible={false}>
-        <sphereGeometry args={[0.014, 12, 12]} />
-        <meshStandardMaterial color="#9fb0bd" emissive="#9fb0bd" emissiveIntensity={2.2} roughness={0.3} toneMapped={false} />
-      </mesh>
-      {/* a tiny Vision Pro headset */}
-      <group position={[0, 0.18, 0.12]}>
-        <RoundedBox args={[0.14, 0.06, 0.05]} radius={0.02} smoothness={3}>
-          <GlassMat opacity={0.34} />
-        </RoundedBox>
-        <mesh position={[0, 0, 0.026]}>
-          <boxGeometry args={[0.1, 0.035, 0.004]} />
-          <meshStandardMaterial ref={stripMat} userData={{ lifeSkip: true }} color="#9fb0bd" emissive="#9fb0bd" emissiveIntensity={0.4} roughness={0.4} toneMapped={false} />
-        </mesh>
-      </group>
+        {/* base pad on the board */}
+        <SoftBox position={[0, 0.035, 0.02]} args={[0.36, 0.05, 0.16]} radius={0.02} opacity={0.34} />
+        {/* the monitor unit, tilted to face up-and-forward */}
+        <group position={[0, 0.21, 0]} rotation={[-0.34, 0, 0]}>
+          {/* casing (ghosts with the life system) */}
+          <RoundedBox args={[0.42, 0.3, 0.05]} radius={0.02} smoothness={3}>
+            <GlassMat opacity={0.44} />
+          </RoundedBox>
+          <Line points={roundedRectPts(0.42, 0.3, 0.03)} position={[0, 0, 0.026]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
+          {/* dark screen (drives its own glow) */}
+          <mesh position={[0, 0.012, 0.027]}>
+            <planeGeometry args={[0.35, 0.22]} />
+            <meshStandardMaterial ref={screenMat} userData={{ lifeSkip: true }} color="#050f16" emissive="#0c2734" emissiveIntensity={0.06} roughness={0.5} toneMapped={false} />
+          </mesh>
+          {/* screen contents, sitting just proud of the panel */}
+          <group position={[0, 0.012, 0.03]}>
+            {[-0.06, 0, 0.06].map((gy, i) => (
+              <Line key={`h${i}`} points={[[-0.16, gy, 0], [0.16, gy, 0]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.1} />
+            ))}
+            {[-0.12, -0.06, 0, 0.06, 0.12].map((gx, i) => (
+              <Line key={`v${i}`} points={[[gx, -0.09, 0], [gx, 0.09, 0]]} color={NEUTRAL} lineWidth={1} transparent opacity={0.08} />
+            ))}
+            <primitive object={ecgObj.line} position={[0, 0.02, 0.001]} />
+            <primitive object={plethObj.line} position={[0, -0.062, 0.001]} />
+            <mesh ref={blip} visible={false}>
+              <sphereGeometry args={[0.009, 12, 12]} />
+              <meshStandardMaterial color="#5fd07a" emissive="#5fd07a" emissiveIntensity={1.8} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
+            </mesh>
+            {/* beating heart icon (top-left) */}
+            <group ref={heartRef} position={[-0.135, 0.055, 0.002]} scale={0.05}>
+              <mesh geometry={heartGeo}>
+                <meshStandardMaterial ref={heartMat} color="#5fd07a" emissive="#5fd07a" emissiveIntensity={0.2} roughness={0.4} toneMapped={false} side={DoubleSide} userData={{ lifeSkip: true }} />
+              </mesh>
+            </group>
+            {/* vitals bar-graph (top-right) */}
+            <group ref={barsRef} position={[0.088, 0.052, 0.002]}>
+              {[0, 1, 2, 3].map((i) => (
+                <mesh key={i} position={[i * 0.017, 0, 0]}>
+                  <boxGeometry args={[0.009, 0.032, 0.002]} />
+                  <meshStandardMaterial color="#5fd07a" emissive="#5fd07a" emissiveIntensity={0.7} roughness={0.4} toneMapped={false} userData={{ lifeSkip: true }} />
+                </mesh>
+              ))}
+            </group>
+          </group>
+          {/* control buttons along the chin */}
+          {[-0.15, -0.11, -0.07].map((bx, i) => (
+            <mesh key={i} position={[bx, -0.12, 0.028]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.013, 0.013, 0.01, 16]} />
+              <GlassMat opacity={0.5} />
+            </mesh>
+          ))}
+        </group>
       </group>
     </group>
   );
@@ -276,48 +394,97 @@ function pcbTrace(bx: number, bz: number, y: number): V3[] {
   return densify([[ex, y, ez], ...pcbRoute(px, pz, bx, bz, y, xEdge)]);
 }
 
-/** custom-ar-framework as an AR camera lens — a barrel, aperture and a convex
- *  glass element that lights up (the lens "powers on") on hover / select. */
-function LensComponent({ slug, position }: { slug: string; position: V3 }) {
+/** custom-ar-framework as a small AR camera — a body with a viewfinder hump,
+ *  mode dial, shutter and flash, and a protruding lens whose convex glass
+ *  element (and a projected AR capture frame) light up ice-blue on select. */
+function ARCamera({ slug, position, rotationY = 0.6 }: { slug: string; position: V3; rotationY?: number }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
-  const mat = useRef<MeshStandardMaterial>(null);
+  const lensMat = useRef<MeshStandardMaterial>(null);
+  const shutterMat = useRef<MeshStandardMaterial>(null);
+  const frameRef = useRef<Group>(null);
   const k = useRef(0);
   const popRef = useRef<Group>(null);
   const lensC = useMemo(() => new Color('#7fe6ff'), []);
   useFrame((s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
-    if (mat.current) {
+    const on = k.current;
+    if (lensMat.current) {
       const breathe = reduced ? 0 : Math.sin(s.clock.elapsedTime * 2.2) * 0.06;
       // ghost glass until opened, then the lens lights ice-blue
-      mat.current.color.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * k.current);
-      mat.current.emissive.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * k.current);
-      mat.current.emissiveIntensity = 0.05 + k.current * (1.0 + breathe);
+      lensMat.current.color.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * on);
+      lensMat.current.emissive.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * on);
+      lensMat.current.emissiveIntensity = 0.05 + on * (1.0 + breathe);
+    }
+    if (shutterMat.current) shutterMat.current.emissiveIntensity = 0.12 + on * 0.9;
+    if (frameRef.current) {
+      frameRef.current.visible = on > 0.04;
+      frameRef.current.scale.setScalar(reduced ? 1 : 0.92 + 0.08 * Math.sin(s.clock.elapsedTime * 1.6));
     }
   });
   return (
-    <group position={position}>
+    <group position={position} rotation={[0, rotationY, 0]}>
       <group ref={popRef}>
-      {/* barrel */}
-      <mesh position={[0, 0.05, 0]}>
-        <cylinderGeometry args={[0.075, 0.082, 0.1, 28]} />
-        <GlassMat opacity={0.4} />
-        <Edges threshold={20} color={NEUTRAL} />
-      </mesh>
-      {/* aperture ring */}
-      <mesh position={[0, 0.1, 0]}>
-        <cylinderGeometry args={[0.08, 0.08, 0.014, 28]} />
-        <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.25} roughness={0.4} metalness={0.3} />
-      </mesh>
-      {/* convex glass lens that lights up */}
-      <mesh position={[0, 0.108, 0]} scale={[1, 0.42, 1]}>
-        <sphereGeometry args={[0.062, 24, 18]} />
-        <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.14} transparent opacity={0.55} roughness={0.12} metalness={0.1} toneMapped={false} />
-      </mesh>
-      {/* lens element rings */}
-      <Line points={circlePts(0.055, 28)} position={[0, 0.119, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
-      <Line points={circlePts(0.03, 20)} position={[0, 0.127, 0]} color="#7fe6ff" lineWidth={1.2} transparent opacity={0.6} />
+        {/* body */}
+        <RoundedBox args={[0.28, 0.16, 0.12]} radius={0.02} smoothness={3} position={[0, 0.1, 0]}>
+          <GlassMat opacity={0.44} />
+        </RoundedBox>
+        <Line points={roundedRectPts(0.28, 0.12, 0.03)} position={[0, 0.18, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+        {/* viewfinder prism hump */}
+        <RoundedBox args={[0.1, 0.05, 0.09]} radius={0.015} smoothness={3} position={[-0.05, 0.2, 0]}>
+          <GlassMat opacity={0.4} />
+          <Edges threshold={24} color={NEUTRAL} />
+        </RoundedBox>
+        {/* mode dial */}
+        <mesh position={[0.075, 0.19, -0.025]}>
+          <cylinderGeometry args={[0.026, 0.026, 0.02, 22]} />
+          <GlassMat opacity={0.5} />
+          <Edges threshold={30} color={NEUTRAL} />
+        </mesh>
+        {/* shutter button (lights on select) */}
+        <mesh position={[0.11, 0.198, 0.03]}>
+          <cylinderGeometry args={[0.016, 0.016, 0.016, 18]} />
+          <meshStandardMaterial ref={shutterMat} userData={{ lifeSkip: true }} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.12} roughness={0.4} toneMapped={false} />
+        </mesh>
+        {/* flash strip */}
+        <mesh position={[0.1, 0.155, 0.062]}>
+          <boxGeometry args={[0.05, 0.022, 0.006]} />
+          <meshStandardMaterial color="#dfeefc" emissive="#bfe6ff" emissiveIntensity={0.35} roughness={0.3} toneMapped={false} />
+        </mesh>
+        {/* grip ridges */}
+        <group position={[0.115, 0.1, 0.055]}>
+          {[-0.028, -0.008, 0.012, 0.032].map((gy, i) => (
+            <mesh key={i} position={[0, gy, 0]}>
+              <boxGeometry args={[0.026, 0.008, 0.008]} />
+              <GlassMat opacity={0.5} />
+            </mesh>
+          ))}
+        </group>
+        {/* lens assembly on the front (+z), protruding */}
+        <group position={[-0.02, 0.1, 0.06]} rotation={[Math.PI / 2, 0, 0]}>
+          <mesh position={[0, 0.04, 0]}>
+            <cylinderGeometry args={[0.06, 0.066, 0.09, 30]} />
+            <GlassMat opacity={0.42} />
+            <Edges threshold={20} color={NEUTRAL} />
+          </mesh>
+          {/* aperture ring */}
+          <mesh position={[0, 0.088, 0]}>
+            <cylinderGeometry args={[0.062, 0.062, 0.014, 30]} />
+            <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.25} roughness={0.4} metalness={0.3} />
+          </mesh>
+          {/* convex glass element (lights up) */}
+          <mesh position={[0, 0.096, 0]} scale={[1, 0.42, 1]}>
+            <sphereGeometry args={[0.048, 24, 18]} />
+            <meshStandardMaterial ref={lensMat} userData={{ lifeSkip: true }} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.14} transparent opacity={0.6} roughness={0.12} metalness={0.1} toneMapped={false} />
+          </mesh>
+          <Line points={circlePts(0.044, 28)} position={[0, 0.104, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
+          <Line points={circlePts(0.024, 20)} position={[0, 0.112, 0]} color="#7fe6ff" lineWidth={1.2} transparent opacity={0.6} />
+        </group>
+        {/* a faint AR capture frame projected out of the lens (reads "AR") */}
+        <group ref={frameRef} position={[-0.02, 0.1, 0.25]} visible={false}>
+          <Line points={roundedRectPts(0.17, 0.12, 0.02)} rotation={[Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.4} />
+        </group>
       </group>
     </group>
   );
@@ -379,9 +546,9 @@ export function ChipRig() {
         </group>
       ))}
 
-      {/* custom-ar-framework — an AR camera lens that lights up (back-right) */}
+      {/* custom-ar-framework — a small AR camera that lights up (back-right) */}
       <LifeGroup slug="custom-ar-framework">
-        <LensComponent slug="custom-ar-framework" position={[0.95, 0.02, -0.72]} />
+        <ARCamera slug="custom-ar-framework" position={[0.95, 0.02, -0.72]} />
       </LifeGroup>
 
       {/* decorative round caps */}
@@ -416,9 +583,9 @@ export function ChipRig() {
       <Heatsink position={[-0.98, 0, 0.56]} />
       <PinHeader position={[0.0, 0, 1.08]} n={6} />
 
-      {/* Philips medical XR & AI module (heart-rate signal animates on hover) — left side */}
+      {/* Philips medical XR & AI — a bedside heart-rate monitor (left side) */}
       <LifeGroup slug="philips-medical-xr">
-        <PhilipsModule position={[-0.95, 0, -0.74]} hoverSlug="philips-medical-xr" />
+        <HeartMonitor slug="philips-medical-xr" position={[-0.95, 0, -0.74]} />
       </LifeGroup>
       <MiscComponents />
     </group>

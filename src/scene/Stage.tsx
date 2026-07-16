@@ -94,10 +94,13 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
       <directionalLight ref={dir2} position={[-7, 4, -6]} intensity={0.5} color="#27e8f2" />
       <SelectDim hemi={hemi} dir1={dir1} dir2={dir2} bloom={bloom} />
 
+      {/* Reflections come almost entirely from this procedural environment; kept
+          gentle so glossy surfaces catch a soft sheen rather than a hot mirror
+          blob. */}
       <Environment resolution={256} frames={1}>
-        <Lightformer intensity={1.0} position={[5, 6, 4]} scale={9} color="#cfe0ff" />
-        <Lightformer intensity={0.7} position={[-6, 3, -4]} scale={9} color="#27e8f2" />
-        <Lightformer intensity={0.45} position={[3, 2, -6]} scale={8} color="#a89eff" />
+        <Lightformer intensity={0.55} position={[5, 6, 4]} scale={9} color="#cfe0ff" />
+        <Lightformer intensity={0.4} position={[-6, 3, -4]} scale={9} color="#27e8f2" />
+        <Lightformer intensity={0.28} position={[3, 2, -6]} scale={8} color="#a89eff" />
         <Lightformer intensity={0.3} position={[0, -5, 0]} scale={12} color="#0a0d10" />
       </Environment>
 
