@@ -30,6 +30,12 @@ jobs:
         env:
           # Project site is served from /<repo>/. Change if the repo is renamed.
           VITE_BASE: /portfolio/
+          # Launch-counter backend (docs/launch-counter.md). Set these two as
+          # repository Variables (Settings → Secrets and variables → Actions →
+          # Variables) — the anon key is public by design. Unset → the counter
+          # simply doesn't render; everything else works.
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

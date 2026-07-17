@@ -50,6 +50,13 @@
   line-height: 1.4;
   text-wrap: balance;
 }
+/* the global odometer — appears only once the count has loaded */
+.launch__tally {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-40);
+}
 .launch__row {
   display: flex;
   align-items: center;

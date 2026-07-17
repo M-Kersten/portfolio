@@ -264,6 +264,15 @@
   font-weight: 700;
   color: var(--accent-ink);
 }
+/* the global odometer under the invitation — only renders once the count
+   arrives (see lib/launches.ts); the label reads fine without it */
+.nextsite__tally {
+  display: block;
+  margin-top: 0.2em;
+  font-size: 0.85em;
+  letter-spacing: 0.08em;
+  color: var(--ink-40);
+}
 .nextsite:hover {
   color: var(--ink);
   border-color: var(--accent);

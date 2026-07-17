@@ -1,4 +1,4 @@
-import { useSyncExternalStore, type CSSProperties } from 'react';
+import { useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { CAMERA, HOTSPOTS, hotspotView, type Hotspot, type HotspotView } from './framing';
 import { useSceneSelector } from './store';
 
@@ -111,14 +111,45 @@ function Row({ label, value, min, max, step = 0.05, onChange }: { label: string;
   );
 }
 
+const HIDE_KEY = 'mk-nodecam-hidden';
+
 /** DEV-only per-hotspot camera tuner. Mount once (App gates it on
- *  `import.meta.env.DEV`). Shows controls for whichever node is open. */
+ *  `import.meta.env.DEV`). Shows controls for whichever node is open; the ✕
+ *  collapses it to a tiny chip (persisted), for when you want the node's
+ *  close-up unobstructed while iterating on the scene itself. */
 export function NodeTweakPanel() {
   const slug = useSceneSelector((s) => s.selectedSlug);
   useSyncExternalStore(subscribe, () => version); // re-render on any override change
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem(HIDE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggle = (h: boolean) => {
+    setHidden(h);
+    try {
+      localStorage.setItem(HIDE_KEY, h ? '1' : '0');
+    } catch {
+      /* fine — just not persisted */
+    }
+  };
   const h = slug ? HOTSPOTS.find((x) => x.slug === slug) : undefined;
 
   if (!h) return null; // only present while a node is open (keeps the wall panel clear)
+
+  if (hidden) {
+    return (
+      <button
+        onClick={() => toggle(false)}
+        title="Show the node-camera tuner"
+        style={{ ...panelStyle, width: 'auto', padding: '3px 9px', cursor: 'pointer', color: '#7f95a4' }}
+      >
+        ⌖ cam
+      </button>
+    );
+  }
 
   const v = overrides.get(h.slug) ?? hotspotView(h);
   const dirty = overrides.has(h.slug);
@@ -126,11 +157,18 @@ export function NodeTweakPanel() {
 
   return (
     <div style={panelStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#e6edf2', fontWeight: 600 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, color: '#e6edf2', fontWeight: 600 }}>
         <span>
           node camera{dirty ? <span style={{ color: '#7fe0d0' }}> ●</span> : null}
         </span>
-        <span style={{ color: '#7f95a4', fontWeight: 400 }}>{h.slug}</span>
+        <span style={{ color: '#7f95a4', fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.slug}</span>
+        <button
+          onClick={() => toggle(true)}
+          title="Hide (stays hidden until you bring it back)"
+          style={{ background: 'none', border: 0, color: '#7f95a4', font: 'inherit', cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}
+        >
+          ✕
+        </button>
       </div>
       <div style={{ color: '#7f95a4', marginTop: 1 }}>drag → read → paste into HOTSPOTS</div>
 

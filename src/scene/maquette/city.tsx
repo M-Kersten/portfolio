@@ -10,6 +10,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
 import { launchTrack, sceneStore, useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useLaunchCount } from '../../lib/launches';
 import { asset } from '../../lib/asset';
 import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
@@ -919,6 +920,7 @@ const SITE_POS: V3 = [0.85, 0, -0.52];
 function NextProjectSite() {
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
   const launch = useSceneSelector((s) => s.launch);
+  const flights = useLaunchCount(); // global odometer, null until known
   const reduced = useReducedMotion();
   const rise = useRef<Group>(null);
   const rocket = useRef<Group>(null);
@@ -1087,6 +1089,9 @@ function NextProjectSite() {
         <Html position={[-0.12, 1.02, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
           <button type="button" className="nextsite" onClick={engage}>
             <b>my next launch</b> — let's build it together
+            {flights != null && (
+              <span className="nextsite__tally">{String(flights).padStart(4, '0')} launches by visitors so far</span>
+            )}
           </button>
         </Html>
       )}

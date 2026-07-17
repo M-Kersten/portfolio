@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sceneStore, useSceneSelector } from '../scene/store';
 import { useReducedMotion } from '../lib/useReducedMotion';
+import { recordLaunch, useLaunchCount } from '../lib/launches';
 
 // The game pulls in a second R3F canvas (the 3D rocket ship), so it's lazily
 // loaded — it can't reach the entry chunk and only fetches once someone has
@@ -18,6 +19,7 @@ const AsteroidsGame = lazy(() => import('./AsteroidsGame').then((m) => ({ defaul
 export function LaunchOverlay() {
   const launch = useSceneSelector((s) => s.launch);
   const reduced = useReducedMotion();
+  const flights = useLaunchCount();
   const [count, setCount] = useState(3);
 
   // Esc aborts (except mid-game — the game owns its own exit confirm)
@@ -40,6 +42,7 @@ export function LaunchOverlay() {
       n -= 1;
       if (n <= 0) {
         if (timer.current) clearInterval(timer.current);
+        recordLaunch(); // ignition — one tick on the global odometer
         sceneStore.setLaunch('ascend');
       } else {
         setCount(n);
@@ -76,9 +79,12 @@ export function LaunchOverlay() {
     <div className="launch" role="dialog" aria-label="Launch control">
       {launch === 'pad' && (
         <div className="launch__panel">
-          <span className="launch__mission">MK-01 · THE NEXT LAUNCH</span>
+          <span className="launch__mission">MK-01 · THE NEXT LAUNCH{flights != null && ` · FLIGHT ${flights + 1}`}</span>
           <p className="launch__lede">You just toured ten projects that shipped, here's the one we haven’t built yet.</p>
           <p className="launch__brief">Let's launch this one together and blast through all the problems that come in a project</p>
+          {flights != null && (
+            <span className="launch__tally">{String(flights).padStart(4, '0')} launches performed by visitors before you</span>
+          )}
           <div className="launch__row">
             <button type="button" className="btn launch__go" onClick={() => sceneStore.setLaunch('countdown')}>
               LAUNCH
