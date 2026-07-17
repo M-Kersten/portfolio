@@ -23,7 +23,7 @@ const HAZARDS = [
   'SHOW-FLOOR WIFI',
   'HOLOLENS BATTERY',
   '1★ STORE REVIEW',
-  'MEETING (COULD’VE BEEN AN EMAIL)',
+  'ANOTHER MEETING',
   'TECH DEBT',
   'NullReferenceException',
 ];
@@ -31,13 +31,13 @@ const HAZARDS = [
 const SPLITS: Record<string, [string, string]> = {
   'SCOPE CREEP': ['MORE SCOPE CREEP', 'MORE SCOPE CREEP'],
   'MERGE CONFLICT': ['<<<<<<< YOURS', '>>>>>>> THEIRS'],
-  'TECH DEBT': ['INTEREST', 'COMPOUND INTEREST'],
+  'TECH DEBT': ['UNUSED SDK', 'SINGLETON SPAGHETTI'],
 };
 const MILESTONES: [number, string][] = [
-  [400, 'MAX-Q — peak aerodynamic pressure'],
-  [1200, 'MECO. stage two is all you'],
-  [2500, 'nominal. suspiciously nominal.'],
-  [5000, 'orbit says hi. HR will follow up.'],
+  [400, 'Design briefing, what could possibly go wrong?'],
+  [1200, 'Code architecture mapped out.'],
+  [2500, 'The build is green, but the QA team is screaming.'],
+  [5000, 'Going live, brace for the first wave of support tickets.'],
 ];
 
 interface Rock {
@@ -168,7 +168,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         }
       }
       if (rocks.length === 0) {
-        toast(`STAGE ${wave + 1} SEPARATION CONFIRMED`);
+        toast(`STAGE ${wave + 1} CLEARED`);
         waveGap = 1.6;
       }
     };
@@ -188,7 +188,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         setPhase('over');
       } else {
         ship.dead = 1.1; // respawn hold
-        toast(lives === 0 ? 'final booster. no pressure.' : 'anomaly contained. new booster inbound.');
+        toast(lives === 0 ? 'final Q coming up' : 'another day another sprint');
       }
     };
 
@@ -210,7 +210,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       ship.dead = 0;
       hud();
       spawnWave();
-      toast('you’ve got the stick — climb for orbit.');
+      toast("Let's try and land this project!");
       // e2e playtest hook (sessionStorage 'mk-ast-test' = 'rud'): last booster +
       // a rock dead ahead, so automation can reach the RUD screen determinis-
       // tically. Unreachable in normal play — nothing sets the flag.
@@ -508,7 +508,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         </button>
       </div>
       {phase === 'play' && (
-        <p className="ast__objective">climb to orbit — shoot the hazards that sink projects · each one’s a signal</p>
+        <p className="ast__objective">Fire your tickets at the problems that sink the project</p>
       )}
       <div className="ast__toast" ref={toastRef} aria-live="polite" />
       <div className="ast__hint">← → rotate · ↑ thrust · space fire · P hold{' '}
@@ -519,10 +519,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         <div className="rud">
           <div className="rud__card">
             <span className="rud__eyebrow">MK-01 · FLIGHT {String(Math.max(1, Math.round(finalScore / 100))).padStart(2, '0')}</span>
-            <h2 className="rud__title">RAPID UNSCHEDULED DISASSEMBLY</h2>
-            <p className="rud__sub">the vehicle experienced an anomaly. the data looks great though.</p>
+            <h2 className="rud__title">UNEXPECTED PROJECT DELAY</h2>
+            <p className="rud__sub">the project experienced an anomaly...</p>
             <p className="rud__score">
-              {String(finalScore).padStart(4, '0')} signals · best {String(best).padStart(4, '0')}
+              {String(finalScore).padStart(4, '0')} problems fixed · best {String(best).padStart(4, '0')}
             </p>
             <div className="rud__actions">
               <button type="button" className="btn" onClick={() => restartRef.current()}>
@@ -532,15 +532,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
                 RETURN TO PAD
               </button>
             </div>
-            <div className="rud__barge" aria-hidden="true">
-              <div className="rud__booster" />
-              <div className="rud__deck">
-                <span>JUST READ THE PORTFOLIO</span>
-              </div>
-              <div className="rud__sea" />
-            </div>
             <p className="rud__foot">
-              booster recovered downrange · crew applications open —{' '}
+              Crew applications open{' '}
               <button type="button" className="rud__link" onClick={contact}>
                 let's build the next one together
               </button>

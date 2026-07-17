@@ -77,14 +77,14 @@ export function LaunchOverlay() {
       {launch === 'pad' && (
         <div className="launch__panel">
           <span className="launch__mission">MK-01 · THE NEXT LAUNCH</span>
-          <p className="launch__lede">You just toured ten signals that shipped. This is the one we haven’t built yet.</p>
-          <p className="launch__brief">You’re the pilot — fly it to orbit, past everything that sinks a project.</p>
+          <p className="launch__lede">You just toured ten projects that shipped, here's the one we haven’t built yet.</p>
+          <p className="launch__brief">Let's launch this one together and blast through all the problems that come in a project</p>
           <div className="launch__row">
             <button type="button" className="btn launch__go" onClick={() => sceneStore.setLaunch('countdown')}>
               LAUNCH
             </button>
             <button type="button" className="launch__abort" onClick={() => sceneStore.setLaunch('idle')}>
-              scrub <kbd>Esc</kbd>
+              cancel <kbd>Esc</kbd>
             </button>
           </div>
         </div>
