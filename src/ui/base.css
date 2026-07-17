@@ -94,7 +94,9 @@ img {
 
 .section {
   position: relative;
-  padding-block: var(--space-2xl);
+  /* generous but not cavernous — was --space-2xl (7.5rem), which left too much
+     air between sections */
+  padding-block: calc(var(--space-xl) + var(--space-s));
   scroll-margin-top: var(--header-h);
   background: var(--paper);
 }

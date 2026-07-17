@@ -211,7 +211,9 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-xs);
-  padding: var(--space-2xl) var(--space-m);
+  /* just a top gap from the timeline; the section's own padding-block carries
+     the space below, so the CTA no longer floats in a stacked double-void */
+  padding: var(--space-xl) var(--space-m) 0;
   text-align: center;
 }
 .wall__more-btn {

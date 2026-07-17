@@ -14,7 +14,10 @@
   display: grid;
   grid-template-columns: minmax(18rem, 38%) 1fr;
   gap: var(--space-l);
-  padding: var(--space-m) var(--space-l);
+  /* content tracks the site container gutter (like the caption above + the
+     hero name), so the dossier's left edge lines up with the logo instead of
+     sitting a fixed inset in from the viewport */
+  padding: var(--space-m) max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
   /* translucent acrylic dossier, carrying the site's square-dot field so it
      matches the focus card + section backgrounds */
   background: var(--dots-faint),
