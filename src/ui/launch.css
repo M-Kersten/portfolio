@@ -155,12 +155,28 @@
   pointer-events: none;
 }
 .ast__score span {
+  display: inline-block; /* transformable for the tick animation */
   color: var(--accent-ink);
 }
 .ast__lives {
+  display: inline-block;
   color: var(--accent-ink);
   letter-spacing: 0.3em;
   font-size: 0.82rem;
+}
+/* tiny HUD reactions: the score ticks on a kill, the boosters flare when one
+   is lost (classes re-applied per event by the game) */
+.ast__score-bump {
+  animation: ast-bump 0.25s var(--ease);
+}
+@keyframes ast-bump {
+  30% { transform: scale(1.3); }
+}
+.ast__lives-hit {
+  animation: ast-lives-hit 0.55s var(--ease);
+}
+@keyframes ast-lives-hit {
+  25% { color: #ffb46a; transform: scale(1.3); }
 }
 .ast__exit {
   pointer-events: auto;
@@ -404,7 +420,9 @@
   .launch__go,
   .launch__count,
   .rud__booster,
-  .rud__booster::after {
+  .rud__booster::after,
+  .ast__score-bump,
+  .ast__lives-hit {
     animation: none;
   }
   .rud__booster {

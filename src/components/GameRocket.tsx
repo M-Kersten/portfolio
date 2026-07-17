@@ -1,6 +1,6 @@
 import { useRef, type MutableRefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { AdditiveBlending, DoubleSide, type Group, type OrthographicCamera } from 'three';
+import { AdditiveBlending, DoubleSide, type Group, type OrthographicCamera, type PointLight } from 'three';
 import { RocketBody, ROCKET_MID } from '../scene/maquette/rocket';
 
 // The asteroids ship, rendered as the actual 3D launch vehicle in a transparent
@@ -14,6 +14,7 @@ export interface ShipView {
   a: number; // heading, radians (a = -π/2 is nose-up, matching the 2D ship)
   thrust: boolean;
   visible: boolean;
+  pop: number; // 0→1 since (re)spawn — drives the scale-in
 }
 
 const SHIP_SCALE = 78; // world→px: model is ~0.63 tall → ~49px, reads clearly on black
@@ -21,6 +22,7 @@ const SHIP_SCALE = 78; // world→px: model is ~0.63 tall → ~49px, reads clear
 function Ship({ view }: { view: MutableRefObject<ShipView> }) {
   const g = useRef<Group>(null);
   const flame = useRef<Group>(null);
+  const flameLight = useRef<PointLight>(null);
   const { size, camera } = useThree();
   useFrame(() => {
     const grp = g.current;
@@ -42,11 +44,17 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
     // screen rotation is a+π/2 clockwise (canvas y-down); negate for +Y-up world
     grp.rotation.z = -(v.a + Math.PI / 2);
     grp.visible = v.visible;
+    // (re)spawn pop: ease-out-back on the scale — a touch of overshoot
+    const p = Math.min(1, Math.max(0, v.pop));
+    const e = 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2);
+    grp.scale.setScalar(SHIP_SCALE * Math.max(0.001, e));
     if (flame.current) {
       flame.current.visible = v.thrust;
       const f = 0.7 + Math.random() * 0.6;
       flame.current.scale.set(0.9 + Math.random() * 0.2, f, 0.9 + Math.random() * 0.2);
     }
+    // the burn washes the hull warm while the engine's lit
+    if (flameLight.current) flameLight.current.intensity = v.thrust ? 260 + Math.random() * 200 : 0;
   });
   return (
     <group ref={g} scale={SHIP_SCALE}>
@@ -59,10 +67,17 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
             <coneGeometry args={[0.03, 0.2, 12, 1, true]} />
             <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
           </mesh>
+          {/* hot inner core */}
+          <mesh position={[0, -0.075, 0]} rotation={[Math.PI, 0, 0]}>
+            <coneGeometry args={[0.015, 0.12, 10, 1, true]} />
+            <meshBasicMaterial color="#fff3da" transparent opacity={0.95} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+          </mesh>
           <mesh position={[0, -0.02, 0]}>
             <sphereGeometry args={[0.045, 12, 12]} />
             <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
           </mesh>
+          {/* the burn's glow on the hull (intensity driven in useFrame) */}
+          <pointLight ref={flameLight} position={[0, -0.04, 0.05]} color="#ffb46a" intensity={0} decay={2} />
         </group>
       </group>
     </group>

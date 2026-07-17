@@ -24,6 +24,9 @@ export function CameraRig() {
   const prevSel = useRef<string | null>(null);
   const prevLaunch = useRef(launch);
   const shake = useRef(0); // launch camera-shake impulse, 1 → 0
+  const shakeOff = useRef(new Vector3()); // last frame's positional jitter
+  const shakeRight = useRef(new Vector3());
+  const shakeUp = useRef(new Vector3());
   const target = useRef(new Vector3().copy(journeyView(0).target));
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
@@ -37,6 +40,12 @@ export function CameraRig() {
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
     const DEG = Math.PI / 180;
+
+    // Undo last frame's camera-shake jitter before any easing math runs — the
+    // shake is a per-frame display offset (added after lookAt below), never
+    // part of the camera's actual path, so it can't accumulate or steer.
+    camera.position.sub(shakeOff.current);
+    shakeOff.current.set(0, 0, 0);
 
     const aspect = size.width / size.height;
     const gap = layerGap(aspect); // layers spread apart on tall screens
@@ -63,6 +72,7 @@ export function CameraRig() {
           cam.updateProjectionMatrix();
         }
       }
+      let amp = 0;
       if (reduced) {
         camera.position.copy(desiredPos.current);
         target.current.copy(desiredTarget.current);
@@ -72,7 +82,6 @@ export function CameraRig() {
         const k = 1 - Math.exp(-(ascending ? 2.6 : 3.4) * dt);
         camera.position.lerp(desiredPos.current, k);
         target.current.lerp(desiredTarget.current, k);
-        // ---- camera shake ----
         if (launch !== prevLaunch.current) {
           if (launch === 'ascend') shake.current = 1; // the ignition kick
           prevLaunch.current = launch;
@@ -80,14 +89,22 @@ export function CameraRig() {
         shake.current = Math.max(0, shake.current - dt * 0.55);
         // hold-down rumble through the count; a big kick at lift-off settling
         // into the ascent's sustained rattle
-        const amp = launch === 'countdown' ? 0.012 : launch === 'ascend' ? 0.03 + 0.13 * shake.current : 0;
-        if (amp > 0) {
-          camera.position.x += (Math.random() - 0.5) * amp;
-          camera.position.y += (Math.random() - 0.5) * amp;
-          camera.position.z += (Math.random() - 0.5) * amp;
-        }
+        amp = launch === 'countdown' ? 0.014 : launch === 'ascend' ? 0.035 + 0.15 * shake.current : 0;
       }
       camera.lookAt(target.current);
+      // ---- camera shake: position only ----
+      // Applied AFTER lookAt, across the view plane (camera-local right/up),
+      // so the whole frame translates. Jittering before lookAt re-aimed the
+      // camera at the pinned target every frame, which read as the rotation
+      // wobbling instead of the camera rattling.
+      if (amp > 0) {
+        shakeRight.current.set(1, 0, 0).applyQuaternion(camera.quaternion);
+        shakeUp.current.set(0, 1, 0).applyQuaternion(camera.quaternion);
+        shakeOff.current
+          .addScaledVector(shakeRight.current, (Math.random() - 0.5) * amp)
+          .addScaledVector(shakeUp.current, (Math.random() - 0.5) * amp);
+        camera.position.add(shakeOff.current);
+      }
       return;
     }
 
