@@ -185,6 +185,82 @@
 @keyframes ast-lives-hit {
   25% { color: #ffb46a; transform: scale(1.3); }
 }
+/* lives are tiny boosters */
+.ast__lives svg {
+  width: 9px;
+  height: 15px;
+  margin-left: 6px;
+  vertical-align: -2px;
+}
+/* the chain multiplier riding next to the score */
+.ast__chain {
+  display: inline-block;
+  margin-left: 0.55em;
+  color: var(--accent-ink);
+}
+.ast__chain-pop {
+  animation: ast-bump 0.25s var(--ease);
+}
+/* once the fleet record falls the score burns brighter for the rest of the run */
+.ast__score-rec {
+  color: #7fe0d0 !important;
+  text-shadow: 0 0 14px rgba(127, 224, 208, 0.5);
+}
+/* scanner-frame corners — the site's bracket language on the game viewport */
+.ast__frame {
+  position: absolute;
+  inset: 14px;
+  pointer-events: none;
+  z-index: 1;
+}
+.ast__frame i {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 0 solid rgba(159, 182, 198, 0.35);
+}
+.ast__frame i:nth-child(1) { top: 0; left: 0; border-top-width: 1px; border-left-width: 1px; }
+.ast__frame i:nth-child(2) { top: 0; right: 0; border-top-width: 1px; border-right-width: 1px; }
+.ast__frame i:nth-child(3) { bottom: 0; left: 0; border-bottom-width: 1px; border-left-width: 1px; }
+.ast__frame i:nth-child(4) { bottom: 0; right: 0; border-bottom-width: 1px; border-right-width: 1px; }
+/* the arrival card — stage separation hands over the stick, then gets out
+   of the way */
+.ast__title {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  pointer-events: none;
+  animation: ast-title 2.8s var(--ease) forwards;
+}
+.ast__title span {
+  font-size: 0.72rem;
+  letter-spacing: 0.3em;
+  color: var(--accent-ink);
+}
+.ast__title b {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+@keyframes ast-title {
+  0% { opacity: 0; transform: translate(-50%, 12px); }
+  12%, 68% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -6px); }
+}
+@keyframes ast-title-fade {
+  0% { opacity: 0; }
+  12%, 68% { opacity: 1; }
+  100% { opacity: 0; }
+}
 .ast__exit {
   pointer-events: auto;
   font-family: var(--font-mono);
@@ -321,6 +397,16 @@
   color: var(--accent-ink);
   text-transform: uppercase;
 }
+/* the post-flight debrief: shots, accuracy, stage, time, best chain */
+.rud__report {
+  margin: 0.1rem 0 0;
+  max-width: none;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-60);
+  text-wrap: balance;
+}
 .rud__actions {
   display: flex;
   gap: var(--space-s);
@@ -429,8 +515,13 @@
   .rud__booster,
   .rud__booster::after,
   .ast__score-bump,
-  .ast__lives-hit {
+  .ast__lives-hit,
+  .ast__chain-pop {
     animation: none;
+  }
+  /* the arrival card still informs — it just fades instead of sliding */
+  .ast__title {
+    animation: ast-title-fade 2.8s var(--ease) forwards;
   }
   .rud__booster {
     transform: translateY(2.55rem);

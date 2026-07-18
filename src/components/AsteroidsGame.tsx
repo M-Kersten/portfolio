@@ -52,8 +52,12 @@ interface Bullet { x: number; y: number; vx: number; vy: number; ttl: number }
 interface Particle { x: number; y: number; vx: number; vy: number; ttl: number; max: number; c: string; streak?: boolean }
 interface Ring { x: number; y: number; r: number; v: number; ttl: number; max: number; c: string } // shockwave
 interface Popup { x: number; y: number; txt: string; ttl: number; max: number; c: string } // floating score
+interface RockFlash { x: number; y: number; rot: number; r: number; shape: number[]; ttl: number; max: number } // 2-frame hit flash
 
 const EMBER = '#ffb46a'; // exhaust / damage heat (the palette's one warm note)
+// a life = a tiny booster, not a triangle
+const LIFE_GLYPH =
+  '<svg viewBox="0 0 10 16" aria-hidden="true"><path d="M5 0C6.2 1.6 7 3.4 7 5.6V10L9 13L6.4 12.2L5 14.4L3.6 12.2L1 13L3 10V5.6C3 3.4 3.8 1.6 5 0Z" fill="currentColor"/></svg>';
 
 function rockShape(n = 11): number[] {
   return Array.from({ length: n }, () => 0.72 + Math.random() * 0.45);
@@ -63,14 +67,17 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const reduced = useReducedMotion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scoreRef = useRef<HTMLSpanElement>(null);
+  const chainRef = useRef<HTMLSpanElement>(null);
   const livesRef = useRef<HTMLSpanElement>(null);
   const toastRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<'play' | 'over'>('play');
   const [finalScore, setFinalScore] = useState(0);
+  const [report, setReport] = useState(''); // the RUD card's mission debrief
+  const [runId, setRunId] = useState(0); // bumps per run — replays the title card
   const [best, setBest] = useState(() => Number(localStorage.getItem('mk-asteroids-best') ?? 0));
   const restartRef = useRef<() => void>(() => {});
   // the ship's live pose, handed to the 3D rocket overlay every frame
-  const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, thrust: false, visible: true, pop: 1 });
+  const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, throttle: 0, turn: 0, visible: true, pop: 1 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -82,6 +89,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let H = 0;
     let gridPat: CanvasPattern | null = null; // the site's dot-grid paper
     let vig: CanvasGradient | null = null; // corner vignette, focuses the field
+    let horizonGrad: CanvasGradient | null = null; // the city's glow, far below
+    (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '0.5px';
     const fit = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = canvas.clientWidth;
@@ -101,6 +110,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       vig = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.46, W / 2, H / 2, Math.hypot(W, H) * 0.58);
       vig.addColorStop(0, 'rgba(5, 7, 9, 0)');
       vig.addColorStop(1, 'rgba(5, 7, 9, 0.55)');
+      horizonGrad = ctx.createLinearGradient(0, H - 120, 0, H);
+      horizonGrad.addColorStop(0, 'rgba(39, 232, 242, 0)');
+      horizonGrad.addColorStop(1, 'rgba(39, 232, 242, 0.06)');
     };
     fit();
     window.addEventListener('resize', fit);
@@ -112,6 +124,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let parts: Particle[] = [];
     let rings: Ring[] = [];
     let popups: Popup[] = [];
+    let rockFlashes: RockFlash[] = [];
     let score = 0;
     let lives = 3;
     let wave = 0;
@@ -123,7 +136,30 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let flash = 0; // white-out at the moment of disassembly
     let slomo = 0; // hit-stop: the world catches its breath on big hits
     let wavePulse = 0; // the stage numeral watermark breathes on each new wave
+    let gridPulse = 0; // the paper brightens for a beat on milestones/clears
     let milestone = 0;
+    // arrival: stage separation — stars rush past and settle as you take over.
+    // Wall-clock deadline, not sim time: dt is clamped (1/30), so on a slow
+    // device the sim runs under real time and a sim-timed intro would strand
+    // the field empty for ages (same lesson as the ascent's staging fallback).
+    let introUntil = 0;
+    let firstWave = false; // the opening wave arrives when the rush settles
+    let introV = 0; // star streak velocity, decays through the intro
+    let starOff = 0;
+    // engine feel: the throttle spools, the hull banks into turns
+    let throttle = 0;
+    let turnIn = 0;
+    let turnEase = 0;
+    // the rewarding loop: chains, records, and the post-flight debrief
+    let chain = 0;
+    let chainT = 0;
+    let bestChain = 1;
+    let shots = 0;
+    let hitsCount = 0;
+    let playTime = 0;
+    let recordBroken = false;
+    let bestAtStart = 0;
+    let dispScore = 0; // the odometer eases toward the real score
     const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() * 0.7, ph: Math.random() * 6.28 }));
 
     const toast = (msg: string) => {
@@ -135,8 +171,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       el.classList.add('ast__toast--show');
     };
     const hud = () => {
-      if (scoreRef.current) scoreRef.current.textContent = String(score).padStart(4, '0');
-      if (livesRef.current) livesRef.current.textContent = '▲'.repeat(Math.max(0, lives));
+      if (livesRef.current) livesRef.current.innerHTML = LIFE_GLYPH.repeat(Math.max(0, lives));
     };
     // restart a one-shot CSS animation on a HUD element (score tick, life lost)
     const bump = (el: HTMLElement | null, cls: string) => {
@@ -144,6 +179,22 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       el.classList.remove(cls);
       void el.offsetWidth;
       el.classList.add(cls);
+    };
+    // every score change funnels through here: milestone toasts + the moment
+    // the fleet record falls mid-run
+    const scored = () => {
+      bump(scoreRef.current, 'ast__score-bump');
+      while (milestone < MILESTONES.length && score >= MILESTONES[milestone][0]) {
+        toast(MILESTONES[milestone][1]);
+        gridPulse = 1;
+        milestone += 1;
+      }
+      if (!recordBroken && bestAtStart > 0 && score > bestAtStart) {
+        recordBroken = true;
+        toast('NEW FLEET RECORD');
+        gridPulse = 1;
+        scoreRef.current?.classList.add('ast__score-rec');
+      }
     };
 
     const spawnWave = () => {
@@ -164,13 +215,14 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       }
     };
 
-    const boom = (x: number, y: number, n: number, c: string) => {
+    // dirX/dirY bias the debris along the shot that caused it
+    const boom = (x: number, y: number, n: number, c: string, dirX = 0, dirY = 0) => {
       const N = reduced ? Math.min(n, 8) : n;
       for (let i = 0; i < N; i++) {
         const a = Math.random() * 6.28;
         const sp = 40 + Math.random() * 160;
         // half the debris streaks along its velocity — sparks, not confetti
-        parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, ttl: 0.5 + Math.random() * 0.5, max: 1, c, streak: !reduced && i % 2 === 0 });
+        parts.push({ x, y, vx: Math.cos(a) * sp + dirX * 120, vy: Math.sin(a) * sp + dirY * 120, ttl: 0.5 + Math.random() * 0.5, max: 1, c, streak: !reduced && i % 2 === 0 });
       }
       if (!reduced) {
         rings.push({ x, y, r: 5, v: n > 20 ? 430 : 260, ttl: 0.38, max: 0.38, c });
@@ -178,28 +230,38 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       }
     };
 
-    const splitRock = (rk: Rock, idx: number) => {
+    // imp = where the bullet actually struck, and the shot's direction — the
+    // debris, the popup and the children all take their cue from it
+    const splitRock = (rk: Rock, idx: number, imp: { x: number; y: number; dx: number; dy: number }) => {
       rocks.splice(idx, 1);
-      const pts = rk.tier === 0 ? 20 : rk.tier === 1 ? 50 : 100;
-      score += pts;
-      hud();
-      bump(scoreRef.current, 'ast__score-bump');
-      popups.push({ x: rk.x, y: rk.y, txt: `+${pts}`, ttl: 0.7, max: 0.7, c: rk.tier === 2 ? CYAN : INK });
-      while (milestone < MILESTONES.length && score >= MILESTONES[milestone][0]) {
-        toast(MILESTONES[milestone][1]);
-        milestone += 1;
+      // chain: kills within 2s multiply (×2, ×3… capped ×5)
+      chain = chainT > 0 ? chain + 1 : 1;
+      chainT = 2;
+      bestChain = Math.max(bestChain, chain);
+      const mult = Math.min(chain, 5);
+      if (chainRef.current) {
+        chainRef.current.textContent = mult > 1 ? `×${mult}` : '';
+        if (mult > 1) bump(chainRef.current, 'ast__chain-pop');
       }
-      boom(rk.x, rk.y, rk.tier === 2 ? 8 : 14, NEUTRAL);
+      const pts = (rk.tier === 0 ? 20 : rk.tier === 1 ? 50 : 100) * mult;
+      score += pts;
+      popups.push({ x: imp.x, y: imp.y, txt: mult > 1 ? `+${pts} ×${mult}` : `+${pts}`, ttl: 0.7, max: 0.7, c: rk.tier === 2 || mult > 1 ? CYAN : INK });
+      boom(imp.x, imp.y, rk.tier === 2 ? 8 : 14, NEUTRAL, imp.dx, imp.dy);
+      // the rock itself flashes white-hot for a beat as it breaks
+      if (!reduced) rockFlashes.push({ x: rk.x, y: rk.y, rot: rk.rot, r: rk.r, shape: rk.shape, ttl: 0.09, max: 0.09 });
       // a breath of hit-stop on the big ones — the punch reads
       if (!reduced && rk.tier === 0) slomo = Math.max(slomo, 0.05);
       if (rk.tier < 2) {
         const childLabels = rk.label ? SPLITS[rk.label] : undefined;
+        // children fork away from the shot and keep most of the parent's
+        // momentum — splits read physical, not random
+        const shotA = Math.atan2(imp.dy, imp.dx);
         for (let i = 0; i < 2; i++) {
-          const a = Math.random() * 6.28;
+          const a = shotA + (i === 0 ? 1 : -1) * (0.55 + Math.random() * 0.5);
           const sp = (rk.tier === 0 ? 55 : 90) + Math.random() * 40;
           rocks.push({
             x: rk.x, y: rk.y,
-            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+            vx: rk.vx * 0.6 + Math.cos(a) * sp, vy: rk.vy * 0.6 + Math.sin(a) * sp,
             r: rk.tier === 0 ? 25 : 13,
             tier: (rk.tier + 1) as 1 | 2,
             rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 1.6,
@@ -210,9 +272,16 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         }
       }
       if (rocks.length === 0) {
-        toast(`STAGE ${wave + 1} CLEARED`);
-        waveGap = 1.6;
+        // stage clear: a bonus, a clean ring off the hull, and a longer breath
+        // before the next wave rolls in
+        score += 150;
+        popups.push({ x: ship.x, y: ship.y - 36, txt: '+150 STAGE BONUS', ttl: 1, max: 1, c: CYAN });
+        if (!reduced) rings.push({ x: ship.x, y: ship.y, r: 12, v: 540, ttl: 0.5, max: 0.5, c: CYAN });
+        gridPulse = 1;
+        toast(`STAGE ${wave + 1} CLEARED · +150`);
+        waveGap = 2.2;
       }
+      scored();
     };
 
     const die = () => {
@@ -222,12 +291,22 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         slomo = Math.max(slomo, 0.3);
         shake = Math.min(shake + 10, 18);
       }
+      chain = 0;
+      chainT = 0;
+      if (chainRef.current) chainRef.current.textContent = '';
       lives -= 1;
       hud();
       bump(livesRef.current, 'ast__lives-hit');
       if (lives < 0) {
         over = true;
         setFinalScore(score);
+        // the post-flight debrief — everything the engine already knows
+        const acc = shots > 0 ? Math.round((hitsCount / shots) * 100) : 0;
+        const mm = String(Math.floor(playTime / 60)).padStart(2, '0');
+        const ss = String(Math.floor(playTime % 60)).padStart(2, '0');
+        setReport(
+          `${shots} tickets fired · ${shots > 0 ? `${acc}% resolved` : 'no shots fired'} · reached stage ${wave} · T+${mm}:${ss}${bestChain >= 2 ? ` · best chain ×${bestChain}` : ''}`,
+        );
         setBest((b) => {
           const nb = Math.max(b, score);
           localStorage.setItem('mk-asteroids-best', String(nb));
@@ -240,20 +319,35 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       }
     };
 
-    const reset = () => {
+    const reset = (restart = false) => {
       rocks = [];
       bullets = [];
       parts = [];
       rings = [];
       popups = [];
-      flash = 0;
+      rockFlashes = [];
+      flash = restart && !reduced ? 0.55 : 0; // ITERATE gets a fresh-start flash
       slomo = 0;
       score = 0;
+      dispScore = 0;
       lives = 3;
       wave = 0;
       milestone = 0;
       over = false;
       paused = false;
+      shots = 0;
+      hitsCount = 0;
+      playTime = 0;
+      chain = 0;
+      chainT = 0;
+      bestChain = 1;
+      recordBroken = false;
+      bestAtStart = Number(localStorage.getItem('mk-asteroids-best') ?? 0);
+      gridPulse = 0;
+      throttle = 0;
+      turnIn = 0;
+      turnEase = 0;
+      starOff = 0;
       ship.x = W / 2;
       ship.y = H / 2;
       ship.vx = ship.vy = 0;
@@ -261,9 +355,15 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       ship.inv = 2.4;
       ship.dead = 0;
       ship.spawnAge = 0;
+      if (chainRef.current) chainRef.current.textContent = '';
+      scoreRef.current?.classList.remove('ast__score-rec');
+      if (scoreRef.current) scoreRef.current.textContent = '0000';
       hud();
-      spawnWave();
-      toast("Let's try and land this project!");
+      setRunId((n) => n + 1); // replays the arrival card
+      // stage separation: stars rush past for a beat before the first wave
+      introUntil = reduced ? 0 : performance.now() + 2200;
+      firstWave = false;
+      waveGap = 0;
       // e2e playtest hook (sessionStorage 'mk-ast-test' = 'rud'): last booster +
       // a rock dead ahead, so automation can reach the RUD screen determinis-
       // tically. Unreachable in normal play — nothing sets the flag.
@@ -275,7 +375,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       }
     };
     restartRef.current = () => {
-      reset();
+      reset(true);
       setPhase('play');
     };
 
@@ -356,9 +456,19 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     };
 
     const update = (dt: number) => {
+      playTime += dt;
+      const introLeft = Math.max(0, introUntil - performance.now()) / 1000;
+      // star field: a rush during stage separation, then a whisper of drift
+      introV = introLeft > 0 ? 60 + 520 * Math.pow(introLeft / 2.2, 2) : 8;
+      starOff += introV * dt;
+      if (!firstWave && introLeft <= 0) {
+        firstWave = true;
+        spawnWave(); // the opening wave arrives as the rush settles
+      }
       // ship
       ship.spawnAge += dt;
       if (ship.dead > 0) {
+        turnIn = 0;
         ship.dead -= dt;
         if (ship.dead <= 0) {
           ship.x = W / 2;
@@ -375,25 +485,29 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           while (d > Math.PI) d -= 6.283;
           while (d < -Math.PI) d += 6.283;
           ship.a += Math.max(-4.4 * dt, Math.min(4.4 * dt, d));
+          turnIn = Math.max(-1, Math.min(1, d * 4));
         } else {
           if (ship.left) ship.a -= 3.8 * dt;
           if (ship.right) ship.a += 3.8 * dt;
+          turnIn = (ship.right ? 1 : 0) - (ship.left ? 1 : 0);
         }
         if (ship.thrust) {
           ship.vx += Math.cos(ship.a) * 240 * dt;
           ship.vy += Math.sin(ship.a) * 240 * dt;
-          // embers streaming from the tail, under the 3D plume
-          if (!reduced) {
-            for (let i = 0; i < 2; i++) {
-              const ja = ship.a + Math.PI + (Math.random() - 0.5) * 0.55;
-              const js = 70 + Math.random() * 110;
-              parts.push({
-                x: ship.x - Math.cos(ship.a) * 17, y: ship.y - Math.sin(ship.a) * 17,
-                vx: Math.cos(ja) * js, vy: Math.sin(ja) * js,
-                ttl: 0.2 + Math.random() * 0.22, max: 0.42,
-                c: Math.random() < 0.5 ? EMBER : '#ffd9a0', streak: true,
-              });
-            }
+        }
+        // embers stream from the tail while the engine's spooled, under the 3D
+        // plume — the rate follows the throttle, not the key
+        if (!reduced && throttle > 0.12) {
+          const n = Math.random() < throttle ? 2 : 1;
+          for (let i = 0; i < n; i++) {
+            const ja = ship.a + Math.PI + (Math.random() - 0.5) * 0.55;
+            const js = 70 + Math.random() * 110;
+            parts.push({
+              x: ship.x - Math.cos(ship.a) * 17, y: ship.y - Math.sin(ship.a) * 17,
+              vx: Math.cos(ja) * js, vy: Math.sin(ja) * js,
+              ttl: 0.2 + Math.random() * 0.22, max: 0.42,
+              c: Math.random() < 0.5 ? EMBER : '#ffd9a0', streak: true,
+            });
           }
         }
         const damp = Math.exp(-0.45 * dt);
@@ -405,6 +519,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         cooldown -= dt;
         if (ship.fire && cooldown <= 0) {
           cooldown = 0.17;
+          shots += 1;
           bullets.push({ x: ship.x + Math.cos(ship.a) * 14, y: ship.y + Math.sin(ship.a) * 14, vx: ship.vx + Math.cos(ship.a) * 430, vy: ship.vy + Math.sin(ship.a) * 430, ttl: 1.05 });
           // muzzle sparks off the nose
           const mn = reduced ? 1 : 3;
@@ -415,6 +530,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           }
         }
       }
+      // engine feel: the throttle spools toward the key, the hull leans into
+      // the stick — both eased so nothing snaps
+      const tw = ship.thrust && ship.dead <= 0 ? 1 : 0;
+      throttle += (tw - throttle) * Math.min(1, dt * (tw ? 7 : 10));
+      turnEase += (turnIn - turnEase) * Math.min(1, dt * 8);
       // bullets
       for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
@@ -441,8 +561,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           const dx = rk.x - b.x;
           const dy = rk.y - b.y;
           if (dx * dx + dy * dy < rk.r * rk.r) {
+            const sp = Math.hypot(b.vx, b.vy) || 1;
+            hitsCount += 1;
             bullets.splice(j, 1);
-            splitRock(rk, i);
+            splitRock(rk, i, { x: b.x, y: b.y, dx: b.vx / sp, dy: b.vy / sp });
             continue outer;
           }
         }
@@ -477,6 +599,21 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         p.y -= 26 * dt;
         if (p.ttl <= 0) popups.splice(i, 1);
       }
+      // hit flashes (a rock's last two frames)
+      for (let i = rockFlashes.length - 1; i >= 0; i--) {
+        rockFlashes[i].ttl -= dt;
+        if (rockFlashes[i].ttl <= 0) rockFlashes.splice(i, 1);
+      }
+      // the chain window closes quietly
+      if (chainT > 0) {
+        chainT -= dt;
+        if (chainT <= 0) {
+          chain = 0;
+          if (chainRef.current) chainRef.current.textContent = '';
+        }
+      }
+      // the odometer rolls toward the real score
+      dispScore = reduced ? score : Math.min(score, dispScore + Math.max(1, (score - dispScore) * Math.min(1, dt * 9)));
       // next wave once the field clears
       if (waveGap > 0) {
         waveGap -= dt;
@@ -485,6 +622,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       if (shake > 0) shake = Math.max(0, shake - dt * 18);
       if (flash > 0) flash = Math.max(0, flash - dt * 2.4);
       if (wavePulse > 0) wavePulse = Math.max(0, wavePulse - dt * 1.1);
+      if (gridPulse > 0) gridPulse = Math.max(0, gridPulse - dt * 1.4);
     };
 
     const draw = (t: number) => {
@@ -498,14 +636,44 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       if (gridPat) {
         ctx.fillStyle = gridPat;
         ctx.fillRect(0, 0, W, H);
+        if (gridPulse > 0) {
+          // the paper brightens for a beat on milestones and stage clears
+          ctx.globalAlpha = gridPulse * 0.9;
+          ctx.fillRect(0, 0, W, H);
+          ctx.globalAlpha = 1;
+        }
       }
+      // stars: streaks while stage separation rushes past, then settling into
+      // a calm drift (starOff keeps a whisper of downward motion — we climb)
       for (const s of stars) {
         const x = (s.x * W + t * 4 * s.z) % W;
+        const y = (s.y * H + starOff * s.z) % H;
         ctx.globalAlpha = (0.1 + 0.2 * (0.5 + 0.5 * Math.sin(t * 1.9 + s.ph))) * s.z;
-        ctx.fillStyle = INK;
-        ctx.fillRect(x, s.y * H, s.z > 0.75 ? 2 : 1, s.z > 0.75 ? 2 : 1);
+        const len = introV * s.z * 0.055;
+        if (len > 4) {
+          ctx.strokeStyle = INK;
+          ctx.lineWidth = s.z > 0.75 ? 1.4 : 1;
+          ctx.beginPath();
+          ctx.moveTo(x, y - len);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = INK;
+          ctx.fillRect(x, y, s.z > 0.75 ? 2 : 1, s.z > 0.75 ? 2 : 1);
+        }
       }
       ctx.globalAlpha = 1;
+      // the city below — a faint curved horizon; we are, after all, in orbit
+      const hr = W * 1.5;
+      ctx.strokeStyle = 'rgba(39, 232, 242, 0.13)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(W / 2, H + hr - 46, hr, Math.PI * 1.5 - 0.42, Math.PI * 1.5 + 0.42);
+      ctx.stroke();
+      if (horizonGrad) {
+        ctx.fillStyle = horizonGrad;
+        ctx.fillRect(0, H - 120, W, 120);
+      }
       if (vig) {
         ctx.fillStyle = vig;
         ctx.fillRect(0, 0, W, H);
@@ -592,6 +760,22 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         ctx.arc(g.x, g.y, g.r, 0, 6.283);
         ctx.stroke();
       }
+      // the breaking rock's white-hot outline, two frames of it
+      for (const f of rockFlashes) {
+        ctx.globalAlpha = Math.max(0, f.ttl / f.max) * 0.85;
+        ctx.strokeStyle = '#d9fbff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const fn = f.shape.length;
+        for (let i = 0; i <= fn; i++) {
+          const a = f.rot + (i / fn) * 6.283;
+          const r = f.r * f.shape[i % fn];
+          const px = f.x + Math.cos(a) * r;
+          const py = f.y + Math.sin(a) * r;
+          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
       ctx.restore();
       ctx.globalAlpha = 1;
 
@@ -604,6 +788,12 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         ctx.fillText(p.txt, p.x, p.y);
       }
       ctx.globalAlpha = 1;
+
+      // the odometer rolls; writing through the DOM here also self-heals the
+      // HUD after React re-renders (a phase flip restores the JSX's children)
+      const odo = String(Math.round(dispScore)).padStart(4, '0');
+      if (scoreRef.current && scoreRef.current.textContent !== odo) scoreRef.current.textContent = odo;
+      if (livesRef.current && livesRef.current.childElementCount !== Math.max(0, lives)) hud();
 
       // spinning dashed shield while invulnerable — clearer than the blink alone
       if (ship.dead <= 0 && ship.inv > 0) {
@@ -634,7 +824,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       sv.x = ship.x;
       sv.y = ship.y;
       sv.a = ship.a;
-      sv.thrust = ship.thrust && ship.dead <= 0;
+      sv.throttle = throttle;
+      sv.turn = turnEase;
       sv.pop = Math.min(1, ship.spawnAge / 0.4); // scale-in on (re)spawn
       // hidden during the respawn hold, while blinking invulnerable, and once
       // the vehicle has RUD'd (it's particles now — don't leave it intact over
@@ -688,17 +879,32 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     <div className="ast" role="dialog" aria-label="Asteroids">
       <canvas ref={canvasRef} className="ast__canvas" />
       <GameRocket view={shipView} />
+      {/* scanner-frame corners — the site's bracket language on the viewport */}
+      <div className="ast__frame" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
       <div className="ast__hud">
         <span className="ast__score">
-          SIGNALS <span ref={scoreRef}>0000</span> · BEST {String(best).padStart(4, '0')}
+          SIGNALS <span ref={scoreRef}>0000</span>
+          <span className="ast__chain" ref={chainRef} /> · BEST {String(best).padStart(4, '0')}
         </span>
-        <span className="ast__lives" ref={livesRef} aria-label="boosters remaining">▲▲▲</span>
+        <span className="ast__lives" ref={livesRef} aria-label="boosters remaining" />
         <button type="button" className="ast__exit" onClick={onExit}>
           abort to pad <kbd>Esc</kbd>
         </button>
       </div>
       {phase === 'play' && (
         <p className="ast__objective">Fire your tickets at the problems that sink the project</p>
+      )}
+      {/* the arrival card — stage separation hands the visitor the stick */}
+      {phase === 'play' && (
+        <div key={runId} className="ast__title" aria-hidden="true">
+          <span>STAGE 2 · SEPARATION CONFIRMED</span>
+          <b>Let's try and land this project!</b>
+        </div>
       )}
       <div className="ast__toast" ref={toastRef} aria-live="polite" />
       <div className="ast__hint">← → rotate · ↑ thrust · space fire · P hold{' '}
@@ -714,6 +920,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
             <p className="rud__score">
               {String(finalScore).padStart(4, '0')} problems fixed · best {String(best).padStart(4, '0')}
             </p>
+            {report && <p className="rud__report">{report}</p>}
             <div className="rud__actions">
               <button type="button" className="btn" onClick={() => restartRef.current()}>
                 ITERATE

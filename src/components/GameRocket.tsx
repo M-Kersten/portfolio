@@ -12,7 +12,8 @@ export interface ShipView {
   x: number; // screen px
   y: number; // screen px (canvas y-down)
   a: number; // heading, radians (a = -π/2 is nose-up, matching the 2D ship)
-  thrust: boolean;
+  throttle: number; // 0→1 engine ramp (the engine spools, it doesn't switch)
+  turn: number; // -1..1 current rotation input — the model banks into it
   visible: boolean;
   pop: number; // 0→1 since (re)spawn — drives the scale-in
 }
@@ -21,10 +22,12 @@ const SHIP_SCALE = 78; // world→px: model is ~0.63 tall → ~49px, reads clear
 
 function Ship({ view }: { view: MutableRefObject<ShipView> }) {
   const g = useRef<Group>(null);
+  const pivot = useRef<Group>(null);
   const flame = useRef<Group>(null);
   const flameLight = useRef<PointLight>(null);
+  const bank = useRef(0);
   const { size, camera } = useThree();
-  useFrame(() => {
+  useFrame((_, delta) => {
     const grp = g.current;
     if (!grp) return;
     // Pin the ortho frustum to the canvas in CSS pixels ourselves, so 1 world
@@ -48,18 +51,25 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
     const p = Math.min(1, Math.max(0, v.pop));
     const e = 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2);
     grp.scale.setScalar(SHIP_SCALE * Math.max(0.001, e));
+    // bank into the turn — a roll about the long axis, eased so it settles
+    if (pivot.current) {
+      const k = 1 - Math.exp(-9 * Math.min(delta, 0.05));
+      bank.current += (-v.turn * 0.45 - bank.current) * k;
+      pivot.current.rotation.y = bank.current;
+    }
     if (flame.current) {
-      flame.current.visible = v.thrust;
-      const f = 0.7 + Math.random() * 0.6;
-      flame.current.scale.set(0.9 + Math.random() * 0.2, f, 0.9 + Math.random() * 0.2);
+      flame.current.visible = v.throttle > 0.03;
+      const th = v.throttle;
+      const f = (0.7 + Math.random() * 0.6) * (0.45 + 0.55 * th);
+      flame.current.scale.set((0.9 + Math.random() * 0.2) * (0.6 + 0.4 * th), f, (0.9 + Math.random() * 0.2) * (0.6 + 0.4 * th));
     }
     // the burn washes the hull warm while the engine's lit
-    if (flameLight.current) flameLight.current.intensity = v.thrust ? 260 + Math.random() * 200 : 0;
+    if (flameLight.current) flameLight.current.intensity = (260 + Math.random() * 200) * v.throttle;
   });
   return (
     <group ref={g} scale={SHIP_SCALE}>
       {/* pivot about the model's middle so it rotates in place */}
-      <group position={[0, -ROCKET_MID, 0]}>
+      <group ref={pivot} position={[0, -ROCKET_MID, 0]}>
         <RocketBody mode="lit" />
         {/* exhaust plume out of the tail (tail ≈ y 0.09), pointing −Y */}
         <group ref={flame} position={[0, 0.06, 0]} visible={false}>
