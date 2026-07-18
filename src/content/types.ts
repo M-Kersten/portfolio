@@ -46,6 +46,9 @@ export interface CaseStudy {
   /** A long-tail project: it appears in the /projects wordcloud (the full index)
    *  but is kept off the curated hero + timeline. Highlights leave this unset. */
   archive?: boolean;
+  /** One line tying the case to its object in the 3D maquette, shown in the
+   *  node HUD as "in the model · …". Only the ten hotspot cases carry one. */
+  model?: string;
 }
 
 export interface Capability {

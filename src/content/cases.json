@@ -1,6 +1,7 @@
 [
   {
     "slug": "virtuele-brigade",
+    "model": "the screen on the wall — virtual drills for very real jobs",
     "title": "Virtuele Brigade",
     "tag": "Marechaussee",
     "layer": "room",
@@ -26,6 +27,7 @@
   },
   {
     "slug": "alliander-hololens",
+    "model": "the tower feeding the power lines — grid work, seen through a HoloLens",
     "title": "Alliander HoloLens suite",
     "layer": "city",
     "client": "Alliander",
@@ -72,6 +74,7 @@
   },
   {
     "slug": "arcam",
+    "model": "the viewer in the park — point it at the city and the architecture talks back",
     "title": "ARCam",
     "layer": "city",
     "client": "Wonderment",
@@ -120,6 +123,7 @@
   },
   {
     "slug": "dtt-amsterdam",
+    "model": "the windmill on the canal — the agency years, grinding out app after app",
     "title": "DTT Projects",
     "layer": "city",
     "client": "DTT",
@@ -144,6 +148,7 @@
   },
   {
     "slug": "lightship-drive",
+    "model": "the race table — AR karts drifting across real furniture",
     "title": "Lightship Drive",
     "layer": "room",
     "client": "Niantic",
@@ -168,6 +173,7 @@
   },
   {
     "slug": "zwijsen-ar-books",
+    "model": "the orange book on the shelf — pages that pop up to teach reading",
     "title": "Zwijsen AR books",
     "layer": "room",
     "client": "Zwijsen",
@@ -192,6 +198,7 @@
   },
   {
     "slug": "popcore-games",
+    "model": "the phone on the couch — casual puzzles, billions of taps",
     "title": "Popcore games",
     "layer": "room",
     "client": "Popcore",
@@ -216,6 +223,7 @@
   },
   {
     "slug": "philips-medical-xr",
+    "model": "the patient monitor — a steady pulse through the medical XR work",
     "title": "Philips medical XR & AI",
     "layer": "chip",
     "client": "Philips",
@@ -240,6 +248,7 @@
   },
   {
     "slug": "amsterdam-ai",
+    "model": "the die on the table — roll it and an Amsterdam local starts talking",
     "title": "Amsterdam AI guides",
     "kind": "Research",
     "layer": "chip",
@@ -266,6 +275,7 @@
   },
   {
     "slug": "custom-ar-framework",
+    "model": "the camera on the stand — a framework that never stops looking for markers",
     "title": "Custom AR framework",
     "kind": "graduation",
     "layer": "chip",

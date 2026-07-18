@@ -907,10 +907,10 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
 
 /* ---------- The completion reward: the next launch ----------
    "Let's build it together" — literally. The quiet lot between the city
-   blocks and the park starts as a bare surveyed apron, and every signal the
+   blocks and the park starts as a bare surveyed apron, and every project the
    visitor wakes adds a piece: launch mount, tower (lower, then upper), then
    the vehicle itself — legs, booster, grid fins, interstage, access arm,
-   nose cone last. The 10th signal powers the site on: the beacon starts
+   nose cone last. The 10th project powers the site on: the beacon starts
    blinking, the celebration fires (NodeHud pulls the journey home so it
    plays in view) and the invitation appears. The vehicle stays deliberately
    the only ghost in a fully coloured world, because it hasn't flown yet.
@@ -919,7 +919,7 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
    asteroids easter egg. */
 const SITE_POS: V3 = [0.85, 0, -0.52];
 
-/* Assembly order: how many signals each piece needs (visited.length ≥ n). */
+/* Assembly order: how many woken projects each piece needs (visited.length ≥ n). */
 const BUILD = { mount: 1, towerLo: 2, towerHi: 3, legs: 4, booster: 5, fins: 6, interstage: 7, arm: 8, nose: 9 };
 
 function NextProjectSite() {
@@ -961,7 +961,7 @@ function NextProjectSite() {
 
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
-    // the beacon powers on with the 10th signal (the site is complete) — a
+    // the beacon powers on with the 10th project (the site is complete) — a
     // faint standby ember while the vehicle is still being assembled
     if (beaconMat.current) {
       beaconMat.current.emissiveIntensity =

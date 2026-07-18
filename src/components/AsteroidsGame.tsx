@@ -888,7 +888,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       </div>
       <div className="ast__hud">
         <span className="ast__score">
-          SIGNALS <span ref={scoreRef}>0000</span>
+          FIXED <span ref={scoreRef}>0000</span>
           <span className="ast__chain" ref={chainRef} /> · BEST {String(best).padStart(4, '0')}
         </span>
         <span className="ast__lives" ref={livesRef} aria-label="boosters remaining" />

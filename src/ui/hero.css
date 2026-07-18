@@ -86,9 +86,11 @@
   }
 }
 
-/* Signals found — the exploration tally, quiet instrument chrome bottom-right.
-   Pips fill as hotspots are brought alive; at 10/10 the readout takes the
-   accent and the scene's completion state does the real celebrating. */
+/* The model tally — quiet instrument chrome bottom-right. Every object in the
+   maquette is a project; pips fill as they're brought alive, and the whole
+   chip is a button that opens the manifest (which stands where, what's still
+   dark). At 10/10 the readout takes the accent and the scene's completion
+   state does the real celebrating. */
 .hero__signals {
   position: fixed;
   right: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
@@ -97,8 +99,144 @@
   display: flex;
   align-items: center;
   gap: 0.7em;
-  pointer-events: none;
+  /* the hero section is pointer-through (page-shell.css) so the 3D hotspots
+     stay clickable — the tally is its one interactive instrument, so opt back in */
+  pointer-events: auto;
   transition: opacity 0.4s var(--ease);
+}
+.hero__signals-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.35em 0.55em;
+  margin: -0.35em -0.55em;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+.hero__signals-btn:hover .hero__signals-label,
+.hero__signals-btn:focus-visible .hero__signals-label {
+  color: var(--ink);
+}
+
+/* the first-visit whisper — states the premise once, then retires. Floats
+   above the tally so it never shifts the chrome around. */
+.hero__hint {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.7rem);
+  margin: 0;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  color: var(--accent-ink);
+  animation: hero-hint-in 0.8s var(--ease);
+}
+@keyframes hero-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* the manifest — a small dossier above the tally: found projects are named
+   and clickable, unfound ones stay redacted (you know the layer, not the name) */
+.manifest {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.8rem);
+  width: 17rem;
+  max-height: min(60vh, 26rem);
+  overflow-y: auto;
+  padding: 0.8rem 0.95rem 0.7rem;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  backdrop-filter: blur(10px);
+  font-family: var(--font-mono);
+  animation: hero-hint-in 0.25s var(--ease);
+}
+.manifest__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin-bottom: 0.55rem;
+}
+.manifest__head span {
+  color: var(--ink-40);
+  letter-spacing: 0.12em;
+}
+.manifest__layer {
+  padding-top: 0.45rem;
+}
+.manifest__layer + .manifest__layer {
+  margin-top: 0.45rem;
+  border-top: 1px solid var(--hairline);
+}
+.manifest__index {
+  display: block;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.manifest__layer ul {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.manifest__layer li button,
+.manifest__dark {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  width: 100%;
+  padding: 0.18em 0.3em;
+  margin-inline: -0.3em;
+  font: inherit;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-s);
+  color: var(--ink);
+}
+.manifest__layer li button {
+  cursor: pointer;
+}
+.manifest__layer li button:hover,
+.manifest__layer li button:focus-visible {
+  background: var(--surface-2);
+  color: var(--accent-ink);
+}
+.manifest__dark {
+  color: var(--ink-40);
+}
+.manifest__layer i {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+}
+.manifest__layer i[data-on] {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+.manifest__foot {
+  margin: 0.65rem 0 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  color: var(--ink-40);
 }
 .hero__signals-pips {
   display: inline-flex;
@@ -149,6 +287,19 @@
   .hero__signals-pips i {
     width: 4px;
     height: 4px;
+  }
+  /* tally sits at the left gutter on phones — hang the whisper + manifest
+     off the left edge so they stay on screen */
+  .hero__hint {
+    right: auto;
+    left: var(--space-m);
+    white-space: normal;
+    max-width: 78vw;
+  }
+  .manifest {
+    right: auto;
+    left: var(--space-m);
+    width: min(17rem, 88vw);
   }
   /* let the narration wrap within the viewport instead of running off the edge;
      the tally above leaves room for up to two lines */

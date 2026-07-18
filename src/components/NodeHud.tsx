@@ -62,7 +62,7 @@ export function NodeHud() {
   // (shorter) hero overshot past the travel and dumped you a layer down (Room →
   // Chip) or into the content below (Chip → capabilities).
   //
-  // Except once: closing the TENTH signal's HUD is the homecoming — the journey
+  // Except once: closing the TENTH project's HUD is the homecoming — the journey
   // pulls up to the City overview instead, where the celebration plays out
   // (particle burst, bloom surge, and the ghost "next project" site rising).
   const close = () => {
@@ -120,6 +120,9 @@ export function NodeHud() {
         </div>
         <h2 className="node-hud__title">{study.title}</h2>
         <p className="node-hud__outcome">{study.outcome}</p>
+        {/* the object↔project bond, named — the framed 3D object below is
+            this case's stand-in in the maquette */}
+        {study.model && <p className="node-hud__model">in the model · {study.model}</p>}
       </header>
 
       <aside

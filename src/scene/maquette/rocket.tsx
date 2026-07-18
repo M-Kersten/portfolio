@@ -4,7 +4,7 @@
 // y≈0.72, so its visual centre is ≈0.4 (the game offsets by that to spin it
 // about the middle). Just the vehicle — the pad keeps its own exhaust + click.
 //
-// `parts` lets the pad assemble the vehicle piece by piece as signals come
+// `parts` lets the pad assemble the vehicle piece by piece as projects come
 // alive (all pieces default on — the game always flies a complete rocket);
 // with `assemble`, a piece that mounts rises in with a little overshoot.
 import { useRef, type ReactNode } from 'react';
