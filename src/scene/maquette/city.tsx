@@ -16,7 +16,7 @@ import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useA
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, LiveGlassMat } from './materials';
 import { BlobShadow } from './backdrop';
-import { RocketBody } from './rocket';
+import { Rise, RocketBody } from './rocket';
 
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   const { hovered, visited } = useActive('alliander-hololens');
@@ -906,23 +906,28 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
 }
 
 /* ---------- The completion reward: the next launch ----------
-   When the 10th signal's HUD closes, the journey pulls home to the City view
-   (see NodeHud) and this celebration plays out where the visitor can see it:
-   a short burst of accent-coloured particles over the city, and a launch pad
-   materialising on the quiet lot between the city blocks and the park — a
-   little two-stage rocket on its mount beside a lattice service tower,
-   deliberately the only thing left as a ghost in a fully coloured world,
-   because it hasn't flown yet. Clicking it moves the camera to the pad and
-   offers a LAUNCH button (components/LaunchOverlay); lift-off carries the
-   visitor up into the asteroids easter egg. */
+   "Let's build it together" — literally. The quiet lot between the city
+   blocks and the park starts as a bare surveyed apron, and every signal the
+   visitor wakes adds a piece: launch mount, tower (lower, then upper), then
+   the vehicle itself — legs, booster, grid fins, interstage, access arm,
+   nose cone last. The 10th signal powers the site on: the beacon starts
+   blinking, the celebration fires (NodeHud pulls the journey home so it
+   plays in view) and the invitation appears. The vehicle stays deliberately
+   the only ghost in a fully coloured world, because it hasn't flown yet.
+   Clicking it then moves the camera to the pad and offers a LAUNCH button
+   (components/LaunchOverlay); lift-off carries the visitor up into the
+   asteroids easter egg. */
 const SITE_POS: V3 = [0.85, 0, -0.52];
+
+/* Assembly order: how many signals each piece needs (visited.length ≥ n). */
+const BUILD = { mount: 1, towerLo: 2, towerHi: 3, legs: 4, booster: 5, fins: 6, interstage: 7, arm: 8, nose: 9 };
 
 function NextProjectSite() {
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
+  const built = useSceneSelector((s) => s.visited.length); // assembly progress
   const launch = useSceneSelector((s) => s.launch);
   const flights = useLaunchCount(); // global odometer, null until known
   const reduced = useReducedMotion();
-  const rise = useRef<Group>(null);
   const rocket = useRef<Group>(null);
   const exhaust = useRef<Group>(null);
   const beaconMat = useRef<MeshStandardMaterial>(null);
@@ -934,30 +939,34 @@ function NextProjectSite() {
   // construction the old crane mast used — the site kept its scaffolding).
   const MAST_W = 0.055; // post spacing
   const MAST_H = 0.82;
+  // split at step 2/5 so the tower can assemble in two pours (BUILD.towerLo/Hi)
   const lattice = useMemo(() => {
     const h = MAST_W / 2;
-    const rungs: V3[][] = [];
-    const diags: V3[] = [];
+    const rungsLo: V3[][] = [];
+    const rungsHi: V3[][] = [];
+    const diagsLo: V3[] = [];
+    const diagsHi: V3[] = [];
     const steps = 5;
     for (let i = 1; i <= steps; i++) {
       const y = (MAST_H / steps) * i - 0.02;
-      rungs.push([[-h, y, -h], [h, y, -h], [h, y, h], [-h, y, h], [-h, y, -h]]);
+      (i <= 2 ? rungsLo : rungsHi).push([[-h, y, -h], [h, y, -h], [h, y, h], [-h, y, h], [-h, y, -h]]);
       const y0 = (MAST_H / steps) * (i - 1);
       const dir = i % 2 ? 1 : -1;
-      diags.push([dir * -h, y0, h], [dir * h, y, h]);
-      diags.push([h, y0, dir * -h], [h, y, dir * h]);
+      const d = i <= 2 ? diagsLo : diagsHi;
+      d.push([dir * -h, y0, h], [dir * h, y, h]);
+      d.push([h, y0, dir * -h], [h, y, dir * h]);
     }
-    return { rungs, diags };
+    return { rungsLo, rungsHi, diagsLo, diagsHi };
   }, []);
 
   useFrame((s, delta) => {
-    if (celebrateAt === null) return;
     const dt = Math.min(delta, 1 / 30);
-    const t = reduced ? 10 : (performance.now() - celebrateAt) / 1000;
-    // ease up out of the ground once the celebration fires
-    const k = 1 - Math.exp(-Math.max(0, t - 0.5) * 1.5);
-    if (rise.current) rise.current.scale.set(0.75 + 0.25 * k, Math.max(0.001, k), 0.75 + 0.25 * k);
-    if (beaconMat.current) beaconMat.current.emissiveIntensity = reduced ? 0.8 : 0.3 + (Math.sin(s.clock.elapsedTime * 2.4) > 0.7 ? 1.6 : 0);
+    // the beacon powers on with the 10th signal (the site is complete) — a
+    // faint standby ember while the vehicle is still being assembled
+    if (beaconMat.current) {
+      beaconMat.current.emissiveIntensity =
+        celebrateAt === null ? 0.06 : reduced ? 0.8 : 0.3 + (Math.sin(s.clock.elapsedTime * 2.4) > 0.7 ? 1.6 : 0);
+    }
 
     const r = rocket.current;
     if (!r) return;
@@ -1005,87 +1014,147 @@ function NextProjectSite() {
     launchTrack.y += 0.35 * 1.15; // aim at the stack's middle, not its tail
   });
 
-  if (celebrateAt === null) return null;
-
   const post = MAST_W / 2;
+  const complete = celebrateAt !== null;
   const engage = () => {
+    // the launch is the 10/10 reward — while the vehicle is still being
+    // assembled the pad stays quiet
+    if (!complete) return;
     if (sceneStore.snapshot().launch === 'idle') sceneStore.setLaunch('pad');
   };
+  const anim = !reduced; // assembly pieces rise in (Rise) unless reduced
   return (
     <group position={SITE_POS} rotation={[0, 0.25, 0]}>
-      <group ref={rise}>
-        {/* ---- the pad: apron + four-legged launch mount ---- */}
-        <mesh position={[-0.02, 0.012, 0.03]}>
-          <cylinderGeometry args={[0.17, 0.18, 0.024, 24]} />
-          <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.28} />
-        </mesh>
-        <group position={[-0.02, 0, 0.03]}>
-          {([[-0.05, -0.05], [0.05, -0.05], [-0.05, 0.05], [0.05, 0.05]] as [number, number][]).map(([x, z], i) => (
-            <mesh key={i} position={[x, 0.045, z]}>
-              <boxGeometry args={[0.014, 0.065, 0.014]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
-            </mesh>
-          ))}
-          <mesh position={[0, 0.08, 0]}>
-            <cylinderGeometry args={[0.052, 0.052, 0.016, 16]} />
-            <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
-          </mesh>
-
-          {/* ---- the rocket (clickable — the whole point) ---- */}
-          <group
-            ref={rocket}
-            onClick={(e) => {
-              e.stopPropagation();
-              engage();
-            }}
-            onPointerOver={() => (document.body.style.cursor = 'pointer')}
-            onPointerOut={() => (document.body.style.cursor = '')}
-          >
-            <RocketBody mode="ghost" />
-            {/* exhaust — hidden until the count */}
-            <group ref={exhaust} position={[0, 0.075, 0]} visible={false}>
-              <mesh position={[0, -0.1, 0]}>
-                <coneGeometry args={[0.03, 0.22, 12, 1, true]} />
-                <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+      {/* ---- the apron: surveyed from the very first scroll ---- */}
+      <mesh position={[-0.02, 0.012, 0.03]}>
+        <cylinderGeometry args={[0.17, 0.18, 0.024, 24]} />
+        <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.28} />
+      </mesh>
+      {/* surveyor's corner brackets — the plot is marked out until the build
+          is complete, then the marks come up */}
+      {built < 10 && (
+        <group position={[-0.02, 0.028, 0.03]}>
+          {([[-1, -1], [1, -1], [-1, 1], [1, 1]] as [number, number][]).map(([sx, sz], i) => (
+            <group key={i} position={[sx * 0.15, 0, sz * 0.15]}>
+              <mesh position={[sx * -0.022, 0, 0]}>
+                <boxGeometry args={[0.052, 0.004, 0.007]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.5} />
               </mesh>
-              <mesh position={[0, -0.02, 0]}>
-                <sphereGeometry args={[0.05, 12, 12]} />
-                <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+              <mesh position={[0, 0, sz * -0.022]}>
+                <boxGeometry args={[0.007, 0.004, 0.052]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.5} />
               </mesh>
             </group>
+          ))}
+        </group>
+      )}
+      <group position={[-0.02, 0, 0.03]}>
+        {/* ---- piece 1: the four-legged launch mount ---- */}
+        {built >= BUILD.mount && (
+          <Rise animate={anim}>
+            {([[-0.05, -0.05], [0.05, -0.05], [-0.05, 0.05], [0.05, 0.05]] as [number, number][]).map(([x, z], i) => (
+              <mesh key={i} position={[x, 0.045, z]}>
+                <boxGeometry args={[0.014, 0.065, 0.014]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+              </mesh>
+            ))}
+            <mesh position={[0, 0.08, 0]}>
+              <cylinderGeometry args={[0.052, 0.052, 0.016, 16]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+            </mesh>
+          </Rise>
+        )}
+
+        {/* ---- the vehicle, stacked piece by piece (clickable once whole) ---- */}
+        <group
+          ref={rocket}
+          onClick={(e) => {
+            e.stopPropagation();
+            engage();
+          }}
+          onPointerOver={() => {
+            if (complete) document.body.style.cursor = 'pointer';
+          }}
+          onPointerOut={() => (document.body.style.cursor = '')}
+        >
+          <RocketBody
+            mode="ghost"
+            assemble={anim}
+            parts={{
+              legs: built >= BUILD.legs,
+              booster: built >= BUILD.booster,
+              fins: built >= BUILD.fins,
+              interstage: built >= BUILD.interstage,
+              nose: built >= BUILD.nose,
+            }}
+          />
+          {/* exhaust — hidden until the count */}
+          <group ref={exhaust} position={[0, 0.075, 0]} visible={false}>
+            <mesh position={[0, -0.1, 0]}>
+              <coneGeometry args={[0.03, 0.22, 12, 1, true]} />
+              <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+            </mesh>
+            <mesh position={[0, -0.02, 0]}>
+              <sphereGeometry args={[0.05, 12, 12]} />
+              <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </mesh>
           </group>
         </group>
-
-        {/* ---- the service tower (the crane's lattice, repurposed) ---- */}
-        <group position={[0.13, 0, -0.07]}>
-          <mesh position={[0, 0.015, 0]}>
-            <boxGeometry args={[0.14, 0.03, 0.14]} />
-            <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.3} />
-          </mesh>
-          {([[-post, -post], [post, -post], [-post, post], [post, post]] as [number, number][]).map(([x, z], i) => (
-            <mesh key={i} position={[x, MAST_H / 2 + 0.03, z]}>
-              <boxGeometry args={[0.012, MAST_H, 0.012]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
-            </mesh>
-          ))}
-          {lattice.rungs.map((r, i) => (
-            <Line key={i} points={r} color={GHOST_LINE} lineWidth={1} transparent opacity={0.45} position={[0, 0.03, 0]} />
-          ))}
-          <Line points={lattice.diags} segments color={GHOST_LINE} lineWidth={1} transparent opacity={0.4} position={[0, 0.03, 0]} />
-          {/* crew access arm across to the upper stage */}
-          <mesh position={[-0.085, 0.6, 0.045]} rotation={[0, 0.6, 0]}>
-            <boxGeometry args={[0.14, 0.014, 0.03]} />
-            <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
-          </mesh>
-          {/* beacon — blinks like a real pad at night */}
-          <mesh position={[0, MAST_H + 0.06, 0]}>
-            <sphereGeometry args={[0.012, 10, 10]} />
-            <meshStandardMaterial ref={beaconMat} color="#ff9068" emissive="#ff9068" emissiveIntensity={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
-          </mesh>
-        </group>
       </group>
-      {/* the invitation — engages the pad camera + LAUNCH button */}
-      {launch === 'idle' && (
+
+      {/* ---- the service tower (the crane's lattice, repurposed) — raised in
+              two pours, lower then upper ---- */}
+      <group position={[0.13, 0, -0.07]}>
+        {built >= BUILD.towerLo && (
+          <Rise animate={anim}>
+            <mesh position={[0, 0.015, 0]}>
+              <boxGeometry args={[0.14, 0.03, 0.14]} />
+              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.3} />
+            </mesh>
+            {([[-post, -post], [post, -post], [-post, post], [post, post]] as [number, number][]).map(([x, z], i) => (
+              <mesh key={i} position={[x, MAST_H * 0.2 + 0.03, z]}>
+                <boxGeometry args={[0.012, MAST_H * 0.4, 0.012]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+              </mesh>
+            ))}
+            {lattice.rungsLo.map((r, i) => (
+              <Line key={i} points={r} color={GHOST_LINE} lineWidth={1} transparent opacity={0.45} position={[0, 0.03, 0]} />
+            ))}
+            <Line points={lattice.diagsLo} segments color={GHOST_LINE} lineWidth={1} transparent opacity={0.4} position={[0, 0.03, 0]} />
+          </Rise>
+        )}
+        {built >= BUILD.towerHi && (
+          <Rise animate={anim}>
+            {([[-post, -post], [post, -post], [-post, post], [post, post]] as [number, number][]).map(([x, z], i) => (
+              <mesh key={i} position={[x, MAST_H * 0.7 + 0.03, z]}>
+                <boxGeometry args={[0.012, MAST_H * 0.6, 0.012]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+              </mesh>
+            ))}
+            {lattice.rungsHi.map((r, i) => (
+              <Line key={i} points={r} color={GHOST_LINE} lineWidth={1} transparent opacity={0.45} position={[0, 0.03, 0]} />
+            ))}
+            <Line points={lattice.diagsHi} segments color={GHOST_LINE} lineWidth={1} transparent opacity={0.4} position={[0, 0.03, 0]} />
+            {/* beacon — a standby ember until the site powers on at 10/10 */}
+            <mesh position={[0, MAST_H + 0.06, 0]}>
+              <sphereGeometry args={[0.012, 10, 10]} />
+              <meshStandardMaterial ref={beaconMat} color="#ff9068" emissive="#ff9068" emissiveIntensity={0.06} toneMapped={false} userData={{ lifeSkip: true }} />
+            </mesh>
+          </Rise>
+        )}
+        {/* crew access arm across to the upper stage */}
+        {built >= BUILD.arm && (
+          <Rise animate={anim}>
+            <mesh position={[-0.085, 0.6, 0.045]} rotation={[0, 0.6, 0]}>
+              <boxGeometry args={[0.14, 0.014, 0.03]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+            </mesh>
+          </Rise>
+        )}
+      </group>
+
+      {/* the invitation — the completed site's reward; engages the pad camera */}
+      {complete && launch === 'idle' && (
         <Html position={[-0.12, 1.02, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
           <button type="button" className="nextsite" onClick={engage}>
             <b>my next launch</b> — let's build it together
