@@ -28,8 +28,10 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
-          # Project site is served from /<repo>/. Change if the repo is renamed.
-          VITE_BASE: /portfolio/
+          # Served at the custom domain root (portfolio.merijnkersten.nl —
+          # public/CNAME + the repo's Pages setting). The old
+          # m-kersten.github.io/portfolio URL 301s there automatically.
+          VITE_BASE: /
           # Launch-counter backend (docs/launch-counter.md). Set these two as
           # repository Variables (Settings → Secrets and variables → Actions →
           # Variables) — the anon key is public by design. Unset → the counter

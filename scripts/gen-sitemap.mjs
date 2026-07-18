@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SITE = 'https://m-kersten.github.io/portfolio';
+const SITE = 'https://portfolio.merijnkersten.nl';
 
 const raw = JSON.parse(readFileSync(resolve(root, 'src/content/cases.json'), 'utf8'));
 const cases = Array.isArray(raw) ? raw : (raw.cases ?? []);
