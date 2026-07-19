@@ -120,9 +120,6 @@ export function NodeHud() {
         </div>
         <h2 className="node-hud__title">{study.title}</h2>
         <p className="node-hud__outcome">{study.outcome}</p>
-        {/* the object↔project bond, named — the framed 3D object below is
-            this case's stand-in in the maquette */}
-        {study.model && <p className="node-hud__model">in the model · {study.model}</p>}
       </header>
 
       <aside
