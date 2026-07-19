@@ -7,7 +7,7 @@ import { useThree } from '@react-three/fiber';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, layerGap, type Hotspot, type LayerId } from '../framing';
 import { useSceneSelector } from '../store';
 import { AccentCtx, PALETTE } from './shared';
-import { DotFloor, PointCloud, DepthVeil } from './backdrop';
+import { DotFloor, PointCloud, DepthVeil, HoloFloor } from './backdrop';
 import { PresenceGroup } from './presence';
 import { CityRig } from './city';
 import { RoomRig } from './room';
@@ -52,6 +52,9 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
           <AccentCtx.Provider key={id} value={PALETTE[id]}>
             <group position={[0, LAYER_Y[id] * gap, 0]} scale={LAYER_SCALE[id]}>
               <group visible={near}>
+                {/* Holo-table sheen — outside the presence dimmer (it only shows
+                    on the active layer, which is never the dimmed one). */}
+                <HoloFloor active={presenceLayer === id} tint={PALETTE[id].accent} />
                 {/* Presence: the layer in focus keeps full brightness, the
                     others rest dimmed (see presence.tsx). Only the dressing —
                     the life system's objects are exempt inside. */}
