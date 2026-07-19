@@ -3,12 +3,16 @@
 // is a dot floor + point field + one rig of objects, stacked at LAYER_Y and
 // scaled by LAYER_SCALE (see ../framing.ts, where the hotspots are authored
 // too). The per-layer content lives in city.tsx / room.tsx / chip.tsx.
-import { useThree } from '@react-three/fiber';
+import { useRef, type ReactNode } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { type Group } from 'three';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, layerGap, type Hotspot, type LayerId } from '../framing';
 import { useSceneSelector } from '../store';
 import { AccentCtx, PALETTE } from './shared';
 import { DotFloor, PointCloud, DepthVeil, HoloFloor } from './backdrop';
 import { PresenceGroup } from './presence';
+import { PowerRing } from './life';
 import { CityRig } from './city';
 import { RoomRig } from './room';
 import { ChipRig } from './chip';
@@ -19,6 +23,41 @@ const RIGS: Record<LayerId, () => JSX.Element> = { city: CityRig, room: RoomRig,
 const SEED: Record<LayerId, number> = { city: 11, room: 29, chip: 53 };
 // journeyStep index per layer (0 = City at top … 2 = Chip at bottom).
 const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };
+
+// The establishing reveal: on first load the whole maquette settles into place —
+// scaling from a hair small up to full with a touch of overshoot (easeOutBack),
+// so the world "clicks" into the frame rather than just appearing. Paired with a
+// bloom ignition surge in Stage. One-shot; instant (no animation) under reduced
+// motion.
+const REVEAL_FROM = 0.92;
+const REVEAL_DUR = 1400; // ms
+function Reveal({ children }: { children: ReactNode }) {
+  const grp = useRef<Group>(null);
+  const reduced = useReducedMotion();
+  const start = useRef<number | null>(null);
+  const done = useRef(false);
+  useFrame(() => {
+    const g = grp.current;
+    if (!g || done.current) return;
+    if (reduced) {
+      g.scale.setScalar(1);
+      done.current = true;
+      return;
+    }
+    if (start.current === null) start.current = performance.now();
+    const t = Math.min(1, (performance.now() - start.current) / REVEAL_DUR);
+    // easeOutBack — a gentle settle with a hair of overshoot past 1
+    const c1 = 1.2;
+    const c3 = c1 + 1;
+    const e = 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    g.scale.setScalar(REVEAL_FROM + (1 - REVEAL_FROM) * e);
+    if (t >= 1) {
+      g.scale.setScalar(1);
+      done.current = true; // settled — stop touching the transform
+    }
+  });
+  return <group ref={grp}>{children}</group>;
+}
 
 export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => void }) {
   const journeyStep = useSceneSelector((s) => s.journeyStep);
@@ -33,7 +72,7 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
   const gap = layerGap(useThree((s) => s.size.width / s.size.height));
 
   return (
-    <group>
+    <Reveal>
       <DepthVeil />
       {MAQUETTE_LAYERS.map((id) => {
         const Rig = RIGS[id];
@@ -68,6 +107,13 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
                 HOTSPOTS.filter((h) => h.layer === id).map((h) => (
                   <HotspotMarker key={h.slug} hotspot={h} color={PALETTE[id].accent} onActivate={onActivate} hidden={!!selectedSlug || launching} />
                 ))}
+              {/* Power-on rings — one per hotspot, at its anchor. Ungated by the
+                  active layer / near cull so the pulse fires wherever an object
+                  first comes alive (a deep link can wake one off-screen). Rests
+                  invisible; see PowerRing. */}
+              {HOTSPOTS.filter((h) => h.layer === id).map((h) => (
+                <PowerRing key={`ring-${h.slug}`} slug={h.slug} anchor={h.anchor ?? h.position} color={PALETTE[id].accent} />
+              ))}
             </group>
           </AccentCtx.Provider>
         );
@@ -75,6 +121,6 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
       {RELATIONS.map((rel, i) => (
         <SignalLine key={i} {...rel} />
       ))}
-    </group>
+    </Reveal>
   );
 }
