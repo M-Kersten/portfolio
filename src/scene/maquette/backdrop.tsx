@@ -6,14 +6,16 @@ import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, Color, type Mesh, type Points as ThreePoints } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useSceneSelector } from '../store';
-import { BG, NEUTRAL, makeRand, type V3 } from './shared';
+import { BG, NEUTRAL, makeRand, useAccent, type V3 } from './shared';
 
 export function DotFloor({ step = 0.26 }: { step?: number }) {
   const R = 2.2;
+  const { accent } = useAccent();
   const { positions, colors } = useMemo(() => {
     const pos: number[] = [];
     const col: number[] = [];
     const c = new Color(NEUTRAL);
+    const acc = new Color(accent);
     const bg = new Color(BG);
     const tmp = new Color();
     for (let x = -R; x <= R + 1e-6; x += step)
@@ -22,11 +24,14 @@ export function DotFloor({ step = 0.26 }: { step?: number }) {
         if (d > R) continue;
         pos.push(x, 0, z);
         const fade = Math.pow(1 - d / R, 1.5);
-        tmp.copy(bg).lerp(c, 0.06 + 0.5 * fade);
+        // neutral blue-grey, warmed toward the layer's accent near the middle —
+        // so the floor you're standing on glows the layer's colour, a strong but
+        // local per-layer cue that never touches the black frame
+        tmp.copy(bg).lerp(c, 0.06 + 0.5 * fade).lerp(acc, 0.5 * fade);
         col.push(tmp.r, tmp.g, tmp.b);
       }
     return { positions: new Float32Array(pos), colors: new Float32Array(col) };
-  }, [step]);
+  }, [step, accent]);
   return (
     <points>
       <bufferGeometry>

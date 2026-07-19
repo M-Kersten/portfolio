@@ -12,8 +12,11 @@ import { useFrame } from '@react-three/fiber';
 import { type Group, type Material, type Mesh, type Object3D } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 
-/** How bright a non-active layer rests (0..1). Raise toward 1 for less focus. */
-const PRESENCE_REST = 0.42;
+/** How bright a non-active layer rests (0..1). Raise toward 1 for less focus.
+ *  Kept low so the layer you're not on genuinely recedes into the fog — the one
+ *  in focus should own the frame (the descent read muddy when the layer below
+ *  stayed too present and competed with the active one). */
+const PRESENCE_REST = 0.26;
 
 export function PresenceGroup({ active, children }: { active: boolean; children: ReactNode }) {
   const grp = useRef<Group>(null);
