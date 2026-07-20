@@ -170,48 +170,65 @@ export function EmissiveHover({ slug, position, rotation, args, color, liveColor
   );
 }
 
-/** The power-on ring — the visible "it just switched on" pulse. The first time
+/** The power-on sonar — the visible "it just switched on" pulse. The first time
  *  an object comes alive (the rising edge of selected/visited, i.e. the same
- *  ghost→alive moment LifeGroup glitches through), a bright accent ring blooms
- *  outward from its anchor and fades over ~0.6s. Camera-facing so it reads as a
- *  halo from the three-quarter view; one-shot per object per session; skipped
- *  under reduced motion. The composition root places one at each hotspot's local
- *  anchor. */
-const RING_DUR = 0.62; // seconds
+ *  ghost→alive moment LifeGroup glitches through), a ripple of concentric accent
+ *  rings pings outward from its anchor and fades — a sonar, not a single ring.
+ *  Camera-facing so it reads from the three-quarter view; one-shot per object per
+ *  session; skipped under reduced motion. The composition root places one at each
+ *  hotspot's local anchor. */
+const RING_DUR = 0.6; // seconds for one ring to expand + fade
+const RING_N = 3; // sonar: a ripple of this many rings
+const RING_STAGGER = 0.17; // seconds between successive pings
+const RING_TOTAL = RING_DUR + (RING_N - 1) * RING_STAGGER;
 export function PowerRing({ slug, anchor, color }: { slug: string; anchor: V3; color: string }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const camera = useThree((s) => s.camera);
-  const ref = useRef<Mesh>(null);
-  const mat = useRef<MeshBasicMaterial>(null);
+  const meshes = useRef<(Mesh | null)[]>([]);
+  const mats = useRef<(MeshBasicMaterial | null)[]>([]);
   const born = useRef(false);
-  const t = useRef(-1); // <0 = idle; else seconds into the bloom
+  const t = useRef(-1); // <0 = idle; else seconds into the sonar
   // lift the accent toward white so the flash reads as hot energy, not a colour
   // gel (same reasoning as the holo-table sheen)
   const tint = useMemo(() => new Color(color).lerp(new Color('#ffffff'), 0.3), [color]);
   useFrame((_, delta) => {
     if (reduced) return;
-    const alive = selected || visited;
-    if (alive && !born.current) {
+    if ((selected || visited) && !born.current) {
       born.current = true;
-      t.current = 0; // rising edge → fire the ring once
+      t.current = 0; // rising edge → fire the sonar once
     }
-    const m = ref.current;
-    if (!m || t.current < 0) return; // idle: nothing to draw
+    if (t.current < 0) return; // idle: nothing to draw
     t.current += Math.min(delta, 1 / 30);
-    const p = Math.min(1, t.current / RING_DUR);
-    const e = 1 - Math.pow(1 - p, 3); // ease-out expansion
-    m.scale.setScalar(0.14 + e * 0.95); // blooms outward past the object edge
-    m.quaternion.copy(camera.quaternion); // billboard toward the camera
-    if (mat.current) mat.current.opacity = (1 - p) * (1 - p) * 0.85; // quadratic fade
-    m.visible = p < 1;
-    if (p >= 1) t.current = -1; // one-shot: back to rest, invisible
+    for (let i = 0; i < RING_N; i++) {
+      const m = meshes.current[i];
+      if (!m) continue;
+      const p = (t.current - i * RING_STAGGER) / RING_DUR; // this ring's own phase
+      if (p < 0 || p >= 1) {
+        m.visible = false; // not started yet, or already faded
+        continue;
+      }
+      const e = 1 - Math.pow(1 - p, 3); // ease-out expansion
+      m.scale.setScalar(0.1 + e * 1.05); // pings outward past the object edge
+      m.quaternion.copy(camera.quaternion); // billboard toward the camera
+      m.visible = true;
+      const mat = mats.current[i];
+      if (mat) mat.opacity = (1 - p) * (1 - p) * 0.85 * (1 - i * 0.22); // trailing rings fainter
+    }
+    if (t.current >= RING_TOTAL) {
+      t.current = -1; // one-shot: back to rest
+      for (const m of meshes.current) if (m) m.visible = false;
+    }
   });
   return (
-    <mesh ref={ref} position={anchor} visible={false} renderOrder={4}>
-      <ringGeometry args={[0.72, 0.86, 56]} />
-      <meshBasicMaterial ref={mat} color={tint} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} fog={false} side={DoubleSide} />
-    </mesh>
+    <group position={anchor}>
+      {Array.from({ length: RING_N }, (_, i) => (
+        <mesh key={i} ref={(m) => { meshes.current[i] = m; }} visible={false} renderOrder={4}>
+          <ringGeometry args={[0.76, 0.86, 48]} />
+          <meshBasicMaterial ref={(m) => { mats.current[i] = m; }} color={tint} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} fog={false} side={DoubleSide} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
