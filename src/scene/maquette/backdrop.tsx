@@ -3,7 +3,7 @@
 // blob shadows that ground each object cluster onto its floor.
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, CanvasTexture, Color, type Mesh, type Points as ThreePoints } from 'three';
+import { AdditiveBlending, CanvasTexture, Color, type Mesh, type Points as ThreePoints, type PointsMaterial } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useSceneSelector } from '../store';
 import { BG, NEUTRAL, makeRand, useAccent, type V3 } from './shared';
@@ -89,9 +89,13 @@ export function DotFloor({ step = 0.26 }: { step?: number }) {
   );
 }
 
-/** A sparse field of neutral points drifting slowly above the layer. */
-export function PointCloud({ seed }: { seed: number }) {
+/** A sparse field of neutral points drifting slowly above the layer. `life` (the
+ *  fraction of this layer's projects you've woken, 0..1) fills the field with
+ *  presence — dim and near-still at rest, drifting livelier and gently breathing
+ *  once you've lit things, so a woken layer reads as inhabited, not just lit. */
+export function PointCloud({ seed, life = 0 }: { seed: number; life?: number }) {
   const ref = useRef<ThreePoints>(null);
+  const mat = useRef<PointsMaterial>(null);
   const reduced = useReducedMotion();
   const positions = useMemo(() => {
     const rnd = makeRand(seed);
@@ -107,14 +111,21 @@ export function PointCloud({ seed }: { seed: number }) {
     return a;
   }, [seed]);
   useFrame((state) => {
-    if (ref.current && !reduced) ref.current.rotation.y = state.clock.elapsedTime * 0.02;
+    const t = state.clock.elapsedTime;
+    // drifts a touch livelier as the layer's projects wake…
+    if (ref.current && !reduced) ref.current.rotation.y = t * (0.02 + 0.03 * life);
+    // …and fills with a slow breath: dim at rest, brighter and gently pulsing once lit
+    if (mat.current) {
+      const breath = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(t * 0.8);
+      mat.current.opacity = 0.15 + life * (0.14 + 0.13 * breath);
+    }
   });
   return (
     <points ref={ref}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.016} color={NEUTRAL} transparent opacity={0.22} sizeAttenuation depthWrite={false} />
+      <pointsMaterial ref={mat} size={0.016} color={NEUTRAL} transparent opacity={0.22} sizeAttenuation depthWrite={false} />
     </points>
   );
 }

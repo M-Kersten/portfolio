@@ -3,7 +3,7 @@
 // is a dot floor + point field + one rig of objects, stacked at LAYER_Y and
 // scaled by LAYER_SCALE (see ../framing.ts, where the hotspots are authored
 // too). The per-layer content lives in city.tsx / room.tsx / chip.tsx.
-import { useRef, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { type Group } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
@@ -59,9 +59,40 @@ function Reveal({ children }: { children: ReactNode }) {
   return <group ref={grp}>{children}</group>;
 }
 
+// Cursor parallax: on the overview the whole diorama tilts a few degrees toward
+// the pointer, so it reads as a physical model under glass you can peer around.
+// A node close-up must stay precisely framed, so the tilt eases back to zero the
+// moment one is open; off entirely under reduced motion and on coarse (touch)
+// pointers.
+const PARALLAX_YAW = 0.06; // ~3.4° left/right
+const PARALLAX_PITCH = 0.035; // ~2° up/down
+function Parallax({ children }: { children: ReactNode }) {
+  const grp = useRef<Group>(null);
+  const reduced = useReducedMotion();
+  const selected = useSceneSelector((s) => s.selectedSlug);
+  const pointer = useThree((s) => s.pointer);
+  const coarse = useMemo(
+    () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(hover: none)').matches,
+    [],
+  );
+  useFrame(() => {
+    const g = grp.current;
+    if (!g) return;
+    // active only on the overview, with a fine pointer, and not under reduced motion
+    const on = !reduced && !coarse && selected === null;
+    const tx = on ? pointer.y * PARALLAX_PITCH : 0; // lean toward the cursor
+    const ty = on ? -pointer.x * PARALLAX_YAW : 0;
+    const lerp = selected ? 0.16 : 0.05; // zero out quickly on select; drift gently otherwise
+    g.rotation.x += (tx - g.rotation.x) * lerp;
+    g.rotation.y += (ty - g.rotation.y) * lerp;
+  });
+  return <group ref={grp}>{children}</group>;
+}
+
 export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => void }) {
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
+  const visited = useSceneSelector((s) => s.visited);
   const launching = useSceneSelector((s) => s.launch) !== 'idle';
   const activeLayer = (['city', 'room', 'chip'] as LayerId[])[journeyStep] ?? 'city';
   // The layer that holds the light: the selected node's home while one is open
@@ -72,8 +103,9 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
   const gap = layerGap(useThree((s) => s.size.width / s.size.height));
 
   return (
-    <Reveal>
-      <DepthVeil />
+    <Parallax>
+      <Reveal>
+        <DepthVeil />
       {MAQUETTE_LAYERS.map((id) => {
         const Rig = RIGS[id];
         // Only the active layer and its immediate neighbour draw their full
@@ -87,6 +119,10 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
         // a boolean flip instead of allocating/disposing 140 meshes mid-scroll —
         // that churn was making the scroll stutter and "catch up".
         const near = Math.abs(LAYER_STEP[id] - journeyStep) <= 1;
+        const spots = HOTSPOTS.filter((h) => h.layer === id);
+        // how alive this layer is — the fraction of its projects you've woken —
+        // feeds the ambient field's presence (see PointCloud)
+        const life = spots.length ? spots.filter((h) => visited.includes(h.slug)).length / spots.length : 0;
         return (
           <AccentCtx.Provider key={id} value={PALETTE[id]}>
             <group position={[0, LAYER_Y[id] * gap, 0]} scale={LAYER_SCALE[id]}>
@@ -99,19 +135,19 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
                     the life system's objects are exempt inside. */}
                 <PresenceGroup active={presenceLayer === id}>
                   <DotFloor step={id === 'city' ? 0.17 : 0.26} />
-                  <PointCloud seed={SEED[id]} />
+                  <PointCloud seed={SEED[id]} life={life} />
                   <Rig />
                 </PresenceGroup>
               </group>
               {activeLayer === id &&
-                HOTSPOTS.filter((h) => h.layer === id).map((h) => (
+                spots.map((h) => (
                   <HotspotMarker key={h.slug} hotspot={h} color={PALETTE[id].accent} onActivate={onActivate} hidden={!!selectedSlug || launching} />
                 ))}
               {/* Power-on rings — one per hotspot, at its anchor. Ungated by the
                   active layer / near cull so the pulse fires wherever an object
                   first comes alive (a deep link can wake one off-screen). Rests
                   invisible; see PowerRing. */}
-              {HOTSPOTS.filter((h) => h.layer === id).map((h) => (
+              {spots.map((h) => (
                 <PowerRing key={`ring-${h.slug}`} slug={h.slug} anchor={h.anchor ?? h.position} color={PALETTE[id].accent} />
               ))}
             </group>
@@ -119,8 +155,9 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
         );
       })}
       {RELATIONS.map((rel, i) => (
-        <SignalLine key={i} {...rel} />
-      ))}
-    </Reveal>
+          <SignalLine key={i} {...rel} />
+        ))}
+      </Reveal>
+    </Parallax>
   );
 }
