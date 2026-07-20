@@ -1078,7 +1078,11 @@ function NextProjectSite() {
           onPointerOut={() => (document.body.style.cursor = '')}
         >
           <RocketBody
-            mode="ghost"
+            // ghost while it's still being assembled piece by piece; the moment
+            // the site is complete (10/10, homecoming) the vehicle powers on to a
+            // lit teal solid with glowing edges — the finished rocket, ready to fly,
+            // no longer a faint sketch
+            mode={complete ? 'lit' : 'ghost'}
             assemble={anim}
             parts={{
               legs: built >= BUILD.legs,

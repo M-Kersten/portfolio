@@ -51,7 +51,6 @@ const SIGNAL_PACKETS = 5;
 const PIPE_OFFSET = 0.7; // how far the vertical riser sits outside the link's midpoint
 const PIPE_REST = new Color('#5a6e82'); // unlit cable colour (before highlight)
 const _sv = new Vector3(); // scratch for sampling the curve each frame
-const AWAKE_REST = 0.34; // a completed link rests gently lit rather than going dark
 const DRAW_DUR = 1.1; // seconds for the "connection made" sweep to travel the wire
 const DRAW_DELAY = 0.45; // beat to wait after focus returns to the overview before it draws
 
@@ -145,33 +144,31 @@ export function SignalLine({ thread, from, to, color }: Relation) {
   const posArr = useMemo(() => new Float32Array(SIGNAL_PACKETS * 3), []);
   const colArr = useMemo(() => new Float32Array(SIGNAL_PACKETS * 3), []);
   const baseCol = useMemo(() => new Color(color), [color]);
-  const k = useRef(0); // eased activation: 0 idle, ~0.34 awake-rest, 0.6 hover, 1 selected
+  const k = useRef(0); // eased activation: 0 dormant-grey, 0.6 hover, 1 selected, ~0.9 while drawing
   const u = useRef(0); // packet flow phase
-  // The living-web state machine: once both ends are awake the link rests lit,
-  // and a one-shot "connection made" sweep is armed — deferred until the user is
-  // back on the overview so they actually see it drawn (see the timing note).
-  const wasAwake = useRef(false);
-  const wasB = useRef(false);
-  const pending = useRef(false); // a completed link waiting to play its sweep
+  // Discovery hook: the FIRST time either endpoint is woken, a one-shot sweep is
+  // armed that draws from the just-woken node toward its partner — tempting the
+  // eye toward the still-unexplored project. Deferred until focus is back on the
+  // overview so the whole span is actually in view.
+  const wasFirst = useRef(false); // was either endpoint awake last frame
+  const pending = useRef(false); // a link waiting to play its one-shot sweep
   const drawDir = useRef(1); // +1 = from→to · −1 = to→from (leads with the just-woken end)
   const armT = useRef(0); // delay counter once conditions to draw are met
   const drawT = useRef(-1); // <0 idle; else 0..1 sweep progress
 
   useFrame((_s, delta) => {
     const dt = Math.min(delta, 1 / 30);
-    const bothAwake = visA && visB;
 
-    // Rising edge of both-awake: ARM the sweep, don't play it. At this instant the
-    // camera has dived onto the node just woken and the far end is off-frame — so
-    // we remember which end led (the one that just woke, where the eye is) and
-    // wait for focus to return to the map.
-    if (bothAwake && !wasAwake.current) {
+    // Rising edge of the first wake: ARM the sweep (don't play it yet — the camera
+    // has just dived onto the node and its HUD owns the eye). Lead from whichever
+    // end just lit, out toward the other so the eye is drawn onward.
+    const firstAwake = visA || visB;
+    if (firstAwake && !wasFirst.current) {
       pending.current = true;
-      drawDir.current = !wasB.current && visB ? -1 : 1; // the just-woken end leads the draw
+      drawDir.current = visA ? 1 : -1;
       armT.current = 0;
     }
-    wasAwake.current = bothAwake;
-    wasB.current = visB;
+    wasFirst.current = firstAwake;
 
     // Play it once the user is back on the overview and the whole span is on
     // visible layers — after a short beat so the camera has finished pulling back.
@@ -183,18 +180,17 @@ export function SignalLine({ thread, from, to, color }: Relation) {
       drawT.current += dt / DRAW_DUR;
       if (drawT.current >= 1) {
         drawT.current = -1;
-        pending.current = false; // one-shot — from here it just rests lit
+        pending.current = false; // one-shot
       }
     }
     const drawing = drawT.current >= 0;
 
-    // A completed link now RESTS gently lit (AWAKE_REST) instead of going dark, so
-    // the web you've woken stays visibly wired; hover/select still brighten it, and
-    // the connect-sweep briefly overrides everything to full.
-    const rest = bothAwake ? AWAKE_REST : 0;
-    const target = selA || selB ? 1 : hovA || hovB ? 0.6 : rest;
+    // The cable rests DORMANT GREY (neutral, unlit) so the woken web never competes
+    // with reading the scene; it lights in its thread colour only on hover/select,
+    // or briefly as the connect-sweep draws it — then eases back to grey.
+    const target = selA || selB ? 1 : hovA || hovB ? 0.6 : drawing ? 0.9 : 0;
     k.current += (target - k.current) * 0.12;
-    const kk = Math.max(k.current, drawing ? 0.9 : 0);
+    const kk = k.current;
 
     // The cable is always present (dim, neutral) and lights up in its thread
     // colour, brighter and a touch heavier, as the link is highlighted.
@@ -212,9 +208,9 @@ export function SignalLine({ thread, from, to, color }: Relation) {
       }
     }
 
-    // Data flows through the cable whenever it's lit (so awake links keep a gentle
-    // drift); during the sweep the packets bunch into a bright comet trailing the
-    // head as it travels from the just-woken node to its partner.
+    // Data only flows while the cable is lit (hover/select); during the sweep the
+    // packets bunch into a bright comet trailing the head as it travels from the
+    // just-woken node toward its partner.
     if (!reduced) u.current = (u.current + delta * 0.16) % 1;
     const pen = pointsRef.current;
     if (pen) {
@@ -249,7 +245,7 @@ export function SignalLine({ thread, from, to, color }: Relation) {
     // doesn't clutter with every thread's name at rest.
     if (labelRef.current) {
       const showLabel = bothVisible && (selA || selB || hovA || hovB || drawing);
-      labelRef.current.style.opacity = String(showLabel ? Math.min(1, Math.max(kk, drawing ? 0.9 : 0) * 1.25) : 0);
+      labelRef.current.style.opacity = String(showLabel ? Math.min(1, kk * 1.25) : 0);
     }
   });
 
