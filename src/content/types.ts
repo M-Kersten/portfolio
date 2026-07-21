@@ -165,6 +165,10 @@ export interface SiteContent {
     /** Short, first-person subheading. Kept minimal so it stays out of the
      *  3D's way and can fade when a node is inspected. */
     subheading: string;
+    /** The movie-intro title card, shown once on first load as the camera
+     *  dollies into the maquette — written for someone who's never met Merijn.
+     *  Remove this field to skip the intro card entirely. */
+    intro?: { title: string; body: string };
   };
   capabilitiesIntro: { title: string; lead: string };
   workIntro: { title?: string; lead: string };

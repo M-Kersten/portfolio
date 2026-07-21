@@ -8,7 +8,11 @@
   ],
   "hero": {
     "name": "Merijn Kersten",
-    "subheading": "Connecting dots until things get interesting"
+    "subheading": "Connecting dots until things get interesting",
+    "intro": {
+      "title": "Everything here is something I built.",
+      "body": "A miniature of my work — across AR, games, AI and the maps beneath a city. Wake an object to explore it."
+    }
   },
   "capabilitiesIntro": {
     "title": "Everything is connected \nif you zoom out enough",

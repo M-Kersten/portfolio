@@ -2,12 +2,16 @@ import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { launchTrack, useSceneSelector } from './store';
-import { HOTSPOTS, journeyView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
+import { launchTrack, useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
+import { HOTSPOTS, journeyView, introView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
 import { tweakedView } from './nodeTweak';
 
 // The camera is driven by the scroll journey (which layer is centred) and by the
 // selected node (zoom in).
+
+// The cinematic load intro: how long the dolly-in from the wide establishing
+// shot to the City overview takes (seconds). Timed off the shared boot clock.
+const INTRO_DUR = 3.2;
 
 export function CameraRig() {
   const camera = useThree((s) => s.camera);
@@ -30,12 +34,33 @@ export function CameraRig() {
   const target = useRef(new Vector3().copy(journeyView(0).target));
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
+  const introDone = useRef(reduced); // reduced motion → no dolly, straight to the overview
+  const skipIntro = useRef(false); // any scroll / tap / key cancels the intro
 
   // State changes (and resizes) need at least one frame in demand mode; the FOV
   // itself is driven per-frame in useFrame so it can ease when zooming in/out.
   useEffect(() => {
     invalidate();
   }, [journeyStep, selectedSlug, launch, size, camera, invalidate]);
+
+  // The load intro yields to the visitor: the first scroll / tap / key press
+  // cancels the dolly and hands control straight back to the scroll journey.
+  useEffect(() => {
+    const cancel = () => {
+      skipIntro.current = true;
+    };
+    const opts: AddEventListenerOptions = { passive: true, once: true };
+    window.addEventListener('wheel', cancel, opts);
+    window.addEventListener('touchstart', cancel, opts);
+    window.addEventListener('pointerdown', cancel, opts);
+    window.addEventListener('keydown', cancel, { once: true });
+    return () => {
+      window.removeEventListener('wheel', cancel);
+      window.removeEventListener('touchstart', cancel);
+      window.removeEventListener('pointerdown', cancel);
+      window.removeEventListener('keydown', cancel);
+    };
+  }, []);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -46,6 +71,34 @@ export function CameraRig() {
     // part of the camera's actual path, so it can't accumulate or steer.
     camera.position.sub(shakeOff.current);
     shakeOff.current.set(0, 0, 0);
+
+    // ---- Load intro: a slow dolly-in from a wide establishing shot into the
+    // City overview, timed off the shared boot clock so it plays after the hero
+    // text. Cancelled the moment the visitor scrolls/taps, on a deep link (a node
+    // is already selected), during a launch, or once it completes — then the
+    // normal journey logic below takes over from wherever the camera is.
+    if (!introDone.current) {
+      const p = (performance.now() - bootAt - MAQUETTE_BOOT) / (INTRO_DUR * 1000);
+      if (skipIntro.current || selectedSlug || journeyStep !== 0 || launch !== 'idle' || p >= 1) {
+        introDone.current = true;
+      } else {
+        const g = layerGap(size.width / size.height);
+        const s = introView(g);
+        const e = journeyView(0, g);
+        const t = p <= 0 ? 0 : p * p * (3 - 2 * p); // hold wide until the beat, then smoothstep in
+        camera.position.copy(s.pos).lerp(e.pos, t);
+        target.current.copy(s.target).lerp(e.target, t);
+        camera.lookAt(target.current);
+        const cam0 = camera as PerspectiveCamera;
+        const wantFov0 = fitFov(size.width / size.height);
+        if (cam0.isPerspectiveCamera && Math.abs(cam0.fov - wantFov0) > 0.01) {
+          cam0.fov = wantFov0;
+          cam0.updateProjectionMatrix();
+        }
+        invalidate();
+        return;
+      }
+    }
 
     const aspect = size.width / size.height;
     const gap = layerGap(aspect); // layers spread apart on tall screens

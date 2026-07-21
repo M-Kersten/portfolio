@@ -189,6 +189,21 @@ export function journeyView(step: number, gap = 1): Framing {
   return { pos: target.clone().add(new Vector3(...CAMERA.overviewOffset)), target };
 }
 
+/** Where the cinematic load intro starts: the camera is pulled well back and
+ *  dropped low, so the dolly-in RISES up into the City overview (journeyView 0)
+ *  and the nearest front objects — the park's trees and the front skyline —
+ *  sweep past the lower frame on the way in. Aims a touch below the City so the
+ *  skyline sits high as it settles. */
+export function introView(gap = 1): Framing {
+  const home = journeyView(0, gap);
+  const dir = home.pos.clone().sub(home.target); // the overview offset (right, up, back)
+  const pos = home.target
+    .clone()
+    .add(dir.multiplyScalar(1.95)) // ~2x further out — a wide establishing shot…
+    .add(new Vector3(0.4, -1.35, 0.5)); // …dropped low + a hair right, to rise past the park
+  return { pos, target: home.target.clone().add(new Vector3(0, -0.25, 0)) };
+}
+
 /** The effective close-up framing for a hotspot: its own `view` overrides,
  *  falling back to the global CAMERA defaults for anything it doesn't set. */
 export function hotspotView(h: Hotspot): Required<HotspotView> {
