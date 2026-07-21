@@ -5,7 +5,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
 import type { BloomEffect } from 'postprocessing';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { useSceneSelector } from './store';
+import { useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
 import { fitScale, type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
 import { Maquette } from './maquette';
@@ -38,7 +38,6 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
   const scene = useThree((s) => s.scene);
   const size = useThree((s) => s.size);
   const d = useRef(0);
-  const revealAt = useRef<number | null>(null); // set on the first frame — the load ignition
   const bg = useMemo(() => new Color(BG_HEX), []);
   const tmp = useMemo(() => new Color(), []);
   // The resting air colour — eased toward the active layer's accent, so it also
@@ -46,7 +45,6 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
   // no snap back to cyan.
   const air = useMemo(() => new Color(RIM_HEX), []);
   useFrame(() => {
-    if (revealAt.current === null) revealAt.current = performance.now();
     const target = selected ? 1 : 0;
     d.current += (target - d.current) * (reduced ? 1 : 0.07);
     const k = d.current;
@@ -84,10 +82,12 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
         celebrateAt !== null && !reduced
           ? Math.exp(-(performance.now() - celebrateAt) / 1100) * 0.9
           : 0;
-      // Establishing ignition: a softer surge on first load, decaying over ~2s,
-      // that coordinates with the maquette scaling into place (see Reveal) — the
-      // whole world powering on. Skipped under reduced motion.
-      const ignite = reduced ? 0 : Math.exp(-(performance.now() - revealAt.current) / 900) * 0.7;
+      // Establishing ignition: a softer surge as the maquette powers on — its beat
+      // in the load sequence, timed off the shared boot clock so it fires just
+      // after the hero name + subhead have resolved (never before its beat, so the
+      // guard on `since`). Decays over ~2s. Skipped under reduced motion.
+      const since = performance.now() - bootAt - MAQUETTE_BOOT;
+      const ignite = reduced || since < 0 ? 0 : Math.exp(-since / 900) * 0.7;
       bloom.current.intensity = 0.4 + k * 0.75 + surge + ignite;
       (bloom.current.luminanceMaterial as unknown as { threshold: number }).threshold = 0.78 - k * 0.34;
     }

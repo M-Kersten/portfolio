@@ -2,6 +2,14 @@ import { useSyncExternalStore } from 'react';
 import { Vector3 } from 'three';
 import { HOTSPOTS } from './framing';
 
+/** Wall-clock moment the app first loaded. The boot sequence sequences off this
+ *  one shared clock so the DOM beats (header → name → subhead) and the 3D beat
+ *  (the maquette powering on) stay in order across the two React reconcilers. */
+export const bootAt = typeof performance !== 'undefined' ? performance.now() : 0;
+/** ms after boot that the maquette powers on — its beat, after the hero text
+ *  (header ~0.1s · name decode ~0.4–0.9s · subhead ~1.05–1.4s · then this). */
+export const MAQUETTE_BOOT = 1450;
+
 /** The launch easter egg's stage machine (see city.tsx LaunchSite +
  *  components/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;
  *  'countdown' = T-minus running; 'ascend' = rocket flying, camera chasing;

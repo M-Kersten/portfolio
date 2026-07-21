@@ -13,6 +13,19 @@
   background: color-mix(in srgb, var(--paper) 72%, transparent);
   backdrop-filter: saturate(1.2) blur(12px);
   border-bottom: 1px solid var(--hairline);
+  /* Load boot — beat 1: the chrome settles in first, before the hero name. */
+  animation: header-in 0.3s var(--ease) 0.08s both;
+}
+@keyframes header-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .header {
+    animation: none;
+  }
 }
 .header__inner {
   display: flex;

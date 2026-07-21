@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { caseBySlug, site } from '../content';
 import { sceneStore, useSceneSelector } from '../scene/store';
 import { HOTSPOTS } from '../scene/framing';
+import { useReducedMotion } from '../lib/useReducedMotion';
+import { Scramble } from './Scramble';
 
 // Three invisible scroll panels give the camera journey its length and drive
 // `journeyStep` (0 City · 1 Room · 2 Chip). The minimal title lives only on
@@ -44,6 +46,12 @@ export function HeroStage() {
   // section scrolls up over that spot instead of lingering on top of it.
   const [heroOwnsBottom, setHeroOwnsBottom] = useState(true);
   const [manifestOpen, setManifestOpen] = useState(false);
+  const reduced = useReducedMotion();
+  // Load boot sequence: the bottom instrument line (layer caption + model tally)
+  // is the LAST beat — it's held until the hero text has decoded in and the
+  // maquette has powered on, so the boot reads as one thing at a time. Instant
+  // under reduced motion.
+  const [booted, setBooted] = useState(reduced);
   // First-visit whisper: one line that states the premise, once, then never
   // again (dismissed forever the moment a first project is opened).
   const [hintDone, setHintDone] = useState(() => {
@@ -101,6 +109,14 @@ export function HeroStage() {
     const t = window.setTimeout(() => setHintShown(true), 2600);
     return () => clearTimeout(t);
   }, [hintDone]);
+
+  // reveal the bottom instrument line last — only after the maquette power-on
+  // beat (MAQUETTE_BOOT ~1.45s + its bloom flash) has played out
+  useEffect(() => {
+    if (reduced) return;
+    const t = window.setTimeout(() => setBooted(true), 2300);
+    return () => clearTimeout(t);
+  }, [reduced]);
   useEffect(() => {
     if (!hintDone && (selectedSlug !== null || found > 0)) {
       setHintDone(true);
@@ -138,7 +154,9 @@ export function HeroStage() {
   return (
     <section id="hero" className="hero" ref={heroRef} aria-label="Introduction">
       <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
-        <h1 className="hero__name">{site.hero.name}</h1>
+        <h1 className="hero__name">
+          <Scramble text={site.hero.name} delay={380} wrap />
+        </h1>
         <p className="hero__sub">{site.hero.subheading}</p>
       </div>
 
@@ -146,7 +164,7 @@ export function HeroStage() {
       <div
         key={journeyStep}
         className="hero__caption"
-        style={{ opacity: overlayOpacity, '--cap-accent': caption.accent } as CSSProperties}
+        style={{ opacity: overlayOpacity * (booted ? 1 : 0), '--cap-accent': caption.accent } as CSSProperties}
         aria-hidden="true"
       >
         <b>{caption.index}</b> · {caption.name} <span>— {caption.blurb}</span>
@@ -156,7 +174,7 @@ export function HeroStage() {
           the running count, and clicking it opens the manifest. */}
       <div
         className="hero__signals"
-        style={{ opacity: overlayOpacity, pointerEvents: overlayOpacity ? undefined : 'none' }}
+        style={{ opacity: overlayOpacity * (booted ? 1 : 0), pointerEvents: overlayOpacity && booted ? undefined : 'none' }}
         data-complete={complete || undefined}
       >
         {hintShown && !hintDone && (

@@ -6,6 +6,7 @@ import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { sceneStore } from '../scene/store';
 import { StoryLinks } from './StoryLinks';
+import { Scramble } from './Scramble';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // Centre of each layer's scroll band on the hero (fraction of scroll travel),
@@ -118,7 +119,11 @@ export function NodeHud() {
           {study.live && <span className="case-card__live">Live</span>}
           {study.draft && <span className="modal__draft">Sample</span>}
         </div>
-        <h2 className="node-hud__title">{study.title}</h2>
+        {/* keyed by slug so it re-decodes on a story-link jump instead of reusing
+            the previous title's finished state */}
+        <h2 className="node-hud__title">
+          <Scramble key={study.slug} text={study.title} delay={120} wrap />
+        </h2>
         <p className="node-hud__outcome">{study.outcome}</p>
       </header>
 

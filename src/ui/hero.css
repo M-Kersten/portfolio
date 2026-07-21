@@ -41,6 +41,10 @@
   line-height: 0.94;
   margin: 0 0 0.4em;
   color: var(--ink);
+  /* Load boot — beat 2: the name fades + rises in as it decodes (Scramble, same
+     delay), after the header. Held hidden until then so the decode isn't on
+     screen during the header's beat. */
+  animation: hero-name-in 0.34s var(--ease) 0.38s both;
 }
 .hero__sub {
   /* Fluid with the viewport width: keeps the desktop size but shrinks further
@@ -51,6 +55,26 @@
   max-width: 26ch;
   margin: 0;
   text-wrap: balance;
+  /* Load boot — beat 3: rises in after the name has finished decoding (~0.93s). */
+  animation: hero-sub-in 0.34s var(--ease) 1.05s both;
+}
+@keyframes hero-name-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes hero-sub-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero__name,
+  .hero__sub {
+    animation: none;
+  }
 }
 /* Layer narration — one mono line, bottom-left on the container grid line,
    that introduces whichever layer the journey has centred. Remounted per step

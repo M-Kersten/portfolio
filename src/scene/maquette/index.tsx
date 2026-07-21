@@ -8,7 +8,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { type Group } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, layerGap, type Hotspot, type LayerId } from '../framing';
-import { useSceneSelector } from '../store';
+import { useSceneSelector, bootAt, MAQUETTE_BOOT } from '../store';
 import { AccentCtx, PALETTE } from './shared';
 import { DotFloor, PointCloud, DepthVeil, HoloFloor } from './backdrop';
 import { PresenceGroup } from './presence';
@@ -24,17 +24,16 @@ const SEED: Record<LayerId, number> = { city: 11, room: 29, chip: 53 };
 // journeyStep index per layer (0 = City at top … 2 = Chip at bottom).
 const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };
 
-// The establishing reveal: on first load the whole maquette settles into place —
-// scaling from a hair small up to full with a touch of overshoot (easeOutBack),
-// so the world "clicks" into the frame rather than just appearing. Paired with a
-// bloom ignition surge in Stage. One-shot; instant (no animation) under reduced
-// motion.
+// The establishing reveal: the maquette powers on as its beat in the load
+// sequence (after the hero name + subhead resolve — see the shared boot clock),
+// scaling from a hair small up to full with a touch of overshoot (easeOutBack)
+// so the world "clicks" into the frame. Paired with a bloom ignition surge in
+// Stage on the same clock. One-shot; instant (no animation) under reduced motion.
 const REVEAL_FROM = 0.92;
-const REVEAL_DUR = 1400; // ms
+const REVEAL_DUR = 1400; // ms — the settle
 function Reveal({ children }: { children: ReactNode }) {
   const grp = useRef<Group>(null);
   const reduced = useReducedMotion();
-  const start = useRef<number | null>(null);
   const done = useRef(false);
   useFrame(() => {
     const g = grp.current;
@@ -44,17 +43,21 @@ function Reveal({ children }: { children: ReactNode }) {
       done.current = true;
       return;
     }
-    if (start.current === null) start.current = performance.now();
-    const t = Math.min(1, (performance.now() - start.current) / REVEAL_DUR);
+    const t = (performance.now() - bootAt - MAQUETTE_BOOT) / REVEAL_DUR;
+    if (t <= 0) {
+      g.scale.setScalar(REVEAL_FROM); // hold a hair small until the maquette's beat
+      return;
+    }
+    if (t >= 1) {
+      g.scale.setScalar(1);
+      done.current = true; // settled — stop touching the transform
+      return;
+    }
     // easeOutBack — a gentle settle with a hair of overshoot past 1
     const c1 = 1.2;
     const c3 = c1 + 1;
     const e = 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
     g.scale.setScalar(REVEAL_FROM + (1 - REVEAL_FROM) * e);
-    if (t >= 1) {
-      g.scale.setScalar(1);
-      done.current = true; // settled — stop touching the transform
-    }
   });
   return <group ref={grp}>{children}</group>;
 }

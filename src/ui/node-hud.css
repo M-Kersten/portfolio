@@ -27,7 +27,10 @@
   border-top: 1px solid var(--line);
   box-shadow: 0 -24px 64px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(20px) saturate(1.3);
-  animation: hud-rise 0.36s var(--ease);
+  /* Select boot — beat 2: the (empty) drawer rises into place only AFTER the
+     caption up top has finished decoding (Scramble runs ~0.7s), so the two never
+     animate at once; its content follows as beat 3 (see hud-content-in). */
+  animation: hud-rise 0.36s var(--ease) 0.85s both;
 }
 /* solid accent edge along the top of the drawer (per the project's layer) */
 .node-hud {
@@ -44,6 +47,28 @@
 @keyframes hud-rise {
   from {
     transform: translateY(100%);
+  }
+}
+/* Select boot — beat 3: the dossier contents (media, story column, close) fade
+   up together as ONE beat once the drawer has arrived — no internal stagger. */
+.node-hud__media,
+.node-hud__detail,
+.node-hud__close {
+  animation: hud-content-in 0.32s var(--ease) 1.25s both;
+}
+@keyframes hud-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-hud,
+  .node-hud__caption,
+  .node-hud__media,
+  .node-hud__detail,
+  .node-hud__close {
+    animation: none;
   }
 }
 .node-hud__close {
@@ -78,7 +103,9 @@
   padding-inline: var(--space-m);
   pointer-events: none;
   --card-accent: var(--accent);
-  animation: caption-in 0.45s var(--ease) both;
+  /* Select boot — beat 1: the title caption decodes in first (Scramble on the
+     title, same delay), before the drawer rises below. */
+  animation: caption-in 0.45s var(--ease) 0.12s both;
 }
 .node-hud__caption[data-layer='city'] { --card-accent: var(--cyan); }
 .node-hud__caption[data-layer='room'] { --card-accent: var(--coral); }
