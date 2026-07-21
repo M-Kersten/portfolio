@@ -210,7 +210,9 @@ export function SignalLine({ thread, from, to, color }: Relation) {
 
     // Data only flows while the cable is lit (hover/select); during the sweep the
     // packets bunch into a bright comet trailing the head as it travels from the
-    // just-woken node toward its partner.
+    // just-woken node toward its partner. Both the sweep and the steady flow run
+    // ONE fixed direction (drawDir) — set the moment the first endpoint is
+    // selected — so the flow never reverses on itself.
     if (!reduced) u.current = (u.current + delta * 0.16) % 1;
     const pen = pointsRef.current;
     if (pen) {
@@ -225,8 +227,11 @@ export function SignalLine({ thread, from, to, color }: Relation) {
             f = Math.min(1, Math.max(0, head - drawDir.current * i * 0.06)); // comet tail behind the head
             b = (1 - i / SIGNAL_PACKETS) * 1.1;
           } else {
-            f = (u.current + i / SIGNAL_PACKETS) % 1;
-            b = kk * (0.5 + 0.5 * Math.sin(f * Math.PI)); // fade in/out at the ends
+            // steady flow in the fixed direction (drawDir); reversing 1−phase
+            // when it points to→from keeps it running the same way as the sweep
+            const phase = (u.current + i / SIGNAL_PACKETS) % 1;
+            f = drawDir.current > 0 ? phase : 1 - phase;
+            b = kk * (0.5 + 0.5 * Math.sin(phase * Math.PI)); // fade in/out at the ends
           }
           curve.getPointAt(f, _sv);
           posArr[i * 3] = _sv.x;
