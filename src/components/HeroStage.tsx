@@ -36,6 +36,10 @@ export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const visited = useSceneSelector((s) => s.visited);
+  // Gates the whole hero chrome: held false through the load intro (the centred
+  // premise card), flipped true once that card clears — so the title/subtitle
+  // are the beat *after* the intro, not underneath it. See IntroCard.
+  const introOver = useSceneSelector((s) => s.introOver);
   const navigate = useNavigate();
   const heroRef = useRef<HTMLElement>(null);
   // Whether the hero itself is on screen — guards against `journeyStep` going
@@ -110,13 +114,14 @@ export function HeroStage() {
     return () => clearTimeout(t);
   }, [hintDone]);
 
-  // reveal the bottom instrument line last — only after the maquette power-on
-  // beat (MAQUETTE_BOOT ~1.45s + its bloom flash) has played out
+  // reveal the bottom instrument line last — a beat after the hero title itself
+  // decodes in, which only happens once the load intro card has cleared
+  // (introOver). Keeps the reveal to one thing at a time.
   useEffect(() => {
-    if (reduced) return;
-    const t = window.setTimeout(() => setBooted(true), 2300);
+    if (reduced || !introOver) return;
+    const t = window.setTimeout(() => setBooted(true), 1200);
     return () => clearTimeout(t);
-  }, [reduced]);
+  }, [reduced, introOver]);
   useEffect(() => {
     if (!hintDone && (selectedSlug !== null || found > 0)) {
       setHintDone(true);
@@ -153,12 +158,17 @@ export function HeroStage() {
 
   return (
     <section id="hero" className="hero" ref={heroRef} aria-label="Introduction">
-      <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
-        <h1 className="hero__name">
-          <Scramble text={site.hero.name} delay={380} wrap />
-        </h1>
-        <p className="hero__sub">{site.hero.subheading}</p>
-      </div>
+      {/* Held back through the load intro, then mounted — so its decode + rise
+          play at the moment it appears (the beat after the premise card), not
+          silently at load behind the card. */}
+      {introOver && (
+        <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
+          <h1 className="hero__name">
+            <Scramble text={site.hero.name} delay={380} wrap />
+          </h1>
+          <p className="hero__sub">{site.hero.subheading}</p>
+        </div>
+      )}
 
       {/* Layer narration — remounts per step so the line slides in fresh. */}
       <div

@@ -50,6 +50,10 @@ interface SceneState {
   celebrateAt: number | null;
   /** The launch easter egg's current stage (idle when not engaged). */
   launch: LaunchStage;
+  /** True once the load intro (the movie-intro title card) has finished or been
+   *  dismissed. Held false during the intro so the hero title + subtitle + the
+   *  bottom instrument line reveal *after* the premise card, never on top of it. */
+  introOver: boolean;
 }
 
 let state: SceneState = {
@@ -61,6 +65,7 @@ let state: SceneState = {
   celebrationPending: false,
   celebrateAt: null,
   launch: 'idle',
+  introOver: false,
 };
 
 const listeners = new Set<() => void>();
@@ -98,6 +103,10 @@ export const sceneStore = {
   },
   setLaunch(launch: LaunchStage) {
     if (launch !== state.launch) set({ launch });
+  },
+  /** Mark the load intro finished — releases the hero chrome (idempotent). */
+  endIntro() {
+    if (!state.introOver) set({ introOver: true });
   },
 };
 
