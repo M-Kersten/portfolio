@@ -1,0 +1,29 @@
+/* Case gallery — captioned pictures in the node HUD dossier and the focus card.
+   A responsive grid: each figure is an image with its short description beneath.
+   Fewer columns automatically in the narrow HUD detail column / on phones. */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  gap: var(--space-s);
+  margin-top: var(--space-m);
+}
+.gallery__fig {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+}
+.gallery__img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+}
+.gallery__cap {
+  font-size: var(--step--1);
+  line-height: 1.4;
+  color: var(--ink-60);
+}

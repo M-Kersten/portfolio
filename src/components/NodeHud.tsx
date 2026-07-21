@@ -7,6 +7,7 @@ import { useFocusTrap } from '../lib/useFocusTrap';
 import { sceneStore } from '../scene/store';
 import { StoryLinks } from './StoryLinks';
 import { Scramble } from './Scramble';
+import { Gallery } from './Gallery';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // Centre of each layer's scroll band on the hero (fraction of scroll travel),
@@ -159,6 +160,8 @@ export function NodeHud() {
               </section>
             )}
           </div>
+
+          {study.gallery && study.gallery.length > 0 && <Gallery items={study.gallery} />}
 
           {study.tech && study.tech.length > 0 && (
             <ul className="node-hud__tech" aria-label="Technologies">

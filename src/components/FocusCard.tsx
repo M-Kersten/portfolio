@@ -4,6 +4,7 @@ import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { StoryLinks } from './StoryLinks';
+import { Gallery } from './Gallery';
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
 // backdrop. Not the old bottom HUD — a focused card. Esc / ✕ / backdrop closes.
@@ -93,6 +94,7 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
               </section>
             )}
           </div>
+          {study.gallery && study.gallery.length > 0 && <Gallery items={study.gallery} />}
           {study.tech && study.tech.length > 0 && (
             <ul className="worktile__tech" aria-label="Technologies">
               {study.tech.map((t) => (
