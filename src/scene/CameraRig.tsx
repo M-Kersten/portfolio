@@ -5,6 +5,7 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 import { launchTrack, useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
 import { HOTSPOTS, journeyView, introView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
 import { tweakedView } from './nodeTweak';
+import { isMobileViewport } from '../lib/isMobile';
 
 // The camera is driven by the scroll journey (which layer is centred) and by the
 // selected node (zoom in).
@@ -34,7 +35,8 @@ export function CameraRig() {
   const target = useRef(new Vector3().copy(journeyView(0).target));
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
-  const introDone = useRef(reduced); // reduced motion → no dolly, straight to the overview
+  // Reduced motion and phones skip the dolly — straight to the City overview.
+  const introDone = useRef(reduced || isMobileViewport());
   const skipIntro = useRef(false); // any scroll / tap / key cancels the intro
 
   // State changes (and resizes) need at least one frame in demand mode; the FOV

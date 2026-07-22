@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { site } from '../content';
 import { bootAt, MAQUETTE_BOOT, sceneStore } from '../scene/store';
 import { useReducedMotion } from '../lib/useReducedMotion';
+import { isMobileViewport } from '../lib/isMobile';
 import { Scramble } from './Scramble';
 
 // The movie-intro title card: shown once on first load, centred over the
@@ -17,11 +18,13 @@ const FADE = 650; // ms for the card to fade out (covers intro-card.css's opacit
 export function IntroCard() {
   const intro = site.hero.intro;
   const reduced = useReducedMotion();
-  // Play once per page load, and never on a deep link (a /work/… route goes
-  // straight to the node) or once the intro has already been released — so
+  // Play once per page load. Skipped on a phone (the intro is a desktop
+  // flourish — mobile just appears), on a deep link (a /work/… route goes
+  // straight to the node), and once the intro has already been released — so
   // navigating back to home from another route doesn't replay the card.
   const skip = useRef(
     !intro ||
+      isMobileViewport() ||
       (typeof window !== 'undefined' && /\/work\//.test(window.location.pathname)) ||
       sceneStore.snapshot().introOver,
   );
