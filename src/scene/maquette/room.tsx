@@ -234,10 +234,13 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
       m.emissiveIntensity = 0.6 + k.current * 0.5;
     } else {
       // ghost screen: grey + dim; hovering makes it flicker like it's trying to
-      // wake, the colour itself only arrives when the visitor opens it
+      // wake, the colour itself only arrives when the visitor opens it. At rest
+      // it keeps a faint standby shimmer — a monitor left on — that fades out as
+      // it genuinely wakes.
+      const idle = reduced ? 0 : (0.05 + 0.035 * Math.sin(t * 0.9) + 0.02 * Math.max(0, Math.sin(t * 5.3 + 2))) * (1 - live.current);
       m.color.copy(GHOST_FILL).lerp(accentC, live.current);
       m.emissive.copy(GHOST_FILL).lerp(accentC, live.current);
-      m.emissiveIntensity = 0.08 + 0.34 * live.current + k.current * 0.9 * n;
+      m.emissiveIntensity = 0.08 + idle + 0.34 * live.current + k.current * 0.9 * n;
     }
   });
   return (
@@ -352,6 +355,25 @@ function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
 }
 
 /** A floor lamp with a glowing shade. */
+// The lamp's bulb, softly lit and gently breathing — a light someone left on.
+// A single warm point in the cool room (a domestic cue, not a project waking);
+// steady under reduced motion.
+function LampGlow() {
+  const reduced = useReducedMotion();
+  const mat = useRef<MeshStandardMaterial>(null);
+  useFrame((s) => {
+    if (!mat.current) return;
+    const breathe = reduced ? 1 : 0.86 + 0.14 * Math.sin(s.clock.elapsedTime * 0.8);
+    mat.current.emissiveIntensity = 0.55 * breathe;
+  });
+  return (
+    <mesh position={[0, 0.64, 0]}>
+      <sphereGeometry args={[0.045, 12, 12]} />
+      <meshStandardMaterial ref={mat} color="#ffb488" emissive="#ffb488" emissiveIntensity={0.55} transparent opacity={0.5} roughness={0.5} toneMapped={false} depthWrite={false} />
+    </mesh>
+  );
+}
+
 function FloorLamp({ position }: { position: V3 }) {
   return (
     <group position={position}>
@@ -370,6 +392,7 @@ function FloorLamp({ position }: { position: V3 }) {
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
       <Accent position={[0, 0.66, 0]} args={[0.07, 0.02, 0.07]} intensity={0.5} color={NEUTRAL} />
+      <LampGlow />
     </group>
   );
 }

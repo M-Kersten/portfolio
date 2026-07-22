@@ -286,14 +286,18 @@ function ChipTrace({ points, target, color }: { points: V3[]; target: number; co
 }
 
 /** A small status LED that flashes on its own rhythm while the chip is live. */
-function ChipLED({ position, color, target, phase, speed }: { position: V3; color: string; target: number; phase: number; speed: number }) {
+function ChipLED({ position, color, target, phase, speed, idle = false }: { position: V3; color: string; target: number; phase: number; speed: number; idle?: boolean }) {
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
   useFrame((s) => {
     k.current += (target - k.current) * 0.1;
-    const blink = reduced ? 1 : Math.sin(s.clock.elapsedTime * speed + phase) > 0.45 ? 1 : 0.1;
-    if (mat.current) mat.current.emissiveIntensity = 0.08 + k.current * 1.9 * blink;
+    const t = s.clock.elapsedTime;
+    const blink = reduced ? 1 : Math.sin(t * speed + phase) > 0.45 ? 1 : 0.1;
+    // idle heartbeat: a faint, slow blip even with no board energy, so the chip
+    // reads as powered-but-asleep at rest. Fades out as the board actually wakes.
+    const idleBlip = idle && !reduced ? Math.max(0, Math.sin(t * 1.15 + phase)) ** 10 * 0.3 * (1 - k.current) : 0;
+    if (mat.current) mat.current.emissiveIntensity = 0.08 + k.current * 1.9 * blink + idleBlip;
   });
   return (
     <mesh position={position}>
@@ -614,7 +618,7 @@ export function ChipRig() {
       {CHIP_NODES.map((nd, i) => (
         <group key={i}>
           <Line points={circlePts(0.034, 16)} position={[nd.x, TY + 0.003, nd.z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
-          <ChipLED position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} />
+          <ChipLED position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} idle={i === 0 || i === 5} />
         </group>
       ))}
 

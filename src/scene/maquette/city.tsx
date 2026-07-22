@@ -1250,6 +1250,87 @@ function CelebrationBurst() {
   );
 }
 
+// A few windows that stay softly lit at rest — a handful of homes awake in the
+// otherwise-sleeping city. Kept in the skyline's own calm blue (never warm, per
+// the window rule above), most just glowing, one or two slowly winking off and
+// on. Independent of the interactive winMat, so waking the whole city (full
+// bright) is still the reward. Placed on real building faces from the cluster.
+function OccupiedWindows({ buildings }: { buildings: { x: number; z: number; w: number; d: number; h: number }[] }) {
+  const reduced = useReducedMotion();
+  const { accent } = useAccent();
+  const mats = useRef<(MeshStandardMaterial | null)[]>([]);
+  const wins = useMemo(() => {
+    const rnd = makeRand(4231);
+    const out: { p: V3; ry: number; lvl: number; spd: number; ph: number; wink: boolean }[] = [];
+    buildings.forEach((b, i) => {
+      if (i % 3 === 1) return; // only some buildings are occupied
+      const rows = Math.max(1, Math.floor((b.h - 0.06) / 0.11));
+      const yy = 0.09 + Math.floor(rnd() * rows) * 0.11;
+      const front = rnd() > 0.4; // camera-facing +Z (front) or +X (side) face
+      const off = (rnd() - 0.5) * 2 * 0.22;
+      const p: V3 = front ? [b.x + off * b.w, yy, b.z + b.d / 2 + 0.006] : [b.x + b.w / 2 + 0.006, yy, b.z + off * b.d];
+      out.push({ p, ry: front ? 0 : Math.PI / 2, lvl: 0.5 + rnd() * 0.5, spd: 0.3 + rnd() * 0.4, ph: rnd() * 6.28, wink: rnd() < 0.4 });
+    });
+    return out;
+  }, [buildings]);
+  useFrame((s) => {
+    const t = s.clock.elapsedTime;
+    for (let i = 0; i < wins.length; i++) {
+      const m = mats.current[i];
+      const w = wins[i];
+      if (!m) continue;
+      // winking windows go dark for a beat now and then; the rest hold a soft glow
+      const wink = w.wink && !reduced ? (Math.sin(t * w.spd + w.ph) > 0.72 ? 0.12 : 1) : 1;
+      m.emissiveIntensity = w.lvl * 0.5 * wink;
+    }
+  });
+  return (
+    <group>
+      {wins.map((w, i) => (
+        <mesh key={i} position={w.p} rotation={[0, w.ry, 0]}>
+          <planeGeometry args={[0.045, 0.05]} />
+          <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={accent} emissive={accent} emissiveIntensity={w.lvl * 0.5} transparent opacity={0.92} roughness={0.4} toneMapped={false} depthWrite={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// A single faint light easing along a road now and then — a lone car crossing
+// the sleeping city. One small cool point (a headlight, not a warm glow), a long
+// gap between passes, fading in and out at the ends, and gone entirely under
+// reduced motion. Path is in the layer's local road coordinates.
+function Traffic({ path }: { path: V3[] }) {
+  const reduced = useReducedMotion();
+  const ref = useRef<Mesh>(null);
+  const mat = useRef<MeshStandardMaterial>(null);
+  const PERIOD = 19; // seconds between passes
+  const DUR = 6; // seconds to cross
+  useFrame((s) => {
+    if (!ref.current || !mat.current) return;
+    const tt = s.clock.elapsedTime % PERIOD;
+    if (tt > DUR) {
+      mat.current.opacity = 0;
+      return;
+    }
+    const p = tt / DUR;
+    const idx = p * (path.length - 1);
+    const i0 = Math.min(path.length - 2, Math.floor(idx));
+    const f = idx - i0;
+    const a = path[i0];
+    const b = path[i0 + 1];
+    ref.current.position.set(a[0] + (b[0] - a[0]) * f, 0.03, a[2] + (b[2] - a[2]) * f);
+    mat.current.opacity = Math.sin(p * Math.PI) * 0.85; // ease in at the start, out at the end
+  });
+  if (reduced) return null;
+  return (
+    <mesh ref={ref} position={[path[0][0], 0.03, path[0][2]]}>
+      <sphereGeometry args={[0.018, 8, 8]} />
+      <meshStandardMaterial ref={mat} color="#dff2ff" emissive="#dff2ff" emissiveIntensity={2.4} transparent opacity={0} toneMapped={false} depthWrite={false} />
+    </mesh>
+  );
+}
+
 export function CityRig() {
   // Roads: a grid threading between the blocks, three avenues out toward the
   // church / windmill / park, and two curved roads sweeping around the side.
@@ -1317,12 +1398,16 @@ export function CityRig() {
       ))}
       {/* curved roads on the side */}
       <RoadRibbon points={curveB} width={0.09} />
+      {/* a lone car easing along the curved road every so often */}
+      <Traffic path={curveB} />
 
       {/* the skyline + its civic peak; windows light up on town-hall hover */}
       <WindowDriver mat={winMat} />
       {cluster.map((b, i) => (
         <Building key={i} {...b} winMat={winMat} />
       ))}
+      {/* a few homes left lit in the sleeping city (independent of the hover glow) */}
+      <OccupiedWindows buildings={cluster} />
       <LifeGroup slug="alliander-hololens">
         <Skyscraper position={[0, 0, 0]} winMat={winMat} />
       </LifeGroup>
