@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, RoundedBox } from '@react-three/drei';
-import { Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type Group, type Mesh, type Texture } from 'three';
+import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { useTweak } from '../devTweak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, smoothCurve, roundedRectShape, roundedPlaneGeometry, Line, useActive, bounceObject, useOptionalTexture, type V3 } from './shared';
@@ -381,6 +381,63 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   );
 }
 
+// A little holographic training sim floating above the workstation while the
+// Virtuele Brigade monitor is engaged — a grid with two "units" moving on it and
+// a scan ring sweeping out, the VR scenario made visible. The whole rig scales
+// up from nothing when active and holds still under reduced motion.
+function BrigadeSim() {
+  const reduced = useReducedMotion();
+  const { selected, visited } = useActive('virtuele-brigade');
+  const grp = useRef<Group>(null);
+  const m1 = useRef<Group>(null);
+  const m2 = useRef<Group>(null);
+  const scanGrp = useRef<Group>(null);
+  const scanMat = useRef<MeshStandardMaterial>(null);
+  const glow = useRef(0);
+  useFrame((s) => {
+    glow.current += ((selected || visited ? 1 : 0) - glow.current) * 0.06;
+    const g = glow.current;
+    const t = reduced ? 0 : s.clock.elapsedTime;
+    if (grp.current) {
+      grp.current.visible = g > 0.02;
+      grp.current.scale.setScalar(g);
+      grp.current.position.y = 0.85 + (reduced ? 0 : Math.sin(t * 1.1) * 0.008);
+    }
+    if (m1.current) m1.current.position.set(Math.cos(t * 0.9) * 0.08, 0.005, Math.sin(t * 0.9) * 0.08);
+    if (m2.current) m2.current.position.set(Math.cos(-t * 0.6 + 2) * 0.05, 0.005, Math.sin(-t * 0.6 + 2) * 0.05);
+    if (scanGrp.current && scanMat.current) {
+      const p = (t * 0.4) % 1;
+      const sc = 0.15 + p * 1.0;
+      scanGrp.current.scale.set(sc, 1, sc);
+      scanMat.current.opacity = Math.sin(p * Math.PI) * 0.5;
+    }
+  });
+  return (
+    <group ref={grp} position={[0, 0.85, -0.05]} visible={false}>
+      <Line points={circlePts(0.12)} rotation={[-Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.5} />
+      <Line points={circlePts(0.07)} rotation={[-Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.3} />
+      <group ref={scanGrp} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh>
+          <ringGeometry args={[0.115, 0.12, 44]} />
+          <meshStandardMaterial ref={scanMat} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={1} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} />
+        </mesh>
+      </group>
+      <group ref={m1}>
+        <mesh>
+          <sphereGeometry args={[0.01, 8, 8]} />
+          <meshStandardMaterial color="#ff9068" emissive="#ff9068" emissiveIntensity={1.4} toneMapped={false} />
+        </mesh>
+      </group>
+      <group ref={m2}>
+        <mesh>
+          <sphereGeometry args={[0.01, 8, 8]} />
+          <meshStandardMaterial color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={1.4} toneMapped={false} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
 /** A VR headset prop on a stand (Virtuele Brigade). */
 function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
   const strap = useMemo(() => smoothCurve([[-0.075, 0, 0], [-0.05, 0.06, -0.055], [0.05, 0.06, -0.055], [0.075, 0, 0]], 24), []);
@@ -546,6 +603,52 @@ function BookHalf({ side, tex }: { side: -1 | 1; tex: Texture | null }) {
     </>
   );
 }
+// Holographic content lifting off the open page — a few small wireframe glyphs
+// that rise, turn and fade above the spread while the book is open. The AR the
+// Zwijsen books are about, made literal; off under reduced motion.
+function BookAR({ slug }: { slug: string }) {
+  const reduced = useReducedMotion();
+  const { selected } = useActive(slug);
+  const refs = useRef<(Group | null)[]>([]);
+  const mats = useRef<(MeshStandardMaterial | null)[]>([]);
+  const glow = useRef(0);
+  const items = useMemo(
+    () => [
+      { x: -0.035, z: -0.02, spd: 0.3, ph: 0.0, kind: 0 },
+      { x: 0.03, z: 0.02, spd: 0.26, ph: 0.4, kind: 1 },
+      { x: 0.0, z: 0.045, spd: 0.34, ph: 0.72, kind: 2 },
+    ],
+    [],
+  );
+  useFrame((s) => {
+    glow.current += ((selected && !reduced ? 1 : 0) - glow.current) * 0.06;
+    const t = s.clock.elapsedTime;
+    for (let i = 0; i < items.length; i++) {
+      const g = refs.current[i];
+      const m = mats.current[i];
+      const it = items[i];
+      if (!g) continue;
+      const p = (t * it.spd + it.ph) % 1;
+      g.position.set(it.x, 0.03 + p * 0.16, it.z); // rise off the page
+      g.rotation.set(t * 0.5, t * 0.8 + it.ph * 6, 0);
+      g.scale.setScalar(0.55 + 0.45 * Math.sin(p * Math.PI));
+      if (m) m.opacity = Math.sin(p * Math.PI) * 0.9 * glow.current;
+    }
+  });
+  return (
+    <group>
+      {items.map((it, i) => (
+        <group key={i} ref={(r) => (refs.current[i] = r)}>
+          <mesh>
+            {it.kind === 0 ? <boxGeometry args={[0.026, 0.026, 0.026]} /> : it.kind === 1 ? <tetrahedronGeometry args={[0.021]} /> : <octahedronGeometry args={[0.02]} />}
+            <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={1.4} transparent opacity={0} wireframe toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
 function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const { selected } = useActive(slug);
   const reduced = useReducedMotion();
@@ -609,6 +712,8 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
         <boxGeometry args={[0.015, BOOK_T + 0.003, BOOK_H]} />
         <meshStandardMaterial color="#e06a30" emissive="#e06a30" emissiveIntensity={0.14} roughness={0.5} />
       </mesh>
+      {/* holographic content lifting off the open spread */}
+      <BookAR slug={slug} />
     </group>
   );
 }
@@ -841,6 +946,8 @@ export function RoomRig() {
           </mesh>
           <SoftBox position={[-0.05, 0.405, 0.14]} args={[0.13, 0.012, 0.17]} radius={0.004} opacity={0.3} />
           <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
+          {/* the training sim projecting above the monitor */}
+          <BrigadeSim />
         </group>
         {/* chair in front of the desk, facing the monitor */}
         <group position={[0, 0, 0.05]} rotation={[0, Math.PI, 0]}>

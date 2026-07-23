@@ -93,6 +93,42 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
   );
 }
 
+// Flour dust drifting from the mill's base while it's turning — a "grinding"
+// cue on top of the spinning sails. A few pale motes fall and fade on a loop,
+// only while the mill is engaged (off under reduced motion).
+function MillDust() {
+  const reduced = useReducedMotion();
+  const { hovered, selected, visited } = useActive('dtt-amsterdam');
+  const refs = useRef<(Mesh | null)[]>([]);
+  const glow = useRef(0);
+  const motes = useMemo(() => {
+    const rnd = makeRand(915);
+    return Array.from({ length: 9 }, () => ({ x: (rnd() - 0.5) * 0.14, z: 0.16 + (rnd() - 0.5) * 0.12, ph: rnd(), spd: 0.35 + rnd() * 0.3, sway: rnd() * 6.28 }));
+  }, []);
+  useFrame((s) => {
+    glow.current += (((hovered || selected || visited) && !reduced ? 1 : 0) - glow.current) * 0.05;
+    const t = s.clock.elapsedTime;
+    for (let i = 0; i < motes.length; i++) {
+      const m = refs.current[i];
+      const d = motes[i];
+      if (!m) continue;
+      const p = (t * d.spd + d.ph) % 1; // 0 at the spout → 1 at the ground
+      m.position.set(d.x + Math.sin(t * 1.6 + d.sway) * 0.012, 0.16 - p * 0.15, d.z);
+      (m.material as MeshStandardMaterial).opacity = Math.sin(p * Math.PI) * 0.62 * glow.current;
+    }
+  });
+  return (
+    <group>
+      {motes.map((_, i) => (
+        <mesh key={i} ref={(r) => (refs.current[i] = r)}>
+          <sphereGeometry args={[0.0065, 6, 6]} />
+          <meshStandardMaterial color="#e8e0cf" emissive="#e8e0cf" emissiveIntensity={1.0} transparent opacity={0} toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /** A Dutch windmill (smock mill). The sails are still at idle; hovering its
  *  hotspot (DTT Amsterdam) turns them slowly, selecting spins them up fast, and
  *  once it's been opened they keep turning. The body solidifies once visited. */
@@ -144,6 +180,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
         ))}
       </group>
       </group>
+      <MillDust />
     </group>
   );
 }
@@ -569,6 +606,8 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   const beacon = useRef<MeshStandardMaterial>(null);
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
+  const surge = useRef<Group>(null); // a light-band that rises up the shaft
+  const surgeMat = useRef<MeshStandardMaterial>(null);
   const lifeK = useRef(0);
   const accentC = useMemo(() => new Color(accent), [accent]);
   // mullion fins hug the taper: each runs base-radius → top-radius up one edge
@@ -586,6 +625,16 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
     beacon.current.color.copy(GHOST_FILL).lerp(accentC, lifeK.current);
     beacon.current.emissive.copy(GHOST_FILL).lerp(accentC, lifeK.current);
     beacon.current.emissiveIntensity = (0.45 + 0.55 * Math.abs(Math.sin(t * 2.1))) * (0.14 + 0.86 * lifeK.current);
+    // a light-band surges up the shaft while the tower is alive — energy rising
+    // to the crown; it hugs the taper as it climbs
+    if (surge.current && surgeMat.current) {
+      const p = reduced ? 0.5 : (t * 0.33) % 1;
+      const y = p * TOWER_H;
+      surge.current.position.y = y;
+      const r = rAt(y) / TOWER_R_BOT;
+      surge.current.scale.set(r, 1, r);
+      surgeMat.current.opacity = Math.sin(p * Math.PI) * 0.7 * lifeK.current;
+    }
   });
   return (
     <group position={position}>
@@ -619,6 +668,13 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
               </mesh>
             );
           })}
+        {/* a light-band that rises up the shaft while engaged (driven above) */}
+        <group ref={surge}>
+          <mesh>
+            <cylinderGeometry args={[TOWER_R_BOT + 0.008, TOWER_R_BOT + 0.008, 0.03, TOWER_SIDES, 1, true]} />
+            <meshStandardMaterial ref={surgeMat} color={accent} emissive={accent} emissiveIntensity={1.4} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} userData={{ lifeSkip: true }} />
+          </mesh>
+        </group>
         {/* crown: a short tapered mechanical cap (flat top), then a thin antenna
             mast + a slow-pulsing beacon — a tower crown, not a spike */}
         <mesh position={[0, TOWER_H + 0.05, 0]}>
