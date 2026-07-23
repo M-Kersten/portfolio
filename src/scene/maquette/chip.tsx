@@ -9,7 +9,7 @@ import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, type V3 } from './shared';
+import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
 import { GlassMat, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
@@ -125,7 +125,7 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
       tm.position.set(tx, 0.035 + yAtX(tx), 0.003);
       const fade = 1 - (i + 1) / (trailRefs.current.length + 1);
       tm.scale.setScalar(0.5 * fade);
-      (tm.material as MeshStandardMaterial).opacity = 0.7 * fade * on;
+      (tm.material as MeshStandardMaterial).opacity = FX.peak * fade * on;
     }
   });
 
@@ -469,9 +469,9 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
     // the scan-line sweeps the tracked cube, and its corners light in a chase —
     // the camera actively "reading" the hologram while it's up
     if (scanRef.current && scanMat.current) {
-      const sweep = reduced ? 0.5 : (t * 0.55) % 1;
+      const sweep = reduced ? 0.5 : (t * FX.loopSpeed) % 1;
       scanRef.current.position.y = -CAM_CUBE / 2 + sweep * CAM_CUBE;
-      scanMat.current.opacity = 0.5 * h * (reduced ? 1 : 0.55 + 0.45 * Math.sin(t * 9));
+      scanMat.current.opacity = FX.peak * h * (reduced ? 1 : 0.55 + 0.45 * Math.sin(t * 9));
     }
     const lead = reduced ? -1 : (t * 1.5) % corners.length;
     for (let i = 0; i < cornerMats.current.length; i++) {
@@ -626,16 +626,16 @@ function DiePulse() {
   const e = useRef(0);
   const N = 3;
   useFrame((s) => {
-    e.current += ((selected ? 1 : hovered ? 0.45 : 0) - e.current) * 0.05;
+    e.current += ((selected ? 1 : hovered ? 0.45 : 0) - e.current) * FX.engage;
     const t = s.clock.elapsedTime;
     for (let i = 0; i < N; i++) {
       const g = groups.current[i];
       const m = mats.current[i];
       if (!g || !m) continue;
-      const p = reduced ? 0.5 : (t * 0.42 + i / N) % 1;
+      const p = reduced ? 0.5 : (t * FX.loopSpeed + i / N) % 1;
       const scale = 0.54 + p * 0.5; // die edge → board edge
       g.scale.set(scale, scale, scale);
-      m.opacity = Math.sin(p * Math.PI) * 0.32 * e.current;
+      m.opacity = fxEnv(p) * FX.peak * e.current;
     }
   });
   return (

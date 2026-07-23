@@ -12,7 +12,7 @@ import { launchTrack, sceneStore, useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useLaunchCount } from '../../lib/launches';
 import { asset } from '../../lib/asset';
-import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
+import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, LiveGlassMat } from './materials';
 import { BlobShadow } from './backdrop';
@@ -106,7 +106,7 @@ function MillDust() {
     return Array.from({ length: 9 }, () => ({ x: (rnd() - 0.5) * 0.14, z: 0.16 + (rnd() - 0.5) * 0.12, ph: rnd(), spd: 0.35 + rnd() * 0.3, sway: rnd() * 6.28 }));
   }, []);
   useFrame((s) => {
-    glow.current += (((hovered || selected || visited) && !reduced ? 1 : 0) - glow.current) * 0.05;
+    glow.current += (((hovered || selected || visited) && !reduced ? 1 : 0) - glow.current) * FX.engage;
     const t = s.clock.elapsedTime;
     for (let i = 0; i < motes.length; i++) {
       const m = refs.current[i];
@@ -114,7 +114,7 @@ function MillDust() {
       if (!m) continue;
       const p = (t * d.spd + d.ph) % 1; // 0 at the spout → 1 at the ground
       m.position.set(d.x + Math.sin(t * 1.6 + d.sway) * 0.012, 0.16 - p * 0.15, d.z);
-      (m.material as MeshStandardMaterial).opacity = Math.sin(p * Math.PI) * 0.62 * glow.current;
+      (m.material as MeshStandardMaterial).opacity = fxEnv(p) * FX.peak * glow.current;
     }
   });
   return (
@@ -628,12 +628,12 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
     // a light-band surges up the shaft while the tower is alive — energy rising
     // to the crown; it hugs the taper as it climbs
     if (surge.current && surgeMat.current) {
-      const p = reduced ? 0.5 : (t * 0.33) % 1;
+      const p = reduced ? 0.5 : (t * FX.loopSpeed) % 1;
       const y = p * TOWER_H;
       surge.current.position.y = y;
       const r = rAt(y) / TOWER_R_BOT;
       surge.current.scale.set(r, 1, r);
-      surgeMat.current.opacity = Math.sin(p * Math.PI) * 0.7 * lifeK.current;
+      surgeMat.current.opacity = fxEnv(p) * FX.peak * lifeK.current;
     }
   });
   return (

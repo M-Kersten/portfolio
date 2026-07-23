@@ -8,7 +8,7 @@ import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { useTweak } from '../devTweak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { NEUTRAL, useAccent, circlePts, smoothCurve, roundedRectShape, roundedPlaneGeometry, Line, useActive, bounceObject, useOptionalTexture, type V3 } from './shared';
+import { NEUTRAL, useAccent, circlePts, smoothCurve, roundedRectShape, roundedPlaneGeometry, Line, useActive, bounceObject, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { GlassMat, LiveGlassMat, Accent, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
@@ -309,12 +309,12 @@ function CarTrail({ angle, color }: { angle: number; color: string }) {
     });
   }, [angle]);
   useFrame(() => {
-    glow.current += (((selected || visited) && !reduced ? 1 : 0) - glow.current) * 0.06;
+    glow.current += (((selected || visited) && !reduced ? 1 : 0) - glow.current) * FX.engage;
     for (let i = 0; i < beads.length; i++) {
       const m = mats.current[i];
       if (!m) continue;
       m.emissiveIntensity = beads[i].f * 1.7 * glow.current;
-      m.opacity = 0.85 * beads[i].f * glow.current;
+      m.opacity = FX.peak * beads[i].f * glow.current;
     }
   });
   return (
@@ -387,6 +387,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
 // up from nothing when active and holds still under reduced motion.
 function BrigadeSim() {
   const reduced = useReducedMotion();
+  const { accent } = useAccent();
   const { selected, visited } = useActive('virtuele-brigade');
   const grp = useRef<Group>(null);
   const m1 = useRef<Group>(null);
@@ -406,32 +407,32 @@ function BrigadeSim() {
     if (m1.current) m1.current.position.set(Math.cos(t * 0.9) * 0.08, 0.005, Math.sin(t * 0.9) * 0.08);
     if (m2.current) m2.current.position.set(Math.cos(-t * 0.6 + 2) * 0.05, 0.005, Math.sin(-t * 0.6 + 2) * 0.05);
     if (scanGrp.current && scanMat.current) {
-      const p = (t * 0.4) % 1;
+      const p = (t * FX.loopSpeed) % 1;
       const sc = 0.15 + p * 1.0;
       scanGrp.current.scale.set(sc, 1, sc);
-      scanMat.current.opacity = Math.sin(p * Math.PI) * 0.5;
+      scanMat.current.opacity = fxEnv(p) * FX.peak;
     }
   });
   return (
     <group ref={grp} position={[0, 0.85, -0.05]} visible={false}>
-      <Line points={circlePts(0.12)} rotation={[-Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.5} />
-      <Line points={circlePts(0.07)} rotation={[-Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.3} />
+      <Line points={circlePts(0.12)} rotation={[-Math.PI / 2, 0, 0]} color={accent} lineWidth={1} transparent opacity={0.5} />
+      <Line points={circlePts(0.07)} rotation={[-Math.PI / 2, 0, 0]} color={accent} lineWidth={1} transparent opacity={0.3} />
       <group ref={scanGrp} rotation={[-Math.PI / 2, 0, 0]}>
         <mesh>
           <ringGeometry args={[0.115, 0.12, 44]} />
-          <meshStandardMaterial ref={scanMat} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={1} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} />
+          <meshStandardMaterial ref={scanMat} color={accent} emissive={accent} emissiveIntensity={1} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} />
         </mesh>
       </group>
       <group ref={m1}>
         <mesh>
           <sphereGeometry args={[0.01, 8, 8]} />
-          <meshStandardMaterial color="#ff9068" emissive="#ff9068" emissiveIntensity={1.4} toneMapped={false} />
+          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.4} toneMapped={false} />
         </mesh>
       </group>
       <group ref={m2}>
         <mesh>
           <sphereGeometry args={[0.01, 8, 8]} />
-          <meshStandardMaterial color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={1.4} toneMapped={false} />
+          <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={1.2} toneMapped={false} />
         </mesh>
       </group>
     </group>
@@ -608,6 +609,7 @@ function BookHalf({ side, tex }: { side: -1 | 1; tex: Texture | null }) {
 // Zwijsen books are about, made literal; off under reduced motion.
 function BookAR({ slug }: { slug: string }) {
   const reduced = useReducedMotion();
+  const { accent } = useAccent();
   const { selected } = useActive(slug);
   const refs = useRef<(Group | null)[]>([]);
   const mats = useRef<(MeshStandardMaterial | null)[]>([]);
@@ -621,7 +623,7 @@ function BookAR({ slug }: { slug: string }) {
     [],
   );
   useFrame((s) => {
-    glow.current += ((selected && !reduced ? 1 : 0) - glow.current) * 0.06;
+    glow.current += ((selected && !reduced ? 1 : 0) - glow.current) * FX.engage;
     const t = s.clock.elapsedTime;
     for (let i = 0; i < items.length; i++) {
       const g = refs.current[i];
@@ -632,7 +634,7 @@ function BookAR({ slug }: { slug: string }) {
       g.position.set(it.x, 0.03 + p * 0.16, it.z); // rise off the page
       g.rotation.set(t * 0.5, t * 0.8 + it.ph * 6, 0);
       g.scale.setScalar(0.55 + 0.45 * Math.sin(p * Math.PI));
-      if (m) m.opacity = Math.sin(p * Math.PI) * 0.9 * glow.current;
+      if (m) m.opacity = fxEnv(p) * FX.peak * glow.current;
     }
   });
   return (
@@ -641,7 +643,7 @@ function BookAR({ slug }: { slug: string }) {
         <group key={i} ref={(r) => (refs.current[i] = r)}>
           <mesh>
             {it.kind === 0 ? <boxGeometry args={[0.026, 0.026, 0.026]} /> : it.kind === 1 ? <tetrahedronGeometry args={[0.021]} /> : <octahedronGeometry args={[0.02]} />}
-            <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={1.4} transparent opacity={0} wireframe toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
+            <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={accent} emissive={accent} emissiveIntensity={1.4} transparent opacity={0} wireframe toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
           </mesh>
         </group>
       ))}
