@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom
 import { Header } from '../components/Header';
 import { SceneCanvas } from '../components/SceneCanvas';
 import { IntroCard } from '../components/IntroCard';
+import { FocusReticle } from '../components/FocusReticle';
 import { HomeLayout } from '../components/HomeLayout';
 import { NodeHud } from '../components/NodeHud';
 import { CvPage } from '../components/CvPage';
@@ -26,6 +27,9 @@ function SiteChrome() {
       {import.meta.env.DEV && <NodeTweakPanel />}
       {import.meta.env.DEV && <WallTweakPanel />}
       <main id="main">
+        {/* inside <main> so it shares its stacking context with the dossier
+            (NodeHud) — the dossier (z 46) then sits above the vignette (z 42). */}
+        <FocusReticle />
         <Outlet />
       </main>
     </>

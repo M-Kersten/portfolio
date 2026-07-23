@@ -1,298 +1,224 @@
-/* The node HUD — a title caption pinned to the top of the view (over the 3D
-   node) plus the bottom dossier drawer (media left, project detail right). */
+/* The node focus view — a large circular reticle you look *through* at the woken
+   3D object (a round instrument window), with the case dossier in a column to the
+   right. The ring irises open as the camera zooms in and closes as it zooms out
+   (FocusReticle, driven by the selection); the dossier is the route-driven HUD. */
 
-/* ---------- Node HUD (bottom dossier drawer) ---------- */
+/* ---------- The porthole reticle (persistent, animates with the zoom) ---------- */
+.focus-reticle {
+  --cx: 37%;                 /* ring centre X — pushed left so the dossier has room */
+  --r: min(43vh, 38vw);      /* ring radius — kept large */
+  --d: calc(var(--r) * 2);
+  --fr-accent: var(--cyan);
+  position: fixed;
+  inset: 0;
+  z-index: 42;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s var(--ease);
+}
+.focus-reticle[data-open] { opacity: 1; }
+.focus-reticle[data-layer='city'] { --fr-accent: var(--cyan); }
+.focus-reticle[data-layer='room'] { --fr-accent: var(--coral); }
+.focus-reticle[data-layer='chip'] { --fr-accent: var(--lime); }
 
+/* the window: bright inside the ring, the rest washed down to paper so the
+   object reads as seen through a porthole */
+.focus-reticle__mask {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease);
+  background: radial-gradient(circle at var(--cx) 50%,
+    transparent calc(var(--r) - 1px),
+    color-mix(in srgb, var(--paper) 34%, transparent) calc(var(--r) + 1px),
+    color-mix(in srgb, var(--paper) 88%, transparent) calc(var(--r) + 7vh),
+    var(--paper) calc(var(--r) + 22vh));
+}
+.focus-reticle[data-open] .focus-reticle__mask { opacity: 1; }
+
+/* the reticle itself — sized to the ring's box, iris-scales in on open */
+.focus-reticle__svg {
+  position: absolute;
+  left: var(--cx);
+  top: 50%;
+  width: var(--d);
+  height: var(--d);
+  overflow: visible;
+  transform: translate(-50%, -50%) scale(0.7) rotate(-8deg);
+  opacity: 0;
+  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s var(--ease);
+}
+.focus-reticle[data-open] .focus-reticle__svg {
+  transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  opacity: 1;
+}
+.focus-reticle .fr-ring { fill: none; stroke: var(--fr-accent); stroke-width: 0.22; opacity: 0.9; }
+.focus-reticle .fr-ring2 { fill: none; stroke: var(--fr-accent); stroke-width: 0.1; opacity: 0.32; }
+.focus-reticle .fr-tick { stroke: var(--fr-accent); stroke-width: 0.2; }
+.focus-reticle .fr-tickmin { stroke: var(--fr-accent); stroke-width: 0.09; opacity: 0.5; }
+.focus-reticle .fr-cross line { stroke: var(--fr-accent); stroke-width: 0.13; opacity: 0.6; }
+/* a soft outer bloom on the ring */
+.focus-reticle .fr-glow { fill: none; stroke: var(--fr-accent); stroke-width: 1.2; opacity: 0.1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-reticle,
+  .focus-reticle__mask { transition: opacity 0.3s var(--ease); }
+  .focus-reticle__svg { transition: opacity 0.3s var(--ease); transform: translate(-50%, -50%); }
+  .focus-reticle[data-open] .focus-reticle__svg { transform: translate(-50%, -50%); }
+}
+
+/* ---------- The dossier (route-driven HUD, right column) ---------- */
 .node-hud {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 45;
-  height: 46svh;
-  min-height: 19rem;
-  display: grid;
-  grid-template-columns: minmax(18rem, 38%) 1fr;
-  gap: var(--space-l);
-  /* content tracks the site container gutter (like the caption above + the
-     hero name), so the dossier's left edge lines up with the logo instead of
-     sitting a fixed inset in from the viewport */
-  padding: var(--space-m) max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
-  /* translucent acrylic dossier, carrying the site's square-dot field so it
-     matches the focus card + section backgrounds */
-  background: var(--dots-faint),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
-    color-mix(in srgb, var(--paper) 80%, transparent);
-  background-size: 30px 30px, auto, auto;
-  border-top: 1px solid var(--line);
-  box-shadow: 0 -24px 64px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(20px) saturate(1.3);
-  /* Select boot — beat 2: the (empty) drawer rises into place only AFTER the
-     caption up top has finished decoding (Scramble runs ~0.7s), so the two never
-     animate at once; its content follows as beat 3 (see hud-content-in). */
-  animation: hud-rise 0.36s var(--ease) 0.85s both;
-}
-/* solid accent edge along the top of the drawer (per the project's layer) */
-.node-hud {
+  top: 50%;
+  transform: translateY(-50%);
+  left: calc(37% + min(43vh, 38vw) + var(--space-l));
+  right: var(--space-l);
+  z-index: 46;
+  max-height: 84svh;
+  display: flex;
+  flex-direction: column;
   --card-accent: var(--accent);
 }
 .node-hud[data-layer='city'] { --card-accent: var(--cyan); }
 .node-hud[data-layer='room'] { --card-accent: var(--coral); }
 .node-hud[data-layer='chip'] { --card-accent: var(--lime); }
-.node-hud::before {
-  content: '';
-  position: absolute;
-  inset: -1px 0 auto 0;
+
+/* content column scrolls, no visible scrollbar */
+.node-hud__col {
+  overflow: auto;
+  padding-right: 0.4rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* The dossier fades up once the reticle has opened (data-shown, set a frame
+     after mount so it survives re-renders), and clears fast on close so the
+     porthole irises shut cleanly behind it. */
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.45s var(--ease) 0.35s, transform 0.45s var(--ease) 0.35s;
 }
-@keyframes hud-rise {
-  from {
-    transform: translateY(100%);
-  }
+.node-hud[data-shown] .node-hud__col { opacity: 1; transform: none; }
+.node-hud[data-closing] .node-hud__col {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.26s var(--ease), transform 0.26s var(--ease);
 }
-/* Select boot — beat 3: the dossier contents (media, story column, close) fade
-   up together as ONE beat once the drawer has arrived — no internal stagger. */
-.node-hud__media,
-.node-hud__detail,
-.node-hud__close {
-  animation: hud-content-in 0.32s var(--ease) 1.25s both;
-}
-@keyframes hud-content-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
+.node-hud__col::-webkit-scrollbar { width: 0; height: 0; }
+/* the /projects focus card scrolls too — keep its scrollbar hidden (this used to
+   live in the shared rule that the porthole rewrite replaced) */
+.focus__card { scrollbar-width: none; -ms-overflow-style: none; }
+.focus__card::-webkit-scrollbar { width: 0; height: 0; }
 @media (prefers-reduced-motion: reduce) {
-  .node-hud,
-  .node-hud__caption,
-  .node-hud__media,
-  .node-hud__detail,
-  .node-hud__close {
-    animation: none;
-  }
+  .node-hud__col { transition: opacity 0.3s var(--ease); transform: none; }
 }
+
 .node-hud__close {
   position: absolute;
-  top: var(--space-s);
-  right: var(--space-s);
+  top: -0.4rem;
+  right: 0;
   z-index: 2;
   width: 2.4rem;
   height: 2.4rem;
-  border-radius: var(--radius-s);
+  border-radius: 50%;
   border: 1px solid var(--line);
-  background: var(--paper-2);
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
+  backdrop-filter: blur(6px);
   color: var(--ink);
   cursor: pointer;
-  font-size: 1.05rem;
-}
-.node-hud__close:hover {
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
-
-/* Title caption — lifted out of the drawer and pinned to the top of the view,
-   over the live 3D node, so the drawer keeps all its room for the media + story.
-   Left edge tracks the site container's gutter, like the hero name. Decorative
-   over the scene, so it never captures clicks. */
-.node-hud__caption {
-  position: fixed;
-  z-index: 44;
-  top: calc(var(--header-h) + var(--space-s));
-  left: max(0px, calc((100vw - var(--container)) / 2));
-  max-width: min(42rem, 100vw);
-  padding-inline: var(--space-m);
-  pointer-events: none;
-  --card-accent: var(--accent);
-  /* Select boot — beat 1: the title caption decodes in first (Scramble on the
-     title, same delay), before the drawer rises below. */
-  animation: caption-in 0.45s var(--ease) 0.12s both;
-}
-.node-hud__caption[data-layer='city'] { --card-accent: var(--cyan); }
-.node-hud__caption[data-layer='room'] { --card-accent: var(--coral); }
-.node-hud__caption[data-layer='chip'] { --card-accent: var(--lime); }
-/* legible over the moving 3D behind it */
-.node-hud__caption .node-hud__meta {
-  color: color-mix(in srgb, var(--ink) 78%, transparent);
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.9);
-}
-.node-hud__caption .node-hud__title {
-  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.9), 0 1px 3px rgba(0, 0, 0, 0.92);
-}
-.node-hud__caption .node-hud__outcome {
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.88);
-}
-@keyframes caption-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-}
-
-/* media (left column) */
-.node-hud__media {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-  object-fit: cover;
-  background: #06080a;
-}
-.node-hud__media--empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  color: var(--ink-40);
-  background: radial-gradient(120% 100% at 50% 38%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
-    #06080a;
-}
-.node-hud__play {
-  width: 3.4rem;
-  height: 3.4rem;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line));
-  color: var(--accent-ink);
   font-size: 1rem;
-  padding-left: 0.2rem;
 }
-.node-hud__mediahint {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-/* An embedded YouTube player filling the media slot. */
-.node-hud__media--video {
-  position: relative;
-  overflow: hidden;
-  background: #06080a;
-}
-.node-hud__media--video iframe {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-.node-hud__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-s);
-  align-items: center;
-  margin-top: 0.2em;
-}
+.node-hud__close:hover { border-color: var(--card-accent); color: var(--accent-ink); }
 
-/* detail (right column) */
-.node-hud__detail {
-  min-width: 0;
-  overflow: auto;
-  padding-right: var(--space-s);
-}
-
-/* The overlay views (node HUD + case popup) scroll, but without a visible
-   scrollbar — it reads cleaner over the frozen page behind them. */
-.node-hud,
-.node-hud__detail,
-.focus__card {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* legacy Edge */
-}
-.node-hud::-webkit-scrollbar,
-.node-hud__detail::-webkit-scrollbar,
-.focus__card::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
 .node-hud__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4em 1em;
+  gap: 0.35em 0.9em;
   align-items: center;
   font-family: var(--font-mono);
   font-size: var(--step--1);
   color: var(--ink-60);
   margin-bottom: var(--space-2xs);
 }
-.node-hud__layer {
-  color: var(--card-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-.node-hud__title {
-  font-size: var(--step-2);
-  margin: 0;
-}
+.node-hud__layer { color: var(--card-accent); text-transform: uppercase; letter-spacing: 0.1em; }
+.node-hud__title { font-size: var(--step-2); margin: 0; letter-spacing: -0.02em; }
 .node-hud__outcome {
   font-family: var(--font-display);
   color: var(--accent-ink);
   font-size: var(--step-0);
-  margin: var(--space-2xs) 0 0; /* last line of the title caption */
+  margin: var(--space-2xs) 0 var(--space-s);
 }
-/* The story block (see base.css) gets breathing room before the tech chips. */
-.node-hud__story {
-  margin-bottom: var(--space-m);
+
+.node-hud__media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 30svh;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: #06080a;
+  margin-bottom: var(--space-s);
 }
-.node-hud__tech {
+.node-hud__media--empty {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35em;
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--space-s);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--ink-40);
+  background: radial-gradient(120% 100% at 50% 40%, color-mix(in srgb, var(--card-accent) 12%, transparent), transparent 70%), #06080a;
+}
+.node-hud__play {
+  width: 3rem; height: 3rem; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 50%, var(--line));
+  color: var(--accent-ink); padding-left: 0.15rem;
+}
+.node-hud__mediahint { font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: 0.12em; text-transform: uppercase; }
+.node-hud__media--video { position: relative; overflow: hidden; height: auto; }
+.node-hud__media--video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+.node-hud__story { margin-bottom: var(--space-m); }
+.node-hud__tech {
+  display: flex; flex-wrap: wrap; gap: 0.35em; list-style: none; padding: 0; margin: 0 0 var(--space-s);
 }
 .node-hud__tech li {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.04em;
-  color: var(--accent-ink);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-  border-radius: var(--radius-s);
-  padding: 0.15em 0.5em;
+  font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; color: var(--accent-ink);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 30%, var(--line)); border-radius: var(--radius-s); padding: 0.15em 0.5em;
 }
-.node-hud__discuss {
-  display: inline-flex;
-}
-.node-hud .story-links {
-  margin-top: var(--space-m);
-  padding-bottom: var(--space-s);
+.node-hud__actions { display: flex; flex-wrap: wrap; gap: var(--space-s); align-items: center; margin-top: 0.2em; }
+.node-hud__discuss { display: inline-flex; }
+.node-hud .story-links { margin-top: var(--space-m); padding-bottom: var(--space-s); }
+
+/* narrow desktops: don't let the column get too tight against a big ring */
+@media (max-width: 1120px) and (min-width: 761px) {
+  .focus-reticle { --cx: 34%; --r: min(42vh, 33vw); }
+  .node-hud { left: calc(34% + min(42vh, 33vw) + var(--space-m)); }
 }
 
+/* ---------- Mobile: ring up top, dossier scrolls beneath ---------- */
 @media (max-width: 760px) {
-  /* The caption stays at the very top over the node (compact so it doesn't crowd
-     it); the drawer is a peek sheet — a media banner on top, the detail scrolling
-     beneath — leaving the node visible between the two. */
-  .node-hud__caption {
-    top: calc(var(--header-h) + var(--space-2xs));
-    max-width: calc(100vw - 2 * var(--space-m));
+  .focus-reticle { --cx: 50%; --r: min(30vh, 44vw); }
+  .focus-reticle__mask {
+    background: radial-gradient(circle at 50% var(--r), transparent calc(var(--r) - 1px),
+      color-mix(in srgb, var(--paper) 80%, transparent) calc(var(--r) + 5vh), var(--paper) calc(var(--r) + 16vh));
   }
-  .node-hud__caption .node-hud__title {
-    font-size: var(--step-1);
-  }
-  .node-hud__caption .node-hud__outcome {
-    font-size: var(--step-0);
-  }
+  .focus-reticle__svg { top: var(--r); }
   .node-hud {
-    height: 54svh;
-    min-height: 20rem;
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: var(--space-s);
-    padding: var(--space-s) var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
+    top: auto;
+    bottom: 0;
+    transform: none;
+    left: 0;
+    right: 0;
+    max-height: calc(100svh - 2 * var(--r) - var(--header-h));
+    padding: 0 var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
   }
-  .node-hud__media {
-    height: auto;
-    aspect-ratio: 16 / 9;
-    max-height: 20svh;
-    flex: none;
+  .node-hud__close {
+    position: fixed;
+    top: calc(var(--header-h) + var(--space-xs));
+    left: var(--space-m);
+    right: auto;
+    z-index: 48;
   }
-  .node-hud__detail {
-    overflow: auto; /* media stays pinned on top; the story scrolls under it */
-    min-height: 0;
-    padding-right: 0;
+  .node-hud__col {
+    background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--paper) 70%, transparent) 12%);
   }
 }
-

@@ -14,6 +14,14 @@ import { isMobileViewport } from '../lib/isMobile';
 // shot to the City overview takes (seconds). Timed off the shared boot clock.
 const INTRO_DUR = 3.2;
 
+// Porthole focus: on desktop the woken object is framed inside the reticle ring,
+// which sits left of centre so the dossier clears on the right. LIFT raises the
+// AIM to the object (centring it vertically); OFFSET pans the projection left via
+// setViewOffset (moving the object across the frame without changing the camera,
+// so the framing angle is preserved). Both animate in with the zoom.
+const PORTHOLE_LIFT = 1.0;
+const PORTHOLE_OFFSET = 0.14;
+
 export function CameraRig() {
   const camera = useThree((s) => s.camera);
   const invalidate = useThree((s) => s.invalidate);
@@ -35,6 +43,7 @@ export function CameraRig() {
   const target = useRef(new Vector3().copy(journeyView(0).target));
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
+  const focusAmt = useRef(0); // 0 overview → 1 zoomed on a node (drives the porthole view-offset)
   // Reduced motion and phones skip the dolly — straight to the City overview.
   const introDone = useRef(reduced || isMobileViewport());
   const skipIntro = useRef(false); // any scroll / tap / key cancels the intro
@@ -73,6 +82,21 @@ export function CameraRig() {
     // part of the camera's actual path, so it can't accumulate or steer.
     camera.position.sub(shakeOff.current);
     shakeOff.current.set(0, 0, 0);
+
+    // ---- Porthole focus offset: pan the projection left so the woken node sits
+    // in the reticle (dossier clear on the right). setViewOffset moves the image
+    // without moving the camera; the per-frame FOV updates below preserve it.
+    // Desktop only; eases in and out with the zoom.
+    const wantFocus = !!selectedSlug && launch === 'idle' && size.width >= size.height;
+    focusAmt.current += ((wantFocus ? 1 : 0) - focusAmt.current) * (reduced ? 1 : 1 - Math.exp(-6 * dt));
+    const pcam = camera as PerspectiveCamera;
+    if (pcam.isPerspectiveCamera) {
+      if (focusAmt.current > 0.001) {
+        pcam.setViewOffset(size.width, size.height, PORTHOLE_OFFSET * size.width * focusAmt.current, 0, size.width, size.height);
+      } else if (pcam.view?.enabled) {
+        pcam.clearViewOffset();
+      }
+    }
 
     // ---- Load intro: a slow dolly-in from a wide establishing shot into the
     // City overview, timed off the shared boot clock so it plays after the hero
@@ -194,6 +218,11 @@ export function CameraRig() {
     // matching amount so the node keeps its framing — the wider FOV then only
     // warps perspective, it doesn't throw the subject around the frame.
     if (hotspot) off.multiplyScalar(Math.tan((baseFov / 2) * DEG) / Math.tan((wantFov / 2) * DEG));
+
+    // Porthole focus (desktop): raise the AIM to the object so it sits centred
+    // (vertically) in the reticle; the horizontal slide is done with the camera
+    // view-offset up top. The camera position is untouched, so the angle holds.
+    if (hotspot && aspect >= 1) desiredTarget.current.y += view!.aimDown * PORTHOLE_LIFT;
 
     if (!reduced) {
       // Once a node has settled (nodeOrbitDelay), a slow pan eases in over
