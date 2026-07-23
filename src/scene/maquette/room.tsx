@@ -291,8 +291,47 @@ function RaceCar({ color }: { color: string }) {
   );
 }
 
+// A fading comet-tail behind a car — a string of beads on the race circle,
+// brightest at the car and dying out behind it. Only lit while the table is
+// alive (selected/visited) and moving, so a dormant or reduced-motion table
+// shows no streaks. Lives inside the rotating ring, so it trails its car.
+const TRAIL_R = 0.2;
+function CarTrail({ angle, color }: { angle: number; color: string }) {
+  const reduced = useReducedMotion();
+  const { selected, visited } = useActive('lightship-drive');
+  const glow = useRef(0);
+  const mats = useRef<(MeshStandardMaterial | null)[]>([]);
+  const beads = useMemo(() => {
+    const N = 7;
+    return Array.from({ length: N }, (_, i) => {
+      const a = angle - (i + 1) * 0.14; // step back along the circle, behind the car
+      return { p: [TRAIL_R * Math.cos(a), 0, TRAIL_R * Math.sin(a)] as V3, f: 1 - i / N, r: 0.007 * (1 - i * 0.09) };
+    });
+  }, [angle]);
+  useFrame(() => {
+    glow.current += (((selected || visited) && !reduced ? 1 : 0) - glow.current) * 0.06;
+    for (let i = 0; i < beads.length; i++) {
+      const m = mats.current[i];
+      if (!m) continue;
+      m.emissiveIntensity = beads[i].f * 1.7 * glow.current;
+      m.opacity = 0.85 * beads[i].f * glow.current;
+    }
+  });
+  return (
+    <group>
+      {beads.map((b, i) => (
+        <mesh key={i} position={b.p}>
+          <sphereGeometry args={[b.r, 8, 8]} />
+          <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={color} emissive={color} emissiveIntensity={0} transparent opacity={0} toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /** Coffee table with an AR race loop and two cars (Lightship Drive). The cars
- *  ride a circle, simply rotating around the table's centre pivot. */
+ *  ride a circle, simply rotating around the table's centre pivot, each trailing
+ *  a light-streak while the table is alive. */
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
@@ -334,6 +373,8 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
           <group position={[-R, 0, 0]}>
             <RaceCar color="#9fb6c6" />
           </group>
+          <CarTrail angle={0} color="#ff9068" />
+          <CarTrail angle={Math.PI} color="#9fb6c6" />
         </group>
       </group>
     </group>
