@@ -4,11 +4,18 @@
    place like a camera acquiring focus — and unlocks as it zooms back out
    (FocusReticle, driven by the selection); the dossier is the route-driven HUD. */
 
+/* Porthole geometry, hoisted to :root so the reticle, the dossier's clear-margin
+   and the meta pills all read the same centre + radius across breakpoints. */
+:root {
+  --fr-cx: 30%;              /* ring centre X — pushed left so the dossier has room */
+  --fr-r: 56vh;             /* radius > half the viewport, so the ring spills off the
+                                top/bottom/left edges — you look THROUGH it, arcs only */
+}
+
 /* ---------- The porthole reticle (persistent, animates with the zoom) ---------- */
 .focus-reticle {
-  --cx: 30%;                 /* ring centre X — pushed left so the dossier has room */
-  --r: 56vh;                 /* radius > half the viewport, so the ring spills off the
-                                top/bottom/left edges — you look THROUGH it, arcs only */
+  --cx: var(--fr-cx);
+  --r: var(--fr-r);
   --d: calc(var(--r) * 2);
   --fr-accent: var(--cyan);
   position: fixed;
@@ -79,10 +86,12 @@
   position: fixed;
   top: 50%;
   transform: translateY(-50%);
-  left: calc(30% + 56vh + var(--space-l)); /* clears the ring's visible right arc */
+  left: calc(var(--fr-cx) + var(--fr-r) + var(--space-l)); /* clears the ring's visible right arc */
   right: var(--space-l);
-  z-index: 52; /* above the reticle (51) and the fixed header (50) */
-  max-height: 84svh;
+  z-index: 52; /* above the fixed header (50); the reticle (42) sits behind it */
+  /* centred on the porthole, but capped so the top (now the title) always clears
+     the header by a gap — on short viewports 84svh would slide up under it */
+  max-height: calc(100svh - 2 * (var(--header-h) + var(--space-s)));
   display: flex;
   flex-direction: column;
   --card-accent: var(--accent);
@@ -138,17 +147,57 @@
 }
 .node-hud__close:hover { border-color: var(--card-accent); color: var(--accent-ink); }
 
-.node-hud__meta {
+/* ---------- Meta pills — a row at the bottom, centred under the porthole ---------- */
+.node-hud__tags {
+  position: fixed;
+  bottom: var(--space-l);
+  left: var(--fr-cx);
+  transform: translateX(-50%);
+  z-index: 52; /* the dossier plane — above the reticle; well clear of the header */
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35em 0.9em;
+  justify-content: center;
   align-items: center;
+  gap: 0.5em;
+  max-width: min(90vw, 42rem);
+  pointer-events: none; /* labels, not controls — never block the scene behind */
+  --card-accent: var(--accent);
+  /* fade up once the reticle has locked on, in step with the dossier column */
+  opacity: 0;
+  transition: opacity 0.5s var(--ease) 0.35s;
+}
+.node-hud__tags[data-shown] { opacity: 1; }
+.node-hud__tags[data-closing] { opacity: 0; transition: opacity 0.24s var(--ease); }
+.node-hud__tags[data-layer='city'] { --card-accent: var(--cyan); }
+.node-hud__tags[data-layer='room'] { --card-accent: var(--coral); }
+.node-hud__tags[data-layer='chip'] { --card-accent: var(--lime); }
+@media (prefers-reduced-motion: reduce) {
+  .node-hud__tags { transition: opacity 0.3s var(--ease); }
+}
+
+/* glass capsules in the site's chip idiom: mono, hairline border, blurred paper fill */
+.node-hud__pill {
   font-family: var(--font-mono);
   font-size: var(--step--1);
+  letter-spacing: 0.05em;
   color: var(--ink-60);
-  margin-bottom: var(--space-2xs);
+  padding: 0.4em 0.9em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 66%, transparent);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
 }
-.node-hud__layer { color: var(--card-accent); text-transform: uppercase; letter-spacing: 0.1em; }
+.node-hud__pill--layer {
+  color: var(--card-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  border-color: color-mix(in srgb, var(--card-accent) 45%, var(--line));
+}
+.node-hud__pill--flag {
+  color: var(--card-accent);
+  border-color: color-mix(in srgb, var(--card-accent) 40%, var(--line));
+}
 .node-hud__title { font-size: var(--step-2); margin: 0; letter-spacing: -0.02em; }
 .node-hud__outcome {
   font-family: var(--font-display);
@@ -199,25 +248,30 @@
 
 /* narrow desktops: don't let the column get too tight against a big ring */
 @media (max-width: 1120px) and (min-width: 761px) {
-  .focus-reticle { --cx: 24%; --r: 46vh; }
-  .node-hud { left: calc(24% + 46vh + var(--space-m)); }
+  :root { --fr-cx: 24%; --fr-r: 46vh; }
+  .node-hud { left: calc(var(--fr-cx) + var(--fr-r) + var(--space-m)); }
 }
 
 /* ---------- Mobile: ring up top, dossier scrolls beneath ---------- */
 @media (max-width: 760px) {
-  .focus-reticle { --cx: 50%; --r: min(30vh, 44vw); }
+  :root { --fr-cx: 50%; --fr-r: min(30vh, 44vw); }
   .focus-reticle__mask {
     background: radial-gradient(circle at 50% var(--r), transparent calc(var(--r) - 1px),
       color-mix(in srgb, var(--paper) 80%, transparent) calc(var(--r) + 5vh), var(--paper) calc(var(--r) + 16vh));
   }
   .focus-reticle__svg { top: var(--r); }
+  /* the sheet owns the bottom on mobile — sit the pills up under the ring instead */
+  .node-hud__tags {
+    bottom: auto;
+    top: calc(var(--header-h) + var(--space-xs));
+  }
   .node-hud {
     top: auto;
     bottom: 0;
     transform: none;
     left: 0;
     right: 0;
-    max-height: calc(100svh - 2 * var(--r) - var(--header-h));
+    max-height: calc(100svh - 2 * var(--fr-r) - var(--header-h));
     padding: 0 var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
   }
   .node-hud__close {

@@ -113,11 +113,7 @@ export function NodeHud() {
 
   if (!study) return <Navigate to="/" replace />;
 
-  // Portaled to <body> so the dossier layers above the fixed header (it lives
-  // deep inside <main>, a z-index:1 stacking context that would otherwise trap
-  // it under the header). React context (router, focus) still flows through the
-  // component tree, so routing and the focus trap are unaffected.
-  return createPortal(
+  const dossier = (
     <aside
       ref={hudRef}
       className="node-hud"
@@ -126,20 +122,13 @@ export function NodeHud() {
       data-closing={closing || undefined}
       role="dialog"
       aria-modal="true"
-      aria-label={`${study.title} — ${study.outcome}`}
+      aria-label={`${LAYER_LABEL[study.layer]} — ${study.title} — ${study.outcome}`}
     >
       <button ref={closeRef} type="button" className="node-hud__close" onClick={close} aria-label="Close node">
         <span aria-hidden="true">✕</span>
       </button>
 
       <div className="node-hud__col">
-        <div className="node-hud__meta">
-          <span className="node-hud__layer">{LAYER_LABEL[study.layer]}</span>
-          <span>{study.sector}</span>
-          <span>{study.client}</span>
-          {study.live && <span className="case-card__live">Live</span>}
-          {study.draft && <span className="modal__draft">Sample</span>}
-        </div>
         {/* keyed by slug so it re-decodes on a story-link jump */}
         <h2 className="node-hud__title">
           <Scramble key={study.slug} text={study.title} delay={120} wrap />
@@ -190,7 +179,33 @@ export function NodeHud() {
         {/* Walk the storyline without leaving the HUD — the camera flies along. */}
         <StoryLinks study={study} onJump={(s) => navigate(`/work/${s}`)} />
       </div>
-    </aside>,
+    </aside>
+  );
+
+  // Both portal to <body>: the dossier layers above the fixed header (it lives
+  // deep inside <main>, a z-index:1 stacking context that would otherwise trap
+  // it there); the meta pills sit at the bottom, centred under the porthole.
+  // React context (router, focus) still flows through the component tree, so
+  // routing and the focus trap are unaffected.
+  return createPortal(
+    <>
+      {/* Meta tags, pulled out of the dossier top (they crowded the header) and
+          set as pills at the bottom-left, centred under the porthole ring. */}
+      <div
+        className="node-hud__tags"
+        data-layer={study.layer}
+        data-shown={shown || undefined}
+        data-closing={closing || undefined}
+        aria-hidden="true"
+      >
+        <span className="node-hud__pill node-hud__pill--layer">{LAYER_LABEL[study.layer]}</span>
+        {study.sector && <span className="node-hud__pill">{study.sector}</span>}
+        {study.client && <span className="node-hud__pill">{study.client}</span>}
+        {study.live && <span className="node-hud__pill node-hud__pill--flag">Live</span>}
+        {study.draft && <span className="node-hud__pill node-hud__pill--flag">Sample</span>}
+      </div>
+      {dossier}
+    </>,
     document.body,
   );
 }
