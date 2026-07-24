@@ -3,8 +3,8 @@
 // colour. LifeGroup does the material lerp for everything inside it;
 // EmissiveHover is the glowing-accent variant for screens/lights.
 import { useMemo, useRef, type ReactNode } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { AdditiveBlending, CanvasTexture, Color, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, type Group, type Material, type Mesh } from 'three';
+import { useFrame } from '@react-three/fiber';
+import { Color, MeshStandardMaterial, type Group, type Material, type Mesh } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useAccent, useActive, bounceObject, type V3 } from './shared';
 
@@ -170,101 +170,6 @@ export function EmissiveHover({ slug, position, rotation, args, color, liveColor
   );
 }
 
-/** A soft radial "wave" texture — transparent at the centre, brightest in an
- *  outer band (the wavefront), fading to nothing at the rim. Scaled up over time
- *  it reads as a soft expanding wave rather than a clean-edged ring. The layer
- *  tint is baked in, lifted toward white so it's caught light, not a colour gel.
- *  Cached (three tints total). */
-const waveCache = new Map<string, CanvasTexture>();
-function waveTexture(tint: string): CanvasTexture {
-  const cached = waveCache.get(tint);
-  if (cached) return cached;
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const ctx = c.getContext('2d');
-  if (ctx) {
-    const col = new Color(tint).lerp(new Color('#ffffff'), 0.3);
-    const r = Math.round(col.r * 255);
-    const g = Math.round(col.g * 255);
-    const b = Math.round(col.b * 255);
-    const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    // faint at the centre, swelling to a soft peak in the outer band, gone by the
-    // rim — a diffuse wavefront that fades toward the centre (no hard outline)
-    grad.addColorStop(0.0, `rgba(${r},${g},${b},0)`);
-    grad.addColorStop(0.42, `rgba(${r},${g},${b},0.04)`);
-    grad.addColorStop(0.66, `rgba(${r},${g},${b},0.22)`);
-    grad.addColorStop(0.84, `rgba(${r},${g},${b},0.68)`);
-    grad.addColorStop(0.93, `rgba(${r},${g},${b},0.3)`);
-    grad.addColorStop(1.0, `rgba(${r},${g},${b},0)`);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 128, 128);
-  }
-  const tex = new CanvasTexture(c);
-  waveCache.set(tint, tex);
-  return tex;
-}
-
-/** The power-on wave — the visible "it just switched on" pulse. The first time an
- *  object comes alive (the rising edge of selected/visited, i.e. the same
- *  ghost→alive moment LifeGroup glitches through), a soft wavefront (a gentle
- *  ripple of two) swells outward from its anchor and dissolves — diffuse and
- *  fading toward the centre, not a clean ring. Camera-facing so it reads from the
- *  three-quarter view; one-shot per object per session; skipped under reduced
- *  motion. The composition root places one at each hotspot's local anchor. */
-const RING_DUR = 0.72; // seconds for one wave to swell + dissolve
-const RING_N = 2; // a gentle ripple of this many soft waves
-const RING_STAGGER = 0.2; // seconds between the two
-const RING_TOTAL = RING_DUR + (RING_N - 1) * RING_STAGGER;
-export function PowerRing({ slug, anchor, color }: { slug: string; anchor: V3; color: string }) {
-  const { selected, visited } = useActive(slug);
-  const reduced = useReducedMotion();
-  const camera = useThree((s) => s.camera);
-  const meshes = useRef<(Mesh | null)[]>([]);
-  const mats = useRef<(MeshBasicMaterial | null)[]>([]);
-  const born = useRef(false);
-  const t = useRef(-1); // <0 = idle; else seconds into the wave
-  const tex = useMemo(() => waveTexture(color), [color]);
-  useFrame((_, delta) => {
-    if (reduced) return;
-    if ((selected || visited) && !born.current) {
-      born.current = true;
-      t.current = 0; // rising edge → fire the wave once
-    }
-    if (t.current < 0) return; // idle: nothing to draw
-    t.current += Math.min(delta, 1 / 30);
-    for (let i = 0; i < RING_N; i++) {
-      const m = meshes.current[i];
-      if (!m) continue;
-      const p = (t.current - i * RING_STAGGER) / RING_DUR; // this wave's own phase
-      if (p < 0 || p >= 1) {
-        m.visible = false; // not started yet, or already dissolved
-        continue;
-      }
-      const e = 1 - Math.pow(1 - p, 3); // ease-out expansion
-      m.scale.setScalar(0.16 + e * 1.0); // swells outward past the object edge
-      m.quaternion.copy(camera.quaternion); // billboard toward the camera
-      m.visible = true;
-      const mat = mats.current[i];
-      // soft in-and-out (sine) so it never snaps on; kept low so it's a whisper,
-      // trailing wave fainter still
-      if (mat) mat.opacity = Math.sin(Math.PI * p) * 0.5 * (1 - i * 0.35);
-    }
-    if (t.current >= RING_TOTAL) {
-      t.current = -1; // one-shot: back to rest
-      for (const m of meshes.current) if (m) m.visible = false;
-    }
-  });
-  return (
-    <group position={anchor}>
-      {Array.from({ length: RING_N }, (_, i) => (
-        <mesh key={i} ref={(m) => { meshes.current[i] = m; }} visible={false} renderOrder={4}>
-          <circleGeometry args={[1, 48]} />
-          <meshBasicMaterial ref={(m) => { mats.current[i] = m; }} map={tex} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} fog={false} side={DoubleSide} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
 
 /** The phone on the couch (Popcore). It buzzes on hover; on *select* it lifts
  *  off the cushion and rotates to face you, and the first time you open it a

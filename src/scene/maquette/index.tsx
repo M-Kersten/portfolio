@@ -12,7 +12,6 @@ import { useSceneSelector, bootAt, MAQUETTE_BOOT } from '../store';
 import { AccentCtx, PALETTE } from './shared';
 import { DotFloor, PointCloud, DepthVeil, HoloFloor } from './backdrop';
 import { PresenceGroup } from './presence';
-import { PowerRing } from './life';
 import { CityRig } from './city';
 import { RoomRig } from './room';
 import { ChipRig } from './chip';
@@ -146,13 +145,6 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
                 spots.map((h) => (
                   <HotspotMarker key={h.slug} hotspot={h} color={PALETTE[id].accent} onActivate={onActivate} hidden={!!selectedSlug || launching} />
                 ))}
-              {/* Power-on rings — one per hotspot, at its anchor. Ungated by the
-                  active layer / near cull so the pulse fires wherever an object
-                  first comes alive (a deep link can wake one off-screen). Rests
-                  invisible; see PowerRing. */}
-              {spots.map((h) => (
-                <PowerRing key={`ring-${h.slug}`} slug={h.slug} anchor={h.anchor ?? h.position} color={PALETTE[id].accent} />
-              ))}
             </group>
           </AccentCtx.Provider>
         );
