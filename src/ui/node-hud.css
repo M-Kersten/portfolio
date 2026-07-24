@@ -266,13 +266,8 @@
       color-mix(in srgb, var(--paper) 74%, transparent) calc(var(--r) + 12vh),
       color-mix(in srgb, var(--paper) 94%, transparent) calc(var(--r) + 30vh));
   }
-  /* meta pills: a caption row centred just under the porthole, above the sheet */
-  .node-hud__tags {
-    top: auto;
-    bottom: calc(46svh + var(--space-xs));
-    left: 50%;
-    max-width: 92vw;
-  }
+  /* the meta pills are desktop-only — the sheet's own header carries the context */
+  .node-hud__tags { display: none; }
   .node-hud {
     top: auto;
     bottom: 0;
