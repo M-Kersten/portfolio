@@ -28,6 +28,9 @@
   transition: opacity 0.45s var(--ease);
 }
 .focus-reticle[data-open] { opacity: 1; }
+/* during an acquire the fade is the animation's own (a crisp materialise on the
+   target), so the container shows instantly — it still fades out on close */
+.focus-reticle[data-fly] { transition-duration: 0s; }
 .focus-reticle[data-layer='city'] { --fr-accent: var(--cyan); }
 .focus-reticle[data-layer='room'] { --fr-accent: var(--coral); }
 .focus-reticle[data-layer='chip'] { --fr-accent: var(--lime); }
@@ -48,16 +51,13 @@
     color-mix(in srgb, var(--paper) 66%, transparent) calc(var(--r) + 14vh),
     color-mix(in srgb, var(--paper) 90%, transparent) calc(var(--r) + 38vh));
 }
-/* the vignette belongs to the LOCKED frame (ring at centre), so it holds off
-   while the reticle is still snapped on the target out in the scene */
-.focus-reticle[data-open]:not([data-acquiring]) .focus-reticle__mask { opacity: 1; }
+.focus-reticle[data-open] .focus-reticle__mask { opacity: 1; }
+/* the vignette belongs to the LOCKED frame, so during a fly-in it holds off
+   through the acquire beats and washes in as the ring travels home */
+.focus-reticle[data-fly] .focus-reticle__mask { transition-delay: 0.42s; }
 
-/* the reticle itself — sized to the ring's box. It ACQUIRES the target: snapped
-   small ONTO the object where it currently sits (data-acquiring, transition
-   suppressed), then released to fly to the porthole centre, growing and rotating
-   level into a lock. The ~0.9s ease-out tracks the camera's zoom glide (position
-   lerp ~1 - e^-3.4t) so the ring and the dolly-in move as one, like a lens finding
-   focus. The container's opacity (data-open) fades the whole thing in and out. */
+/* the reticle itself — sized to the ring's box; at rest it simply sits at the
+   porthole centre, locked (this is also the reduced-motion / off-screen state). */
 .focus-reticle__svg {
   position: absolute;
   left: var(--fr-cx);
@@ -66,14 +66,51 @@
   height: var(--d);
   overflow: visible;
   transform: translate(-50%, -50%) scale(1) rotate(0deg);
-  transition: left 0.9s cubic-bezier(0.16, 0.84, 0.3, 1), top 0.9s cubic-bezier(0.16, 0.84, 0.3, 1),
-    transform 0.9s cubic-bezier(0.16, 0.84, 0.3, 1);
 }
-.focus-reticle[data-acquiring] .focus-reticle__svg {
-  left: var(--sx, var(--fr-cx));
-  top: var(--sy, var(--fr-cy));
-  transform: translate(-50%, -50%) scale(0.22) rotate(-62deg);
-  transition: none; /* snap onto the target, then release to fly in */
+
+/* The acquire — a camera finding its target, in three beats:
+   1. it materialises wide and turned OVER the object, out where it actually sits,
+      and contracts onto it (the viewfinder catching focus);
+   2. a brief hold, locked small on the target — the "got it" beat;
+   3. it pushes in: travelling to the porthole centre while rotating level and
+      growing to the full ring, tracking the camera's own zoom glide.
+   Replayed per selection (the SVG is keyed by slug, so it remounts). */
+@keyframes fr-acquire {
+  0% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.62) rotate(-104deg);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  9% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.33) rotate(-88deg);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.3, 0.8, 0.3, 1);
+  }
+  18% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.19) rotate(-76deg);
+    animation-timing-function: linear;
+  }
+  /* the hold — sitting on the target, barely breathing */
+  28% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.2) rotate(-72deg);
+    animation-timing-function: cubic-bezier(0.45, 0.02, 0.2, 1);
+  }
+  100% {
+    left: var(--fr-cx);
+    top: var(--fr-cy);
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+}
+.focus-reticle[data-fly] .focus-reticle__svg {
+  animation: fr-acquire 1.55s both;
 }
 /* a clean hairline rim, a soft outer bloom, and a ring of short ticks whose sweep
    makes the lock-on rotation read — a camera viewfinder, not a busy gauge */
@@ -84,9 +121,10 @@
 @media (prefers-reduced-motion: reduce) {
   .focus-reticle,
   .focus-reticle__mask { transition: opacity 0.3s var(--ease); }
-  /* no fly-in under reduced motion (CameraRig sends no start point) — just sit
-     centred and skip the position/scale easing */
-  .focus-reticle__svg { transition: none; }
+  /* no acquire under reduced motion (CameraRig sends no start point either) —
+     the ring just sits locked at the centre */
+  .focus-reticle[data-fly] .focus-reticle__svg { animation: none; }
+  .focus-reticle[data-fly] .focus-reticle__mask { transition-delay: 0s; }
 }
 
 /* ---------- The dossier (route-driven HUD, right column) ---------- */
@@ -282,15 +320,16 @@
     left: 0;
     right: 0;
     max-height: 46svh;
-    padding: 0 var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
+    padding: 0; /* the column spans edge to edge — it owns the inset (below) */
   }
   /* the sheet rises as a soft panel — its top fades in so the porthole's lower
-     arc washes into it rather than hard-cutting */
+     arc washes into it rather than hard-cutting. Full-bleed: the wash runs the
+     whole width and the column's own padding keeps the text off the edges. */
   .node-hud__col {
     background: linear-gradient(180deg, transparent,
       color-mix(in srgb, var(--paper) 84%, transparent) 12%,
       color-mix(in srgb, var(--paper) 92%, transparent));
-    padding-top: var(--space-s);
+    padding: var(--space-s) var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
   }
   .node-hud__close {
     position: fixed;

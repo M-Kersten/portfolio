@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useSceneSelector } from '../scene/store';
 import { caseBySlug } from '../content';
@@ -32,33 +32,24 @@ export function FocusReticle() {
   const acquired = open && start && start.slug === slug ? start : null;
   const from = acquired?.pos ?? null;
 
-  // Snap onto the target for one frame (data-acquiring, transition suppressed),
-  // then release so the ring flies to the porthole centre. No start point → it
-  // simply opens centred.
-  const [acquiring, setAcquiring] = useState(false);
-  useEffect(() => {
-    if (!from) {
-      setAcquiring(false);
-      return;
-    }
-    setAcquiring(true);
-    const r = requestAnimationFrame(() => setAcquiring(false));
-    return () => cancelAnimationFrame(r);
-  }, [from?.x, from?.y]);
-
+  // With a start point the ring plays the acquire (see the fr-acquire keyframes):
+  // it materialises over the object out in the scene, snaps onto it, holds, then
+  // pushes in to the porthole centre. Keying the SVG by slug remounts it so the
+  // animation replays on every selection — including story-link jumps between
+  // open nodes. No start point (off-screen / reduced motion) → it opens centred.
   const styleVars = from ? ({ '--sx': `${from.x}%`, '--sy': `${from.y}%` } as CSSProperties) : undefined;
 
   return createPortal(
     <div
       className="focus-reticle"
       data-open={!!acquired || undefined}
-      data-acquiring={acquiring || undefined}
+      data-fly={from ? true : undefined}
       data-layer={layer.current}
       style={styleVars}
       aria-hidden="true"
     >
       <div className="focus-reticle__mask" />
-      <svg className="focus-reticle__svg" viewBox="0 0 100 100">
+      <svg key={acquired?.slug ?? 'idle'} className="focus-reticle__svg" viewBox="0 0 100 100">
         <circle className="fr-glow" cx="50" cy="50" r="48" />
         <circle className="fr-ring" cx="50" cy="50" r="48" />
         <g className="fr-ticks">
