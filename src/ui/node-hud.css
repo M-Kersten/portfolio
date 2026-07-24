@@ -8,6 +8,7 @@
    and the meta pills all read the same centre + radius across breakpoints. */
 :root {
   --fr-cx: 30%;              /* ring centre X — pushed left so the dossier has room */
+  --fr-cy: 50%;              /* ring centre Y — mobile drops it into the upper area */
   --fr-r: 56vh;             /* radius > half the viewport, so the ring spills off the
                                 top/bottom/left edges — you look THROUGH it, arcs only */
 }
@@ -41,7 +42,7 @@
   /* soft, gradual wash that never fully blacks out — the scene stays faintly
      visible past the ring so much less is occluded, darkest only out where the
      dossier reads */
-  background: radial-gradient(circle at var(--cx) 50%,
+  background: radial-gradient(circle at var(--cx) var(--fr-cy),
     transparent calc(var(--r) - 4vh),
     color-mix(in srgb, var(--paper) 26%, transparent) var(--r),
     color-mix(in srgb, var(--paper) 66%, transparent) calc(var(--r) + 14vh),
@@ -56,7 +57,7 @@
 .focus-reticle__svg {
   position: absolute;
   left: var(--cx);
-  top: 50%;
+  top: var(--fr-cy);
   width: var(--d);
   height: var(--d);
   overflow: visible;
@@ -252,18 +253,25 @@
   .node-hud { left: calc(var(--fr-cx) + var(--fr-r) + var(--space-m)); }
 }
 
-/* ---------- Mobile: ring up top, dossier scrolls beneath ---------- */
+/* ---------- Mobile: a round window up top, content sheet rising beneath ---------- */
 @media (max-width: 760px) {
-  :root { --fr-cx: 50%; --fr-r: min(30vh, 44vw); }
+  /* A big ring centred horizontally that spills off BOTH sides (radius > 50vw),
+     dropped into the upper area so the object reads THROUGH it while the sheet
+     rises underneath — the same porthole idea as desktop, portrait-shaped. */
+  :root { --fr-cx: 50%; --fr-cy: 39%; --fr-r: 58vw; }
   .focus-reticle__mask {
-    background: radial-gradient(circle at 50% var(--r), transparent calc(var(--r) - 1px),
-      color-mix(in srgb, var(--paper) 80%, transparent) calc(var(--r) + 5vh), var(--paper) calc(var(--r) + 16vh));
+    background: radial-gradient(circle at 50% var(--fr-cy),
+      transparent calc(var(--r) - 5vh),
+      color-mix(in srgb, var(--paper) 30%, transparent) var(--r),
+      color-mix(in srgb, var(--paper) 74%, transparent) calc(var(--r) + 12vh),
+      color-mix(in srgb, var(--paper) 94%, transparent) calc(var(--r) + 30vh));
   }
-  .focus-reticle__svg { top: var(--r); }
-  /* the sheet owns the bottom on mobile — sit the pills up under the ring instead */
+  /* meta pills: a caption row centred just under the porthole, above the sheet */
   .node-hud__tags {
-    bottom: auto;
-    top: calc(var(--header-h) + var(--space-xs));
+    top: auto;
+    bottom: calc(46svh + var(--space-xs));
+    left: 50%;
+    max-width: 92vw;
   }
   .node-hud {
     top: auto;
@@ -271,8 +279,16 @@
     transform: none;
     left: 0;
     right: 0;
-    max-height: calc(100svh - 2 * var(--fr-r) - var(--header-h));
+    max-height: 46svh;
     padding: 0 var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
+  }
+  /* the sheet rises as a soft panel — its top fades in so the porthole's lower
+     arc washes into it rather than hard-cutting */
+  .node-hud__col {
+    background: linear-gradient(180deg, transparent,
+      color-mix(in srgb, var(--paper) 84%, transparent) 12%,
+      color-mix(in srgb, var(--paper) 92%, transparent));
+    padding-top: var(--space-s);
   }
   .node-hud__close {
     position: fixed;
@@ -280,8 +296,5 @@
     left: var(--space-m);
     right: auto;
     z-index: 48;
-  }
-  .node-hud__col {
-    background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--paper) 70%, transparent) 12%);
   }
 }

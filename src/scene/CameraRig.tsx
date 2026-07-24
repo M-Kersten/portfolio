@@ -204,9 +204,10 @@ export function CameraRig() {
     const base = hotspot ? nodeView(hotspot, gap, view!) : journeyView(journeyStep, gap);
     desiredTarget.current.copy(base.target);
 
-    // On a phone the node HUD is a bottom sheet, so lift a selected node into the
-    // visible upper area by aiming lower. Portrait only — no effect on desktop.
-    if (hotspot && aspect < 1) desiredTarget.current.y -= view!.mobileLift * (1 - aspect);
+    // On a phone the focus view is a porthole up top with a content sheet below,
+    // so lift the selected node up into the ring by aiming lower. Portrait only —
+    // no effect on desktop. The 1.5 boost seats it in the (higher, larger) ring.
+    if (hotspot && aspect < 1) desiredTarget.current.y -= view!.mobileLift * (1 - aspect) * 1.5;
 
     // Ease the camera back on narrow/tall viewports so the whole active layer
     // stays in frame (see fitScale). The offset keeps its direction — the same
