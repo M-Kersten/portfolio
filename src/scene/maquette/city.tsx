@@ -93,36 +93,46 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
   );
 }
 
-// Flour dust drifting from the mill's base while it's turning — a "grinding"
-// cue on top of the spinning sails. A few pale motes fall and fade on a loop,
-// only while the mill is engaged (off under reduced motion).
-function MillDust() {
+// The breeze that drives the mill, made visible — faint holographic wind streaks
+// flowing across the sails while it's turning. Thin accent-tinted dashes drift
+// past the front face, brightening mid-pass and fading at the ends, each on its
+// own line and speed; only while engaged (off under reduced motion).
+function MillWind() {
   const reduced = useReducedMotion();
+  const { accent } = useAccent();
   const { hovered, selected, visited } = useActive('dtt-amsterdam');
+  const windCol = useMemo(() => new Color(accent).lerp(new Color('#ffffff'), 0.5), [accent]);
   const refs = useRef<(Mesh | null)[]>([]);
   const glow = useRef(0);
-  const motes = useMemo(() => {
+  const streaks = useMemo(() => {
     const rnd = makeRand(915);
-    return Array.from({ length: 9 }, () => ({ x: (rnd() - 0.5) * 0.14, z: 0.16 + (rnd() - 0.5) * 0.12, ph: rnd(), spd: 0.35 + rnd() * 0.3, sway: rnd() * 6.28 }));
+    return Array.from({ length: 7 }, () => ({
+      y: 0.42 + rnd() * 0.4, // spread over the sail span
+      z: 0.12 + rnd() * 0.16, // around the front face
+      ph: rnd(),
+      spd: 0.2 + rnd() * 0.16, // a gentle drift, each its own pace
+      slope: (rnd() - 0.5) * 0.14, // a slight rise/fall across the pass
+      len: 0.7 + rnd() * 0.9, // streak length (× the base dash)
+    }));
   }, []);
   useFrame((s) => {
     glow.current += (((hovered || selected || visited) && !reduced ? 1 : 0) - glow.current) * FX.engage;
     const t = s.clock.elapsedTime;
-    for (let i = 0; i < motes.length; i++) {
+    for (let i = 0; i < streaks.length; i++) {
       const m = refs.current[i];
-      const d = motes[i];
+      const d = streaks[i];
       if (!m) continue;
-      const p = (t * d.spd + d.ph) % 1; // 0 at the spout → 1 at the ground
-      m.position.set(d.x + Math.sin(t * 1.6 + d.sway) * 0.012, 0.16 - p * 0.15, d.z);
+      const p = (t * d.spd + d.ph) % 1; // 0 at the left → 1 off the right
+      m.position.set(-0.42 + p * 0.84, d.y + (p - 0.5) * d.slope, d.z);
       (m.material as MeshStandardMaterial).opacity = fxEnv(p) * FX.peak * glow.current;
     }
   });
   return (
     <group>
-      {motes.map((_, i) => (
-        <mesh key={i} ref={(r) => (refs.current[i] = r)}>
-          <sphereGeometry args={[0.0065, 6, 6]} />
-          <meshStandardMaterial color="#e8e0cf" emissive="#e8e0cf" emissiveIntensity={1.0} transparent opacity={0} toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
+      {streaks.map((d, i) => (
+        <mesh key={i} ref={(r) => (refs.current[i] = r)} scale={[d.len, 1, 1]}>
+          <boxGeometry args={[0.07, 0.004, 0.004]} />
+          <meshStandardMaterial color={windCol} emissive={windCol} emissiveIntensity={1.4} transparent opacity={0} toneMapped={false} depthWrite={false} blending={AdditiveBlending} userData={{ lifeSkip: true }} />
         </mesh>
       ))}
     </group>
@@ -180,7 +190,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
         ))}
       </group>
       </group>
-      <MillDust />
+      <MillWind />
     </group>
   );
 }
