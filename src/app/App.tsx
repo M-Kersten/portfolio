@@ -23,13 +23,14 @@ function SiteChrome() {
       <Header />
       <SceneCanvas />
       <IntroCard />
+      {/* The porthole reticle + the route-driven dossier (NodeHud) both portal to
+          <body> and layer above the fixed header, so the focus view reads as the
+          top plane — you look through the ring at the woken object. */}
+      <FocusReticle />
       {import.meta.env.DEV && <DevTweakPanel />}
       {import.meta.env.DEV && <NodeTweakPanel />}
       {import.meta.env.DEV && <WallTweakPanel />}
       <main id="main">
-        {/* inside <main> so it shares its stacking context with the dossier
-            (NodeHud) — the dossier (z 46) then sits above the vignette (z 42). */}
-        <FocusReticle />
         <Outlet />
       </main>
     </>

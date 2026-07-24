@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { caseBySlug, LAYER_LABEL, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
@@ -112,7 +113,11 @@ export function NodeHud() {
 
   if (!study) return <Navigate to="/" replace />;
 
-  return (
+  // Portaled to <body> so the dossier layers above the fixed header (it lives
+  // deep inside <main>, a z-index:1 stacking context that would otherwise trap
+  // it under the header). React context (router, focus) still flows through the
+  // component tree, so routing and the focus trap are unaffected.
+  return createPortal(
     <aside
       ref={hudRef}
       className="node-hud"
@@ -185,6 +190,7 @@ export function NodeHud() {
         {/* Walk the storyline without leaving the HUD — the camera flies along. */}
         <StoryLinks study={study} onJump={(s) => navigate(`/work/${s}`)} />
       </div>
-    </aside>
+    </aside>,
+    document.body,
   );
 }

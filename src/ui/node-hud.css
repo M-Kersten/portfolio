@@ -12,7 +12,7 @@
   --fr-accent: var(--cyan);
   position: fixed;
   inset: 0;
-  z-index: 42;
+  z-index: 51; /* above the fixed header (50) — the porthole is the top plane */
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.45s var(--ease);
@@ -56,13 +56,11 @@
   transform: translate(-50%, -50%) scale(1) rotate(0deg);
   opacity: 1;
 }
-.focus-reticle .fr-ring { fill: none; stroke: var(--fr-accent); stroke-width: 0.22; opacity: 0.9; }
-.focus-reticle .fr-ring2 { fill: none; stroke: var(--fr-accent); stroke-width: 0.1; opacity: 0.32; }
-.focus-reticle .fr-tick { stroke: var(--fr-accent); stroke-width: 0.2; }
-.focus-reticle .fr-tickmin { stroke: var(--fr-accent); stroke-width: 0.09; opacity: 0.5; }
-.focus-reticle .fr-cross line { stroke: var(--fr-accent); stroke-width: 0.13; opacity: 0.6; }
-/* a soft outer bloom on the ring */
-.focus-reticle .fr-glow { fill: none; stroke: var(--fr-accent); stroke-width: 1.2; opacity: 0.1; }
+/* one clean hairline ring with a whisper-thin inner rim and a soft outer bloom —
+   no tick marks, no crosshair, so the porthole reads as a quiet round window */
+.focus-reticle .fr-ring { fill: none; stroke: var(--fr-accent); stroke-width: 0.13; opacity: 0.5; }
+.focus-reticle .fr-ring2 { fill: none; stroke: var(--fr-accent); stroke-width: 0.06; opacity: 0.15; }
+.focus-reticle .fr-glow { fill: none; stroke: var(--fr-accent); stroke-width: 1; opacity: 0.07; }
 
 @media (prefers-reduced-motion: reduce) {
   .focus-reticle,
@@ -78,7 +76,7 @@
   transform: translateY(-50%);
   left: calc(30% + 56vh + var(--space-l)); /* clears the ring's visible right arc */
   right: var(--space-l);
-  z-index: 46;
+  z-index: 52; /* above the reticle (51) and the fixed header (50) */
   max-height: 84svh;
   display: flex;
   flex-direction: column;
