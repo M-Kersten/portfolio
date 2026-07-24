@@ -20,7 +20,7 @@ const INTRO_DUR = 3.2;
 // setViewOffset (moving the object across the frame without changing the camera,
 // so the framing angle is preserved). Both animate in with the zoom.
 const PORTHOLE_LIFT = 1.0;
-const PORTHOLE_OFFSET = 0.14;
+const PORTHOLE_OFFSET = 0.2;
 
 export function CameraRig() {
   const camera = useThree((s) => s.camera);

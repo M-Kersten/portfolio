@@ -5,8 +5,9 @@
 
 /* ---------- The porthole reticle (persistent, animates with the zoom) ---------- */
 .focus-reticle {
-  --cx: 37%;                 /* ring centre X — pushed left so the dossier has room */
-  --r: min(43vh, 38vw);      /* ring radius — kept large */
+  --cx: 30%;                 /* ring centre X — pushed left so the dossier has room */
+  --r: 56vh;                 /* radius > half the viewport, so the ring spills off the
+                                top/bottom/left edges — you look THROUGH it, arcs only */
   --d: calc(var(--r) * 2);
   --fr-accent: var(--cyan);
   position: fixed;
@@ -28,11 +29,14 @@
   inset: 0;
   opacity: 0;
   transition: opacity 0.6s var(--ease);
+  /* soft, gradual wash that never fully blacks out — the scene stays faintly
+     visible past the ring so much less is occluded, darkest only out where the
+     dossier reads */
   background: radial-gradient(circle at var(--cx) 50%,
-    transparent calc(var(--r) - 1px),
-    color-mix(in srgb, var(--paper) 34%, transparent) calc(var(--r) + 1px),
-    color-mix(in srgb, var(--paper) 88%, transparent) calc(var(--r) + 7vh),
-    var(--paper) calc(var(--r) + 22vh));
+    transparent calc(var(--r) - 4vh),
+    color-mix(in srgb, var(--paper) 26%, transparent) var(--r),
+    color-mix(in srgb, var(--paper) 66%, transparent) calc(var(--r) + 14vh),
+    color-mix(in srgb, var(--paper) 90%, transparent) calc(var(--r) + 38vh));
 }
 .focus-reticle[data-open] .focus-reticle__mask { opacity: 1; }
 
@@ -72,13 +76,15 @@
   position: fixed;
   top: 50%;
   transform: translateY(-50%);
-  left: calc(37% + min(43vh, 38vw) + var(--space-l));
+  left: calc(30% + 56vh + var(--space-l)); /* clears the ring's visible right arc */
   right: var(--space-l);
   z-index: 46;
   max-height: 84svh;
   display: flex;
   flex-direction: column;
   --card-accent: var(--accent);
+  /* legible over the faintly-visible scene the softened vignette lets through */
+  text-shadow: 0 1px 12px var(--paper), 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 .node-hud[data-layer='city'] { --card-accent: var(--cyan); }
 .node-hud[data-layer='room'] { --card-accent: var(--coral); }
@@ -190,8 +196,8 @@
 
 /* narrow desktops: don't let the column get too tight against a big ring */
 @media (max-width: 1120px) and (min-width: 761px) {
-  .focus-reticle { --cx: 34%; --r: min(42vh, 33vw); }
-  .node-hud { left: calc(34% + min(42vh, 33vw) + var(--space-m)); }
+  .focus-reticle { --cx: 24%; --r: 46vh; }
+  .node-hud { left: calc(24% + 46vh + var(--space-m)); }
 }
 
 /* ---------- Mobile: ring up top, dossier scrolls beneath ---------- */
