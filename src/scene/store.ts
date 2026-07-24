@@ -54,6 +54,13 @@ interface SceneState {
    *  dismissed. Held false during the intro so the hero title + subtitle + the
    *  bottom instrument line reveal *after* the premise card, never on top of it. */
   introOver: boolean;
+  /** Where the just-selected object sits on screen at the moment of selection
+   *  (viewport %), tagged with its slug — the porthole reticle snaps onto this
+   *  point and then flies to the ring centre as the camera zooms in. `pos` is null
+   *  when the target is off-screen or motion is reduced (reticle opens centred);
+   *  the whole field is null in the overview. Written once per selection by the
+   *  CameraRig (it has the camera); read by the DOM FocusReticle. */
+  reticleStart: { slug: string; pos: { x: number; y: number } | null } | null;
 }
 
 let state: SceneState = {
@@ -66,6 +73,7 @@ let state: SceneState = {
   celebrateAt: null,
   launch: 'idle',
   introOver: false,
+  reticleStart: null,
 };
 
 const listeners = new Set<() => void>();
@@ -107,6 +115,10 @@ export const sceneStore = {
   /** Mark the load intro finished — releases the hero chrome (idempotent). */
   endIntro() {
     if (!state.introOver) set({ introOver: true });
+  },
+  /** Record where the reticle should acquire the target (see reticleStart). */
+  setReticleStart(reticleStart: SceneState['reticleStart']) {
+    set({ reticleStart });
   },
 };
 

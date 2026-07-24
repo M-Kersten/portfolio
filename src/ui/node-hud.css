@@ -48,26 +48,32 @@
     color-mix(in srgb, var(--paper) 66%, transparent) calc(var(--r) + 14vh),
     color-mix(in srgb, var(--paper) 90%, transparent) calc(var(--r) + 38vh));
 }
-.focus-reticle[data-open] .focus-reticle__mask { opacity: 1; }
+/* the vignette belongs to the LOCKED frame (ring at centre), so it holds off
+   while the reticle is still snapped on the target out in the scene */
+.focus-reticle[data-open]:not([data-acquiring]) .focus-reticle__mask { opacity: 1; }
 
-/* the reticle itself — sized to the ring's box. On open it acquires the target:
-   starts small and turned, then grows and rotates into a lock. The ~1s ease-out
-   tracks the camera's zoom glide (position lerp ~1 - e^-3.4t), so the ring and the
-   dolly-in move as one — like a camera lens finding focus. */
+/* the reticle itself — sized to the ring's box. It ACQUIRES the target: snapped
+   small ONTO the object where it currently sits (data-acquiring, transition
+   suppressed), then released to fly to the porthole centre, growing and rotating
+   level into a lock. The ~0.9s ease-out tracks the camera's zoom glide (position
+   lerp ~1 - e^-3.4t) so the ring and the dolly-in move as one, like a lens finding
+   focus. The container's opacity (data-open) fades the whole thing in and out. */
 .focus-reticle__svg {
   position: absolute;
-  left: var(--cx);
+  left: var(--fr-cx);
   top: var(--fr-cy);
   width: var(--d);
   height: var(--d);
   overflow: visible;
-  transform: translate(-50%, -50%) scale(0.45) rotate(-62deg);
-  opacity: 0;
-  transition: transform 1s cubic-bezier(0.16, 0.84, 0.3, 1), opacity 0.55s var(--ease);
-}
-.focus-reticle[data-open] .focus-reticle__svg {
   transform: translate(-50%, -50%) scale(1) rotate(0deg);
-  opacity: 1;
+  transition: left 0.9s cubic-bezier(0.16, 0.84, 0.3, 1), top 0.9s cubic-bezier(0.16, 0.84, 0.3, 1),
+    transform 0.9s cubic-bezier(0.16, 0.84, 0.3, 1);
+}
+.focus-reticle[data-acquiring] .focus-reticle__svg {
+  left: var(--sx, var(--fr-cx));
+  top: var(--sy, var(--fr-cy));
+  transform: translate(-50%, -50%) scale(0.22) rotate(-62deg);
+  transition: none; /* snap onto the target, then release to fly in */
 }
 /* a clean hairline rim, a soft outer bloom, and a ring of short ticks whose sweep
    makes the lock-on rotation read — a camera viewfinder, not a busy gauge */
@@ -78,8 +84,9 @@
 @media (prefers-reduced-motion: reduce) {
   .focus-reticle,
   .focus-reticle__mask { transition: opacity 0.3s var(--ease); }
-  .focus-reticle__svg { transition: opacity 0.3s var(--ease); transform: translate(-50%, -50%); }
-  .focus-reticle[data-open] .focus-reticle__svg { transform: translate(-50%, -50%); }
+  /* no fly-in under reduced motion (CameraRig sends no start point) — just sit
+     centred and skip the position/scale easing */
+  .focus-reticle__svg { transition: none; }
 }
 
 /* ---------- The dossier (route-driven HUD, right column) ---------- */

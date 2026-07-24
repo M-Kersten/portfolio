@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { launchTrack, useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
-import { HOTSPOTS, journeyView, introView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
+import { launchTrack, sceneStore, useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
+import { HOTSPOTS, anchorWorld, journeyView, introView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
 import { tweakedView } from './nodeTweak';
 import { isMobileViewport } from '../lib/isMobile';
 
@@ -198,6 +198,19 @@ export function CameraRig() {
       prevSel.current = selectedSlug;
       nodeAge.current = 0;
       sway.current = 0;
+      // Capture where the object sits on screen RIGHT NOW (camera still wide) so
+      // the porthole reticle can appear ON it and fly to the ring centre as the
+      // camera zooms in. Off-screen / reduced-motion → no fly-in (opens centred).
+      if (hotspot) {
+        const ndc = anchorWorld(hotspot, gap).project(camera);
+        const onScreen = !reduced && ndc.z < 1 && Math.abs(ndc.x) < 1.4 && Math.abs(ndc.y) < 1.4;
+        sceneStore.setReticleStart({
+          slug: hotspot.slug,
+          pos: onScreen ? { x: (ndc.x * 0.5 + 0.5) * 100, y: (-ndc.y * 0.5 + 0.5) * 100 } : null,
+        });
+      } else {
+        sceneStore.setReticleStart(null);
+      }
     }
     if (hotspot) nodeAge.current += dt;
 
