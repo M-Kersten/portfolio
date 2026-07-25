@@ -301,28 +301,145 @@
   opacity: 0.82;
   pointer-events: none;
 }
-.ast__toast {
+/* ---------- mission comms: a holographic Merijn, talking to the player ----------
+   A projected bust bottom-left with the line typing in beside it. The portrait is
+   a real About-section photo, duotoned to the accent and scanlined here in CSS —
+   no second asset, no 3D, and it reads as a transmission rather than a headshot. */
+.comms {
   position: absolute;
-  top: 20%;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-mono);
-  font-size: 1.05rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink);
-  opacity: 0;
+  left: 1.3rem;
+  bottom: 3.4rem; /* clear of the .ast__hint control legend */
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.85rem;
+  max-width: min(30rem, 62vw);
   pointer-events: none;
-  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.45s var(--ease), transform 0.45s var(--ease);
 }
-.ast__toast--show {
-  animation: ast-toast 2.6s var(--ease);
+.comms[data-open] {
+  opacity: 1;
+  transform: none;
 }
-@keyframes ast-toast {
-  0% { opacity: 0; transform: translate(-50%, 8px); }
-  12%, 72% { opacity: 0.9; transform: translate(-50%, 0); }
-  100% { opacity: 0; }
+
+/* the projection: the photo, its scanlines, and the light it throws */
+.comms__proj {
+  position: relative;
+  flex: none;
+  width: 96px;
+  height: 120px;
+  overflow: hidden;
+  /* clipped corner — the site's instrument-panel cut */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: #04080c;
+  box-shadow: inset 0 0 22px color-mix(in srgb, var(--accent) 20%, transparent);
+  animation: comms-flicker 4.4s steps(1, end) infinite;
 }
+/* Duotone by filter chain rather than blend modes: flatten to luminance, put a
+   tone back with sepia, then rotate that tone onto the accent. One element, fully
+   predictable — layering a colour-dodge wash over a face just blew it out. */
+.comms__photo {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: 50% 14%;
+  filter: grayscale(1) contrast(1.12) brightness(1.02) sepia(1) hue-rotate(148deg) saturate(3.4);
+  opacity: 0.88;
+}
+/* the scan ruling — dark lines over the image, drifting up like a slow refresh */
+.comms__scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(180deg, rgba(2, 8, 12, 0.55) 0 1px, transparent 1px 3px);
+  opacity: 0.75;
+  animation: comms-scan 5.5s linear infinite;
+}
+/* the beam it stands in — brightest at the base, like it's being projected up */
+.comms__glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, color-mix(in srgb, var(--accent) 30%, transparent), transparent 55%);
+  opacity: 0.6;
+}
+.comms .scanframe i {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+@keyframes comms-scan {
+  to { background-position: 0 -60px; }
+}
+@keyframes comms-flicker {
+  0%, 96%, 100% { opacity: 1; }
+  97% { opacity: 0.72; }
+  98% { opacity: 1; }
+  99% { opacity: 0.85; }
+}
+
+/* the line itself */
+.comms__body {
+  padding-bottom: 0.2rem;
+  min-width: 0;
+}
+.comms__who {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent-ink) 80%, transparent);
+  margin-bottom: 0.3em;
+}
+/* the transmitting dot */
+.comms__live {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: comms-live 1.6s var(--ease) infinite;
+}
+@keyframes comms-live {
+  50% { opacity: 0.25; }
+}
+.comms__msg {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--ink);
+  text-shadow: 0 1px 10px rgba(4, 8, 12, 0.9);
+  text-wrap: pretty;
+}
+/* the type-on cursor */
+.comms__caret {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 0.1em;
+  vertical-align: -0.15em;
+  background: var(--accent);
+  animation: comms-caret 0.8s steps(2, end) infinite;
+}
+@keyframes comms-caret {
+  50% { opacity: 0; }
+}
+
+@media (max-width: 760px) {
+  .comms {
+    left: 0.9rem;
+    right: 0.9rem;
+    bottom: 3.6rem;
+    max-width: none;
+    gap: 0.65rem;
+  }
+  .comms__proj { width: 66px; height: 82px; }
+  .comms__msg { font-size: 0.78rem; }
+}
+
 .ast__hint {
   position: absolute;
   bottom: 1rem;
@@ -535,7 +652,12 @@
   .rud__booster::after,
   .ast__score-bump,
   .ast__shield-hit,
-  .ast__chain-pop {
+  .ast__chain-pop,
+  /* the hologram still reads — it just stops flickering, scanning and blinking */
+  .comms__proj,
+  .comms__scan,
+  .comms__live,
+  .comms__caret {
     animation: none;
   }
   /* the arrival card still informs — it just fades instead of sliding */

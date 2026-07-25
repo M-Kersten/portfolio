@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '../lib/useReducedMotion';
+import { GameComms } from './GameComms';
 import { GameRocket, type Burst, type RockView, type ShipView } from './GameRocket';
 
 // ASTEROIDS — the launch easter egg's payload. Everyone's first Unity game,
@@ -33,11 +34,13 @@ const SPLITS: Record<string, [string, string]> = {
   'MERGE CONFLICT': ['<<<<<<< YOURS', '>>>>>>> THEIRS'],
   'TECH DEBT': ['UNUSED SDK', 'SINGLETON SPAGHETTI'],
 };
+// Spoken over comms by the hologram, so they read as someone talking, not as
+// terminal output (see GameComms).
 const MILESTONES: [number, string][] = [
-  [400, 'Design briefing, what could possibly go wrong?'],
-  [1200, 'Code architecture mapped out.'],
-  [2500, 'The build is green, but the QA team is screaming.'],
-  [5000, 'Going live, brace for the first wave of support tickets.'],
+  [400, 'Design briefing done. What could possibly go wrong?'],
+  [1200, "Architecture's mapped out. Feels good. It never lasts."],
+  [2500, "Build is green, and QA is screaming. Both true at once."],
+  [5000, "We're live. Brace for the first wave of support tickets."],
 ];
 
 interface Rock {
@@ -88,7 +91,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const scoreRef = useRef<HTMLSpanElement>(null);
   const chainRef = useRef<HTMLSpanElement>(null);
   const shieldRef = useRef<HTMLSpanElement>(null);
-  const toastRef = useRef<HTMLDivElement>(null);
+  const sayRef = useRef<(msg: string) => void>(() => {}); // set by GameComms
   const [phase, setPhase] = useState<'play' | 'over'>('play');
   const [finalScore, setFinalScore] = useState(0);
   const [debrief, setDebrief] = useState<Debrief | null>(null); // the RUD card's write-up
@@ -190,14 +193,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let dispScore = 0; // the odometer eases toward the real score
     const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() * 0.7, ph: Math.random() * 6.28 }));
 
-    const toast = (msg: string) => {
-      const el = toastRef.current;
-      if (!el) return;
-      el.textContent = msg;
-      el.classList.remove('ast__toast--show');
-      void el.offsetWidth; // restart the animation
-      el.classList.add('ast__toast--show');
-    };
+    // Every message the game has to give the player comes over comms, from the
+    // hologram (GameComms). The old centre-screen toast is gone — a line is
+    // something a person says to you now, not text that appears in the void.
+    const say = (msg: string) => sayRef.current(msg);
     const hud = () => {
       const el = shieldRef.current;
       if (!el) return;
@@ -217,13 +216,13 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     const scored = () => {
       bump(scoreRef.current, 'ast__score-bump');
       while (milestone < MILESTONES.length && score >= MILESTONES[milestone][0]) {
-        toast(MILESTONES[milestone][1]);
+        say(MILESTONES[milestone][1]);
         gridPulse = 1;
         milestone += 1;
       }
       if (!recordBroken && bestAtStart > 0 && score > bestAtStart) {
         recordBroken = true;
-        toast('NEW FLEET RECORD');
+        say("New record. That one goes in the portfolio.");
         gridPulse = 1;
         scoreRef.current?.classList.add('ast__score-rec');
       }
@@ -317,7 +316,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         const regained = !shield;
         shield = true;
         hud();
-        toast(regained ? `STAGE ${wave + 1} CLEARED · +150 · SHIELD RESTORED` : `STAGE ${wave + 1} CLEARED · +150`);
+        say(
+          regained
+            ? `Stage ${wave + 1} clear, and your shield is back. Try to keep it.`
+            : `Stage ${wave + 1} clear. There is always another stage.`,
+        );
         waveGap = 2.2;
       }
       scored();
@@ -343,7 +346,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           shake = Math.min(shake + 5, 12);
         }
         ship.inv = 1.2; // a breath of grace so the same rock can't finish you
-        toast(killer ? `SHIELD GONE · ${killer}` : 'SHIELD GONE');
+        say(killer ? `${killer} took the shield. Do not take another one.` : 'Shield is gone. Do not take another one.');
         return;
       }
 
@@ -521,6 +524,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       if (!firstWave && introLeft <= 0) {
         firstWave = true;
         spawnWave(); // the opening wave arrives as the rush settles
+        // …and Merijn checks in, which is how you learn there's someone on comms
+        say('You have the stick. Shoot the problems before they reach you.');
       }
       // ship
       ship.spawnAge += dt;
@@ -931,7 +936,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           <b>Let's try and land this project!</b>
         </div>
       )}
-      <div className="ast__toast" ref={toastRef} aria-live="polite" />
+      {/* mission comms — the holographic bust that delivers every line */}
+      <GameComms sayRef={sayRef} />
       <div className="ast__hint">← → rotate · ↑ thrust · space fire · P hold{' '}
         <span className="ast__hint-touch">— or steer left half, fire right half</span>
       </div>
