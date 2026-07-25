@@ -96,12 +96,18 @@
     transform: translate(-50%, -50%) scale(0.19) rotate(-76deg);
     animation-timing-function: linear;
   }
-  /* the hold — sitting on the target, barely breathing */
-  28% {
+  /* The hold — sitting on the target, barely breathing. Ends at 26% of 1.55s =
+     0.4s, which is exactly ACQUIRE_HOLD in CameraRig: the camera is frozen until
+     here, so the push-in and this travel begin on the same beat. */
+  26% {
     left: var(--sx, var(--fr-cx));
     top: var(--sy, var(--fr-cy));
     transform: translate(-50%, -50%) scale(0.2) rotate(-72deg);
-    animation-timing-function: cubic-bezier(0.45, 0.02, 0.2, 1);
+    /* Front-loaded to match the camera, whose glide is exponential
+       (1 - e^-3.4t: ~63% covered in 0.3s, ~86% in 0.6s, then a long settle).
+       The old curve eased IN here, so the ring crawled while the scene had
+       already arrived — that was the timing that read as wrong. */
+    animation-timing-function: cubic-bezier(0.12, 0.82, 0.22, 1);
   }
   100% {
     left: var(--fr-cx);

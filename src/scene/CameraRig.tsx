@@ -21,6 +21,10 @@ const INTRO_DUR = 3.2;
 // so the framing angle is preserved). Both animate in with the zoom.
 const PORTHOLE_LIFT = 1.0;
 const PORTHOLE_OFFSET = 0.2;
+// Seconds the camera holds still after a selection while the reticle materialises
+// over the object and locks onto it. Mirrors the hold in the fr-acquire keyframes
+// (node-hud.css) — the two are one movement and have to agree.
+const ACQUIRE_HOLD = 0.4;
 
 export function CameraRig() {
   const camera = useThree((s) => s.camera);
@@ -87,7 +91,13 @@ export function CameraRig() {
     // in the reticle (dossier clear on the right). setViewOffset moves the image
     // without moving the camera; the per-frame FOV updates below preserve it.
     // Desktop only; eases in and out with the zoom.
-    const wantFocus = !!selectedSlug && launch === 'idle' && size.width >= size.height;
+    // …and it waits out the acquire hold too. This pan slides the WHOLE image
+    // sideways, so if it ran while the reticle was still locking on, the object
+    // would crawl out from under a ring that hasn't moved yet. `justSwitched`
+    // covers the first frame, where nodeAge is still the outgoing node's.
+    const justSwitched = selectedSlug !== prevSel.current;
+    const holdFocus = !!selectedSlug && !reduced && (justSwitched || nodeAge.current < ACQUIRE_HOLD);
+    const wantFocus = !!selectedSlug && launch === 'idle' && size.width >= size.height && !holdFocus;
     focusAmt.current += ((wantFocus ? 1 : 0) - focusAmt.current) * (reduced ? 1 : 1 - Math.exp(-6 * dt));
     const pcam = camera as PerspectiveCamera;
     if (pcam.isPerspectiveCamera) {
@@ -214,29 +224,39 @@ export function CameraRig() {
     }
     if (hotspot) nodeAge.current += dt;
 
-    const base = hotspot ? nodeView(hotspot, gap, view!) : journeyView(journeyStep, gap);
+    // ---- The acquire hold. The camera's glide is exponential (see the lerp at the
+    // bottom: ~86% of the way in 0.6s), so if it starts the instant you select, it
+    // has effectively arrived before the reticle has even begun to travel — the
+    // ring then lands about a second late, which is exactly what read as wrong.
+    // So hold the previous framing while the reticle finds and locks the target,
+    // then release: the push-in and the ring's travel start on the same beat and
+    // ease the same way. Must match ACQUIRE_HOLD in the fr-acquire keyframes.
+    const acquiring = !!hotspot && !reduced && nodeAge.current < ACQUIRE_HOLD;
+    const framed = hotspot && !acquiring ? hotspot : undefined;
+
+    const base = framed ? nodeView(framed, gap, view!) : journeyView(journeyStep, gap);
     desiredTarget.current.copy(base.target);
 
     // On a phone the focus view is a porthole up top with a content sheet below,
     // so lift the selected node up into the ring by aiming lower. Portrait only —
     // no effect on desktop. The 1.5 boost seats it in the (higher, larger) ring.
-    if (hotspot && aspect < 1) desiredTarget.current.y -= view!.mobileLift * (1 - aspect) * 1.5;
+    if (framed && aspect < 1) desiredTarget.current.y -= view!.mobileLift * (1 - aspect) * 1.5;
 
     // Ease the camera back on narrow/tall viewports so the whole active layer
     // stays in frame (see fitScale). The offset keeps its direction — the same
     // three-quarter angle — just longer, so the maquette reads smaller but whole.
     const baseFov = fitFov(aspect);
-    const wantFov = baseFov + (hotspot ? view!.fovZoom : 0);
+    const wantFov = baseFov + (framed ? view!.fovZoom : 0);
     const off = base.pos.clone().sub(base.target).multiplyScalar(fitScale(aspect));
     // Zooming into a node widens the lens (wantFov); pull the camera in by the
     // matching amount so the node keeps its framing — the wider FOV then only
     // warps perspective, it doesn't throw the subject around the frame.
-    if (hotspot) off.multiplyScalar(Math.tan((baseFov / 2) * DEG) / Math.tan((wantFov / 2) * DEG));
+    if (framed) off.multiplyScalar(Math.tan((baseFov / 2) * DEG) / Math.tan((wantFov / 2) * DEG));
 
     // Porthole focus (desktop): raise the AIM to the object so it sits centred
     // (vertically) in the reticle; the horizontal slide is done with the camera
     // view-offset up top. The camera position is untouched, so the angle holds.
-    if (hotspot && aspect >= 1) desiredTarget.current.y += view!.aimDown * PORTHOLE_LIFT;
+    if (framed && aspect >= 1) desiredTarget.current.y += view!.aimDown * PORTHOLE_LIFT;
 
     if (!reduced) {
       // Once a node has settled (nodeOrbitDelay), a slow pan eases in over
