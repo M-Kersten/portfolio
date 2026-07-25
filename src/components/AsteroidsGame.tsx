@@ -70,15 +70,16 @@ interface Debrief {
   lesson: string;
 }
 
-/** The lesson is the one line that isn't just stats — it reads the run and says
- *  the wry thing. First match wins, so order is the priority. */
+/** The lesson is the one line that isn't just stats: it reads the run and makes
+ *  the joke. Kept plain-spoken and specific — same register as the milestone
+ *  toasts, not fortune cookies. First match wins, so order is the priority. */
 function lessonFor(o: { acc: number; shots: number; wave: number; chain: number }): string {
-  if (o.wave <= 1 && o.shots < 14) return 'Scope arrives faster than anyone plans for. It always has.';
-  if (o.acc >= 60 && o.shots >= 12) return 'Aim was never the problem. There was just more of it than there was of you.';
-  if (o.acc < 25 && o.shots >= 24) return 'Volume is not a strategy. Neither is hoping.';
-  if (o.chain >= 4) return 'Momentum is real — right up until the moment it is not.';
-  if (o.wave >= 4) return 'Every stage ships. The list just gets longer.';
-  return 'Nothing here was unforeseeable. It rarely is. You ship anyway.';
+  if (o.wave <= 1 && o.shots < 14) return 'One stage in and already a delay. Somewhere a project manager is quietly moving the deadline.';
+  if (o.acc >= 60 && o.shots >= 12) return 'Almost every ticket landed. Turns out the problem was how many problems there were.';
+  if (o.acc < 25 && o.shots >= 24) return "Plenty of tickets, not many fixes. We've all had that sprint.";
+  if (o.chain >= 4) return 'You were on a roll, and then you flew straight into a rock. Very realistic.';
+  if (o.wave >= 4) return "Four stages cleared and the backlog still got longer. That's software.";
+  return "That's one way to end a sprint. Write it up, blame the show-floor wifi, try again.";
 }
 
 export function AsteroidsGame({ onExit }: { onExit: () => void }) {
