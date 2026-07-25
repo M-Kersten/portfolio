@@ -165,23 +165,6 @@
   display: inline-block; /* transformable for the tick animation */
   color: var(--accent-ink);
 }
-/* the shield readout — the only thing standing between you and the RUD card */
-.ast__shield {
-  display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  padding: 0.2em 0.7em;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-  border-radius: 999px;
-  color: var(--ink-40);
-  transition: color 0.25s var(--ease), border-color 0.25s var(--ease);
-}
-.ast__shield[data-up] {
-  color: var(--accent-ink);
-  border-color: color-mix(in srgb, var(--accent) 65%, transparent);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 22%, transparent);
-}
 /* tiny HUD reactions: the score ticks on a kill, the boosters flare when one
    is lost (classes re-applied per event by the game) */
 .ast__score-bump {
@@ -189,12 +172,6 @@
 }
 @keyframes ast-bump {
   30% { transform: scale(1.3); }
-}
-.ast__shield-hit {
-  animation: ast-shield-hit 0.55s var(--ease);
-}
-@keyframes ast-shield-hit {
-  25% { color: #ffb46a; border-color: #ffb46a; transform: scale(1.12); }
 }
 /* the chain multiplier riding next to the score */
 .ast__chain {
@@ -383,27 +360,13 @@
   min-width: 0;
 }
 .comms__who {
-  display: flex;
-  align-items: center;
-  gap: 0.4em;
+  display: block;
   font-family: var(--font-mono);
   font-size: 0.62rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--accent-ink) 80%, transparent);
   margin-bottom: 0.3em;
-}
-/* the transmitting dot */
-.comms__live {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-  animation: comms-live 1.6s var(--ease) infinite;
-}
-@keyframes comms-live {
-  50% { opacity: 0.25; }
 }
 .comms__msg {
   margin: 0;
@@ -651,12 +614,10 @@
   .rud__booster,
   .rud__booster::after,
   .ast__score-bump,
-  .ast__shield-hit,
   .ast__chain-pop,
-  /* the hologram still reads — it just stops flickering, scanning and blinking */
+  /* the hologram still reads — it just stops flickering and scanning */
   .comms__proj,
   .comms__scan,
-  .comms__live,
   .comms__caret {
     animation: none;
   }

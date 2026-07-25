@@ -18,7 +18,15 @@ const PORTRAIT = '/profile/5.png';
 const HOLD = 4200; // ms the panel stays up after the line finishes typing
 const CPS = 42; // characters per second while typing
 
-export function GameComms({ sayRef }: { sayRef: MutableRefObject<(msg: string) => void> }) {
+export function GameComms({
+  sayRef,
+  busyRef,
+}: {
+  sayRef: MutableRefObject<(msg: string) => void>;
+  /** True while a line is on screen, so the game can hold its optional asides
+   *  back rather than cutting Merijn off mid-sentence. */
+  busyRef: MutableRefObject<boolean>;
+}) {
   const reduced = useReducedMotion();
   const [msg, setMsg] = useState(''); // the full line
   const [shown, setShown] = useState(0); // characters revealed so far
@@ -35,19 +43,24 @@ export function GameComms({ sayRef }: { sayRef: MutableRefObject<(msg: string) =
       setMsg(next);
       setShown(reduced ? next.length : 0);
       setOpen(true);
+      busyRef.current = true;
     };
     return () => {
       sayRef.current = () => {};
+      busyRef.current = false;
       window.clearTimeout(hideT.current);
       window.clearInterval(typeT.current);
     };
-  }, [sayRef, reduced]);
+  }, [sayRef, busyRef, reduced]);
 
   // Type the line out, then hold it a beat and close.
   useEffect(() => {
     if (!open || !msg) return;
     const done = () => {
-      hideT.current = window.setTimeout(() => setOpen(false), HOLD);
+      hideT.current = window.setTimeout(() => {
+        setOpen(false);
+        busyRef.current = false;
+      }, HOLD);
     };
     if (reduced) {
       done();
@@ -67,7 +80,7 @@ export function GameComms({ sayRef }: { sayRef: MutableRefObject<(msg: string) =
       window.clearInterval(typeT.current);
       window.clearTimeout(hideT.current);
     };
-  }, [open, msg, reduced]);
+  }, [open, msg, reduced, busyRef]);
 
   const typing = shown < msg.length;
 
@@ -83,10 +96,7 @@ export function GameComms({ sayRef }: { sayRef: MutableRefObject<(msg: string) =
         </div>
         {/* the transmission itself */}
         <div className="comms__body">
-          <span className="comms__who">
-            <i className="comms__live" />
-            MERIJN · COMMS
-          </span>
+          <span className="comms__who">MERIJN · COMMS</span>
           <p className="comms__msg">
             {msg.slice(0, shown)}
             {typing && <b className="comms__caret" />}

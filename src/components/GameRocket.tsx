@@ -383,8 +383,10 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
         shell.current.rotation.x = s.clock.elapsedTime * 0.22;
         const fill = shellFill.current.material as MeshBasicMaterial;
         const wire = shellWire.current.material as MeshBasicMaterial;
-        fill.opacity = 0.055 * held + 0.3 * brk;
-        wire.opacity = 0.16 * held + 0.75 * brk;
+        // barely there while it's holding — you should notice it's gone, not
+        // notice it's there. The burst is the only moment it gets bright.
+        fill.opacity = 0.02 * held + 0.16 * brk;
+        wire.opacity = 0.055 * held + 0.4 * brk;
       }
     }
   });
@@ -410,8 +412,10 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
             <icosahedronGeometry args={[1, 2]} />
             <meshBasicMaterial color="#8ff4fb" transparent opacity={0} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
           </mesh>
+          {/* detail 0: ~30 edges instead of ~120. With additive blending, line
+              density reads as brightness, so a sparse cage is the subtle one. */}
           <mesh ref={shellWire}>
-            <icosahedronGeometry args={[1.005, 1]} />
+            <icosahedronGeometry args={[1.005, 0]} />
             <meshBasicMaterial color="#27e8f2" wireframe transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
           </mesh>
         </group>

@@ -34,14 +34,37 @@ const SPLITS: Record<string, [string, string]> = {
   'MERGE CONFLICT': ['<<<<<<< YOURS', '>>>>>>> THEIRS'],
   'TECH DEBT': ['UNUSED SDK', 'SINGLETON SPAGHETTI'],
 };
-// Spoken over comms by the hologram, so they read as someone talking, not as
-// terminal output (see GameComms).
+// Spoken over comms by the hologram (see GameComms), so everything below reads as
+// someone talking to you — not as terminal output. The score thresholds walk the
+// shape of a real project.
 const MILESTONES: [number, string][] = [
-  [400, 'Design briefing done. What could possibly go wrong?'],
-  [1200, "Architecture's mapped out. Feels good. It never lasts."],
-  [2500, "Build is green, and QA is screaming. Both true at once."],
-  [5000, "We're live. Brace for the first wave of support tickets."],
+  [400, "Kickoff always goes well. It's week three where you find out what you agreed to."],
+  [1200, "Architecture's mapped. This is my favourite part, and it never lasts long."],
+  [2500, "Build is green and QA is screaming. Both true at the same time. Usually are."],
+  [5000, "We're live. Now the support tickets find out we exist."],
 ];
+
+// One line per hazard — the actual story behind why it's on the list. Said when
+// you first clear that hazard, and again (harder) if it's the one that takes your
+// shield. This is the whole reason the rocks have names.
+const HAZARD_LINES: Record<string, string> = {
+  'SCOPE CREEP': "It's never one big decision. It's always 'could it maybe also just…'",
+  'LEGACY CODE': 'I once inherited a project where the build steps were a Word file.',
+  'MERGE CONFLICT': 'Two of us refactored the same file that week. Nobody enjoyed the Friday.',
+  'GPS DRIFT': 'At Alliander the overlay had to sit inside a centimetre. GPS had other plans.',
+  'SHOW-FLOOR WIFI': 'Ten years of demos, and it still waits for the client to walk over.',
+  'HOLOLENS BATTERY': 'Always dies the moment someone important finally puts it on.',
+  '1★ STORE REVIEW': "'Doesn't work.' No device, no version, no steps. I still think about it.",
+  'ANOTHER MEETING': "I've learned to build during these. Please don't tell anyone.",
+  'TECH DEBT': "Someone's clever shortcut. It's Tuesday, and now it belongs to you.",
+  NullReferenceException: 'Ten years in, and this is still how most of my days end.',
+  // the bespoke children get their own punchlines
+  'MORE SCOPE CREEP': 'See? It multiplies. That is the entire joke.',
+  '<<<<<<< YOURS': 'Yours or theirs, someone still has to sit down and merge it.',
+  '>>>>>>> THEIRS': 'Yours or theirs, someone still has to sit down and merge it.',
+  'UNUSED SDK': 'Integrated for one demo in 2021. Still in the project today.',
+  'SINGLETON SPAGHETTI': 'Quick to write, forever to untangle. Ask me how I know.',
+};
 
 interface Rock {
   x: number; y: number; vx: number; vy: number;
@@ -90,8 +113,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scoreRef = useRef<HTMLSpanElement>(null);
   const chainRef = useRef<HTMLSpanElement>(null);
-  const shieldRef = useRef<HTMLSpanElement>(null);
   const sayRef = useRef<(msg: string) => void>(() => {}); // set by GameComms
+  const commsBusy = useRef(false); // ditto — true while a line is on screen
   const [phase, setPhase] = useState<'play' | 'over'>('play');
   const [finalScore, setFinalScore] = useState(0);
   const [debrief, setDebrief] = useState<Debrief | null>(null); // the RUD card's write-up
@@ -197,13 +220,12 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     // hologram (GameComms). The old centre-screen toast is gone — a line is
     // something a person says to you now, not text that appears in the void.
     const say = (msg: string) => sayRef.current(msg);
-    const hud = () => {
-      const el = shieldRef.current;
-      if (!el) return;
-      el.textContent = shield ? 'SHIELD UP' : 'SHIELD DOWN';
-      if (shield) el.setAttribute('data-up', 'true');
-      else el.removeAttribute('data-up');
+    // Asides (the hazard stories) only land if he isn't already mid-sentence —
+    // better to skip one than to cut him off. The important lines just say().
+    const aside = (msg: string) => {
+      if (!commsBusy.current) say(msg);
     };
+    const told = new Set<string>(); // hazard stories already heard this run
     // restart a one-shot CSS animation on a HUD element (score tick, life lost)
     const bump = (el: HTMLElement | null, cls: string) => {
       if (!el) return;
@@ -222,7 +244,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       }
       if (!recordBroken && bestAtStart > 0 && score > bestAtStart) {
         recordBroken = true;
-        say("New record. That one goes in the portfolio.");
+        say("New record. Genuinely better than I manage most days.");
         gridPulse = 1;
         scoreRef.current?.classList.add('ast__score-rec');
       }
@@ -282,6 +304,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       if (!reduced) rockFlashes.push({ x: rk.x, y: rk.y, rot: rk.rot, r: rk.r, shape: rk.shape, ttl: 0.09, max: 0.09 });
       // …and throws real 3D chunks, some of them straight at the camera
       if (!reduced) burstsView.current.push({ x: rk.x, y: rk.y, r: rk.r, tier: rk.tier });
+      // first time this hazard goes down, Merijn tells you why it's on the list
+      if (rk.label && HAZARD_LINES[rk.label] && !told.has(rk.label)) {
+        told.add(rk.label);
+        aside(`${rk.label}. ${HAZARD_LINES[rk.label]}`);
+      }
       // a breath of hit-stop on the big ones — the punch reads
       if (!reduced && rk.tier === 0) slomo = Math.max(slomo, 0.05);
       if (rk.tier < 2) {
@@ -315,11 +342,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         // clearing a stage re-earns the shield — the only way to get it back
         const regained = !shield;
         shield = true;
-        hud();
         say(
           regained
-            ? `Stage ${wave + 1} clear, and your shield is back. Try to keep it.`
-            : `Stage ${wave + 1} clear. There is always another stage.`,
+            ? `Stage ${wave + 1} shipped, and your shield is back. Enjoy that while it lasts.`
+            : `Stage ${wave + 1} shipped. There is always another one in the backlog.`,
         );
         waveGap = 2.2;
       }
@@ -336,8 +362,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
 
       if (shield) {
         shield = false;
-        hud();
-        bump(shieldRef.current, 'ast__shield-hit');
         shieldBreak = 1; // the 3D bubble flares and bursts
         boom(ship.x, ship.y, 12, CYAN);
         if (!reduced) {
@@ -346,7 +370,12 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           shake = Math.min(shake + 5, 12);
         }
         ship.inv = 1.2; // a breath of grace so the same rock can't finish you
-        say(killer ? `${killer} took the shield. Do not take another one.` : 'Shield is gone. Do not take another one.');
+        const story = killer ? HAZARD_LINES[killer] : undefined;
+        say(
+          killer && story
+            ? `${killer} took the shield. ${story}`
+            : "Shield's gone. One more of those and we're writing a delay report.",
+        );
         return;
       }
 
@@ -415,10 +444,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       ship.spawnAge = 0;
       shield = true;
       shieldBreak = 0;
+      told.clear();
       if (chainRef.current) chainRef.current.textContent = '';
       scoreRef.current?.classList.remove('ast__score-rec');
       if (scoreRef.current) scoreRef.current.textContent = '0000';
-      hud();
       setRunId((n) => n + 1); // replays the arrival card
       // stage separation: stars rush past for a beat before the first wave
       introUntil = reduced ? 0 : performance.now() + 2200;
@@ -430,7 +459,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       if (sessionStorage.getItem('mk-ast-test') === 'rud') {
         shield = false;
         ship.inv = 0;
-        hud();
         rocks.push({ x: W / 2, y: H / 2, vx: 0, vy: 0, r: 44, tier: 0, rot: 0, spin: 0.4, shape: rockShape(), label: 'SCOPE CREEP', age: 9, id: rockId++ });
       }
     };
@@ -525,7 +553,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         firstWave = true;
         spawnWave(); // the opening wave arrives as the rush settles
         // …and Merijn checks in, which is how you learn there's someone on comms
-        say('You have the stick. Shoot the problems before they reach you.');
+        say("You have the stick. Fair warning: this is roughly what my week looks like.");
       }
       // ship
       ship.spawnAge += dt;
@@ -831,10 +859,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       // HUD after React re-renders (a phase flip restores the JSX's children)
       const odo = String(Math.round(dispScore)).padStart(4, '0');
       if (scoreRef.current && scoreRef.current.textContent !== odo) scoreRef.current.textContent = odo;
-      const wantShield = shield ? 'SHIELD UP' : 'SHIELD DOWN';
-      if (shieldRef.current && shieldRef.current.textContent !== wantShield) hud();
-
-      // (the shield itself is drawn in 3D — see GameRocket's bubble)
+      // the shield reads from the faint shell around the vehicle (GameRocket)
 
       // white-out at the moment of disassembly, fading fast
       if (flash > 0) {
@@ -916,11 +941,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       </div>
       <div className="ast__hud">
         <span className="ast__score">
-          FIXED <span ref={scoreRef}>0000</span>
+          <span ref={scoreRef}>0000</span>
           <span className="ast__chain" ref={chainRef} /> · BEST {String(best).padStart(4, '0')}
-        </span>
-        <span className="ast__shield" ref={shieldRef} data-up="true" aria-label="shield status">
-          SHIELD UP
         </span>
         <button type="button" className="ast__exit" onClick={onExit}>
           abort to pad <kbd>Esc</kbd>
@@ -937,7 +959,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         </div>
       )}
       {/* mission comms — the holographic bust that delivers every line */}
-      <GameComms sayRef={sayRef} />
+      <GameComms sayRef={sayRef} busyRef={commsBusy} />
       <div className="ast__hint">← → rotate · ↑ thrust · space fire · P hold{' '}
         <span className="ast__hint-touch">— or steer left half, fire right half</span>
       </div>
