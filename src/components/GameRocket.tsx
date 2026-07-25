@@ -30,6 +30,7 @@ export interface ShipView {
   turn: number; // -1..1 current rotation input — the model banks into it
   visible: boolean;
   pop: number; // 0→1 since (re)spawn — drives the scale-in
+  muzzle: number; // 1 on the shot, decaying — the nose cannon's flash
 }
 
 /** One hazard, as the 3D layer needs it (the engine keeps the authoritative 2D
@@ -41,6 +42,14 @@ export interface RockView {
   rot: number; // the 2D spin, radians — carried through so labels/flashes agree
   id: number; // stable per rock, picks its shape + tumble
   born: number; // 0→1 spawn-in
+}
+
+/** A rock just broke here — the 3D layer drains these into flying debris. */
+export interface Burst {
+  x: number;
+  y: number;
+  r: number;
+  tier: number;
 }
 
 const SHIP_SCALE = 190; // world→px: model is ~0.63 tall → ~120px, so it owns the frame
@@ -76,6 +85,95 @@ function rockGeometries(n = 6): BufferGeometry[] {
 }
 
 const ROCK_POOL = 64; // plenty: a wave's big rocks can quarter into smalls
+const SHARD_POOL = 96;
+const DEEP_N = 11;
+// The engine's wash lights the FIELD, not the vehicle: it lives alone on this
+// layer, which rocks and debris opt into. Without that split, inverse-square
+// over a world measured in hundreds of pixels means any intensity that reaches a
+// rock 200px away has already blown the hull 60px away to white.
+const FIELD_LAYER = 1;
+
+/** The camera's small lead on the ship, shared with everything that lives on the
+ *  play plane so it can cancel out (see Rig). */
+const camLead = { x: 0, y: 0 };
+
+/** The camera drifts a little way after the ship. Play-plane objects add the
+ *  same offset back, so their screen positions — and therefore the 2D canvas's
+ *  labels, sparks and hit-boxes — are pixel-identical. Only the deep field,
+ *  sitting further away, is left to shift: real parallax off the ship's own
+ *  motion, for free, with no risk to the alignment that matters. */
+function Rig({ view, reduced }: { view: MutableRefObject<ShipView>; reduced: boolean }) {
+  const { camera, size } = useThree();
+  useFrame((_, delta) => {
+    if (reduced) {
+      camLead.x = 0;
+      camLead.y = 0;
+      return;
+    }
+    const v = view.current;
+    const tx = (v.x - size.width / 2) * 0.06;
+    const ty = -(v.y - size.height / 2) * 0.06;
+    const k = 1 - Math.exp(-2.4 * Math.min(delta, 0.05)); // lags behind — it's a drift
+    camLead.x += (tx - camLead.x) * k;
+    camLead.y += (ty - camLead.y) * k;
+    camera.position.x = camLead.x;
+    camera.position.y = camLead.y;
+  });
+  return null;
+}
+
+/** Far-off rocks drifting behind the playfield: no collision, no labels, dark
+ *  enough to read as distant mass rather than hazards. They fill the void, and
+ *  because they sit at other depths they parallax against the play plane. */
+function DeepField({ geoms }: { geoms: BufferGeometry[] }) {
+  const meshes = useRef<(Mesh | null)[]>([]);
+  const { size } = useThree();
+  const field = useMemo(
+    () =>
+      Array.from({ length: DEEP_N }, (_, i) => ({
+        fx: (i * 0.618034) % 1, // golden-ratio scatter — even, not gridded
+        fy: ((i * 0.381966) % 1 + (i % 3) * 0.11) % 1,
+        z: -700 - ((i * 137) % 1700),
+        // sized for where they sit: the frustum shrinks them by d/(d+|z|), so
+        // these land as ~20–40px specks, never mistakable for a real hazard
+        s: 13 + ((i * 7) % 20),
+        dx: ((i % 5) - 2) * 2.1,
+        dy: ((i % 3) - 1) * 1.7,
+        sp: 0.05 + (i % 4) * 0.03,
+        geo: i % geoms.length,
+      })),
+    [geoms],
+  );
+  useFrame((s) => {
+    const t = s.clock.elapsedTime;
+    for (let i = 0; i < field.length; i++) {
+      const m = meshes.current[i];
+      const f = field[i];
+      if (!m) continue;
+      // spread across a frustum-width that accounts for their distance, so the
+      // field still covers the frame however far back they sit
+      const spread = 1 + Math.abs(f.z) / 1400;
+      m.position.set(
+        (f.fx - 0.5) * size.width * spread + f.dx * t * 3,
+        (f.fy - 0.5) * size.height * spread + f.dy * t * 3,
+        f.z,
+      );
+      m.rotation.set(t * f.sp, t * f.sp * 0.7, t * f.sp * 0.4);
+      m.scale.setScalar(f.s);
+    }
+  });
+  return (
+    <group>
+      {Array.from({ length: DEEP_N }, (_, i) => (
+        <mesh key={i} ref={(m) => { meshes.current[i] = m; }} geometry={geoms[field[i].geo]}>
+          {/* just above the void — enough to read as mass, far too dim to be
+              mistaken for a hazard you could shoot */}
+          <meshStandardMaterial color="#33424f" roughness={1} metalness={0} transparent opacity={0.42} depthWrite={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
 
 function Rocks({ rocks, geoms }: { rocks: MutableRefObject<RockView[]>; geoms: BufferGeometry[] }) {
   const meshes = useRef<(Mesh | null)[]>([]);
@@ -96,7 +194,7 @@ function Rocks({ rocks, geoms }: { rocks: MutableRefObject<RockView[]>; geoms: B
       // shapes don't shuffle when one ahead of it is destroyed)
       const geo = geoms[rk.id % geoms.length];
       if (m.geometry !== geo) m.geometry = geo;
-      m.position.set(rk.x - size.width / 2, size.height / 2 - rk.y, 0);
+      m.position.set(rk.x - size.width / 2 + camLead.x, size.height / 2 - rk.y + camLead.y, 0);
       // tumble on all three axes — Z carries the engine's own spin so the 2D
       // label and hit-flash stay in step with the silhouette
       const k = (rk.id % 3) + 1;
@@ -107,7 +205,12 @@ function Rocks({ rocks, geoms }: { rocks: MutableRefObject<RockView[]>; geoms: B
   return (
     <group>
       {Array.from({ length: ROCK_POOL }, (_, i) => (
-        <mesh key={i} ref={(m) => { meshes.current[i] = m; }} visible={false} geometry={geoms[0]}>
+        <mesh
+          key={i}
+          ref={(m) => { meshes.current[i] = m; if (m) m.layers.enable(FIELD_LAYER); }}
+          visible={false}
+          geometry={geoms[0]}
+        >
           {/* chipped stone, but kept translucent so the hazard's name (drawn on
               the 2D canvas below) still reads straight through it */}
           <meshStandardMaterial color="#93a1ad" roughness={0.95} metalness={0.05} transparent opacity={0.62} depthWrite={false} />
@@ -117,12 +220,95 @@ function Rocks({ rocks, geoms }: { rocks: MutableRefObject<RockView[]>; geoms: B
   );
 }
 
+interface Shard {
+  x: number; y: number; z: number;
+  vx: number; vy: number; vz: number;
+  rx: number; ry: number; rz: number;
+  sx: number; sy: number; sz: number; // spin
+  s: number; // size
+  life: number; max: number;
+  geo: number;
+}
+
+/** Debris: a broken rock throws real chunks, and they fly THROUGH the play plane
+ *  — some toward the camera, some away — which is the clearest depth cue in the
+ *  whole game. Pooled and shrunk out, so no allocation and one shared material. */
+function Debris({ bursts, geoms }: { bursts: MutableRefObject<Burst[]>; geoms: BufferGeometry[] }) {
+  const meshes = useRef<(Mesh | null)[]>([]);
+  const shards = useRef<Shard[]>([]);
+  const next = useRef(0);
+  const { size } = useThree();
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 1 / 30);
+    // drain whatever broke this frame into the pool
+    const q = bursts.current;
+    while (q.length) {
+      const b = q.shift()!;
+      const n = b.tier === 0 ? 9 : b.tier === 1 ? 6 : 4;
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = 40 + Math.random() * 150;
+        const slot = next.current++ % SHARD_POOL;
+        shards.current[slot] = {
+          x: b.x - size.width / 2, y: size.height / 2 - b.y, z: 0,
+          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+          vz: (Math.random() - 0.5) * 260, // out of the plane, both ways
+          rx: Math.random() * 6.28, ry: Math.random() * 6.28, rz: Math.random() * 6.28,
+          sx: (Math.random() - 0.5) * 7, sy: (Math.random() - 0.5) * 7, sz: (Math.random() - 0.5) * 7,
+          s: b.r * (0.13 + Math.random() * 0.16),
+          life: 0.55 + Math.random() * 0.5, max: 0.55 + Math.random() * 0.5,
+          geo: (Math.random() * geoms.length) | 0,
+        };
+      }
+    }
+    for (let i = 0; i < SHARD_POOL; i++) {
+      const m = meshes.current[i];
+      const sh = shards.current[i];
+      if (!m) continue;
+      if (!sh || sh.life <= 0) {
+        m.visible = false;
+        continue;
+      }
+      sh.life -= dt;
+      const drag = Math.exp(-1.5 * dt);
+      sh.vx *= drag; sh.vy *= drag; sh.vz *= drag;
+      sh.x += sh.vx * dt; sh.y += sh.vy * dt; sh.z += sh.vz * dt;
+      sh.rx += sh.sx * dt; sh.ry += sh.sy * dt; sh.rz += sh.sz * dt;
+      const p = Math.max(0, sh.life / sh.max); // 1 → 0
+      const geo = geoms[sh.geo];
+      if (m.geometry !== geo) m.geometry = geo;
+      m.visible = true;
+      m.position.set(sh.x + camLead.x, sh.y + camLead.y, sh.z);
+      m.rotation.set(sh.rx, sh.ry, sh.rz);
+      // ease out of existence rather than blinking off
+      m.scale.setScalar(sh.s * (p < 0.35 ? p / 0.35 : 1));
+    }
+  });
+  return (
+    <group>
+      {Array.from({ length: SHARD_POOL }, (_, i) => (
+        <mesh
+          key={i}
+          ref={(m) => { meshes.current[i] = m; if (m) m.layers.enable(FIELD_LAYER); }}
+          visible={false}
+          geometry={geoms[0]}
+        >
+          <meshStandardMaterial color="#a8b4bf" roughness={0.9} metalness={0.05} transparent opacity={0.75} depthWrite={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function Ship({ view }: { view: MutableRefObject<ShipView> }) {
-  const g = useRef<Group>(null);
+  const g = useRef<Group>(null); // position only, in px — lights live here too
+  const scaler = useRef<Group>(null);
   const head = useRef<Group>(null);
   const pivot = useRef<Group>(null);
   const flame = useRef<Group>(null);
   const flameLight = useRef<PointLight>(null);
+  const wash = useRef<PointLight | null>(null); // assigned in a ref callback (sets its layer)
+  const muzzle = useRef<Mesh>(null);
   const bank = useRef(0);
   const { size, camera } = useThree();
   useFrame((_, delta) => {
@@ -134,20 +320,20 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
     const cam = camera as PerspectiveCamera;
     const d = size.height / (2 * Math.tan((FOV / 2) * (Math.PI / 180)));
     if (Math.abs(cam.position.z - d) > 0.5) {
-      cam.position.set(0, 0, d);
-      cam.far = d * 3;
+      cam.position.z = d;
+      cam.far = d * 4;
       cam.updateProjectionMatrix();
     }
     const v = view.current;
-    // ortho-like mapping still holds on the play plane → drop the px pose in
-    grp.position.set(v.x - size.width / 2, size.height / 2 - v.y, 0);
+    // drop the px pose in, plus the camera's lead so it cancels out on screen
+    grp.position.set(v.x - size.width / 2 + camLead.x, size.height / 2 - v.y + camLead.y, 0);
     grp.visible = v.visible;
     // screen rotation is a+π/2 clockwise (canvas y-down); negate for +Y-up world
     if (head.current) head.current.rotation.z = -(v.a + Math.PI / 2);
     // (re)spawn pop: ease-out-back on the scale — a touch of overshoot
     const p = Math.min(1, Math.max(0, v.pop));
     const e = 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2);
-    grp.scale.setScalar(SHIP_SCALE * Math.max(0.001, e));
+    if (scaler.current) scaler.current.scale.setScalar(SHIP_SCALE * Math.max(0.001, e));
     // bank into the turn — a roll about the long axis, eased so it settles
     if (pivot.current) {
       const k = 1 - Math.exp(-9 * Math.min(delta, 0.05));
@@ -162,40 +348,68 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
     }
     // the burn washes the hull warm while the engine's lit
     if (flameLight.current) flameLight.current.intensity = (260 + Math.random() * 200) * v.throttle;
+    // …and throws light out into the FIELD, so burning past a rock rakes its
+    // facets warm. This is the one light that crosses between the ship and the
+    // hazards, which is what makes them feel like they share a space. Big number
+    // because it's inverse-square over pixels: ~0.7 on a rock 150px away.
+    if (wash.current) wash.current.intensity = (16000 + Math.random() * 3000) * v.throttle;
+    // nose cannon flash — a hot bloom for a frame or two after the shot
+    if (muzzle.current) {
+      const mz = Math.max(0, Math.min(1, v.muzzle));
+      muzzle.current.visible = mz > 0.02;
+      muzzle.current.scale.setScalar(0.02 + mz * 0.055);
+    }
   });
   return (
     <group ref={g}>
-      {/* the playfield tilt — outside the heading, so the view angle is steady */}
-      <group rotation={[TILT, 0, 0]}>
-        <group ref={head}>
-          {/* pivot about the model's middle so it rotates in place */}
-          <group ref={pivot} position={[0, -ROCKET_MID, 0]}>
-            {/* The pad's vehicle is a slender 1:9 needle — right in the maquette,
-                but at game size the hull is too thin to show any shading. Fatten
-                the barrel (not the length) just for the game: a stubbier stack
-                reads as a solid object, and the fins and legs actually register.
-                Wraps the plume too, so the exhaust still matches the nozzle (the
-                animated scale lives on the inner group, untouched by this). */}
-            <group scale={[1.75, 1, 1.75]}>
-              <RocketBody mode="lit" />
-            {/* exhaust plume out of the tail (tail ≈ y 0.09), pointing −Y */}
-            <group ref={flame} position={[0, 0.06, 0]} visible={false}>
-              <mesh position={[0, -0.11, 0]} rotation={[Math.PI, 0, 0]}>
-                <coneGeometry args={[0.03, 0.2, 12, 1, true]} />
-                <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
-              </mesh>
-              {/* hot inner core */}
-              <mesh position={[0, -0.075, 0]} rotation={[Math.PI, 0, 0]}>
-                <coneGeometry args={[0.015, 0.12, 10, 1, true]} />
-                <meshBasicMaterial color="#fff3da" transparent opacity={0.95} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
-              </mesh>
-              <mesh position={[0, -0.02, 0]}>
-                <sphereGeometry args={[0.045, 12, 12]} />
-                <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
-              </mesh>
-              {/* the burn's glow on the hull (intensity driven in useFrame) */}
-              <pointLight ref={flameLight} position={[0, -0.04, 0.05]} color="#ffb46a" intensity={0} decay={2} />
+      {/* the engine's wash, in world (pixel) units so its reach is predictable.
+          layers.set(FIELD_LAYER) so it lights only the rocks and debris. */}
+      <pointLight
+        ref={(l) => { wash.current = l; if (l) l.layers.set(FIELD_LAYER); }}
+        position={[0, -40, 70]}
+        color="#ff9d5c"
+        intensity={0}
+        distance={620}
+        decay={2}
+      />
+      <group ref={scaler}>
+        {/* the playfield tilt — outside the heading, so the view angle is steady */}
+        <group rotation={[TILT, 0, 0]}>
+          <group ref={head}>
+            {/* pivot about the model's middle so it rotates in place */}
+            <group ref={pivot} position={[0, -ROCKET_MID, 0]}>
+              {/* The pad's vehicle is a slender 1:9 needle — right in the maquette,
+                  but at game size the hull is too thin to show any shading. Fatten
+                  the barrel (not the length) just for the game: a stubbier stack
+                  reads as a solid object, and the fins and legs actually register.
+                  Wraps the plume too, so the exhaust still matches the nozzle (the
+                  animated scale lives on the inner group, untouched by this). */}
+              <group scale={[1.75, 1, 1.75]}>
+                <RocketBody mode="lit" />
+                {/* exhaust plume out of the tail (tail ≈ y 0.09), pointing −Y */}
+                <group ref={flame} position={[0, 0.06, 0]} visible={false}>
+                  <mesh position={[0, -0.11, 0]} rotation={[Math.PI, 0, 0]}>
+                    <coneGeometry args={[0.03, 0.2, 12, 1, true]} />
+                    <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+                  </mesh>
+                  {/* hot inner core */}
+                  <mesh position={[0, -0.075, 0]} rotation={[Math.PI, 0, 0]}>
+                    <coneGeometry args={[0.015, 0.12, 10, 1, true]} />
+                    <meshBasicMaterial color="#fff3da" transparent opacity={0.95} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+                  </mesh>
+                  <mesh position={[0, -0.02, 0]}>
+                    <sphereGeometry args={[0.045, 12, 12]} />
+                    <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+                  </mesh>
+                  {/* the burn's glow on the hull (intensity driven in useFrame) */}
+                  <pointLight ref={flameLight} position={[0, -0.04, 0.05]} color="#ffb46a" intensity={0} decay={2} />
+                </group>
               </group>
+              {/* muzzle flash at the nose tip (nose ≈ y 0.72 in model space) */}
+              <mesh ref={muzzle} position={[0, 0.74, 0]} visible={false}>
+                <sphereGeometry args={[1, 10, 10]} />
+                <meshBasicMaterial color="#d8fbff" transparent opacity={0.8} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+              </mesh>
             </group>
           </group>
         </group>
@@ -204,12 +418,22 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
   );
 }
 
-export function GameRocket({ view, rocks }: { view: MutableRefObject<ShipView>; rocks: MutableRefObject<RockView[]> }) {
+export function GameRocket({
+  view,
+  rocks,
+  bursts,
+  reduced = false,
+}: {
+  view: MutableRefObject<ShipView>;
+  rocks: MutableRefObject<RockView[]>;
+  bursts: MutableRefObject<Burst[]>;
+  reduced?: boolean;
+}) {
   const geoms = useMemo(() => rockGeometries(), []);
   return (
     <Canvas
       className="ast__ship3d"
-      camera={{ fov: FOV, position: [0, 0, 1200], near: 1, far: 6000 }}
+      camera={{ fov: FOV, position: [0, 0, 1200], near: 1, far: 8000 }}
       gl={{ alpha: true, antialias: true }}
       dpr={[1, 2]}
     >
@@ -219,8 +443,11 @@ export function GameRocket({ view, rocks }: { view: MutableRefObject<ShipView>; 
       <directionalLight position={[4, 6, 8]} intensity={2.2} color="#fff6e8" />
       <directionalLight position={[-5, 2, 4]} intensity={0.5} color="#27e8f2" />
       <directionalLight position={[0, -3, -6]} intensity={0.35} color="#8fd8ff" />
+      <Rig view={view} reduced={reduced} />
+      <DeepField geoms={geoms} />
       <Ship view={view} />
       <Rocks rocks={rocks} geoms={geoms} />
+      <Debris bursts={bursts} geoms={geoms} />
     </Canvas>
   );
 }

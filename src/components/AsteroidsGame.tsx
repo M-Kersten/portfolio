@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { GameRocket, type RockView, type ShipView } from './GameRocket';
+import { GameRocket, type Burst, type RockView, type ShipView } from './GameRocket';
 
 // ASTEROIDS — the launch easter egg's payload. Everyone's first Unity game,
 // rebuilt in the site's own language: the ship is the actual 3D launch vehicle
@@ -79,8 +79,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const [best, setBest] = useState(() => Number(localStorage.getItem('mk-asteroids-best') ?? 0));
   const restartRef = useRef<() => void>(() => {});
   // the ship's live pose, handed to the 3D rocket overlay every frame
-  const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, throttle: 0, turn: 0, visible: true, pop: 1 });
+  const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, throttle: 0, turn: 0, visible: true, pop: 1, muzzle: 0 });
   const rocksView = useRef<RockView[]>([]); // per-frame view of the rocks for the 3D layer
+  const burstsView = useRef<Burst[]>([]); // breakages queued for the 3D debris pool
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -133,6 +134,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let wave = 0;
     let waveGap = 0; // countdown to the next wave while the field is clear
     let cooldown = 0;
+    let muzzle = 0; // 1 on the shot, decays — drives the 3D nose flash
+    // The 3D vehicle is ~150px long, so its nose tip sits about this far out
+    // from centre: shots and their sparks leave from THERE, not from mid-hull.
+    const NOSE = 56;
     let paused = false;
     let over = false;
     let shake = 0;
@@ -252,6 +257,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       boom(imp.x, imp.y, rk.tier === 2 ? 8 : 14, NEUTRAL, imp.dx, imp.dy);
       // the rock itself flashes white-hot for a beat as it breaks
       if (!reduced) rockFlashes.push({ x: rk.x, y: rk.y, rot: rk.rot, r: rk.r, shape: rk.shape, ttl: 0.09, max: 0.09 });
+      // …and throws real 3D chunks, some of them straight at the camera
+      if (!reduced) burstsView.current.push({ x: rk.x, y: rk.y, r: rk.r, tier: rk.tier });
       // a breath of hit-stop on the big ones — the punch reads
       if (!reduced && rk.tier === 0) slomo = Math.max(slomo, 0.05);
       if (rk.tier < 2) {
@@ -521,16 +528,18 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         ship.y = (ship.y + ship.vy * dt + H) % H;
         if (ship.inv > 0) ship.inv -= dt;
         cooldown -= dt;
+        muzzle = Math.max(0, muzzle - dt * 9); // a couple of frames of nose flash
         if (ship.fire && cooldown <= 0) {
           cooldown = 0.17;
           shots += 1;
-          bullets.push({ x: ship.x + Math.cos(ship.a) * 14, y: ship.y + Math.sin(ship.a) * 14, vx: ship.vx + Math.cos(ship.a) * 430, vy: ship.vy + Math.sin(ship.a) * 430, ttl: 1.05 });
+          muzzle = 1; // the 3D nose flash
+          bullets.push({ x: ship.x + Math.cos(ship.a) * NOSE, y: ship.y + Math.sin(ship.a) * NOSE, vx: ship.vx + Math.cos(ship.a) * 430, vy: ship.vy + Math.sin(ship.a) * 430, ttl: 1.05 });
           // muzzle sparks off the nose
           const mn = reduced ? 1 : 3;
           for (let i = 0; i < mn; i++) {
             const ja = ship.a + (Math.random() - 0.5) * 0.8;
             const js = 90 + Math.random() * 120;
-            parts.push({ x: ship.x + Math.cos(ship.a) * 16, y: ship.y + Math.sin(ship.a) * 16, vx: ship.vx + Math.cos(ja) * js, vy: ship.vy + Math.sin(ja) * js, ttl: 0.14, max: 0.14, c: CYAN, streak: true });
+            parts.push({ x: ship.x + Math.cos(ship.a) * (NOSE + 2), y: ship.y + Math.sin(ship.a) * (NOSE + 2), vx: ship.vx + Math.cos(ja) * js, vy: ship.vy + Math.sin(ja) * js, ttl: 0.14, max: 0.14, c: CYAN, streak: true });
           }
         }
       }
@@ -817,6 +826,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       sv.throttle = throttle;
       sv.turn = turnEase;
       sv.pop = Math.min(1, ship.spawnAge / 0.4); // scale-in on (re)spawn
+      sv.muzzle = muzzle;
       // hidden during the respawn hold, while blinking invulnerable, and once
       // the vehicle has RUD'd (it's particles now — don't leave it intact over
       // the game-over card)
@@ -868,7 +878,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   return (
     <div className="ast" role="dialog" aria-label="Asteroids">
       <canvas ref={canvasRef} className="ast__canvas" />
-      <GameRocket view={shipView} rocks={rocksView} />
+      <GameRocket view={shipView} rocks={rocksView} bursts={burstsView} reduced={reduced} />
       {/* scanner-frame corners — the site's bracket language on the viewport */}
       <div className="ast__frame" aria-hidden="true">
         <i />
