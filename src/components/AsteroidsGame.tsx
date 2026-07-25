@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { GameRocket, type ShipView } from './GameRocket';
+import { GameRocket, type RockView, type ShipView } from './GameRocket';
 
 // ASTEROIDS — the launch easter egg's payload. Everyone's first Unity game,
-// rebuilt in the site's own wireframe language: the ship is the actual 3D
-// launch vehicle (GameRocket, layered over this canvas), the asteroids are
-// labelled with the real hazards of a decade in XR (SCOPE CREEP splits into
-// MORE SCOPE CREEP; MERGE CONFLICT splits into YOURS and THEIRS), and death is
-// a Rapid Unscheduled Disassembly with an [ITERATE] button. Everything but the
-// ship is hand-rolled canvas 2D — no engine, obviously.
+// rebuilt in the site's own language: the ship is the actual 3D launch vehicle
+// and the hazards are real tumbling rocks (both in the GameRocket layer over
+// this canvas), labelled with the real hazards of a decade in XR (SCOPE CREEP
+// splits into MORE SCOPE CREEP; MERGE CONFLICT splits into YOURS and THEIRS),
+// and death is a Rapid Unscheduled Disassembly with an [ITERATE] button.
+// Simulation, effects and HUD are hand-rolled canvas 2D — no engine, obviously.
 
 const CYAN = '#27e8f2';
 const NEUTRAL = '#9fb6c6';
@@ -44,10 +44,12 @@ interface Rock {
   x: number; y: number; vx: number; vy: number;
   r: number; tier: 0 | 1 | 2; // 0 big → 2 small
   rot: number; spin: number;
-  shape: number[]; // radius multiplier per vertex
+  shape: number[]; // radius multiplier per vertex (the 2D hit flash still uses it)
   label?: string;
   age: number; // seconds alive — rim spawns fade/scale in over the first beat
+  id: number; // stable for life — picks the 3D shape + tumble in the GameRocket layer
 }
+let rockId = 0; // monotonic, so a rock keeps its look however the array shifts
 interface Bullet { x: number; y: number; vx: number; vy: number; ttl: number }
 interface Particle { x: number; y: number; vx: number; vy: number; ttl: number; max: number; c: string; streak?: boolean }
 interface Ring { x: number; y: number; r: number; v: number; ttl: number; max: number; c: string } // shockwave
@@ -78,6 +80,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const restartRef = useRef<() => void>(() => {});
   // the ship's live pose, handed to the 3D rocket overlay every frame
   const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, throttle: 0, turn: 0, visible: true, pop: 1 });
+  const rocksView = useRef<RockView[]>([]); // per-frame view of the rocks for the 3D layer
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -211,7 +214,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         // trouble within the first pass, not watching rocks orbit the rim
         const a = Math.atan2(H / 2 - y, W / 2 - x) + (Math.random() - 0.5) * 0.7;
         const sp = 46 + Math.random() * 38 + wave * 6;
-        rocks.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 44, tier: 0, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 0.8, shape: rockShape(), label: labels[i % labels.length], age: 0 });
+        rocks.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 44, tier: 0, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 0.8, shape: rockShape(), label: labels[i % labels.length], age: 0, id: rockId++ });
       }
     };
 
@@ -268,6 +271,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
             shape: rockShape(9),
             label: rk.tier === 0 ? childLabels?.[i] : undefined,
             age: 9, // children pop out of the parent — no fade-in
+            id: rockId++,
           });
         }
       }
@@ -371,7 +375,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         lives = 0;
         ship.inv = 0;
         hud();
-        rocks.push({ x: W / 2, y: H / 2, vx: 0, vy: 0, r: 44, tier: 0, rot: 0, spin: 0.4, shape: rockShape(), label: 'SCOPE CREEP', age: 9 });
+        rocks.push({ x: W / 2, y: H / 2, vx: 0, vy: 0, r: 44, tier: 0, rot: 0, spin: 0.4, shape: rockShape(), label: 'SCOPE CREEP', age: 9, id: rockId++ });
       }
     };
     restartRef.current = () => {
@@ -572,7 +576,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         if (ship.dead <= 0 && ship.inv <= 0) {
           const dx = rk.x - ship.x;
           const dy = rk.y - ship.y;
-          const rr = rk.r + 10;
+          const rr = rk.r + 13; // the 3D vehicle is bigger in frame — meet it partway
+          // (still forgiving: the hull is ~120px long, so only its core collides)
           if (dx * dx + dy * dy < rr * rr) die();
         }
       }
@@ -688,30 +693,15 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       ctx.fillText(String(wave).padStart(2, '0'), 26, H - 30);
       ctx.globalAlpha = 1;
 
-      // rocks — rim spawns scale/fade in; a whisper of body fill and a wide
-      // soft stroke under the crisp line make them read as lit wireframes
-      for (const rk of rocks) {
+      // rocks — the bodies themselves are 3D now (the GameRocket layer above),
+      // so here we only hand over their live poses and keep the labels, which
+      // read through the translucent stone.
+      const rv = rocksView.current;
+      rv.length = rocks.length;
+      for (let i = 0; i < rocks.length; i++) {
+        const rk = rocks[i];
         const born = Math.min(1, rk.age / 0.45);
-        const sc = 0.7 + 0.3 * born;
-        ctx.beginPath();
-        const n = rk.shape.length;
-        for (let i = 0; i <= n; i++) {
-          const a = rk.rot + (i / n) * 6.283;
-          const r = rk.r * rk.shape[i % n] * sc;
-          const px = rk.x + Math.cos(a) * r;
-          const py = rk.y + Math.sin(a) * r;
-          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-        }
-        ctx.fillStyle = NEUTRAL;
-        ctx.globalAlpha = 0.05 * born;
-        ctx.fill();
-        ctx.strokeStyle = NEUTRAL;
-        ctx.globalAlpha = 0.14 * born;
-        ctx.lineWidth = 3.4;
-        ctx.stroke();
-        ctx.globalAlpha = 0.9 * born;
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
+        rv[i] = { x: rk.x, y: rk.y, r: rk.r, rot: rk.rot, id: rk.id, born };
         if (rk.label) {
           ctx.globalAlpha = 0.85 * born;
           ctx.fillStyle = INK;
@@ -878,7 +868,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   return (
     <div className="ast" role="dialog" aria-label="Asteroids">
       <canvas ref={canvasRef} className="ast__canvas" />
-      <GameRocket view={shipView} />
+      <GameRocket view={shipView} rocks={rocksView} />
       {/* scanner-frame corners — the site's bracket language on the viewport */}
       <div className="ast__frame" aria-hidden="true">
         <i />

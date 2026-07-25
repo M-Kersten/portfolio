@@ -57,20 +57,30 @@ export function Rise({ animate, children }: { animate: boolean; children: ReactN
 
 export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?: 'ghost' | 'lit'; parts?: RocketParts; assemble?: boolean }) {
   const lit = mode === 'lit';
-  const line = lit ? '#27e8f2' : GHOST_LINE;
+  // lit: faint panel seams, not neon piping — the shading carries the form
+  const line = lit ? '#93a3b0' : GHOST_LINE;
   const p = { legs: true, booster: true, fins: true, interstage: true, nose: true, ...parts };
-  // hull: ghost = faint frosted glass; lit = a lit teal solid that reads on
-  // black (bright enough to catch light, with cyan edges drawing the outline)
+  // hull: ghost = faint frosted glass; lit = a REAL vehicle — painted white
+  // aluminium that takes the key light and the engine's warm bounce, so the
+  // cylinder reads round instead of glowing teal
   const Hull = ({ opacity }: { opacity: number }) =>
     lit ? (
-      <meshStandardMaterial color="#173d47" metalness={0.3} roughness={0.45} emissive="#1c7183" emissiveIntensity={0.8} />
+      <meshStandardMaterial color="#dfe5ea" metalness={0.45} roughness={0.42} />
     ) : (
       <meshStandardMaterial color={GHOST_FILL} transparent opacity={opacity} />
     );
-  // struts (fins + legs)
+  // the interstage band — charcoal composite, like the real thing. It breaks the
+  // white stack into stages, which is most of what makes a rocket read as one.
+  const Band = ({ opacity }: { opacity: number }) =>
+    lit ? (
+      <meshStandardMaterial color="#2c333a" metalness={0.5} roughness={0.55} />
+    ) : (
+      <meshStandardMaterial color={GHOST_FILL} transparent opacity={opacity} />
+    );
+  // struts (fins + legs) — dark machined graphite
   const Strut = ({ opacity }: { opacity: number }) =>
     lit ? (
-      <meshStandardMaterial color="#2fd4e6" emissive="#27e8f2" emissiveIntensity={0.5} roughness={0.4} toneMapped={false} />
+      <meshStandardMaterial color="#39424a" metalness={0.85} roughness={0.32} />
     ) : (
       <meshStandardMaterial color={GHOST_LINE} transparent opacity={opacity} />
     );
@@ -87,10 +97,10 @@ export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?:
       )}
       {p.interstage && (
         <Rise animate={assemble}>
-          {/* interstage / upper stage */}
+          {/* interstage / upper stage — the dark band between the stages */}
           <mesh position={[0, 0.09 + 0.42 + 0.055, 0]}>
             <cylinderGeometry args={[0.03, 0.034, 0.11, 14]} />
-            <Hull opacity={0.36} />
+            <Band opacity={0.36} />
             <Edges threshold={30} color={line} />
           </mesh>
         </Rise>
