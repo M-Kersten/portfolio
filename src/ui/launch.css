@@ -165,11 +165,22 @@
   display: inline-block; /* transformable for the tick animation */
   color: var(--accent-ink);
 }
-.ast__lives {
+/* the shield readout — the only thing standing between you and the RUD card */
+.ast__shield {
   display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  padding: 0.2em 0.7em;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: 999px;
+  color: var(--ink-40);
+  transition: color 0.25s var(--ease), border-color 0.25s var(--ease);
+}
+.ast__shield[data-up] {
   color: var(--accent-ink);
-  letter-spacing: 0.3em;
-  font-size: 0.82rem;
+  border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 /* tiny HUD reactions: the score ticks on a kill, the boosters flare when one
    is lost (classes re-applied per event by the game) */
@@ -179,18 +190,11 @@
 @keyframes ast-bump {
   30% { transform: scale(1.3); }
 }
-.ast__lives-hit {
-  animation: ast-lives-hit 0.55s var(--ease);
+.ast__shield-hit {
+  animation: ast-shield-hit 0.55s var(--ease);
 }
-@keyframes ast-lives-hit {
-  25% { color: #ffb46a; transform: scale(1.3); }
-}
-/* lives are tiny boosters */
-.ast__lives svg {
-  width: 9px;
-  height: 15px;
-  margin-left: 6px;
-  vertical-align: -2px;
+@keyframes ast-shield-hit {
+  25% { color: #ffb46a; border-color: #ffb46a; transform: scale(1.12); }
 }
 /* the chain multiplier riding next to the score */
 .ast__chain {
@@ -397,15 +401,30 @@
   color: var(--accent-ink);
   text-transform: uppercase;
 }
-/* the post-flight debrief: shots, accuracy, stage, time, best chain */
-.rud__report {
-  margin: 0.1rem 0 0;
-  max-width: none;
+/* The post-flight debrief, set as a miniature case study — the same three beats,
+   and the same heading idiom (.story__h), as every project on the site. */
+.rud__story {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0.35rem 0 0;
+  text-align: left;
+}
+.rud__h {
+  margin: 0 0 0.3em;
   font-family: var(--font-mono);
-  font-size: 0.74rem;
-  letter-spacing: 0.06em;
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.rud__story p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
   color: var(--ink-60);
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 .rud__actions {
   display: flex;
@@ -515,7 +534,7 @@
   .rud__booster,
   .rud__booster::after,
   .ast__score-bump,
-  .ast__lives-hit,
+  .ast__shield-hit,
   .ast__chain-pop {
     animation: none;
   }

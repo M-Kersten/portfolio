@@ -57,12 +57,28 @@ interface Popup { x: number; y: number; txt: string; ttl: number; max: number; c
 interface RockFlash { x: number; y: number; rot: number; r: number; shape: number[]; ttl: number; max: number } // 2-frame hit flash
 
 const EMBER = '#ffb46a'; // exhaust / damage heat (the palette's one warm note)
-// a life = a tiny booster, not a triangle
-const LIFE_GLYPH =
-  '<svg viewBox="0 0 10 16" aria-hidden="true"><path d="M5 0C6.2 1.6 7 3.4 7 5.6V10L9 13L6.4 12.2L5 14.4L3.6 12.2L1 13L3 10V5.6C3 3.4 3.8 1.6 5 0Z" fill="currentColor"/></svg>';
 
 function rockShape(n = 11): number[] {
   return Array.from({ length: n }, () => 0.72 + Math.random() * 0.45);
+}
+
+/** The post-flight debrief, written up the way every case study on this site is
+ *  written up: the problem, the approach, the lesson. */
+interface Debrief {
+  problem: string;
+  approach: string;
+  lesson: string;
+}
+
+/** The lesson is the one line that isn't just stats — it reads the run and says
+ *  the wry thing. First match wins, so order is the priority. */
+function lessonFor(o: { acc: number; shots: number; wave: number; chain: number }): string {
+  if (o.wave <= 1 && o.shots < 14) return 'Scope arrives faster than anyone plans for. It always has.';
+  if (o.acc >= 60 && o.shots >= 12) return 'Aim was never the problem. There was just more of it than there was of you.';
+  if (o.acc < 25 && o.shots >= 24) return 'Volume is not a strategy. Neither is hoping.';
+  if (o.chain >= 4) return 'Momentum is real — right up until the moment it is not.';
+  if (o.wave >= 4) return 'Every stage ships. The list just gets longer.';
+  return 'Nothing here was unforeseeable. It rarely is. You ship anyway.';
 }
 
 export function AsteroidsGame({ onExit }: { onExit: () => void }) {
@@ -70,16 +86,16 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scoreRef = useRef<HTMLSpanElement>(null);
   const chainRef = useRef<HTMLSpanElement>(null);
-  const livesRef = useRef<HTMLSpanElement>(null);
+  const shieldRef = useRef<HTMLSpanElement>(null);
   const toastRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<'play' | 'over'>('play');
   const [finalScore, setFinalScore] = useState(0);
-  const [report, setReport] = useState(''); // the RUD card's mission debrief
+  const [debrief, setDebrief] = useState<Debrief | null>(null); // the RUD card's write-up
   const [runId, setRunId] = useState(0); // bumps per run — replays the title card
   const [best, setBest] = useState(() => Number(localStorage.getItem('mk-asteroids-best') ?? 0));
   const restartRef = useRef<() => void>(() => {});
   // the ship's live pose, handed to the 3D rocket overlay every frame
-  const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, throttle: 0, turn: 0, visible: true, pop: 1, muzzle: 0 });
+  const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, throttle: 0, turn: 0, visible: true, pop: 1, muzzle: 0, shield: 1, shieldBreak: 0 });
   const rocksView = useRef<RockView[]>([]); // per-frame view of the rocks for the 3D layer
   const burstsView = useRef<Burst[]>([]); // breakages queued for the 3D debris pool
 
@@ -130,7 +146,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let popups: Popup[] = [];
     let rockFlashes: RockFlash[] = [];
     let score = 0;
-    let lives = 3;
+    // No lives, no respawn queue: the vehicle carries a shield that eats exactly
+    // one hit and comes back when you clear a stage. Two states, nothing to count.
+    let shield = true;
+    let shieldBreak = 0; // 1 on the burst, decays — drives the 3D bubble's flare
     let wave = 0;
     let waveGap = 0; // countdown to the next wave while the field is clear
     let cooldown = 0;
@@ -179,7 +198,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       el.classList.add('ast__toast--show');
     };
     const hud = () => {
-      if (livesRef.current) livesRef.current.innerHTML = LIFE_GLYPH.repeat(Math.max(0, lives));
+      const el = shieldRef.current;
+      if (!el) return;
+      el.textContent = shield ? 'SHIELD UP' : 'SHIELD DOWN';
+      if (shield) el.setAttribute('data-up', 'true');
+      else el.removeAttribute('data-up');
     };
     // restart a one-shot CSS animation on a HUD element (score tick, life lost)
     const bump = (el: HTMLElement | null, cls: string) => {
@@ -289,45 +312,66 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         popups.push({ x: ship.x, y: ship.y - 36, txt: '+150 STAGE BONUS', ttl: 1, max: 1, c: CYAN });
         if (!reduced) rings.push({ x: ship.x, y: ship.y, r: 12, v: 540, ttl: 0.5, max: 0.5, c: CYAN });
         gridPulse = 1;
-        toast(`STAGE ${wave + 1} CLEARED · +150`);
+        // clearing a stage re-earns the shield — the only way to get it back
+        const regained = !shield;
+        shield = true;
+        hud();
+        toast(regained ? `STAGE ${wave + 1} CLEARED · +150 · SHIELD RESTORED` : `STAGE ${wave + 1} CLEARED · +150`);
         waveGap = 2.2;
       }
       scored();
     };
 
-    const die = () => {
+    // Contact with a hazard. With the shield up it takes the hit and drops; with
+    // it down, that's the flight. `killer` is the hazard's own label, which the
+    // debrief names — the thing that got through is the point of the story.
+    const impact = (killer?: string) => {
+      chain = 0;
+      chainT = 0;
+      if (chainRef.current) chainRef.current.textContent = '';
+
+      if (shield) {
+        shield = false;
+        hud();
+        bump(shieldRef.current, 'ast__shield-hit');
+        shieldBreak = 1; // the 3D bubble flares and bursts
+        boom(ship.x, ship.y, 12, CYAN);
+        if (!reduced) {
+          rings.push({ x: ship.x, y: ship.y, r: 26, v: 320, ttl: 0.4, max: 0.4, c: CYAN });
+          flash = 0.4;
+          shake = Math.min(shake + 5, 12);
+        }
+        ship.inv = 1.2; // a breath of grace so the same rock can't finish you
+        toast(killer ? `SHIELD GONE · ${killer}` : 'SHIELD GONE');
+        return;
+      }
+
       boom(ship.x, ship.y, 26, CYAN);
       if (!reduced) {
         flash = 1;
         slomo = Math.max(slomo, 0.3);
         shake = Math.min(shake + 10, 18);
       }
-      chain = 0;
-      chainT = 0;
-      if (chainRef.current) chainRef.current.textContent = '';
-      lives -= 1;
-      hud();
-      bump(livesRef.current, 'ast__lives-hit');
-      if (lives < 0) {
-        over = true;
-        setFinalScore(score);
-        // the post-flight debrief — everything the engine already knows
-        const acc = shots > 0 ? Math.round((hitsCount / shots) * 100) : 0;
-        const mm = String(Math.floor(playTime / 60)).padStart(2, '0');
-        const ss = String(Math.floor(playTime % 60)).padStart(2, '0');
-        setReport(
-          `${shots} tickets fired · ${shots > 0 ? `${acc}% resolved` : 'no shots fired'} · reached stage ${wave} · T+${mm}:${ss}${bestChain >= 2 ? ` · best chain ×${bestChain}` : ''}`,
-        );
-        setBest((b) => {
-          const nb = Math.max(b, score);
-          localStorage.setItem('mk-asteroids-best', String(nb));
-          return nb;
-        });
-        setPhase('over');
-      } else {
-        ship.dead = 1.1; // respawn hold
-        toast(lives === 0 ? 'final Q coming up' : 'another day another sprint');
-      }
+      over = true;
+      setFinalScore(score);
+      // The write-up: the three beats every case study on this site uses, built
+      // from what the engine already knows.
+      const acc = shots > 0 ? Math.round((hitsCount / shots) * 100) : 0;
+      const mm = String(Math.floor(playTime / 60)).padStart(2, '0');
+      const ss = String(Math.floor(playTime % 60)).padStart(2, '0');
+      setDebrief({
+        problem: `${killer ?? 'An unlabelled hazard'} got through at stage ${Math.max(1, wave)}, with the shield already down.`,
+        approach: `${shots} ticket${shots === 1 ? '' : 's'} fired, ${shots > 0 ? `${acc}% resolved` : 'none resolved'}${
+          bestChain >= 2 ? `, ${bestChain} cleared back-to-back at best` : ''
+        }. ${score} problem${score === 1 ? '' : 's'} fixed in T+${mm}:${ss}.`,
+        lesson: lessonFor({ acc, shots, wave, chain: bestChain }),
+      });
+      setBest((b) => {
+        const nb = Math.max(b, score);
+        localStorage.setItem('mk-asteroids-best', String(nb));
+        return nb;
+      });
+      setPhase('over');
     };
 
     const reset = (restart = false) => {
@@ -341,7 +385,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       slomo = 0;
       score = 0;
       dispScore = 0;
-      lives = 3;
       wave = 0;
       milestone = 0;
       over = false;
@@ -363,9 +406,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       ship.y = H / 2;
       ship.vx = ship.vy = 0;
       ship.a = -Math.PI / 2;
-      ship.inv = 2.4;
+      ship.inv = 0; // no spawn grace needed — you start with the shield up
       ship.dead = 0;
       ship.spawnAge = 0;
+      shield = true;
+      shieldBreak = 0;
       if (chainRef.current) chainRef.current.textContent = '';
       scoreRef.current?.classList.remove('ast__score-rec');
       if (scoreRef.current) scoreRef.current.textContent = '0000';
@@ -375,11 +420,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       introUntil = reduced ? 0 : performance.now() + 2200;
       firstWave = false;
       waveGap = 0;
-      // e2e playtest hook (sessionStorage 'mk-ast-test' = 'rud'): last booster +
-      // a rock dead ahead, so automation can reach the RUD screen determinis-
-      // tically. Unreachable in normal play — nothing sets the flag.
+      // e2e playtest hook (sessionStorage 'mk-ast-test' = 'rud'): shield already
+      // down + a rock dead ahead, so automation can reach the RUD screen determin-
+      // istically. Unreachable in normal play — nothing sets the flag.
       if (sessionStorage.getItem('mk-ast-test') === 'rud') {
-        lives = 0;
+        shield = false;
         ship.inv = 0;
         hud();
         rocks.push({ x: W / 2, y: H / 2, vx: 0, vy: 0, r: 44, tier: 0, rot: 0, spin: 0.4, shape: rockShape(), label: 'SCOPE CREEP', age: 9, id: rockId++ });
@@ -478,69 +523,57 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       }
       // ship
       ship.spawnAge += dt;
-      if (ship.dead > 0) {
-        turnIn = 0;
-        ship.dead -= dt;
-        if (ship.dead <= 0) {
-          ship.x = W / 2;
-          ship.y = H / 2;
-          ship.vx = ship.vy = 0;
-          ship.a = -Math.PI / 2;
-          ship.inv = 2.4;
-          ship.spawnAge = 0; // the 3D model pops back in (ShipView.pop)
-        }
+      if (steerId !== null) {
+        const want = Math.atan2(steerY - ship.y, steerX - ship.x);
+        let d = want - ship.a;
+        while (d > Math.PI) d -= 6.283;
+        while (d < -Math.PI) d += 6.283;
+        ship.a += Math.max(-4.4 * dt, Math.min(4.4 * dt, d));
+        turnIn = Math.max(-1, Math.min(1, d * 4));
       } else {
-        if (steerId !== null) {
-          const want = Math.atan2(steerY - ship.y, steerX - ship.x);
-          let d = want - ship.a;
-          while (d > Math.PI) d -= 6.283;
-          while (d < -Math.PI) d += 6.283;
-          ship.a += Math.max(-4.4 * dt, Math.min(4.4 * dt, d));
-          turnIn = Math.max(-1, Math.min(1, d * 4));
-        } else {
-          if (ship.left) ship.a -= 3.8 * dt;
-          if (ship.right) ship.a += 3.8 * dt;
-          turnIn = (ship.right ? 1 : 0) - (ship.left ? 1 : 0);
+        if (ship.left) ship.a -= 3.8 * dt;
+        if (ship.right) ship.a += 3.8 * dt;
+        turnIn = (ship.right ? 1 : 0) - (ship.left ? 1 : 0);
+      }
+      if (ship.thrust) {
+        ship.vx += Math.cos(ship.a) * 240 * dt;
+        ship.vy += Math.sin(ship.a) * 240 * dt;
+      }
+      // embers stream from the tail while the engine's spooled, under the 3D
+      // plume — the rate follows the throttle, not the key
+      if (!reduced && throttle > 0.12) {
+        const n = Math.random() < throttle ? 2 : 1;
+        for (let i = 0; i < n; i++) {
+          const ja = ship.a + Math.PI + (Math.random() - 0.5) * 0.55;
+          const js = 70 + Math.random() * 110;
+          parts.push({
+            x: ship.x - Math.cos(ship.a) * 17, y: ship.y - Math.sin(ship.a) * 17,
+            vx: Math.cos(ja) * js, vy: Math.sin(ja) * js,
+            ttl: 0.2 + Math.random() * 0.22, max: 0.42,
+            c: Math.random() < 0.5 ? EMBER : '#ffd9a0', streak: true,
+          });
         }
-        if (ship.thrust) {
-          ship.vx += Math.cos(ship.a) * 240 * dt;
-          ship.vy += Math.sin(ship.a) * 240 * dt;
-        }
-        // embers stream from the tail while the engine's spooled, under the 3D
-        // plume — the rate follows the throttle, not the key
-        if (!reduced && throttle > 0.12) {
-          const n = Math.random() < throttle ? 2 : 1;
-          for (let i = 0; i < n; i++) {
-            const ja = ship.a + Math.PI + (Math.random() - 0.5) * 0.55;
-            const js = 70 + Math.random() * 110;
-            parts.push({
-              x: ship.x - Math.cos(ship.a) * 17, y: ship.y - Math.sin(ship.a) * 17,
-              vx: Math.cos(ja) * js, vy: Math.sin(ja) * js,
-              ttl: 0.2 + Math.random() * 0.22, max: 0.42,
-              c: Math.random() < 0.5 ? EMBER : '#ffd9a0', streak: true,
-            });
-          }
-        }
-        const damp = Math.exp(-0.45 * dt);
-        ship.vx *= damp;
-        ship.vy *= damp;
-        ship.x = (ship.x + ship.vx * dt + W) % W;
-        ship.y = (ship.y + ship.vy * dt + H) % H;
-        if (ship.inv > 0) ship.inv -= dt;
-        cooldown -= dt;
-        muzzle = Math.max(0, muzzle - dt * 9); // a couple of frames of nose flash
-        if (ship.fire && cooldown <= 0) {
-          cooldown = 0.17;
-          shots += 1;
-          muzzle = 1; // the 3D nose flash
-          bullets.push({ x: ship.x + Math.cos(ship.a) * NOSE, y: ship.y + Math.sin(ship.a) * NOSE, vx: ship.vx + Math.cos(ship.a) * 430, vy: ship.vy + Math.sin(ship.a) * 430, ttl: 1.05 });
-          // muzzle sparks off the nose
-          const mn = reduced ? 1 : 3;
-          for (let i = 0; i < mn; i++) {
-            const ja = ship.a + (Math.random() - 0.5) * 0.8;
-            const js = 90 + Math.random() * 120;
-            parts.push({ x: ship.x + Math.cos(ship.a) * (NOSE + 2), y: ship.y + Math.sin(ship.a) * (NOSE + 2), vx: ship.vx + Math.cos(ja) * js, vy: ship.vy + Math.sin(ja) * js, ttl: 0.14, max: 0.14, c: CYAN, streak: true });
-          }
+      }
+      const damp = Math.exp(-0.45 * dt);
+      ship.vx *= damp;
+      ship.vy *= damp;
+      ship.x = (ship.x + ship.vx * dt + W) % W;
+      ship.y = (ship.y + ship.vy * dt + H) % H;
+      if (ship.inv > 0) ship.inv -= dt;
+      cooldown -= dt;
+      muzzle = Math.max(0, muzzle - dt * 9); // a couple of frames of nose flash
+      shieldBreak = Math.max(0, shieldBreak - dt * 2.2); // the bubble's burst, fading
+      if (ship.fire && cooldown <= 0) {
+        cooldown = 0.17;
+        shots += 1;
+        muzzle = 1; // the 3D nose flash
+        bullets.push({ x: ship.x + Math.cos(ship.a) * NOSE, y: ship.y + Math.sin(ship.a) * NOSE, vx: ship.vx + Math.cos(ship.a) * 430, vy: ship.vy + Math.sin(ship.a) * 430, ttl: 1.05 });
+        // muzzle sparks off the nose
+        const mn = reduced ? 1 : 3;
+        for (let i = 0; i < mn; i++) {
+          const ja = ship.a + (Math.random() - 0.5) * 0.8;
+          const js = 90 + Math.random() * 120;
+          parts.push({ x: ship.x + Math.cos(ship.a) * (NOSE + 2), y: ship.y + Math.sin(ship.a) * (NOSE + 2), vx: ship.vx + Math.cos(ja) * js, vy: ship.vy + Math.sin(ja) * js, ttl: 0.14, max: 0.14, c: CYAN, streak: true });
         }
       }
       // engine feel: the throttle spools toward the key, the hull leans into
@@ -587,7 +620,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           const dy = rk.y - ship.y;
           const rr = rk.r + 13; // the 3D vehicle is bigger in frame — meet it partway
           // (still forgiving: the hull is ~120px long, so only its core collides)
-          if (dx * dx + dy * dy < rr * rr) die();
+          if (dx * dx + dy * dy < rr * rr) impact(rk.label);
         }
       }
       // particles
@@ -792,22 +825,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       // HUD after React re-renders (a phase flip restores the JSX's children)
       const odo = String(Math.round(dispScore)).padStart(4, '0');
       if (scoreRef.current && scoreRef.current.textContent !== odo) scoreRef.current.textContent = odo;
-      if (livesRef.current && livesRef.current.childElementCount !== Math.max(0, lives)) hud();
+      const wantShield = shield ? 'SHIELD UP' : 'SHIELD DOWN';
+      if (shieldRef.current && shieldRef.current.textContent !== wantShield) hud();
 
-      // spinning dashed shield while invulnerable — clearer than the blink alone
-      if (ship.dead <= 0 && ship.inv > 0) {
-        ctx.save();
-        ctx.setLineDash([7, 6]);
-        ctx.lineDashOffset = -t * 70;
-        ctx.strokeStyle = CYAN;
-        ctx.globalAlpha = (0.3 + 0.2 * Math.sin(t * 9)) * Math.min(1, ship.inv);
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.arc(ship.x, ship.y, 30, 0, 6.283);
-        ctx.stroke();
-        ctx.restore();
-        ctx.globalAlpha = 1;
-      }
+      // (the shield itself is drawn in 3D — see GameRocket's bubble)
 
       // white-out at the moment of disassembly, fading fast
       if (flash > 0) {
@@ -817,20 +838,21 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         ctx.globalAlpha = 1;
       }
 
-      // the ship is a real 3D rocket now (the GameRocket overlay); hand it the
-      // live pose. It blinks while invulnerable, hides during the respawn hold.
+      // the ship is a real 3D rocket (the GameRocket overlay); hand it the live
+      // pose, its shield state, and the shield's burst.
       const sv = shipView.current;
       sv.x = ship.x;
       sv.y = ship.y;
       sv.a = ship.a;
       sv.throttle = throttle;
       sv.turn = turnEase;
-      sv.pop = Math.min(1, ship.spawnAge / 0.4); // scale-in on (re)spawn
+      sv.pop = Math.min(1, ship.spawnAge / 0.4); // scale-in on spawn
       sv.muzzle = muzzle;
-      // hidden during the respawn hold, while blinking invulnerable, and once
-      // the vehicle has RUD'd (it's particles now — don't leave it intact over
-      // the game-over card)
-      sv.visible = !over && ship.dead <= 0 && !(ship.inv > 0 && Math.sin(t * 24) > 0);
+      sv.shield = shield ? 1 : 0;
+      sv.shieldBreak = shieldBreak;
+      // once the vehicle has RUD'd it's particles — don't leave it intact over
+      // the game-over card
+      sv.visible = !over;
 
       if (paused && !over) {
         ctx.fillStyle = INK;
@@ -891,7 +913,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           FIXED <span ref={scoreRef}>0000</span>
           <span className="ast__chain" ref={chainRef} /> · BEST {String(best).padStart(4, '0')}
         </span>
-        <span className="ast__lives" ref={livesRef} aria-label="boosters remaining" />
+        <span className="ast__shield" ref={shieldRef} data-up="true" aria-label="shield status">
+          SHIELD UP
+        </span>
         <button type="button" className="ast__exit" onClick={onExit}>
           abort to pad <kbd>Esc</kbd>
         </button>
@@ -920,7 +944,23 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
             <p className="rud__score">
               {String(finalScore).padStart(4, '0')} problems fixed · best {String(best).padStart(4, '0')}
             </p>
-            {report && <p className="rud__report">{report}</p>}
+            {/* Written up the way every project on this site is written up. */}
+            {debrief && (
+              <div className="rud__story">
+                <section>
+                  <h3 className="rud__h">The problem</h3>
+                  <p>{debrief.problem}</p>
+                </section>
+                <section>
+                  <h3 className="rud__h">The approach</h3>
+                  <p>{debrief.approach}</p>
+                </section>
+                <section>
+                  <h3 className="rud__h">The lesson</h3>
+                  <p>{debrief.lesson}</p>
+                </section>
+              </div>
+            )}
             <div className="rud__actions">
               <button type="button" className="btn" onClick={() => restartRef.current()}>
                 ITERATE

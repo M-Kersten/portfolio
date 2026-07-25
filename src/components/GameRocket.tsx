@@ -7,6 +7,7 @@ import {
   type BufferGeometry,
   type Group,
   type Mesh,
+  type MeshBasicMaterial,
   type PerspectiveCamera,
   type PointLight,
 } from 'three';
@@ -31,6 +32,8 @@ export interface ShipView {
   visible: boolean;
   pop: number; // 0→1 since (re)spawn — drives the scale-in
   muzzle: number; // 1 on the shot, decaying — the nose cannon's flash
+  shield: number; // 1 = up (eats the next hit), 0 = down
+  shieldBreak: number; // 1 at the burst, decaying — the shell flaring as it goes
 }
 
 /** One hazard, as the 3D layer needs it (the engine keeps the authoritative 2D
@@ -309,9 +312,13 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
   const flameLight = useRef<PointLight>(null);
   const wash = useRef<PointLight | null>(null); // assigned in a ref callback (sets its layer)
   const muzzle = useRef<Mesh>(null);
+  const shell = useRef<Group>(null);
+  const shellFill = useRef<Mesh>(null);
+  const shellWire = useRef<Mesh>(null);
   const bank = useRef(0);
+  const shellK = useRef(0); // eased shield presence, so it fades in and out
   const { size, camera } = useThree();
-  useFrame((_, delta) => {
+  useFrame((s, delta) => {
     const grp = g.current;
     if (!grp) return;
     // Pin the perspective frustum so 1 world unit === 1px on the z=0 play plane:
@@ -359,6 +366,27 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
       muzzle.current.visible = mz > 0.02;
       muzzle.current.scale.setScalar(0.02 + mz * 0.055);
     }
+    // The shield: a faceted shell around the vehicle. It eases in when held, and
+    // on the hit it flares bright and blows outward as it goes — so losing it is
+    // an event you watch, not a counter ticking down.
+    if (shell.current && shellFill.current && shellWire.current) {
+      const brk = Math.max(0, Math.min(1, v.shieldBreak));
+      const k = 1 - Math.exp(-7 * Math.min(delta, 0.05));
+      shellK.current += (v.shield - shellK.current) * k;
+      const held = shellK.current;
+      const on = held > 0.01 || brk > 0.01;
+      shell.current.visible = on;
+      if (on) {
+        // held: sits just off the hull, breathing. bursting: punches outward.
+        shell.current.scale.setScalar(0.42 * (0.94 + 0.06 * Math.sin(s.clock.elapsedTime * 2.4) + brk * 0.55));
+        shell.current.rotation.y = s.clock.elapsedTime * 0.35;
+        shell.current.rotation.x = s.clock.elapsedTime * 0.22;
+        const fill = shellFill.current.material as MeshBasicMaterial;
+        const wire = shellWire.current.material as MeshBasicMaterial;
+        fill.opacity = 0.055 * held + 0.3 * brk;
+        wire.opacity = 0.16 * held + 0.75 * brk;
+      }
+    }
   });
   return (
     <group ref={g}>
@@ -373,6 +401,20 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
         decay={2}
       />
       <group ref={scaler}>
+        {/* The shield shell, outside the heading group so it doesn't spin with the
+            vehicle: a faint faceted bubble in the site's own wireframe language,
+            sitting just off the hull. Centred on the model's middle (the pivot
+            offsets the body by -ROCKET_MID), so a plain sphere encloses it. */}
+        <group ref={shell} visible={false}>
+          <mesh ref={shellFill}>
+            <icosahedronGeometry args={[1, 2]} />
+            <meshBasicMaterial color="#8ff4fb" transparent opacity={0} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+          </mesh>
+          <mesh ref={shellWire}>
+            <icosahedronGeometry args={[1.005, 1]} />
+            <meshBasicMaterial color="#27e8f2" wireframe transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </mesh>
+        </group>
         {/* the playfield tilt — outside the heading, so the view angle is steady */}
         <group rotation={[TILT, 0, 0]}>
           <group ref={head}>
