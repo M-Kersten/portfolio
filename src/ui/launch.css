@@ -226,12 +226,6 @@
   letter-spacing: 0.3em;
   color: var(--accent-ink);
 }
-.ast__title b {
-  font-size: 1.15rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--ink);
-}
 @keyframes ast-title {
   0% { opacity: 0; transform: translate(-50%, 12px); }
   12%, 68% { opacity: 1; transform: translate(-50%, 0); }
@@ -254,29 +248,6 @@
 }
 .ast__exit:hover {
   color: var(--ink);
-}
-/* always-on objective, just under the HUD — the one line that says why you're
-   flying: climb to orbit, clear the things that actually kill projects */
-.ast__objective {
-  position: absolute;
-  top: 2.9rem;
-  left: 50%;
-  transform: translateX(-50%);
-  margin: 0;
-  /* explicit width, not max-width: an absolutely-positioned box with left:50%
-     and no right shrinks to fit within only half the viewport, which forces a
-     wrap. A fixed width lets the centred line run full-length. max-width:none
-     defeats the global p{max-width:var(--measure)} readability cap. */
-  width: min(94vw, 46rem);
-  max-width: none;
-  text-align: center;
-  text-wrap: balance;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  letter-spacing: 0.05em;
-  color: var(--accent-ink);
-  opacity: 0.82;
-  pointer-events: none;
 }
 /* ---------- mission comms: a holographic Merijn, talking to the player ----------
    A projected bust bottom-left with the line typing in beside it. The portrait is
@@ -420,6 +391,15 @@
 @keyframes ast-hint {
   0%, 80% { opacity: 1; }
   100% { opacity: 0; }
+}
+/* Set by the game the moment you've turned, burned AND fired: you've proved you
+   know the controls, so the legend leaves early rather than waiting out its 9s
+   timer above. Cancelling the animation hands opacity back to this rule, so the
+   transition actually runs instead of the keyframes pinning it. */
+.ast__hint--done {
+  animation: none;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease);
 }
 .ast__hint-touch {
   display: none;

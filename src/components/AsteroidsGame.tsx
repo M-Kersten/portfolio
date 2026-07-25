@@ -35,14 +35,31 @@ const SPLITS: Record<string, [string, string]> = {
   'TECH DEBT': ['UNUSED SDK', 'SINGLETON SPAGHETTI'],
 };
 // Spoken over comms by the hologram (see GameComms), so everything below reads as
-// someone talking to you — not as terminal output. The score thresholds walk the
-// shape of a real project.
-const MILESTONES: [number, string][] = [
-  [400, "Kickoff always goes well. It's week three where you find out what you agreed to."],
-  [1200, "Architecture's mapped. This is my favourite part, and it never lasts long."],
-  [2500, "Build is green and QA is screaming. Both true at the same time. Usually are."],
-  [5000, "We're live. Now the support tickets find out we exist."],
+// someone talking to you — not as terminal output.
+//
+// A stage IS a project phase. These used to be score thresholds, which meant the
+// whole arc was spent inside the first three waves (one cleared wave is already
+// ~1,700 points) and then the story simply stopped while the game carried on.
+// Tying them to the stage you just cleared makes the run and the project the same
+// shape, and means the stage-clear line and the phase beat are one message rather
+// than two competing ones.
+const PHASES: string[] = [
+  "Kickoff survived. Now we find out what we actually agreed to.",
+  "Architecture's holding. This is the part I enjoy, and it never lasts.",
+  "That's the demo done. Nothing broke while anyone important was watching.",
+  "We're live. Now the support tickets find out that we exist.",
+  "Post-launch. Turns out shipping it was the easy half.",
 ];
+// Past the arc, it's maintenance — which does not end, so these just alternate.
+const PHASES_TAIL: string[] = [
+  "Another one closed. This is maintenance now. It doesn't finish, you just get quicker.",
+  "Still shipping. At some point you stop counting the stages and just keep going.",
+];
+/** The line for having just cleared stage `n` (1-based). */
+function phaseLine(n: number): string {
+  const i = n - 1;
+  return i < PHASES.length ? PHASES[i] : PHASES_TAIL[(i - PHASES.length) % PHASES_TAIL.length];
+}
 
 // One line per hazard — the actual story behind why it's on the list. Said when
 // you first clear that hazard, and again (harder) if it's the one that takes your
@@ -113,6 +130,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scoreRef = useRef<HTMLSpanElement>(null);
   const chainRef = useRef<HTMLSpanElement>(null);
+  const hintRef = useRef<HTMLDivElement>(null); // the control legend, retired once used
   const sayRef = useRef<(msg: string) => void>(() => {}); // set by GameComms
   const commsBusy = useRef(false); // ditto — true while a line is on screen
   const [phase, setPhase] = useState<'play' | 'over'>('play');
@@ -180,6 +198,12 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let wave = 0;
     let waveGap = 0; // countdown to the next wave while the field is clear
     let cooldown = 0;
+    // The control legend is onboarding: once you've turned, burned and fired, you
+    // know them, and it stops taking up the bottom of the screen (where comms is).
+    let usedTurn = false;
+    let usedThrust = false;
+    let usedFire = false;
+    let hintDone = false;
     let muzzle = 0; // 1 on the shot, decays — drives the 3D nose flash
     // The 3D vehicle is ~150px long, so its nose tip sits about this far out
     // from centre: shots and their sparks leave from THERE, not from mid-hull.
@@ -191,7 +215,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let slomo = 0; // hit-stop: the world catches its breath on big hits
     let wavePulse = 0; // the stage numeral watermark breathes on each new wave
     let gridPulse = 0; // the paper brightens for a beat on milestones/clears
-    let milestone = 0;
     // arrival: stage separation — stars rush past and settle as you take over.
     // Wall-clock deadline, not sim time: dt is clamped (1/30), so on a slow
     // device the sim runs under real time and a sim-timed intro would strand
@@ -237,11 +260,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     // the fleet record falls mid-run
     const scored = () => {
       bump(scoreRef.current, 'ast__score-bump');
-      while (milestone < MILESTONES.length && score >= MILESTONES[milestone][0]) {
-        say(MILESTONES[milestone][1]);
-        gridPulse = 1;
-        milestone += 1;
-      }
       if (!recordBroken && bestAtStart > 0 && score > bestAtStart) {
         recordBroken = true;
         say("New record. Genuinely better than I manage most days.");
@@ -307,7 +325,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       // first time this hazard goes down, Merijn tells you why it's on the list
       if (rk.label && HAZARD_LINES[rk.label] && !told.has(rk.label)) {
         told.add(rk.label);
-        aside(`${rk.label}. ${HAZARD_LINES[rk.label]}`);
+        aside(HAZARD_LINES[rk.label]);
       }
       // a breath of hit-stop on the big ones — the punch reads
       if (!reduced && rk.tier === 0) slomo = Math.max(slomo, 0.05);
@@ -336,17 +354,15 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         // stage clear: a bonus, a clean ring off the hull, and a longer breath
         // before the next wave rolls in
         score += 150;
-        popups.push({ x: ship.x, y: ship.y - 36, txt: '+150 STAGE BONUS', ttl: 1, max: 1, c: CYAN });
+        popups.push({ x: ship.x, y: ship.y - 36, txt: '+150', ttl: 1, max: 1, c: CYAN });
         if (!reduced) rings.push({ x: ship.x, y: ship.y, r: 12, v: 540, ttl: 0.5, max: 0.5, c: CYAN });
         gridPulse = 1;
         // clearing a stage re-earns the shield — the only way to get it back
         const regained = !shield;
         shield = true;
-        say(
-          regained
-            ? `Stage ${wave + 1} shipped, and your shield is back. Enjoy that while it lasts.`
-            : `Stage ${wave + 1} shipped. There is always another one in the backlog.`,
-        );
+        // the phase beat and the stage-clear acknowledgement, as one line
+        const line = phaseLine(wave);
+        say(regained ? `${line} Shield's back, too.` : line);
         waveGap = 2.2;
       }
       scored();
@@ -419,7 +435,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       score = 0;
       dispScore = 0;
       wave = 0;
-      milestone = 0;
       over = false;
       paused = false;
       shots = 0;
@@ -608,6 +623,15 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           const ja = ship.a + (Math.random() - 0.5) * 0.8;
           const js = 90 + Math.random() * 120;
           parts.push({ x: ship.x + Math.cos(ship.a) * (NOSE + 2), y: ship.y + Math.sin(ship.a) * (NOSE + 2), vx: ship.vx + Math.cos(ja) * js, vy: ship.vy + Math.sin(ja) * js, ttl: 0.14, max: 0.14, c: CYAN, streak: true });
+        }
+      }
+      if (!hintDone) {
+        if (ship.left || ship.right || steerId !== null) usedTurn = true;
+        if (ship.thrust) usedThrust = true;
+        if (ship.fire) usedFire = true;
+        if (usedTurn && usedThrust && usedFire) {
+          hintDone = true;
+          hintRef.current?.classList.add('ast__hint--done');
         }
       }
       // engine feel: the throttle spools toward the key, the hull leans into
@@ -948,19 +972,18 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           abort to pad <kbd>Esc</kbd>
         </button>
       </div>
-      {phase === 'play' && (
-        <p className="ast__objective">Fire your tickets at the problems that sink the project</p>
-      )}
-      {/* the arrival card — stage separation hands the visitor the stick */}
+      {/* The arrival slate: a title card, not a voice. It used to also carry
+          "Let's try and land this project!" — but Merijn says that himself now,
+          and two openings landing together just competed. */}
       {phase === 'play' && (
         <div key={runId} className="ast__title" aria-hidden="true">
           <span>STAGE 2 · SEPARATION CONFIRMED</span>
-          <b>Let's try and land this project!</b>
         </div>
       )}
-      {/* mission comms — the holographic bust that delivers every line */}
+      {/* mission comms — the one narrative voice; every line comes through here */}
       <GameComms sayRef={sayRef} busyRef={commsBusy} />
-      <div className="ast__hint">← → rotate · ↑ thrust · space fire · P hold{' '}
+      {/* the controls: onboarding, so it retires itself once all three are used */}
+      <div className="ast__hint" ref={hintRef}>← → rotate · ↑ thrust · space fire · P hold{' '}
         <span className="ast__hint-touch">— or steer left half, fire right half</span>
       </div>
 
