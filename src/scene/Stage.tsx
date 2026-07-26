@@ -101,15 +101,9 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
 // firewall to block — §12).
 
 export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
+  // The grade is free (it merges into the existing pass); only the animated grain
+  // is motion, so that's the one thing reduced-motion turns off.
   const reducedStage = useReducedMotion();
-  const small = useThree((s) => s.size.width) < 760;
-  // The blur is the only part of the grade with a per-pixel cost, so it's the
-  // only part that gets budgeted: phones and reduced-motion keep the grade (free,
-  // it merges into the existing pass) and drop the taps entirely.
-  const grade = useMemo(
-    () => (small || reducedStage ? { blur: 0, grain: GRADE.grain * 0.6 } : { blur: GRADE.blur, grain: GRADE.grain }),
-    [small, reducedStage],
-  );
   const hemi = useRef<HemisphereLight>(null);
   const dir1 = useRef<DirectionalLight>(null);
   const dir2 = useRef<DirectionalLight>(null);
@@ -139,17 +133,14 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
 
       <Maquette onActivate={onActivate} />
 
-      {/* A restrained glow — only the brightest accents lift, no neon halo —
-          and then the maquette's own look: a tilt-shift focal band that makes the
-          diorama read as a physical model on a table (and does the depth
-          separation the fog can't), over a filmic grade with fine grain.
-          MaquetteGrade replaces the old BrightnessContrast + Vignette rather than
-          stacking on them, and merges into the same pass — see MaquetteGrade.tsx
-          for why this isn't <DepthOfField/>. */}
+      {/* A restrained glow — only the brightest accents lift, no neon halo — and
+          then the maquette's grade: a filmic shoulder, a teal/amber split, fine
+          grain and the vignette. MaquetteGrade replaces the old BrightnessContrast
+          + Vignette rather than stacking on them, and merges into the same pass. */}
       <EffectComposer enableNormalPass={false} multisampling={2}>
         {/* ref cast: @react-three/postprocessing types the ref as the class, not the instance */}
         <Bloom ref={bloom as never} mipmapBlur luminanceThreshold={0.78} luminanceSmoothing={0.3} intensity={0.4} radius={0.6} />
-        <MaquetteGrade blur={grade.blur} grain={grade.grain} />
+        <MaquetteGrade grain={reducedStage ? 0 : GRADE.grain} />
       </EffectComposer>
     </>
   );
