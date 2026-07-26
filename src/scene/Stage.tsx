@@ -1,6 +1,6 @@
 import { useMemo, useRef, type RefObject } from 'react';
 import { Environment, Lightformer } from '@react-three/drei';
-import { EffectComposer, Bloom, BrightnessContrast, Vignette } from '@react-three/postprocessing';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
 import type { BloomEffect } from 'postprocessing';
@@ -9,6 +9,7 @@ import { useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
 import { fitScale, type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
 import { Maquette } from './maquette';
+import { GRADE, MaquetteGrade } from './MaquetteGrade';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
 // further toward it when a node in it is picked.
@@ -100,6 +101,15 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
 // firewall to block — §12).
 
 export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
+  const reducedStage = useReducedMotion();
+  const small = useThree((s) => s.size.width) < 760;
+  // The blur is the only part of the grade with a per-pixel cost, so it's the
+  // only part that gets budgeted: phones and reduced-motion keep the grade (free,
+  // it merges into the existing pass) and drop the taps entirely.
+  const grade = useMemo(
+    () => (small || reducedStage ? { blur: 0, grain: GRADE.grain * 0.6 } : { blur: GRADE.blur, grain: GRADE.grain }),
+    [small, reducedStage],
+  );
   const hemi = useRef<HemisphereLight>(null);
   const dir1 = useRef<DirectionalLight>(null);
   const dir2 = useRef<DirectionalLight>(null);
@@ -130,13 +140,16 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
       <Maquette onActivate={onActivate} />
 
       {/* A restrained glow — only the brightest accents lift, no neon halo —
-          then a touch more contrast and a soft vignette that pools the light
-          in the centre of the frame, where the maquette lives. */}
+          and then the maquette's own look: a tilt-shift focal band that makes the
+          diorama read as a physical model on a table (and does the depth
+          separation the fog can't), over a filmic grade with fine grain.
+          MaquetteGrade replaces the old BrightnessContrast + Vignette rather than
+          stacking on them, and merges into the same pass — see MaquetteGrade.tsx
+          for why this isn't <DepthOfField/>. */}
       <EffectComposer enableNormalPass={false} multisampling={2}>
         {/* ref cast: @react-three/postprocessing types the ref as the class, not the instance */}
         <Bloom ref={bloom as never} mipmapBlur luminanceThreshold={0.78} luminanceSmoothing={0.3} intensity={0.4} radius={0.6} />
-        <BrightnessContrast contrast={0.08} />
-        <Vignette eskil={false} offset={0.3} darkness={0.45} />
+        <MaquetteGrade blur={grade.blur} grain={grade.grain} />
       </EffectComposer>
     </>
   );
