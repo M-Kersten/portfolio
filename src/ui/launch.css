@@ -221,10 +221,19 @@
   pointer-events: none;
   animation: ast-title 2.8s var(--ease) forwards;
 }
+/* the mission line (arrival): a small letterspaced caption */
 .ast__title span {
   font-size: 0.72rem;
   letter-spacing: 0.3em;
   color: var(--accent-ink);
+}
+/* a stage's name: the same slot, but an actual title */
+.ast__title[data-kind='phase'] span {
+  font-size: clamp(1.15rem, 3.2vw, 1.7rem);
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  color: var(--ink);
+  text-shadow: 0 0 26px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 @keyframes ast-title {
   0% { opacity: 0; transform: translate(-50%, 12px); }

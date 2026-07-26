@@ -69,18 +69,27 @@ export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?:
     ) : (
       <meshStandardMaterial color={GHOST_FILL} transparent opacity={opacity} />
     );
-  // the interstage band — charcoal composite, like the real thing. It breaks the
-  // white stack into stages, which is most of what makes a rocket read as one.
+  // The interstage band — it breaks the white stack into stages, which is most of
+  // what makes a rocket read as one. Kept a mid slate rather than charcoal: against
+  // a near-black field, anything darker stops reading as hardware and starts
+  // reading as a gap punched through the vehicle.
   const Band = ({ opacity }: { opacity: number }) =>
     lit ? (
-      <meshStandardMaterial color="#2c333a" metalness={0.5} roughness={0.55} />
+      <meshStandardMaterial color="#6d7883" metalness={0.12} roughness={0.62} />
     ) : (
       <meshStandardMaterial color={GHOST_FILL} transparent opacity={opacity} />
     );
-  // struts (fins + legs) — dark machined graphite
+  // struts (fins + legs) — machined metal, light enough to catch the key light.
+  // The camera-facing fin overlaps the hull, so in graphite it read as a black
+  // sticker stuck to the side rather than a fin standing off it.
+  //
+  // NOTE on metalness for both of these: the game canvas has no environment map,
+  // so metalness has nothing to reflect and only eats the diffuse term — anything
+  // above ~0.2 renders these near-black whatever colour you give them. Keep them
+  // low and let the key light do the work.
   const Strut = ({ opacity }: { opacity: number }) =>
     lit ? (
-      <meshStandardMaterial color="#39424a" metalness={0.85} roughness={0.32} />
+      <meshStandardMaterial color="#98a2aa" metalness={0.18} roughness={0.42} />
     ) : (
       <meshStandardMaterial color={GHOST_LINE} transparent opacity={opacity} />
     );
@@ -117,13 +126,17 @@ export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?:
       )}
       {p.fins && (
         <Rise animate={assemble}>
-          {/* grid fins, folded */}
+          {/* grid fins, folded. The cluster is turned 45 degrees so none of them
+              faces the camera dead-on — square to the lens, the near one reads as
+              a rectangle drawn on the hull instead of hardware beside it. */}
+          <group rotation={[0, Math.PI / 4, 0]}>
           {FINS.map(([x, z], i) => (
             <mesh key={`f${i}`} position={[x, 0.475, z]} rotation={[0, i < 2 ? 0 : Math.PI / 2, 0]}>
               <boxGeometry args={[0.008, 0.034, 0.026]} />
               <Strut opacity={0.55} />
             </mesh>
           ))}
+          </group>
         </Rise>
       )}
       {p.legs && (

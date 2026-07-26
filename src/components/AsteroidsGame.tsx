@@ -55,6 +55,15 @@ const PHASES_TAIL: string[] = [
   "Another one closed. This is maintenance now. It doesn't finish, you just get quicker.",
   "Still shipping. At some point you stop counting the stages and just keep going.",
 ];
+// The stage's name, shown as a slate the moment it begins — the short form of the
+// same beat PHASES speaks when you finish it. Titles announce, sentences close.
+const PHASE_TITLES: string[] = ['KICKOFF', 'ARCHITECTURE', 'THE DEMO', 'RELEASE', 'POST-LAUNCH'];
+const PHASE_TITLE_TAIL = 'MAINTENANCE';
+/** The title for entering stage `n` (1-based). */
+function phaseTitle(n: number): string {
+  return n - 1 < PHASE_TITLES.length ? PHASE_TITLES[n - 1] : PHASE_TITLE_TAIL;
+}
+
 /** The line for having just cleared stage `n` (1-based). */
 function phaseLine(n: number): string {
   const i = n - 1;
@@ -136,7 +145,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const [phase, setPhase] = useState<'play' | 'over'>('play');
   const [finalScore, setFinalScore] = useState(0);
   const [debrief, setDebrief] = useState<Debrief | null>(null); // the RUD card's write-up
-  const [runId, setRunId] = useState(0); // bumps per run — replays the title card
+  // The slate: the run's arrival card, then each stage's title. One element, so a
+  // new one always replaces the last rather than stacking on it.
+  const [slate, setSlate] = useState<{ text: string; kind: 'mission' | 'phase'; id: number } | null>(null);
+  const slateId = useRef(0);
   const [best, setBest] = useState(() => Number(localStorage.getItem('mk-asteroids-best') ?? 0));
   const restartRef = useRef<() => void>(() => {});
   // the ship's live pose, handed to the 3D rocket overlay every frame
@@ -243,6 +255,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     // hologram (GameComms). The old centre-screen toast is gone — a line is
     // something a person says to you now, not text that appears in the void.
     const say = (msg: string) => sayRef.current(msg);
+    const showSlate = (text: string, kind: 'mission' | 'phase') => {
+      slateId.current += 1;
+      setSlate({ text, kind, id: slateId.current });
+    };
     // Asides (the hazard stories) only land if he isn't already mid-sentence —
     // better to skip one than to cut him off. The important lines just say().
     const aside = (msg: string) => {
@@ -271,6 +287,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     const spawnWave = () => {
       wave += 1;
       wavePulse = 1;
+      showSlate(phaseTitle(wave), 'phase');
       const n = Math.min(2 + wave, 7);
       const labels = [...HAZARDS].sort(() => Math.random() - 0.5);
       for (let i = 0; i < n; i++) {
@@ -463,7 +480,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       if (chainRef.current) chainRef.current.textContent = '';
       scoreRef.current?.classList.remove('ast__score-rec');
       if (scoreRef.current) scoreRef.current.textContent = '0000';
-      setRunId((n) => n + 1); // replays the arrival card
+      showSlate('STAGE 2 · SEPARATION CONFIRMED', 'mission');
       // stage separation: stars rush past for a beat before the first wave
       introUntil = reduced ? 0 : performance.now() + 2200;
       firstWave = false;
@@ -972,12 +989,12 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           abort to pad <kbd>Esc</kbd>
         </button>
       </div>
-      {/* The arrival slate: a title card, not a voice. It used to also carry
-          "Let's try and land this project!" — but Merijn says that himself now,
-          and two openings landing together just competed. */}
-      {phase === 'play' && (
-        <div key={runId} className="ast__title" aria-hidden="true">
-          <span>STAGE 2 · SEPARATION CONFIRMED</span>
+      {/* The slate: separation on arrival, then the name of each stage as it
+          opens. A title card, not a voice — the sentence for the same beat is
+          Merijn's, and it lands when the stage is finished. */}
+      {phase === 'play' && slate && (
+        <div key={slate.id} className="ast__title" data-kind={slate.kind} aria-hidden="true">
+          <span>{slate.text}</span>
         </div>
       )}
       {/* mission comms — the one narrative voice; every line comes through here */}
