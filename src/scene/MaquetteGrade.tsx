@@ -32,7 +32,11 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float l = mg_luma(c);
   c = mix(vec3(l), c, 1.0 + uSat);          // let the layer accents sing
 
-  c = c / (c + 0.78) * 1.42;                // filmic shoulder: highlights roll off
+  // Highlight roll-off ONLY. The previous curve here was c/(c+0.78)*1.42, which
+  // is a Reinhard shoulder with a gain bolted on: it lifted the mids hard (0.2
+  // became 0.29) and washed the whole frame out. This compresses the top end and
+  // leaves shadows and midtones exactly where the render put them.
+  c *= 1.0 - 0.22 * smoothstep(0.62, 1.25, l);
   c = (c - 0.5) * (1.0 + uContrast) + 0.5;
 
   // split tone — cool the shadows, warm the few hot spots

@@ -115,7 +115,13 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
       {/* Subtle depth haze so the layers behind the active one recede. */}
       <fog attach="fog" args={['#0a0d10', 4.5, 14]} />
       <hemisphereLight ref={hemi} intensity={0.35} color="#aebfd6" groundColor="#0a0d10" />
-      <directionalLight ref={dir1} position={[6, 11, 4]} intensity={1.1} color="#eaf2ff" />
+      {/* The key sits almost overhead on purpose. It used to be at [6, 11, 4] —
+          front-right, roughly the same azimuth the node cameras zoom in from — so
+          on any up-facing glossy surface the specular lobe pointed straight back
+          at the lens and washed it out (the AR race table was the worst of it).
+          From overhead that lobe points up, away from the low node cameras, and
+          the hemisphere + rim lights carry the vertical faces. */}
+      <directionalLight ref={dir1} position={[2, 13, 2.5]} intensity={1.05} color="#eaf2ff" />
       <directionalLight ref={dir2} position={[-7, 4, -6]} intensity={0.5} color="#27e8f2" />
       <SelectDim hemi={hemi} dir1={dir1} dir2={dir2} bloom={bloom} />
 

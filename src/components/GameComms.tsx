@@ -3,7 +3,7 @@ import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { ScanFrame } from './ScanFrame';
 
-// Mission comms: the game's messages arrive as a transmission from Merijn rather
+// Ground control: the game's messages arrive as a transmission from Merijn rather
 // than as floating terminal text — a holographic bust in the corner of the
 // viewport, talking to the player directly. The portrait is one of the real
 // About-section photos, duotoned and scanlined in CSS (see .comms in launch.css);
@@ -96,7 +96,7 @@ export function GameComms({
         </div>
         {/* the transmission itself */}
         <div className="comms__body">
-          <span className="comms__who">MERIJN · COMMS</span>
+          <span className="comms__who">GROUND CONTROL</span>
           <p className="comms__msg">
             {msg.slice(0, shown)}
             {typing && <b className="comms__caret" />}

@@ -3,7 +3,7 @@
 // (Lightship Drive) and the bookcase with the openable Zwijsen book, plus
 // lamp, plant and VR headset props. RoomRig composes and places everything.
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { useTweak } from '../devTweak';
@@ -381,59 +381,91 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   );
 }
 
-// A little holographic training sim floating above the workstation while the
-// Virtuele Brigade monitor is engaged — a grid with two "units" moving on it and
-// a scan ring sweeping out, the VR scenario made visible. The whole rig scales
-// up from nothing when active and holds still under reduced motion.
-function BrigadeSim() {
+// The Virtuele Brigade monitor's link: an antenna telescopes up out of the case
+// when it's engaged and then tries to raise a connection — three arcs radiate off
+// the tip in sequence, go quiet, and try again. It never quite succeeds, which is
+// the joke and also how field kit actually behaves. Holds still under reduced
+// motion (mast deployed, no search).
+const ARCS = 3;
+const SEARCH_PERIOD = 2.3; // seconds per attempt: a burst of arcs, then a wait
+const ARC_STAGGER = 0.17; // seconds between one arc lighting and the next
+const ARC_LIFE = 0.5; // how long a single arc takes to swell and fade
+function BrigadeAntenna() {
   const reduced = useReducedMotion();
+  const camera = useThree((st) => st.camera);
   const { accent } = useAccent();
   const { selected, visited } = useActive('virtuele-brigade');
   const grp = useRef<Group>(null);
-  const m1 = useRef<Group>(null);
-  const m2 = useRef<Group>(null);
-  const scanGrp = useRef<Group>(null);
-  const scanMat = useRef<MeshStandardMaterial>(null);
+  const mast = useRef<Group>(null);
+  const hail = useRef<Group>(null);
+  const tipMat = useRef<MeshStandardMaterial>(null);
+  const arcMats = useRef<(MeshStandardMaterial | null)[]>([]);
   const glow = useRef(0);
   useFrame((s) => {
-    glow.current += ((selected || visited ? 1 : 0) - glow.current) * 0.06;
+    glow.current += ((selected || visited ? 1 : 0) - glow.current) * FX.engage;
     const g = glow.current;
     const t = reduced ? 0 : s.clock.elapsedTime;
-    if (grp.current) {
-      grp.current.visible = g > 0.02;
-      grp.current.scale.setScalar(g);
-      grp.current.position.y = 0.85 + (reduced ? 0 : Math.sin(t * 1.1) * 0.008);
+    if (grp.current) grp.current.visible = g > 0.02;
+    // the mast telescopes up — length follows the engage ease, so it deploys
+    if (mast.current) {
+      mast.current.scale.y = Math.max(0.001, g);
+      mast.current.rotation.z = reduced ? 0 : Math.sin(t * 1.3) * 0.03; // a slight sway
     }
-    if (m1.current) m1.current.position.set(Math.cos(t * 0.9) * 0.08, 0.005, Math.sin(t * 0.9) * 0.08);
-    if (m2.current) m2.current.position.set(Math.cos(-t * 0.6 + 2) * 0.05, 0.005, Math.sin(-t * 0.6 + 2) * 0.05);
-    if (scanGrp.current && scanMat.current) {
-      const p = (t * FX.loopSpeed) % 1;
-      const sc = 0.15 + p * 1.0;
-      scanGrp.current.scale.set(sc, 1, sc);
-      scanMat.current.opacity = fxEnv(p) * FX.peak;
+    // The arcs live outside the mast (which is scaled in Y as it deploys, and would
+    // squash them) and turn to face the camera. Flat rings read as a bare line from
+    // this node's viewing angle, which is where they were disappearing.
+    if (hail.current) {
+      hail.current.position.y = 0.19 * g;
+      hail.current.quaternion.copy(camera.quaternion);
+    }
+    const cycle = (t / SEARCH_PERIOD) % 1;
+    const elapsed = cycle * SEARCH_PERIOD;
+    for (let i = 0; i < ARCS; i++) {
+      const m = arcMats.current[i];
+      if (!m) continue;
+      const local = (elapsed - i * ARC_STAGGER) / ARC_LIFE;
+      m.opacity = local > 0 && local < 1 ? fxEnv(local) * FX.peak * g : 0;
+    }
+    // the tip pips once per attempt, brightest as the burst goes out
+    if (tipMat.current) {
+      tipMat.current.emissiveIntensity = (0.5 + (elapsed < 0.5 ? fxEnv(elapsed / 0.5) * 2.2 : 0)) * g;
     }
   });
+  // Sits on the monitor's top edge: the case is centred at y 0.62 and is 0.34
+  // tall, so its lid is at 0.79, and it stands at the screen's depth (z -0.13).
   return (
-    <group ref={grp} position={[0, 0.85, -0.05]} visible={false}>
-      <Line points={circlePts(0.12)} rotation={[-Math.PI / 2, 0, 0]} color={accent} lineWidth={1} transparent opacity={0.5} />
-      <Line points={circlePts(0.07)} rotation={[-Math.PI / 2, 0, 0]} color={accent} lineWidth={1} transparent opacity={0.3} />
-      <group ref={scanGrp} rotation={[-Math.PI / 2, 0, 0]}>
-        <mesh>
-          <ringGeometry args={[0.115, 0.12, 44]} />
-          <meshStandardMaterial ref={scanMat} color={accent} emissive={accent} emissiveIntensity={1} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} />
+    <group ref={grp} position={[0, 0.78, -0.13]} visible={false}>
+      {/* the mast, scaled up from its base so it grows out of the case */}
+      <group ref={mast}>
+        <mesh position={[0, 0.09, 0]}>
+          <cylinderGeometry args={[0.0035, 0.005, 0.18, 6]} />
+          <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.25} roughness={0.5} />
+        </mesh>
+        {/* the emitter on top */}
+        <mesh position={[0, 0.19, 0]}>
+          <sphereGeometry args={[0.011, 10, 10]} />
+          <meshStandardMaterial ref={tipMat} color={accent} emissive={accent} emissiveIntensity={0.5} toneMapped={false} />
         </mesh>
       </group>
-      <group ref={m1}>
-        <mesh>
-          <sphereGeometry args={[0.01, 8, 8]} />
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.4} toneMapped={false} />
-        </mesh>
-      </group>
-      <group ref={m2}>
-        <mesh>
-          <sphereGeometry args={[0.01, 8, 8]} />
-          <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={1.2} toneMapped={false} />
-        </mesh>
+      {/* the hail: arcs opening off the tip, lighting in sequence, camera-facing */}
+      <group ref={hail}>
+        {Array.from({ length: ARCS }, (_, i) => (
+          <mesh key={i}>
+            <ringGeometry args={[0.03 + i * 0.026, 0.036 + i * 0.026, 26, 1, Math.PI * 0.28, Math.PI * 0.44]} />
+            <meshStandardMaterial
+              ref={(m) => { arcMats.current[i] = m; }}
+              color={accent}
+              emissive={accent}
+              emissiveIntensity={1.3}
+              transparent
+              opacity={0}
+              blending={AdditiveBlending}
+              side={DoubleSide}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </mesh>
+        ))}
       </group>
     </group>
   );
@@ -948,8 +980,8 @@ export function RoomRig() {
           </mesh>
           <SoftBox position={[-0.05, 0.405, 0.14]} args={[0.13, 0.012, 0.17]} radius={0.004} opacity={0.3} />
           <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
-          {/* the training sim projecting above the monitor */}
-          <BrigadeSim />
+          {/* the antenna deploying out of the monitor, hailing for a link */}
+          <BrigadeAntenna />
         </group>
         {/* chair in front of the desk, facing the monitor */}
         <group position={[0, 0, 0.05]} rotation={[0, Math.PI, 0]}>
