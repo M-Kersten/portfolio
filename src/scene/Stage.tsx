@@ -1,6 +1,6 @@
 import { useMemo, useRef, type RefObject } from 'react';
 import { Environment, Lightformer } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, BrightnessContrast, Vignette } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
 import type { BloomEffect } from 'postprocessing';
@@ -9,7 +9,6 @@ import { useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
 import { fitScale, type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
 import { Maquette } from './maquette';
-import { GRADE, MaquetteGrade } from './MaquetteGrade';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
 // further toward it when a node in it is picked.
@@ -101,9 +100,6 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
 // firewall to block — §12).
 
 export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
-  // The grade is free (it merges into the existing pass); only the animated grain
-  // is motion, so that's the one thing reduced-motion turns off.
-  const reducedStage = useReducedMotion();
   const hemi = useRef<HemisphereLight>(null);
   const dir1 = useRef<DirectionalLight>(null);
   const dir2 = useRef<DirectionalLight>(null);
@@ -115,13 +111,7 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
       {/* Subtle depth haze so the layers behind the active one recede. */}
       <fog attach="fog" args={['#0a0d10', 4.5, 14]} />
       <hemisphereLight ref={hemi} intensity={0.35} color="#aebfd6" groundColor="#0a0d10" />
-      {/* The key sits almost overhead on purpose. It used to be at [6, 11, 4] —
-          front-right, roughly the same azimuth the node cameras zoom in from — so
-          on any up-facing glossy surface the specular lobe pointed straight back
-          at the lens and washed it out (the AR race table was the worst of it).
-          From overhead that lobe points up, away from the low node cameras, and
-          the hemisphere + rim lights carry the vertical faces. */}
-      <directionalLight ref={dir1} position={[2, 13, 2.5]} intensity={1.05} color="#eaf2ff" />
+      <directionalLight ref={dir1} position={[6, 11, 4]} intensity={1.1} color="#eaf2ff" />
       <directionalLight ref={dir2} position={[-7, 4, -6]} intensity={0.5} color="#27e8f2" />
       <SelectDim hemi={hemi} dir1={dir1} dir2={dir2} bloom={bloom} />
 
@@ -139,14 +129,14 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
 
       <Maquette onActivate={onActivate} />
 
-      {/* A restrained glow — only the brightest accents lift, no neon halo — and
-          then the maquette's grade: a filmic shoulder, a teal/amber split, fine
-          grain and the vignette. MaquetteGrade replaces the old BrightnessContrast
-          + Vignette rather than stacking on them, and merges into the same pass. */}
+      {/* A restrained glow — only the brightest accents lift, no neon halo —
+          then a touch more contrast and a soft vignette that pools the light
+          in the centre of the frame, where the maquette lives. */}
       <EffectComposer enableNormalPass={false} multisampling={2}>
         {/* ref cast: @react-three/postprocessing types the ref as the class, not the instance */}
         <Bloom ref={bloom as never} mipmapBlur luminanceThreshold={0.78} luminanceSmoothing={0.3} intensity={0.4} radius={0.6} />
-        <MaquetteGrade grain={reducedStage ? 0 : GRADE.grain} />
+        <BrightnessContrast contrast={0.08} />
+        <Vignette eskil={false} offset={0.3} darkness={0.45} />
       </EffectComposer>
     </>
   );
