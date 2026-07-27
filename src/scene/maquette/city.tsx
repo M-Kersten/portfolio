@@ -168,15 +168,18 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
         <cylinderGeometry args={[0.24, 0.3, 0.06, 20]} />
         <LiveGlassMat slug={slug ?? ''} color="#3e6459" opacity={0.18} />
       </mesh>
-      {/* tapered octagonal body */}
+      {/* Tapered body. A smooth cylinder, not the 8-sided smock it used to be:
+          once the edge outlines retire on activation, facets that coarse read as
+          hard empty panels with nothing to draw them. Round has nothing to leave
+          behind. */}
       <mesh position={[0, 0.34, 0]}>
-        <cylinderGeometry args={[0.12, 0.19, 0.56, 8]} />
+        <cylinderGeometry args={[0.12, 0.19, 0.56, 28]} />
         <LiveGlassMat slug={slug ?? ''} opacity={0.44} />
         <LiveEdges slug={slug ?? ''} threshold={20} />
       </mesh>
       {/* cap */}
       <mesh position={[0, 0.67, 0]}>
-        <coneGeometry args={[0.15, 0.16, 8]} />
+        <coneGeometry args={[0.15, 0.16, 28]} />
         <LiveGlassMat slug={slug ?? ''} color="#5b6b74" opacity={0.3} />
         <LiveEdges slug={slug ?? ''} threshold={20} />
       </mesh>

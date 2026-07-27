@@ -14,10 +14,19 @@ import { GHOST_FILL } from './life';
 // their silhouettes (more premium, less flat plastic). Injected into the
 // standard material before fog/tonemapping so the rim hazes + tonemaps too.
 const RIM = new Color('#b9d2e0');
+// How much of the key light's specular highlight survives on glass. The sun sits
+// front-right (Stage: dir1 at [6, 11, 4]) — the same side the node cameras look
+// from — so at full strength it lays a hard white blob across whatever you just
+// zoomed into. Moving the sun does fix the glare, but it also flattens every
+// vertical face in the maquette, so damp the highlight instead: this touches
+// only the direct specular lobe, leaving the diffuse shading that gives the
+// forms their volume, and the soft environment sheen, exactly as they were.
+const SPEC = 0.15;
 export function glassRim(shader: any) {
   shader.uniforms.uRim = { value: RIM };
   shader.fragmentShader = shader.fragmentShader
     .replace('void main() {', 'uniform vec3 uRim;\nvoid main() {')
+    .replace('#include <aomap_fragment>', `reflectedLight.directSpecular *= ${SPEC};\n#include <aomap_fragment>`)
     .replace(
       '#include <opaque_fragment>',
       [
@@ -73,11 +82,11 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
     m.color.copy(GHOST_FILL).lerp(baseC, ghost ? 0.3 + 0.7 * k.current : 1);
     const rest = ghost ? opacity * 0.3 : opacity;
     m.opacity = rest + (solid - rest) * k.current;
-    // Keep a gloss floor: fully-alive surfaces used to drop to 0.14 roughness /
-    // 0.18 metalness, which turned them near-mirror and caught a hot specular
-    // blob off the key light + environment. A softer floor calms that glare.
-    m.roughness = 0.34 - 0.1 * k.current;
-    m.metalness = 0.08 * k.current;
+    // Waking an object still makes it glossier, but gently — the shine now comes
+    // off the environment rather than the key light (see SPEC above), so the
+    // floor only needs to stop the lobe tightening back into a hotspot.
+    m.roughness = 0.34 - 0.07 * k.current;
+    m.metalness = 0.05 * k.current;
     m.depthWrite = k.current > 0.5;
   });
   return (
