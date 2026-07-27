@@ -658,7 +658,7 @@ function BookcaseMouse({ gap }: { gap: V3 }) {
 
 /** The bookcase. Engaging the Zwijsen book "turns it on": the book spines glow,
  *  alongside the open spread lifting out to face the player. */
-function Bookcase({ position }: { position: V3 }) {
+function Bookcase({ position, rotation }: { position: V3; rotation: [number, number, number] }) {
   const { hovered, selected, visited } = useActive('zwijsen-ar-books');
   const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
   const lit = useRef(0);
@@ -672,7 +672,7 @@ function Bookcase({ position }: { position: V3 }) {
     for (const m of bookMats.current) if (m) m.emissiveIntensity = e;
   });
   return (
-    <group position={position}>
+    <group position={position} rotation={rotation}>
       <BlobShadow position={[0, 0.004, 0.04]} radius={0.52} aspect={0.55} opacity={0.4} />
       <group ref={popRef}>
       {/* case frame: back, sides, top, base — solidifies once the book is opened */}
@@ -733,7 +733,7 @@ export function RoomRig() {
   const desk = useTweak('Room.Desk', { position: [-1.2, 0, 0.18], rotationY: 1.76 });
   const couch = useTweak('Room.Couch', { position: [0.12, 0, -0.22], rotationY: -0.16 });
   const table = useTweak('Room.AR table', { position: [0, 0, 0.52] });
-  const shelf = useTweak('Room.Bookcase', { position: [0.9, 0, -0.82] });
+  const shelf = useTweak('Room.Bookcase', { position: [1, 0, -1.06], rotationY: -0.27 });
   const plant = useTweak('Room.Plant', { position: [-1.23, 0, 0.9] });
   const lamp = useTweak('Room.Floor lamp', { position: [-0.32, 0, -1.57] });
   return (
@@ -791,7 +791,7 @@ export function RoomRig() {
 
       {/* bookcase (back-right) — engaging the Zwijsen book lights its spine +
           lifts the open book out of its gap */}
-      <Bookcase position={shelf.position} />
+      <Bookcase position={shelf.position} rotation={[0, shelf.rotationY, 0]} />
 
       {/* couch + phone — faces the coffee table / room front (+z). Opening the
           phone solidifies the couch it sits on. */}
