@@ -14,7 +14,7 @@ import { useLaunchCount } from '../../lib/launches';
 import { asset } from '../../lib/asset';
 import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
-import { glassRim, GlassMat, LiveGlassMat } from './materials';
+import { glassRim, GlassMat, LiveEdges, LiveGlassMat } from './materials';
 import { BlobShadow } from './backdrop';
 import { Rise, RocketBody } from './rocket';
 
@@ -172,13 +172,13 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
       <mesh position={[0, 0.34, 0]}>
         <cylinderGeometry args={[0.12, 0.19, 0.56, 8]} />
         <LiveGlassMat slug={slug ?? ''} opacity={0.44} />
-        <Edges threshold={20} color={NEUTRAL} />
+        <LiveEdges slug={slug ?? ''} threshold={20} />
       </mesh>
       {/* cap */}
       <mesh position={[0, 0.67, 0]}>
         <coneGeometry args={[0.15, 0.16, 8]} />
         <LiveGlassMat slug={slug ?? ''} color="#5b6b74" opacity={0.3} />
-        <Edges threshold={20} color={NEUTRAL} />
+        <LiveEdges slug={slug ?? ''} threshold={20} />
       </mesh>
       {/* sails — a turning cross on the front face; they spin up when engaged */}
       <group ref={sails} position={[0, 0.62, 0.19]}>
@@ -187,7 +187,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
             <mesh position={[0, 0.24, 0]}>
               <boxGeometry args={[0.05, 0.46, 0.01]} />
               <LiveGlassMat slug={slug ?? ''} color="#4f7d92" opacity={0.34} />
-              <Edges threshold={30} color={NEUTRAL} />
+              <LiveEdges slug={slug ?? ''} threshold={30} />
             </mesh>
           </group>
         ))}

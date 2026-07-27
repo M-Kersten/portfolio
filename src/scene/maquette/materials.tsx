@@ -3,8 +3,8 @@
 // visited" variant, flat emissive accent boxes, and the rounded soft box.
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { RoundedBox } from '@react-three/drei';
-import { Color, MeshStandardMaterial } from 'three';
+import { Edges, RoundedBox, type EdgesRef } from '@react-three/drei';
+import { Color, MeshStandardMaterial, type Material } from 'three';
 import { useAccent, useActive, GLASS, NEUTRAL, Line, roundedRectPts, type V3 } from './shared';
 import { GHOST_FILL } from './life';
 
@@ -99,6 +99,31 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
 
 /** Flat highlight box. Defaults to the layer accent, but decorative (non-hotspot)
  *  details pass color={NEUTRAL} so the layer colour stays on the interactables. */
+/** Edge outlines that RETIRE as the object wakes.
+ *
+ *  The edges are the ghost's wireframe, so LifeGroup deliberately brightens them
+ *  on the way to alive (opacity * (0.5 + 0.5 * life)). For an object whose whole
+ *  point is to end up looking solid, that's backwards — the outlines survive the
+ *  fill going opaque and it still reads as a wireframe. This owns the material
+ *  instead (flagging it lifeSkip so LifeGroup lets go) and fades it to nothing. */
+export function LiveEdges({ slug, threshold = 20, color = NEUTRAL }: { slug: string; threshold?: number; color?: string }) {
+  const { selected, visited } = useActive(slug);
+  const ref = useRef<EdgesRef>(null);
+  const k = useRef(0);
+  useFrame(() => {
+    const mat = ref.current?.material as Material | undefined;
+    if (!mat) return;
+    if (!mat.userData.lifeSkip) {
+      mat.userData.lifeSkip = true;
+      mat.transparent = true;
+      mat.needsUpdate = true;
+    }
+    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
+    mat.opacity = 1 - k.current;
+  });
+  return <Edges ref={ref} threshold={threshold} color={color} transparent />;
+}
+
 export function Accent({ position, args, intensity = 0.4, rotation, color }: { position: V3; args: V3; intensity?: number; rotation?: V3; color?: string }) {
   const { accent } = useAccent();
   const c = color ?? accent;
