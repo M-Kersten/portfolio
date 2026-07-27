@@ -174,30 +174,35 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
   );
 }
 
-/** Decorative extra board parts — resistors, a crystal, a ribbon, solder pads. */
+/** Decorative extra board parts — decoupling passives and spare solder pads. */
 function MiscComponents() {
+  // One passive per package edge, in the lateral band outboard of every trace, so
+  // each sits on bare substrate beside the die. These used to be scattered at
+  // radius ~0.5, which put them on TOP of the die package — no board does that,
+  // and a chip wearing four resistors as a hat was most of why it read as messy.
+  const passives = useMemo(
+    () =>
+      [0, 1, 2, 3].map((e) => {
+        const [x, z] = onEdge(e, PASSIVE_D, PASSIVE_T);
+        return { e, x, z, rot: e === 0 || e === 2 ? 0 : Math.PI / 2 };
+      }),
+    [],
+  );
   return (
     <group>
-      {/* resistors dotted across the mid-board */}
-      {([[0.4, -0.3], [-0.34, 0.3], [0.28, 0.42], [-0.42, -0.32]] as [number, number][]).map(([x, z], i) => (
-        <mesh key={i} position={[x, 0.135, z]} rotation={[0, i % 2 ? 0.6 : -0.4, 0]}>
+      {passives.map((p) => (
+        <mesh key={p.e} position={[p.x, 0.035, p.z]} rotation={[0, p.rot, 0]}>
           <boxGeometry args={[0.09, 0.03, 0.04]} />
           <GlassMat opacity={0.34} />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
       ))}
-      {/* crystal */}
-      <mesh position={[0.34, 0.145, 0.18]}>
-        <boxGeometry args={[0.1, 0.05, 0.06]} />
-        <GlassMat opacity={0.4} />
-        <Edges threshold={30} color={NEUTRAL} />
-      </mesh>
-      {/* Solder pads — small neutral rings on the outer ring, in the gaps between
-          the eight occupied slots (see PADS). They used to sit at y 0.122, which
-          floated them a full 0.1 above the substrate; they lie ON the board now,
-          at the same height as the traces that reach them. */}
-      {PADS.map(([x, z], i) => (
-        <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[x, TY + 0.003, z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+      {/* Spare solder pads — small neutral rings on the outer ring, in the gaps
+          between the eight occupied slots (see PADS). They used to sit at y 0.122,
+          which floated them a full 0.1 above the substrate; they lie ON the board
+          now, at the same height as the traces that reach them. */}
+      {PADS.map((p, i) => (
+        <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[p.x, TY + 0.003, p.z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
       ))}
     </group>
   );
@@ -262,33 +267,74 @@ function useChipEnergyTarget() {
 const CORNER = 0.75; // diagonal slots — the four units
 const EDGE = 0.85; // orthogonal slots — the four small parts
 const TY = 0.026; // trace height, sitting on the PCB substrate
+const PKG = 0.525; // package half-width (the 1.05 body)
+
+/* ---- the package's lead frame ----
+   Nine lands down each edge of the package, QFP style, sitting on the substrate
+   just outside the body. Every trace on the board starts at one of them instead
+   of at an arbitrary point on the package outline, which is what makes each part
+   read as wired INTO the die rather than merely pointing at it. Lands the design
+   doesn't use are left in place — a real part always has more pins than the
+   board needs, and the unused comb is most of what says "chipset". */
+const PINS_PER_EDGE = 9;
+const PIN_PITCH = 0.105; // the row stops short of the corners, like a real lead frame
+const PIN_OUT = 0.075; // how far a land reaches out past the body
+const PIN_TIP = PKG + PIN_OUT; // where its trace picks up
+const LEAD_OUT = 0.06; // every trace runs straight out this far before it turns
+
+/* Edges are indexed 0 = +x, 1 = +z, 2 = -x, 3 = -z, and each edge carries its own
+   lateral axis 90° counter-clockwise from its outward normal. Expressing every
+   position in that frame is the whole trick: the same four destinations sit at the
+   same lateral offsets on all four edges, so the routing is ONE pattern turned
+   four times rather than 14 hand-placed runs, and it comes out symmetric by
+   construction. */
+const EDGE_N: [number, number][] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+const pinLat = (i: number) => (i - (PINS_PER_EDGE - 1) / 2) * PIN_PITCH;
+/** A board point on edge `e`: `d` out along its normal, `t` along its lateral. */
+function onEdge(e: number, d: number, t: number): [number, number] {
+  const [nx, nz] = EDGE_N[e];
+  return [nx * d - nz * t, nz * d + nx * t];
+}
 
 // Each slot gets a trace from the die and a coloured status LED that flashes on
 // its own rhythm when live. `ly` sits each LED on top of its own part rather
-// than floating above the board, so it stays tied to whatever occupies the slot.
+// than floating above the board, so it stays tied to whatever occupies the slot;
+// `fp` is its silkscreen footprint. `edge`/`pin` say which land it wires to —
+// the corner units take the outermost land (8), the edge parts the centre one (4).
 // LED palette stays inside the site's accents: cyan, lime, the coral from the
 // Room layer, and the die's amber — no stray primary reds.
-const CHIP_NODES: { x: number; z: number; ly: number; led: string; phase: number; speed: number }[] = [
-  // corners — the units
-  { x: CORNER, z: -CORNER, ly: 0.2, led: '#7fe6ff', phase: 0.0, speed: 6.5 }, // custom-ar camera (back-right)
-  { x: -CORNER, z: -CORNER, ly: 0.175, led: '#ff9068', phase: 1.1, speed: 5.0 }, // philips monitor (back-left)
-  { x: CORNER, z: CORNER, ly: 0.225, led: '#a9f75c', phase: 2.0, speed: 7.5 }, // database stack (front-right)
-  { x: -CORNER, z: CORNER, ly: 0.27, led: '#ffcf5e', phase: 0.7, speed: 5.8 }, // heatsink (front-left)
-  // edge midpoints — the small parts
-  { x: EDGE, z: 0, ly: 0.17, led: '#7fe6ff', phase: 2.6, speed: 6.0 }, // computer-vision frame (right)
-  { x: 0, z: EDGE, ly: 0.165, led: '#a9f75c', phase: 1.6, speed: 8.0 }, // pin header (front)
-  { x: -EDGE, z: 0, ly: 0.195, led: '#ff9068', phase: 3.1, speed: 6.8 }, // cap (left)
-  { x: 0, z: -EDGE, ly: 0.195, led: '#7fe6ff', phase: 0.4, speed: 7.0 }, // cap (back)
+interface ChipNode { x: number; z: number; ly: number; led: string; phase: number; speed: number; edge: number; pin: number; fp?: [number, number] }
+const CHIP_NODES: ChipNode[] = [
+  // corners — the units, each leaving the edge it sits counter-clockwise from
+  { x: CORNER, z: -CORNER, ly: 0.2, led: '#7fe6ff', phase: 0.0, speed: 6.5, edge: 3, pin: 8, fp: [0.3, 0.3] }, // custom-ar camera (back-right)
+  { x: -CORNER, z: -CORNER, ly: 0.175, led: '#ff9068', phase: 1.1, speed: 5.0, edge: 2, pin: 8, fp: [0.44, 0.22] }, // philips monitor (back-left)
+  { x: CORNER, z: CORNER, ly: 0.225, led: '#a9f75c', phase: 2.0, speed: 7.5, edge: 0, pin: 8, fp: [0.3, 0.3] }, // database stack (front-right)
+  { x: -CORNER, z: CORNER, ly: 0.27, led: '#ffcf5e', phase: 0.7, speed: 5.8, edge: 1, pin: 8, fp: [0.3, 0.3] }, // heatsink (front-left)
+  // edge midpoints — the small parts, straight out of the centre land
+  { x: EDGE, z: 0, ly: 0.17, led: '#7fe6ff', phase: 2.6, speed: 6.0, edge: 0, pin: 4 }, // computer-vision frame (right)
+  { x: 0, z: EDGE, ly: 0.165, led: '#a9f75c', phase: 1.6, speed: 8.0, edge: 1, pin: 4, fp: [0.3, 0.13] }, // pin header (front)
+  { x: -EDGE, z: 0, ly: 0.195, led: '#ff9068', phase: 3.1, speed: 6.8, edge: 2, pin: 4, fp: [0.14, 0.14] }, // cap (left)
+  { x: 0, z: -EDGE, ly: 0.195, led: '#7fe6ff', phase: 0.4, speed: 7.0, edge: 3, pin: 4, fp: [0.14, 0.14] }, // cap (back)
 ];
 
-// The six decorative solder pads sit on the same ring, but on the diagonals
-// BETWEEN the eight occupied slots, so they read as the spare footprints a real
-// board leaves between its parts instead of colliding with them.
-const PAD_R = 0.94;
-const PADS: [number, number][] = [22.5, 67.5, 112.5, 157.5, 202.5, 337.5].map((deg) => {
-  const a = (deg * Math.PI) / 180;
-  return [PAD_R * Math.cos(a), PAD_R * Math.sin(a)];
-});
+// Two spare pad footprints per edge, in the lateral gaps the parts leave — the
+// unpopulated positions a real board carries between its components. They wire to
+// lands 6 and 2, so on every edge the four runs leave at lateral 0.42 / 0.21 / 0 /
+// −0.21 and arrive at 0.75 / 0.36 / 0 / −0.36: monotonic, so nothing crosses.
+const PAD_D = 0.868; // 0.94 out at 22.5° off the normal
+const PAD_T = 0.36;
+const PADS: { x: number; z: number; edge: number; pin: number }[] = [0, 1, 2, 3].flatMap((e) =>
+  [{ t: PAD_T, pin: 6 }, { t: -PAD_T, pin: 2 }].map(({ t, pin }) => {
+    const [x, z] = onEdge(e, PAD_D, t);
+    return { x, z, edge: e, pin };
+  }),
+);
+
+// The decorative passives sit on the substrate beside the package, in the lateral
+// band outboard of every trace — they used to be dropped on TOP of the die
+// package, which no board does.
+const PASSIVE_D = 0.68;
+const PASSIVE_T = -0.5;
 
 /** A board trace that "fills" with current — a bright front sweeps from the die
  *  out to its component as the chip energises, then a pulse keeps flowing. Built
@@ -327,7 +373,11 @@ function ChipTrace({ points, target, color }: { points: V3[]; target: number; co
       const tt = i / (n - 1);
       const filled = tt < front ? 1 : 0;
       const charge = filled * (Math.exp(-((tt - ch1) ** 2) / 0.01) + Math.exp(-((tt - ch2) ** 2) / 0.01));
-      const b = 0.12 + e * (filled * 0.4 + charge * 0.95); // steady fill + travelling charge
+      // A much brighter floor than the old 0.12: dormant, the traces ARE the thing
+      // that shows each part is wired to the die, so the routing has to read as
+      // etched copper before the board is energised — not only as the reward for
+      // it. Energising still more than doubles them.
+      const b = 0.32 + e * (filled * 0.4 + charge * 0.95); // steady fill + travelling charge
       tmp.copy(rest).lerp(hot, Math.min(1, filled * 0.7 + 0.25));
       colors[i * 3] = tmp.r * b;
       colors[i * 3 + 1] = tmp.g * b;
@@ -385,18 +435,17 @@ function pcbRoute(ax: number, az: number, bx: number, bz: number, y: number, xFi
     ? [[ax, y, az], [bx - sx * c, y, az], [bx, y, az + sz * c], [bx, y, bz]]
     : [[ax, y, az], [ax, y, bz - sz * c], [ax + sx * c, y, bz], [bx, y, bz]];
 }
-// full trace from the package edge out to a component, leaving the edge square
-function pcbTrace(bx: number, bz: number, y: number): V3[] {
-  const HALF = 0.5;
-  const xEdge = Math.abs(bx) >= Math.abs(bz);
-  const sx = Math.sign(bx) || 1;
-  const sz = Math.sign(bz) || 1;
-  const ex = xEdge ? sx * HALF : Math.max(-HALF, Math.min(HALF, bx));
-  const ez = xEdge ? Math.max(-HALF, Math.min(HALF, bz)) : sz * HALF;
-  const stub = 0.08;
-  const px = xEdge ? ex + sx * stub : ex;
-  const pz = xEdge ? ez : ez + sz * stub;
-  return densify([[ex, y, ez], ...pcbRoute(px, pz, bx, bz, y, xEdge)]);
+/** The full run from a package land out to a part: every trace breaks out
+ *  straight along its own land for LEAD_OUT — so the whole comb leaves the
+ *  package in parallel, the way a real fan-out does — then takes one L with a 45°
+ *  chamfer into the part. Starting at a named land rather than at a computed point
+ *  on the package outline is what ties each part visibly back to the die. */
+function landTrace(e: number, pin: number, bx: number, bz: number, y: number): V3[] {
+  const t = pinLat(pin);
+  const [ax, az] = onEdge(e, PIN_TIP, t);
+  const [lx, lz] = onEdge(e, PIN_TIP + LEAD_OUT, t);
+  // ±x edges break out along x, so turn x-first; ±z edges the other way
+  return densify([[ax, y, az], ...pcbRoute(lx, lz, bx, bz, y, e === 0 || e === 2)]);
 }
 
 /** custom-ar-framework as a fixed security / computer-vision camera. A faceted
@@ -670,15 +719,43 @@ function DiePulse() {
   );
 }
 
+/** The package's lead frame — the comb of lands down all four edges. One shared
+ *  material across all 36, since they're identical bare metal. */
+function LeadFrame() {
+  const mat = useMemo(
+    () => new MeshStandardMaterial({ color: '#b9c6cf', emissive: new Color('#48606e'), emissiveIntensity: 0.5, roughness: 0.42, metalness: 0.1 }),
+    [],
+  );
+  useEffect(() => () => mat.dispose(), [mat]);
+  const lands = useMemo(
+    () =>
+      [0, 1, 2, 3].flatMap((e) =>
+        Array.from({ length: PINS_PER_EDGE }, (_, i) => {
+          const [x, z] = onEdge(e, PKG + PIN_OUT / 2, pinLat(i));
+          return { key: `${e}-${i}`, x, z, rot: e === 0 || e === 2 ? 0 : Math.PI / 2 };
+        }),
+      ),
+    [],
+  );
+  return (
+    <group>
+      {lands.map((l) => (
+        <mesh key={l.key} position={[l.x, 0.027, l.z]} rotation={[0, l.rot, 0]} material={mat}>
+          <boxGeometry args={[PIN_OUT, 0.013, 0.038]} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 export function ChipRig() {
   const { accent } = useAccent();
   const energy = useChipEnergyTarget();
-  const traces = useMemo(() => CHIP_NODES.map((nd) => pcbTrace(nd.x, nd.z, TY)), []);
-  // The remaining traces run out to the spare solder pads. They used to end at
-  // hand-picked coordinates, which left one dead-ending 0.17 from the database
-  // stack as though it had missed its target; routing them to the pads means
-  // every trace on the board terminates somewhere, and every pad is fed.
-  const extra = useMemo(() => PADS.map(([x, z]) => pcbTrace(x, z, TY)), []);
+  // Every run on the board starts at a package land (see landTrace) — the eight
+  // parts plus the eight spare pads, four runs per edge, the same pattern turned
+  // four times.
+  const traces = useMemo(() => CHIP_NODES.map((nd) => landTrace(nd.edge, nd.pin, nd.x, nd.z, TY)), []);
+  const extra = useMemo(() => PADS.map((p) => landTrace(p.edge, p.pin, p.x, p.z, TY)), []);
   return (
     <group>
       {/* the PCB substrate — every part mounts on it, so it reads as one board */}
@@ -686,7 +763,34 @@ export function ChipRig() {
       <RoundedBox args={[2.05, 0.02, 2.05]} radius={0.04} smoothness={2} position={[0, 0.01, 0]}>
         <meshStandardMaterial color="#10303a" transparent opacity={0.5} roughness={0.6} metalness={0.1} />
       </RoundedBox>
+      {/* board outline plus an inner keepout ring — two concentric rules is the
+          cheapest thing that reads as fabricated silkscreen rather than a slab */}
       <Line points={roundedRectPts(2.0, 2.0, 0.06)} position={[0, 0.022, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+      <Line points={roundedRectPts(1.9, 1.9, 0.05)} position={[0, 0.022, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.16} />
+
+      {/* silkscreen: a footprint outline printed under each part, and the package's
+          own outline + pin-1 dot. Outlines that stay put whether or not the part
+          above them is awake are what make the board read as a designed thing. */}
+      {CHIP_NODES.map((nd, i) =>
+        nd.fp ? (
+          <Line
+            key={`fp${i}`}
+            points={roundedRectPts(nd.fp[0], nd.fp[1], 0.02)}
+            position={[nd.x, TY + 0.001, nd.z]}
+            color={NEUTRAL}
+            lineWidth={1}
+            transparent
+            opacity={0.28}
+          />
+        ) : null,
+      )}
+      {/* pin-1 dot, off the package's back-left corner. It has to sit OUTSIDE the
+          body: inside the 1.05 outline it was buried under the package itself and
+          never drew. The package's own outline comes from SoftBox's `outline`. */}
+      <Line points={circlePts(0.026, 14)} position={[-PKG - 0.05, TY + 0.002, -PKG - 0.05]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.5} />
+
+      {/* the lead frame the traces leave from */}
+      <LeadFrame />
 
       {/* soft pads under the raised parts, so they sit ON the board (one per slot) */}
       <BlobShadow position={[0, 0.024, 0]} radius={0.68} opacity={0.26} />
@@ -701,9 +805,11 @@ export function ChipRig() {
       {/* data pulses radiating from the die while it's the active spot */}
       <DiePulse />
 
-      {/* package + die (carries amsterdam-ai — the chip powers on) */}
+      {/* package + die (carries amsterdam-ai — the chip powers on). The body's
+          corner radius is small: at 0.08 it clamped to nearly half the 0.12 height
+          and the package read as a cushion rather than a moulded slab. */}
       <LifeGroup slug="amsterdam-ai">
-        <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.08} outline liveSlug="amsterdam-ai" />
+        <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.03} outline liveSlug="amsterdam-ai" />
         <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
         <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.175, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
       </LifeGroup>
