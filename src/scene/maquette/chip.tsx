@@ -232,14 +232,15 @@ function PinHeader({ position, n = 6 }: { position: V3; n?: number }) {
   );
 }
 
-/* The chip "powers on": engaging any of its hotspots energises the whole board —
-   current fills the traces out to each component and their LEDs flash. */
-const CHIP_SLUGS = ['amsterdam-ai', 'custom-ar-framework', 'philips-medical-xr'];
+/* The chip "powers on" when the die itself (Amsterdam AI guides) is engaged —
+   current fills the traces out to every component and their LEDs flash, as if
+   the processor were driving the rest of the board. The camera and heart
+   monitor already have their own dedicated wake-up animations, so they no
+   longer also trigger a board-wide power surge when opened on their own. */
 function useChipEnergyTarget() {
-  // The board powers on when any chip hotspot is selected and stays on once
-  // visited — it comes to life by selecting, never by hovering.
-  const selected = useSceneSelector((s) => CHIP_SLUGS.includes(s.selectedSlug ?? ''));
-  const visited = useSceneSelector((s) => CHIP_SLUGS.some((c) => s.visited.includes(c)));
+  // Comes to life by selecting, never by hovering, and stays on once visited.
+  const selected = useSceneSelector((s) => s.selectedSlug === 'amsterdam-ai');
+  const visited = useSceneSelector((s) => s.visited.includes('amsterdam-ai'));
   return selected || visited ? 1 : 0;
 }
 

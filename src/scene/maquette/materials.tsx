@@ -115,7 +115,7 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
  *  point is to end up looking solid, that's backwards — the outlines survive the
  *  fill going opaque and it still reads as a wireframe. This owns the material
  *  instead (flagging it lifeSkip so LifeGroup lets go) and fades it to nothing. */
-export function LiveEdges({ slug, threshold = 20, color = NEUTRAL }: { slug: string; threshold?: number; color?: string }) {
+export function LiveEdges({ slug, threshold = 20, color = NEUTRAL, rest = 1 }: { slug: string; threshold?: number; color?: string; rest?: number }) {
   const { selected, visited } = useActive(slug);
   const ref = useRef<EdgesRef>(null);
   const k = useRef(0);
@@ -128,7 +128,12 @@ export function LiveEdges({ slug, threshold = 20, color = NEUTRAL }: { slug: str
       mat.needsUpdate = true;
     }
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
-    mat.opacity = 1 - k.current;
+    // `rest` caps the idle brightness before it retires — most outlines trace a
+    // bulky form (a tower, a cap) where full brightness reads as a normal
+    // wireframe. A long thin plane on its own in open air (the sails) has
+    // nothing bulky to belong to, so its outline needs a dimmer idle cap or it
+    // reads as a bold line drawn for its own sake.
+    mat.opacity = rest * (1 - k.current);
   });
   return <Edges ref={ref} threshold={threshold} color={color} transparent />;
 }

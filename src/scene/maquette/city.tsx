@@ -183,14 +183,18 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
         <LiveGlassMat slug={slug ?? ''} color="#5b6b74" opacity={0.3} />
         <LiveEdges slug={slug ?? ''} threshold={20} />
       </mesh>
-      {/* sails — a turning cross on the front face; they spin up when engaged */}
+      {/* sails — a turning cross on the front face; they spin up when engaged.
+          Their outline gets a dimmer idle cap than the tower/cap: four long
+          thin planes standing alone against open sky read as a bold cross of
+          lines at full brightness, much more attention-grabbing than the same
+          outline wrapping a bulky building shape. */}
       <group ref={sails} position={[0, 0.62, 0.19]}>
         {[0, 1, 2, 3].map((i) => (
           <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
             <mesh position={[0, 0.24, 0]}>
               <boxGeometry args={[0.05, 0.46, 0.01]} />
               <LiveGlassMat slug={slug ?? ''} color="#4f7d92" opacity={0.34} />
-              <LiveEdges slug={slug ?? ''} threshold={30} />
+              <LiveEdges slug={slug ?? ''} threshold={30} rest={0.4} />
             </mesh>
           </group>
         ))}
