@@ -391,8 +391,6 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const holoRef = useRef<Group>(null); // the cube hologram, fixed on the aim axis
   const beamRef = useRef<Group>(null); // the cone + rim, attached to the lens
   const cubeRef = useRef<Group>(null);
-  const scanRef = useRef<Mesh>(null); // the scan-line sweeping the cube
-  const scanMat = useRef<MeshBasicMaterial>(null);
   const cornerMats = useRef<(MeshStandardMaterial | null)[]>([]); // the tracked corners
   const k = useRef(0); // lens power
   const holo = useRef(0); // hologram presence
@@ -466,13 +464,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         cubeRef.current.position.y = Math.sin(t * 1.4) * 0.02; // …and a soft bob
       }
     }
-    // the scan-line sweeps the tracked cube, and its corners light in a chase —
-    // the camera actively "reading" the hologram while it's up
-    if (scanRef.current && scanMat.current) {
-      const sweep = reduced ? 0.5 : (t * FX.loopSpeed) % 1;
-      scanRef.current.position.y = -CAM_CUBE / 2 + sweep * CAM_CUBE;
-      scanMat.current.opacity = FX.peak * h * (reduced ? 1 : 0.55 + 0.45 * Math.sin(t * 9));
-    }
+    // (the cube's corners light in a chase — the camera "reading" the hologram)
     const lead = reduced ? -1 : (t * 1.5) % corners.length;
     for (let i = 0; i < cornerMats.current.length; i++) {
       const m = cornerMats.current[i];
@@ -547,11 +539,6 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                   </mesh>
                 ))}
               </group>
-              {/* a scan-line that sweeps up and down through the tracked cube */}
-              <mesh ref={scanRef} position={[0, 0, CAM_CUBE_Z]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[CAM_CUBE * 0.96, CAM_CUBE * 0.96]} />
-                <meshBasicMaterial ref={scanMat} color="#bfefff" transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} />
-              </mesh>
             </group>
           </group>
           <group ref={headRef}>

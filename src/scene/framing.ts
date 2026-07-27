@@ -183,9 +183,15 @@ export const MAQUETTE_HOME: Framing = {
 // frame means the per-layer scale difference actually reads on screen.
 const JOURNEY_Y = [1.32, 0, -1.32];
 
+// The overview aims a little LEFT of the maquette's centre, which pushes the
+// maquette itself right on screen — clear of the hero title, whose left column
+// was sitting on top of the windmill's hotspot. Overview only: node close-ups
+// aim at their own anchor and are unaffected.
+const OVERVIEW_AIM_X = -0.34;
+
 export function journeyView(step: number, gap = 1): Framing {
   const y = (JOURNEY_Y[Math.max(0, Math.min(2, step))] ?? 0) * gap;
-  const target = new Vector3(0, y, 0);
+  const target = new Vector3(OVERVIEW_AIM_X, y, 0);
   return { pos: target.clone().add(new Vector3(...CAMERA.overviewOffset)), target };
 }
 

@@ -25,7 +25,10 @@
   left: max(0px, calc((100vw - var(--container)) / 2));
   top: 0;
   z-index: 5;
-  padding: calc(var(--header-h) + var(--space-xl)) var(--space-m) 0;
+  /* Sits lower than the header alone would need: the extra top padding drops the
+     name and subhead clear of the windmill's hotspot in the city layer, which
+     they used to overlap on the left. */
+  padding: calc(var(--header-h) + var(--space-xl) + 4.5rem) var(--space-m) 0;
   max-width: 32rem;
   pointer-events: none;
   transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);

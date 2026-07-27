@@ -160,10 +160,13 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
     <group position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.38} />
       <group ref={popRef}>
-      {/* grassy mound — desaturated toward the scene's glass language */}
+      {/* Grassy mound. Every part of the mill uses LiveGlassMat, not GlassMat:
+          only the body did before, so waking the windmill solidified the tower
+          and left the cap, sails and mound as faint glass — the silhouette still
+          read as a wireframe while every other hotspot came alive properly. */}
       <mesh position={[0, 0.03, 0]}>
         <cylinderGeometry args={[0.24, 0.3, 0.06, 20]} />
-        <GlassMat color="#3e6459" opacity={0.18} />
+        <LiveGlassMat slug={slug ?? ''} color="#3e6459" opacity={0.18} />
       </mesh>
       {/* tapered octagonal body */}
       <mesh position={[0, 0.34, 0]}>
@@ -174,7 +177,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
       {/* cap */}
       <mesh position={[0, 0.67, 0]}>
         <coneGeometry args={[0.15, 0.16, 8]} />
-        <GlassMat opacity={0.3} />
+        <LiveGlassMat slug={slug ?? ''} color="#5b6b74" opacity={0.3} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* sails — a turning cross on the front face; they spin up when engaged */}
@@ -183,7 +186,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
           <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
             <mesh position={[0, 0.24, 0]}>
               <boxGeometry args={[0.05, 0.46, 0.01]} />
-              <GlassMat color="#4f7d92" opacity={0.34} />
+              <LiveGlassMat slug={slug ?? ''} color="#4f7d92" opacity={0.34} />
               <Edges threshold={30} color={NEUTRAL} />
             </mesh>
           </group>
