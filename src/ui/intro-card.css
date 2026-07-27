@@ -1,11 +1,15 @@
-/* The load fade-up (BootVeil.tsx) — the whole page opens out of black while the
-   camera dollies in. Sits above everything, including the header and the portaled
-   dossier, because it's the shutter over the entire frame, and carries
-   `pointer-events: none` from the start so it can never swallow a click mid-fade. */
+/* The load fade-up (BootVeil.tsx) — the scene and the hero chrome open out of
+   black while the camera dollies in.
+
+   BEHIND the fixed header (50), so the chrome is already in place and the fade
+   reads as the world arriving underneath it rather than the whole browser window
+   switching on. Above the reticle (42), the intro card (40) and the hero text (5),
+   so everything that belongs to the scene comes up together. `pointer-events: none`
+   from the start, so it can never swallow a click mid-fade. */
 .boot-veil {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: 45;
   background: var(--paper);
   pointer-events: none;
   /* NOT --ease: that's cubic-bezier(0.22, 1, 0.36, 1), a hard ease-OUT, which puts
