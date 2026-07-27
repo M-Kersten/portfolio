@@ -108,8 +108,6 @@ interface Ring { x: number; y: number; r: number; v: number; ttl: number; max: n
 interface Popup { x: number; y: number; txt: string; ttl: number; max: number; c: string } // floating score
 interface RockFlash { x: number; y: number; rot: number; r: number; shape: number[]; ttl: number; max: number } // 2-frame hit flash
 
-const EMBER = '#ffb46a'; // exhaust / damage heat (the palette's one warm note)
-
 function rockShape(n = 11): number[] {
   return Array.from({ length: n }, () => 0.72 + Math.random() * 0.45);
 }
@@ -605,21 +603,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         ship.vx += Math.cos(ship.a) * 240 * dt;
         ship.vy += Math.sin(ship.a) * 240 * dt;
       }
-      // embers stream from the tail while the engine's spooled, under the 3D
-      // plume — the rate follows the throttle, not the key
-      if (!reduced && throttle > 0.12) {
-        const n = Math.random() < throttle ? 2 : 1;
-        for (let i = 0; i < n; i++) {
-          const ja = ship.a + Math.PI + (Math.random() - 0.5) * 0.55;
-          const js = 70 + Math.random() * 110;
-          parts.push({
-            x: ship.x - Math.cos(ship.a) * 17, y: ship.y - Math.sin(ship.a) * 17,
-            vx: Math.cos(ja) * js, vy: Math.sin(ja) * js,
-            ttl: 0.2 + Math.random() * 0.22, max: 0.42,
-            c: Math.random() < 0.5 ? EMBER : '#ffd9a0', streak: true,
-          });
-        }
-      }
+      // (No 2D ember stream: it predated the 3D exhaust plume and spawned only
+      // 17px behind the ship's centre — the tail is ~59px back — so it read as a
+      // second, wrong thruster firing out of the middle of the hull. The plume in
+      // GameRocket comes off the nozzle and is the only exhaust now.)
       const damp = Math.exp(-0.45 * dt);
       ship.vx *= damp;
       ship.vy *= damp;

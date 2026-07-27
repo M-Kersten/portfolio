@@ -47,8 +47,10 @@ export interface HotspotView {
 export const HOTSPOTS: Hotspot[] = [
   // Chip — the die sits centre; parts fan outwards
   { slug: 'amsterdam-ai', layer: 'chip', position: [0.03, 0.49, 0], anchor: [0, 0.16, 0], view: { offset: [0.35, 1.75, 1.85], aimDown: 0.62, fovZoom: 14, mobileLift: 1.5 } }, // the die
-  { slug: 'custom-ar-framework', layer: 'chip', position: [0.9, 0.54, -0.72], anchor: [0.95, 0, -0.72], view: { offset: [2.2, 0.8, 1.8], aimDown: 0.3, fovZoom: -2.5, mobileLift: 1.5 } }, // AR lens (moved to the back-right)
-  { slug: 'philips-medical-xr', layer: 'chip', position: [-0.97, 0.63, -0.74], anchor: [-0.95, 0.24, -0.74], view: { offset: [0.5, 0.55, 1.25], aimDown: 0.25, fovZoom: 19.5, mobileLift: 1.5 } }, // ECG / Vision Pro module (moved to the left to balance)
+  // The two chip hotspots sit on the board's back corner slots (chip.tsx CORNER),
+  // so their anchors track those slots — move a slot and the crosshair follows.
+  { slug: 'custom-ar-framework', layer: 'chip', position: [0.7, 0.54, -0.75], anchor: [0.75, 0, -0.75], view: { offset: [2.2, 0.8, 1.8], aimDown: 0.3, fovZoom: -2.5, mobileLift: 1.5 } }, // the CV camera (back-right slot)
+  { slug: 'philips-medical-xr', layer: 'chip', position: [-0.77, 0.63, -0.75], anchor: [-0.75, 0.24, -0.75], view: { offset: [0.5, 0.55, 1.25], aimDown: 0.25, fovZoom: 19.5, mobileLift: 1.5 } }, // ECG / Vision Pro module (back-left slot)
   // Room — spread into a corner diorama
   { slug: 'virtuele-brigade', layer: 'room', position: [-1.83, 0.95, 0.14], anchor: [-1.8, 0.65, 0.14], view: { offset: [2.05, 0.2, 0.3], aimDown: 0.45, fovZoom: 0.5, mobileLift: 1.5 } }, // the monitor
   { slug: 'popcore-games', layer: 'room', position: [0.25, 0.62, -0.14], anchor: [0.23, 0.22, -0.14], view: { offset: [0.6, 0.55, 0.95], aimDown: 0.05, fovZoom: 19.5, mobileLift: 1.5 } }, // phone on the couch

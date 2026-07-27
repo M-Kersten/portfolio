@@ -51,6 +51,7 @@ const SIGNAL_PACKETS = 5;
 const PIPE_OFFSET = 0.7; // how far the vertical riser sits outside the link's midpoint
 const PIPE_REST = new Color('#5a6e82'); // unlit cable colour (before highlight)
 const _sv = new Vector3(); // scratch for sampling the curve each frame
+const _pc = new Color(); // scratch for the packets' colour each frame
 const DRAW_DUR = 1.1; // seconds for the "connection made" sweep to travel the wire
 const DRAW_DELAY = 0.45; // beat to wait after focus returns to the overview before it draws
 
@@ -192,6 +193,13 @@ export function SignalLine({ thread, from, to, color }: Relation) {
     k.current += (target - k.current) * 0.12;
     const kk = k.current;
 
+    // The HUE is held back while a node is open: in a close-up the cable runs
+    // right across the frame, and in full thread colour it competes with the
+    // thing you opened. It keeps the opacity/weight lift, so the link to what
+    // you're reading is still legible — it just stays grey. Colour is for the
+    // overview, where the web is the thing you're looking at.
+    const hueK = anySelected ? 0 : kk;
+
     // The cable is always present (dim, neutral) and lights up in its thread
     // colour, brighter and a touch heavier, as the link is highlighted.
     const m = lineRef.current?.material;
@@ -200,7 +208,7 @@ export function SignalLine({ thread, from, to, color }: Relation) {
       const lw = 1.8 + kk * 1.4;
       m.opacity = op;
       m.linewidth = lw;
-      if (m.color) m.color.copy(PIPE_REST).lerp(baseCol, kk);
+      if (m.color) m.color.copy(PIPE_REST).lerp(baseCol, hueK);
       if (m.uniforms) {
         if (m.uniforms.opacity) m.uniforms.opacity.value = op;
         if (m.uniforms.linewidth) m.uniforms.linewidth.value = lw;
@@ -237,9 +245,12 @@ export function SignalLine({ thread, from, to, color }: Relation) {
           posArr[i * 3] = _sv.x;
           posArr[i * 3 + 1] = _sv.y;
           posArr[i * 3 + 2] = _sv.z;
-          colArr[i * 3] = baseCol.r * b;
-          colArr[i * 3 + 1] = baseCol.g * b;
-          colArr[i * 3 + 2] = baseCol.b * b;
+          // packets follow the cable's hue, so they grey out with it in a close-up
+          // rather than leaving coloured sparks running along a grey wire
+          _pc.copy(PIPE_REST).lerp(baseCol, hueK);
+          colArr[i * 3] = _pc.r * b;
+          colArr[i * 3 + 1] = _pc.g * b;
+          colArr[i * 3 + 2] = _pc.b * b;
         }
         if (posAttr.current) posAttr.current.needsUpdate = true;
         if (colAttr.current) colAttr.current.needsUpdate = true;

@@ -192,9 +192,12 @@ function MiscComponents() {
         <GlassMat opacity={0.4} />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
-      {/* solder pads — small neutral rings, scattered to the board's outer ring */}
-      {([[0.72, 0.3], [-0.72, 0.86], [0.34, -0.92], [-0.5, -0.62], [0.86, -0.34], [-0.86, 0.1]] as [number, number][]).map(([x, z], i) => (
-        <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[x, 0.122, z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+      {/* Solder pads — small neutral rings on the outer ring, in the gaps between
+          the eight occupied slots (see PADS). They used to sit at y 0.122, which
+          floated them a full 0.1 above the substrate; they lie ON the board now,
+          at the same height as the traces that reach them. */}
+      {PADS.map(([x, z], i) => (
+        <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[x, TY + 0.003, z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
       ))}
     </group>
   );
@@ -244,21 +247,48 @@ function useChipEnergyTarget() {
   return selected || visited ? 1 : 0;
 }
 
-// The board's components, spread well out around the die. Each gets a trace from
-// the die and a coloured status LED that flashes (its own rhythm) when live.
-// `ly` sits each LED on top of its component rather than floating above the board.
+/* ---- board placement ----
+   Every part that carries a status LED sits on one of eight slots around the
+   die: the four DIAGONAL corners hold a unit (a project, or a major part), the
+   four ORTHOGONAL edge midpoints hold a small one. The positions used to be
+   hand-placed one at a time, which left parts crowding each other (the
+   computer-vision frame sat 0.3 from the database stack) and nothing lining up
+   with anything — the board read as parts dropped on a substrate. On the ring
+   it reads as a laid-out PCB, and the traces from the die radiate symmetrically
+   instead of wandering.
+
+   The board is 2.05 square (±1.025) and the die package 1.05 (±0.525), so the
+   ring has to live between about 0.55 and 1.0 out from centre. */
+const CORNER = 0.75; // diagonal slots — the four units
+const EDGE = 0.85; // orthogonal slots — the four small parts
+const TY = 0.026; // trace height, sitting on the PCB substrate
+
+// Each slot gets a trace from the die and a coloured status LED that flashes on
+// its own rhythm when live. `ly` sits each LED on top of its own part rather
+// than floating above the board, so it stays tied to whatever occupies the slot.
 // LED palette stays inside the site's accents: cyan, lime, the coral from the
 // Room layer, and the die's amber — no stray primary reds.
 const CHIP_NODES: { x: number; z: number; ly: number; led: string; phase: number; speed: number }[] = [
-  { x: 0.95, z: -0.72, ly: 0.2, led: '#7fe6ff', phase: 0.0, speed: 6.5 }, // custom-ar (back-right)
-  { x: -0.95, z: -0.74, ly: 0.175, led: '#ff9068', phase: 1.1, speed: 5.0 }, // philips (left)
-  { x: 0.92, z: 0.62, ly: 0.225, led: '#a9f75c', phase: 2.0, speed: 7.5 }, // database (front-right)
-  { x: -0.98, z: 0.56, ly: 0.27, led: '#ffcf5e', phase: 0.7, speed: 5.8 }, // heatsink
-  { x: 0.9, z: 0.92, ly: 0.17, led: '#7fe6ff', phase: 2.6, speed: 6.0 }, // computer vision
-  { x: 0.0, z: 1.08, ly: 0.165, led: '#a9f75c', phase: 1.6, speed: 8.0 }, // pin header
-  { x: -0.55, z: 0.95, ly: 0.195, led: '#ff9068', phase: 3.1, speed: 6.8 }, // cap
-  { x: 0.55, z: -1.0, ly: 0.195, led: '#7fe6ff', phase: 0.4, speed: 7.0 }, // cap
+  // corners — the units
+  { x: CORNER, z: -CORNER, ly: 0.2, led: '#7fe6ff', phase: 0.0, speed: 6.5 }, // custom-ar camera (back-right)
+  { x: -CORNER, z: -CORNER, ly: 0.175, led: '#ff9068', phase: 1.1, speed: 5.0 }, // philips monitor (back-left)
+  { x: CORNER, z: CORNER, ly: 0.225, led: '#a9f75c', phase: 2.0, speed: 7.5 }, // database stack (front-right)
+  { x: -CORNER, z: CORNER, ly: 0.27, led: '#ffcf5e', phase: 0.7, speed: 5.8 }, // heatsink (front-left)
+  // edge midpoints — the small parts
+  { x: EDGE, z: 0, ly: 0.17, led: '#7fe6ff', phase: 2.6, speed: 6.0 }, // computer-vision frame (right)
+  { x: 0, z: EDGE, ly: 0.165, led: '#a9f75c', phase: 1.6, speed: 8.0 }, // pin header (front)
+  { x: -EDGE, z: 0, ly: 0.195, led: '#ff9068', phase: 3.1, speed: 6.8 }, // cap (left)
+  { x: 0, z: -EDGE, ly: 0.195, led: '#7fe6ff', phase: 0.4, speed: 7.0 }, // cap (back)
 ];
+
+// The six decorative solder pads sit on the same ring, but on the diagonals
+// BETWEEN the eight occupied slots, so they read as the spare footprints a real
+// board leaves between its parts instead of colliding with them.
+const PAD_R = 0.94;
+const PADS: [number, number][] = [22.5, 67.5, 112.5, 157.5, 202.5, 337.5].map((deg) => {
+  const a = (deg * Math.PI) / 180;
+  return [PAD_R * Math.cos(a), PAD_R * Math.sin(a)];
+});
 
 /** A board trace that "fills" with current — a bright front sweeps from the die
  *  out to its component as the chip energises, then a pulse keeps flowing. Built
@@ -643,19 +673,12 @@ function DiePulse() {
 export function ChipRig() {
   const { accent } = useAccent();
   const energy = useChipEnergyTarget();
-  const TY = 0.026; // trace height, sitting on the PCB substrate
   const traces = useMemo(() => CHIP_NODES.map((nd) => pcbTrace(nd.x, nd.z, TY)), []);
-  // a few decorative board traces (not to components) for the motherboard look
-  const extra = useMemo(
-    () => [
-      densify(pcbRoute(0.58, -0.18, 1.02, -0.42, TY, true)),
-      densify(pcbRoute(-0.58, 0.22, -1.05, 0.34, TY, true)),
-      densify(pcbRoute(0.2, 0.55, 0.36, 1.04, TY, false)),
-      densify(pcbRoute(-0.34, -0.55, -0.46, -1.04, TY, false)),
-      densify(pcbRoute(0.55, 0.3, 0.86, 0.62, TY, true)),
-    ],
-    [],
-  );
+  // The remaining traces run out to the spare solder pads. They used to end at
+  // hand-picked coordinates, which left one dead-ending 0.17 from the database
+  // stack as though it had missed its target; routing them to the pads means
+  // every trace on the board terminates somewhere, and every pad is fed.
+  const extra = useMemo(() => PADS.map(([x, z]) => pcbTrace(x, z, TY)), []);
   return (
     <group>
       {/* the PCB substrate — every part mounts on it, so it reads as one board */}
@@ -665,15 +688,15 @@ export function ChipRig() {
       </RoundedBox>
       <Line points={roundedRectPts(2.0, 2.0, 0.06)} position={[0, 0.022, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
 
-      {/* soft pads under the raised parts, so they sit ON the board */}
+      {/* soft pads under the raised parts, so they sit ON the board (one per slot) */}
       <BlobShadow position={[0, 0.024, 0]} radius={0.68} opacity={0.26} />
-      <BlobShadow position={[-0.98, 0.024, 0.56]} radius={0.2} opacity={0.3} />
-      <BlobShadow position={[0.92, 0.024, 0.62]} radius={0.18} opacity={0.3} />
-      <BlobShadow position={[0.95, 0.024, -0.72]} radius={0.13} opacity={0.3} />
-      <BlobShadow position={[-0.95, 0.024, -0.74]} radius={0.22} aspect={0.72} opacity={0.3} />
-      <BlobShadow position={[0, 0.024, 1.08]} radius={0.18} aspect={0.5} opacity={0.28} />
-      <BlobShadow position={[-0.55, 0.024, 0.95]} radius={0.09} opacity={0.3} />
-      <BlobShadow position={[0.55, 0.024, -1.0]} radius={0.09} opacity={0.3} />
+      <BlobShadow position={[-CORNER, 0.024, CORNER]} radius={0.2} opacity={0.3} />
+      <BlobShadow position={[CORNER, 0.024, CORNER]} radius={0.18} opacity={0.3} />
+      <BlobShadow position={[CORNER, 0.024, -CORNER]} radius={0.13} opacity={0.3} />
+      <BlobShadow position={[-CORNER, 0.024, -CORNER]} radius={0.22} aspect={0.72} opacity={0.3} />
+      <BlobShadow position={[0, 0.024, EDGE]} radius={0.18} aspect={0.5} opacity={0.28} />
+      <BlobShadow position={[-EDGE, 0.024, 0]} radius={0.09} opacity={0.3} />
+      <BlobShadow position={[0, 0.024, -EDGE]} radius={0.09} opacity={0.3} />
 
       {/* data pulses radiating from the die while it's the active spot */}
       <DiePulse />
@@ -700,13 +723,13 @@ export function ChipRig() {
       ))}
 
       {/* custom-ar-framework — a security / CV camera projecting a tracked
-          hologram cube (back-right) */}
+          hologram cube (back-right corner slot) */}
       <LifeGroup slug="custom-ar-framework">
-        <SecurityCamera slug="custom-ar-framework" position={[0.95, 0.02, -0.72]} />
+        <SecurityCamera slug="custom-ar-framework" position={[CORNER, 0.02, -CORNER]} />
       </LifeGroup>
 
-      {/* decorative round caps */}
-      {([[-0.55, 0.95], [0.55, -1.0]] as [number, number][]).map(([cx, cz], i) => (
+      {/* decorative round caps — the left and back edge slots */}
+      {([[-EDGE, 0], [0, -EDGE]] as [number, number][]).map(([cx, cz], i) => (
         <mesh key={i} position={[cx, 0.13, cz]}>
           <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
           <GlassMat opacity={0.34} />
@@ -714,9 +737,8 @@ export function ChipRig() {
         </mesh>
       ))}
 
-      {/* round database stack (top platter is the accent) — moved to the front-right,
-          into the spot the AR lens vacated, so the board stays balanced */}
-      <group position={[0.92, 0, 0.62]}>
+      {/* round database stack (top platter is the accent) — front-right corner slot */}
+      <group position={[CORNER, 0, CORNER]}>
         {[0, 1, 2].map((i) => (
           <mesh key={i} position={[0, 0.05 + i * 0.07, 0]}>
             <cylinderGeometry args={[0.13, 0.13, 0.06, 28]} />
@@ -730,16 +752,16 @@ export function ChipRig() {
         ))}
       </group>
 
-      {/* computer-vision frame (neutral — not a hotspot) */}
-      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[0.9, 0.16, 0.92]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.6} />
+      {/* computer-vision frame (neutral — not a hotspot) — right edge slot */}
+      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[EDGE, 0.16, 0]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.6} />
 
       {/* secondary IC + heatsink and a pin-header connector fill the board out */}
-      <Heatsink position={[-0.98, 0, 0.56]} />
-      <PinHeader position={[0.0, 0, 1.08]} n={6} />
+      <Heatsink position={[-CORNER, 0, CORNER]} />
+      <PinHeader position={[0, 0, EDGE]} n={6} />
 
-      {/* Philips medical XR & AI — a bedside heart-rate monitor (left side) */}
+      {/* Philips medical XR & AI — a bedside heart-rate monitor (back-left corner slot) */}
       <LifeGroup slug="philips-medical-xr">
-        <HeartMonitor slug="philips-medical-xr" position={[-0.95, 0, -0.74]} />
+        <HeartMonitor slug="philips-medical-xr" position={[-CORNER, 0, -CORNER]} />
       </LifeGroup>
       <MiscComponents />
     </group>

@@ -157,9 +157,12 @@
   cursor: pointer;
   scroll-margin: 0.4rem;
 }
+/* The active row is marked by its surface alone. It used to also carry an
+   inset 2px bar in the layer colour down its left edge, which put a coloured
+   tick against every row as you moved through the list — the layer is already
+   named on the right, so the bar was saying it twice, in the louder way. */
 .search__hit[data-active] {
   background: var(--surface-2);
-  box-shadow: inset 2px 0 0 var(--c);
 }
 .search__thumb {
   position: relative;
