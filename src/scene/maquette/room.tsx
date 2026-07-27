@@ -522,8 +522,6 @@ function FloorLamp({ position }: { position: V3 }) {
         <GlassMat opacity={0.2} />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
-      <Accent position={[0, 0.66, 0]} args={[0.07, 0.02, 0.07]} intensity={0.5} color={NEUTRAL} />
-      <LampGlow />
     </group>
   );
 }

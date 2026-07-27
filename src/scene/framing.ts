@@ -53,11 +53,11 @@ export const HOTSPOTS: Hotspot[] = [
   { slug: 'virtuele-brigade', layer: 'room', position: [-1.83, 0.95, 0.14], anchor: [-1.8, 0.65, 0.14], view: { offset: [2.05, 0.2, 0.3], aimDown: 0.45, fovZoom: 0.5, mobileLift: 1.5 } }, // the monitor
   { slug: 'popcore-games', layer: 'room', position: [0.25, 0.62, -0.14], anchor: [0.23, 0.22, -0.14], view: { offset: [0.6, 0.55, 0.95], aimDown: 0.05, fovZoom: 19.5, mobileLift: 1.5 } }, // phone on the couch
   { slug: 'lightship-drive', layer: 'room', position: [-0.03, 0.52, 0.52], anchor: [0, 0.2, 0.52], view: { offset: [0.95, 0.5, 0.75], aimDown: 0.25, fovZoom: 30, mobileLift: 1.5 } }, // the AR race table
-  { slug: 'zwijsen-ar-books', layer: 'room', position: [1.2, 1.1, -0.28], anchor: [1.02, 0.52, -0.78], view: { offset: [0.05, 0.2, 1.35], aimDown: 0.05, fovZoom: 16, mobileLift: 1.5 } }, // the orange book on the shelf
+  { slug: 'zwijsen-ar-books', layer: 'room', position: [1.2, 1.15, -0.28], anchor: [1.02, 0.4, -1.13], view: { offset: [0.05, 0.2, 1.35], aimDown: 0.05, fovZoom: 16, mobileLift: 1.5 } }, // the orange book on the shelf
   // City — GIS / location work
   { slug: 'arcam', layer: 'city', position: [1.15, 0.66, -0.32], anchor: [1.25, 0.0, -0.22], view: { offset: [1.45, 1.15, 2.1], aimDown: 0.3, fovZoom: 17, mobileLift: 1.7 } }, // the park
-  { slug: 'alliander-hololens', layer: 'city', position: [.05, 1.2, 0], anchor: [0, 0.85, 0], view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26, mobileLift: 1.5 } }, // the skyscraper (skyline peak)
-  { slug: 'dtt-amsterdam', layer: 'city', position: [-1.15, 1.15, 0.4], anchor: [-1.31, 0.63, 0.36], view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19, mobileLift: 1.5 } }, // the windmill
+  { slug: 'alliander-hololens', layer: 'city', position: [.05, 1.15, 0], anchor: [0, 0.77, 0], view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26, mobileLift: 1.5 } }, // the skyscraper (skyline peak)
+  { slug: 'dtt-amsterdam', layer: 'city', position: [-0.55, 1.15, 0.4], anchor: [-1.2, 0.58, -0.06], view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19, mobileLift: 1.5 } }, // the windmill
 ];
 
 export interface Framing {

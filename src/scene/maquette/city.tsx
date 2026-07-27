@@ -1449,7 +1449,7 @@ export function CityRig() {
     return m;
   }, [accent]);
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
-  const mill = useTweak('City.Windmill', { position: [-1.34, 0, 0.33] });
+  const mill = useTweak('City.Windmill', { position: [-1.2, 0, -0.06] });
   const park = useTweak('City.Park', { position: [1.3, 0, -0.23] });
   // The transformer house sits on the front-centre plot of the 3×3 block grid,
   // just across the road from the tower and facing the camera (its own building
