@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -60,6 +60,25 @@ export function CameraRig() {
   // Reduced motion and phones skip the dolly — straight to the City overview.
   const introDone = useRef(reduced || isMobileViewport());
   const skipIntro = useRef(false); // any scroll / tap / key cancels the intro
+
+  // Park the camera at the dolly's START before anything is painted. The Canvas
+  // creates it at MAQUETTE_HOME — the settled overview, i.e. the dolly's
+  // DESTINATION — so without this the first frame shows the end of the shot, then
+  // the intro's first useFrame teleports out to the wide establishing shot and
+  // travels back in. That reads exactly as the camera jumping to a spot and then
+  // correcting itself. Layout effect, so it lands before the first painted frame.
+  useLayoutEffect(() => {
+    // Only when the dolly is actually going to play: a deep link or a restored
+    // scroll position hands the camera to the node/journey logic instead, and that
+    // should ease from the overview, not from a wide shot it never intended to use.
+    if (introDone.current || selectedSlug || journeyStep !== 0) return;
+    if (!size.width || !size.height) return; // an unmeasured canvas would make the aspect NaN
+    const s = introView(layerGap(size.width / size.height));
+    camera.position.copy(s.pos);
+    target.current.copy(s.target);
+    camera.lookAt(target.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // State changes (and resizes) need at least one frame in demand mode; the FOV
   // itself is driven per-frame in useFrame so it can ease when zooming in/out.

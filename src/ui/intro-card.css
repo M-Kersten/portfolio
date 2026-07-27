@@ -1,24 +1,35 @@
 /* The load fade-up (BootVeil.tsx) — the whole page opens out of black while the
    camera dollies in. Sits above everything, including the header and the portaled
-   dossier, because it's the shutter over the entire frame; `pointer-events: none`
-   from the start so it can never swallow a click even mid-fade, and it takes
-   itself out of compositing at the end rather than lingering as an invisible
-   full-screen layer. */
+   dossier, because it's the shutter over the entire frame, and carries
+   `pointer-events: none` from the start so it can never swallow a click mid-fade. */
 .boot-veil {
   position: fixed;
   inset: 0;
   z-index: 200;
   background: var(--paper);
   pointer-events: none;
-  animation: boot-veil-out 1.7s var(--ease) both;
+  /* NOT --ease: that's cubic-bezier(0.22, 1, 0.36, 1), a hard ease-OUT, which puts
+     92% of the fade into the first fifth of the duration — the veil was practically
+     gone in half a second and the load just looked like it flashed. A fade-up wants
+     the opposite shape, so this is a symmetric ease-in-out, and the keyframes hold
+     full black for the first beat (covering React's mount and the first canvas
+     frame) before any of it starts. */
+  animation: boot-veil-out 2.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
 }
+/* Opacity ONLY — deliberately. Animating `visibility` alongside it took the whole
+   thing off the compositor and onto the main thread, which is the busiest it will
+   ever be during exactly this window (three.js is compiling the scene): measured
+   mid-fade, the veil was still at 0.88 two seconds in, because the animation was
+   being starved rather than running. An opacity-only keyframe is GPU-composited and
+   immune to that. A fully transparent fixed layer isn't painted, so leaving it at
+   opacity 0 costs nothing that hiding it would have saved. */
 @keyframes boot-veil-out {
-  from {
+  0%,
+  14% {
     opacity: 1;
   }
-  to {
+  100% {
     opacity: 0;
-    visibility: hidden;
   }
 }
 /* No dolly under reduced motion (CameraRig bails out), so there's no zoom for the
@@ -27,7 +38,6 @@
   .boot-veil {
     animation: none;
     opacity: 0;
-    visibility: hidden;
   }
 }
 
