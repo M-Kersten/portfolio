@@ -3,12 +3,12 @@
 // (Lightship Drive) and the bookcase with the openable Zwijsen book, plus
 // lamp, plant and VR headset props. RoomRig composes and places everything.
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Edges, RoundedBox } from '@react-three/drei';
-import { Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type Group, type Mesh, type Texture } from 'three';
+import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { useTweak } from '../devTweak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { NEUTRAL, useAccent, circlePts, smoothCurve, roundedRectShape, roundedPlaneGeometry, Line, useActive, bounceObject, useOptionalTexture, type V3 } from './shared';
+import { NEUTRAL, useAccent, circlePts, smoothCurve, roundedRectShape, roundedPlaneGeometry, Line, useActive, bounceObject, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { GlassMat, LiveGlassMat, Accent, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
@@ -234,10 +234,13 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
       m.emissiveIntensity = 0.6 + k.current * 0.5;
     } else {
       // ghost screen: grey + dim; hovering makes it flicker like it's trying to
-      // wake, the colour itself only arrives when the visitor opens it
+      // wake, the colour itself only arrives when the visitor opens it. At rest
+      // it keeps a faint standby shimmer — a monitor left on — that fades out as
+      // it genuinely wakes.
+      const idle = reduced ? 0 : (0.05 + 0.035 * Math.sin(t * 0.9) + 0.02 * Math.max(0, Math.sin(t * 5.3 + 2))) * (1 - live.current);
       m.color.copy(GHOST_FILL).lerp(accentC, live.current);
       m.emissive.copy(GHOST_FILL).lerp(accentC, live.current);
-      m.emissiveIntensity = 0.08 + 0.34 * live.current + k.current * 0.9 * n;
+      m.emissiveIntensity = 0.08 + idle + 0.34 * live.current + k.current * 0.9 * n;
     }
   });
   return (
@@ -288,8 +291,47 @@ function RaceCar({ color }: { color: string }) {
   );
 }
 
+// A fading comet-tail behind a car — a string of beads on the race circle,
+// brightest at the car and dying out behind it. Only lit while the table is
+// alive (selected/visited) and moving, so a dormant or reduced-motion table
+// shows no streaks. Lives inside the rotating ring, so it trails its car.
+const TRAIL_R = 0.2;
+function CarTrail({ angle, color }: { angle: number; color: string }) {
+  const reduced = useReducedMotion();
+  const { selected, visited } = useActive('lightship-drive');
+  const glow = useRef(0);
+  const mats = useRef<(MeshStandardMaterial | null)[]>([]);
+  const beads = useMemo(() => {
+    const N = 7;
+    return Array.from({ length: N }, (_, i) => {
+      const a = angle - (i + 1) * 0.14; // step back along the circle, behind the car
+      return { p: [TRAIL_R * Math.cos(a), 0, TRAIL_R * Math.sin(a)] as V3, f: 1 - i / N, r: 0.007 * (1 - i * 0.09) };
+    });
+  }, [angle]);
+  useFrame(() => {
+    glow.current += (((selected || visited) && !reduced ? 1 : 0) - glow.current) * FX.engage;
+    for (let i = 0; i < beads.length; i++) {
+      const m = mats.current[i];
+      if (!m) continue;
+      m.emissiveIntensity = beads[i].f * 1.7 * glow.current;
+      m.opacity = FX.peak * beads[i].f * glow.current;
+    }
+  });
+  return (
+    <group>
+      {beads.map((b, i) => (
+        <mesh key={i} position={b.p}>
+          <sphereGeometry args={[b.r, 8, 8]} />
+          <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={color} emissive={color} emissiveIntensity={0} transparent opacity={0} toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /** Coffee table with an AR race loop and two cars (Lightship Drive). The cars
- *  ride a circle, simply rotating around the table's centre pivot. */
+ *  ride a circle, simply rotating around the table's centre pivot, each trailing
+ *  a light-streak while the table is alive. */
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
@@ -331,7 +373,99 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
           <group position={[-R, 0, 0]}>
             <RaceCar color="#9fb6c6" />
           </group>
+          <CarTrail angle={0} color="#ff9068" />
+          <CarTrail angle={Math.PI} color="#9fb6c6" />
         </group>
+      </group>
+    </group>
+  );
+}
+
+// The Virtuele Brigade monitor's link: an antenna telescopes up out of the case
+// when it's engaged and then tries to raise a connection — three arcs radiate off
+// the tip in sequence, go quiet, and try again. It never quite succeeds, which is
+// the joke and also how field kit actually behaves. Holds still under reduced
+// motion (mast deployed, no search).
+const ARCS = 3;
+const SEARCH_PERIOD = 2.3; // seconds per attempt: a burst of arcs, then a wait
+const ARC_STAGGER = 0.17; // seconds between one arc lighting and the next
+const ARC_LIFE = 0.5; // how long a single arc takes to swell and fade
+function BrigadeAntenna() {
+  const reduced = useReducedMotion();
+  const camera = useThree((st) => st.camera);
+  const { accent } = useAccent();
+  const { selected, visited } = useActive('virtuele-brigade');
+  const grp = useRef<Group>(null);
+  const mast = useRef<Group>(null);
+  const hail = useRef<Group>(null);
+  const tipMat = useRef<MeshStandardMaterial>(null);
+  const arcMats = useRef<(MeshStandardMaterial | null)[]>([]);
+  const glow = useRef(0);
+  useFrame((s) => {
+    glow.current += ((selected || visited ? 1 : 0) - glow.current) * FX.engage;
+    const g = glow.current;
+    const t = reduced ? 0 : s.clock.elapsedTime;
+    if (grp.current) grp.current.visible = g > 0.02;
+    // the mast telescopes up — length follows the engage ease, so it deploys
+    if (mast.current) {
+      mast.current.scale.y = Math.max(0.001, g);
+      mast.current.rotation.z = reduced ? 0 : Math.sin(t * 1.3) * 0.03; // a slight sway
+    }
+    // The arcs live outside the mast (which is scaled in Y as it deploys, and would
+    // squash them) and turn to face the camera. Flat rings read as a bare line from
+    // this node's viewing angle, which is where they were disappearing.
+    if (hail.current) {
+      hail.current.position.y = 0.19 * g;
+      hail.current.quaternion.copy(camera.quaternion);
+    }
+    const cycle = (t / SEARCH_PERIOD) % 1;
+    const elapsed = cycle * SEARCH_PERIOD;
+    for (let i = 0; i < ARCS; i++) {
+      const m = arcMats.current[i];
+      if (!m) continue;
+      const local = (elapsed - i * ARC_STAGGER) / ARC_LIFE;
+      m.opacity = local > 0 && local < 1 ? fxEnv(local) * FX.peak * g : 0;
+    }
+    // the tip pips once per attempt, brightest as the burst goes out
+    if (tipMat.current) {
+      tipMat.current.emissiveIntensity = (0.5 + (elapsed < 0.5 ? fxEnv(elapsed / 0.5) * 2.2 : 0)) * g;
+    }
+  });
+  // Sits on the monitor's top edge: the case is centred at y 0.62 and is 0.34
+  // tall, so its lid is at 0.79, and it stands at the screen's depth (z -0.13).
+  return (
+    <group ref={grp} position={[0, 0.78, -0.13]} visible={false}>
+      {/* the mast, scaled up from its base so it grows out of the case */}
+      <group ref={mast}>
+        <mesh position={[0, 0.09, 0]}>
+          <cylinderGeometry args={[0.0035, 0.005, 0.18, 6]} />
+          <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.25} roughness={0.5} />
+        </mesh>
+        {/* the emitter on top */}
+        <mesh position={[0, 0.19, 0]}>
+          <sphereGeometry args={[0.011, 10, 10]} />
+          <meshStandardMaterial ref={tipMat} color={accent} emissive={accent} emissiveIntensity={0.5} toneMapped={false} />
+        </mesh>
+      </group>
+      {/* the hail: arcs opening off the tip, lighting in sequence, camera-facing */}
+      <group ref={hail}>
+        {Array.from({ length: ARCS }, (_, i) => (
+          <mesh key={i}>
+            <ringGeometry args={[0.03 + i * 0.026, 0.036 + i * 0.026, 26, 1, Math.PI * 0.28, Math.PI * 0.44]} />
+            <meshStandardMaterial
+              ref={(m) => { arcMats.current[i] = m; }}
+              color={accent}
+              emissive={accent}
+              emissiveIntensity={1.3}
+              transparent
+              opacity={0}
+              blending={AdditiveBlending}
+              side={DoubleSide}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </mesh>
+        ))}
       </group>
     </group>
   );
@@ -352,6 +486,25 @@ function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
 }
 
 /** A floor lamp with a glowing shade. */
+// The lamp's bulb, softly lit and gently breathing — a light someone left on.
+// A single warm point in the cool room (a domestic cue, not a project waking);
+// steady under reduced motion.
+function LampGlow() {
+  const reduced = useReducedMotion();
+  const mat = useRef<MeshStandardMaterial>(null);
+  useFrame((s) => {
+    if (!mat.current) return;
+    const breathe = reduced ? 1 : 0.86 + 0.14 * Math.sin(s.clock.elapsedTime * 0.8);
+    mat.current.emissiveIntensity = 0.55 * breathe;
+  });
+  return (
+    <mesh position={[0, 0.64, 0]}>
+      <sphereGeometry args={[0.045, 12, 12]} />
+      <meshStandardMaterial ref={mat} color="#ffb488" emissive="#ffb488" emissiveIntensity={0.55} transparent opacity={0.5} roughness={0.5} toneMapped={false} depthWrite={false} />
+    </mesh>
+  );
+}
+
 function FloorLamp({ position }: { position: V3 }) {
   return (
     <group position={position}>
@@ -370,6 +523,7 @@ function FloorLamp({ position }: { position: V3 }) {
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
       <Accent position={[0, 0.66, 0]} args={[0.07, 0.02, 0.07]} intensity={0.5} color={NEUTRAL} />
+      <LampGlow />
     </group>
   );
 }
@@ -482,6 +636,53 @@ function BookHalf({ side, tex }: { side: -1 | 1; tex: Texture | null }) {
     </>
   );
 }
+// Holographic content lifting off the open page — a few small wireframe glyphs
+// that rise, turn and fade above the spread while the book is open. The AR the
+// Zwijsen books are about, made literal; off under reduced motion.
+function BookAR({ slug }: { slug: string }) {
+  const reduced = useReducedMotion();
+  const { accent } = useAccent();
+  const { selected } = useActive(slug);
+  const refs = useRef<(Group | null)[]>([]);
+  const mats = useRef<(MeshStandardMaterial | null)[]>([]);
+  const glow = useRef(0);
+  const items = useMemo(
+    () => [
+      { x: -0.035, z: -0.02, spd: 0.3, ph: 0.0, kind: 0 },
+      { x: 0.03, z: 0.02, spd: 0.26, ph: 0.4, kind: 1 },
+      { x: 0.0, z: 0.045, spd: 0.34, ph: 0.72, kind: 2 },
+    ],
+    [],
+  );
+  useFrame((s) => {
+    glow.current += ((selected && !reduced ? 1 : 0) - glow.current) * FX.engage;
+    const t = s.clock.elapsedTime;
+    for (let i = 0; i < items.length; i++) {
+      const g = refs.current[i];
+      const m = mats.current[i];
+      const it = items[i];
+      if (!g) continue;
+      const p = (t * it.spd + it.ph) % 1;
+      g.position.set(it.x, 0.03 + p * 0.16, it.z); // rise off the page
+      g.rotation.set(t * 0.5, t * 0.8 + it.ph * 6, 0);
+      g.scale.setScalar(0.55 + 0.45 * Math.sin(p * Math.PI));
+      if (m) m.opacity = fxEnv(p) * FX.peak * glow.current;
+    }
+  });
+  return (
+    <group>
+      {items.map((it, i) => (
+        <group key={i} ref={(r) => (refs.current[i] = r)}>
+          <mesh>
+            {it.kind === 0 ? <boxGeometry args={[0.026, 0.026, 0.026]} /> : it.kind === 1 ? <tetrahedronGeometry args={[0.021]} /> : <octahedronGeometry args={[0.02]} />}
+            <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={accent} emissive={accent} emissiveIntensity={1.4} transparent opacity={0} wireframe toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
 function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const { selected } = useActive(slug);
   const reduced = useReducedMotion();
@@ -545,6 +746,8 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
         <boxGeometry args={[0.015, BOOK_T + 0.003, BOOK_H]} />
         <meshStandardMaterial color="#e06a30" emissive="#e06a30" emissiveIntensity={0.14} roughness={0.5} />
       </mesh>
+      {/* holographic content lifting off the open spread */}
+      <BookAR slug={slug} />
     </group>
   );
 }
@@ -777,6 +980,8 @@ export function RoomRig() {
           </mesh>
           <SoftBox position={[-0.05, 0.405, 0.14]} args={[0.13, 0.012, 0.17]} radius={0.004} opacity={0.3} />
           <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
+          {/* the antenna deploying out of the monitor, hailing for a link */}
+          <BrigadeAntenna />
         </group>
         {/* chair in front of the desk, facing the monitor */}
         <group position={[0, 0, 0.05]} rotation={[0, Math.PI, 0]}>

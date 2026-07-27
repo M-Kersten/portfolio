@@ -51,6 +51,8 @@ const SIGNAL_PACKETS = 5;
 const PIPE_OFFSET = 0.7; // how far the vertical riser sits outside the link's midpoint
 const PIPE_REST = new Color('#5a6e82'); // unlit cable colour (before highlight)
 const _sv = new Vector3(); // scratch for sampling the curve each frame
+const DRAW_DUR = 1.1; // seconds for the "connection made" sweep to travel the wire
+const DRAW_DELAY = 0.45; // beat to wait after focus returns to the overview before it draws
 
 // A stable outward direction for links whose endpoints both sit on the spine.
 function hashDir(s: string): Vector3 {
@@ -108,12 +110,15 @@ function pipeRoute(pA: Vector3, pB: Vector3, key: string): { points: Vector3[]; 
 
 export function SignalLine({ thread, from, to, color }: Relation) {
   const reduced = useReducedMotion();
-  const { hovered: hovA, selected: selA } = useActive(from);
-  const { hovered: hovB, selected: selB } = useActive(to);
+  const { hovered: hovA, selected: selA, visited: visA } = useActive(from);
+  const { hovered: hovB, selected: selB, visited: visB } = useActive(to);
 
   // Only show the thread while BOTH endpoints are on visible (un-culled) layers;
   // otherwise it would trail off to where a hidden layer's node used to be.
   const journeyStep = useSceneSelector((s) => s.journeyStep);
+  // Whether ANY node is open (the user is in a close-up) — the connect-sweep waits
+  // for this to clear (back on the overview) before it plays.
+  const anySelected = useSceneSelector((s) => s.selectedSlug) !== null;
   const bothVisible =
     Math.abs(LAYER_STEP[HOTSPOT_BY_SLUG[from].layer] - journeyStep) <= 1 &&
     Math.abs(LAYER_STEP[HOTSPOT_BY_SLUG[to].layer] - journeyStep) <= 1;
@@ -139,11 +144,51 @@ export function SignalLine({ thread, from, to, color }: Relation) {
   const posArr = useMemo(() => new Float32Array(SIGNAL_PACKETS * 3), []);
   const colArr = useMemo(() => new Float32Array(SIGNAL_PACKETS * 3), []);
   const baseCol = useMemo(() => new Color(color), [color]);
-  const k = useRef(0); // eased activation: 0 idle, 0.5 hover, 1 selected
+  const k = useRef(0); // eased activation: 0 dormant-grey, 0.6 hover, 1 selected, ~0.9 while drawing
   const u = useRef(0); // packet flow phase
+  // Discovery hook: the FIRST time either endpoint is woken, a one-shot sweep is
+  // armed that draws from the just-woken node toward its partner — tempting the
+  // eye toward the still-unexplored project. Deferred until focus is back on the
+  // overview so the whole span is actually in view.
+  const wasFirst = useRef(false); // was either endpoint awake last frame
+  const pending = useRef(false); // a link waiting to play its one-shot sweep
+  const drawDir = useRef(1); // +1 = from→to · −1 = to→from (leads with the just-woken end)
+  const armT = useRef(0); // delay counter once conditions to draw are met
+  const drawT = useRef(-1); // <0 idle; else 0..1 sweep progress
 
   useFrame((_s, delta) => {
-    const target = selA || selB ? 1 : hovA || hovB ? 0.6 : 0;
+    const dt = Math.min(delta, 1 / 30);
+
+    // Rising edge of the first wake: ARM the sweep (don't play it yet — the camera
+    // has just dived onto the node and its HUD owns the eye). Lead from whichever
+    // end just lit, out toward the other so the eye is drawn onward.
+    const firstAwake = visA || visB;
+    if (firstAwake && !wasFirst.current) {
+      pending.current = true;
+      drawDir.current = visA ? 1 : -1;
+      armT.current = 0;
+    }
+    wasFirst.current = firstAwake;
+
+    // Play it once the user is back on the overview and the whole span is on
+    // visible layers — after a short beat so the camera has finished pulling back.
+    if (pending.current && drawT.current < 0 && !reduced && !anySelected && bothVisible) {
+      armT.current += dt;
+      if (armT.current > DRAW_DELAY) drawT.current = 0;
+    }
+    if (drawT.current >= 0) {
+      drawT.current += dt / DRAW_DUR;
+      if (drawT.current >= 1) {
+        drawT.current = -1;
+        pending.current = false; // one-shot
+      }
+    }
+    const drawing = drawT.current >= 0;
+
+    // The cable rests DORMANT GREY (neutral, unlit) so the woken web never competes
+    // with reading the scene; it lights in its thread colour only on hover/select,
+    // or briefly as the connect-sweep draws it — then eases back to grey.
+    const target = selA || selB ? 1 : hovA || hovB ? 0.6 : drawing ? 0.9 : 0;
     k.current += (target - k.current) * 0.12;
     const kk = k.current;
 
@@ -151,7 +196,7 @@ export function SignalLine({ thread, from, to, color }: Relation) {
     // colour, brighter and a touch heavier, as the link is highlighted.
     const m = lineRef.current?.material;
     if (m) {
-      const op = 0.22 + kk * 0.4;
+      const op = 0.2 + kk * 0.42;
       const lw = 1.8 + kk * 1.4;
       m.opacity = op;
       m.linewidth = lw;
@@ -163,20 +208,35 @@ export function SignalLine({ thread, from, to, color }: Relation) {
       }
     }
 
-    // Data flows through the cable only while it's highlighted.
+    // Data only flows while the cable is lit (hover/select); during the sweep the
+    // packets bunch into a bright comet trailing the head as it travels from the
+    // just-woken node toward its partner. Both the sweep and the steady flow run
+    // ONE fixed direction (drawDir) — set the moment the first endpoint is
+    // selected — so the flow never reverses on itself.
     if (!reduced) u.current = (u.current + delta * 0.16) % 1;
     const pen = pointsRef.current;
     if (pen) {
       const flowing = kk > 0.04;
       pen.visible = flowing && bothVisible;
       if (flowing) {
+        const head = drawDir.current > 0 ? drawT.current : 1 - drawT.current;
         for (let i = 0; i < SIGNAL_PACKETS; i++) {
-          const f = (u.current + i / SIGNAL_PACKETS) % 1;
+          let f: number;
+          let b: number;
+          if (drawing) {
+            f = Math.min(1, Math.max(0, head - drawDir.current * i * 0.06)); // comet tail behind the head
+            b = (1 - i / SIGNAL_PACKETS) * 1.1;
+          } else {
+            // steady flow in the fixed direction (drawDir); reversing 1−phase
+            // when it points to→from keeps it running the same way as the sweep
+            const phase = (u.current + i / SIGNAL_PACKETS) % 1;
+            f = drawDir.current > 0 ? phase : 1 - phase;
+            b = kk * (0.5 + 0.5 * Math.sin(phase * Math.PI)); // fade in/out at the ends
+          }
           curve.getPointAt(f, _sv);
           posArr[i * 3] = _sv.x;
           posArr[i * 3 + 1] = _sv.y;
           posArr[i * 3 + 2] = _sv.z;
-          const b = kk * (0.5 + 0.5 * Math.sin(f * Math.PI)); // fade in/out at the ends
           colArr[i * 3] = baseCol.r * b;
           colArr[i * 3 + 1] = baseCol.g * b;
           colArr[i * 3 + 2] = baseCol.b * b;
@@ -186,7 +246,12 @@ export function SignalLine({ thread, from, to, color }: Relation) {
       }
     }
 
-    if (labelRef.current) labelRef.current.style.opacity = String(bothVisible && kk > 0.04 ? Math.min(1, kk * 1.25) : 0);
+    // Label on-demand only (hover/select or during the sweep) so a fully woken web
+    // doesn't clutter with every thread's name at rest.
+    if (labelRef.current) {
+      const showLabel = bothVisible && (selA || selB || hovA || hovB || drawing);
+      labelRef.current.style.opacity = String(showLabel ? Math.min(1, kk * 1.25) : 0);
+    }
   });
 
   return (

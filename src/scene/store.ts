@@ -2,6 +2,14 @@ import { useSyncExternalStore } from 'react';
 import { Vector3 } from 'three';
 import { HOTSPOTS } from './framing';
 
+/** Wall-clock moment the app first loaded. The boot sequence sequences off this
+ *  one shared clock so the DOM beats (header → name → subhead) and the 3D beat
+ *  (the maquette powering on) stay in order across the two React reconcilers. */
+export const bootAt = typeof performance !== 'undefined' ? performance.now() : 0;
+/** ms after boot that the maquette powers on — its beat, after the hero text
+ *  (header ~0.1s · name decode ~0.4–0.9s · subhead ~1.05–1.4s · then this). */
+export const MAQUETTE_BOOT = 1450;
+
 /** The launch easter egg's stage machine (see city.tsx LaunchSite +
  *  components/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;
  *  'countdown' = T-minus running; 'ascend' = rocket flying, camera chasing;
@@ -33,7 +41,7 @@ interface SceneState {
   /** Set (once, to performance.now()) the moment every hotspot has been
    *  visited — "all systems live". Drives the 10/10 tally state. */
   completedAt: number | null;
-  /** True between finding the 10th signal and closing its HUD — the close
+  /** True between waking the 10th project and closing its HUD — the close
    *  handler consumes it to run the homecoming (scroll to the City layer). */
   celebrationPending: boolean;
   /** The homecoming moment: set when the 10th node is deselected. Anchors the
@@ -42,6 +50,17 @@ interface SceneState {
   celebrateAt: number | null;
   /** The launch easter egg's current stage (idle when not engaged). */
   launch: LaunchStage;
+  /** True once the load intro (the movie-intro title card) has finished or been
+   *  dismissed. Held false during the intro so the hero title + subtitle + the
+   *  bottom instrument line reveal *after* the premise card, never on top of it. */
+  introOver: boolean;
+  /** Where the just-selected object sits on screen at the moment of selection
+   *  (viewport %), tagged with its slug — the porthole reticle snaps onto this
+   *  point and then flies to the ring centre as the camera zooms in. `pos` is null
+   *  when the target is off-screen or motion is reduced (reticle opens centred);
+   *  the whole field is null in the overview. Written once per selection by the
+   *  CameraRig (it has the camera); read by the DOM FocusReticle. */
+  reticleStart: { slug: string; pos: { x: number; y: number } | null } | null;
 }
 
 let state: SceneState = {
@@ -53,6 +72,8 @@ let state: SceneState = {
   celebrationPending: false,
   celebrateAt: null,
   launch: 'idle',
+  introOver: false,
+  reticleStart: null,
 };
 
 const listeners = new Set<() => void>();
@@ -90,6 +111,14 @@ export const sceneStore = {
   },
   setLaunch(launch: LaunchStage) {
     if (launch !== state.launch) set({ launch });
+  },
+  /** Mark the load intro finished — releases the hero chrome (idempotent). */
+  endIntro() {
+    if (!state.introOver) set({ introOver: true });
+  },
+  /** Record where the reticle should acquire the target (see reticleStart). */
+  setReticleStart(reticleStart: SceneState['reticleStart']) {
+    set({ reticleStart });
   },
 };
 

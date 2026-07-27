@@ -50,6 +50,13 @@
   line-height: 1.4;
   text-wrap: balance;
 }
+/* the global odometer — appears only once the count has loaded */
+.launch__tally {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-40);
+}
 .launch__row {
   display: flex;
   align-items: center;
@@ -158,12 +165,6 @@
   display: inline-block; /* transformable for the tick animation */
   color: var(--accent-ink);
 }
-.ast__lives {
-  display: inline-block;
-  color: var(--accent-ink);
-  letter-spacing: 0.3em;
-  font-size: 0.82rem;
-}
 /* tiny HUD reactions: the score ticks on a kill, the boosters flare when one
    is lost (classes re-applied per event by the game) */
 .ast__score-bump {
@@ -172,11 +173,77 @@
 @keyframes ast-bump {
   30% { transform: scale(1.3); }
 }
-.ast__lives-hit {
-  animation: ast-lives-hit 0.55s var(--ease);
+/* the chain multiplier riding next to the score */
+.ast__chain {
+  display: inline-block;
+  margin-left: 0.55em;
+  color: var(--accent-ink);
 }
-@keyframes ast-lives-hit {
-  25% { color: #ffb46a; transform: scale(1.3); }
+.ast__chain-pop {
+  animation: ast-bump 0.25s var(--ease);
+}
+/* once the fleet record falls the score burns brighter for the rest of the run */
+.ast__score-rec {
+  color: #7fe0d0 !important;
+  text-shadow: 0 0 14px rgba(127, 224, 208, 0.5);
+}
+/* scanner-frame corners — the site's bracket language on the game viewport */
+.ast__frame {
+  position: absolute;
+  inset: 14px;
+  pointer-events: none;
+  z-index: 1;
+}
+.ast__frame i {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 0 solid rgba(159, 182, 198, 0.35);
+}
+.ast__frame i:nth-child(1) { top: 0; left: 0; border-top-width: 1px; border-left-width: 1px; }
+.ast__frame i:nth-child(2) { top: 0; right: 0; border-top-width: 1px; border-right-width: 1px; }
+.ast__frame i:nth-child(3) { bottom: 0; left: 0; border-bottom-width: 1px; border-left-width: 1px; }
+.ast__frame i:nth-child(4) { bottom: 0; right: 0; border-bottom-width: 1px; border-right-width: 1px; }
+/* the arrival card — stage separation hands over the stick, then gets out
+   of the way */
+.ast__title {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  pointer-events: none;
+  animation: ast-title 2.8s var(--ease) forwards;
+}
+/* the mission line (arrival): a small letterspaced caption */
+.ast__title span {
+  font-size: 0.72rem;
+  letter-spacing: 0.3em;
+  color: var(--accent-ink);
+}
+/* a stage's name: the same slot, but an actual title */
+.ast__title[data-kind='phase'] span {
+  font-size: clamp(1.15rem, 3.2vw, 1.7rem);
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  color: var(--ink);
+  text-shadow: 0 0 26px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+@keyframes ast-title {
+  0% { opacity: 0; transform: translate(-50%, 12px); }
+  12%, 68% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -6px); }
+}
+@keyframes ast-title-fade {
+  0% { opacity: 0; }
+  12%, 68% { opacity: 1; }
+  100% { opacity: 0; }
 }
 .ast__exit {
   pointer-events: auto;
@@ -191,51 +258,131 @@
 .ast__exit:hover {
   color: var(--ink);
 }
-/* always-on objective, just under the HUD — the one line that says why you're
-   flying: climb to orbit, clear the things that actually kill projects */
-.ast__objective {
+/* ---------- mission comms: a holographic Merijn, talking to the player ----------
+   A projected bust bottom-left with the line typing in beside it. The portrait is
+   a real About-section photo, duotoned to the accent and scanlined here in CSS —
+   no second asset, no 3D, and it reads as a transmission rather than a headshot. */
+.comms {
   position: absolute;
-  top: 2.9rem;
-  left: 50%;
-  transform: translateX(-50%);
-  margin: 0;
-  /* explicit width, not max-width: an absolutely-positioned box with left:50%
-     and no right shrinks to fit within only half the viewport, which forces a
-     wrap. A fixed width lets the centred line run full-length. max-width:none
-     defeats the global p{max-width:var(--measure)} readability cap. */
-  width: min(94vw, 46rem);
-  max-width: none;
-  text-align: center;
-  text-wrap: balance;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  letter-spacing: 0.05em;
-  color: var(--accent-ink);
-  opacity: 0.82;
+  left: 2.6rem;
+  bottom: 4.6rem; /* clear of the .ast__hint control legend, and off the edge */
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  gap: 1.05rem;
+  max-width: min(36rem, 66vw);
   pointer-events: none;
-}
-.ast__toast {
-  position: absolute;
-  top: 20%;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-mono);
-  font-size: 1.05rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink);
   opacity: 0;
-  pointer-events: none;
-  white-space: nowrap;
+  transform: translateY(10px);
+  transition: opacity 0.45s var(--ease), transform 0.45s var(--ease);
 }
-.ast__toast--show {
-  animation: ast-toast 2.6s var(--ease);
+.comms[data-open] {
+  opacity: 1;
+  transform: none;
 }
-@keyframes ast-toast {
-  0% { opacity: 0; transform: translate(-50%, 8px); }
-  12%, 72% { opacity: 0.9; transform: translate(-50%, 0); }
-  100% { opacity: 0; }
+
+/* the projection: the photo, its scanlines, and the light it throws */
+.comms__proj {
+  position: relative;
+  flex: none;
+  width: 124px;
+  height: 156px;
+  overflow: hidden;
+  /* clipped corner — the site's instrument-panel cut */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: #04080c;
+  box-shadow: inset 0 0 22px color-mix(in srgb, var(--accent) 20%, transparent);
+  animation: comms-flicker 4.4s steps(1, end) infinite;
 }
+/* Duotone by filter chain rather than blend modes: flatten to luminance, put a
+   tone back with sepia, then rotate that tone onto the accent. One element, fully
+   predictable — layering a colour-dodge wash over a face just blew it out. */
+.comms__photo {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: 50% 14%;
+  filter: grayscale(1) contrast(1.12) brightness(1.02) sepia(1) hue-rotate(148deg) saturate(3.4);
+  opacity: 0.88;
+}
+/* the scan ruling — dark lines over the image, drifting up like a slow refresh */
+.comms__scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(180deg, rgba(2, 8, 12, 0.55) 0 1px, transparent 1px 3px);
+  opacity: 0.75;
+  animation: comms-scan 5.5s linear infinite;
+}
+/* the beam it stands in — brightest at the base, like it's being projected up */
+.comms__glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, color-mix(in srgb, var(--accent) 30%, transparent), transparent 55%);
+  opacity: 0.6;
+}
+.comms .scanframe i {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+@keyframes comms-scan {
+  to { background-position: 0 -60px; }
+}
+@keyframes comms-flicker {
+  0%, 96%, 100% { opacity: 1; }
+  97% { opacity: 0.72; }
+  98% { opacity: 1; }
+  99% { opacity: 0.85; }
+}
+
+/* the line itself */
+.comms__body {
+  padding-bottom: 0.2rem;
+  min-width: 0;
+}
+.comms__who {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent-ink) 80%, transparent);
+  margin-bottom: 0.3em;
+}
+.comms__msg {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  text-shadow: 0 1px 10px rgba(4, 8, 12, 0.9);
+  text-wrap: pretty;
+}
+/* the type-on cursor */
+.comms__caret {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 0.1em;
+  vertical-align: -0.15em;
+  background: var(--accent);
+  animation: comms-caret 0.8s steps(2, end) infinite;
+}
+@keyframes comms-caret {
+  50% { opacity: 0; }
+}
+
+@media (max-width: 760px) {
+  .comms {
+    left: 1.4rem;
+    right: 1.4rem;
+    bottom: 4rem;
+    max-width: none;
+    gap: 0.8rem;
+  }
+  .comms__proj { width: 78px; height: 98px; }
+  .comms__msg { font-size: 0.86rem; }
+}
+
 .ast__hint {
   position: absolute;
   bottom: 1rem;
@@ -253,6 +400,15 @@
 @keyframes ast-hint {
   0%, 80% { opacity: 1; }
   100% { opacity: 0; }
+}
+/* Set by the game the moment you've turned, burned AND fired: you've proved you
+   know the controls, so the legend leaves early rather than waiting out its 9s
+   timer above. Cancelling the animation hands opacity back to this rule, so the
+   transition actually runs instead of the keyframes pinning it. */
+.ast__hint--done {
+  animation: none;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease);
 }
 .ast__hint-touch {
   display: none;
@@ -313,6 +469,31 @@
   letter-spacing: 0.14em;
   color: var(--accent-ink);
   text-transform: uppercase;
+}
+/* The post-flight debrief, set as a miniature case study — the same three beats,
+   and the same heading idiom (.story__h), as every project on the site. */
+.rud__story {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0.35rem 0 0;
+  text-align: left;
+}
+.rud__h {
+  margin: 0 0 0.3em;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.rud__story p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--ink-60);
+  text-wrap: pretty;
 }
 .rud__actions {
   display: flex;
@@ -422,8 +603,16 @@
   .rud__booster,
   .rud__booster::after,
   .ast__score-bump,
-  .ast__lives-hit {
+  .ast__chain-pop,
+  /* the hologram still reads — it just stops flickering and scanning */
+  .comms__proj,
+  .comms__scan,
+  .comms__caret {
     animation: none;
+  }
+  /* the arrival card still informs — it just fades instead of sliding */
+  .ast__title {
+    animation: ast-title-fade 2.8s var(--ease) forwards;
   }
   .rud__booster {
     transform: translateY(2.55rem);

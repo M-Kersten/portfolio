@@ -1,271 +1,347 @@
-/* The node HUD — a title caption pinned to the top of the view (over the 3D
-   node) plus the bottom dossier drawer (media left, project detail right). */
+/* The node focus view — a large circular reticle you look *through* at the woken
+   3D object (a round instrument window), with the case dossier in a column to the
+   right. The ring locks ON as the camera zooms in — growing and rotating into
+   place like a camera acquiring focus — and unlocks as it zooms back out
+   (FocusReticle, driven by the selection); the dossier is the route-driven HUD. */
 
-/* ---------- Node HUD (bottom dossier drawer) ---------- */
+/* Porthole geometry, hoisted to :root so the reticle, the dossier's clear-margin
+   and the meta pills all read the same centre + radius across breakpoints. */
+:root {
+  --fr-cx: 30%;              /* ring centre X — pushed left so the dossier has room */
+  --fr-cy: 50%;              /* ring centre Y — mobile drops it into the upper area */
+  --fr-r: 56vh;             /* radius > half the viewport, so the ring spills off the
+                                top/bottom/left edges — you look THROUGH it, arcs only */
+}
 
+/* ---------- The porthole reticle (persistent, animates with the zoom) ---------- */
+.focus-reticle {
+  --cx: var(--fr-cx);
+  --r: var(--fr-r);
+  --d: calc(var(--r) * 2);
+  --fr-accent: var(--cyan);
+  position: fixed;
+  inset: 0;
+  z-index: 42; /* over the scene, but *behind* the fixed header (50) so the header
+                  stays crisp — only the dossier (52) rides above it */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s var(--ease);
+}
+.focus-reticle[data-open] { opacity: 1; }
+/* during an acquire the fade is the animation's own (a crisp materialise on the
+   target), so the container shows instantly — it still fades out on close */
+.focus-reticle[data-fly] { transition-duration: 0s; }
+.focus-reticle[data-layer='city'] { --fr-accent: var(--cyan); }
+.focus-reticle[data-layer='room'] { --fr-accent: var(--coral); }
+.focus-reticle[data-layer='chip'] { --fr-accent: var(--lime); }
+
+/* the window: bright inside the ring, the rest washed down to paper so the
+   object reads as seen through a porthole */
+.focus-reticle__mask {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease);
+  /* soft, gradual wash that never fully blacks out — the scene stays faintly
+     visible past the ring so much less is occluded, darkest only out where the
+     dossier reads */
+  background: radial-gradient(circle at var(--cx) var(--fr-cy),
+    transparent calc(var(--r) - 4vh),
+    color-mix(in srgb, var(--paper) 26%, transparent) var(--r),
+    color-mix(in srgb, var(--paper) 66%, transparent) calc(var(--r) + 14vh),
+    color-mix(in srgb, var(--paper) 90%, transparent) calc(var(--r) + 38vh));
+}
+.focus-reticle[data-open] .focus-reticle__mask { opacity: 1; }
+/* the vignette belongs to the LOCKED frame, so during a fly-in it holds off
+   through the acquire beats and washes in as the ring travels home */
+.focus-reticle[data-fly] .focus-reticle__mask { transition-delay: 0.42s; }
+
+/* the reticle itself — sized to the ring's box; at rest it simply sits at the
+   porthole centre, locked (this is also the reduced-motion / off-screen state). */
+.focus-reticle__svg {
+  position: absolute;
+  left: var(--fr-cx);
+  top: var(--fr-cy);
+  width: var(--d);
+  height: var(--d);
+  overflow: visible;
+  transform: translate(-50%, -50%) scale(1) rotate(0deg);
+}
+
+/* The acquire — a camera finding its target, in three beats:
+   1. it materialises wide and turned OVER the object, out where it actually sits,
+      and contracts onto it (the viewfinder catching focus);
+   2. a brief hold, locked small on the target — the "got it" beat;
+   3. it pushes in: travelling to the porthole centre while rotating level and
+      growing to the full ring, tracking the camera's own zoom glide.
+   Replayed per selection (the SVG is keyed by slug, so it remounts). */
+@keyframes fr-acquire {
+  0% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.62) rotate(-104deg);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  9% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.33) rotate(-88deg);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.3, 0.8, 0.3, 1);
+  }
+  18% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.19) rotate(-76deg);
+    animation-timing-function: linear;
+  }
+  /* The hold — sitting on the target, barely breathing. Ends at 26% of 1.55s =
+     0.4s, which is exactly ACQUIRE_HOLD in CameraRig: the camera is frozen until
+     here, so the push-in and this travel begin on the same beat. */
+  26% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.2) rotate(-72deg);
+    /* Front-loaded to match the camera, whose glide is exponential
+       (1 - e^-3.4t: ~63% covered in 0.3s, ~86% in 0.6s, then a long settle).
+       The old curve eased IN here, so the ring crawled while the scene had
+       already arrived — that was the timing that read as wrong. */
+    animation-timing-function: cubic-bezier(0.12, 0.82, 0.22, 1);
+  }
+  100% {
+    left: var(--fr-cx);
+    top: var(--fr-cy);
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+}
+.focus-reticle[data-fly] .focus-reticle__svg {
+  animation: fr-acquire 1.55s both;
+}
+/* a clean hairline rim, a soft outer bloom, and a ring of short ticks whose sweep
+   makes the lock-on rotation read — a camera viewfinder, not a busy gauge */
+.focus-reticle .fr-ring { fill: none; stroke: var(--fr-accent); stroke-width: 0.13; opacity: 0.5; }
+.focus-reticle .fr-tick { stroke: var(--fr-accent); stroke-width: 0.1; opacity: 0.45; }
+.focus-reticle .fr-glow { fill: none; stroke: var(--fr-accent); stroke-width: 1; opacity: 0.07; }
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-reticle,
+  .focus-reticle__mask { transition: opacity 0.3s var(--ease); }
+  /* no acquire under reduced motion (CameraRig sends no start point either) —
+     the ring just sits locked at the centre */
+  .focus-reticle[data-fly] .focus-reticle__svg { animation: none; }
+  .focus-reticle[data-fly] .focus-reticle__mask { transition-delay: 0s; }
+}
+
+/* ---------- The dossier (route-driven HUD, right column) ---------- */
 .node-hud {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 45;
-  height: 46svh;
-  min-height: 19rem;
-  display: grid;
-  grid-template-columns: minmax(18rem, 38%) 1fr;
-  gap: var(--space-l);
-  /* content tracks the site container gutter (like the caption above + the
-     hero name), so the dossier's left edge lines up with the logo instead of
-     sitting a fixed inset in from the viewport */
-  padding: var(--space-m) max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
-  /* translucent acrylic dossier, carrying the site's square-dot field so it
-     matches the focus card + section backgrounds */
-  background: var(--dots-faint),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
-    color-mix(in srgb, var(--paper) 80%, transparent);
-  background-size: 30px 30px, auto, auto;
-  border-top: 1px solid var(--line);
-  box-shadow: 0 -24px 64px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(20px) saturate(1.3);
-  animation: hud-rise 0.36s var(--ease);
-}
-/* solid accent edge along the top of the drawer (per the project's layer) */
-.node-hud {
+  top: 50%;
+  transform: translateY(-50%);
+  left: calc(var(--fr-cx) + var(--fr-r) + var(--space-l)); /* clears the ring's visible right arc */
+  right: var(--space-l);
+  z-index: 52; /* above the fixed header (50); the reticle (42) sits behind it */
+  /* centred on the porthole, but capped so the top (now the title) always clears
+     the header by a gap — on short viewports 84svh would slide up under it */
+  max-height: calc(100svh - 2 * (var(--header-h) + var(--space-s)));
+  display: flex;
+  flex-direction: column;
   --card-accent: var(--accent);
+  /* legible over the faintly-visible scene the softened vignette lets through */
+  text-shadow: 0 1px 12px var(--paper), 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 .node-hud[data-layer='city'] { --card-accent: var(--cyan); }
 .node-hud[data-layer='room'] { --card-accent: var(--coral); }
 .node-hud[data-layer='chip'] { --card-accent: var(--lime); }
-.node-hud::before {
-  content: '';
-  position: absolute;
-  inset: -1px 0 auto 0;
+
+/* content column scrolls, no visible scrollbar */
+.node-hud__col {
+  overflow: auto;
+  padding-right: 0.4rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* The dossier fades up once the reticle has opened (data-shown, set a frame
+     after mount so it survives re-renders), and clears fast on close so the
+     porthole irises shut cleanly behind it. */
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.45s var(--ease) 0.35s, transform 0.45s var(--ease) 0.35s;
 }
-@keyframes hud-rise {
-  from {
-    transform: translateY(100%);
-  }
+.node-hud[data-shown] .node-hud__col { opacity: 1; transform: none; }
+.node-hud[data-closing] .node-hud__col {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.26s var(--ease), transform 0.26s var(--ease);
 }
+.node-hud__col::-webkit-scrollbar { width: 0; height: 0; }
+/* the /projects focus card scrolls too — keep its scrollbar hidden (this used to
+   live in the shared rule that the porthole rewrite replaced) */
+.focus__card { scrollbar-width: none; -ms-overflow-style: none; }
+.focus__card::-webkit-scrollbar { width: 0; height: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .node-hud__col { transition: opacity 0.3s var(--ease); transform: none; }
+}
+
 .node-hud__close {
   position: absolute;
-  top: var(--space-s);
-  right: var(--space-s);
+  top: -0.4rem;
+  right: 0;
   z-index: 2;
   width: 2.4rem;
   height: 2.4rem;
-  border-radius: var(--radius-s);
+  border-radius: 50%;
   border: 1px solid var(--line);
-  background: var(--paper-2);
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
+  backdrop-filter: blur(6px);
   color: var(--ink);
   cursor: pointer;
-  font-size: 1.05rem;
+  font-size: 1rem;
 }
-.node-hud__close:hover {
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
+.node-hud__close:hover { border-color: var(--card-accent); color: var(--accent-ink); }
 
-/* Title caption — lifted out of the drawer and pinned to the top of the view,
-   over the live 3D node, so the drawer keeps all its room for the media + story.
-   Left edge tracks the site container's gutter, like the hero name. Decorative
-   over the scene, so it never captures clicks. */
-.node-hud__caption {
+/* ---------- Meta pills — a row at the bottom, centred under the porthole ---------- */
+.node-hud__tags {
   position: fixed;
-  z-index: 44;
-  top: calc(var(--header-h) + var(--space-s));
-  left: max(0px, calc((100vw - var(--container)) / 2));
-  max-width: min(42rem, 100vw);
-  padding-inline: var(--space-m);
-  pointer-events: none;
+  bottom: var(--space-l);
+  left: var(--fr-cx);
+  transform: translateX(-50%);
+  z-index: 52; /* the dossier plane — above the reticle; well clear of the header */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5em;
+  max-width: min(90vw, 42rem);
+  pointer-events: none; /* labels, not controls — never block the scene behind */
   --card-accent: var(--accent);
-  animation: caption-in 0.45s var(--ease) both;
+  /* fade up once the reticle has locked on, in step with the dossier column */
+  opacity: 0;
+  transition: opacity 0.5s var(--ease) 0.35s;
 }
-.node-hud__caption[data-layer='city'] { --card-accent: var(--cyan); }
-.node-hud__caption[data-layer='room'] { --card-accent: var(--coral); }
-.node-hud__caption[data-layer='chip'] { --card-accent: var(--lime); }
-/* legible over the moving 3D behind it */
-.node-hud__caption .node-hud__meta {
-  color: color-mix(in srgb, var(--ink) 78%, transparent);
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.9);
-}
-.node-hud__caption .node-hud__title {
-  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.9), 0 1px 3px rgba(0, 0, 0, 0.92);
-}
-.node-hud__caption .node-hud__outcome {
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.88);
-}
-@keyframes caption-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
+.node-hud__tags[data-shown] { opacity: 1; }
+.node-hud__tags[data-closing] { opacity: 0; transition: opacity 0.24s var(--ease); }
+.node-hud__tags[data-layer='city'] { --card-accent: var(--cyan); }
+.node-hud__tags[data-layer='room'] { --card-accent: var(--coral); }
+.node-hud__tags[data-layer='chip'] { --card-accent: var(--lime); }
+@media (prefers-reduced-motion: reduce) {
+  .node-hud__tags { transition: opacity 0.3s var(--ease); }
 }
 
-/* media (left column) */
+/* glass capsules in the site's chip idiom: mono, hairline border, blurred paper fill */
+.node-hud__pill {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.05em;
+  color: var(--ink-60);
+  padding: 0.4em 0.9em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 66%, transparent);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+.node-hud__pill--layer {
+  color: var(--card-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  border-color: color-mix(in srgb, var(--card-accent) 45%, var(--line));
+}
+.node-hud__pill--flag {
+  color: var(--card-accent);
+  border-color: color-mix(in srgb, var(--card-accent) 40%, var(--line));
+}
+.node-hud__title { font-size: var(--step-2); margin: 0; letter-spacing: -0.02em; }
+.node-hud__outcome {
+  font-family: var(--font-display);
+  color: var(--accent-ink);
+  font-size: var(--step-0);
+  margin: var(--space-2xs) 0 var(--space-s);
+}
+
 .node-hud__media {
   width: 100%;
-  height: 100%;
-  min-height: 0;
+  aspect-ratio: 16 / 9;
+  max-height: 30svh;
+  object-fit: cover;
   border-radius: var(--radius);
   border: 1px solid var(--line);
-  object-fit: cover;
   background: #06080a;
+  margin-bottom: var(--space-s);
 }
 .node-hud__media--empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   color: var(--ink-40);
-  background: radial-gradient(120% 100% at 50% 38%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
-    #06080a;
+  background: radial-gradient(120% 100% at 50% 40%, color-mix(in srgb, var(--card-accent) 12%, transparent), transparent 70%), #06080a;
 }
 .node-hud__play {
-  width: 3.4rem;
-  height: 3.4rem;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line));
-  color: var(--accent-ink);
-  font-size: 1rem;
-  padding-left: 0.2rem;
+  width: 3rem; height: 3rem; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 50%, var(--line));
+  color: var(--accent-ink); padding-left: 0.15rem;
 }
-.node-hud__mediahint {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-/* An embedded YouTube player filling the media slot. */
-.node-hud__media--video {
-  position: relative;
-  overflow: hidden;
-  background: #06080a;
-}
-.node-hud__media--video iframe {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-.node-hud__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-s);
-  align-items: center;
-  margin-top: 0.2em;
-}
+.node-hud__mediahint { font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: 0.12em; text-transform: uppercase; }
+.node-hud__media--video { position: relative; overflow: hidden; height: auto; }
+.node-hud__media--video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
-/* detail (right column) */
-.node-hud__detail {
-  min-width: 0;
-  overflow: auto;
-  padding-right: var(--space-s);
-}
-
-/* The overlay views (node HUD + case popup) scroll, but without a visible
-   scrollbar — it reads cleaner over the frozen page behind them. */
-.node-hud,
-.node-hud__detail,
-.focus__card {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* legacy Edge */
-}
-.node-hud::-webkit-scrollbar,
-.node-hud__detail::-webkit-scrollbar,
-.focus__card::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-.node-hud__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4em 1em;
-  align-items: center;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--ink-60);
-  margin-bottom: var(--space-2xs);
-}
-.node-hud__layer {
-  color: var(--card-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-.node-hud__title {
-  font-size: var(--step-2);
-  margin: 0;
-}
-.node-hud__outcome {
-  font-family: var(--font-display);
-  color: var(--accent-ink);
-  font-size: var(--step-0);
-  margin: var(--space-2xs) 0 0; /* last line of the title caption */
-}
-/* The story block (see base.css) gets breathing room before the tech chips. */
-.node-hud__story {
-  margin-bottom: var(--space-m);
-}
+.node-hud__story { margin-bottom: var(--space-m); }
 .node-hud__tech {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35em;
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--space-s);
+  display: flex; flex-wrap: wrap; gap: 0.35em; list-style: none; padding: 0; margin: 0 0 var(--space-s);
 }
 .node-hud__tech li {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.04em;
-  color: var(--accent-ink);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-  border-radius: var(--radius-s);
-  padding: 0.15em 0.5em;
+  font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; color: var(--accent-ink);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 30%, var(--line)); border-radius: var(--radius-s); padding: 0.15em 0.5em;
 }
-.node-hud__discuss {
-  display: inline-flex;
-}
-.node-hud .story-links {
-  margin-top: var(--space-m);
-  padding-bottom: var(--space-s);
+.node-hud__actions { display: flex; flex-wrap: wrap; gap: var(--space-s); align-items: center; margin-top: 0.2em; }
+.node-hud__discuss { display: inline-flex; }
+.node-hud .story-links { margin-top: var(--space-m); padding-bottom: var(--space-s); }
+
+/* narrow desktops: don't let the column get too tight against a big ring */
+@media (max-width: 1120px) and (min-width: 761px) {
+  :root { --fr-cx: 24%; --fr-r: 46vh; }
+  .node-hud { left: calc(var(--fr-cx) + var(--fr-r) + var(--space-m)); }
 }
 
+/* ---------- Mobile: a round window up top, content sheet rising beneath ---------- */
 @media (max-width: 760px) {
-  /* The caption stays at the very top over the node (compact so it doesn't crowd
-     it); the drawer is a peek sheet — a media banner on top, the detail scrolling
-     beneath — leaving the node visible between the two. */
-  .node-hud__caption {
-    top: calc(var(--header-h) + var(--space-2xs));
-    max-width: calc(100vw - 2 * var(--space-m));
+  /* A big ring centred horizontally that spills off BOTH sides (radius > 50vw),
+     dropped into the upper area so the object reads THROUGH it while the sheet
+     rises underneath — the same porthole idea as desktop, portrait-shaped. */
+  :root { --fr-cx: 50%; --fr-cy: 39%; --fr-r: 58vw; }
+  .focus-reticle__mask {
+    background: radial-gradient(circle at 50% var(--fr-cy),
+      transparent calc(var(--r) - 5vh),
+      color-mix(in srgb, var(--paper) 30%, transparent) var(--r),
+      color-mix(in srgb, var(--paper) 74%, transparent) calc(var(--r) + 12vh),
+      color-mix(in srgb, var(--paper) 94%, transparent) calc(var(--r) + 30vh));
   }
-  .node-hud__caption .node-hud__title {
-    font-size: var(--step-1);
-  }
-  .node-hud__caption .node-hud__outcome {
-    font-size: var(--step-0);
-  }
+  /* the meta pills are desktop-only — the sheet's own header carries the context */
+  .node-hud__tags { display: none; }
   .node-hud {
-    height: 54svh;
-    min-height: 20rem;
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: var(--space-s);
+    top: auto;
+    bottom: 0;
+    transform: none;
+    left: 0;
+    right: 0;
+    max-height: 46svh;
+    padding: 0; /* the column spans edge to edge — it owns the inset (below) */
+  }
+  /* the sheet rises as a soft panel — its top fades in so the porthole's lower
+     arc washes into it rather than hard-cutting. Full-bleed: the wash runs the
+     whole width and the column's own padding keeps the text off the edges. */
+  .node-hud__col {
+    background: linear-gradient(180deg, transparent,
+      color-mix(in srgb, var(--paper) 84%, transparent) 12%,
+      color-mix(in srgb, var(--paper) 92%, transparent));
     padding: var(--space-s) var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
   }
-  .node-hud__media {
-    height: auto;
-    aspect-ratio: 16 / 9;
-    max-height: 20svh;
-    flex: none;
-  }
-  .node-hud__detail {
-    overflow: auto; /* media stays pinned on top; the story scrolls under it */
-    min-height: 0;
-    padding-right: 0;
+  .node-hud__close {
+    position: fixed;
+    top: calc(var(--header-h) + var(--space-xs));
+    left: var(--space-m);
+    right: auto;
+    z-index: 48;
   }
 }
-

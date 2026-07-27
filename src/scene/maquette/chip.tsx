@@ -9,7 +9,7 @@ import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, type V3 } from './shared';
+import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
 import { GlassMat, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
@@ -52,6 +52,7 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
   const popRef = useRef<Group>(null);
   const screenMat = useRef<MeshStandardMaterial>(null);
   const blip = useRef<Mesh>(null);
+  const trailRefs = useRef<(Mesh | null)[]>([]); // phosphor beads lagging the sweep
   const live = useRef(0); // 0 dormant → 1 alive
   const k = useRef(0); // hover/select brightness
 
@@ -100,16 +101,31 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
     ecgObj.mat.opacity = 0.4 + 0.5 * on;
     plethObj.mat.color.copy(grey).lerp(cyan, on);
     plethObj.mat.opacity = 0.24 + 0.42 * on;
-    // the sweeping blip
+    // the sweeping blip + a beat-flash as it crosses the tall R-spike of the QRS
     const sweep = reduced ? 0.66 : (t * 0.7) % 1;
     const x = -0.15 + sweep * 0.28;
+    const spike = Math.min(1, Math.max(0, (yAtX(x) - 0.03) / 0.025)); // ~1 on the R peak
+    if (screenMat.current) screenMat.current.emissiveIntensity += spike * 0.22 * on; // the beep flash
     if (blip.current) {
       blip.current.visible = on > 0.05;
       blip.current.position.set(x, 0.035 + yAtX(x), 0.004);
-      blip.current.scale.setScalar(0.55 + 0.7 * on);
+      blip.current.scale.setScalar((0.55 + 0.7 * on) * (1 + spike * 0.9));
       const bm = blip.current.material as MeshStandardMaterial;
       bm.color.copy(grey).lerp(green, on);
       bm.emissive.copy(grey).lerp(green, on);
+    }
+    // phosphor trail: a few dimming beads lagging the sweep, like a CRT afterglow
+    for (let i = 0; i < trailRefs.current.length; i++) {
+      const tm = trailRefs.current[i];
+      if (!tm) continue;
+      const tx = x - (i + 1) * 0.014;
+      const vis = on > 0.05 && tx >= -0.15 && !reduced;
+      tm.visible = vis;
+      if (!vis) continue;
+      tm.position.set(tx, 0.035 + yAtX(tx), 0.003);
+      const fade = 1 - (i + 1) / (trailRefs.current.length + 1);
+      tm.scale.setScalar(0.5 * fade);
+      (tm.material as MeshStandardMaterial).opacity = FX.peak * fade * on;
     }
   });
 
@@ -138,6 +154,12 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
               <sphereGeometry args={[0.009, 12, 12]} />
               <meshStandardMaterial color="#5fd07a" emissive="#5fd07a" emissiveIntensity={1.8} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
             </mesh>
+            {[0, 1, 2].map((i) => (
+              <mesh key={i} ref={(r) => (trailRefs.current[i] = r)} visible={false}>
+                <sphereGeometry args={[0.009, 10, 10]} />
+                <meshStandardMaterial color="#5fd07a" emissive="#5fd07a" emissiveIntensity={1.5} transparent opacity={0} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
+              </mesh>
+            ))}
           </group>
           {/* control buttons along the chin */}
           {[-0.15, -0.11, -0.07].map((bx, i) => (
@@ -286,14 +308,18 @@ function ChipTrace({ points, target, color }: { points: V3[]; target: number; co
 }
 
 /** A small status LED that flashes on its own rhythm while the chip is live. */
-function ChipLED({ position, color, target, phase, speed }: { position: V3; color: string; target: number; phase: number; speed: number }) {
+function ChipLED({ position, color, target, phase, speed, idle = false }: { position: V3; color: string; target: number; phase: number; speed: number; idle?: boolean }) {
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
   useFrame((s) => {
     k.current += (target - k.current) * 0.1;
-    const blink = reduced ? 1 : Math.sin(s.clock.elapsedTime * speed + phase) > 0.45 ? 1 : 0.1;
-    if (mat.current) mat.current.emissiveIntensity = 0.08 + k.current * 1.9 * blink;
+    const t = s.clock.elapsedTime;
+    const blink = reduced ? 1 : Math.sin(t * speed + phase) > 0.45 ? 1 : 0.1;
+    // idle heartbeat: a faint, slow blip even with no board energy, so the chip
+    // reads as powered-but-asleep at rest. Fades out as the board actually wakes.
+    const idleBlip = idle && !reduced ? Math.max(0, Math.sin(t * 1.15 + phase)) ** 10 * 0.3 * (1 - k.current) : 0;
+    if (mat.current) mat.current.emissiveIntensity = 0.08 + k.current * 1.9 * blink + idleBlip;
   });
   return (
     <mesh position={position}>
@@ -365,6 +391,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const holoRef = useRef<Group>(null); // the cube hologram, fixed on the aim axis
   const beamRef = useRef<Group>(null); // the cone + rim, attached to the lens
   const cubeRef = useRef<Group>(null);
+  const cornerMats = useRef<(MeshStandardMaterial | null)[]>([]); // the tracked corners
   const k = useRef(0); // lens power
   const holo = useRef(0); // hologram presence
   const scanW = useRef(0); // continuous look-around weight (alive)
@@ -437,6 +464,16 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         cubeRef.current.position.y = Math.sin(t * 1.4) * 0.02; // …and a soft bob
       }
     }
+    // (the cube's corners light in a chase — the camera "reading" the hologram)
+    const lead = reduced ? -1 : (t * 1.5) % corners.length;
+    for (let i = 0; i < cornerMats.current.length; i++) {
+      const m = cornerMats.current[i];
+      if (!m) continue;
+      let d = Math.abs(i - lead);
+      d = Math.min(d, corners.length - d);
+      const pulse = reduced ? 1 : Math.max(0.25, 1 - d * 0.5);
+      m.emissiveIntensity = (0.3 + 1.5 * pulse) * h;
+    }
   });
 
   return (
@@ -498,7 +535,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                 {corners.map((c, i) => (
                   <mesh key={i} position={c}>
                     <sphereGeometry args={[0.006, 8, 8]} />
-                    <meshStandardMaterial color="#d6f2ff" emissive="#8fd8ff" emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
+                    <meshStandardMaterial ref={(r) => (cornerMats.current[i] = r)} color="#d6f2ff" emissive="#8fd8ff" emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
                   </mesh>
                 ))}
               </group>
@@ -562,6 +599,46 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   );
 }
 
+// Concentric data pulses rippling out across the board from the die — the
+// processor "working" while the die (Amsterdam AI) is the active spot. Flat
+// additive rings that expand from the die's edge to the board's and fade on a
+// loop; tied to the die's own engagement (not the whole board) so it doesn't
+// compete when another chip project is open, and silent under reduced motion.
+function DiePulse() {
+  const reduced = useReducedMotion();
+  const { accent } = useAccent();
+  const { selected, hovered } = useActive('amsterdam-ai');
+  const groups = useRef<(Group | null)[]>([]);
+  const mats = useRef<(MeshBasicMaterial | null)[]>([]);
+  const e = useRef(0);
+  const N = 3;
+  useFrame((s) => {
+    e.current += ((selected ? 1 : hovered ? 0.45 : 0) - e.current) * FX.engage;
+    const t = s.clock.elapsedTime;
+    for (let i = 0; i < N; i++) {
+      const g = groups.current[i];
+      const m = mats.current[i];
+      if (!g || !m) continue;
+      const p = reduced ? 0.5 : (t * FX.loopSpeed + i / N) % 1;
+      const scale = 0.54 + p * 0.5; // die edge → board edge
+      g.scale.set(scale, scale, scale);
+      m.opacity = fxEnv(p) * FX.peak * e.current;
+    }
+  });
+  return (
+    <group position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      {Array.from({ length: N }).map((_, i) => (
+        <group key={i} ref={(r) => (groups.current[i] = r)}>
+          <mesh>
+            <ringGeometry args={[0.93, 1.0, 60]} />
+            <meshBasicMaterial ref={(r) => (mats.current[i] = r)} color={accent} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
 export function ChipRig() {
   const { accent } = useAccent();
   const energy = useChipEnergyTarget();
@@ -597,6 +674,9 @@ export function ChipRig() {
       <BlobShadow position={[-0.55, 0.024, 0.95]} radius={0.09} opacity={0.3} />
       <BlobShadow position={[0.55, 0.024, -1.0]} radius={0.09} opacity={0.3} />
 
+      {/* data pulses radiating from the die while it's the active spot */}
+      <DiePulse />
+
       {/* package + die (carries amsterdam-ai — the chip powers on) */}
       <LifeGroup slug="amsterdam-ai">
         <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.08} outline liveSlug="amsterdam-ai" />
@@ -614,7 +694,7 @@ export function ChipRig() {
       {CHIP_NODES.map((nd, i) => (
         <group key={i}>
           <Line points={circlePts(0.034, 16)} position={[nd.x, TY + 0.003, nd.z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
-          <ChipLED position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} />
+          <ChipLED position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} idle={i === 0 || i === 5} />
         </group>
       ))}
 

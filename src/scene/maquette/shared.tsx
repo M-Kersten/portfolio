@@ -24,6 +24,20 @@ export const PALETTE: Record<LayerId, Palette> = {
 export const AccentCtx = createContext<Palette>(PALETTE.city);
 export const useAccent = () => useContext(AccentCtx);
 
+// Active-spot FX consistency — every holographic "working loop" that plays while
+// a spot is open shares these, so the whole set reads as one family: the same
+// engage speed (how fast it fades in/out on select), the same loop cadence, the
+// same peak strength and the same in→out envelope. Each effect keeps a shape
+// that suits its object and takes its LAYER's accent colour; an object's own
+// mechanical motion (a heartbeat, circling cars, a spinning sail) keeps its
+// diegetic speed. Tune the whole set from here.
+export const FX = {
+  engage: 0.06, // lerp per frame toward the active state (appear / clear)
+  loopSpeed: 0.42, // base rate for the repeating overlay loops (pulses, sweeps, rises)
+  peak: 0.55, // peak opacity of an overlay element
+};
+export const fxEnv = (p: number) => Math.sin(Math.PI * p); // 0 → 1 → 0 across one loop
+
 export type V3 = [number, number, number];
 
 /* ---------- maths helpers ---------- */

@@ -22,10 +22,12 @@ export function glassRim(shader: any) {
       '#include <opaque_fragment>',
       [
         '#include <opaque_fragment>',
-        // Fresnel rim.
-        'float _rim = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.6);',
-        'gl_FragColor.rgb += uRim * _rim * 0.5;',
-        'gl_FragColor.a = clamp(gl_FragColor.a + _rim * 0.32, 0.0, 1.0);',
+        // Fresnel rim — tight and bright so the silhouette reads as a crisp
+        // holographic edge while the interior stays quiet (the exponent keeps
+        // the glow pinned to the outline; the alpha lift firms the edge up).
+        'float _rim = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.8);',
+        'gl_FragColor.rgb += uRim * _rim * 0.68;',
+        'gl_FragColor.a = clamp(gl_FragColor.a + _rim * 0.42, 0.0, 1.0);',
         // A fine screen-space dot-grid printed across every glass surface, so the
         // maquette carries the same dithered / halftone texture as the rest of the
         // site. Screen-locked (not surface-mapped), so overlapping panes stay

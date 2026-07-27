@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://m-kersten.github.io/portfolio/sitemap.xml
+Sitemap: https://portfolio.merijnkersten.nl/sitemap.xml

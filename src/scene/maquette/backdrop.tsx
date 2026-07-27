@@ -3,17 +3,65 @@
 // blob shadows that ground each object cluster onto its floor.
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { CanvasTexture, Color, type Mesh, type Points as ThreePoints } from 'three';
+import { AdditiveBlending, CanvasTexture, Color, type Mesh, type Points as ThreePoints, type PointsMaterial } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useSceneSelector } from '../store';
-import { BG, NEUTRAL, makeRand, type V3 } from './shared';
+import { BG, NEUTRAL, makeRand, useAccent, type V3 } from './shared';
+
+/** The holo-table: a soft luminous plate under the active layer's objects, so
+ *  they sit ON a projected glass surface. Deliberately NOT a mirror — a flat
+ *  reflection floating in this holographic void reads as a puddle. A radial
+ *  gradient that fades to nothing at the rim (no hard disc edge), tinted the
+ *  layer's colour, brightest under the cluster. Cheap (one textured disc), so
+ *  it runs everywhere; shown only on the active layer. */
+let sheenCache = new Map<string, CanvasTexture>();
+function sheenTexture(tint: string): CanvasTexture {
+  const cached = sheenCache.get(tint);
+  if (cached) return cached;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    // lift the tint toward white so the plate reads as caught LIGHT, not a
+    // saturated colour film (raw coral additive pooled a warning-red; a whiter
+    // tint keeps just a hint of the layer colour in the glow)
+    const col = new Color(tint).lerp(new Color('#ffffff'), 0.4);
+    const r = Math.round(col.r * 255);
+    const g = Math.round(col.g * 255);
+    const b = Math.round(col.b * 255);
+    const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, `rgba(${r},${g},${b},0.5)`);
+    grad.addColorStop(0.35, `rgba(${r},${g},${b},0.2)`);
+    grad.addColorStop(0.7, `rgba(${r},${g},${b},0.05)`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 128, 128);
+  }
+  const tex = new CanvasTexture(c);
+  sheenCache.set(tint, tex);
+  return tex;
+}
+
+export function HoloFloor({ active, tint }: { active: boolean; tint: string }) {
+  const tex = useMemo(() => sheenTexture(tint), [tint]);
+  return (
+    <mesh visible={active} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]} renderOrder={-2}>
+      <circleGeometry args={[2, 48]} />
+      {/* additive so it reads as light caught on the plate, not a coloured film;
+          kept low so it's a whisper under the objects, edge-faded by the map */}
+      <meshBasicMaterial map={tex} transparent opacity={0.23} blending={AdditiveBlending} depthWrite={false} toneMapped={false} fog={false} />
+    </mesh>
+  );
+}
 
 export function DotFloor({ step = 0.26 }: { step?: number }) {
   const R = 2.2;
+  const { accent } = useAccent();
   const { positions, colors } = useMemo(() => {
     const pos: number[] = [];
     const col: number[] = [];
     const c = new Color(NEUTRAL);
+    const acc = new Color(accent);
     const bg = new Color(BG);
     const tmp = new Color();
     for (let x = -R; x <= R + 1e-6; x += step)
@@ -22,11 +70,14 @@ export function DotFloor({ step = 0.26 }: { step?: number }) {
         if (d > R) continue;
         pos.push(x, 0, z);
         const fade = Math.pow(1 - d / R, 1.5);
-        tmp.copy(bg).lerp(c, 0.06 + 0.5 * fade);
+        // neutral blue-grey, warmed toward the layer's accent near the middle —
+        // so the floor you're standing on glows the layer's colour, a strong but
+        // local per-layer cue that never touches the black frame
+        tmp.copy(bg).lerp(c, 0.06 + 0.5 * fade).lerp(acc, 0.5 * fade);
         col.push(tmp.r, tmp.g, tmp.b);
       }
     return { positions: new Float32Array(pos), colors: new Float32Array(col) };
-  }, [step]);
+  }, [step, accent]);
   return (
     <points>
       <bufferGeometry>
@@ -38,9 +89,13 @@ export function DotFloor({ step = 0.26 }: { step?: number }) {
   );
 }
 
-/** A sparse field of neutral points drifting slowly above the layer. */
-export function PointCloud({ seed }: { seed: number }) {
+/** A sparse field of neutral points drifting slowly above the layer. `life` (the
+ *  fraction of this layer's projects you've woken, 0..1) fills the field with
+ *  presence — dim and near-still at rest, drifting livelier and gently breathing
+ *  once you've lit things, so a woken layer reads as inhabited, not just lit. */
+export function PointCloud({ seed, life = 0 }: { seed: number; life?: number }) {
   const ref = useRef<ThreePoints>(null);
+  const mat = useRef<PointsMaterial>(null);
   const reduced = useReducedMotion();
   const positions = useMemo(() => {
     const rnd = makeRand(seed);
@@ -56,14 +111,21 @@ export function PointCloud({ seed }: { seed: number }) {
     return a;
   }, [seed]);
   useFrame((state) => {
-    if (ref.current && !reduced) ref.current.rotation.y = state.clock.elapsedTime * 0.02;
+    const t = state.clock.elapsedTime;
+    // drifts a touch livelier as the layer's projects wake…
+    if (ref.current && !reduced) ref.current.rotation.y = t * (0.02 + 0.03 * life);
+    // …and fills with a slow breath: dim at rest, brighter and gently pulsing once lit
+    if (mat.current) {
+      const breath = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(t * 0.8);
+      mat.current.opacity = 0.15 + life * (0.14 + 0.13 * breath);
+    }
   });
   return (
     <points ref={ref}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.016} color={NEUTRAL} transparent opacity={0.22} sizeAttenuation depthWrite={false} />
+      <pointsMaterial ref={mat} size={0.016} color={NEUTRAL} transparent opacity={0.22} sizeAttenuation depthWrite={false} />
     </points>
   );
 }

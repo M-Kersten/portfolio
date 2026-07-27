@@ -10,12 +10,13 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
 import { launchTrack, sceneStore, useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useLaunchCount } from '../../lib/launches';
 import { asset } from '../../lib/asset';
-import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, type V3 } from './shared';
+import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, LiveGlassMat } from './materials';
 import { BlobShadow } from './backdrop';
-import { RocketBody } from './rocket';
+import { Rise, RocketBody } from './rocket';
 
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   const { hovered, visited } = useActive('alliander-hololens');
@@ -92,6 +93,52 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
   );
 }
 
+// The breeze that drives the mill, made visible — faint holographic wind streaks
+// flowing across the sails while it's turning. Thin accent-tinted dashes drift
+// past the front face, brightening mid-pass and fading at the ends, each on its
+// own line and speed; only while engaged (off under reduced motion).
+function MillWind() {
+  const reduced = useReducedMotion();
+  const { accent } = useAccent();
+  const { hovered, selected, visited } = useActive('dtt-amsterdam');
+  const windCol = useMemo(() => new Color(accent).lerp(new Color('#ffffff'), 0.5), [accent]);
+  const refs = useRef<(Mesh | null)[]>([]);
+  const glow = useRef(0);
+  const streaks = useMemo(() => {
+    const rnd = makeRand(915);
+    return Array.from({ length: 7 }, () => ({
+      y: 0.42 + rnd() * 0.4, // spread over the sail span
+      z: 0.12 + rnd() * 0.16, // around the front face
+      ph: rnd(),
+      spd: 0.2 + rnd() * 0.16, // a gentle drift, each its own pace
+      slope: (rnd() - 0.5) * 0.14, // a slight rise/fall across the pass
+      len: 0.7 + rnd() * 0.9, // streak length (× the base dash)
+    }));
+  }, []);
+  useFrame((s) => {
+    glow.current += (((hovered || selected || visited) && !reduced ? 1 : 0) - glow.current) * FX.engage;
+    const t = s.clock.elapsedTime;
+    for (let i = 0; i < streaks.length; i++) {
+      const m = refs.current[i];
+      const d = streaks[i];
+      if (!m) continue;
+      const p = (t * d.spd + d.ph) % 1; // 0 at the left → 1 off the right
+      m.position.set(-0.42 + p * 0.84, d.y + (p - 0.5) * d.slope, d.z);
+      (m.material as MeshStandardMaterial).opacity = fxEnv(p) * FX.peak * glow.current;
+    }
+  });
+  return (
+    <group>
+      {streaks.map((d, i) => (
+        <mesh key={i} ref={(r) => (refs.current[i] = r)} scale={[d.len, 1, 1]}>
+          <boxGeometry args={[0.07, 0.004, 0.004]} />
+          <meshStandardMaterial color={windCol} emissive={windCol} emissiveIntensity={1.4} transparent opacity={0} toneMapped={false} depthWrite={false} blending={AdditiveBlending} userData={{ lifeSkip: true }} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /** A Dutch windmill (smock mill). The sails are still at idle; hovering its
  *  hotspot (DTT Amsterdam) turns them slowly, selecting spins them up fast, and
  *  once it's been opened they keep turning. The body solidifies once visited. */
@@ -113,10 +160,13 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
     <group position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.38} />
       <group ref={popRef}>
-      {/* grassy mound — desaturated toward the scene's glass language */}
+      {/* Grassy mound. Every part of the mill uses LiveGlassMat, not GlassMat:
+          only the body did before, so waking the windmill solidified the tower
+          and left the cap, sails and mound as faint glass — the silhouette still
+          read as a wireframe while every other hotspot came alive properly. */}
       <mesh position={[0, 0.03, 0]}>
         <cylinderGeometry args={[0.24, 0.3, 0.06, 20]} />
-        <GlassMat color="#3e6459" opacity={0.18} />
+        <LiveGlassMat slug={slug ?? ''} color="#3e6459" opacity={0.18} />
       </mesh>
       {/* tapered octagonal body */}
       <mesh position={[0, 0.34, 0]}>
@@ -127,7 +177,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
       {/* cap */}
       <mesh position={[0, 0.67, 0]}>
         <coneGeometry args={[0.15, 0.16, 8]} />
-        <GlassMat opacity={0.3} />
+        <LiveGlassMat slug={slug ?? ''} color="#5b6b74" opacity={0.3} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* sails — a turning cross on the front face; they spin up when engaged */}
@@ -136,13 +186,14 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
           <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
             <mesh position={[0, 0.24, 0]}>
               <boxGeometry args={[0.05, 0.46, 0.01]} />
-              <GlassMat color="#4f7d92" opacity={0.34} />
+              <LiveGlassMat slug={slug ?? ''} color="#4f7d92" opacity={0.34} />
               <Edges threshold={30} color={NEUTRAL} />
             </mesh>
           </group>
         ))}
       </group>
       </group>
+      <MillWind />
     </group>
   );
 }
@@ -568,6 +619,8 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   const beacon = useRef<MeshStandardMaterial>(null);
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
+  const surge = useRef<Group>(null); // a light-band that rises up the shaft
+  const surgeMat = useRef<MeshStandardMaterial>(null);
   const lifeK = useRef(0);
   const accentC = useMemo(() => new Color(accent), [accent]);
   // mullion fins hug the taper: each runs base-radius → top-radius up one edge
@@ -585,6 +638,16 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
     beacon.current.color.copy(GHOST_FILL).lerp(accentC, lifeK.current);
     beacon.current.emissive.copy(GHOST_FILL).lerp(accentC, lifeK.current);
     beacon.current.emissiveIntensity = (0.45 + 0.55 * Math.abs(Math.sin(t * 2.1))) * (0.14 + 0.86 * lifeK.current);
+    // a light-band surges up the shaft while the tower is alive — energy rising
+    // to the crown; it hugs the taper as it climbs
+    if (surge.current && surgeMat.current) {
+      const p = reduced ? 0.5 : (t * FX.loopSpeed) % 1;
+      const y = p * TOWER_H;
+      surge.current.position.y = y;
+      const r = rAt(y) / TOWER_R_BOT;
+      surge.current.scale.set(r, 1, r);
+      surgeMat.current.opacity = fxEnv(p) * FX.peak * lifeK.current;
+    }
   });
   return (
     <group position={position}>
@@ -618,6 +681,13 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
               </mesh>
             );
           })}
+        {/* a light-band that rises up the shaft while engaged (driven above) */}
+        <group ref={surge}>
+          <mesh>
+            <cylinderGeometry args={[TOWER_R_BOT + 0.008, TOWER_R_BOT + 0.008, 0.03, TOWER_SIDES, 1, true]} />
+            <meshStandardMaterial ref={surgeMat} color={accent} emissive={accent} emissiveIntensity={1.4} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} userData={{ lifeSkip: true }} />
+          </mesh>
+        </group>
         {/* crown: a short tapered mechanical cap (flat top), then a thin antenna
             mast + a slow-pulsing beacon — a tower crown, not a spike */}
         <mesh position={[0, TOWER_H + 0.05, 0]}>
@@ -905,22 +975,28 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
 }
 
 /* ---------- The completion reward: the next launch ----------
-   When the 10th signal's HUD closes, the journey pulls home to the City view
-   (see NodeHud) and this celebration plays out where the visitor can see it:
-   a short burst of accent-coloured particles over the city, and a launch pad
-   materialising on the quiet lot between the city blocks and the park — a
-   little two-stage rocket on its mount beside a lattice service tower,
-   deliberately the only thing left as a ghost in a fully coloured world,
-   because it hasn't flown yet. Clicking it moves the camera to the pad and
-   offers a LAUNCH button (components/LaunchOverlay); lift-off carries the
-   visitor up into the asteroids easter egg. */
+   "Let's build it together" — literally. The quiet lot between the city
+   blocks and the park starts as a bare surveyed apron, and every project the
+   visitor wakes adds a piece: launch mount, tower (lower, then upper), then
+   the vehicle itself — legs, booster, grid fins, interstage, access arm,
+   nose cone last. The 10th project powers the site on: the beacon starts
+   blinking, the celebration fires (NodeHud pulls the journey home so it
+   plays in view) and the invitation appears. The vehicle stays deliberately
+   the only ghost in a fully coloured world, because it hasn't flown yet.
+   Clicking it then moves the camera to the pad and offers a LAUNCH button
+   (components/LaunchOverlay); lift-off carries the visitor up into the
+   asteroids easter egg. */
 const SITE_POS: V3 = [0.85, 0, -0.52];
+
+/* Assembly order: how many woken projects each piece needs (visited.length ≥ n). */
+const BUILD = { mount: 1, towerLo: 2, towerHi: 3, legs: 4, booster: 5, fins: 6, interstage: 7, arm: 8, nose: 9 };
 
 function NextProjectSite() {
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
+  const built = useSceneSelector((s) => s.visited.length); // assembly progress
   const launch = useSceneSelector((s) => s.launch);
+  const flights = useLaunchCount(); // global odometer, null until known
   const reduced = useReducedMotion();
-  const rise = useRef<Group>(null);
   const rocket = useRef<Group>(null);
   const exhaust = useRef<Group>(null);
   const beaconMat = useRef<MeshStandardMaterial>(null);
@@ -932,30 +1008,34 @@ function NextProjectSite() {
   // construction the old crane mast used — the site kept its scaffolding).
   const MAST_W = 0.055; // post spacing
   const MAST_H = 0.82;
+  // split at step 2/5 so the tower can assemble in two pours (BUILD.towerLo/Hi)
   const lattice = useMemo(() => {
     const h = MAST_W / 2;
-    const rungs: V3[][] = [];
-    const diags: V3[] = [];
+    const rungsLo: V3[][] = [];
+    const rungsHi: V3[][] = [];
+    const diagsLo: V3[] = [];
+    const diagsHi: V3[] = [];
     const steps = 5;
     for (let i = 1; i <= steps; i++) {
       const y = (MAST_H / steps) * i - 0.02;
-      rungs.push([[-h, y, -h], [h, y, -h], [h, y, h], [-h, y, h], [-h, y, -h]]);
+      (i <= 2 ? rungsLo : rungsHi).push([[-h, y, -h], [h, y, -h], [h, y, h], [-h, y, h], [-h, y, -h]]);
       const y0 = (MAST_H / steps) * (i - 1);
       const dir = i % 2 ? 1 : -1;
-      diags.push([dir * -h, y0, h], [dir * h, y, h]);
-      diags.push([h, y0, dir * -h], [h, y, dir * h]);
+      const d = i <= 2 ? diagsLo : diagsHi;
+      d.push([dir * -h, y0, h], [dir * h, y, h]);
+      d.push([h, y0, dir * -h], [h, y, dir * h]);
     }
-    return { rungs, diags };
+    return { rungsLo, rungsHi, diagsLo, diagsHi };
   }, []);
 
   useFrame((s, delta) => {
-    if (celebrateAt === null) return;
     const dt = Math.min(delta, 1 / 30);
-    const t = reduced ? 10 : (performance.now() - celebrateAt) / 1000;
-    // ease up out of the ground once the celebration fires
-    const k = 1 - Math.exp(-Math.max(0, t - 0.5) * 1.5);
-    if (rise.current) rise.current.scale.set(0.75 + 0.25 * k, Math.max(0.001, k), 0.75 + 0.25 * k);
-    if (beaconMat.current) beaconMat.current.emissiveIntensity = reduced ? 0.8 : 0.3 + (Math.sin(s.clock.elapsedTime * 2.4) > 0.7 ? 1.6 : 0);
+    // the beacon powers on with the 10th project (the site is complete) — a
+    // faint standby ember while the vehicle is still being assembled
+    if (beaconMat.current) {
+      beaconMat.current.emissiveIntensity =
+        celebrateAt === null ? 0.06 : reduced ? 0.8 : 0.3 + (Math.sin(s.clock.elapsedTime * 2.4) > 0.7 ? 1.6 : 0);
+    }
 
     const r = rocket.current;
     if (!r) return;
@@ -1003,90 +1083,157 @@ function NextProjectSite() {
     launchTrack.y += 0.35 * 1.15; // aim at the stack's middle, not its tail
   });
 
-  if (celebrateAt === null) return null;
-
   const post = MAST_W / 2;
+  const complete = celebrateAt !== null;
   const engage = () => {
+    // the launch is the 10/10 reward — while the vehicle is still being
+    // assembled the pad stays quiet
+    if (!complete) return;
     if (sceneStore.snapshot().launch === 'idle') sceneStore.setLaunch('pad');
   };
+  const anim = !reduced; // assembly pieces rise in (Rise) unless reduced
   return (
     <group position={SITE_POS} rotation={[0, 0.25, 0]}>
-      <group ref={rise}>
-        {/* ---- the pad: apron + four-legged launch mount ---- */}
-        <mesh position={[-0.02, 0.012, 0.03]}>
-          <cylinderGeometry args={[0.17, 0.18, 0.024, 24]} />
-          <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.28} />
-        </mesh>
-        <group position={[-0.02, 0, 0.03]}>
-          {([[-0.05, -0.05], [0.05, -0.05], [-0.05, 0.05], [0.05, 0.05]] as [number, number][]).map(([x, z], i) => (
-            <mesh key={i} position={[x, 0.045, z]}>
-              <boxGeometry args={[0.014, 0.065, 0.014]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
-            </mesh>
-          ))}
-          <mesh position={[0, 0.08, 0]}>
-            <cylinderGeometry args={[0.052, 0.052, 0.016, 16]} />
-            <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
-          </mesh>
-
-          {/* ---- the rocket (clickable — the whole point) ---- */}
-          <group
-            ref={rocket}
-            onClick={(e) => {
-              e.stopPropagation();
-              engage();
-            }}
-            onPointerOver={() => (document.body.style.cursor = 'pointer')}
-            onPointerOut={() => (document.body.style.cursor = '')}
-          >
-            <RocketBody mode="ghost" />
-            {/* exhaust — hidden until the count */}
-            <group ref={exhaust} position={[0, 0.075, 0]} visible={false}>
-              <mesh position={[0, -0.1, 0]}>
-                <coneGeometry args={[0.03, 0.22, 12, 1, true]} />
-                <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+      {/* ---- the apron: surveyed from the very first scroll ---- */}
+      <mesh position={[-0.02, 0.012, 0.03]}>
+        <cylinderGeometry args={[0.17, 0.18, 0.024, 24]} />
+        <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.28} />
+      </mesh>
+      {/* surveyor's corner brackets — the plot is marked out until the build
+          is complete, then the marks come up */}
+      {built < 10 && (
+        <group position={[-0.02, 0.028, 0.03]}>
+          {([[-1, -1], [1, -1], [-1, 1], [1, 1]] as [number, number][]).map(([sx, sz], i) => (
+            <group key={i} position={[sx * 0.15, 0, sz * 0.15]}>
+              <mesh position={[sx * -0.022, 0, 0]}>
+                <boxGeometry args={[0.052, 0.004, 0.007]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.5} />
               </mesh>
-              <mesh position={[0, -0.02, 0]}>
-                <sphereGeometry args={[0.05, 12, 12]} />
-                <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+              <mesh position={[0, 0, sz * -0.022]}>
+                <boxGeometry args={[0.007, 0.004, 0.052]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.5} />
               </mesh>
             </group>
+          ))}
+        </group>
+      )}
+      <group position={[-0.02, 0, 0.03]}>
+        {/* ---- piece 1: the four-legged launch mount ---- */}
+        {built >= BUILD.mount && (
+          <Rise animate={anim}>
+            {([[-0.05, -0.05], [0.05, -0.05], [-0.05, 0.05], [0.05, 0.05]] as [number, number][]).map(([x, z], i) => (
+              <mesh key={i} position={[x, 0.045, z]}>
+                <boxGeometry args={[0.014, 0.065, 0.014]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+              </mesh>
+            ))}
+            <mesh position={[0, 0.08, 0]}>
+              <cylinderGeometry args={[0.052, 0.052, 0.016, 16]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+            </mesh>
+          </Rise>
+        )}
+
+        {/* ---- the vehicle, stacked piece by piece (clickable once whole) ---- */}
+        <group
+          ref={rocket}
+          onClick={(e) => {
+            e.stopPropagation();
+            engage();
+          }}
+          onPointerOver={() => {
+            if (complete) document.body.style.cursor = 'pointer';
+          }}
+          onPointerOut={() => (document.body.style.cursor = '')}
+        >
+          <RocketBody
+            // ghost while it's still being assembled piece by piece; the moment
+            // the site is complete (10/10, homecoming) the vehicle powers on to a
+            // lit teal solid with glowing edges — the finished rocket, ready to fly,
+            // no longer a faint sketch
+            mode={complete ? 'lit' : 'ghost'}
+            assemble={anim}
+            parts={{
+              legs: built >= BUILD.legs,
+              booster: built >= BUILD.booster,
+              fins: built >= BUILD.fins,
+              interstage: built >= BUILD.interstage,
+              nose: built >= BUILD.nose,
+            }}
+          />
+          {/* exhaust — hidden until the count */}
+          <group ref={exhaust} position={[0, 0.075, 0]} visible={false}>
+            <mesh position={[0, -0.1, 0]}>
+              <coneGeometry args={[0.03, 0.22, 12, 1, true]} />
+              <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+            </mesh>
+            <mesh position={[0, -0.02, 0]}>
+              <sphereGeometry args={[0.05, 12, 12]} />
+              <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+            </mesh>
           </group>
         </group>
-
-        {/* ---- the service tower (the crane's lattice, repurposed) ---- */}
-        <group position={[0.13, 0, -0.07]}>
-          <mesh position={[0, 0.015, 0]}>
-            <boxGeometry args={[0.14, 0.03, 0.14]} />
-            <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.3} />
-          </mesh>
-          {([[-post, -post], [post, -post], [-post, post], [post, post]] as [number, number][]).map(([x, z], i) => (
-            <mesh key={i} position={[x, MAST_H / 2 + 0.03, z]}>
-              <boxGeometry args={[0.012, MAST_H, 0.012]} />
-              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
-            </mesh>
-          ))}
-          {lattice.rungs.map((r, i) => (
-            <Line key={i} points={r} color={GHOST_LINE} lineWidth={1} transparent opacity={0.45} position={[0, 0.03, 0]} />
-          ))}
-          <Line points={lattice.diags} segments color={GHOST_LINE} lineWidth={1} transparent opacity={0.4} position={[0, 0.03, 0]} />
-          {/* crew access arm across to the upper stage */}
-          <mesh position={[-0.085, 0.6, 0.045]} rotation={[0, 0.6, 0]}>
-            <boxGeometry args={[0.14, 0.014, 0.03]} />
-            <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
-          </mesh>
-          {/* beacon — blinks like a real pad at night */}
-          <mesh position={[0, MAST_H + 0.06, 0]}>
-            <sphereGeometry args={[0.012, 10, 10]} />
-            <meshStandardMaterial ref={beaconMat} color="#ff9068" emissive="#ff9068" emissiveIntensity={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
-          </mesh>
-        </group>
       </group>
-      {/* the invitation — engages the pad camera + LAUNCH button */}
-      {launch === 'idle' && (
+
+      {/* ---- the service tower (the crane's lattice, repurposed) — raised in
+              two pours, lower then upper ---- */}
+      <group position={[0.13, 0, -0.07]}>
+        {built >= BUILD.towerLo && (
+          <Rise animate={anim}>
+            <mesh position={[0, 0.015, 0]}>
+              <boxGeometry args={[0.14, 0.03, 0.14]} />
+              <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.3} />
+            </mesh>
+            {([[-post, -post], [post, -post], [-post, post], [post, post]] as [number, number][]).map(([x, z], i) => (
+              <mesh key={i} position={[x, MAST_H * 0.2 + 0.03, z]}>
+                <boxGeometry args={[0.012, MAST_H * 0.4, 0.012]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+              </mesh>
+            ))}
+            {lattice.rungsLo.map((r, i) => (
+              <Line key={i} points={r} color={GHOST_LINE} lineWidth={1} transparent opacity={0.45} position={[0, 0.03, 0]} />
+            ))}
+            <Line points={lattice.diagsLo} segments color={GHOST_LINE} lineWidth={1} transparent opacity={0.4} position={[0, 0.03, 0]} />
+          </Rise>
+        )}
+        {built >= BUILD.towerHi && (
+          <Rise animate={anim}>
+            {([[-post, -post], [post, -post], [-post, post], [post, post]] as [number, number][]).map(([x, z], i) => (
+              <mesh key={i} position={[x, MAST_H * 0.7 + 0.03, z]}>
+                <boxGeometry args={[0.012, MAST_H * 0.6, 0.012]} />
+                <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
+              </mesh>
+            ))}
+            {lattice.rungsHi.map((r, i) => (
+              <Line key={i} points={r} color={GHOST_LINE} lineWidth={1} transparent opacity={0.45} position={[0, 0.03, 0]} />
+            ))}
+            <Line points={lattice.diagsHi} segments color={GHOST_LINE} lineWidth={1} transparent opacity={0.4} position={[0, 0.03, 0]} />
+            {/* beacon — a standby ember until the site powers on at 10/10 */}
+            <mesh position={[0, MAST_H + 0.06, 0]}>
+              <sphereGeometry args={[0.012, 10, 10]} />
+              <meshStandardMaterial ref={beaconMat} color="#ff9068" emissive="#ff9068" emissiveIntensity={0.06} toneMapped={false} userData={{ lifeSkip: true }} />
+            </mesh>
+          </Rise>
+        )}
+        {/* crew access arm across to the upper stage */}
+        {built >= BUILD.arm && (
+          <Rise animate={anim}>
+            <mesh position={[-0.085, 0.6, 0.045]} rotation={[0, 0.6, 0]}>
+              <boxGeometry args={[0.14, 0.014, 0.03]} />
+              <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
+            </mesh>
+          </Rise>
+        )}
+      </group>
+
+      {/* the invitation — the completed site's reward; engages the pad camera */}
+      {complete && launch === 'idle' && (
         <Html position={[-0.12, 1.02, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
           <button type="button" className="nextsite" onClick={engage}>
             <b>my next launch</b> — let's build it together
+            {flights != null && (
+              <span className="nextsite__tally">{String(flights).padStart(4, '0')} launches by visitors so far</span>
+            )}
           </button>
         </Html>
       )}
@@ -1172,6 +1319,87 @@ function CelebrationBurst() {
   );
 }
 
+// A few windows that stay softly lit at rest — a handful of homes awake in the
+// otherwise-sleeping city. Kept in the skyline's own calm blue (never warm, per
+// the window rule above), most just glowing, one or two slowly winking off and
+// on. Independent of the interactive winMat, so waking the whole city (full
+// bright) is still the reward. Placed on real building faces from the cluster.
+function OccupiedWindows({ buildings }: { buildings: { x: number; z: number; w: number; d: number; h: number }[] }) {
+  const reduced = useReducedMotion();
+  const { accent } = useAccent();
+  const mats = useRef<(MeshStandardMaterial | null)[]>([]);
+  const wins = useMemo(() => {
+    const rnd = makeRand(4231);
+    const out: { p: V3; ry: number; lvl: number; spd: number; ph: number; wink: boolean }[] = [];
+    buildings.forEach((b, i) => {
+      if (i % 3 === 1) return; // only some buildings are occupied
+      const rows = Math.max(1, Math.floor((b.h - 0.06) / 0.11));
+      const yy = 0.09 + Math.floor(rnd() * rows) * 0.11;
+      const front = rnd() > 0.4; // camera-facing +Z (front) or +X (side) face
+      const off = (rnd() - 0.5) * 2 * 0.22;
+      const p: V3 = front ? [b.x + off * b.w, yy, b.z + b.d / 2 + 0.006] : [b.x + b.w / 2 + 0.006, yy, b.z + off * b.d];
+      out.push({ p, ry: front ? 0 : Math.PI / 2, lvl: 0.5 + rnd() * 0.5, spd: 0.3 + rnd() * 0.4, ph: rnd() * 6.28, wink: rnd() < 0.4 });
+    });
+    return out;
+  }, [buildings]);
+  useFrame((s) => {
+    const t = s.clock.elapsedTime;
+    for (let i = 0; i < wins.length; i++) {
+      const m = mats.current[i];
+      const w = wins[i];
+      if (!m) continue;
+      // winking windows go dark for a beat now and then; the rest hold a soft glow
+      const wink = w.wink && !reduced ? (Math.sin(t * w.spd + w.ph) > 0.72 ? 0.12 : 1) : 1;
+      m.emissiveIntensity = w.lvl * 0.5 * wink;
+    }
+  });
+  return (
+    <group>
+      {wins.map((w, i) => (
+        <mesh key={i} position={w.p} rotation={[0, w.ry, 0]}>
+          <planeGeometry args={[0.045, 0.05]} />
+          <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={accent} emissive={accent} emissiveIntensity={w.lvl * 0.5} transparent opacity={0.92} roughness={0.4} toneMapped={false} depthWrite={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// A single faint light easing along a road now and then — a lone car crossing
+// the sleeping city. One small cool point (a headlight, not a warm glow), a long
+// gap between passes, fading in and out at the ends, and gone entirely under
+// reduced motion. Path is in the layer's local road coordinates.
+function Traffic({ path }: { path: V3[] }) {
+  const reduced = useReducedMotion();
+  const ref = useRef<Mesh>(null);
+  const mat = useRef<MeshStandardMaterial>(null);
+  const PERIOD = 19; // seconds between passes
+  const DUR = 6; // seconds to cross
+  useFrame((s) => {
+    if (!ref.current || !mat.current) return;
+    const tt = s.clock.elapsedTime % PERIOD;
+    if (tt > DUR) {
+      mat.current.opacity = 0;
+      return;
+    }
+    const p = tt / DUR;
+    const idx = p * (path.length - 1);
+    const i0 = Math.min(path.length - 2, Math.floor(idx));
+    const f = idx - i0;
+    const a = path[i0];
+    const b = path[i0 + 1];
+    ref.current.position.set(a[0] + (b[0] - a[0]) * f, 0.03, a[2] + (b[2] - a[2]) * f);
+    mat.current.opacity = Math.sin(p * Math.PI) * 0.85; // ease in at the start, out at the end
+  });
+  if (reduced) return null;
+  return (
+    <mesh ref={ref} position={[path[0][0], 0.03, path[0][2]]}>
+      <sphereGeometry args={[0.018, 8, 8]} />
+      <meshStandardMaterial ref={mat} color="#dff2ff" emissive="#dff2ff" emissiveIntensity={2.4} transparent opacity={0} toneMapped={false} depthWrite={false} />
+    </mesh>
+  );
+}
+
 export function CityRig() {
   // Roads: a grid threading between the blocks, three avenues out toward the
   // church / windmill / park, and two curved roads sweeping around the side.
@@ -1239,12 +1467,16 @@ export function CityRig() {
       ))}
       {/* curved roads on the side */}
       <RoadRibbon points={curveB} width={0.09} />
+      {/* a lone car easing along the curved road every so often */}
+      <Traffic path={curveB} />
 
       {/* the skyline + its civic peak; windows light up on town-hall hover */}
       <WindowDriver mat={winMat} />
       {cluster.map((b, i) => (
         <Building key={i} {...b} winMat={winMat} />
       ))}
+      {/* a few homes left lit in the sleeping city (independent of the hover glow) */}
+      <OccupiedWindows buildings={cluster} />
       <LifeGroup slug="alliander-hololens">
         <Skyscraper position={[0, 0, 0]} winMat={winMat} />
       </LifeGroup>

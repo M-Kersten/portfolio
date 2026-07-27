@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { caseBySlug, LAYER_LABEL, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
@@ -6,16 +7,19 @@ import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { sceneStore } from '../scene/store';
 import { StoryLinks } from './StoryLinks';
+import { Scramble } from './Scramble';
+import { Gallery } from './Gallery';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // Centre of each layer's scroll band on the hero (fraction of scroll travel),
 // matching the City <0.25 · Room 0.25–0.75 · Chip ≥0.75 split in HeroStage.
 const ZONE_CENTER = [0.125, 0.5, 0.875];
+const CLOSE_FADE = 280; // ms the dossier fades before the route (and the zoom-out) commits
 
-// Inspected node: the title + subtitle sit as a caption at the top of the view
-// (over the 3D node), and the bottom dossier drawer below holds the media + the
-// full detail, while the 3D node stays visible between them (the camera lifts it
-// clear). Route-driven so deep links + the back button keep working.
+// Inspected node: the woken 3D object sits framed inside the porthole reticle
+// (FocusReticle, which irises open/closed with the camera zoom); this dossier
+// holds the case content in a column to the right of the ring. Route-driven so
+// deep links + the back button keep working.
 
 function Media({ study }: { study: CaseStudy }) {
   const embed = youtubeEmbed(study.video);
@@ -33,14 +37,7 @@ function Media({ study }: { study: CaseStudy }) {
     );
   }
   const src = study.media?.[0];
-  if (!src) {
-    return (
-      <div className="node-hud__media node-hud__media--empty" aria-hidden="true">
-        <span className="node-hud__play">▶</span>
-        <span className="node-hud__mediahint">photo / video</span>
-      </div>
-    );
-  }
+  if (!src) return null; // no still to show — the live object in the ring carries it
   const url = asset(src);
   if (/\.(mp4|webm|mov)$/i.test(src)) {
     return <video className="node-hud__media" src={url} autoPlay muted loop playsInline />;
@@ -53,29 +50,31 @@ export function NodeHud() {
   const navigate = useNavigate();
   const closeRef = useRef<HTMLButtonElement>(null);
   const hudRef = useRef<HTMLElement>(null);
+  const closeTimer = useRef<number>();
+  const [closing, setClosing] = useState(false);
+  const [shown, setShown] = useState(false); // gates the dossier fade-in (robust to re-renders)
   useFocusTrap(hudRef); // Tab stays inside; focus returns to the hotspot on close
 
+  useEffect(() => {
+    const r = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(r);
+  }, []);
+
   const study = slug ? caseBySlug(slug) : undefined;
-  // Closing drops you back onto the layer you left from. Scroll to the *centre*
-  // of that layer's band on the hero so the journey lands squarely on it — the
-  // old per-panel scrollIntoView aimed at a panel top, which on the current
-  // (shorter) hero overshot past the travel and dumped you a layer down (Room →
-  // Chip) or into the content below (Chip → capabilities).
-  //
-  // Except once: closing the TENTH signal's HUD is the homecoming — the journey
-  // pulls up to the City overview instead, where the celebration plays out
-  // (particle burst, bloom surge, and the ghost "next project" site rising).
-  const close = () => {
+
+  // Closing drops you back onto the layer you left from — scroll to the *centre*
+  // of that layer's band on the hero so the journey lands squarely on it. Closing
+  // the TENTH project is the homecoming: the journey pulls up to the City overview
+  // where the celebration plays out (particle burst, bloom surge, ghost pad).
+  const runClose = () => {
     navigate('/');
     if (!study) return;
     const homecoming = sceneStore.snapshot().celebrationPending;
     const step = homecoming ? 0 : LAYER_STEP[study.layer] ?? 0;
     if (homecoming) sceneStore.celebrate();
     sceneStore.setJourneyStep(step);
-    // Lift the HUD's body-scroll lock before scrolling — the unmount cleanup
-    // that normally restores it can land after the scroll call, which silently
-    // swallowed the move whenever the target differed from where we already
-    // were. Double-rAF so the scroll runs after the route commit + paint.
+    // Lift the body-scroll lock before scrolling (the unmount cleanup can land
+    // after and swallow the move). Double-rAF so it runs after route + paint.
     document.body.style.overflow = '';
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
@@ -85,6 +84,14 @@ export function NodeHud() {
         window.scrollTo({ top: hero.offsetTop + (ZONE_CENTER[step] ?? 0.125) * travel });
       }),
     );
+  };
+
+  // Fade the dossier out first, then commit the route so the porthole irises shut
+  // (and the camera zooms out) cleanly behind it.
+  const close = () => {
+    if (closing) return;
+    setClosing(true);
+    closeTimer.current = window.setTimeout(runClose, CLOSE_FADE);
   };
 
   useEffect(() => {
@@ -99,88 +106,106 @@ export function NodeHud() {
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
+      clearTimeout(closeTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [study]);
 
   if (!study) return <Navigate to="/" replace />;
 
-  return (
-    <>
-      {/* Title card, lifted out of the drawer and pinned to the top of the view
-          over the 3D node, so the drawer below keeps all its room for the media
-          and story. Decorative for AT — the dialog's label carries the same. */}
-      <header className="node-hud__caption" data-layer={study.layer} aria-hidden="true">
-        <div className="node-hud__meta">
-          <span className="node-hud__layer">{LAYER_LABEL[study.layer]}</span>
-          <span>{study.sector}</span>
-          <span>{study.client}</span>
-          {study.live && <span className="case-card__live">Live</span>}
-          {study.draft && <span className="modal__draft">Sample</span>}
-        </div>
-        <h2 className="node-hud__title">{study.title}</h2>
-        <p className="node-hud__outcome">{study.outcome}</p>
-      </header>
+  const dossier = (
+    <aside
+      ref={hudRef}
+      className="node-hud"
+      data-layer={study.layer}
+      data-shown={shown || undefined}
+      data-closing={closing || undefined}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${LAYER_LABEL[study.layer]} — ${study.title} — ${study.outcome}`}
+    >
+      <button ref={closeRef} type="button" className="node-hud__close" onClick={close} aria-label="Close node">
+        <span aria-hidden="true">✕</span>
+      </button>
 
-      <aside
-        ref={hudRef}
-        className="node-hud"
-        data-layer={study.layer}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${study.title} — ${study.outcome}`}
-      >
-        <button ref={closeRef} type="button" className="node-hud__close" onClick={close} aria-label="Close node">
-          <span aria-hidden="true">✕</span>
-        </button>
+      <div className="node-hud__col">
+        {/* keyed by slug so it re-decodes on a story-link jump */}
+        <h2 className="node-hud__title">
+          <Scramble key={study.slug} text={study.title} delay={120} wrap />
+        </h2>
+        <p className="node-hud__outcome">{study.outcome}</p>
 
         <Media study={study} />
 
-        <div className="node-hud__detail">
-          {/* The story — the three beats visitors come for. */}
-          <div className="story node-hud__story">
+        {/* The story — the three beats visitors come for. */}
+        <div className="story node-hud__story">
+          <section>
+            <h3 className="story__h">The problem</h3>
+            <p>{study.problem}</p>
+          </section>
+          <section>
+            <h3 className="story__h">The approach</h3>
+            <p>{study.approach}</p>
+          </section>
+          {study.lesson && (
             <section>
-              <h3 className="story__h">The problem</h3>
-              <p>{study.problem}</p>
+              <h3 className="story__h">The lesson</h3>
+              <p>{study.lesson}</p>
             </section>
-            <section>
-              <h3 className="story__h">The approach</h3>
-              <p>{study.approach}</p>
-            </section>
-            {study.lesson && (
-              <section>
-                <h3 className="story__h">The lesson</h3>
-                <p>{study.lesson}</p>
-              </section>
-            )}
-          </div>
-
-          {study.tech && study.tech.length > 0 && (
-            <ul className="node-hud__tech" aria-label="Technologies">
-              {study.tech.map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
           )}
-
-          <div className="node-hud__actions">
-            <a
-              className="btn node-hud__discuss"
-              href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}
-            >
-              Ask me about it
-            </a>
-            {study.article && (
-              <a className="btn btn--ghost" href={study.article} target="_blank" rel="noreferrer">
-                Read more <span aria-hidden="true">↗</span>
-              </a>
-            )}
-          </div>
-
-          {/* Walk the storyline without leaving the HUD — the camera flies along. */}
-          <StoryLinks study={study} onJump={(s) => navigate(`/work/${s}`)} />
         </div>
-      </aside>
-    </>
+
+        {study.gallery && study.gallery.length > 0 && <Gallery items={study.gallery} />}
+
+        {study.tech && study.tech.length > 0 && (
+          <ul className="node-hud__tech" aria-label="Technologies">
+            {study.tech.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        )}
+
+        <div className="node-hud__actions">
+          <a className="btn node-hud__discuss" href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}>
+            Ask me about it
+          </a>
+          {study.article && (
+            <a className="btn btn--ghost" href={study.article} target="_blank" rel="noreferrer">
+              Read more <span aria-hidden="true">↗</span>
+            </a>
+          )}
+        </div>
+
+        {/* Walk the storyline without leaving the HUD — the camera flies along. */}
+        <StoryLinks study={study} onJump={(s) => navigate(`/work/${s}`)} />
+      </div>
+    </aside>
+  );
+
+  // Both portal to <body>: the dossier layers above the fixed header (it lives
+  // deep inside <main>, a z-index:1 stacking context that would otherwise trap
+  // it there); the meta pills sit at the bottom, centred under the porthole.
+  // React context (router, focus) still flows through the component tree, so
+  // routing and the focus trap are unaffected.
+  return createPortal(
+    <>
+      {/* Meta tags, pulled out of the dossier top (they crowded the header) and
+          set as pills at the bottom-left, centred under the porthole ring. */}
+      <div
+        className="node-hud__tags"
+        data-layer={study.layer}
+        data-shown={shown || undefined}
+        data-closing={closing || undefined}
+        aria-hidden="true"
+      >
+        <span className="node-hud__pill node-hud__pill--layer">{LAYER_LABEL[study.layer]}</span>
+        {study.sector && <span className="node-hud__pill">{study.sector}</span>}
+        {study.client && <span className="node-hud__pill">{study.client}</span>}
+        {study.live && <span className="node-hud__pill node-hud__pill--flag">Live</span>}
+        {study.draft && <span className="node-hud__pill node-hud__pill--flag">Sample</span>}
+      </div>
+      {dossier}
+    </>,
+    document.body,
   );
 }

@@ -37,6 +37,11 @@ export interface CaseStudy {
   /** Marks a case as currently live in production. */
   live?: boolean;
   media?: string[];
+  /** Extra captioned pictures for the case — a small gallery shown in BOTH the
+   *  node HUD dossier and the focus card. Each `src` is a path under public/
+   *  (e.g. "/cases/alliander/hololens-1.jpg"); the short `caption` sits beneath
+   *  the image. Add as many as you like; missing files drop out quietly. */
+  gallery?: { src: string; caption?: string }[];
   /** A YouTube URL — embedded in the node HUD and the map card popup. */
   video?: string;
   /** URL to a fuller write-up (e.g. a blog post) — linked from the popups. */
@@ -160,6 +165,10 @@ export interface SiteContent {
     /** Short, first-person subheading. Kept minimal so it stays out of the
      *  3D's way and can fade when a node is inspected. */
     subheading: string;
+    /** The movie-intro title card, shown once on first load as the camera
+     *  dollies into the maquette — written for someone who's never met Merijn.
+     *  Remove this field to skip the intro card entirely. */
+    intro?: { title: string; body: string };
   };
   capabilitiesIntro: { title: string; lead: string };
   workIntro: { title?: string; lead: string };

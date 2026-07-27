@@ -25,12 +25,22 @@
 /* Only the mark is in flow, so <Html center> centres the crosshair exactly on
    the leader line's end point. The label floats absolutely, off its box. */
 .hotspot__dot {
+  position: relative; /* anchors the invisible hit-halo below */
   display: inline-flex;
   background: none;
   border: 0;
   padding: 0;
   cursor: pointer;
   font-family: var(--font-mono);
+}
+/* The crosshair is only 24px — too small a target. This transparent halo
+   enlarges the hover/click area well past the mark (to ~52px) without shifting
+   the mark or the label or affecting layout, so the whole neighbourhood of the
+   crosshair is live. */
+.hotspot__dot::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
 }
 .hotspot__mark {
   position: relative;
@@ -263,6 +273,15 @@
 .nextsite b {
   font-weight: 700;
   color: var(--accent-ink);
+}
+/* the global odometer under the invitation — only renders once the count
+   arrives (see lib/launches.ts); the label reads fine without it */
+.nextsite__tally {
+  display: block;
+  margin-top: 0.2em;
+  font-size: 0.85em;
+  letter-spacing: 0.08em;
+  color: var(--ink-40);
 }
 .nextsite:hover {
   color: var(--ink);
