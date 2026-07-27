@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { launchTrack, sceneStore, useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
+import { launchTrack, sceneStore, useSceneSelector, bootAt } from './store';
 import { HOTSPOTS, anchorWorld, journeyView, introView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
 import { tweakedView } from './nodeTweak';
 import { isMobileViewport } from '../lib/isMobile';
@@ -11,8 +11,17 @@ import { isMobileViewport } from '../lib/isMobile';
 // selected node (zoom in).
 
 // The cinematic load intro: how long the dolly-in from the wide establishing
-// shot to the City overview takes (seconds). Timed off the shared boot clock.
-const INTRO_DUR = 3.2;
+// shot to the City overview takes (seconds), measured from the shared boot clock.
+//
+// It runs from the moment the page loads rather than waiting out MAQUETTE_BOOT as
+// it used to. The wait bought a held establishing shot, but BootVeil now fades the
+// frame up out of black over that same beat — so the hold was a static shot nobody
+// could see, and the zoom only began once the fade was already over. Starting at 0
+// and running to the same finish (the old 1.45s + 3.2s) keeps the IntroCard's
+// timing in sync while letting the push-in play underneath the fade. The
+// smoothstep below has zero derivative at p=0, so it still eases up from a
+// standstill instead of snapping into motion.
+const INTRO_DUR = 4.65;
 
 // Porthole focus: on desktop the woken object is framed inside the reticle ring,
 // which sits left of centre so the dossier clears on the right. LIFT raises the
@@ -114,14 +123,15 @@ export function CameraRig() {
     // is already selected), during a launch, or once it completes — then the
     // normal journey logic below takes over from wherever the camera is.
     if (!introDone.current) {
-      const p = (performance.now() - bootAt - MAQUETTE_BOOT) / (INTRO_DUR * 1000);
+      const p = (performance.now() - bootAt) / (INTRO_DUR * 1000);
       if (skipIntro.current || selectedSlug || journeyStep !== 0 || launch !== 'idle' || p >= 1) {
         introDone.current = true;
       } else {
         const g = layerGap(size.width / size.height);
         const s = introView(g);
         const e = journeyView(0, g);
-        const t = p <= 0 ? 0 : p * p * (3 - 2 * p); // hold wide until the beat, then smoothstep in
+        const q = Math.max(0, p); // a slow first frame can only start us further in
+        const t = q * q * (3 - 2 * q); // smoothstep: eases up from a standstill
         camera.position.copy(s.pos).lerp(e.pos, t);
         target.current.copy(s.target).lerp(e.target, t);
         camera.lookAt(target.current);

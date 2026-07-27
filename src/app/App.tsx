@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom
 import { Header } from '../components/Header';
 import { SceneCanvas } from '../components/SceneCanvas';
 import { IntroCard } from '../components/IntroCard';
+import { BootVeil } from '../components/BootVeil';
 import { FocusReticle } from '../components/FocusReticle';
 import { HomeLayout } from '../components/HomeLayout';
 import { NodeHud } from '../components/NodeHud';
@@ -41,6 +42,9 @@ export function App() {
   return (
     <BrowserRouter basename={basename}>
       <ScrollToHash />
+      {/* outside the routes: the fade-up is a property of the page load, so it
+          covers the CV and projects sheets too, not just the maquette chrome */}
+      <BootVeil />
       <a className="skip-link" href="#main">
         Skip to content
       </a>

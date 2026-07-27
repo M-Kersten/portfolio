@@ -1,3 +1,36 @@
+/* The load fade-up (BootVeil.tsx) — the whole page opens out of black while the
+   camera dollies in. Sits above everything, including the header and the portaled
+   dossier, because it's the shutter over the entire frame; `pointer-events: none`
+   from the start so it can never swallow a click even mid-fade, and it takes
+   itself out of compositing at the end rather than lingering as an invisible
+   full-screen layer. */
+.boot-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--paper);
+  pointer-events: none;
+  animation: boot-veil-out 1.7s var(--ease) both;
+}
+@keyframes boot-veil-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+/* No dolly under reduced motion (CameraRig bails out), so there's no zoom for the
+   fade to ride — the page just appears, as it did before. */
+@media (prefers-reduced-motion: reduce) {
+  .boot-veil {
+    animation: none;
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 /* The movie-intro title card — centred over the maquette on first load while
    the camera dollies in, then clears. Light type on the dark scene, with a soft
    scrim so it reads over the wireframe city. Decorative overlay (no pointer
