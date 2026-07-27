@@ -486,25 +486,6 @@ function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
 }
 
 /** A floor lamp with a glowing shade. */
-// The lamp's bulb, softly lit and gently breathing — a light someone left on.
-// A single warm point in the cool room (a domestic cue, not a project waking);
-// steady under reduced motion.
-function LampGlow() {
-  const reduced = useReducedMotion();
-  const mat = useRef<MeshStandardMaterial>(null);
-  useFrame((s) => {
-    if (!mat.current) return;
-    const breathe = reduced ? 1 : 0.86 + 0.14 * Math.sin(s.clock.elapsedTime * 0.8);
-    mat.current.emissiveIntensity = 0.55 * breathe;
-  });
-  return (
-    <mesh position={[0, 0.64, 0]}>
-      <sphereGeometry args={[0.045, 12, 12]} />
-      <meshStandardMaterial ref={mat} color="#ffb488" emissive="#ffb488" emissiveIntensity={0.55} transparent opacity={0.5} roughness={0.5} toneMapped={false} depthWrite={false} />
-    </mesh>
-  );
-}
-
 function FloorLamp({ position }: { position: V3 }) {
   return (
     <group position={position}>
