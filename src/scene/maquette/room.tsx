@@ -1,16 +1,17 @@
 // The ROOM layer (middle) — games, apps & the web. The desk with the monitor
-// (Virtuele Brigade), the couch with the phone (Popcore), the AR race table
-// (Lightship Drive) and the bookcase with the openable Zwijsen book, plus
-// lamp, plant and VR headset props. RoomRig composes and places everything.
+// (Virtuele Brigade) and its keyboard / mouse / coffee cup, the couch with the
+// phone (Popcore), the AR race table (Lightship Drive) and the bookcase with the
+// openable Zwijsen book, plus lamp and plant props. RoomRig composes and places
+// everything.
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { useTweak } from '../devTweak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { NEUTRAL, useAccent, circlePts, smoothCurve, roundedRectShape, roundedPlaneGeometry, Line, useActive, bounceObject, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
+import { NEUTRAL, useAccent, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, bounceObject, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
-import { GlassMat, LiveGlassMat, Accent, SoftBox } from './materials';
+import { GlassMat, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
 
 const PHONE_BALLS = 6;
@@ -471,16 +472,83 @@ function BrigadeAntenna() {
   );
 }
 
-/** A VR headset prop on a stand (Virtuele Brigade). */
-function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
-  const strap = useMemo(() => smoothCurve([[-0.075, 0, 0], [-0.05, 0.06, -0.055], [0.05, 0.06, -0.055], [0.075, 0, 0]], 24), []);
+/* ---- the workstation's desk set (Virtuele Brigade) ----
+   Keyboard, mouse and coffee cup. All three take the desk's own treatment —
+   LiveGlassMat with ghost={false} — so they rest as plain authored glass and
+   solidify together with the desk when the monitor is engaged, rather than
+   staying frosted on a woken desk the way the old static clutter did. */
+const DESK_SLUG = 'virtuele-brigade';
+
+/** A low-profile keyboard: a slim slab with four raised key rows. The rows are
+ *  four thin boxes rather than individual keys — at this scale that's the detail
+ *  that survives, and 60 little cubes would only read as noise. */
+function Keyboard({ position, rotation }: { position: V3; rotation?: V3 }) {
+  // Kept low: at 0.006 tall these stood a full 0.007 proud of a 0.016 body and
+  // read as cooling fins rather than keys. They only need to catch a highlight.
+  const rows: V3[] = [
+    [0, 0.0095, -0.036],
+    [0, 0.0095, -0.012],
+    [0, 0.0095, 0.012],
+    [0, 0.0095, 0.036],
+  ];
   return (
     <group position={position} rotation={rotation}>
-      <RoundedBox args={[0.16, 0.09, 0.1]} radius={0.03} smoothness={3}>
-        <GlassMat opacity={0.3} />
+      <RoundedBox args={[0.3, 0.016, 0.115]} radius={0.006} smoothness={2}>
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.3} />
       </RoundedBox>
-      <Accent position={[0, 0, 0.052]} args={[0.11, 0.05, 0.004]} intensity={0.3} color={NEUTRAL} />
-      <Line points={strap} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.5} />
+      {rows.map((p, i) => (
+        <mesh key={i} position={p}>
+          <boxGeometry args={[0.26, 0.0035, 0.015]} />
+          <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.34} />
+        </mesh>
+      ))}
+      <Line points={roundedRectPts(0.3, 0.115, 0.006)} position={[0, 0.009, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+    </group>
+  );
+}
+
+/** A mouse: a pebble with the button split scored down its front half. */
+function Mouse({ position, rotation }: { position: V3; rotation?: V3 }) {
+  return (
+    <group position={position} rotation={rotation}>
+      <RoundedBox args={[0.046, 0.026, 0.072]} radius={0.012} smoothness={3}>
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.34} />
+      </RoundedBox>
+      <Line
+        points={[[0, 0.014, 0.004], [0, 0.014, 0.034]]}
+        color={NEUTRAL}
+        lineWidth={1}
+        transparent
+        opacity={0.45}
+      />
+    </group>
+  );
+}
+
+/** A coffee cup: tapered body, a half-torus handle, and a dark disc of coffee
+ *  set just below the rim so it reads as full rather than as an empty tube. */
+function CoffeeCup({ position, rotation }: { position: V3; rotation?: V3 }) {
+  return (
+    <group position={position} rotation={rotation}>
+      <mesh position={[0, 0.036, 0]}>
+        <cylinderGeometry args={[0.031, 0.024, 0.072, 20, 1, true]} />
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.32} />
+      </mesh>
+      {/* the coffee — sits 0.006 under the rim, so the cup has a wall above it */}
+      <mesh position={[0, 0.066, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.029, 20]} />
+        <meshStandardMaterial color="#2b1d16" emissive="#5a3a24" emissiveIntensity={0.22} roughness={0.35} side={DoubleSide} />
+      </mesh>
+      {/* base disc, so it doesn't read as an open-ended tube from a low angle */}
+      <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.024, 20]} />
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.32} />
+      </mesh>
+      <mesh position={[0.032, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.019, 0.0045, 8, 16, Math.PI]} />
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.32} />
+      </mesh>
+      <Line points={circlePts(0.031, 20)} position={[0, 0.072, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
     </group>
   );
 }
@@ -950,15 +1018,12 @@ export function RoomRig() {
             <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} liveSlug="virtuele-brigade" />
             <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
           </LifeGroup>
-          <SoftBox position={[0, 0.39, 0.12]} args={[0.34, 0.02, 0.12]} radius={0.012} opacity={0.26} />
-          {/* desk clutter: a mug + papers */}
-          <mesh position={[-0.36, 0.42, 0.12]}>
-            <cylinderGeometry args={[0.03, 0.03, 0.06, 14]} />
-            <GlassMat opacity={0.34} />
-            <Edges threshold={30} color={NEUTRAL} />
-          </mesh>
-          <SoftBox position={[-0.05, 0.405, 0.14]} args={[0.13, 0.012, 0.17]} radius={0.004} opacity={0.3} />
-          <VRHeadset position={[0.34, 0.44, 0.06]} rotation={[0, -0.6, 0]} />
+          {/* The desk set — keyboard square in front of the monitor, mouse to its
+              right, cup off to the left where an elbow won't knock it. Desk top is
+              y 0.395 (slab centre 0.37, 0.05 thick), so each sits on that. */}
+          <Keyboard position={[-0.02, 0.403, 0.06]} rotation={[0, 0.04, 0]} />
+          <Mouse position={[0.235, 0.408, 0.055]} rotation={[0, -0.12, 0]} />
+          <CoffeeCup position={[-0.34, 0.395, 0.075]} rotation={[0, -0.5, 0]} />
           {/* the antenna deploying out of the monitor, hailing for a link */}
           <BrigadeAntenna />
         </group>
