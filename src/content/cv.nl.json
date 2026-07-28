@@ -12,8 +12,8 @@
     "back": "terug naar de site",
     "download": "download PDF"
   },
-  "tagline": "Creative technologist, dingen bouwen die het buiten de demo overleven.",
-  "profile": "Als XR developer heb ik met veel enthousiasme bijgedragen aan projecten op het gebied van AR, VR, mobile games en interactieve installaties. Het verbinden van de virtuele en fysieke wereld en de grenzen van technieken verkennen maken dit het mooiste werk wat ik kan bedenken. Elk project is weer een kans om anderen een fris perspectief te bieden.",
+  "tagline": "Creative technologist & spatial developer",
+  "profile": "Als developer heb ik met veel enthousiasme bijgedragen aan projecten op het gebied van AR, VR, mobile games en interactieve installaties. Het verbinden van de virtuele en fysieke wereld en de grenzen van technieken verkennen maken dit het mooiste werk wat ik me kan bedenken. Elk project is weer een kans om anderen een fris perspectief te bieden.",
   "photo": "/profile/5.png",
   "location": "Utrecht, Nederland",
   "phone": "+31 6 21173954",
@@ -42,7 +42,7 @@
     },
     {
       "school": "OAMK",
-      "degree": "Minor — indie game-ontwikkeling",
+      "degree": "Minor in indie game-ontwikkeling",
       "location": "Oulu, FI",
       "from": "2017-01",
       "to": "2017-08",
@@ -75,19 +75,19 @@
     },
     {
       "sector": "Gezondheidszorg",
-      "detail": "Bij het immersive lab van Philips visualiseerde ik medische apparatuur en ontwikkelde ik VR-ervaringen die zowel educatief als informatief zijn. Bedoeld om mensen vertrouwd te maken met nieuwe medische ontwikkelingen en om ze te presenteren op beurzen."
+      "detail": "Bij het immersive lab van Philips visualiseerde ik medische apparatuur en ontwikkelde ik VR-ervaringen die zowel educatief als informatief zijn. Bedoeld om mensen vertrouwd te maken met nieuwe medische ontwikkelingen zoals nieuwe CT scanners en procedures, en om ze te presenteren op beurzen."
     },
     {
       "sector": "Energie",
-      "detail": "Bij Alliander ontwikkelde ik software voor de HoloLens waarmee gebruikers hun omgeving kunnen verrijken met informatie uit de netdatabase, om zo de aanleg van middenspanningsruimtes efficiënter te maken. Ik was verantwoordelijk voor de ontwikkeling, optimalisatie en UX van deze apps, naast innovatieve projecten zoals het visualiseren van complete wijken door middel van 3D-scanning. Bij Alliander leerde ik dat het bouwen van complexe applicaties kennis vereist vanuit vele hoeken — achterhalen welke KPI's van belang zijn en wie je bij het ontwikkelproces betrekt was een interessante uitdaging op zich."
+      "detail": "Bij Alliander ontwikkelde ik software voor de HoloLens waarmee gebruikers hun omgeving kunnen verrijken met informatie uit de database, om zo de aanleg van middenspanningsruimtes efficiënter te maken. Ik was verantwoordelijk voor de ontwikkeling, optimalisatie en UX van deze apps, naast innovatieve projecten zoals het visualiseren van complete wijken door middel van 3D-scanning. Bij Alliander leerde ik dat het bouwen van complexe applicaties kennis vereist vanuit vele hoeken, zeker voordat het in algemeen gebruik kan gaan."
     },
     {
       "sector": "Gezondheidszorg",
-      "detail": "Terug bij het immersive lab ondernamen we een project waarin we in research papers doken en als eerste met metahumans in Unreal de hartslag van mensen simuleerden voor syntethyse data generatie, technisch uitdagend maar ook betekenisvol werk."
+      "detail": "In het immersive lab ondernamen we een project waarin we in research papers doken en als eerste met metahumans in Unreal de hartslag van mensen simuleerden voor synthetische data generatie, technisch uitdagend maar ook betekenisvol werk."
     },
     {
       "sector": "Defensie",
-      "detail": "Bij de Marechaussee werk ik aan het verbinden van VR-spelers binnen een complex trainingssysteem dat al jaren in ontwikkeling is, multiplayer-netwerken waar falen geen optie is in een omgeving waar ik veel zelf moet doen vanwege security."
+      "detail": "Bij de Marechaussee werk ik aan het verbinden van VR-spelers binnen een complex trainingssysteem dat al jaren in ontwikkeling is, multiplayer-netwerken in een omgeving waar ik veel zelf moet bouwen vanwege security."
     }
   ]
 }

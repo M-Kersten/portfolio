@@ -19,20 +19,28 @@ const INK = '#eaeaea';
 const HAZARDS = [
   'SCOPE CREEP',
   'LEGACY CODE',
+  'CAN WE PUT AI IN THIS?',
   'MERGE CONFLICT',
   'GPS DRIFT',
-  'SHOW-FLOOR WIFI',
+  'BAD CONNECTION',
   'HOLOLENS BATTERY',
   '1★ STORE REVIEW',
   'ANOTHER MEETING',
   'TECH DEBT',
   'NullReferenceException',
+  'BROKEN BUILD',
+  'WORKS ON MY MACHINE',
+  'LOST SDK KEYS',
 ];
 // A couple of hazards split into bespoke children — the whole joke.
 const SPLITS: Record<string, [string, string]> = {
   'SCOPE CREEP': ['MORE SCOPE CREEP', 'MORE SCOPE CREEP'],
   'MERGE CONFLICT': ['<<<<<<< YOURS', '>>>>>>> THEIRS'],
   'TECH DEBT': ['UNUSED SDK', 'SINGLETON SPAGHETTI'],
+  'BROKEN BUILD': ['BUILD LOG', 'WRITE TESTS'],
+  'WORKS ON MY MACHINE': ['EMULATE', 'TEST AGAIN'],
+  'LOST SDK KEYS': ['RECOVER KEYS', 'ACTUALLY STORE THEM'],
+  'CAN WE PUT AI IN THIS?': ['EXPLAIN TRADE OFFS', 'SHOW THE COSTS'],
 };
 // Spoken over comms by the hologram (see GameComms), so everything below reads as
 // someone talking to you — not as terminal output.
@@ -45,15 +53,15 @@ const SPLITS: Record<string, [string, string]> = {
 // than two competing ones.
 const PHASES: string[] = [
   "Kickoff survived. Now we find out what we actually agreed to.",
-  "Architecture's holding. This is the part I enjoy, and it never lasts.",
-  "That's the demo done. Nothing broke while anyone important was watching.",
-  "We're live. Now the support tickets find out that we exist.",
-  "Post-launch. Turns out shipping it was the easy half.",
+  "Architecture's holding... Now let's actually build something.",
+  "That's the demo done! Nothing broke while anyone important was watching.",
+  "We're live! Just when we thought it's done the support tickets start rolling in.",
+  "Post-launch... Another update to ship, another wave of bugs.",
 ];
 // Past the arc, it's maintenance — which does not end, so these just alternate.
 const PHASES_TAIL: string[] = [
   "Another one closed. This is maintenance now. It doesn't finish, you just get quicker.",
-  "Still shipping. At some point you stop counting the stages and just keep going.",
+  "Still shipping. How long can we keep going?",
 ];
 // The stage's name, shown as a slate the moment it begins — the short form of the
 // same beat PHASES speaks when you finish it. Titles announce, sentences close.
@@ -75,21 +83,32 @@ function phaseLine(n: number): string {
 // shield. This is the whole reason the rocks have names.
 const HAZARD_LINES: Record<string, string> = {
   'SCOPE CREEP': "It's never one big decision. It's always 'could it maybe also just…'",
-  'LEGACY CODE': 'I once inherited a project where the build steps were a Word file.',
-  'MERGE CONFLICT': 'Two of us refactored the same file that week. Nobody enjoyed the Friday.',
-  'GPS DRIFT': 'At Alliander the overlay had to sit inside a centimetre. GPS had other plans.',
-  'SHOW-FLOOR WIFI': 'Ten years of demos, and it still waits for the client to walk over.',
-  'HOLOLENS BATTERY': 'Always dies the moment someone important finally puts it on.',
-  '1★ STORE REVIEW': "'Doesn't work.' No device, no version, no steps. I still think about it.",
-  'ANOTHER MEETING': "I've learned to build during these. Please don't tell anyone.",
-  'TECH DEBT': "Someone's clever shortcut. It's Tuesday, and now it belongs to you.",
-  NullReferenceException: 'Ten years in, and this is still how most of my days end.',
+  'LEGACY CODE': 'I tend to explain this as a Jenga tower to clients where every unused feature is a block that makes the tower unstable.',
+  'MERGE CONFLICT': 'Two of us refactored the same manager script that week. Nobody enjoyed the Friday.',
+  'GPS DRIFT': 'At Alliander the hologram had to be perfectly placed but GPS had other plans that day.',
+  'SHOW-FLOOR WIFI': 'Years of demos, and it still waits for the client to walk over.',
+  'HOLOLENS BATTERY': 'Dies at the moment someone important finally puts it on.',
+  '1★ STORE REVIEW': "'Doesn't work.' reviews do tend to stick in your head if you're proud of what you made.",
+  'ANOTHER MEETING': "The well known 'we'll just have a quick meeting' that takes 1-2 hours.",
+  'TECH DEBT': "Someone's clever shortcut, now it belongs to you.",
+  'NullReferenceException': 'Almost 10 years in, and this is still how some of my days end.',
+  'BROKEN BUILD': "The build failed. The log is 2,000 lines long. Good luck.",
+  'WORKS ON MY MACHINE': "It works on my machine, just not on the client's machine.",
+  'LOST SDK KEYS': 'We decided on storing keys on a shared drive, can you guess what happened when the senior dev left?',
+  'CAN WE PUT AI IN THIS?': "A client asked if we could train an LLM to answer a simple question, why not right?",
   // the bespoke children get their own punchlines
   'MORE SCOPE CREEP': 'See? It multiplies. That is the entire joke.',
   '<<<<<<< YOURS': 'Yours or theirs, someone still has to sit down and merge it.',
   '>>>>>>> THEIRS': 'Yours or theirs, someone still has to sit down and merge it.',
-  'UNUSED SDK': 'Integrated for one demo in 2021. Still in the project today.',
+  'UNUSED SDK': 'Integrated for one demo years ago and still in the project today.',
   'SINGLETON SPAGHETTI': 'Quick to write, forever to untangle. Ask me how I know.',
+  'BUILD LOG': 'The build failed. The log is 2,000 lines long. Good luck.',
+  'EMULATE': "Let's see how we can actually test this on the users' machine without shipping it to them.",
+  'RECOVER KEYS': 'The SDK vendor emailed me a new key. I had to email them back to get it.',
+  'ACTUALLY STORE THEM': 'The SDK vendor emailed me a new key. I had to email them back to get it.',
+  'EXPLAIN TRADE OFFS': "It's never as simple as 'just add AI'. I have to explain the trade-offs and the risks.",
+  'SHOW THE COSTS': "AI is not magic, it's expensive!",
+  'BAD CONNECTION': "The demo works fine on my machine. The client's wifi is another story.",
 };
 
 interface Rock {
@@ -377,7 +396,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         shield = true;
         // the phase beat and the stage-clear acknowledgement, as one line
         const line = phaseLine(wave);
-        say(regained ? `${line} Shield's back, too.` : line);
+        say(regained ? `${line} Shield's back.` : line);
         waveGap = 2.2;
       }
       scored();
@@ -478,7 +497,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       if (chainRef.current) chainRef.current.textContent = '';
       scoreRef.current?.classList.remove('ast__score-rec');
       if (scoreRef.current) scoreRef.current.textContent = '0000';
-      showSlate('STAGE 2 · SEPARATION CONFIRMED', 'mission');
       // stage separation: stars rush past for a beat before the first wave
       introUntil = reduced ? 0 : performance.now() + 2200;
       firstWave = false;
@@ -583,7 +601,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         firstWave = true;
         spawnWave(); // the opening wave arrives as the rush settles
         // …and Merijn checks in, which is how you learn there's someone on comms
-        say("You have the stick. Fair warning: this is roughly what my week looks like.");
+        say("And we're off! The kickoff's can be a bit rough, but the hazards are all labelled.");
       }
       // ship
       ship.spawnAge += dt;
