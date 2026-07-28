@@ -18,15 +18,29 @@ import { glassRim, GlassMat, LiveEdges, LiveGlassMat } from './materials';
 import { BlobShadow } from './backdrop';
 import { Rise, RocketBody } from './rocket';
 
+/** The city's window ramp: written once per frame by WindowDriver and read by every
+ *  Building's instanced grid. A module-level box rather than state or context
+ *  because it changes every frame and nothing should re-render for it — the panes
+ *  only need a number to stagger themselves against. */
+const winLevel = { k: 0 };
+/** How much of the ramp is spent bringing panes on one after another (0 = all at
+ *  once, as it used to be). The rest of the ramp is everything already lit. */
+const WIN_STAGGER = 0.62;
+
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
-  const { hovered, visited } = useActive('alliander-hololens');
+  const { hovered, selected, visited } = useActive('alliander-hololens');
   // Every hotspot visited -> the whole city stays lit ("all systems live").
   const complete = useSceneSelector((s) => s.completedAt !== null);
   const reduced = useReducedMotion();
   const k = useRef(0);
   useFrame((s) => {
-    const kT = hovered || complete ? 1 : visited ? 0.5 : 0;
-    k.current += (kT - k.current) * 0.09;
+    // `selected` counts too: opening the tower is the moment the lights should
+    // come up, and it used to key on hover alone.
+    const kT = hovered || selected || complete ? 1 : visited ? 0.5 : 0;
+    // Slower than the old 0.09 — the stagger below needs a ramp long enough to
+    // read as rooms coming on in turn rather than one switch being thrown.
+    k.current += (kT - k.current) * (reduced ? 1 : 0.045);
+    winLevel.k = k.current;
     const t = s.clock.elapsedTime;
     const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26) * Math.sin(t * 6.3);
     mat.emissiveIntensity = k.current * 1.1 * flick;
@@ -45,28 +59,30 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
   // pane (a tall tower is ~40 panes). Position, facing and size are baked into
   // each instance's matrix.
   const windows = useMemo(() => {
-    if (!winMat) return [] as { p: V3; ry: number; s: [number, number] }[];
-    const out: { p: V3; ry: number; s: [number, number] }[] = [];
+    if (!winMat) return [] as { p: V3; ry: number; s: [number, number]; d: number }[];
+    const out: { p: V3; ry: number; s: [number, number]; d: number }[] = [];
     const rows = Math.max(1, Math.floor((h - 0.06) / 0.11));
     for (let r = 0; r < rows; r++) {
       const yy = 0.09 + r * 0.11;
       if (yy > h - 0.05) break;
       for (const c of [-1, 1]) {
-        out.push({ p: [c * w * 0.22, yy, d / 2 + 0.004], ry: 0, s: [w * 0.26, 0.05] });
-        out.push({ p: [w / 2 + 0.004, yy, c * d * 0.22], ry: Math.PI / 2, s: [d * 0.26, 0.05] });
+        // `d` is when in the ramp this pane comes on. Weighted so lower floors
+        // light first and it climbs the building, with a scatter on top so it
+        // isn't a clean sweep — somebody on the fourth floor is always early.
+        const climb = r / Math.max(1, rows - 1);
+        out.push({ p: [c * w * 0.22, yy, d / 2 + 0.004], ry: 0, s: [w * 0.26, 0.05], d: climb * 0.7 + Math.random() * 0.3 });
+        out.push({ p: [w / 2 + 0.004, yy, c * d * 0.22], ry: Math.PI / 2, s: [d * 0.26, 0.05], d: climb * 0.7 + Math.random() * 0.3 });
       }
     }
     return out;
   }, [w, d, h, winMat]);
   const winRef = useRef<InstancedMesh>(null);
+  const lastK = useRef(-1);
+  const scratch = useMemo(() => ({ mtx: new Matrix4(), q: new Quaternion(), e: new Euler(), p: new Vector3(), s: new Vector3() }), []);
   useLayoutEffect(() => {
     const im = winRef.current;
     if (!im || windows.length === 0) return;
-    const mtx = new Matrix4();
-    const q = new Quaternion();
-    const e = new Euler();
-    const p = new Vector3();
-    const s = new Vector3();
+    const { mtx, q, e, p, s } = scratch;
     windows.forEach((win, i) => {
       p.set(win.p[0], win.p[1], win.p[2]);
       q.setFromEuler(e.set(0, win.ry, 0));
@@ -74,8 +90,33 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
       im.setMatrixAt(i, mtx.compose(p, q, s));
     });
     im.instanceMatrix.needsUpdate = true;
-    im.computeBoundingSphere(); // so building-level frustum culling stays correct
-  }, [windows]);
+    // Computed once, at full size — it's an upper bound, so the per-frame scaling
+    // below can never push a pane outside it and this doesn't need recomputing.
+    im.computeBoundingSphere();
+    lastK.current = -1; // force the first frame to apply the current ramp
+  }, [windows, scratch]);
+  // Each pane scales up as its own slice of the ramp arrives, so the rooms come on
+  // in turn instead of the whole grid switching at once (the material's glow is
+  // shared, so this is the only place a per-pane difference can live). Skipped
+  // entirely once the ramp settles, which is all of the time in practice.
+  useFrame(() => {
+    const im = winRef.current;
+    if (!im || windows.length === 0) return;
+    const k = winLevel.k;
+    if (Math.abs(k - lastK.current) < 0.002) return;
+    lastK.current = k;
+    const { mtx, q, e, p, s } = scratch;
+    for (let i = 0; i < windows.length; i++) {
+      const win = windows[i];
+      const raw = (k - win.d * WIN_STAGGER) / (1 - WIN_STAGGER);
+      const g = raw <= 0 ? 0 : raw >= 1 ? 1 : raw * raw * (3 - 2 * raw); // smoothstep
+      p.set(win.p[0], win.p[1], win.p[2]);
+      q.setFromEuler(e.set(0, win.ry, 0));
+      s.set(win.s[0] * g, win.s[1] * g, 1);
+      im.setMatrixAt(i, mtx.compose(p, q, s));
+    }
+    im.instanceMatrix.needsUpdate = true;
+  });
   return (
     <group position={[x, 0, z]}>
       <BlobShadow position={[0, 0.004, 0]} radius={Math.max(w, d) * 0.95} opacity={0.4} />
@@ -619,6 +660,21 @@ const TOWER_H = 0.78;
 const TOWER_R_BOT = 0.145;
 const TOWER_R_TOP = 0.115; // only a gentle taper — reads as a vertical tower, not a cone
 const TOWER_SIDES = 8;
+// How far the rising light-band sits outside the shaft. Has to clear the mullion
+// fins, which are 0.016 wide and centred on the taper — so half of that plus a
+// margin, held constant at every height.
+const SURGE_CLEAR = 0.022;
+/** The shaft's radius at height `y` — shared by the tower itself and by the cables
+ *  that have to attach to its outside. */
+const towerR = (y: number) => TOWER_R_BOT + (TOWER_R_TOP - TOWER_R_BOT) * Math.min(1, Math.max(0, y / TOWER_H));
+// How far a cable stands off the shaft where it attaches.
+const HUB_CLEAR = 0.03;
+// Beyond this horizontal distance a cable leaves from the crown; nearer than it,
+// the attachment slides down the shaft. A span to something standing at the
+// tower's own foot otherwise dropped almost vertically down the building's face,
+// which read as a cable stuck to it rather than a line running to it.
+const HUB_FAR = 0.9;
+const HUB_LOW = 0.22; // the lowest a cable will attach
 
 function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardMaterial }) {
   const { accent } = useAccent();
@@ -634,7 +690,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   const finL = Math.hypot(TOWER_R_BOT - TOWER_R_TOP, TOWER_H);
   const finTilt = Math.atan2(TOWER_R_BOT - TOWER_R_TOP, TOWER_H);
   const finR = (TOWER_R_BOT + TOWER_R_TOP) / 2;
-  const rAt = (y: number) => TOWER_R_BOT + (TOWER_R_TOP - TOWER_R_BOT) * (y / TOWER_H);
+  const rAt = towerR; // the shared taper — the cables attach off the same curve
   useFrame((s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, 0.18);
     if (!beacon.current) return;
@@ -651,7 +707,12 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
       const p = reduced ? 0.5 : (t * FX.loopSpeed) % 1;
       const y = p * TOWER_H;
       surge.current.position.y = y;
-      const r = rAt(y) / TOWER_R_BOT;
+      // CONSTANT clearance, not a proportional one. Scaling by rAt(y)/TOWER_R_BOT
+      // scaled the standoff along with the radius, so the band started level with
+      // the mullion fins at the base and sank progressively inside them as it
+      // climbed — it disappeared into the shaft around half way up. The fins stand
+      // off by a fixed amount, so the band has to as well.
+      const r = (rAt(y) + SURGE_CLEAR) / (TOWER_R_BOT + SURGE_CLEAR);
       surge.current.scale.set(r, 1, r);
       surgeMat.current.opacity = fxEnv(p) * FX.peak * lifeK.current;
     }
@@ -691,7 +752,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
         {/* a light-band that rises up the shaft while engaged (driven above) */}
         <group ref={surge}>
           <mesh>
-            <cylinderGeometry args={[TOWER_R_BOT + 0.008, TOWER_R_BOT + 0.008, 0.03, TOWER_SIDES, 1, true]} />
+            <cylinderGeometry args={[TOWER_R_BOT + SURGE_CLEAR, TOWER_R_BOT + SURGE_CLEAR, 0.03, TOWER_SIDES, 1, true]} />
             <meshStandardMaterial ref={surgeMat} color={accent} emissive={accent} emissiveIntensity={1.4} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} userData={{ lifeSkip: true }} />
           </mesh>
         </group>
@@ -935,16 +996,29 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
   const tubes = useMemo(
     () =>
       targets.map((t) => {
-        const horiz = Math.hypot(t[0] - from[0], t[2] - from[2]);
-        const sag = 0.05 + horiz * 0.14; // longer spans droop more
+        // Attach on the shaft's OUTSIDE facing this target, not on its centre axis.
+        // Every span used to start at the same point on the centreline, so they all
+        // converged inside the tower and you could see the knot of them through the
+        // glass. On the outside they read as cables leaving the building, and the
+        // attachment slides down the shaft for anything standing close to its foot.
+        const dx = t[0] - from[0];
+        const dz = t[2] - from[2];
+        const horiz = Math.hypot(dx, dz) || 1;
+        const near = Math.min(1, horiz / HUB_FAR);
+        const ay = HUB_LOW + (from[1] - HUB_LOW) * near;
+        const r = towerR(ay) + HUB_CLEAR;
+        const ax = from[0] + (dx / horiz) * r;
+        const az = from[2] + (dz / horiz) * r;
+        const span = Math.hypot(t[0] - ax, t[2] - az);
+        const sag = 0.05 + span * 0.14; // longer spans droop more
         const pts: Vector3[] = [];
         for (let i = 0; i <= 12; i++) {
           const u = i / 12;
           pts.push(
             new Vector3(
-              from[0] + (t[0] - from[0]) * u,
-              from[1] + (t[1] - from[1]) * u - sag * 4 * u * (1 - u),
-              from[2] + (t[2] - from[2]) * u,
+              ax + (t[0] - ax) * u,
+              ay + (t[1] - ay) * u - sag * 4 * u * (1 - u),
+              az + (t[2] - az) * u,
             ),
           );
         }

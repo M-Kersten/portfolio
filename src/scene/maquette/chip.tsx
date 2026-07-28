@@ -8,7 +8,6 @@ import { useFrame } from '@react-three/fiber';
 import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
-import { HOTSPOTS } from '../framing';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
@@ -202,12 +201,17 @@ function MiscComponents() {
 }
 
 /** A secondary IC with a finned heatsink. */
+/* Heights below are all measured off the board's top face at y 0.02. This part and
+   the pin header used to sit at y 0.135 because they were originally mounted on TOP
+   of the die package (whose top face is y 0.14); moving them out to the ring slots
+   left them hanging a tenth of a unit above the substrate with nothing under them,
+   which is what read as floating. */
 function Heatsink({ position }: { position: V3 }) {
   return (
     <group position={position}>
-      <SoftBox position={[0, 0.135, 0]} args={[0.24, 0.04, 0.24]} radius={0.01} opacity={0.34} />
+      <SoftBox position={[0, 0.04, 0]} args={[0.24, 0.04, 0.24]} radius={0.01} opacity={0.34} />
       {[-0.08, -0.04, 0, 0.04, 0.08].map((x, i) => (
-        <mesh key={i} position={[x, 0.21, 0]}>
+        <mesh key={i} position={[x, 0.115, 0]}>
           <boxGeometry args={[0.014, 0.11, 0.2]} />
           <GlassMat opacity={0.3} />
           <Edges threshold={30} color={NEUTRAL} />
@@ -222,9 +226,12 @@ function PinHeader({ position, n = 6 }: { position: V3; n?: number }) {
   const span = (n - 1) * 0.045;
   return (
     <group position={position}>
-      <SoftBox position={[0, 0.135, 0]} args={[span + 0.05, 0.04, 0.08]} radius={0.01} opacity={0.32} />
+      {/* A taller, more solid body than the old 0.04 sliver: at board level that
+          barely registered against the substrate and the pins read as six little
+          cylinders floating on their own. A connector needs a block under it. */}
+      <SoftBox position={[0, 0.05, 0]} args={[span + 0.05, 0.06, 0.085]} radius={0.01} opacity={0.5} />
       {Array.from({ length: n }).map((_, i) => (
-        <mesh key={i} position={[-span / 2 + i * 0.045, 0.18, 0]}>
+        <mesh key={i} position={[-span / 2 + i * 0.045, 0.105, 0]}>
           <cylinderGeometry args={[0.008, 0.008, 0.06, 8]} />
           <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.3} roughness={0.4} />
         </mesh>
@@ -262,17 +269,16 @@ const EDGE = 0.85; // orthogonal slots — the four small parts
 const TY = 0.026; // trace height, sitting on the PCB substrate
 const PKG = 0.525; // package half-width (the 1.05 body)
 
-/* ---- the package's lead frame ----
-   Nine lands down each edge of the package, QFP style, sitting on the substrate
-   just outside the body. Every trace on the board starts at one of them instead
-   of at an arbitrary point on the package outline, which is what makes each part
-   read as wired INTO the die rather than merely pointing at it. Lands the design
-   doesn't use are left in place — a real part always has more pins than the
-   board needs, and the unused comb is most of what says "chipset". */
-const PINS_PER_EDGE = 9;
-const PIN_PITCH = 0.105; // the row stops short of the corners, like a real lead frame
-const PIN_OUT = 0.075; // how far a land reaches out past the body
-const PIN_TIP = PKG + PIN_OUT; // where its trace picks up
+/* ---- where the runs leave the package ----
+   Nine exit slots down each edge, evenly spaced. There used to be a modelled land
+   at each one — a QFP comb — but at the scale this board is ever seen it was just
+   36 more little boxes of noise around the part, so the lands are gone and only the
+   slots remain: they still fan the traces out along the edge in a fixed order, which
+   is what keeps the routing from crossing itself. Runs now emerge from under the
+   package body, the way they do on a board with the pads underneath. */
+const SLOTS_PER_EDGE = 9;
+const SLOT_PITCH = 0.105; // the row stops short of the corners
+const EXIT = PKG; // runs start at the package outline
 const LEAD_OUT = 0.06; // every trace runs straight out this far before it turns
 
 /* Edges are indexed 0 = +x, 1 = +z, 2 = -x, 3 = -z, and each edge carries its own
@@ -282,7 +288,7 @@ const LEAD_OUT = 0.06; // every trace runs straight out this far before it turns
    four times rather than 14 hand-placed runs, and it comes out symmetric by
    construction. */
 const EDGE_N: [number, number][] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
-const pinLat = (i: number) => (i - (PINS_PER_EDGE - 1) / 2) * PIN_PITCH;
+const slotLat = (i: number) => (i - (SLOTS_PER_EDGE - 1) / 2) * SLOT_PITCH;
 /** A board point on edge `e`: `d` out along its normal, `t` along its lateral. */
 function onEdge(e: number, d: number, t: number): [number, number] {
   const [nx, nz] = EDGE_N[e];
@@ -302,12 +308,12 @@ const CHIP_NODES: ChipNode[] = [
   { x: CORNER, z: -CORNER, ly: 0.2, led: '#7fe6ff', phase: 0.0, speed: 6.5, edge: 3, pin: 8, fp: [0.3, 0.3] }, // custom-ar camera (back-right)
   { x: -CORNER, z: -CORNER, ly: 0.175, led: '#ff9068', phase: 1.1, speed: 5.0, edge: 2, pin: 8, fp: [0.44, 0.22] }, // philips monitor (back-left)
   { x: CORNER, z: CORNER, ly: 0.225, led: '#a9f75c', phase: 2.0, speed: 7.5, edge: 0, pin: 8, fp: [0.3, 0.3] }, // database stack (front-right)
-  { x: -CORNER, z: CORNER, ly: 0.27, led: '#ffcf5e', phase: 0.7, speed: 5.8, edge: 1, pin: 8, fp: [0.3, 0.3] }, // heatsink (front-left)
+  { x: -CORNER, z: CORNER, ly: 0.185, led: '#ffcf5e', phase: 0.7, speed: 5.8, edge: 1, pin: 8, fp: [0.3, 0.3] }, // heatsink (front-left)
   // edge midpoints — the small parts, straight out of the centre land
-  { x: EDGE, z: 0, ly: 0.17, led: '#7fe6ff', phase: 2.6, speed: 6.0, edge: 0, pin: 4 }, // computer-vision frame (right)
-  { x: 0, z: EDGE, ly: 0.165, led: '#a9f75c', phase: 1.6, speed: 8.0, edge: 1, pin: 4, fp: [0.3, 0.13] }, // pin header (front)
-  { x: -EDGE, z: 0, ly: 0.195, led: '#ff9068', phase: 3.1, speed: 6.8, edge: 2, pin: 4, fp: [0.14, 0.14] }, // cap (left)
-  { x: 0, z: -EDGE, ly: 0.195, led: '#7fe6ff', phase: 0.4, speed: 7.0, edge: 3, pin: 4, fp: [0.14, 0.14] }, // cap (back)
+  { x: EDGE, z: 0, ly: 0.045, led: '#7fe6ff', phase: 2.6, speed: 6.0, edge: 0, pin: 4 }, // computer-vision footprint (right)
+  { x: 0, z: EDGE, ly: 0.15, led: '#a9f75c', phase: 1.6, speed: 8.0, edge: 1, pin: 4, fp: [0.3, 0.13] }, // pin header (front)
+  { x: -EDGE, z: 0, ly: 0.155, led: '#ff9068', phase: 3.1, speed: 6.8, edge: 2, pin: 4, fp: [0.14, 0.14] }, // cap (left)
+  { x: 0, z: -EDGE, ly: 0.155, led: '#7fe6ff', phase: 0.4, speed: 7.0, edge: 3, pin: 4, fp: [0.14, 0.14] }, // cap (back)
 ];
 
 // Two spare pad footprints per edge, in the lateral gaps the parts leave — the
@@ -443,9 +449,9 @@ function pcbRoute(ax: number, az: number, bx: number, bz: number, y: number, xFi
  *  chamfer into the part. Starting at a named land rather than at a computed point
  *  on the package outline is what ties each part visibly back to the die. */
 function landTrace(e: number, pin: number, bx: number, bz: number, y: number): V3[] {
-  const t = pinLat(pin);
-  const [ax, az] = onEdge(e, PIN_TIP, t);
-  const [lx, lz] = onEdge(e, PIN_TIP + LEAD_OUT, t);
+  const t = slotLat(pin);
+  const [ax, az] = onEdge(e, EXIT, t);
+  const [lx, lz] = onEdge(e, EXIT + LEAD_OUT, t);
   // ±x edges break out along x, so turn x-first; ±z edges the other way
   return densify([[ax, y, az], ...pcbRoute(lx, lz, bx, bz, y, e === 0 || e === 2)]);
 }
@@ -743,77 +749,6 @@ function DiePulse() {
   );
 }
 
-const LAND_LIT = new Color('#b9c6cf'); // bare metal on the layer you're looking at
-// The receded end. Pitched near the dimmed board's own value rather than a mid
-// grey: the rest of the layer drops to 26% ALPHA over near-black, so an opaque
-// mid-grey comb still read as the most solid thing on a board meant to be
-// receding. Only this end moves — at full presence the colour is LAND_LIT exactly.
-const LAND_DIM = new Color('#1b2328');
-/** Same source of truth Maquette's presenceLayer uses, so "is the chip layer
- *  holding the light" can't drift between the two. */
-const CHIP_LAYER_SLUGS = HOTSPOTS.filter((h) => h.layer === 'chip').map((h) => h.slug);
-
-/** The package's lead frame — the comb of lands down all four edges. One shared
- *  material across all 36, since they're identical bare metal.
- *
- *  `lifeSkip` is load-bearing, not a nicety: PresenceGroup walks every material
- *  outside a LifeGroup and FORCES transparent = true on it so it can dim the layer
- *  by alpha (presence.tsx). That moved all 36 lands into the transparent render
- *  pass, where they get depth-sorted against the translucent board and the package
- *  glass — so they dropped in and out as the camera angle changed the sort order.
- *
- *  Opting out means doing the layer dim ourselves, which is the whole point: these
- *  have to stay OPAQUE to render reliably, so they recede by going dark rather than
- *  by going transparent. Same signal and same easing as presence, so the comb fades
- *  back in step with the board it sits on instead of staying a bright white row on a
- *  layer that's meant to be recessive. */
-function LeadFrame() {
-  const journeyStep = useSceneSelector((s) => s.journeyStep);
-  const selectedSlug = useSceneSelector((s) => s.selectedSlug);
-  const reduced = useReducedMotion();
-  // matches Maquette's presenceLayer exactly: an open node's own layer holds the
-  // light, otherwise the one the scroll has centred (chip is the third)
-  const active = selectedSlug ? CHIP_LAYER_SLUGS.includes(selectedSlug) : journeyStep === 2;
-  const k = useRef(active ? 1 : 0);
-  const mat = useMemo(() => {
-    const m = new MeshStandardMaterial({ color: LAND_LIT.clone(), emissive: new Color('#48606e'), emissiveIntensity: 0.5, roughness: 0.42, metalness: 0.1 });
-    m.userData.lifeSkip = true;
-    return m;
-  }, []);
-  useFrame(() => {
-    const t = active ? 1 : 0;
-    if (reduced) k.current = t;
-    else k.current += (t - k.current) * 0.06; // presence.tsx's rate
-    const f = 0.26 + 0.74 * k.current; // presence.tsx's PRESENCE_REST
-    mat.color.copy(LAND_DIM).lerp(LAND_LIT, f);
-    mat.emissiveIntensity = 0.5 * f * f; // falls off faster than the colour
-  });
-  useEffect(() => () => mat.dispose(), [mat]);
-  const lands = useMemo(
-    () =>
-      [0, 1, 2, 3].flatMap((e) =>
-        Array.from({ length: PINS_PER_EDGE }, (_, i) => {
-          const [x, z] = onEdge(e, PKG + PIN_OUT / 2, pinLat(i));
-          return { key: `${e}-${i}`, x, z, rot: e === 0 || e === 2 ? 0 : Math.PI / 2 };
-        }),
-      ),
-    [],
-  );
-  return (
-    <group>
-      {/* Sat at y 0.027 with a height of 0.013, which put the underside at 0.0205
-          against a board top of 0.02 — 0.0005 of clearance, i.e. coplanar as far as
-          the depth buffer is concerned. Lifted and thickened so they're
-          unambiguously ON the board and still read at overview distance. */}
-      {lands.map((l) => (
-        <mesh key={l.key} position={[l.x, 0.034, l.z]} rotation={[0, l.rot, 0]} material={mat}>
-          <boxGeometry args={[PIN_OUT, 0.022, 0.042]} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
 export function ChipRig() {
   const { accent } = useAccent();
   const energy = useChipEnergyTarget();
@@ -856,9 +791,6 @@ export function ChipRig() {
           body: inside the 1.05 outline it was buried under the package itself and
           never drew. The package's own outline comes from SoftBox's `outline`. */}
       <Line points={circlePts(0.026, 14)} position={[-PKG - 0.05, TY + 0.002, -PKG - 0.05]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.5} />
-
-      {/* the lead frame the traces leave from */}
-      <LeadFrame />
 
       {/* soft pads under the raised parts, so they sit ON the board (one per slot) */}
       <BlobShadow position={[0, 0.024, 0]} radius={0.68} opacity={0.26} />
@@ -908,7 +840,7 @@ export function ChipRig() {
 
       {/* decorative round caps — the left and back edge slots */}
       {([[-EDGE, 0], [0, -EDGE]] as [number, number][]).map(([cx, cz], i) => (
-        <mesh key={i} position={[cx, 0.13, cz]}>
+        <mesh key={i} position={[cx, 0.08, cz]}>
           <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
           <GlassMat opacity={0.34} />
           <Edges threshold={30} color={NEUTRAL} />
@@ -930,8 +862,10 @@ export function ChipRig() {
         ))}
       </group>
 
-      {/* computer-vision frame (neutral — not a hotspot) — right edge slot */}
-      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[EDGE, 0.16, 0]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.6} />
+      {/* computer-vision footprint (neutral — not a hotspot) — right edge slot.
+          Printed on the board rather than hovering at y 0.16, where it was a wire
+          rectangle floating in mid-air with nothing beneath it. */}
+      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[EDGE, TY + 0.002, 0]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.5} />
 
       {/* secondary IC + heatsink and a pin-header connector fill the board out */}
       <Heatsink position={[-CORNER, 0, CORNER]} />
