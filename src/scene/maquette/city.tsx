@@ -23,8 +23,9 @@ import { Rise, RocketBody } from './rocket';
  *  because it changes every frame and nothing should re-render for it — the panes
  *  only need a number to stagger themselves against. */
 const winLevel = { k: 0 };
-/** How much of the ramp is spent bringing panes on one after another (0 = all at
- *  once, as it used to be). The rest of the ramp is everything already lit. */
+/** How much of the ramp is spent bringing buildings up one after another (0 = the
+ *  whole skyline at once, as it used to be). The rest of the ramp is everything
+ *  already lit and simply getting brighter. */
 const WIN_STAGGER = 0.62;
 
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
@@ -34,9 +35,10 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   const reduced = useReducedMotion();
   const k = useRef(0);
   useFrame((s) => {
-    // `selected` counts too: opening the tower is the moment the lights should
-    // come up, and it used to key on hover alone.
-    const kT = hovered || selected || complete ? 1 : visited ? 0.5 : 0;
+    // Once the tower has been woken the city stays lit. `visited` used to hold at
+    // 0.5, so closing the dossier dimmed every window back down again — the lights
+    // you just turned on shouldn't go half-out when you look away.
+    const kT = hovered || selected || visited || complete ? 1 : 0;
     // Slower than the old 0.09 — the stagger below needs a ramp long enough to
     // read as rooms coming on in turn rather than one switch being thrown.
     k.current += (kT - k.current) * (reduced ? 1 : 0.045);
@@ -53,36 +55,34 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
 /** A square diorama building (glass fill, neutral edges). When given a shared
  *  `winMat`, it grows a grid of windows on its two camera-facing sides that
  *  light up when the town hall is hovered. */
-function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; d: number; h: number; winMat?: MeshStandardMaterial }) {
+function Building({ x, z, w, d, h, winMat, delay = 0 }: { x: number; z: number; w: number; d: number; h: number; winMat?: MeshStandardMaterial; delay?: number }) {
   // Every window shares one material and one unit-plane geometry, so the whole
   // grid collapses into a single instanced draw call instead of one mesh per
   // pane (a tall tower is ~40 panes). Position, facing and size are baked into
   // each instance's matrix.
   const windows = useMemo(() => {
-    if (!winMat) return [] as { p: V3; ry: number; s: [number, number]; d: number }[];
-    const out: { p: V3; ry: number; s: [number, number]; d: number }[] = [];
+    if (!winMat) return [] as { p: V3; ry: number; s: [number, number] }[];
+    const out: { p: V3; ry: number; s: [number, number] }[] = [];
     const rows = Math.max(1, Math.floor((h - 0.06) / 0.11));
     for (let r = 0; r < rows; r++) {
       const yy = 0.09 + r * 0.11;
       if (yy > h - 0.05) break;
       for (const c of [-1, 1]) {
-        // `d` is when in the ramp this pane comes on. Weighted so lower floors
-        // light first and it climbs the building, with a scatter on top so it
-        // isn't a clean sweep — somebody on the fourth floor is always early.
-        const climb = r / Math.max(1, rows - 1);
-        out.push({ p: [c * w * 0.22, yy, d / 2 + 0.004], ry: 0, s: [w * 0.26, 0.05], d: climb * 0.7 + Math.random() * 0.3 });
-        out.push({ p: [w / 2 + 0.004, yy, c * d * 0.22], ry: Math.PI / 2, s: [d * 0.26, 0.05], d: climb * 0.7 + Math.random() * 0.3 });
+        out.push({ p: [c * w * 0.22, yy, d / 2 + 0.004], ry: 0, s: [w * 0.26, 0.05] });
+        out.push({ p: [w / 2 + 0.004, yy, c * d * 0.22], ry: Math.PI / 2, s: [d * 0.26, 0.05] });
       }
     }
     return out;
   }, [w, d, h, winMat]);
   const winRef = useRef<InstancedMesh>(null);
-  const lastK = useRef(-1);
-  const scratch = useMemo(() => ({ mtx: new Matrix4(), q: new Quaternion(), e: new Euler(), p: new Vector3(), s: new Vector3() }), []);
   useLayoutEffect(() => {
     const im = winRef.current;
     if (!im || windows.length === 0) return;
-    const { mtx, q, e, p, s } = scratch;
+    const mtx = new Matrix4();
+    const q = new Quaternion();
+    const e = new Euler();
+    const p = new Vector3();
+    const s = new Vector3();
     windows.forEach((win, i) => {
       p.set(win.p[0], win.p[1], win.p[2]);
       q.setFromEuler(e.set(0, win.ry, 0));
@@ -90,32 +90,27 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
       im.setMatrixAt(i, mtx.compose(p, q, s));
     });
     im.instanceMatrix.needsUpdate = true;
-    // Computed once, at full size — it's an upper bound, so the per-frame scaling
-    // below can never push a pane outside it and this doesn't need recomputing.
-    im.computeBoundingSphere();
-    lastK.current = -1; // force the first frame to apply the current ramp
-  }, [windows, scratch]);
-  // Each pane scales up as its own slice of the ramp arrives, so the rooms come on
-  // in turn instead of the whole grid switching at once (the material's glow is
-  // shared, so this is the only place a per-pane difference can live). Skipped
-  // entirely once the ramp settles, which is all of the time in practice.
-  useFrame(() => {
-    const im = winRef.current;
-    if (!im || windows.length === 0) return;
-    const k = winLevel.k;
-    if (Math.abs(k - lastK.current) < 0.002) return;
-    lastK.current = k;
-    const { mtx, q, e, p, s } = scratch;
-    for (let i = 0; i < windows.length; i++) {
-      const win = windows[i];
-      const raw = (k - win.d * WIN_STAGGER) / (1 - WIN_STAGGER);
-      const g = raw <= 0 ? 0 : raw >= 1 ? 1 : raw * raw * (3 - 2 * raw); // smoothstep
-      p.set(win.p[0], win.p[1], win.p[2]);
-      q.setFromEuler(e.set(0, win.ry, 0));
-      s.set(win.s[0] * g, win.s[1] * g, 1);
-      im.setMatrixAt(i, mtx.compose(p, q, s));
-    }
-    im.instanceMatrix.needsUpdate = true;
+    im.computeBoundingSphere(); // so building-level frustum culling stays correct
+  }, [windows]);
+  /* Each building lights on its OWN slice of the city's ramp, via its own clone of
+     the window material. That's what makes the lights come up gradually instead of
+     the whole skyline switching at once.
+     Not per pane: every window in a building shares one material, so the only
+     per-pane handle is its size — and easing that made the panes visibly grow,
+     which is not what a light does. Per building costs seven materials and leaves
+     the panes exactly as they are, dark grid and all, at rest. */
+  const mat = useMemo(() => winMat?.clone(), [winMat]);
+  const reduced = useReducedMotion();
+  useEffect(() => () => mat?.dispose(), [mat]);
+  useFrame((s) => {
+    if (!mat) return;
+    const raw = (winLevel.k - delay * WIN_STAGGER) / (1 - WIN_STAGGER);
+    const g = raw <= 0 ? 0 : raw >= 1 ? 1 : raw;
+    const t = s.clock.elapsedTime;
+    // the flicker is offset per building too, so they don't all shimmer in step
+    const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26 + delay * 9) * Math.sin(t * 6.3);
+    mat.emissiveIntensity = g * 1.1 * flick;
+    mat.opacity = 0.08 + g * 0.6;
   });
   return (
     <group position={[x, 0, z]}>
@@ -125,8 +120,8 @@ function Building({ x, z, w, d, h, winMat }: { x: number; z: number; w: number; 
         <GlassMat opacity={0.3} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
-      {windows.length > 0 && (
-        <instancedMesh ref={winRef} args={[undefined, undefined, windows.length]} material={winMat}>
+      {windows.length > 0 && mat && (
+        <instancedMesh ref={winRef} args={[undefined, undefined, windows.length]} material={mat}>
           <planeGeometry args={[1, 1]} />
         </instancedMesh>
       )}
@@ -667,12 +662,20 @@ const SURGE_CLEAR = 0.022;
 /** The shaft's radius at height `y` — shared by the tower itself and by the cables
  *  that have to attach to its outside. */
 const towerR = (y: number) => TOWER_R_BOT + (TOWER_R_TOP - TOWER_R_BOT) * Math.min(1, Math.max(0, y / TOWER_H));
-// How far a cable stands off the shaft where it attaches.
-const HUB_CLEAR = 0.03;
-// Beyond this horizontal distance a cable leaves from the crown; nearer than it,
-// the attachment slides down the shaft. A span to something standing at the
-// tower's own foot otherwise dropped almost vertically down the building's face,
-// which read as a cable stuck to it rather than a line running to it.
+// Where a cable meets the shaft: hard against the mullion fins' outer face, so the
+// tube overlaps the surface instead of hovering off it.
+const HUB_CLEAR = 0.008;
+// The highest a cable attaches — on the SHAFT, just under the crown. It used to
+// attach at the hub's own height (0.8), which is up in the crown cone, and the
+// radius was taken from the shaft's taper: 0.145 against a crown that's only 0.103
+// wide there, so every cable started floating in clear air beside the tower.
+// Keeping the attachment on the shaft means one taper describes it and the cable
+// always lands on something.
+const HUB_HIGH = TOWER_H - 0.04;
+// Beyond this horizontal distance a cable attaches high; nearer than it, the
+// attachment slides down the shaft. A span to something standing at the tower's
+// own foot otherwise dropped almost vertically down the building's face, which
+// read as a cable stuck to it rather than a line running to it.
 const HUB_FAR = 0.9;
 const HUB_LOW = 0.22; // the lowest a cable will attach
 
@@ -1005,7 +1008,7 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
         const dz = t[2] - from[2];
         const horiz = Math.hypot(dx, dz) || 1;
         const near = Math.min(1, horiz / HUB_FAR);
-        const ay = HUB_LOW + (from[1] - HUB_LOW) * near;
+        const ay = HUB_LOW + (HUB_HIGH - HUB_LOW) * near;
         const r = towerR(ay) + HUB_CLEAR;
         const ax = from[0] + (dx / horiz) * r;
         const az = from[2] + (dz / horiz) * r;
@@ -1553,8 +1556,10 @@ export function CityRig() {
 
       {/* the skyline + its civic peak; windows light up on town-hall hover */}
       <WindowDriver mat={winMat} />
+      {/* delay by distance from the tower, so waking it sends the lights outward
+          across the grid rather than flipping the whole skyline at once */}
       {cluster.map((b, i) => (
-        <Building key={i} {...b} winMat={winMat} />
+        <Building key={i} {...b} winMat={winMat} delay={Math.min(1, Math.hypot(b.x, b.z) / 0.85)} />
       ))}
       {/* a few homes left lit in the sleeping city (independent of the hover glow) */}
       <OccupiedWindows buildings={cluster} />
