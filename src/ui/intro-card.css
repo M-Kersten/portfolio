@@ -44,6 +44,16 @@
     opacity: 0;
   }
 }
+/* Never in print. `npm run cv` prints /cv 150ms after networkidle, and the veil
+   holds full black for its first 308ms — so the generated PDFs came out as two
+   black pages. A screen-only load flourish has no business in a document, and
+   killing it for print fixes the generator and a browser "save as PDF" alike
+   without either of them having to wait the fade out. */
+@media print {
+  .boot-veil {
+    display: none;
+  }
+}
 
 /* The movie-intro title card — centred over the maquette on first load while
    the camera dollies in, then clears. Light type on the dark scene, with a soft

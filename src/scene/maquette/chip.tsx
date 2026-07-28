@@ -8,6 +8,7 @@ import { useFrame } from '@react-three/fiber';
 import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
+import { HOTSPOTS } from '../framing';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
@@ -180,18 +181,10 @@ function MiscComponents() {
   // each sits on bare substrate beside the die. These used to be scattered at
   // radius ~0.5, which put them on TOP of the die package — no board does that,
   // and a chip wearing four resistors as a hat was most of why it read as messy.
-  const passives = useMemo(
-    () =>
-      [0, 1, 2, 3].map((e) => {
-        const [x, z] = onEdge(e, PASSIVE_D, PASSIVE_T);
-        return { e, x, z, rot: e === 0 || e === 2 ? 0 : Math.PI / 2 };
-      }),
-    [],
-  );
   return (
     <group>
-      {passives.map((p) => (
-        <mesh key={p.e} position={[p.x, 0.035, p.z]} rotation={[0, p.rot, 0]}>
+      {PASSIVES.map((p) => (
+        <mesh key={p.edge} position={[p.x, 0.035, p.z]} rotation={[0, p.edge === 0 || p.edge === 2 ? 0 : Math.PI / 2, 0]}>
           <boxGeometry args={[0.09, 0.03, 0.04]} />
           <GlassMat opacity={0.34} />
           <Edges threshold={30} color={NEUTRAL} />
@@ -335,6 +328,12 @@ const PADS: { x: number; z: number; edge: number; pin: number }[] = [0, 1, 2, 3]
 // package, which no board does.
 const PASSIVE_D = 0.68;
 const PASSIVE_T = -0.5;
+/** Each passive is fed too, off the outermost unused land on its edge — they were
+ *  the last things on the board just sitting there with nothing running to them. */
+const PASSIVES: { x: number; z: number; edge: number; pin: number }[] = [0, 1, 2, 3].map((e) => {
+  const [x, z] = onEdge(e, PASSIVE_D, PASSIVE_T);
+  return { x, z, edge: e, pin: 0 };
+});
 
 /** A board trace that "fills" with current — a bright front sweeps from the die
  *  out to its component as the chip energises, then a pulse keeps flowing. Built
@@ -355,6 +354,9 @@ function ChipTrace({ points, target, color }: { points: V3[]; target: number; co
     const ca = new BufferAttribute(cols, 3);
     g.setAttribute('color', ca);
     const m = new LineBasicMaterial({ vertexColors: true, transparent: true, toneMapped: false, depthWrite: false, blending: AdditiveBlending });
+    // this drives its own brightness per vertex every frame; presence must not also
+    // scale it, or the routing dims out from under the animation
+    m.userData.lifeSkip = true;
     return { obj: new ThreeLine(g, m), colorAttr: ca, colors: cols };
   }, [points]);
   const rest = useMemo(() => new Color(NEUTRAL), []);
@@ -446,6 +448,28 @@ function landTrace(e: number, pin: number, bx: number, bz: number, y: number): V
   const [lx, lz] = onEdge(e, PIN_TIP + LEAD_OUT, t);
   // ±x edges break out along x, so turn x-first; ±z edges the other way
   return densify([[ax, y, az], ...pcbRoute(lx, lz, bx, bz, y, e === 0 || e === 2)]);
+}
+
+/** Where a run visibly ARRIVES: walking the route back from the part, the last
+ *  point still clear of its footprint.
+ *
+ *  Runs end at the part's centre, which is correct — a real trace carries on under
+ *  the body to pads you can't see — but it meant both the trace's end AND its solder
+ *  pad sat hidden beneath the part, so from outside every run looked like it stopped
+ *  short of whatever it was feeding. Putting the pad ring here instead, on bare
+ *  substrate at the footprint edge, is what makes the connection land visibly.
+ *
+ *  Read off the real polyline rather than assumed, so it's right for a straight run
+ *  and a chamfered corner alike, whichever axis the final straight ends up on. */
+function landingPoint(route: V3[], nd: ChipNode): [number, number] {
+  if (!nd.fp) return [nd.x, nd.z];
+  const hw = nd.fp[0] / 2 + 0.014;
+  const hd = nd.fp[1] / 2 + 0.014;
+  for (let i = route.length - 1; i >= 0; i--) {
+    const [x, , z] = route[i];
+    if (Math.abs(x - nd.x) > hw || Math.abs(z - nd.z) > hd) return [x, z];
+  }
+  return [nd.x, nd.z];
 }
 
 /** custom-ar-framework as a fixed security / computer-vision camera. A faceted
@@ -719,13 +743,51 @@ function DiePulse() {
   );
 }
 
+const LAND_LIT = new Color('#b9c6cf'); // bare metal on the layer you're looking at
+// The receded end. Pitched near the dimmed board's own value rather than a mid
+// grey: the rest of the layer drops to 26% ALPHA over near-black, so an opaque
+// mid-grey comb still read as the most solid thing on a board meant to be
+// receding. Only this end moves — at full presence the colour is LAND_LIT exactly.
+const LAND_DIM = new Color('#1b2328');
+/** Same source of truth Maquette's presenceLayer uses, so "is the chip layer
+ *  holding the light" can't drift between the two. */
+const CHIP_LAYER_SLUGS = HOTSPOTS.filter((h) => h.layer === 'chip').map((h) => h.slug);
+
 /** The package's lead frame — the comb of lands down all four edges. One shared
- *  material across all 36, since they're identical bare metal. */
+ *  material across all 36, since they're identical bare metal.
+ *
+ *  `lifeSkip` is load-bearing, not a nicety: PresenceGroup walks every material
+ *  outside a LifeGroup and FORCES transparent = true on it so it can dim the layer
+ *  by alpha (presence.tsx). That moved all 36 lands into the transparent render
+ *  pass, where they get depth-sorted against the translucent board and the package
+ *  glass — so they dropped in and out as the camera angle changed the sort order.
+ *
+ *  Opting out means doing the layer dim ourselves, which is the whole point: these
+ *  have to stay OPAQUE to render reliably, so they recede by going dark rather than
+ *  by going transparent. Same signal and same easing as presence, so the comb fades
+ *  back in step with the board it sits on instead of staying a bright white row on a
+ *  layer that's meant to be recessive. */
 function LeadFrame() {
-  const mat = useMemo(
-    () => new MeshStandardMaterial({ color: '#b9c6cf', emissive: new Color('#48606e'), emissiveIntensity: 0.5, roughness: 0.42, metalness: 0.1 }),
-    [],
-  );
+  const journeyStep = useSceneSelector((s) => s.journeyStep);
+  const selectedSlug = useSceneSelector((s) => s.selectedSlug);
+  const reduced = useReducedMotion();
+  // matches Maquette's presenceLayer exactly: an open node's own layer holds the
+  // light, otherwise the one the scroll has centred (chip is the third)
+  const active = selectedSlug ? CHIP_LAYER_SLUGS.includes(selectedSlug) : journeyStep === 2;
+  const k = useRef(active ? 1 : 0);
+  const mat = useMemo(() => {
+    const m = new MeshStandardMaterial({ color: LAND_LIT.clone(), emissive: new Color('#48606e'), emissiveIntensity: 0.5, roughness: 0.42, metalness: 0.1 });
+    m.userData.lifeSkip = true;
+    return m;
+  }, []);
+  useFrame(() => {
+    const t = active ? 1 : 0;
+    if (reduced) k.current = t;
+    else k.current += (t - k.current) * 0.06; // presence.tsx's rate
+    const f = 0.26 + 0.74 * k.current; // presence.tsx's PRESENCE_REST
+    mat.color.copy(LAND_DIM).lerp(LAND_LIT, f);
+    mat.emissiveIntensity = 0.5 * f * f; // falls off faster than the colour
+  });
   useEffect(() => () => mat.dispose(), [mat]);
   const lands = useMemo(
     () =>
@@ -739,9 +801,13 @@ function LeadFrame() {
   );
   return (
     <group>
+      {/* Sat at y 0.027 with a height of 0.013, which put the underside at 0.0205
+          against a board top of 0.02 — 0.0005 of clearance, i.e. coplanar as far as
+          the depth buffer is concerned. Lifted and thickened so they're
+          unambiguously ON the board and still read at overview distance. */}
       {lands.map((l) => (
-        <mesh key={l.key} position={[l.x, 0.027, l.z]} rotation={[0, l.rot, 0]} material={mat}>
-          <boxGeometry args={[PIN_OUT, 0.013, 0.038]} />
+        <mesh key={l.key} position={[l.x, 0.034, l.z]} rotation={[0, l.rot, 0]} material={mat}>
+          <boxGeometry args={[PIN_OUT, 0.022, 0.042]} />
         </mesh>
       ))}
     </group>
@@ -755,7 +821,9 @@ export function ChipRig() {
   // parts plus the eight spare pads, four runs per edge, the same pattern turned
   // four times.
   const traces = useMemo(() => CHIP_NODES.map((nd) => landTrace(nd.edge, nd.pin, nd.x, nd.z, TY)), []);
-  const extra = useMemo(() => PADS.map((p) => landTrace(p.edge, p.pin, p.x, p.z, TY)), []);
+  // …and the spare pads and the passives, so every part on the board has a run
+  // back to the die and no trace dead-ends anywhere.
+  const extra = useMemo(() => [...PADS, ...PASSIVES].map((p) => landTrace(p.edge, p.pin, p.x, p.z, TY)), []);
   return (
     <group>
       {/* the PCB substrate — every part mounts on it, so it reads as one board */}
@@ -821,12 +889,16 @@ export function ChipRig() {
       {extra.map((t, i) => (
         <ChipTrace key={`x${i}`} points={t} target={energy} color={accent} />
       ))}
-      {CHIP_NODES.map((nd, i) => (
-        <group key={i}>
-          <Line points={circlePts(0.034, 16)} position={[nd.x, TY + 0.003, nd.z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
-          <ChipLED position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} idle={i === 0 || i === 5} />
-        </group>
-      ))}
+      {CHIP_NODES.map((nd, i) => {
+        // the pad sits where the run arrives, beside the part, not under it
+        const [px, pz] = landingPoint(traces[i], nd);
+        return (
+          <group key={i}>
+            <Line points={circlePts(0.03, 16)} position={[px, TY + 0.003, pz]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.65} />
+            <ChipLED position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} idle={i === 0 || i === 5} />
+          </group>
+        );
+      })}
 
       {/* custom-ar-framework — a security / CV camera projecting a tracked
           hologram cube (back-right corner slot) */}
