@@ -258,6 +258,11 @@
 .ast__exit:hover {
   color: var(--ink);
 }
+/* nothing to hold once the run is over — the debrief card has the controls */
+.ast__exit:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
 /* ---------- mission comms: a holographic Merijn, talking to the player ----------
    A projected bust bottom-left with the line typing in beside it. The portrait is
    a real About-section photo, duotoned to the accent and scanlined here in CSS —
@@ -417,6 +422,82 @@
   .ast__hint-touch {
     display: inline;
   }
+}
+
+/* ---------- the pause menu ----------
+   Esc holds the flight and raises this instead of quitting. Same card language as
+   the RUD screen so the two read as one system, but deliberately smaller and
+   quieter: this one is an interruption you back out of, not a verdict. Its own
+   classes rather than reusing .rud — that name means the crash card, and a pause
+   is not a rapid unscheduled disassembly. */
+.ast__pause {
+  position: absolute;
+  inset: 0;
+  z-index: 3; /* over the RUD's layer, so a pause is always the topmost thing */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
+  backdrop-filter: blur(3px);
+  animation: ast-in 0.22s var(--ease);
+}
+.ast__pause-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 1.7rem 2.1rem 1.4rem;
+  max-width: min(92vw, 25rem);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 30px 80px -20px #000;
+}
+.ast__pause-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.24em;
+  color: var(--ink-40);
+}
+.ast__pause-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: clamp(1.5rem, 5vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em; /* letter-spacing pads the right; put it back on the left */
+  color: var(--ink);
+}
+.ast__pause-sub {
+  margin: 0;
+  max-width: 26ch;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--ink-60);
+  text-wrap: balance;
+}
+.ast__pause-actions {
+  display: flex;
+  gap: var(--space-s);
+  margin-top: 0.6rem;
+}
+/* the third way out, kept quiet: it skips the debrief, so it shouldn't compete
+   with GIVE UP for the eye */
+.ast__pause-quit {
+  margin-top: 0.9rem;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-40);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.ast__pause-quit:hover,
+.ast__pause-quit:focus-visible {
+  color: var(--ink);
 }
 
 /* ---------- the RUD screen ---------- */

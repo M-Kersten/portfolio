@@ -16,32 +16,125 @@ const NEUTRAL = '#9fb6c6';
 const INK = '#eaeaea';
 
 // The big rocks carry these; shooting one is therefore productive.
-const HAZARDS = [
-  'SCOPE CREEP',
-  'LEGACY CODE',
-  'CAN WE PUT AI IN THIS?',
-  'MERGE CONFLICT',
-  'GPS DRIFT',
-  'BAD CONNECTION',
-  'HOLOLENS BATTERY',
-  '1★ STORE REVIEW',
-  'ANOTHER MEETING',
-  'TECH DEBT',
-  'NullReferenceException',
-  'BROKEN BUILD',
-  'WORKS ON MY MACHINE',
-  'LOST SDK KEYS',
+/* ---- the hazards ----
+ *
+ *  ONE entry per hazard: which stages it can show up in, what Merijn says about
+ *  it, and what it breaks into. This is the place to edit the roster —
+ *  HAZARD_LINES and SPLITS are both derived from it, so a hazard is only ever
+ *  described once.
+ *
+ *  `from`/`to` are STAGE numbers (1-based, inclusive) — the same stages
+ *  PHASE_TITLES names, so `from: 4` means "not before RELEASE". `to` is optional
+ *  and means "and every stage after". The window is what stops a hazard turning up
+ *  before the project could plausibly have produced it: a 1★ store review can't
+ *  land during KICKOFF because nothing has shipped yet, and a merge conflict needs
+ *  a team that's already writing code.
+ *
+ *    1 KICKOFF · 2 ARCHITECTURE · 3 THE DEMO · 4 RELEASE · 5+ POST-LAUNCH
+ *
+ *  Keep at least three open at stage 1 — that's how many rocks the first wave
+ *  spawns (Math.min(2 + wave, 7)), and fewer than that starts repeating labels. */
+interface Hazard {
+  label: string;
+  from: number;
+  to?: number;
+  /** Said when you first clear it, and again — harder — if it takes your shield. */
+  line: string;
+  /** A big rock of this hazard breaks into these two instead of copies of itself. */
+  splits?: [string, string];
+}
+
+const HAZARDS: Hazard[] = [
+  // Stage 1 — nothing is built yet, so the hazards are people and inheritance.
+  { label: 'ANOTHER MEETING', from: 1, line: "The well known 'we'll just have a quick meeting' that takes 1-2 hours." },
+  {
+    label: 'SCOPE CREEP',
+    from: 1,
+    line: "It's never one big decision. It's always 'could it maybe also just…'",
+    splits: ['MORE SCOPE CREEP', 'MORE SCOPE CREEP'],
+  },
+  {
+    label: 'CAN WE PUT AI IN THIS?',
+    from: 1,
+    line: 'A client asked if we could train an LLM to answer a simple question, why not right?',
+    splits: ['EXPLAIN TRADE OFFS', 'SHOW THE COSTS'],
+  },
+  {
+    label: 'LEGACY CODE',
+    from: 1,
+    line: 'I tend to explain this as a Jenga tower to clients where every unused feature is a block that makes the tower unstable.',
+  },
+  {
+    label: 'TECH DEBT',
+    from: 1,
+    line: "Someone's clever shortcut, now it belongs to you.",
+    splits: ['UNUSED SDK', 'SINGLETON SPAGHETTI'],
+  },
+  // Stage 2 — there's a codebase now, so it can fight you and it can conflict.
+  {
+    label: 'MERGE CONFLICT',
+    from: 2,
+    line: 'Two of us refactored the same manager script that week. Nobody enjoyed the Friday.',
+    splits: ['<<<<<<< YOURS', '>>>>>>> THEIRS'],
+  },
+  { label: 'NullReferenceException', from: 2, line: 'Almost 10 years in, and this is still how some of my days end.' },
+  {
+    label: 'BROKEN BUILD',
+    from: 2,
+    line: 'The build failed. The log is 2,000 lines long. Good luck.',
+    splits: ['BUILD LOG', 'WRITE TESTS'],
+  },
+  {
+    label: 'LOST SDK KEYS',
+    from: 2,
+    line: 'We decided on storing keys on a shared drive, can you guess what happened when the senior dev left?',
+    splits: ['RECOVER KEYS', 'ACTUALLY STORE THEM'],
+  },
+  { label: 'GPS DRIFT', from: 2, line: 'At Alliander the hologram had to be perfectly placed but GPS had other plans that day.' },
+  // Stage 3 — it's on someone else's hardware, in someone else's room, now.
+  {
+    label: 'WORKS ON MY MACHINE',
+    from: 3,
+    line: "It works on my machine, just not on the client's machine.",
+    splits: ['EMULATE', 'TEST AGAIN'],
+  },
+  { label: 'BAD CONNECTION', from: 3, line: "The demo works fine on my machine. The client's wifi is another story." },
+  { label: 'HOLOLENS BATTERY', from: 3, line: 'Dies at the moment someone important finally puts it on.' },
+  // Stage 4 — it's live, so strangers can finally have opinions.
+  { label: '1★ STORE REVIEW', from: 4, line: "'Doesn't work.' reviews do tend to stick in your head if you're proud of what you made." },
 ];
-// A couple of hazards split into bespoke children — the whole joke.
-const SPLITS: Record<string, [string, string]> = {
-  'SCOPE CREEP': ['MORE SCOPE CREEP', 'MORE SCOPE CREEP'],
-  'MERGE CONFLICT': ['<<<<<<< YOURS', '>>>>>>> THEIRS'],
-  'TECH DEBT': ['UNUSED SDK', 'SINGLETON SPAGHETTI'],
-  'BROKEN BUILD': ['BUILD LOG', 'WRITE TESTS'],
-  'WORKS ON MY MACHINE': ['EMULATE', 'TEST AGAIN'],
-  'LOST SDK KEYS': ['RECOVER KEYS', 'ACTUALLY STORE THEM'],
-  'CAN WE PUT AI IN THIS?': ['EXPLAIN TRADE OFFS', 'SHOW THE COSTS'],
+
+/** Lines for the bespoke split children. They're never spawned on their own, so
+ *  they carry no stage window — they inherit their parent's. */
+const CHILD_LINES: Record<string, string> = {
+  'MORE SCOPE CREEP': 'See? It multiplies. That is the entire joke.',
+  '<<<<<<< YOURS': 'Yours or theirs, someone still has to sit down and merge it.',
+  '>>>>>>> THEIRS': 'Yours or theirs, someone still has to sit down and merge it.',
+  'UNUSED SDK': 'Integrated for one demo years ago and still in the project today.',
+  'SINGLETON SPAGHETTI': 'Quick to write, forever to untangle. Ask me how I know.',
+  'BUILD LOG': 'The build failed. The log is 2,000 lines long. Good luck.',
+  EMULATE: "Let's see how we can actually test this on the users' machine without shipping it to them.",
+  'RECOVER KEYS': 'The SDK vendor emailed me a new key. I had to email them back to get it.',
+  'ACTUALLY STORE THEM': 'The SDK vendor emailed me a new key. I had to email them back to get it.',
+  // These two split children had no line at all, so clearing them said nothing.
+  // Placeholders in your voice — reword or delete them as you like.
+  'WRITE TESTS': 'The tests I skipped to save an afternoon cost me the whole week.',
+  'TEST AGAIN': 'On the real device this time. It is never the same as the editor.',
+  'EXPLAIN TRADE OFFS': "It's never as simple as 'just add AI'. I have to explain the trade-offs and the risks.",
+  'SHOW THE COSTS': "AI is not magic, it's expensive!",
 };
+
+const SPLITS: Record<string, [string, string]> = Object.fromEntries(
+  HAZARDS.filter((h) => h.splits).map((h) => [h.label, h.splits as [string, string]]),
+);
+
+/** The labels that may spawn in stage `n` (1-based). Falls back to the whole
+ *  roster if a window edit ever leaves a stage empty, so a bad table costs you
+ *  realism and never blank rocks. */
+function hazardsForStage(n: number): string[] {
+  const open = HAZARDS.filter((h) => n >= h.from && (h.to === undefined || n <= h.to));
+  return (open.length ? open : HAZARDS).map((h) => h.label);
+}
 // Spoken over comms by the hologram (see GameComms), so everything below reads as
 // someone talking to you — not as terminal output.
 //
@@ -78,37 +171,11 @@ function phaseLine(n: number): string {
   return i < PHASES.length ? PHASES[i] : PHASES_TAIL[(i - PHASES.length) % PHASES_TAIL.length];
 }
 
-// One line per hazard — the actual story behind why it's on the list. Said when
-// you first clear that hazard, and again (harder) if it's the one that takes your
-// shield. This is the whole reason the rocks have names.
+/** Every label's line, parents and split children together — derived, so a hazard
+ *  is only ever described in one place (its entry in HAZARDS / CHILD_LINES). */
 const HAZARD_LINES: Record<string, string> = {
-  'SCOPE CREEP': "It's never one big decision. It's always 'could it maybe also just…'",
-  'LEGACY CODE': 'I tend to explain this as a Jenga tower to clients where every unused feature is a block that makes the tower unstable.',
-  'MERGE CONFLICT': 'Two of us refactored the same manager script that week. Nobody enjoyed the Friday.',
-  'GPS DRIFT': 'At Alliander the hologram had to be perfectly placed but GPS had other plans that day.',
-  'SHOW-FLOOR WIFI': 'Years of demos, and it still waits for the client to walk over.',
-  'HOLOLENS BATTERY': 'Dies at the moment someone important finally puts it on.',
-  '1★ STORE REVIEW': "'Doesn't work.' reviews do tend to stick in your head if you're proud of what you made.",
-  'ANOTHER MEETING': "The well known 'we'll just have a quick meeting' that takes 1-2 hours.",
-  'TECH DEBT': "Someone's clever shortcut, now it belongs to you.",
-  'NullReferenceException': 'Almost 10 years in, and this is still how some of my days end.',
-  'BROKEN BUILD': "The build failed. The log is 2,000 lines long. Good luck.",
-  'WORKS ON MY MACHINE': "It works on my machine, just not on the client's machine.",
-  'LOST SDK KEYS': 'We decided on storing keys on a shared drive, can you guess what happened when the senior dev left?',
-  'CAN WE PUT AI IN THIS?': "A client asked if we could train an LLM to answer a simple question, why not right?",
-  // the bespoke children get their own punchlines
-  'MORE SCOPE CREEP': 'See? It multiplies. That is the entire joke.',
-  '<<<<<<< YOURS': 'Yours or theirs, someone still has to sit down and merge it.',
-  '>>>>>>> THEIRS': 'Yours or theirs, someone still has to sit down and merge it.',
-  'UNUSED SDK': 'Integrated for one demo years ago and still in the project today.',
-  'SINGLETON SPAGHETTI': 'Quick to write, forever to untangle. Ask me how I know.',
-  'BUILD LOG': 'The build failed. The log is 2,000 lines long. Good luck.',
-  'EMULATE': "Let's see how we can actually test this on the users' machine without shipping it to them.",
-  'RECOVER KEYS': 'The SDK vendor emailed me a new key. I had to email them back to get it.',
-  'ACTUALLY STORE THEM': 'The SDK vendor emailed me a new key. I had to email them back to get it.',
-  'EXPLAIN TRADE OFFS': "It's never as simple as 'just add AI'. I have to explain the trade-offs and the risks.",
-  'SHOW THE COSTS': "AI is not magic, it's expensive!",
-  'BAD CONNECTION': "The demo works fine on my machine. The client's wifi is another story.",
+  ...CHILD_LINES,
+  ...Object.fromEntries(HAZARDS.map((h) => [h.label, h.line])),
 };
 
 interface Rock {
@@ -168,6 +235,17 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const slateId = useRef(0);
   const [best, setBest] = useState(() => Number(localStorage.getItem('mk-asteroids-best') ?? 0));
   const restartRef = useRef<() => void>(() => {});
+  // The pause menu. Esc opens it instead of dumping you back to the pad — quitting
+  // a run by accident on the key you'd reach for to pause was the whole problem.
+  // `menuRef` mirrors the state for the engine, which reads it inside its own frame
+  // loop and can't see React state; `giveUpRef` is the engine handing back the one
+  // way to end a run deliberately.
+  const [menu, setMenu] = useState(false);
+  const menuRef = useRef(false);
+  const giveUpRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    menuRef.current = menu;
+  }, [menu]);
   // the ship's live pose, handed to the 3D rocket overlay every frame
   const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, throttle: 0, turn: 0, visible: true, pop: 1, muzzle: 0, shield: 1, shieldBreak: 0 });
   const rocksView = useRef<RockView[]>([]); // per-frame view of the rocks for the 3D layer
@@ -306,7 +384,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       wavePulse = 1;
       showSlate(phaseTitle(wave), 'phase');
       const n = Math.min(2 + wave, 7);
-      const labels = [...HAZARDS].sort(() => Math.random() - 0.5);
+      // only what this stage of the project could plausibly have produced
+      const labels = hazardsForStage(wave).sort(() => Math.random() - 0.5);
       for (let i = 0; i < n; i++) {
         // spawn on the rim, never on top of the ship
         const edge = Math.floor(Math.random() * 4);
@@ -435,6 +514,14 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         slomo = Math.max(slomo, 0.3);
         shake = Math.min(shake + 10, 18);
       }
+      endRun(killer);
+    };
+
+    // Close out the run and raise the debrief. Split out of `impact` so giving up
+    // from the pause menu lands on the same screen with the same stats — the only
+    // difference is the write-up, since nothing actually hit you.
+    const endRun = (killer?: string, gaveUp = false) => {
+      if (over) return; // idempotent: a give-up during the death frame can't double-fire
       over = true;
       setFinalScore(score);
       // The write-up: the three beats every case study on this site uses, built
@@ -442,12 +529,17 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       const acc = shots > 0 ? Math.round((hitsCount / shots) * 100) : 0;
       const mm = String(Math.floor(playTime / 60)).padStart(2, '0');
       const ss = String(Math.floor(playTime % 60)).padStart(2, '0');
+      const stage = Math.max(1, wave);
       setDebrief({
-        problem: `${killer ?? 'An unlabelled hazard'} got through at stage ${Math.max(1, wave)}, with the shield already down.`,
+        problem: gaveUp
+          ? `Called off at stage ${stage} (${phaseTitle(stage)}). Nothing hit us — the plug got pulled.`
+          : `${killer ?? 'An unlabelled hazard'} got through at stage ${stage}, with the shield already down.`,
         approach: `${shots} ticket${shots === 1 ? '' : 's'} fired, ${shots > 0 ? `${acc}% resolved` : 'none resolved'}${
           bestChain >= 2 ? `, ${bestChain} cleared back-to-back at best` : ''
         }. ${score} problem${score === 1 ? '' : 's'} fixed in T+${mm}:${ss}.`,
-        lesson: lessonFor({ acc, shots, wave, chain: bestChain }),
+        lesson: gaveUp
+          ? 'Cancelling it yourself is a real decision, and it never feels like one. Some of the best calls I have made looked exactly like this.'
+          : lessonFor({ acc, shots, wave, chain: bestChain }),
       });
       setBest((b) => {
         const nb = Math.max(b, score);
@@ -456,6 +548,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       });
       setPhase('over');
     };
+    giveUpRef.current = () => endRun(undefined, true);
 
     const reset = (restart = false) => {
       rocks = [];
@@ -512,12 +605,20 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     };
     restartRef.current = () => {
       reset(true);
+      setMenu(false); // never start a fresh run already held
       setPhase('play');
     };
 
     // ---- input ----
     const key = (e: KeyboardEvent, down: boolean) => {
       if (e.repeat) return;
+      // While the pause menu is up the flight controls are off. This matters for
+      // Space in particular: it fires AND preventDefaults, which would otherwise
+      // stop it activating the focused menu button for a keyboard player.
+      if (menuRef.current) {
+        ship.left = ship.right = ship.thrust = ship.fire = false;
+        return;
+      }
       switch (e.code) {
         case 'ArrowLeft': case 'KeyA': ship.left = down; break;
         case 'ArrowRight': case 'KeyD': ship.right = down; break;
@@ -579,7 +680,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       raf = requestAnimationFrame(frame);
       const raw = Math.min((now - last) / 1000, 1 / 30);
       last = now;
-      if (!paused && !over) {
+      // the pause menu freezes the sim exactly like a P hold does
+      if (!paused && !menuRef.current && !over) {
         let dt = raw;
         if (slomo > 0) {
           // hit-stop: a beat of 30% speed on big hits, then straight back
@@ -931,7 +1033,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       // the game-over card
       sv.visible = !over;
 
-      if (paused && !over) {
+      // The P hold's own caption. Suppressed while the pause menu is up — that
+      // menu is the message then, and two of them at once is just noise.
+      if (paused && !menuRef.current && !over) {
         ctx.fillStyle = INK;
         ctx.font = '600 30px "Space Mono", monospace';
         ctx.textAlign = 'center';
@@ -960,14 +1064,19 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reduced]);
 
-  // Esc backs out (game over screen or mid-flight)
+  // Esc mid-flight opens the pause menu rather than quitting outright — it used to
+  // call onExit, so the reflex key for "hold on a second" threw the run away. On the
+  // debrief there's nothing left to pause, so there it still backs out.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onExit();
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      if (phase === 'over') onExit();
+      else setMenu((m) => !m); // Esc toggles: open to pause, again to resume
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onExit]);
+  }, [onExit, phase]);
 
   const contact = () => {
     onExit();
@@ -990,8 +1099,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           <span ref={scoreRef}>0000</span>
           <span className="ast__chain" ref={chainRef} /> · BEST {String(best).padStart(4, '0')}
         </span>
-        <button type="button" className="ast__exit" onClick={onExit}>
-          abort to pad <kbd>Esc</kbd>
+        {/* Was "abort to pad" wired straight to onExit. Esc no longer quits, so the
+            key hint next to it would have been a lie — and leaving the run is now
+            one of the choices inside the menu rather than a thing on the HUD. */}
+        <button type="button" className="ast__exit" onClick={() => setMenu(true)} disabled={phase === 'over'}>
+          hold <kbd>Esc</kbd>
         </button>
       </div>
       {/* The slate: separation on arrival, then the name of each stage as it
@@ -1008,6 +1120,38 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       <div className="ast__hint" ref={hintRef}>← → rotate · ↑ thrust · space fire · P hold{' '}
         <span className="ast__hint-touch">— or steer left half, fire right half</span>
       </div>
+
+      {/* The pause menu. Only while flying — on the debrief the run is already over
+          and that card owns the screen. */}
+      {phase === 'play' && menu && (
+        <div className="ast__pause" role="dialog" aria-modal="true" aria-label="Flight held">
+          <div className="ast__pause-card">
+            <span className="ast__pause-eyebrow">MK-01 · HOLDING</span>
+            <h2 className="ast__pause-title">HOLD</h2>
+            <p className="ast__pause-sub">The count is stopped. Nothing moves until you say so.</p>
+            <div className="ast__pause-actions">
+              {/* autoFocus so Enter resumes straight away and a keyboard player
+                  lands inside the menu instead of somewhere behind it */}
+              <button type="button" className="btn" autoFocus onClick={() => setMenu(false)}>
+                RESUME
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => {
+                  setMenu(false);
+                  giveUpRef.current(); // ends the run properly → the debrief card
+                }}
+              >
+                GIVE UP
+              </button>
+            </div>
+            <button type="button" className="ast__pause-quit" onClick={onExit}>
+              abort to pad — leave without a write-up
+            </button>
+          </div>
+        </div>
+      )}
 
       {phase === 'over' && (
         <div className="rud">
