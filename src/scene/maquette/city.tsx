@@ -255,10 +255,17 @@ const PINE_TIERS: [number, number, number][] = [
 function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: number; yaw?: number; slug?: string }) {
   const { selected, visited } = useActive(slug ?? '');
   const live = useRef(0);
-  const restCol = useMemo(() => new Color('#47656b'), []); // neutral glass-teal at rest
+  // At rest a pine has to read as the same drawing as everything else on this
+  // layer. It didn't: the buildings are 0.30 glass WITH a wireframe outline,
+  // while these were 0.40 flat-shaded cones with no outline at all — and
+  // `lifeSkip` meant LifeGroup never ghosted them either, so the grove sat there
+  // looking switched on while the city around it was still a sketch. That one
+  // corner was carrying more visual weight than the tower.
+  const TREE_REST = 0.2; // a shade under the buildings' glass — foliage is dense
+  const restCol = useMemo(() => new Color('#6f8592'), []); // the layer's neutral glass, not a green
   const vivid = useMemo(() => new Color('#5ea78d'), []); // restrained sea-green once visited
   const mat = useMemo(() => {
-    const m = new MeshStandardMaterial({ color: '#47656b', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: 0.4 });
+    const m = new MeshStandardMaterial({ color: '#6f8592', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: TREE_REST });
     m.userData.lifeSkip = true; // greens up itself once visited
     return m;
   }, []);
@@ -266,7 +273,7 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: num
     if (!slug) return;
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
     mat.color.copy(restCol).lerp(vivid, live.current);
-    mat.opacity = 0.4 + live.current * 0.35;
+    mat.opacity = TREE_REST + live.current * 0.55; // the green + the body arrive together
   });
   return (
     <group position={position} rotation={[0, yaw, 0]}>
@@ -277,6 +284,12 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: num
       {PINE_TIERS.map(([y, r, th], i) => (
         <mesh key={i} position={[0, h * y, 0]} material={mat}>
           <coneGeometry args={[h * r, h * th, 6]} />
+          {/* The wireframe every other object on this layer has — but held back.
+              A box building draws 12 edges; three stacked hexagonal cones draw
+              about 21, five times over for the grove. At full strength the park
+              swapped one imbalance for another and became the busiest corner in
+              frame, so these carry roughly half a building's weight. */}
+          <Edges threshold={30} color={NEUTRAL} transparent opacity={0.42} />
         </mesh>
       ))}
     </group>

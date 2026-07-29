@@ -191,10 +191,26 @@ const JOURNEY_Y = [1.32, 0, -1.32];
 // aim at their own anchor and are unaffected.
 const OVERVIEW_AIM_X = -0.34;
 
-export function journeyView(step: number, gap = 1): Framing {
+// …and a little ABOVE it, which drops the maquette down the screen. The camera
+// pivots on the layer it's framing but looks over its head, so the layer in focus
+// settles near the middle of the frame instead of riding high in it, and the
+// layers below fall away toward the bottom edge rather than filling it. That's
+// what makes the City read as the thing you're looking at on arrival: it isn't
+// competing with a Room-worth of furniture stacked underneath it.
+const OVERVIEW_AIM_Y = 0.34;
+
+/** The point the overview orbits: on the layer, offset left (see OVERVIEW_AIM_X). */
+function overviewPivot(step: number, gap: number): Vector3 {
   const y = (JOURNEY_Y[Math.max(0, Math.min(2, step))] ?? 0) * gap;
-  const target = new Vector3(OVERVIEW_AIM_X, y, 0);
-  return { pos: target.clone().add(new Vector3(...CAMERA.overviewOffset)), target };
+  return new Vector3(OVERVIEW_AIM_X, y, 0);
+}
+
+export function journeyView(step: number, gap = 1): Framing {
+  const pivot = overviewPivot(step, gap);
+  return {
+    pos: pivot.clone().add(new Vector3(...CAMERA.overviewOffset)),
+    target: pivot.clone().add(new Vector3(0, OVERVIEW_AIM_Y, 0)),
+  };
 }
 
 /** Where the cinematic load intro starts: the camera is pulled well back and
@@ -204,8 +220,11 @@ export function journeyView(step: number, gap = 1): Framing {
  *  skyline sits high as it settles. */
 export function introView(gap = 1): Framing {
   const home = journeyView(0, gap);
-  const dir = home.pos.clone().sub(home.target); // the overview offset (right, up, back)
-  const pos = home.target
+  // Off the PIVOT, not off the aim point — the aim now sits above the layer
+  // (OVERVIEW_AIM_Y), and measuring the dolly direction from there would tilt the
+  // establishing shot as a side effect of a framing change.
+  const dir = new Vector3(...CAMERA.overviewOffset);
+  const pos = overviewPivot(0, gap)
     .clone()
     .add(dir.multiplyScalar(1.95)) // ~2x further out — a wide establishing shot…
     .add(new Vector3(0.4, -1.35, 0.5)); // …dropped low + a hair right, to rise past the park

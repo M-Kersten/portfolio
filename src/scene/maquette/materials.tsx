@@ -1,12 +1,13 @@
 // The maquette's material language: frosted holographic glass (with a fresnel
 // rim + screen-space dot grid injected into the shader), its "comes alive once
 // visited" variant, flat emissive accent boxes, and the rounded soft box.
-import { useMemo, useRef } from 'react';
+import { useContext, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, RoundedBox, type EdgesRef } from '@react-three/drei';
 import { Color, MeshStandardMaterial, type Material } from 'three';
 import { useAccent, useActive, GLASS, NEUTRAL, Line, roundedRectPts, type V3 } from './shared';
 import { GHOST_FILL } from './life';
+import { PresenceCtx } from './presence';
 
 /* ---------- materials ---------- */
 
@@ -75,13 +76,14 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
   const baseC = useMemo(() => new Color(color), [color]);
+  const presence = useContext(PresenceCtx); // a layer that isn't the subject recedes
   useFrame(() => {
     const m = mat.current;
     if (!m) return;
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
     m.color.copy(GHOST_FILL).lerp(baseC, ghost ? 0.3 + 0.7 * k.current : 1);
     const rest = ghost ? opacity * 0.3 : opacity;
-    m.opacity = rest + (solid - rest) * k.current;
+    m.opacity = (rest + (solid - rest) * k.current) * presence.current;
     // Waking an object still makes it glossier, but gently — the shine now comes
     // off the environment rather than the key light (see SPEC above), so the
     // floor only needs to stop the lobe tightening back into a hotspot.
@@ -119,6 +121,10 @@ export function LiveEdges({ slug, threshold = 20, color = NEUTRAL, rest = 1 }: {
   const { selected, visited } = useActive(slug);
   const ref = useRef<EdgesRef>(null);
   const k = useRef(0);
+  // These are lifeSkip, so neither the life system nor the presence dimmer would
+  // otherwise touch them — and an outline is the most visible thing on an object,
+  // so a dimmed layer's tower kept a bright wireframe over a faded body.
+  const presence = useContext(PresenceCtx);
   useFrame(() => {
     const mat = ref.current?.material as Material | undefined;
     if (!mat) return;
@@ -133,7 +139,7 @@ export function LiveEdges({ slug, threshold = 20, color = NEUTRAL, rest = 1 }: {
     // wireframe. A long thin plane on its own in open air (the sails) has
     // nothing bulky to belong to, so its outline needs a dimmer idle cap or it
     // reads as a bold line drawn for its own sake.
-    mat.opacity = rest * (1 - k.current);
+    mat.opacity = rest * (1 - k.current) * presence.current;
   });
   return <Edges ref={ref} threshold={threshold} color={color} transparent />;
 }

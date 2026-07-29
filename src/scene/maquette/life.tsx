@@ -2,11 +2,12 @@
 // rests as a grey ghost; visiting its project brings it (permanently) to
 // colour. LifeGroup does the material lerp for everything inside it;
 // EmissiveHover is the glowing-accent variant for screens/lights.
-import { useMemo, useRef, type ReactNode } from 'react';
+import { useContext, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Color, MeshStandardMaterial, type Group, type Material, type Mesh } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useAccent, useActive, bounceObject, type V3 } from './shared';
+import { PresenceCtx } from './presence';
 
 /* ---------- The life system — you give the world its colour ----------
    Every interactive object starts as a DORMANT GHOST: a faint monochrome
@@ -40,7 +41,9 @@ export function LifeGroup({ slug, children }: { slug: string; children: ReactNod
   const glitch = useRef(0);
   const idle = useRef(8 + Math.random() * 9);
   const lastApplied = useRef(-1); // last life level written to the materials
+  const lastPres = useRef(-1); // …and the layer presence it was written at
   const frame = useRef(0);
+  const presence = useContext(PresenceCtx);
 
   useFrame((s, delta) => {
     const g = grp.current;
@@ -70,9 +73,13 @@ export function LifeGroup({ slug, children }: { slug: string; children: ReactNod
     // Steady state (most of the time): the level already written hasn't moved,
     // so skip the subtree walk — except a periodic pass that catches materials
     // appearing late (e.g. a texture-swapped plane) and pulls them to level.
+    // A layer that isn't the subject recedes, lit projects included — otherwise
+    // exploring the site permanently un-dims everything you've been to.
+    const pf = presence.current;
     frame.current++;
-    if (l === lastApplied.current && glitch.current === 0 && frame.current % 30 !== 0) return;
+    if (l === lastApplied.current && pf === lastPres.current && glitch.current === 0 && frame.current % 30 !== 0) return;
     lastApplied.current = l;
+    lastPres.current = pf;
 
     g.traverse((o) => {
       const raw = (o as Mesh).material as Material | Material[] | undefined;
@@ -99,12 +106,12 @@ export function LifeGroup({ slug, children }: { slug: string; children: ReactNod
         if (snap.isLine) {
           // edges + outlines stay readable — they ARE the ghost's wireframe
           if (snap.color && mm.color) mm.color.copy(GHOST_LINE).lerp(snap.color, l);
-          mm.opacity = snap.op * (0.5 + 0.5 * l);
+          mm.opacity = snap.op * (0.5 + 0.5 * l) * pf;
         } else {
           if (snap.color && mm.color) mm.color.copy(GHOST_FILL).lerp(snap.color, l);
           if (snap.emissive && mm.emissive) mm.emissive.copy(GHOST_FILL).lerp(snap.emissive, l);
-          mm.emissiveIntensity = snap.ei * (0.12 + 0.88 * l);
-          mm.opacity = snap.op * (0.16 + 0.84 * l);
+          mm.emissiveIntensity = snap.ei * (0.12 + 0.88 * l) * pf;
+          mm.opacity = snap.op * (0.16 + 0.84 * l) * pf;
         }
       }
     });
@@ -138,6 +145,7 @@ export function EmissiveHover({ slug, position, rotation, args, color, liveColor
   const live = useRef(0);
   const base = useMemo(() => new Color(col), [col]);
   const lifelike = useMemo(() => new Color(liveColor ?? col), [liveColor, col]);
+  const presence = useContext(PresenceCtx);
   useFrame((s, delta) => {
     if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta);
     if (!mat.current) return;
@@ -158,7 +166,7 @@ export function EmissiveHover({ slug, position, rotation, args, color, liveColor
       const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
       lvl = restLvl + k.current * (peak + breathe);
     }
-    mat.current.emissiveIntensity = lvl;
+    mat.current.emissiveIntensity = lvl * presence.current;
     mat.current.color.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);
     mat.current.emissive.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);
   });
