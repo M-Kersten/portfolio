@@ -62,7 +62,11 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
     if (hemi.current) hemi.current.intensity = 0.35 * (1 - 0.34 * k);
     if (dir1.current) dir1.current.intensity = 1.1 * (1 - 0.2 * k);
     if (dir2.current) {
-      dir2.current.intensity = 0.5 + 0.4 * k; // the accent rim grows on select
+      // The accent rim lifts on select, but only a little now. At 0.9 it was
+      // matching the white key light almost watt for watt, and a body lit half
+      // by a cyan lamp cannot read as white paint however white you make the
+      // albedo — it just reads slate. It's a rim; it should skim the silhouette.
+      dir2.current.intensity = 0.5 + 0.14 * k;
       dir2.current.color.copy(air); // the rim light itself carries the layer air
     }
     const fog = scene.fog as Fog | null;
@@ -128,12 +132,19 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
           makes it read as a real moulded thing. The narrow top former is the
           softbox that gives it a highlight to travel along — broad and weak on
           purpose, because a narrow bright one mirrors off the big flat surfaces
-          (the coffee table, the PCB) as a hard clipped streak. */}
+          (the coffee table, the PCB) as a hard clipped streak.
+
+          Wound up hard overall, because this is the ONLY light a woken body has
+          that wraps it. A white object reads white from every angle in a product
+          shot because of fill, not key — and with a mostly-black stage there was
+          none, so the painted shells measured mid-grey. Materials that should
+          stay dark (all the dormant glass) pull their envMapIntensity back down
+          instead, so the darkness of the stage is unchanged. */}
       <Environment resolution={256} frames={1}>
-        <Lightformer intensity={0.8} position={[5, 6, 4]} scale={9} color="#cfe0ff" />
-        <Lightformer intensity={0.5} position={[-6, 3, -4]} scale={9} color="#27e8f2" />
-        <Lightformer intensity={0.34} position={[3, 2, -6]} scale={8} color="#a89eff" />
-        <Lightformer intensity={0.5} position={[0, 7, 1]} scale={[11, 2.6, 1]} color="#ffffff" />
+        <Lightformer intensity={2.1} position={[5, 6, 4]} scale={9} color="#dce8ff" />
+        <Lightformer intensity={1.0} position={[-6, 3, -4]} scale={9} color="#27e8f2" />
+        <Lightformer intensity={0.8} position={[3, 2, -6]} scale={8} color="#a89eff" />
+        <Lightformer intensity={1.5} position={[0, 7, 1]} scale={[11, 2.6, 1]} color="#ffffff" />
         <Lightformer intensity={0.3} position={[0, -5, 0]} scale={12} color="#0a0d10" />
       </Environment>
 

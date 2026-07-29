@@ -730,7 +730,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
         <mesh position={[0, TOWER_H / 2, 0]}>
           <cylinderGeometry args={[TOWER_R_TOP, TOWER_R_BOT, TOWER_H, TOWER_SIDES]} />
           <LiveGlassMat slug="alliander-hololens" opacity={0.34} />
-          <Edges threshold={15} color={NEUTRAL} />
+          <LiveEdges slug="alliander-hololens" threshold={15} />
         </mesh>
         {/* full-height mullion fins along the eight edges */}
         {Array.from({ length: TOWER_SIDES }).map((_, i) => (
@@ -773,7 +773,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
         <mesh position={[0, TOWER_H + 0.05, 0]}>
           <cylinderGeometry args={[0.055, TOWER_R_TOP, 0.1, TOWER_SIDES]} />
           <LiveGlassMat slug="alliander-hololens" opacity={0.34} />
-          <Edges threshold={15} color={NEUTRAL} />
+          <LiveEdges slug="alliander-hololens" threshold={15} />
         </mesh>
         <mesh position={[0, TOWER_H + 0.15, 0]}>
           <cylinderGeometry args={[0.004, 0.004, 0.1, 8]} />

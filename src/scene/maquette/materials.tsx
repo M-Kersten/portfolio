@@ -34,6 +34,19 @@ const SPEC = 0.15;
 // small curved object can take before the big flat ones blow out.
 const SPEC_LIVE = 0.5;
 
+// Where a solid body lands: a painted off-white. A model rocket is mostly white,
+// with its colour carried by a couple of painted panels and its markings — the
+// white is what makes the few coloured areas read as colour at all. Bodies used
+// to wake to their own glass TINT, which left the whole maquette slate blue and
+// reading as tinted perspex rather than paint.
+// Env exposure at each end. The stage environment is bright now, so the ghost
+// end has to be turned right down to leave the resting maquette where it was.
+const ENV_GHOST = 0.34;
+const ENV_LIVE = 1.5;
+
+const SHELL = new Color('#e8edf0');
+const PAINT = 0.82; // how far toward that white a body travels; 0 keeps its own colour
+
 /** The uniforms the two surface states are driven through. Held per material so
  *  each object can be at its own point between glass and solid. */
 export type SurfaceUniforms = {
@@ -112,6 +125,10 @@ export function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opa
       metalness={0}
       emissive="#0c2a30"
       emissiveIntensity={0.14}
+      // The environment was wound up so woken bodies can read as white paint
+      // (see Stage). Dormant glass has to pull back by the same factor or the
+      // whole stage brightens and the ghosts stop being ghosts.
+      envMapIntensity={ENV_GHOST}
       depthWrite={false}
       onBeforeCompile={glassRim}
     />
@@ -123,12 +140,18 @@ export function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opa
  *  bodies rest as a grey ghost (the life mechanic); companion furniture passes
  *  `ghost={false}` to rest as its plain authored glass and only change material
  *  when its hotspot is engaged. `solid` caps how opaque it becomes. */
-export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true, solid = 1 }: { slug: string; color?: string; opacity?: number; ghost?: boolean; solid?: number }) {
+export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true, solid = 1, paint = PAINT }: { slug: string; color?: string; opacity?: number; ghost?: boolean; solid?: number; paint?: number }) {
   const { selected, visited } = useActive(slug);
   const mat = useRef<MeshPhysicalMaterial>(null);
   const uni = useRef<SurfaceUniforms | null>(null);
   const k = useRef(0);
   const baseC = useMemo(() => new Color(color), [color]);
+  // Where the body ends up once it's solid: painted off-white, not the glass
+  // tint it rests at. The authored colour survives as a whisper so the objects
+  // aren't identical, but the shell reads white and the SATURATED colour in the
+  // frame belongs to the emitters — windows, cables, LEDs, the die.
+  const shellC = useMemo(() => new Color(color).lerp(SHELL, paint), [color, paint]);
+  const tmpC = useMemo(() => new Color(), []);
   const maps = useMemo(() => surfaceMaps(), []);
   // One stable hook shared by every instance (see surfaceShader) — memoised so
   // React never hands the material a new function on a re-render either.
@@ -138,7 +161,9 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
     if (!m) return;
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
     const t = k.current;
-    m.color.copy(GHOST_FILL).lerp(baseC, ghost ? 0.3 + 0.7 * t : 1);
+    // glass tint while it's a ghost, painted shell once it's solid
+    tmpC.copy(baseC).lerp(shellC, t);
+    m.color.copy(GHOST_FILL).lerp(tmpC, ghost ? 0.3 + 0.7 * t : 1);
     const rest = ghost ? opacity * 0.3 : opacity;
     m.opacity = rest + (solid - rest) * t;
 
@@ -160,7 +185,11 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
     // object must lose it completely or its shadows never close up, and shadow
     // is most of what makes a form feel like it has weight.
     m.emissiveIntensity = 0.14 * (1 - t);
-    m.envMapIntensity = 1 + 0.5 * t;
+    // The reason a product shot of a white object reads white from every angle
+    // is fill, not key. With a mostly-black stage there was none, so the painted
+    // shell measured ~(111,143,146) — mid grey — on any face not square-on to
+    // the sun. Riding the live factor keeps that lift off the ghosts.
+    m.envMapIntensity = ENV_GHOST + (ENV_LIVE - ENV_GHOST) * t;
     m.normalScale.set(0.18 * t, 0.18 * t);
     m.depthWrite = t > 0.5;
 
@@ -189,6 +218,7 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
       clearcoatRoughness={0.38}
       roughnessMap={maps?.roughness ?? null}
       normalMap={maps?.normal ?? null}
+      envMapIntensity={ENV_GHOST}
       emissive="#0c2a30"
       emissiveIntensity={0.14}
       depthWrite={false}
@@ -229,6 +259,21 @@ export function LiveEdges({ slug, threshold = 20, color = NEUTRAL, rest = 1 }: {
   return <Edges ref={ref} threshold={threshold} color={color} transparent />;
 }
 
+/** The soft box's top outline, retired as its object solidifies. A painted body
+ *  has no line around it; the form's own silhouette is the edge. */
+function LiveOutline({ slug, points, y }: { slug: string; points: V3[]; y: number }) {
+  const { selected, visited } = useActive(slug);
+  const ref = useRef<{ material?: Material } | null>(null);
+  const k = useRef(0);
+  useFrame(() => {
+    const m = ref.current?.material;
+    if (!m) return;
+    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
+    m.opacity = 0.45 * (1 - k.current);
+  });
+  return <Line ref={ref as never} points={points} position={[0, y, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />;
+}
+
 export function Accent({ position, args, intensity = 0.4, rotation, color }: { position: V3; args: V3; intensity?: number; rotation?: V3; color?: string }) {
   const { accent } = useAccent();
   const c = color ?? accent;
@@ -248,9 +293,12 @@ export function SoftBox({ position, args, radius = 0.03, opacity = 0.2, outline 
       <RoundedBox args={args} radius={r} smoothness={3}>
         {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={liveGhost} opacity={opacity} color={color} /> : <GlassMat opacity={opacity} color={color} />}
       </RoundedBox>
-      {outline && (
-        <Line points={roundedRectPts(args[0], args[2], radius * 1.6)} position={[0, args[1] / 2, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
-      )}
+      {outline &&
+        (liveSlug ? (
+          <LiveOutline slug={liveSlug} points={roundedRectPts(args[0], args[2], radius * 1.6)} y={args[1] / 2} />
+        ) : (
+          <Line points={roundedRectPts(args[0], args[2], radius * 1.6)} position={[0, args[1] / 2, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
+        ))}
     </group>
   );
 }

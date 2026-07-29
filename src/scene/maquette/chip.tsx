@@ -11,7 +11,7 @@ import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
-import { GlassMat, LiveGlassMat, SoftBox } from './materials';
+import { GlassMat, LiveEdges, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
@@ -597,7 +597,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         <mesh position={[0, 0.02, -0.09]} rotation={[0, FACET, 0]}>
           <cylinderGeometry args={[0.05, 0.058, 0.035, 8]} />
           <LiveGlassMat slug={slug} opacity={0.5} />
-          <Edges threshold={50} color={NEUTRAL} />
+          <LiveEdges slug={slug} threshold={50} />
         </mesh>
         {/* lower segment — twin plates leaning forward to the knee */}
         {[-0.026, 0.026].map((x, i) => (
@@ -610,7 +610,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         <mesh position={[0, 0.2, -0.015]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.032, 0.032, 0.064, 18]} />
           <LiveGlassMat slug={slug} opacity={0.5} />
-          <Edges threshold={30} color={NEUTRAL} />
+          <LiveEdges slug={slug} threshold={30} />
         </mesh>
         {/* upper segment — twin plates leaning back up to the grip hub */}
         {[-0.026, 0.026].map((x, i) => (
@@ -623,7 +623,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         <mesh position={[0, 0.355, -0.075]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.028, 0.028, 0.058, 18]} />
           <LiveGlassMat slug={slug} opacity={0.5} />
-          <Edges threshold={30} color={NEUTRAL} />
+          <LiveEdges slug={slug} threshold={30} />
         </mesh>
         <mesh position={[0, 0.358, -0.036]}>
           <boxGeometry args={[0.026, 0.02, 0.1]} />
@@ -668,7 +668,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                 <mesh position={[0, 0, -0.01]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.054, 0.06, 0.2, 8]} />
                   <LiveGlassMat slug={slug} opacity={0.44} />
-                  <Edges threshold={50} color={NEUTRAL} />
+                  <LiveEdges slug={slug} threshold={50} />
                 </mesh>
                 {/* back cap */}
                 <mesh position={[0, 0, -0.12]} rotation={[Math.PI / 2, FACET, 0]}>
@@ -679,7 +679,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                 <mesh position={[0, 0, 0.135]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.062, 0.058, 0.075, 8, 1, true]} />
                   <LiveGlassMat slug={slug} opacity={0.32} />
-                  <Edges threshold={50} color={NEUTRAL} />
+                  <LiveEdges slug={slug} threshold={50} />
                 </mesh>
                 {/* dark lens recess + the glass element that lights up */}
                 <mesh position={[0, 0, 0.104]} rotation={[Math.PI / 2, FACET, 0]}>

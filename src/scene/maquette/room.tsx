@@ -11,7 +11,7 @@ import { useTweak } from '../devTweak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, bounceObject, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
-import { GlassMat, LiveGlassMat, SoftBox } from './materials';
+import { GlassMat, LiveEdges, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
 
 const PHONE_BALLS = 6;
@@ -417,7 +417,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         <mesh position={[0, 0.18, 0]}>
           <cylinderGeometry args={[0.32, 0.32, 0.03, 40]} />
           <LiveGlassMat slug="lightship-drive" opacity={0.2} />
-          <Edges threshold={30} color={NEUTRAL} />
+          <LiveEdges slug="lightship-drive" threshold={30} />
         </mesh>
         {([[0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2]] as [number, number][]).map(([lx, lz], i) => (
           <mesh key={i} position={[lx, 0.09, lz]}>
