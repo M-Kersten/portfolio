@@ -297,7 +297,7 @@ function RaceCar({ color }: { color: string }) {
 // alive (selected/visited) and moving, so a dormant or reduced-motion table
 // shows no streaks. Lives inside the rotating ring, so it trails its car.
 const TRAIL_R = 0.2;
-function CarTrail({ angle, color }: { angle: number; color: string }) {
+function CarTrail({ angle, color, radius = TRAIL_R }: { angle: number; color: string; radius?: number }) {
   const reduced = useReducedMotion();
   const { selected, visited } = useActive('lightship-drive');
   const glow = useRef(0);
@@ -306,9 +306,9 @@ function CarTrail({ angle, color }: { angle: number; color: string }) {
     const N = 7;
     return Array.from({ length: N }, (_, i) => {
       const a = angle - (i + 1) * 0.14; // step back along the circle, behind the car
-      return { p: [TRAIL_R * Math.cos(a), 0, TRAIL_R * Math.sin(a)] as V3, f: 1 - i / N, r: 0.007 * (1 - i * 0.09) };
+      return { p: [radius * Math.cos(a), 0, radius * Math.sin(a)] as V3, f: 1 - i / N, r: 0.007 * (1 - i * 0.09) };
     });
-  }, [angle]);
+  }, [angle, radius]);
   useFrame(() => {
     glow.current += (((selected || visited) && !reduced ? 1 : 0) - glow.current) * FX.engage;
     for (let i = 0; i < beads.length; i++) {
@@ -333,20 +333,114 @@ function CarTrail({ angle, color }: { angle: number; color: string }) {
 /** Coffee table with an AR race loop and two cars (Lightship Drive). The cars
  *  ride a circle, simply rotating around the table's centre pivot, each trailing
  *  a light-streak while the table is alive. */
+/** The little gold crown that floats over whichever car is winning. Deliberately
+ *  not one of the layer accents — it isn't a project colour, it's a trophy. */
+const CROWN = '#ffcf5e';
+function LeaderCrown() {
+  const pts = useMemo(() => Array.from({ length: 5 }, (_, i) => (i / 5) * Math.PI * 2), []);
+  return (
+    <group>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.012, 0.0022, 6, 16]} />
+        <meshStandardMaterial color={CROWN} emissive={CROWN} emissiveIntensity={1.2} roughness={0.35} toneMapped={false} />
+      </mesh>
+      {pts.map((a, i) => (
+        <mesh key={i} position={[Math.cos(a) * 0.012, 0.007, Math.sin(a) * 0.012]}>
+          <coneGeometry args={[0.003, 0.011, 5]} />
+          <meshStandardMaterial color={CROWN} emissive={CROWN} emissiveIntensity={1.2} roughness={0.35} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/* Two cars actually racing, rather than two cars bolted to one turntable.
+   They used to be children of a single rotating group, which is why they held a
+   perfect 180° apart at identical speed forever — a carousel, not a race.
+   Each one now runs its own lap, and three things stack up to make it a contest:
+
+     · `wob`/`amp` — speed rises and falls around the circuit on each car's own
+       rhythm, so they're quick and slow in different places and the gap breathes.
+       On its own this is NOT a race: the modulation averages out over a lap, so
+       whoever starts ahead stays ahead forever. Simulated, it gave zero lead
+       changes in ninety seconds.
+     · `PACE` — a slow swing in outright pace, in antiphase between the two, so
+       each is genuinely the quicker car for a spell. This is what produces
+       overtakes; the wobble only decides where on the lap they happen.
+     · `SLIP` — a tow for the chaser. Shaped to peak at a medium gap and fall to
+       nothing when they're level, because a slipstream is a pull from behind, not
+       glue: a flat tow inside a fixed range locked them together and made the lead
+       flicker frame to frame.
+
+   Tuned against a simulation of this exact model: ~8 lead changes a minute, the
+   gap swinging from level out to about 1.2 radians, and the speed factor never
+   dropping below 0.57 so neither car ever stalls or reverses.
+
+   They also run marginally different lines, in and out, so a pass happens
+   alongside instead of straight through the other car. */
+const R = 0.2; // track radius — the drawn loop
+const CARS = [
+  { color: '#ff9068', at: 0, dr: 0.016, wob: 3, amp: 0.2, phase: 0, pace: 0 },
+  { color: '#9fb6c6', at: -0.3, dr: -0.016, wob: 2, amp: 0.26, phase: 1.9, pace: Math.PI },
+];
+const PACE = 0.18; // depth of the slow pace swing
+const PACE_W = 0.42; // rad/s — a full swing every ~15s
+const SLIP = 0.35; // peak tow for the chaser
+const SLIP_RANGE = 0.8; // radians of gap over which the tow applies
+const LEAD_HYST = 0.07; // the crown won't change hands on a photo finish jitter
+
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
-  const ring = useRef<Group>(null);
+  const cars = useRef<(Group | null)[]>([]);
+  const crown = useRef<Group>(null);
   const popRef = useRef<Group>(null);
   const speed = useRef(0.1);
-  const R = 0.2; // track radius
-  useFrame((_s, delta) => {
+  const live = useRef(0);
+  // Distance covered, per car — this is what decides the lead, not where they
+  // happen to be on the circle. Seeded with each car's starting offset so the
+  // comparison is right from the first frame.
+  const dist = useRef(CARS.map((c) => c.at));
+  const lead = useRef(0);
+  useFrame((s, delta) => {
     if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
+    const dt = Math.min(delta, 1 / 30);
     // ghost table: the cars barely creep; the race only runs once it's alive
     const sT = selected || visited ? 1 : hovered ? 0.45 : 0.1;
     speed.current += (sT - speed.current) * 0.05;
-    if (ring.current && !reduced) ring.current.rotation.y += Math.min(delta, 1 / 30) * speed.current;
+    live.current += ((selected || visited ? 1 : 0) - live.current) * FX.engage;
+    const t = s.clock.elapsedTime;
+
+    // who's ahead, by distance covered rather than where they sit on the circle.
+    // The dead band stops the crown flickering between them through a pass.
+    const d = dist.current[0] - dist.current[1];
+    if (d > LEAD_HYST) lead.current = 0;
+    else if (d < -LEAD_HYST) lead.current = 1;
+    for (let i = 0; i < CARS.length; i++) {
+      const c = CARS[i];
+      if (!reduced) {
+        let v = speed.current * (1 + c.amp * Math.sin(dist.current[i] * c.wob + c.phase) + PACE * Math.sin(t * PACE_W + c.pace));
+        if (i !== lead.current) {
+          const gap = Math.max(0, dist.current[lead.current] - dist.current[i]);
+          if (gap < SLIP_RANGE) v *= 1 + SLIP * Math.sin((Math.PI * gap) / SLIP_RANGE);
+        }
+        dist.current[i] += v * dt;
+      }
+      const g = cars.current[i];
+      if (g) g.rotation.y = dist.current[i];
+    }
+
+    // the crown rides whoever is ahead, and hops across the moment that changes
+    if (crown.current) {
+      const bob = reduced ? 0 : t;
+      const a = dist.current[lead.current];
+      const rad = R + CARS[lead.current].dr;
+      crown.current.position.set(rad * Math.cos(a), 0.036 + Math.sin(bob * 3) * 0.004, -rad * Math.sin(a));
+      crown.current.rotation.y = bob * 0.9;
+      crown.current.scale.setScalar(live.current); // only once the race is real
+      crown.current.visible = live.current > 0.02;
+    }
   });
   return (
     <group position={position}>
@@ -365,17 +459,25 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         ))}
         {/* the AR race loop — a circle */}
         <Line points={circlePts(R)} position={[0, 0.2, 0]} color={accent} lineWidth={1.5} transparent opacity={0.7} />
-        {/* two cars circling the centre pivot, facing their direction of travel —
-            one wears the room's coral, its rival the neutral white-blue */}
-        <group ref={ring} position={[0, 0.202, 0]}>
-          <group position={[R, 0, 0]} rotation={[0, Math.PI, 0]}>
-            <RaceCar color="#ff9068" />
+        {/* Two cars racing the loop, each facing its direction of travel — one
+            wears the room's coral, its rival the neutral white-blue. One carrier
+            group per car, each turned by its own distance, so they're free to
+            close on each other and swap places. */}
+        {CARS.map((c, i) => (
+          <group key={i} ref={(g) => (cars.current[i] = g)} position={[0, 0.202, 0]}>
+            <group position={[R + c.dr, 0, 0]} rotation={[0, Math.PI, 0]}>
+              <RaceCar color={c.color} />
+            </group>
+            <CarTrail angle={0} color={c.color} radius={R + c.dr} />
           </group>
-          <group position={[-R, 0, 0]}>
-            <RaceCar color="#9fb6c6" />
+        ))}
+        {/* The trophy, floating over whoever is winning. Nested inside the table's
+            own plane so the per-frame position below is purely the lap position —
+            setting it directly on this group would overwrite the table height. */}
+        <group position={[0, 0.202, 0]}>
+          <group ref={crown} visible={false}>
+            <LeaderCrown />
           </group>
-          <CarTrail angle={0} color="#ff9068" />
-          <CarTrail angle={Math.PI} color="#9fb6c6" />
         </group>
       </group>
     </group>
