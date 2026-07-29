@@ -810,7 +810,7 @@ export function ChipRig() {
           and the package read as a cushion rather than a moulded slab. */}
       <LifeGroup slug="amsterdam-ai">
         <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.03} outline liveSlug="amsterdam-ai" />
-        <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
+        <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.045, 0.4]} rest={0.25} peak={0.85} liveColor="#ffcf5e" />
         <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.175, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
       </LifeGroup>
 
