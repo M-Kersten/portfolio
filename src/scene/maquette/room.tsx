@@ -292,47 +292,6 @@ function RaceCar({ color }: { color: string }) {
   );
 }
 
-// A fading comet-tail behind a car — a string of beads on the race circle,
-// brightest at the car and dying out behind it. Only lit while the table is
-// alive (selected/visited) and moving, so a dormant or reduced-motion table
-// shows no streaks. Lives inside the rotating ring, so it trails its car.
-const TRAIL_R = 0.2;
-function CarTrail({ angle, color, radius = TRAIL_R }: { angle: number; color: string; radius?: number }) {
-  const reduced = useReducedMotion();
-  const { selected, visited } = useActive('lightship-drive');
-  const glow = useRef(0);
-  const mats = useRef<(MeshStandardMaterial | null)[]>([]);
-  const beads = useMemo(() => {
-    const N = 7;
-    return Array.from({ length: N }, (_, i) => {
-      const a = angle - (i + 1) * 0.14; // step back along the circle, behind the car
-      return { p: [radius * Math.cos(a), 0, radius * Math.sin(a)] as V3, f: 1 - i / N, r: 0.007 * (1 - i * 0.09) };
-    });
-  }, [angle, radius]);
-  useFrame(() => {
-    glow.current += (((selected || visited) && !reduced ? 1 : 0) - glow.current) * FX.engage;
-    for (let i = 0; i < beads.length; i++) {
-      const m = mats.current[i];
-      if (!m) continue;
-      m.emissiveIntensity = beads[i].f * 1.7 * glow.current;
-      m.opacity = FX.peak * beads[i].f * glow.current;
-    }
-  });
-  return (
-    <group>
-      {beads.map((b, i) => (
-        <mesh key={i} position={b.p}>
-          <sphereGeometry args={[b.r, 8, 8]} />
-          <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={color} emissive={color} emissiveIntensity={0} transparent opacity={0} toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-/** Coffee table with an AR race loop and two cars (Lightship Drive). The cars
- *  ride a circle, simply rotating around the table's centre pivot, each trailing
- *  a light-streak while the table is alive. */
 /** The little gold crown that floats over whichever car is winning. Deliberately
  *  not one of the layer accents — it isn't a project colour, it's a trophy. */
 const CROWN = '#ffcf5e';
@@ -362,31 +321,38 @@ function LeaderCrown() {
      · `wob`/`amp` — speed rises and falls around the circuit on each car's own
        rhythm, so they're quick and slow in different places and the gap breathes.
        On its own this is NOT a race: the modulation averages out over a lap, so
-       whoever starts ahead stays ahead forever. Simulated, it gave zero lead
-       changes in ninety seconds.
+       whoever starts ahead stays ahead forever.
      · `PACE` — a slow swing in outright pace, in antiphase between the two, so
-       each is genuinely the quicker car for a spell. This is what produces
-       overtakes; the wobble only decides where on the lap they happen.
-     · `SLIP` — a tow for the chaser. Shaped to peak at a medium gap and fall to
-       nothing when they're level, because a slipstream is a pull from behind, not
-       glue: a flat tow inside a fixed range locked them together and made the lead
-       flicker frame to frame.
+       each is genuinely the quicker car for a spell. This is what opens a gap and
+       then closes it again; the wobble only decides where on the lap they meet.
+     · `CATCH` — a catch-up band on whoever is behind, growing with the gap and
+       worth nothing at all when they're level.
 
-   Tuned against a simulation of this exact model: ~8 lead changes a minute, the
-   gap swinging from level out to about 1.2 radians, and the speed factor never
-   dropping below 0.57 so neither car ever stalls or reverses.
+   That last one used to be a slipstream — a tow that peaked just off the leader's
+   tail — and it was wrong twice over. It parked the chaser on the leader's bumper
+   (simulated: half the time inside a third of a radian, a pass every 7 seconds),
+   and being open-loop it left the race at the mercy of the clock: the pace swing
+   runs off `elapsedTime`, so depending on when the table was woken the gap could
+   settle anywhere, and at four of eight wake phases the cars never traded places
+   at all. Pushing from behind instead of pulling from the front fixes both — the
+   band is a restoring force, so the gap is centred on zero no matter when you
+   arrive, and nothing holds them together through the pass.
+
+   Simulated across wake phases: a pass every ~19s, typical separation a fifth of
+   the lap and up to a third at the peaks, only ~12% of the time nose-to-tail, and
+   the speed factor never below 0.59 so neither car stalls or reverses.
 
    They also run marginally different lines, in and out, so a pass happens
    alongside instead of straight through the other car. */
 const R = 0.2; // track radius — the drawn loop
 const CARS = [
   { color: '#ff9068', at: 0, dr: 0.016, wob: 3, amp: 0.2, phase: 0, pace: 0 },
-  { color: '#9fb6c6', at: -0.3, dr: -0.016, wob: 2, amp: 0.26, phase: 1.9, pace: Math.PI },
+  { color: '#9fb6c6', at: -1.8, dr: -0.016, wob: 2, amp: 0.26, phase: 1.9, pace: Math.PI },
 ];
-const PACE = 0.18; // depth of the slow pace swing
-const PACE_W = 0.42; // rad/s — a full swing every ~15s
-const SLIP = 0.35; // peak tow for the chaser
-const SLIP_RANGE = 0.8; // radians of gap over which the tow applies
+const PACE = 0.17; // depth of the slow pace swing
+const PACE_W = 0.175; // rad/s — a full swing every ~36s, so a pass is an event
+const CATCH = 0.07; // how hard a dropped car pushes on, per radian of gap
+const CATCH_CAP = 6; // never let the band become a rocket if the gap ever runs away
 const LEAD_HYST = 0.07; // the crown won't change hands on a photo finish jitter
 
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
@@ -422,8 +388,10 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       if (!reduced) {
         let v = speed.current * (1 + c.amp * Math.sin(dist.current[i] * c.wob + c.phase) + PACE * Math.sin(t * PACE_W + c.pace));
         if (i !== lead.current) {
-          const gap = Math.max(0, dist.current[lead.current] - dist.current[i]);
-          if (gap < SLIP_RANGE) v *= 1 + SLIP * Math.sin((Math.PI * gap) / SLIP_RANGE);
+          // pushing on from behind, not being towed along in front: zero at the
+          // pass, so they're free to come apart again on the other side of it
+          const gap = Math.min(CATCH_CAP, Math.max(0, dist.current[lead.current] - dist.current[i]));
+          v *= 1 + CATCH * gap;
         }
         dist.current[i] += v * dt;
       }
@@ -468,7 +436,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
             <group position={[R + c.dr, 0, 0]} rotation={[0, Math.PI, 0]}>
               <RaceCar color={c.color} />
             </group>
-            <CarTrail angle={0} color={c.color} radius={R + c.dr} />
           </group>
         ))}
         {/* The trophy, floating over whoever is winning. Nested inside the table's
