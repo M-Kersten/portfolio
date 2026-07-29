@@ -4,14 +4,9 @@
 // EmissiveHover is the glowing-accent variant for screens/lights.
 import { useMemo, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { RoundedBox } from '@react-three/drei';
-import { Color, MeshStandardMaterial, Vector2, type Group, type Material, type Mesh, type MeshPhysicalMaterial } from 'three';
+import { Color, MeshStandardMaterial, type Group, type Material, type Mesh } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useAccent, useActive, bounceObject, type V3 } from './shared';
-import { surfaceMaps } from './surface';
-
-// Shared so the die's bump vector isn't reallocated on every render.
-const DIE_BUMP = new Vector2(0.12, 0.12);
 
 /* ---------- The life system — you give the world its colour ----------
    Every interactive object starts as a DORMANT GHOST: a faint monochrome
@@ -137,7 +132,7 @@ export function EmissiveHover({ slug, position, rotation, args, color, liveColor
   const col = color ?? accent;
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
-  const mat = useRef<MeshPhysicalMaterial>(null);
+  const mat = useRef<MeshStandardMaterial>(null);
   const meshRef = useRef<Mesh>(null);
   const k = useRef(0);
   const live = useRef(0);
@@ -167,33 +162,11 @@ export function EmissiveHover({ slug, position, rotation, args, color, liveColor
     mat.current.color.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);
     mat.current.emissive.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);
   });
-  const maps = useMemo(() => surfaceMaps(), []);
-  // A bevel, not a hard box. The die is the biggest lit face in the maquette and
-  // the only thing that stops a lit face reading as a flat cut-out is a rounded
-  // edge for the light to travel around.
-  const r = Math.min(0.014, Math.min(args[0], args[1], args[2]) / 2 - 0.002);
   return (
-    <RoundedBox ref={meshRef} args={args} radius={r} smoothness={3} position={position} rotation={rotation}>
-      {/* toneMapped stays ON here. Off is right for a pinprick LED — you *want*
-          it to clip and bloom — but this face is 0.4 across, and unmapped it
-          plateaued at pure white over its whole area: no gradient, no edge, no
-          form. Through the filmic curve the same intensity rolls off instead, so
-          the face keeps a falloff and the bevel still reads. */}
-      <meshPhysicalMaterial
-        ref={mat}
-        userData={{ lifeSkip: true }}
-        color={col}
-        emissive={col}
-        emissiveIntensity={rest}
-        roughness={0.42}
-        metalness={0}
-        clearcoat={0.45}
-        clearcoatRoughness={0.25}
-        roughnessMap={maps?.roughness ?? null}
-        normalMap={maps?.normal ?? null}
-        normalScale={DIE_BUMP}
-      />
-    </RoundedBox>
+    <mesh ref={meshRef} position={position} rotation={rotation}>
+      <boxGeometry args={args} />
+      <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={col} emissive={col} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
+    </mesh>
   );
 }
 

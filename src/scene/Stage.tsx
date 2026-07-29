@@ -54,13 +54,8 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
     if (reduced) air.copy(tmp);
     else air.lerp(tmp, 0.045);
 
-    // The fills used to fall away almost completely on select, because the thing
-    // you'd picked was emissive and needed to stay the brightest object in frame.
-    // A woken object isn't emissive any more — it's shaded plastic — so cutting
-    // the key light now just leaves it in the dark. Enough of a drop remains to
-    // pool attention on the pick; what's left is the light that models the form.
-    if (hemi.current) hemi.current.intensity = 0.35 * (1 - 0.34 * k);
-    if (dir1.current) dir1.current.intensity = 1.1 * (1 - 0.2 * k);
+    if (hemi.current) hemi.current.intensity = 0.35 * (1 - 0.72 * k);
+    if (dir1.current) dir1.current.intensity = 1.1 * (1 - 0.66 * k);
     if (dir2.current) {
       dir2.current.intensity = 0.5 + 0.4 * k; // the accent rim grows on select
       dir2.current.color.copy(air); // the rim light itself carries the layer air
@@ -122,18 +117,11 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
 
       {/* Reflections come almost entirely from this procedural environment; kept
           gentle so glossy surfaces catch a soft sheen rather than a hot mirror
-          blob. Lifted from where it was: a woken object carries a clearcoat now,
-          and a clearcoat with nothing to reflect is just a slightly brighter
-          surface — the sheen sliding across the form as you orbit is most of what
-          makes it read as a real moulded thing. The narrow top former is the
-          softbox that gives it a highlight to travel along — broad and weak on
-          purpose, because a narrow bright one mirrors off the big flat surfaces
-          (the coffee table, the PCB) as a hard clipped streak. */}
+          blob. */}
       <Environment resolution={256} frames={1}>
-        <Lightformer intensity={0.8} position={[5, 6, 4]} scale={9} color="#cfe0ff" />
-        <Lightformer intensity={0.5} position={[-6, 3, -4]} scale={9} color="#27e8f2" />
-        <Lightformer intensity={0.34} position={[3, 2, -6]} scale={8} color="#a89eff" />
-        <Lightformer intensity={0.5} position={[0, 7, 1]} scale={[11, 2.6, 1]} color="#ffffff" />
+        <Lightformer intensity={0.55} position={[5, 6, 4]} scale={9} color="#cfe0ff" />
+        <Lightformer intensity={0.4} position={[-6, 3, -4]} scale={9} color="#27e8f2" />
+        <Lightformer intensity={0.28} position={[3, 2, -6]} scale={8} color="#a89eff" />
         <Lightformer intensity={0.3} position={[0, -5, 0]} scale={12} color="#0a0d10" />
       </Environment>
 
