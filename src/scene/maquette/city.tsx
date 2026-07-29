@@ -752,9 +752,18 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
               </mesh>
             );
           })}
-        {/* a light-band that rises up the shaft while engaged (driven above) */}
+        {/* A light-band that rises up the shaft while engaged (driven above).
+            `renderOrder` is the fix for it flicking between in-front-of and
+            behind the tower as the camera moved: the band and the shaft are both
+            transparent, and both their centroids sit on the tower's own axis, so
+            their distances to the camera are near enough identical that three's
+            back-to-front sort flipped the pair depending on the viewing angle —
+            whichever drew second won. Forcing the band to draw after the shaft
+            settles it, and because the shaft writes depth once it's alive the
+            band's far arc is then correctly rejected: you see the near side wrap
+            the tower, the same way from every angle. */}
         <group ref={surge}>
-          <mesh>
+          <mesh renderOrder={2}>
             <cylinderGeometry args={[TOWER_R_BOT + SURGE_CLEAR, TOWER_R_BOT + SURGE_CLEAR, 0.03, TOWER_SIDES, 1, true]} />
             <meshStandardMaterial ref={surgeMat} color={accent} emissive={accent} emissiveIntensity={1.4} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} userData={{ lifeSkip: true }} />
           </mesh>
