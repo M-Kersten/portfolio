@@ -504,17 +504,19 @@ const CAM_PAN_RATE = 0.23;
 // Looking up lifts the head a little: the tilt and the rise are one movement, so
 // the bob is derived from the pitch rather than being its own free-running sine.
 const CAM_BOB_PER_RAD = 0.1;
-/* The wake nod, fired when the hologram appears. A damped oscillation rather than
-   a smooth there-and-back: the head snaps up, overshoots, and wobbles down onto
-   the target. The settle is what sells it as a physical head on a sprung arm
-   instead of a value being interpolated — a symmetric curve arrives with no
-   weight at all. No anticipation wind-up before it, deliberately: this is a
-   REACTION to something appearing, and reactions don't telegraph.
-   Amplitude decays as exp(-DAMP*u), so the swings run ~19° → 5° → 1.4°. */
-const NOD_KICK = 0.6; // scales the whole gesture; the decay makes the first swing ~19°
-const NOD_FREQ = 10.05; // rad/s (~1.6Hz) — a small, light head, not a slow boom
-const NOD_DAMP = 4.2; // three visible swings before it's done
-const NOD_SETTLE = 1.8; // s; past here the term is under 0.03°, so stop evaluating
+/* The focus rack, fired when the hologram appears: the camera hunts for focus.
+   The barrel dollies in and out along its aim while the vision cone narrows and
+   widens with it — tight when pushed in, wide when pulled back, the way a zoom
+   trades field of view for reach. The two are driven off one curve so they read
+   as a single lens action rather than two things happening near each other.
+   A damped oscillation, so it overshoots and settles rather than sliding to a
+   stop: an autofocus hunts past the mark before it locks. sin() starts at zero,
+   so the rack always grows out of the resting pose — no first-frame jump. */
+const FOCUS_FREQ = 7.0; // rad/s (~1.1Hz) — a deliberate rack, not a twitch
+const FOCUS_DAMP = 2.2; // ~three clear in-out swings before it locks
+const FOCUS_DOLLY = 0.055; // barrel travel along the aim; ~0.035 on the first swing
+const FOCUS_CONE = 0.31; // cone radius swing; ~20% tighter on the first swing
+const FOCUS_SETTLE = 2.4; // s; past here the term is negligible, so stop evaluating
 function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
@@ -528,7 +530,9 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const k = useRef(0); // lens power
   const holo = useRef(0); // hologram presence
   const scanW = useRef(0); // continuous look-around weight (alive)
-  const nodT = useRef(999); // seconds since the wake nod fired (999 = long done)
+  const focusT = useRef(999); // seconds since the focus rack fired (999 = long done)
+  const bodyRef = useRef<Group>(null); // the barrel — dollies along the aim
+  const coneRef = useRef<Group>(null); // the vision cone + rim — widens/narrows
   const wasSel = useRef(false);
   const lensC = useMemo(() => new Color('#7fe6ff'), []);
 
@@ -558,9 +562,9 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
     // selecting spawns the hologram — and it stays once visited (life mechanic)
     holo.current += (alive - holo.current) * (reduced ? 1 : 0.09);
     scanW.current += (alive - scanW.current) * 0.04;
-    if (selected && !wasSel.current && !reduced) nodT.current = 0; // rising edge
+    if (selected && !wasSel.current && !reduced) focusT.current = 0; // rising edge
     wasSel.current = selected;
-    nodT.current += delta;
+    focusT.current += delta;
     const on = k.current;
     if (lensMat.current) {
       const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.06;
@@ -568,21 +572,25 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
       lensMat.current.emissive.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * on);
       lensMat.current.emissiveIntensity = 0.05 + on * (1.0 + breathe);
     }
-    // The head: one clean lift as the hologram spawns, then a steady up-and-down
-    // look over it. The cube holds its spot (it lives outside headRef), so the
-    // beam sweeps across the tracked target as the head nods — the nod amplitude
-    // is sized to keep the cube inside the cone at the extremes.
+    // The idle: a steady up-and-down look over the cube. The cube holds its spot
+    // (it lives outside headRef), so the beam sweeps across the tracked target as
+    // the head nods — the nod amplitude is sized to keep the cube inside the cone
+    // at the extremes.
     if (headRef.current && !reduced) {
-      // Wake: the head snaps up, overshoots and wobbles onto the target (see the
-      // NOD_* constants). sin() starts at zero, so the gesture always grows out of
-      // wherever the head already is — no first-frame jump — and the exponential
-      // lands it back on the idle pitch rather than at a hard stop.
-      const u = nodT.current;
-      const perk = u < NOD_SETTLE ? -NOD_KICK * Math.exp(-NOD_DAMP * u) * Math.sin(NOD_FREQ * u) : 0;
-      const pitch = perk + scanW.current * Math.sin(t * CAM_NOD_RATE) * CAM_NOD;
+      const pitch = scanW.current * Math.sin(t * CAM_NOD_RATE) * CAM_NOD;
       headRef.current.rotation.x = pitch;
       headRef.current.rotation.y = scanW.current * Math.sin(t * CAM_PAN_RATE) * CAM_PAN;
       headRef.current.position.y = -pitch * CAM_BOB_PER_RAD; // rises as it looks up
+    }
+    // The focus rack on select (see the FOCUS_* constants): the barrel pushes in
+    // as the cone tightens, pulls back as it opens, hunting past the mark a few
+    // times before it locks. One curve drives both so it reads as one lens action.
+    const u = focusT.current;
+    const rack = u < FOCUS_SETTLE ? Math.exp(-FOCUS_DAMP * u) * Math.sin(FOCUS_FREQ * u) : 0;
+    if (bodyRef.current) bodyRef.current.position.z = FOCUS_DOLLY * rack;
+    if (coneRef.current) {
+      const w = 1 - FOCUS_CONE * rack; // scaled across the beam only, so its reach holds
+      coneRef.current.scale.set(w, w, 1);
     }
     // the projected hologram materialises out of the lens
     const h = holo.current;
@@ -691,7 +699,10 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                 <boxGeometry args={[0.034, 0.014, 0.034]} />
                 <LiveGlassMat slug={slug} opacity={0.5} />
               </mesh>
-              <group position={[0, HEAD_DROP, 0]}>
+              {/* the barrel: everything past the yoke, beam included, so the focus
+                  rack dollies the lens and its light together while the stub and
+                  yoke stay put on the grip arm */}
+              <group ref={bodyRef} position={[0, HEAD_DROP, 0]}>
                 {/* faceted bullet body — threshold 50 hides the 45° facet seams,
                     so only the octagonal rims draw (the facets read via shading) */}
                 <mesh position={[0, 0, -0.01]} rotation={[Math.PI / 2, FACET, 0]}>
@@ -722,12 +733,19 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
 
                 {/* the beam — a clean cone of light, swinging with the head */}
                 <group ref={beamRef} visible={false}>
-                  <mesh position={[0, 0, (CAM_LENS_Z + CAM_CUBE_Z) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
-                    <coneGeometry args={[CAM_CONE_R, CAM_CUBE_Z - CAM_LENS_Z, 32, 1, true]} />
-                    <meshBasicMaterial ref={coneMat} userData={{ lifeSkip: true }} color="#7fe6ff" transparent opacity={0} blending={AdditiveBlending} toneMapped={false} depthWrite={false} side={DoubleSide} />
-                  </mesh>
-                  {/* the beam's rim where it reaches the cube */}
-                  <Line points={circlePts(CAM_CONE_R, 48)} position={[0, 0, CAM_CUBE_Z]} rotation={[Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.35} />
+                  {/* Cone + rim share one group so the focus rack can scale them
+                      together. Both sit with the beam axis on local z — the cone
+                      after its -90° tilt, the rim after its +90° one — so scaling
+                      (w, w, 1) opens and closes the field without touching how
+                      far the beam throws. */}
+                  <group ref={coneRef}>
+                    <mesh position={[0, 0, (CAM_LENS_Z + CAM_CUBE_Z) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+                      <coneGeometry args={[CAM_CONE_R, CAM_CUBE_Z - CAM_LENS_Z, 32, 1, true]} />
+                      <meshBasicMaterial ref={coneMat} userData={{ lifeSkip: true }} color="#7fe6ff" transparent opacity={0} blending={AdditiveBlending} toneMapped={false} depthWrite={false} side={DoubleSide} />
+                    </mesh>
+                    {/* the beam's rim where it reaches the cube */}
+                    <Line points={circlePts(CAM_CONE_R, 48)} position={[0, 0, CAM_CUBE_Z]} rotation={[Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.35} />
+                  </group>
                 </group>
               </group>
             </group>
