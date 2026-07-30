@@ -61,6 +61,13 @@ interface SceneState {
    *  the whole field is null in the overview. Written once per selection by the
    *  CameraRig (it has the camera); read by the DOM FocusReticle. */
   reticleStart: { slug: string; pos: { x: number; y: number } | null } | null;
+  /** False for the moment right after picking a node, while CameraRig's push-in
+   *  is still travelling; true once it's arrived (or immediately, under reduced
+   *  motion / in the overview). useActive ANDs this into `selected`, so every
+   *  in-scene "coming alive" reaction — the life system, the bounce-on-select,
+   *  the bespoke per-object wake-ups — waits for the zoom rather than firing
+   *  mid-swoop. Written by CameraRig every frame; read via useActive. */
+  zoomSettled: boolean;
 }
 
 let state: SceneState = {
@@ -74,6 +81,7 @@ let state: SceneState = {
   launch: 'idle',
   introOver: false,
   reticleStart: null,
+  zoomSettled: true,
 };
 
 const listeners = new Set<() => void>();
@@ -119,6 +127,9 @@ export const sceneStore = {
   /** Record where the reticle should acquire the target (see reticleStart). */
   setReticleStart(reticleStart: SceneState['reticleStart']) {
     set({ reticleStart });
+  },
+  setZoomSettled(zoomSettled: boolean) {
+    if (zoomSettled !== state.zoomSettled) set({ zoomSettled });
   },
 };
 

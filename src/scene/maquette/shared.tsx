@@ -132,9 +132,18 @@ export function Line(props: ComponentProps<typeof DreiLine>) {
    slug from the store and eases a 0→1 value it drives its motion from. */
 export function useActive(slug: string) {
   const hovered = useSceneSelector((s) => s.hoveredSlug) === slug;
-  const selected = useSceneSelector((s) => s.selectedSlug) === slug;
+  const rawSelected = useSceneSelector((s) => s.selectedSlug) === slug;
+  // Gated on the camera's own push-in (CameraRig writes zoomSettled — see
+  // ZOOM_SETTLE there): every "coming alive" reaction in the maquette (the life
+  // system, the bounce-on-select, the bespoke per-object wake-ups below) reads
+  // `selected` from here, so gating it in this one place holds all of them
+  // back until the zoom has actually arrived, instead of materialising mid-swoop.
+  // `visited` is untouched — a revisit is already alive from frame one, nothing
+  // to delay — and nothing outside the canvas (the HUD, the hotspot markers'
+  // hide-on-open) reads this hook, so none of that timing shifts.
+  const zoomSettled = useSceneSelector((s) => s.zoomSettled);
   const visited = useSceneSelector((s) => s.visited.includes(slug));
-  return { hovered, selected, visited };
+  return { hovered, selected: rawSelected && zoomSettled, visited };
 }
 // A springy squash-and-stretch bounce on the rising edge of `selected` — the
 // picked object springs to life in place, then settles back to rest. State is

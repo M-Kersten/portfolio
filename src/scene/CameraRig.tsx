@@ -34,6 +34,12 @@ const PORTHOLE_OFFSET = 0.2;
 // over the object and locks onto it. Mirrors the hold in the fr-acquire keyframes
 // (node-hud.css) — the two are one movement and have to agree.
 const ACQUIRE_HOLD = 0.4;
+// Seconds from selection to the push-in visually settling — the acquire hold
+// above, plus how long the glide's exponential ease (k=3.4/s, below) takes to
+// close ~95% of the distance: -ln(0.05)/3.4 ≈ 0.88s. Gates store.zoomSettled,
+// which useActive ANDs into `selected` — so an object's wake animations start
+// on arrival instead of partway through the swoop in.
+const ZOOM_SETTLE = ACQUIRE_HOLD + 0.9;
 
 export function CameraRig() {
   const camera = useThree((s) => s.camera);
@@ -237,6 +243,10 @@ export function CameraRig() {
       prevSel.current = selectedSlug;
       nodeAge.current = 0;
       sway.current = 0;
+      // A fresh push-in starts unsettled; reduced motion (no glide to wait out)
+      // and the overview (no hotspot at all) have nothing to arrive at, so they
+      // count as settled from this same frame.
+      sceneStore.setZoomSettled(reduced || !hotspot);
       // Capture where the object sits on screen RIGHT NOW (camera still wide) so
       // the porthole reticle can appear ON it and fly to the ring centre as the
       // camera zooms in. Off-screen / reduced-motion → no fly-in (opens centred).
@@ -251,7 +261,10 @@ export function CameraRig() {
         sceneStore.setReticleStart(null);
       }
     }
-    if (hotspot) nodeAge.current += dt;
+    if (hotspot) {
+      nodeAge.current += dt;
+      if (nodeAge.current >= ZOOM_SETTLE) sceneStore.setZoomSettled(true);
+    }
 
     // ---- The acquire hold. The camera's glide is exponential (see the lerp at the
     // bottom: ~86% of the way in 0.6s), so if it starts the instant you select, it
