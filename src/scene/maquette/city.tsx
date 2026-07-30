@@ -12,7 +12,7 @@ import { launchTrack, sceneStore, useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useLaunchCount } from '../../lib/launches';
 import { asset } from '../../lib/asset';
-import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, bounceObject, FX, fxEnv, type V3 } from './shared';
+import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, LiveEdges, LiveGlassMat } from './materials';
 import { BlobShadow } from './backdrop';
@@ -180,12 +180,10 @@ function MillWind() {
  *  once it's been opened they keep turning. The body solidifies once visited. */
 function Windmill({ position, slug }: { position: V3; slug?: string }) {
   const sails = useRef<Group>(null);
-  const popRef = useRef<Group>(null);
   const reduced = useReducedMotion();
   const { hovered, selected, visited } = useActive(slug ?? '');
   const spin = useRef(0);
   useFrame((_s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
     // still at idle; turns slowly once engaged (hover or select) and keeps turning
     // once opened — no fast spin-up on select
     const target = hovered || selected || visited ? 0.9 : 0;
@@ -195,7 +193,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
   return (
     <group position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.38} />
-      <group ref={popRef}>
+      <group>
       {/* Grassy mound. Every part of the mill uses LiveGlassMat, not GlassMat:
           only the body did before, so waking the windmill solidified the tower
           and left the cap, sails and mound as faint glass — the silhouette still
@@ -583,8 +581,6 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
   const { accent } = useAccent();
   const { selected, visited } = useActive(slug ?? '');
   const live = selected || visited;
-  const reduced = useReducedMotion();
-  const popRef = useRef<Group>(null);
   // an irregular lake outline + its filled water shape
   const lake = useMemo(() => {
     const pts = blobPts(0.2, 0.5, 56, 13);
@@ -593,13 +589,12 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
     for (let i = 1; i < pts.length; i++) shape.lineTo(pts[i][0], pts[i][2]);
     return { geo: new ShapeGeometry(shape), shore: pts.map((p) => [p[0], 0, -p[2]] as V3) };
   }, []);
-  useFrame((_s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, 0.14);
+  useFrame((_s) => {
   });
   return (
     <group position={position}>
       <BlobShadow position={[0, 0.003, 0]} radius={0.68} opacity={0.34} />
-      <group ref={popRef}>
+      <group>
       <mesh position={[0, 0.012, 0]}>
         <cylinderGeometry args={[0.5, 0.5, 0.02, 44]} />
         <LiveGlassMat slug="arcam" color="#3e6459" opacity={0.15} />
@@ -706,7 +701,6 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   const { selected, visited } = useActive('alliander-hololens');
   const beacon = useRef<MeshStandardMaterial>(null);
   const reduced = useReducedMotion();
-  const popRef = useRef<Group>(null);
   const surge = useRef<Group>(null); // a light-band that rises up the shaft
   const surgeMat = useRef<MeshStandardMaterial>(null);
   const lifeK = useRef(0);
@@ -716,8 +710,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   const finTilt = Math.atan2(TOWER_R_BOT - TOWER_R_TOP, TOWER_H);
   const finR = (TOWER_R_BOT + TOWER_R_TOP) / 2;
   const rAt = towerR; // the shared taper — the cables attach off the same curve
-  useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, 0.18);
+  useFrame((s) => {
     if (!beacon.current) return;
     const t = reduced ? 0 : s.clock.elapsedTime;
     // the beacon barely smoulders on the ghost tower; it starts pulsing in
@@ -745,7 +738,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
   return (
     <group position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.34} opacity={0.45} />
-      <group ref={popRef}>
+      <group>
         {/* one continuous tapered octagonal shaft — the same frosted glass as
             the rest of the scene, set apart by its shape; ghost grey until the
             hotspot is visited, then it solidifies */}

@@ -9,7 +9,7 @@ import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, bounceObject, FX, fxEnv, type V3 } from './shared';
+import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
 import { GlassMat, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
@@ -49,7 +49,6 @@ function traceObject(points: V3[], hex: string) {
 function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
-  const popRef = useRef<Group>(null);
   const screenMat = useRef<MeshStandardMaterial>(null);
   const blip = useRef<Mesh>(null);
   const trailRefs = useRef<(Mesh | null)[]>([]); // phosphor beads lagging the sweep
@@ -90,8 +89,7 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
     return 0;
   };
 
-  useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
+  useFrame((s) => {
     const t = s.clock.elapsedTime;
     k.current += ((hovered || selected ? 1 : visited ? 0.5 : 0) - k.current) * 0.12;
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
@@ -131,7 +129,7 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
 
   return (
     <group position={position}>
-      <group ref={popRef}>
+      <group>
         {/* base pad on the board */}
         <SoftBox position={[0, 0.035, 0.02]} args={[0.36, 0.05, 0.16]} radius={0.02} opacity={0.34} liveSlug={slug} />
         {/* the monitor unit, tilted to face up-and-forward */}
@@ -494,7 +492,6 @@ const HEAD_DROP = -0.08; // head centre, hanging below the grip pivot
 function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
-  const popRef = useRef<Group>(null);
   const headRef = useRef<Group>(null);
   const lensMat = useRef<MeshStandardMaterial>(null);
   const coneMat = useRef<MeshBasicMaterial>(null);
@@ -529,7 +526,6 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   }, []);
 
   useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
     const t = s.clock.elapsedTime;
     const alive = selected || visited ? 1 : 0;
     k.current += (alive - k.current) * 0.12;
@@ -588,7 +584,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
 
   return (
     <group position={position} rotation={[0, aimYaw, 0]}>
-      <group ref={popRef}>
+      <group>
         {/* ---- the leg stand: base puck → knee joint → overhead grip ----
             Line discipline: only the round joints keep rim edges (threshold 30,
             like the board's other cylinders); plates and boxes go edge-free so

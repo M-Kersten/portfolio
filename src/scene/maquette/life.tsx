@@ -6,7 +6,7 @@ import { useContext, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Color, MeshStandardMaterial, type Group, type Material, type Mesh } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { useAccent, useActive, bounceObject, type V3 } from './shared';
+import { useAccent, useActive, type V3 } from './shared';
 import { PresenceCtx } from './presence';
 
 /* ---------- The life system — you give the world its colour ----------
@@ -143,14 +143,12 @@ export function EmissiveHover({ slug, position, rotation, args, color, liveColor
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
-  const meshRef = useRef<Mesh>(null);
   const k = useRef(0);
   const live = useRef(0);
   const base = useMemo(() => new Color(col), [col]);
   const lifelike = useMemo(() => new Color(liveColor ?? col), [liveColor, col]);
   const presence = useContext(PresenceCtx);
-  useFrame((s, delta) => {
-    if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta);
+  useFrame((s) => {
     if (!mat.current) return;
     // select → full on, and it stays on once visited; otherwise off (no hover)
     const kT = selected || visited ? 1 : 0;
@@ -174,7 +172,7 @@ export function EmissiveHover({ slug, position, rotation, args, color, liveColor
     mat.current.emissive.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);
   });
   return (
-    <mesh ref={meshRef} position={position} rotation={rotation}>
+    <mesh position={position} rotation={rotation}>
       <boxGeometry args={args} />
       <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={col} emissive={col} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
     </mesh>

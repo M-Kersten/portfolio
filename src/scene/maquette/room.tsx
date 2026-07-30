@@ -9,7 +9,7 @@ import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { useTweak } from '../devTweak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { NEUTRAL, useAccent, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, bounceObject, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
+import { NEUTRAL, useAccent, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { GlassMat, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
@@ -208,14 +208,12 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const mat = useRef<MeshStandardMaterial>(null);
-  const meshRef = useRef<Mesh>(null);
   const k = useRef(0);
   const shown = useRef(false);
   const tex = useOptionalTexture('/textures/room-screen.jpg');
   const live = useRef(0);
   const accentC = useMemo(() => new Color(accent), [accent]);
-  useFrame((s, delta) => {
-    if (meshRef.current) bounceObject(meshRef.current, selected, reduced, delta);
+  useFrame((s) => {
     const m = mat.current;
     if (!m) return;
     k.current += ((hovered || selected ? 1 : visited ? 0.42 : 0) - k.current) * 0.3;
@@ -245,7 +243,7 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
     }
   });
   return (
-    <mesh ref={meshRef} position={position} rotation={rotation}>
+    <mesh position={position} rotation={rotation}>
       <boxGeometry args={args} />
       <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.3} roughness={0.4} toneMapped={false} />
     </mesh>
@@ -361,7 +359,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const reduced = useReducedMotion();
   const cars = useRef<(Group | null)[]>([]);
   const crown = useRef<Group>(null);
-  const popRef = useRef<Group>(null);
   const speed = useRef(0.1);
   const live = useRef(0);
   // Distance covered, per car — this is what decides the lead, not where they
@@ -370,7 +367,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const dist = useRef(CARS.map((c) => c.at));
   const lead = useRef(0);
   useFrame((s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta);
     const dt = Math.min(delta, 1 / 30);
     // ghost table: the cars barely creep; the race only runs once it's alive
     const sT = selected || visited ? 1 : hovered ? 0.45 : 0.1;
@@ -413,7 +409,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   return (
     <group position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.4} />
-      <group ref={popRef}>
+      <group>
         <mesh position={[0, 0.18, 0]}>
           <cylinderGeometry args={[0.32, 0.32, 0.03, 40]} />
           <LiveGlassMat slug="lightship-drive" opacity={0.2} />
@@ -981,10 +977,7 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
   const { hovered, selected, visited } = useActive('zwijsen-ar-books');
   const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
   const lit = useRef(0);
-  const reduced = useReducedMotion();
-  const popRef = useRef<Group>(null);
-  useFrame((_s, delta) => {
-    if (popRef.current) bounceObject(popRef.current, selected, reduced, delta, 0.1);
+  useFrame((_s) => {
     const t = hovered || selected ? 1 : visited ? 0.3 : 0;
     lit.current += (t - lit.current) * 0.1;
     const e = 0.1 + lit.current * 0.7;
@@ -993,7 +986,7 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
   return (
     <group position={position} rotation={rotation}>
       <BlobShadow position={[0, 0.004, 0.04]} radius={0.52} aspect={0.55} opacity={0.4} />
-      <group ref={popRef}>
+      <group>
       {/* case frame: back, sides, top, base — solidifies once the book is opened */}
       <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} liveSlug="zwijsen-ar-books" liveGhost={false} />
       <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />

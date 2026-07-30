@@ -102,7 +102,14 @@ export const sceneStore = {
     if (journeyStep !== state.journeyStep) set({ journeyStep });
   },
   setSelected(selectedSlug: string | null) {
-    if (selectedSlug !== state.selectedSlug) set({ selectedSlug });
+    if (selectedSlug === state.selectedSlug) return;
+    // zoomSettled is latched here, in the SAME update as the selection — never a
+    // frame later by the CameraRig. When the rig owned both edges there was a
+    // one-frame window where consumers saw selected=true against a settled flag
+    // still left true by the overview, so every wake animation fired at once,
+    // got yanked back when the rig caught up, then fired AGAIN after the delay.
+    // The rig now only ever releases it (see ZOOM_SETTLE there).
+    set({ selectedSlug, zoomSettled: selectedSlug === null });
   },
   setHovered(hoveredSlug: string | null) {
     if (hoveredSlug !== state.hoveredSlug) set({ hoveredSlug });

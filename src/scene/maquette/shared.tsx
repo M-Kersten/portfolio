@@ -4,7 +4,7 @@
 // what's already available.
 import { createContext, useContext, useEffect, useState, type ComponentProps } from 'react';
 import { Line as DreiLine } from '@react-three/drei';
-import { CatmullRomCurve3, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Object3D, type Texture } from 'three';
+import { CatmullRomCurve3, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Texture } from 'three';
 import { type LayerId } from '../framing';
 import { useSceneSelector } from '../store';
 import { asset } from '../../lib/asset';
@@ -145,23 +145,6 @@ export function useActive(slug: string) {
   const visited = useSceneSelector((s) => s.visited.includes(slug));
   return { hovered, selected: rawSelected && zoomSettled, visited };
 }
-// A springy squash-and-stretch bounce on the rising edge of `selected` — the
-// picked object springs to life in place, then settles back to rest. State is
-// stashed on the object's userData so call sites just hand us the group/mesh each
-// frame. Meant for a non-rotated (or yaw-only) object so the stretch runs along
-// world-up; scaling anchors at the object's local origin.
-export function bounceObject(obj: Object3D, selected: boolean, reduced: boolean, delta: number, amp = 0.28) {
-  const u = obj.userData;
-  if (selected && !u.bPrev && !reduced) u.bPop = 1; // trigger on the rising edge
-  u.bPrev = selected;
-  u.bPop = Math.max(0, (u.bPop ?? 0) - delta * 2.1);
-  // phase 0 at the trigger → 1 as it settles; a decaying cosine gives an initial
-  // stretch that oscillates (stretch → squash → settle) back to rest.
-  const spring = reduced ? 0 : Math.cos((1 - u.bPop) * Math.PI * 3) * u.bPop;
-  const sq = spring * amp;
-  obj.scale.set(1 - sq, 1 + sq, 1 - sq);
-}
-
 /** Load an optional texture from /public. Resolves to null while loading and
  *  stays null when the file hasn't been provided, so objects keep their plain
  *  procedural fallback (used by the monitor, the phone and the Zwijsen book). */

@@ -263,10 +263,11 @@ export function CameraRig() {
       prevSel.current = selectedSlug;
       nodeAge.current = 0;
       sway.current = 0;
-      // A fresh push-in starts unsettled; reduced motion (no glide to wait out)
-      // and the overview (no hotspot at all) have nothing to arrive at, so they
-      // count as settled from this same frame.
-      sceneStore.setZoomSettled(reduced || !hotspot);
+      // setSelected already latched zoomSettled false for a fresh push-in, so the
+      // rig only ever RELEASES it — one owner per edge, no race. Reduced motion
+      // has no glide to wait out and a selection with no hotspot has nothing to
+      // arrive at, so those release on this same frame.
+      if (reduced || !hotspot) sceneStore.setZoomSettled(true);
       // Capture where the object sits on screen RIGHT NOW (camera still wide) so
       // the porthole reticle can appear ON it and fly to the ring centre as the
       // camera zooms in. Off-screen / reduced-motion → no fly-in (opens centred).
