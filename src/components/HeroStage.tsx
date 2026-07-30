@@ -125,16 +125,29 @@ export function HeroStage() {
   // TALLY_SETTLE_MS. Keyed on selectedSlug transitions rather than `found`
   // itself, so opening a hotspot never moves it; only closing one does.
   const [revealed, setRevealed] = useState(0);
+  const revealedRef = useRef(0); // mirrors `revealed`, read synchronously below
+  // Bumped only on an actual numeric change (never on mount) — it's both the
+  // label's `key` (React remounts on a new key, which is what restarts the
+  // flash keyframe) and the switch that adds the flash class at all, so the
+  // very first paint ("0/10") never flashes for a change that didn't happen.
+  const [flashKey, setFlashKey] = useState(0);
   const wasSelected = useRef(selectedSlug);
   useEffect(() => {
     const prev = wasSelected.current;
     wasSelected.current = selectedSlug;
     if (!prev || selectedSlug) return; // only fires on prev-non-null -> null
+    const reveal = () => {
+      const next = foundRef.current;
+      if (next === revealedRef.current) return; // reopened something already counted
+      revealedRef.current = next;
+      setRevealed(next);
+      setFlashKey((k) => k + 1);
+    };
     if (reduced) {
-      setRevealed(foundRef.current);
+      reveal();
       return;
     }
-    const t = window.setTimeout(() => setRevealed(foundRef.current), TALLY_SETTLE_MS);
+    const t = window.setTimeout(reveal, TALLY_SETTLE_MS);
     return () => clearTimeout(t);
   }, [selectedSlug, reduced]);
 
@@ -281,7 +294,10 @@ export function HeroStage() {
               <i key={h.slug} data-on={i < revealed || undefined} />
             ))}
           </span>
-          <span className="hero__signals-label">
+          <span
+            key={flashKey}
+            className={flashKey > 0 ? 'hero__signals-label hero__signals-label--flash' : 'hero__signals-label'}
+          >
             {complete ? `${TOTAL}/${TOTAL} · ready to launch` : `${revealed}/${TOTAL} projects live`}
           </span>
         </button>

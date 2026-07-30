@@ -820,13 +820,6 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
 const TRAFO_W = 0.18;
 const TRAFO_D = 0.14;
 const TRAFO_H = 0.11;
-// a small lightning bolt for the door's hazard plate (local +z-face coords)
-const TRAFO_BOLT: V3[] = [
-  [0.007, 0.024, 0],
-  [-0.004, 0.005, 0],
-  [0.005, 0.002, 0],
-  [-0.007, -0.022, 0],
-];
 
 function TransformerHouse({ position }: { position: V3 }) {
   const { accent } = useAccent();
@@ -868,12 +861,11 @@ function TransformerHouse({ position }: { position: V3 }) {
         <GlassMat color="#828f98" opacity={0.5} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
-      {/* door + a small glowing hazard bolt on the camera-facing (+z) face */}
+      {/* door on the camera-facing (+z) face */}
       <mesh position={[-TRAFO_W * 0.2, TRAFO_H * 0.44, TRAFO_D / 2 + 0.002]}>
         <planeGeometry args={[TRAFO_W * 0.26, TRAFO_H * 0.72]} />
         <meshStandardMaterial color="#16232c" roughness={0.6} metalness={0.1} transparent opacity={0.72} side={DoubleSide} />
       </mesh>
-      <Line points={TRAFO_BOLT} position={[TRAFO_W * 0.18, TRAFO_H * 0.52, TRAFO_D / 2 + 0.004]} color={accent} lineWidth={1.4} transparent opacity={0.85} />
       {/* louvre vents on the +x side */}
       {[0.32, 0.52, 0.72].map((f, i) => (
         <mesh key={i} position={[TRAFO_W / 2 + 0.001, TRAFO_H * f, 0]}>

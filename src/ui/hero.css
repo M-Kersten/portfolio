@@ -75,7 +75,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .hero__name,
-  .hero__sub {
+  .hero__sub,
+  .hero__signals-label--flash {
     animation: none;
   }
 }
@@ -290,6 +291,18 @@
 }
 .hero__signals[data-complete] .hero__signals-label {
   color: var(--accent-ink);
+}
+/* the tally steps (see HeroStage's TALLY_SETTLE_MS), and this is the moment it
+   does it — a bright flash that settles back into whichever colour the rule
+   above actually wants, so it still resolves correctly on the one flash that
+   lands on 10/10. Re-keyed per change (see the JSX) so it restarts every time
+   rather than only playing once. */
+@keyframes signals-flash {
+  0% { color: #8fe9ff; text-shadow: 0 0 10px rgba(39, 232, 242, 0.6); }
+  100% { color: var(--ink-40); text-shadow: none; }
+}
+.hero__signals-label--flash {
+  animation: signals-flash 0.9s var(--ease);
 }
 
 @media (max-width: 760px) {

@@ -131,6 +131,14 @@ export function LiveEdges({ slug, threshold = 20, color = NEUTRAL, rest = 1 }: {
     if (!mat.userData.lifeSkip) {
       mat.userData.lifeSkip = true;
       mat.transparent = true;
+      // A line's default depthWrite is true, which was fine while it stayed
+      // bright — but retiring it to invisible doesn't stop it writing depth.
+      // Sitting exactly on the surface it traces, that punched a same-shaped
+      // hole through whatever translucent fill sat behind/around it (the park
+      // trees, semi-transparent even fully awake, are what surfaced this — a
+      // solid opaque body would never show it). A line was never meant to be
+      // an occluder, so it never needed to touch the depth buffer at all.
+      mat.depthWrite = false;
       mat.needsUpdate = true;
     }
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
