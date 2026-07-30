@@ -15,7 +15,10 @@ import { useFxConfig } from '../fxTweak';
 // A soft white-blue fresnel rim so the frosted-glass forms catch light along
 // their silhouettes (more premium, less flat plastic). Injected into the
 // standard material before fog/tonemapping so the rim hazes + tonemaps too.
-const RIM = new Color('#b9d2e0');
+// Exported because every compiled glass shader holds this same Color as its
+// uniform, so Stage's SelectDim can restyle every silhouette at once by
+// mutating it (the live value is fxTweak's rimColor; seed kept in sync).
+export const RIM = new Color('#dcecfc');
 // How much of the key light's specular highlight survives on glass. The sun sits
 // front-right (Stage: dir1 at [6, 11, 4]) — the same side the node cameras look
 // from — so at full strength it lays a hard white blob across whatever you just

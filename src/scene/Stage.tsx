@@ -9,13 +9,14 @@ import { useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
 import { fitScale, type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
 import { Maquette } from './maquette';
+import { GHOST_FILL, GHOST_LINE } from './maquette/life';
+import { RIM } from './maquette/materials';
 import { useFxConfig } from './fxTweak';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
 // further toward it when a node in it is picked.
 const LAYER_ACCENT: Record<string, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
 const LAYER_BY_STEP = ['city', 'room', 'chip'];
-const BG_HEX = '#0a0d10';
 const RIM_HEX = '#27e8f2'; // city cyan — the fallback / starting air
 
 // Two coupled washes give the maquette its atmosphere:
@@ -40,13 +41,22 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
   const scene = useThree((s) => s.scene);
   const size = useThree((s) => s.size);
   const d = useRef(0);
-  const bg = useMemo(() => new Color(BG_HEX), []);
+  const bg = useMemo(() => new Color(), []); // set from cfg.bgColor every frame below
   const tmp = useMemo(() => new Color(), []);
   // The resting air colour — eased toward the active layer's accent, so it also
   // holds through a fade-out (journeyStep tracks the layer you left from) with
   // no snap back to cyan.
   const air = useMemo(() => new Color(RIM_HEX), []);
   useFrame(() => {
+    // The palette rides the frame loop so the fx panel's colour swatches scrub
+    // the whole scene live: `bg` feeds the fog/background lerps below, and
+    // GHOST_FILL / RIM are the shared Color objects every dormant material and
+    // compiled glass shader already reads from. In production these are the
+    // frozen FX_DEFAULTS, so the sets are constant (and cheap either way).
+    bg.set(cfg.bgColor);
+    GHOST_FILL.set(cfg.ghostFill);
+    GHOST_LINE.set(cfg.ghostLine);
+    RIM.set(cfg.rimColor);
     const target = selected ? 1 : 0;
     d.current += (target - d.current) * (reduced ? 1 : 0.07);
     const k = d.current;
@@ -110,10 +120,10 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
 
   return (
     <>
-      <color attach="background" args={['#0a0d10']} />
+      <color attach="background" args={[cfg.bgColor]} />
       {/* Subtle depth haze so the layers behind the active one recede. */}
-      <fog attach="fog" args={['#0a0d10', 4.5, 14]} />
-      <hemisphereLight ref={hemi} intensity={0.35} color="#aebfd6" groundColor="#0a0d10" />
+      <fog attach="fog" args={[cfg.bgColor, cfg.fogNear, cfg.fogFar]} />
+      <hemisphereLight ref={hemi} intensity={cfg.hemiIntensity} color="#aebfd6" groundColor={cfg.bgColor} />
       <directionalLight ref={dir1} position={[6, 11, 4]} intensity={1.1} color="#eaf2ff" />
       <directionalLight ref={dir2} position={[-7, 4, -6]} intensity={0.5} color="#27e8f2" />
       <SelectDim hemi={hemi} dir1={dir1} dir2={dir2} bloom={bloom} />

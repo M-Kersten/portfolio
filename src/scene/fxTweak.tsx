@@ -40,6 +40,16 @@ export interface FxConfig {
   roughnessBase: number; // LiveGlassMat's resting roughness
   roughnessWakeDelta: number; // how much roughness drops as an object wakes
   metalnessWake: number; // metalness gained at full wake
+
+  // ---- Palette — the blueprint ground (SelectDim pushes these into the live
+  // Color objects every frame, so they scrub like the numbers do) ----
+  bgColor: string; // stage background + fog base — the "paper" of the drawing
+  ghostFill: string; // dormant surfaces (life.tsx GHOST_FILL) — the pencil shading
+  ghostLine: string; // dormant edges/outlines (life.tsx GHOST_LINE) — the drawn line.
+  // (Live wherever it's lerped per frame — the LifeGroup ghosts. A few places
+  // pass it as a mount-time color prop (scaffold lattice, rocket); those pick
+  // the new value up on reload.)
+  rimColor: string; // fresnel silhouette ink on all glass (materials.tsx RIM)
 }
 
 export const FX_DEFAULTS: FxConfig = {
@@ -70,6 +80,17 @@ export const FX_DEFAULTS: FxConfig = {
   roughnessBase: 0.34,
   roughnessWakeDelta: 0.07,
   metalnessWake: 0.05,
+
+  // The blueprint reveal: the resting world is an architect's drawing — deep
+  // ultramarine air, pale pencil fills, near-white ink — and a visited object
+  // "renders real" against it (the existing LiveGlassMat wake does that half).
+  // The previous near-black stage was bgColor '#0a0d10', ghostFill '#7d8f9a',
+  // ghostLine '#93a6b1', rimColor '#b9d2e0' (+ NEUTRAL '#9fb6c6' in
+  // maquette/shared.tsx, which is baked into props and edited there instead).
+  bgColor: '#0c2044',
+  ghostFill: '#a8c4e4',
+  ghostLine: '#c6dcf4',
+  rimColor: '#dcecfc',
 };
 
 // --- DEV live store (only reached from import.meta.env.DEV branches) ---
@@ -79,8 +100,12 @@ function subscribe(l: () => void) {
   listeners.add(l);
   return () => void listeners.delete(l);
 }
-function setVal(k: keyof FxConfig, v: number) {
+function setVal<K extends keyof FxConfig>(k: K, v: FxConfig[K]) {
   current = { ...current, [k]: v };
+  for (const l of listeners) l();
+}
+function resetAll() {
+  current = { ...FX_DEFAULTS };
   for (const l of listeners) l();
 }
 
@@ -99,13 +124,11 @@ export function useFxConfig(): FxConfig {
 
 /* ---------------------------------- panel --------------------------------- */
 
-interface FieldSpec {
-  k: keyof FxConfig;
-  label: string;
-  min: number;
-  max: number;
-  step: number;
-}
+type NumKey = { [K in keyof FxConfig]: FxConfig[K] extends number ? K : never }[keyof FxConfig];
+type ColorKey = Exclude<keyof FxConfig, NumKey>;
+type FieldSpec =
+  | { k: NumKey; label: string; min: number; max: number; step: number }
+  | { k: ColorKey; label: string; color: true };
 interface Group {
   name: string;
   fields: FieldSpec[];
@@ -151,6 +174,15 @@ const GROUPS: Group[] = [
       { k: 'metalnessWake', label: 'metalness (awake)', min: 0, max: 0.5, step: 0.01 },
     ],
   },
+  {
+    name: 'palette',
+    fields: [
+      { k: 'bgColor', label: 'ground (bg + fog)', color: true },
+      { k: 'ghostFill', label: 'ghost fill', color: true },
+      { k: 'ghostLine', label: 'ghost line ink', color: true },
+      { k: 'rimColor', label: 'silhouette ink', color: true },
+    ],
+  },
 ];
 
 const panelStyle: CSSProperties = {
@@ -192,7 +224,24 @@ const btnStyle: CSSProperties = {
   padding: '3px 7px',
 };
 
-function Row({ f, value }: { f: FieldSpec; value: number }) {
+function ColorRow({ f, value }: { f: Extract<FieldSpec, { color: true }>; value: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+      <span style={{ color: '#9fb6c6' }}>{f.label}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <span style={{ color: '#7f95a4' }}>{value}</span>
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => setVal(f.k, e.target.value)}
+          style={{ width: 34, height: 20, padding: 0, background: 'none', border: '1px solid rgba(159,182,198,0.25)', borderRadius: 3, cursor: 'pointer' }}
+        />
+      </span>
+    </div>
+  );
+}
+
+function Row({ f, value }: { f: Extract<FieldSpec, { min: number }>; value: number }) {
   const r2 = (n: number) => Math.round(n * 1000) / 1000;
   return (
     <div style={{ marginTop: 6 }}>
@@ -234,21 +283,16 @@ export function FxTweakPanel() {
       {GROUPS.map((g) => (
         <div key={g.name} style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(159,182,198,0.12)' }}>
           <div style={{ color: '#7fe0d0', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 10 }}>{g.name}</div>
-          {g.fields.map((f) => (
-            <Row key={f.k} f={f} value={cfg[f.k]} />
-          ))}
+          {g.fields.map((f) =>
+            'color' in f ? <ColorRow key={f.k} f={f} value={cfg[f.k]} /> : <Row key={f.k} f={f} value={cfg[f.k]} />,
+          )}
         </div>
       ))}
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
         <button style={btnStyle} onClick={() => void navigator.clipboard?.writeText(literal)}>
           copy config
         </button>
-        <button
-          style={btnStyle}
-          onClick={() => {
-            for (const g of GROUPS) for (const f of g.fields) setVal(f.k, FX_DEFAULTS[f.k]);
-          }}
-        >
+        <button style={btnStyle} onClick={resetAll}>
           reset
         </button>
       </div>

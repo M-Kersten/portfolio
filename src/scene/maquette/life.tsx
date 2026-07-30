@@ -15,8 +15,11 @@ import { PresenceCtx } from './presence';
    authored materials back in — with a brief glitch as it materialises — and it
    stays alive for the rest of the session (store.visited). Non-interactive
    props keep their quiet glass, so the ghosts read as the things to touch. */
-export const GHOST_FILL = new Color('#7d8f9a'); // desaturated blue-grey for surfaces
-export const GHOST_LINE = new Color('#93a6b1'); // slightly lighter for edges/outlines
+// Seeds match fxTweak's FX_DEFAULTS (the live source — Stage's SelectDim pushes
+// the config into these Colors every frame; matching seeds keep any material
+// that bakes the value at mount consistent with the first painted frame).
+export const GHOST_FILL = new Color('#a8c4e4'); // pale drawing-blue for surfaces
+export const GHOST_LINE = new Color('#c6dcf4'); // brighter ink for edges/outlines
 
 interface LifeSnap {
   color: Color | null;

@@ -9,9 +9,13 @@ import { type LayerId } from '../framing';
 import { useSceneSelector } from '../store';
 import { asset } from '../../lib/asset';
 
-export const NEUTRAL = '#9fb6c6'; // soft white-blue — the wireframe lines
+// The blueprint statics. These two are baked into props/geometry at mount, so
+// unlike the palette colours in scene/fxTweak.tsx they can't scrub live — keep
+// them in tune with fxTweak's bgColor/ink values when regrading the scene.
+// (Pre-blueprint they were NEUTRAL '#9fb6c6', BG '#0a0d10'.)
+export const NEUTRAL = '#d3e4f6'; // drawn-ink white-blue — the wireframe lines
 export const GLASS = '#5b7da0';
-export const BG = '#0a0d10';
+export const BG = '#0c2044'; // matches fxTweak bgColor — the drawing's paper
 
 interface Palette {
   accent: string;
