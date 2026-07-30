@@ -2,7 +2,7 @@
 // windmill (DTT), the park with the ARCam tower viewer (ARCam), and the
 // central skyscraper (Alliander), plus roads, power lines, ducks and a
 // constellation. CityRig at the bottom composes and places everything.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html } from '@react-three/drei';
 import { AdditiveBlending, Box3, BufferAttribute, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
@@ -15,6 +15,8 @@ import { asset } from '../../lib/asset';
 import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, LiveEdges, LiveGlassMat } from './materials';
+import { PresenceCtx } from './presence';
+import { useFxConfig } from '../fxTweak';
 import { BlobShadow } from './backdrop';
 import { Rise, RocketBody } from './rocket';
 
@@ -102,10 +104,15 @@ function Building({ x, z, w, d, h, winMat, delay = 0 }: { x: number; z: number; 
   const mat = useMemo(() => winMat?.clone(), [winMat]);
   const reduced = useReducedMotion();
   useEffect(() => () => mat?.dispose(), [mat]);
+  // The body + edges ride the same staggered ramp as this building's windows, so
+  // a block turns solid on the beat its own lights come up rather than the whole
+  // skyline hardening at once. Written every frame, read by LiveGlassMat/LiveEdges.
+  const wake = useRef(0);
   useFrame((s) => {
-    if (!mat) return;
     const raw = (winLevel.k - delay * WIN_STAGGER) / (1 - WIN_STAGGER);
     const g = raw <= 0 ? 0 : raw >= 1 ? 1 : raw;
+    wake.current = g;
+    if (!mat) return; // a building with no window grid still solidifies
     const t = s.clock.elapsedTime;
     // the flicker is offset per building too, so they don't all shimmer in step
     const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26 + delay * 9) * Math.sin(t * 6.3);
@@ -117,8 +124,11 @@ function Building({ x, z, w, d, h, winMat, delay = 0 }: { x: number; z: number; 
       <BlobShadow position={[0, 0.004, 0]} radius={Math.max(w, d) * 0.95} opacity={0.4} />
       <mesh position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <GlassMat opacity={0.3} />
-        <Edges threshold={20} color={NEUTRAL} />
+        {/* ghost={false}: a building is dressing, not a hotspot ghost, so it rests
+            as its own quiet glass and only hardens as the city comes live — then
+            it reads solid, like the windmill does once woken. */}
+        <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.3} wake={wake} />
+        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
       {windows.length > 0 && mat && (
         <instancedMesh ref={winRef} args={[undefined, undefined, windows.length]} material={mat}>
@@ -452,11 +462,17 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
   const vel = useRef(0);
   const flash = useRef(0); // camera-flash level, decays each frame
   const lastShot = useRef(0);
+  const wakeK = useRef(0); // 0 frosted glass -> 1 the awake, near-solid material
   const screenMat = useRef<MeshStandardMaterial>(null);
   const [model, setModel] = useState<Group | null>(null);
+  const presence = useContext(PresenceCtx);
+  const cfg = useFxConfig();
 
   // The frosted glass shared by the buildings + windmill — the model and the
-  // post it stands on both wear it, so they read as one object.
+  // post it stands on both wear it, so they read as one object. It's assigned
+  // imperatively to the loaded GLTF's meshes, so it can't be a <LiveGlassMat>;
+  // the frame loop below drives it to the same awake look instead. lifeSkip keeps
+  // the presence dimmer off it (we multiply by presence ourselves).
   const glass = useMemo(() => {
     const m = new MeshStandardMaterial({
       color: GLASS,
@@ -468,6 +484,7 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
       emissiveIntensity: 0.14,
       depthWrite: false,
     });
+    m.userData.lifeSkip = true;
     m.onBeforeCompile = glassRim;
     return m;
   }, []);
@@ -534,6 +551,16 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
     } else if (head) {
       head.rotation.y += (0 - head.rotation.y) * 0.1; // settle back to centre
     }
+    // The viewer only exists once it's been woken, so it should wear the awake
+    // material the whole time it's on screen — as frosted glass it read as a
+    // dormant ghost of itself. Solidifies as it springs in, on the same endpoints
+    // LiveGlassMat resolves to, so it matches every other woken object.
+    wakeK.current += ((live ? 1 : 0) - wakeK.current) * (reduced ? 1 : cfg.wakeSpeed);
+    const wk = wakeK.current;
+    glass.opacity = (0.5 + (0.94 - 0.5) * wk) * presence.current;
+    glass.roughness = cfg.roughnessBase - cfg.roughnessWakeDelta * wk;
+    glass.metalness = cfg.metalnessWake * wk;
+    glass.depthWrite = wk > 0.5;
     flash.current = Math.max(0, flash.current - dt * 3.4);
     // the viewfinder is a transparent glass panel at rest, flaring bright on a shot
     if (screenMat.current) {
@@ -848,10 +875,14 @@ function TransformerHouse({ position }: { position: V3 }) {
         <GlassMat opacity={0.34} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
-      {/* overhanging flat roof — the trafohuisje signature */}
+      {/* overhanging flat roof — the trafohuisje signature. Wears the body's own
+          glass: a lighter grey at higher opacity made the slab the brightest thing
+          on a prop that should sit quietly behind the tower. The overhang and its
+          edges already read as a separate plane, so the material needn't shout —
+          it just carries a touch more opacity to stay a cap, not a pane. */}
       <mesh position={[0, TRAFO_H + 0.007, 0]}>
         <boxGeometry args={[TRAFO_W + 0.03, 0.014, TRAFO_D + 0.03]} />
-        <GlassMat color="#828f98" opacity={0.5} />
+        <GlassMat opacity={0.4} />
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* door on the camera-facing (+z) face */}

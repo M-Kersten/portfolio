@@ -97,8 +97,13 @@ export function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opa
  *  its hotspot has been visited — so visited objects read as "real". Hotspot
  *  bodies rest as a grey ghost (the life mechanic); companion furniture passes
  *  `ghost={false}` to rest as its plain authored glass and only change material
- *  when its hotspot is engaged. `solid` caps how opaque it becomes. */
-export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true, solid = 0.94 }: { slug: string; color?: string; opacity?: number; ghost?: boolean; solid?: number }) {
+ *  when its hotspot is engaged. `solid` caps how opaque it becomes.
+ *
+ *  `wake` overrides where the material sits, for objects whose coming-alive isn't
+ *  simply "is my hotspot open" — the skyline solidifies on the city's staggered
+ *  window ramp, outward from the tower, so each building hands its own level in.
+ *  A ref because it changes every frame and must not re-render. */
+export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true, solid = 0.94, wake }: { slug: string; color?: string; opacity?: number; ghost?: boolean; solid?: number; wake?: { current: number } }) {
   const { selected, visited } = useActive(slug);
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
@@ -108,7 +113,10 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
   useFrame(() => {
     const m = mat.current;
     if (!m) return;
-    k.current += ((selected || visited ? 1 : 0) - k.current) * cfg.wakeSpeed;
+    // `wake` is already eased by whoever owns it, so take it as-is rather than
+    // easing an ease (that only adds lag to a ramp that's deliberately timed).
+    if (wake) k.current = wake.current;
+    else k.current += ((selected || visited ? 1 : 0) - k.current) * cfg.wakeSpeed;
     m.color.copy(GHOST_FILL).lerp(baseC, ghost ? 0.3 + 0.7 * k.current : 1);
     const rest = ghost ? opacity * 0.3 : opacity;
     m.opacity = (rest + (solid - rest) * k.current) * presence.current;
@@ -145,7 +153,7 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
  *  point is to end up looking solid, that's backwards — the outlines survive the
  *  fill going opaque and it still reads as a wireframe. This owns the material
  *  instead (flagging it lifeSkip so LifeGroup lets go) and fades it to nothing. */
-export function LiveEdges({ slug, threshold = 20, color = NEUTRAL, rest = 1 }: { slug: string; threshold?: number; color?: string; rest?: number }) {
+export function LiveEdges({ slug, threshold = 20, color = NEUTRAL, rest = 1, wake }: { slug: string; threshold?: number; color?: string; rest?: number; wake?: { current: number } }) {
   const { selected, visited } = useActive(slug);
   const ref = useRef<EdgesRef>(null);
   const k = useRef(0);
@@ -173,7 +181,8 @@ export function LiveEdges({ slug, threshold = 20, color = NEUTRAL, rest = 1 }: {
       mat.depthWrite = false;
       mat.needsUpdate = true;
     }
-    k.current += ((selected || visited ? 1 : 0) - k.current) * cfg.wakeSpeed;
+    if (wake) k.current = wake.current; // see LiveGlassMat's `wake`
+    else k.current += ((selected || visited ? 1 : 0) - k.current) * cfg.wakeSpeed;
     // `rest` caps the idle brightness before it retires — most outlines trace a
     // bulky form (a tower, a cap) where full brightness reads as a normal
     // wireframe. A long thin plane on its own in open air (the sails) has
