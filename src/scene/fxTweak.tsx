@@ -44,6 +44,12 @@ export interface FxConfig {
   metalnessWake: number; // metalness gained at full wake
   dotFreq: number; // glassRim's screen-space halftone — dot size (higher = smaller/denser)
   dotStrength: number; // 0 = dots invisible
+  // Blueprint pattern: swaps the halftone DOTS for graph-paper GRID lines —
+  // both the screen-space pattern on glass (glassRim) and the maquette's floor
+  // lattice (backdrop's PatternFloor), so the whole model reads as drawn on
+  // squared paper. dotFreq/dotStrength keep driving it (spacing / contrast).
+  gridMode: boolean;
+  gridWidth: number; // grid line thickness (lattice cells, so it's zoom-stable)
 
   // ---- Palette — the blueprint ground (SelectDim pushes these into the live
   // Color objects every frame, so they scrub like the numbers do) ----
@@ -86,6 +92,8 @@ export const FX_DEFAULTS: FxConfig = {
   "metalnessWake": 0,
   "dotFreq": 2.15,
   "dotStrength": 0.34,
+  "gridMode": true,
+  "gridWidth": 0.14,
   "bgColor": "#0e272f",
   "ghostFill": "#7a8694",
   "ghostLine": "#dfe5ec",
@@ -124,9 +132,11 @@ export function useFxConfig(): FxConfig {
 /* ---------------------------------- panel --------------------------------- */
 
 type NumKey = { [K in keyof FxConfig]: FxConfig[K] extends number ? K : never }[keyof FxConfig];
-type ColorKey = Exclude<keyof FxConfig, NumKey>;
+type BoolKey = { [K in keyof FxConfig]: FxConfig[K] extends boolean ? K : never }[keyof FxConfig];
+type ColorKey = Exclude<keyof FxConfig, NumKey | BoolKey>;
 type FieldSpec =
   | { k: NumKey; label: string; min: number; max: number; step: number }
+  | { k: BoolKey; label: string; toggle: true }
   | { k: ColorKey; label: string; color: true };
 interface Group {
   name: string;
@@ -150,8 +160,10 @@ const GROUPS: Group[] = [
   {
     name: 'texture',
     fields: [
-      { k: 'dotFreq', label: 'dot size (halftone)', min: 0.3, max: 4, step: 0.05 },
-      { k: 'dotStrength', label: 'dot strength', min: 0, max: 1, step: 0.01 },
+      { k: 'gridMode', label: 'grid (blueprint)', toggle: true },
+      { k: 'gridWidth', label: 'grid line width', min: 0.02, max: 0.45, step: 0.01 },
+      { k: 'dotFreq', label: 'dot/grid spacing', min: 0.3, max: 4, step: 0.05 },
+      { k: 'dotStrength', label: 'dot/grid strength', min: 0, max: 1, step: 0.01 },
       { k: 'scanlineDensity', label: 'scanline density', min: 0.25, max: 4, step: 0.05 },
       { k: 'scanlineOpacity', label: 'scanline opacity', min: 0, max: 1, step: 0.01 },
     ],
@@ -232,6 +244,15 @@ const btnStyle: CSSProperties = {
   padding: '3px 7px',
 };
 
+function ToggleRow({ f, value }: { f: Extract<FieldSpec, { toggle: true }>; value: boolean }) {
+  return (
+    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, cursor: 'pointer', color: value ? '#7fe0d0' : '#9fb6c6' }}>
+      <span>{f.label}</span>
+      <input type="checkbox" checked={value} onChange={(e) => setVal(f.k, e.target.checked)} style={{ cursor: 'pointer' }} />
+    </label>
+  );
+}
+
 function ColorRow({ f, value }: { f: Extract<FieldSpec, { color: true }>; value: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
@@ -292,7 +313,13 @@ export function FxTweakPanel() {
         <div key={g.name} style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(159,182,198,0.12)' }}>
           <div style={{ color: '#7fe0d0', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 10 }}>{g.name}</div>
           {g.fields.map((f) =>
-            'color' in f ? <ColorRow key={f.k} f={f} value={cfg[f.k]} /> : <Row key={f.k} f={f} value={cfg[f.k]} />,
+            'color' in f ? (
+              <ColorRow key={f.k} f={f} value={cfg[f.k]} />
+            ) : 'toggle' in f ? (
+              <ToggleRow key={f.k} f={f} value={cfg[f.k]} />
+            ) : (
+              <Row key={f.k} f={f} value={cfg[f.k]} />
+            ),
           )}
         </div>
       ))}

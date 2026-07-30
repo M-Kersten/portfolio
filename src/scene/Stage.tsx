@@ -125,7 +125,9 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   useEffect(() => {
     DOT_TUNE.freq.value = cfg.dotFreq;
     DOT_TUNE.strength.value = cfg.dotStrength;
-  }, [cfg.dotFreq, cfg.dotStrength]);
+    DOT_TUNE.grid.value = cfg.gridMode ? 1 : 0;
+    DOT_TUNE.gridWidth.value = cfg.gridWidth;
+  }, [cfg.dotFreq, cfg.dotStrength, cfg.gridMode, cfg.gridWidth]);
 
   return (
     <>

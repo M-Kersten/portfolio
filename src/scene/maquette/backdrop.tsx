@@ -7,6 +7,7 @@ import { AdditiveBlending, CanvasTexture, Color, type Mesh, type Points as Three
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useSceneSelector } from '../store';
 import { BG, NEUTRAL, makeRand, useAccent, type V3 } from './shared';
+import { useFxConfig } from '../fxTweak';
 
 /** The holo-table: a soft luminous plate under the active layer's objects, so
  *  they sit ON a projected glass surface. Deliberately NOT a mirror — a flat
@@ -54,8 +55,19 @@ export function HoloFloor({ active, tint }: { active: boolean; tint: string }) {
   );
 }
 
+const FLOOR_R = 2.2;
+/** The floor lattice's colour at a given distance from centre: neutral blue-grey,
+ *  warmed toward the layer's accent near the middle — so the floor you're standing
+ *  on glows the layer's colour, a strong but local per-layer cue that never
+ *  touches the black frame. Shared so the dot and grid floors agree exactly. */
+function floorTint(out: Color, d: number, neutral: Color, accent: Color, bg: Color) {
+  const fade = Math.pow(1 - d / FLOOR_R, 1.5);
+  return out.copy(bg).lerp(neutral, 0.06 + 0.5 * fade).lerp(accent, 0.5 * fade);
+}
+
+/** The layer's floor as a lattice of dots. */
 export function DotFloor({ step = 0.26 }: { step?: number }) {
-  const R = 2.2;
+  const R = FLOOR_R;
   const { accent } = useAccent();
   const { positions, colors } = useMemo(() => {
     const pos: number[] = [];
@@ -69,11 +81,7 @@ export function DotFloor({ step = 0.26 }: { step?: number }) {
         const d = Math.hypot(x, z);
         if (d > R) continue;
         pos.push(x, 0, z);
-        const fade = Math.pow(1 - d / R, 1.5);
-        // neutral blue-grey, warmed toward the layer's accent near the middle —
-        // so the floor you're standing on glows the layer's colour, a strong but
-        // local per-layer cue that never touches the black frame
-        tmp.copy(bg).lerp(c, 0.06 + 0.5 * fade).lerp(acc, 0.5 * fade);
+        floorTint(tmp, d, c, acc, bg);
         col.push(tmp.r, tmp.g, tmp.b);
       }
     return { positions: new Float32Array(pos), colors: new Float32Array(col) };
@@ -87,6 +95,65 @@ export function DotFloor({ step = 0.26 }: { step?: number }) {
       <pointsMaterial size={0.022} vertexColors transparent opacity={0.7} sizeAttenuation depthWrite={false} />
     </points>
   );
+}
+
+/** The same lattice, joined up into graph paper — the blueprint floor. Drawn as
+ *  one lineSegments (a single draw call, like the dot floor's one points object)
+ *  by connecting each lattice point to its +x and +z neighbour where both are
+ *  inside the disc, so the circular edge stays ragged-free and the radial fade
+ *  carries per-vertex exactly as it does on the dots. */
+export function GridFloor({ step = 0.26 }: { step?: number }) {
+  const R = FLOOR_R;
+  const { accent } = useAccent();
+  const { positions, colors } = useMemo(() => {
+    const pos: number[] = [];
+    const col: number[] = [];
+    const c = new Color(NEUTRAL);
+    const acc = new Color(accent);
+    const bg = new Color(BG);
+    const tmp = new Color();
+    const inside = (x: number, z: number) => Math.hypot(x, z) <= R;
+    const push = (x: number, z: number) => {
+      pos.push(x, 0, z);
+      floorTint(tmp, Math.hypot(x, z), c, acc, bg);
+      col.push(tmp.r, tmp.g, tmp.b);
+    };
+    // walk the lattice on a fixed integer grid so floating-point drift can't make
+    // a row miss its neighbour (which would drop segments at the seams)
+    const n = Math.floor(R / step);
+    for (let i = -n; i <= n; i++)
+      for (let j = -n; j <= n; j++) {
+        const x = i * step;
+        const z = j * step;
+        if (!inside(x, z)) continue;
+        if (inside(x + step, z)) {
+          push(x, z);
+          push(x + step, z);
+        }
+        if (inside(x, z + step)) {
+          push(x, z);
+          push(x, z + step);
+        }
+      }
+    return { positions: new Float32Array(pos), colors: new Float32Array(col) };
+  }, [step, accent]);
+  return (
+    <lineSegments>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[colors, 3]} />
+      </bufferGeometry>
+      {/* dimmer than the dots: a full grid puts far more ink on screen, so
+          matching their opacity would read as a bright floor, not a drawing */}
+      <lineBasicMaterial vertexColors transparent opacity={0.42} depthWrite={false} />
+    </lineSegments>
+  );
+}
+
+/** The layer's floor, in whichever pattern the scene is set to (fxTweak's
+ *  gridMode) — dots by default, graph paper in blueprint mode. */
+export function PatternFloor({ step }: { step?: number }) {
+  return useFxConfig().gridMode ? <GridFloor step={step} /> : <DotFloor step={step} />;
 }
 
 /** A sparse field of neutral points drifting slowly above the layer. `life` (the
