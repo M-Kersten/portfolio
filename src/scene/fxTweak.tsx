@@ -57,48 +57,39 @@ export interface FxConfig {
 }
 
 export const FX_DEFAULTS: FxConfig = {
-  bloomIntensity: 0.4,
-  bloomSelectBoost: 0.75,
-  bloomThreshold: 0.78,
-  bloomThresholdSelectDrop: 0.34,
-  bloomSmoothing: 0.3,
-  bloomRadius: 0.6,
-  contrast: 0.08,
-  vignetteOffset: 0.3,
-  vignetteDarkness: 0.45,
-  scanlineDensity: 1.25,
-  scanlineOpacity: 0,
-
-  hemiIntensity: 0.35,
-  hemiSelectDrop: 0.72,
-  dir1Intensity: 1.1,
-  dir1SelectDrop: 0.66,
-  dir2Intensity: 0.5,
-  dir2SelectBoost: 0.4,
-  fogNear: 4.5,
-  fogFar: 14,
-  fogFarSelectDrop: 4.5,
-  fogTint: 0.19,
-  fogTintSelectBoost: 0.26,
-  bgTintSelect: 0.13,
-
-  wakeSpeed: 0.06,
-  roughnessBase: 0.34,
-  roughnessWakeDelta: 0.07,
-  metalnessWake: 0.05,
-  dotFreq: 1.7,
-  dotStrength: 0.3,
-
-  // The blueprint reveal: the resting world is an architect's drawing — deep
-  // ultramarine air, pale pencil fills, near-white ink — and a visited object
-  // "renders real" against it (the existing LiveGlassMat wake does that half).
-  // The previous near-black stage was bgColor '#0a0d10', ghostFill '#7d8f9a',
-  // ghostLine '#93a6b1', rimColor '#b9d2e0' (+ NEUTRAL '#9fb6c6' in
-  // maquette/shared.tsx, which is baked into props and edited there instead).
-  bgColor: '#0c2044',
-  ghostFill: '#a8c4e4',
-  ghostLine: '#c6dcf4',
-  rimColor: '#dcecfc',
+  "bloomIntensity": 0,
+  "bloomSelectBoost": 0,
+  "bloomThreshold": 1,
+  "bloomThresholdSelectDrop": 0,
+  "bloomSmoothing": 0,
+  "bloomRadius": 0,
+  "contrast": 0.08,
+  "vignetteOffset": 0.41,
+  "vignetteDarkness": 0.89,
+  "scanlineDensity": 2.45,
+  "scanlineOpacity": 0.1,
+  "hemiIntensity": 1,
+  "hemiSelectDrop": 0.72,
+  "dir1Intensity": 1.59,
+  "dir1SelectDrop": 0.66,
+  "dir2Intensity": 1.52,
+  "dir2SelectBoost": 0.4,
+  "fogNear": 2.6,
+  "fogFar": 16.3,
+  "fogFarSelectDrop": 4.5,
+  "fogTint": 0.33,
+  "fogTintSelectBoost": 0.26,
+  "bgTintSelect": 0.13,
+  "wakeSpeed": 0.06,
+  "roughnessBase": 1,
+  "roughnessWakeDelta": 0.07,
+  "metalnessWake": 0,
+  "dotFreq": 2.15,
+  "dotStrength": 0.34,
+  "bgColor": "#0e272f",
+  "ghostFill": "#7a8694",
+  "ghostLine": "#dfe5ec",
+  "rimColor": "#d9d9d9"
 };
 
 // --- DEV live store (only reached from import.meta.env.DEV branches) ---
