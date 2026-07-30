@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { launchTrack, sceneStore, useSceneSelector, bootAt } from './store';
+import { launchTrack, sceneStore, useSceneSelector } from './store';
 import { HOTSPOTS, anchorWorld, journeyView, introView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
 import { tweakedView } from './nodeTweak';
 import { isMobileViewport } from '../lib/isMobile';
@@ -11,16 +11,18 @@ import { isMobileViewport } from '../lib/isMobile';
 // selected node (zoom in).
 
 // The cinematic load intro: how long the dolly-in from the wide establishing
-// shot to the City overview takes (seconds), measured from the shared boot clock.
+// shot to the City overview takes (seconds).
 //
-// It runs from the moment the page loads rather than waiting out MAQUETTE_BOOT as
-// it used to. The wait bought a held establishing shot, but BootVeil now fades the
-// frame up out of black over that same beat — so the hold was a static shot nobody
-// could see, and the zoom only began once the fade was already over. Starting at 0
-// and running to the same finish (the old 1.45s + 3.2s) keeps the IntroCard's
-// timing in sync while letting the push-in play underneath the fade. The
-// smoothstep below has zero derivative at p=0, so it still eases up from a
-// standstill instead of snapping into motion.
+// Measured from the dolly's own first rendered frame (see introStart below), so
+// it always plays in full — a slow cold load delays the move rather than eating
+// it. It used to run off the shared boot clock, which kept it in step with the
+// DOM beats (BootVeil's fade up out of black, then IntroCard) but meant load time
+// was spent from the dolly's budget: past ~a third of INTRO_DUR the camera
+// visibly snapped into the middle of the shot. The trade is deliberate — a
+// smooth, complete move matters more than frame-exact sync with the veil, which
+// has usually finished fading by the time the canvas first paints anyway.
+// The smoothstep below has zero derivative at both ends, so the dolly eases up
+// from a standstill and settles to one.
 const INTRO_DUR = 4.65;
 
 // Porthole focus: on desktop the woken object is framed inside the reticle ring,
@@ -65,6 +67,7 @@ export function CameraRig() {
   const focusAmt = useRef(0); // 0 overview → 1 zoomed on a node (drives the porthole view-offset)
   // Reduced motion and phones skip the dolly — straight to the City overview.
   const introDone = useRef(reduced || isMobileViewport());
+  const introStart = useRef(0); // wall clock at the dolly's first frame (0 = not yet)
   const skipIntro = useRef(false); // any scroll / tap / key cancels the intro
 
   // Park the camera at the dolly's START before anything is painted. The Canvas
@@ -142,26 +145,44 @@ export function CameraRig() {
       }
     }
 
+    const aspect = size.width / size.height;
+
     // ---- Load intro: a slow dolly-in from a wide establishing shot into the
-    // City overview, timed off the shared boot clock so it plays after the hero
-    // text. Cancelled the moment the visitor scrolls/taps, on a deep link (a node
-    // is already selected), during a launch, or once it completes — then the
-    // normal journey logic below takes over from wherever the camera is.
+    // City overview. Cancelled the moment the visitor scrolls/taps, on a deep
+    // link (a node is already selected), during a launch, or once it completes —
+    // then the normal journey logic below takes over from wherever the camera is.
     if (!introDone.current) {
-      const p = (performance.now() - bootAt) / (INTRO_DUR * 1000);
+      // Measured from the dolly's OWN first frame, not the shared boot clock.
+      // On the boot clock, everything between module eval and the canvas's first
+      // frame (bundle parse, three/R3F init, shader compile) was already spending
+      // the dolly's 4.65s — so on a cold load the first frame it painted was
+      // already a third of the way along, which meant the camera snapped from the
+      // parked establishing shot to the middle of the move and only then eased.
+      // That jump *was* the weird movement. Anchoring here means p is always 0 on
+      // the first frame, so the dolly departs from the establishing shot smoothly
+      // however long the load took (and it makes the useLayoutEffect parking above
+      // self-healing rather than load-order-dependent).
+      if (introStart.current === 0) introStart.current = performance.now();
+      const p = (performance.now() - introStart.current) / (INTRO_DUR * 1000);
       if (skipIntro.current || selectedSlug || journeyStep !== 0 || launch !== 'idle' || p >= 1) {
         introDone.current = true;
       } else {
-        const g = layerGap(size.width / size.height);
+        const g = layerGap(aspect);
         const s = introView(g);
         const e = journeyView(0, g);
-        const q = Math.max(0, p); // a slow first frame can only start us further in
-        const t = q * q * (3 - 2 * q); // smoothstep: eases up from a standstill
+        // Land exactly where the scroll-journey logic below rests, which is NOT
+        // journeyView's raw pos: that logic pushes the camera back by fitScale on
+        // a narrow viewport. Ending at the raw pos meant the dolly eased to a
+        // stop and *then* the handoff lerp kept creeping outward to the real
+        // resting spot — a second, unasked-for move right as it settled. (`e` is
+        // a throwaway from journeyView, so reshaping its pos in place is free.)
+        e.pos.sub(e.target).multiplyScalar(fitScale(aspect)).add(e.target);
+        const t = p * p * (3 - 2 * p); // smoothstep: eases up from a standstill
         camera.position.copy(s.pos).lerp(e.pos, t);
         target.current.copy(s.target).lerp(e.target, t);
         camera.lookAt(target.current);
         const cam0 = camera as PerspectiveCamera;
-        const wantFov0 = fitFov(size.width / size.height);
+        const wantFov0 = fitFov(aspect);
         if (cam0.isPerspectiveCamera && Math.abs(cam0.fov - wantFov0) > 0.01) {
           cam0.fov = wantFov0;
           cam0.updateProjectionMatrix();
@@ -171,7 +192,6 @@ export function CameraRig() {
       }
     }
 
-    const aspect = size.width / size.height;
     const gap = layerGap(aspect); // layers spread apart on tall screens
 
     // ---- Launch mode: the camera belongs to the rocket -------------------
