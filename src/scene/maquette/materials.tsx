@@ -27,10 +27,21 @@ export const RIM = new Color('#dcecfc');
 // only the direct specular lobe, leaving the diffuse shading that gives the
 // forms their volume, and the soft environment sheen, exactly as they were.
 const SPEC = 0.15;
+// The screen-space halftone's two knobs, shared across every compiled glass
+// shader the same way RIM is: each is the actual `{ value }` uniform object
+// three.js reads every frame, so Stage's SelectDim can retune the whole
+// maquette's dot grid at once by mutating `.value` in place (see fxTweak's
+// dotFreq/dotStrength). Seeds match FX_DEFAULTS.
+export const DOT_TUNE = {
+  freq: { value: 1.7 }, // higher = smaller, denser dots
+  strength: { value: 0.3 }, // 0 = dots invisible; scales both the rgb darkening and the alpha lift below, keeping their original ratio (~0.53)
+};
 export function glassRim(shader: any) {
   shader.uniforms.uRim = { value: RIM };
+  shader.uniforms.uDotFreq = DOT_TUNE.freq;
+  shader.uniforms.uDotStrength = DOT_TUNE.strength;
   shader.fragmentShader = shader.fragmentShader
-    .replace('void main() {', 'uniform vec3 uRim;\nvoid main() {')
+    .replace('void main() {', 'uniform vec3 uRim;\nuniform float uDotFreq;\nuniform float uDotStrength;\nvoid main() {')
     .replace('#include <aomap_fragment>', `reflectedLight.directSpecular *= ${SPEC};\n#include <aomap_fragment>`)
     .replace(
       '#include <opaque_fragment>',
@@ -46,10 +57,10 @@ export function glassRim(shader: any) {
         // maquette carries the same dithered / halftone texture as the rest of the
         // site. Screen-locked (not surface-mapped), so overlapping panes stay
         // coherent; kept gentle so the delicate glass still reads.
-        'float _dg = sin(gl_FragCoord.x * 1.7) * sin(gl_FragCoord.y * 1.7);',
+        'float _dg = sin(gl_FragCoord.x * uDotFreq) * sin(gl_FragCoord.y * uDotFreq);',
         'float _dot = smoothstep(-0.2, 0.6, _dg);',
-        'gl_FragColor.rgb *= 0.85 + 0.3 * _dot;',
-        'gl_FragColor.a = clamp(gl_FragColor.a * (0.9 + 0.16 * _dot), 0.0, 1.0);',
+        'gl_FragColor.rgb *= 0.85 + uDotStrength * _dot;',
+        'gl_FragColor.a = clamp(gl_FragColor.a * (0.9 + uDotStrength * 0.533 * _dot), 0.0, 1.0);',
       ].join('\n'),
     );
 }

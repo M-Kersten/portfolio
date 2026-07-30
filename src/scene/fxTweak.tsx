@@ -20,6 +20,8 @@ export interface FxConfig {
   contrast: number;
   vignetteOffset: number;
   vignetteDarkness: number;
+  scanlineDensity: number; // Scanline effect — line frequency
+  scanlineOpacity: number; // 0 = off
 
   // ---- Lighting (Stage's rig + SelectDim's rest↔select wash) ----
   hemiIntensity: number; // resting hemisphere intensity
@@ -40,6 +42,8 @@ export interface FxConfig {
   roughnessBase: number; // LiveGlassMat's resting roughness
   roughnessWakeDelta: number; // how much roughness drops as an object wakes
   metalnessWake: number; // metalness gained at full wake
+  dotFreq: number; // glassRim's screen-space halftone — dot size (higher = smaller/denser)
+  dotStrength: number; // 0 = dots invisible
 
   // ---- Palette — the blueprint ground (SelectDim pushes these into the live
   // Color objects every frame, so they scrub like the numbers do) ----
@@ -62,6 +66,8 @@ export const FX_DEFAULTS: FxConfig = {
   contrast: 0.08,
   vignetteOffset: 0.3,
   vignetteDarkness: 0.45,
+  scanlineDensity: 1.25,
+  scanlineOpacity: 0,
 
   hemiIntensity: 0.35,
   hemiSelectDrop: 0.72,
@@ -80,6 +86,8 @@ export const FX_DEFAULTS: FxConfig = {
   roughnessBase: 0.34,
   roughnessWakeDelta: 0.07,
   metalnessWake: 0.05,
+  dotFreq: 1.7,
+  dotStrength: 0.3,
 
   // The blueprint reveal: the resting world is an architect's drawing — deep
   // ultramarine air, pale pencil fills, near-white ink — and a visited object
@@ -146,6 +154,15 @@ const GROUPS: Group[] = [
       { k: 'contrast', label: 'contrast', min: -1, max: 1, step: 0.01 },
       { k: 'vignetteOffset', label: 'vignette offset', min: 0, max: 1, step: 0.01 },
       { k: 'vignetteDarkness', label: 'vignette darkness', min: 0, max: 1, step: 0.01 },
+    ],
+  },
+  {
+    name: 'texture',
+    fields: [
+      { k: 'dotFreq', label: 'dot size (halftone)', min: 0.3, max: 4, step: 0.05 },
+      { k: 'dotStrength', label: 'dot strength', min: 0, max: 1, step: 0.01 },
+      { k: 'scanlineDensity', label: 'scanline density', min: 0.25, max: 4, step: 0.05 },
+      { k: 'scanlineOpacity', label: 'scanline opacity', min: 0, max: 1, step: 0.01 },
     ],
   },
   {

@@ -1,6 +1,6 @@
-import { useMemo, useRef, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { Environment, Lightformer } from '@react-three/drei';
-import { EffectComposer, Bloom, BrightnessContrast, Vignette } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, BrightnessContrast, Vignette, Scanline } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
 import type { BloomEffect } from 'postprocessing';
@@ -10,7 +10,7 @@ import { fitScale, type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
 import { Maquette } from './maquette';
 import { GHOST_FILL, GHOST_LINE } from './maquette/life';
-import { RIM } from './maquette/materials';
+import { RIM, DOT_TUNE } from './maquette/materials';
 import { useFxConfig } from './fxTweak';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
@@ -118,6 +118,15 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   const bloom = useRef<BloomEffect>(null);
   const cfg = useFxConfig();
 
+  // The halftone's two knobs live on every compiled glass shader as the same
+  // shared uniform objects (see DOT_TUNE) — mutate `.value` in place here on
+  // change rather than a per-frame loop, since (unlike SelectDim's washes)
+  // these don't animate on their own.
+  useEffect(() => {
+    DOT_TUNE.freq.value = cfg.dotFreq;
+    DOT_TUNE.strength.value = cfg.dotStrength;
+  }, [cfg.dotFreq, cfg.dotStrength]);
+
   return (
     <>
       <color attach="background" args={[cfg.bgColor]} />
@@ -152,6 +161,10 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
         <Bloom ref={bloom as never} mipmapBlur luminanceThreshold={cfg.bloomThreshold} luminanceSmoothing={cfg.bloomSmoothing} intensity={cfg.bloomIntensity} radius={cfg.bloomRadius} />
         <BrightnessContrast contrast={cfg.contrast} />
         <Vignette eskil={false} offset={cfg.vignetteOffset} darkness={cfg.vignetteDarkness} />
+        {/* Off (opacity 0) by default — EffectComposer's children type won't
+            take a conditional `false`, and one more blend pass at opacity 0
+            costs nothing worth avoiding. */}
+        <Scanline density={cfg.scanlineDensity} opacity={cfg.scanlineOpacity} />
       </EffectComposer>
     </>
   );
