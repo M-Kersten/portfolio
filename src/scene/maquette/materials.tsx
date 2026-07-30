@@ -8,6 +8,7 @@ import { Color, MeshStandardMaterial, type Material } from 'three';
 import { useAccent, useActive, GLASS, NEUTRAL, Line, roundedRectPts, type V3 } from './shared';
 import { GHOST_FILL } from './life';
 import { PresenceCtx } from './presence';
+import { useFxConfig } from '../fxTweak';
 
 /* ---------- materials ---------- */
 
@@ -77,18 +78,19 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
   const k = useRef(0);
   const baseC = useMemo(() => new Color(color), [color]);
   const presence = useContext(PresenceCtx); // a layer that isn't the subject recedes
+  const cfg = useFxConfig();
   useFrame(() => {
     const m = mat.current;
     if (!m) return;
-    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
+    k.current += ((selected || visited ? 1 : 0) - k.current) * cfg.wakeSpeed;
     m.color.copy(GHOST_FILL).lerp(baseC, ghost ? 0.3 + 0.7 * k.current : 1);
     const rest = ghost ? opacity * 0.3 : opacity;
     m.opacity = (rest + (solid - rest) * k.current) * presence.current;
     // Waking an object still makes it glossier, but gently — the shine now comes
     // off the environment rather than the key light (see SPEC above), so the
     // floor only needs to stop the lobe tightening back into a hotspot.
-    m.roughness = 0.34 - 0.07 * k.current;
-    m.metalness = 0.05 * k.current;
+    m.roughness = cfg.roughnessBase - cfg.roughnessWakeDelta * k.current;
+    m.metalness = cfg.metalnessWake * k.current;
     m.depthWrite = k.current > 0.5;
   });
   return (
@@ -125,6 +127,10 @@ export function LiveEdges({ slug, threshold = 20, color = NEUTRAL, rest = 1 }: {
   // otherwise touch them — and an outline is the most visible thing on an object,
   // so a dimmed layer's tower kept a bright wireframe over a faded body.
   const presence = useContext(PresenceCtx);
+  // Shares wakeSpeed with LiveGlassMat so an object's fill and its retiring
+  // outline move on the same trajectory — they're always used together via
+  // LifeGroup, and drifting out of step would read as two separate animations.
+  const cfg = useFxConfig();
   useFrame(() => {
     const mat = ref.current?.material as Material | undefined;
     if (!mat) return;
@@ -141,7 +147,7 @@ export function LiveEdges({ slug, threshold = 20, color = NEUTRAL, rest = 1 }: {
       mat.depthWrite = false;
       mat.needsUpdate = true;
     }
-    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.06;
+    k.current += ((selected || visited ? 1 : 0) - k.current) * cfg.wakeSpeed;
     // `rest` caps the idle brightness before it retires — most outlines trace a
     // bulky form (a tower, a cap) where full brightness reads as a normal
     // wireframe. A long thin plane on its own in open air (the sails) has

@@ -9,6 +9,7 @@ import { useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
 import { fitScale, type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
 import { Maquette } from './maquette';
+import { useFxConfig } from './fxTweak';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
 // further toward it when a node in it is picked.
@@ -35,6 +36,7 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
   const reduced = useReducedMotion();
+  const cfg = useFxConfig();
   const scene = useThree((s) => s.scene);
   const size = useThree((s) => s.size);
   const d = useRef(0);
@@ -54,10 +56,10 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
     if (reduced) air.copy(tmp);
     else air.lerp(tmp, 0.045);
 
-    if (hemi.current) hemi.current.intensity = 0.35 * (1 - 0.72 * k);
-    if (dir1.current) dir1.current.intensity = 1.1 * (1 - 0.66 * k);
+    if (hemi.current) hemi.current.intensity = cfg.hemiIntensity * (1 - cfg.hemiSelectDrop * k);
+    if (dir1.current) dir1.current.intensity = cfg.dir1Intensity * (1 - cfg.dir1SelectDrop * k);
     if (dir2.current) {
-      dir2.current.intensity = 0.5 + 0.4 * k; // the accent rim grows on select
+      dir2.current.intensity = cfg.dir2Intensity + cfg.dir2SelectBoost * k; // the accent rim grows on select
       dir2.current.color.copy(air); // the rim light itself carries the layer air
     }
     const fog = scene.fog as Fog | null;
@@ -65,16 +67,16 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
       // The camera eases back on narrow screens (CameraRig/fitScale), so scale
       // the fog band with it — otherwise the pulled-back subject hazes out.
       const fit = fitScale(size.width / size.height);
-      fog.near = 4.5 * fit;
-      fog.far = (14 - 4.5 * k) * fit;
+      fog.near = cfg.fogNear * fit;
+      fog.far = (cfg.fogFar - cfg.fogFarSelectDrop * k) * fit;
       // the haze carries the layer's colour — it only tints where there's depth
       // (behind/around the objects), never the empty black sky, so each layer
       // gets its own air without washing the frame. Deepens on select.
-      fog.color.copy(bg).lerp(air, 0.19 + 0.26 * k);
+      fog.color.copy(bg).lerp(air, cfg.fogTint + cfg.fogTintSelectBoost * k);
     }
     // background frame: near-black at rest, tinting only as a node is picked (the
     // scene glowing around the pick) — never a resting colour wash
-    if (scene.background instanceof Color) scene.background.copy(bg).lerp(air, 0.13 * k);
+    if (scene.background instanceof Color) scene.background.copy(bg).lerp(air, cfg.bgTintSelect * k);
     if (bloom.current) {
       // One power surge at the homecoming (the 10th node's HUD closing),
       // decaying back over ~3s while the celebration plays out in view.
@@ -88,8 +90,8 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
       // guard on `since`). Decays over ~2s. Skipped under reduced motion.
       const since = performance.now() - bootAt - MAQUETTE_BOOT;
       const ignite = reduced || since < 0 ? 0 : Math.exp(-since / 900) * 0.7;
-      bloom.current.intensity = 0.4 + k * 0.75 + surge + ignite;
-      (bloom.current.luminanceMaterial as unknown as { threshold: number }).threshold = 0.78 - k * 0.34;
+      bloom.current.intensity = cfg.bloomIntensity + k * cfg.bloomSelectBoost + surge + ignite;
+      (bloom.current.luminanceMaterial as unknown as { threshold: number }).threshold = cfg.bloomThreshold - k * cfg.bloomThresholdSelectDrop;
     }
   });
   return null;
@@ -104,6 +106,7 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   const dir1 = useRef<DirectionalLight>(null);
   const dir2 = useRef<DirectionalLight>(null);
   const bloom = useRef<BloomEffect>(null);
+  const cfg = useFxConfig();
 
   return (
     <>
@@ -133,10 +136,12 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
           then a touch more contrast and a soft vignette that pools the light
           in the centre of the frame, where the maquette lives. */}
       <EffectComposer enableNormalPass={false} multisampling={2}>
-        {/* ref cast: @react-three/postprocessing types the ref as the class, not the instance */}
-        <Bloom ref={bloom as never} mipmapBlur luminanceThreshold={0.78} luminanceSmoothing={0.3} intensity={0.4} radius={0.6} />
-        <BrightnessContrast contrast={0.08} />
-        <Vignette eskil={false} offset={0.3} darkness={0.45} />
+        {/* ref cast: @react-three/postprocessing types the ref as the class, not the instance.
+            intensity/luminanceThreshold are also driven live by SelectDim's useFrame above —
+            these props only seed the very first frame. */}
+        <Bloom ref={bloom as never} mipmapBlur luminanceThreshold={cfg.bloomThreshold} luminanceSmoothing={cfg.bloomSmoothing} intensity={cfg.bloomIntensity} radius={cfg.bloomRadius} />
+        <BrightnessContrast contrast={cfg.contrast} />
+        <Vignette eskil={false} offset={cfg.vignetteOffset} darkness={cfg.vignetteDarkness} />
       </EffectComposer>
     </>
   );

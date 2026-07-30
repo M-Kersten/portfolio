@@ -12,6 +12,7 @@ import { ScrollToHash } from '../components/ScrollToHash';
 import { DevTweakPanel } from '../scene/devTweak';
 import { NodeTweakPanel } from '../scene/nodeTweak';
 import { WallTweakPanel } from '../components/wallTweak';
+import { FxTweakPanel } from '../scene/fxTweak';
 
 // One Router, one persistent <SceneCanvas/> (§6). Every case study is a modal
 // nested in the home layout, so the scene stays mounted behind it. The CV
@@ -31,6 +32,7 @@ function SiteChrome() {
       {import.meta.env.DEV && <DevTweakPanel />}
       {import.meta.env.DEV && <NodeTweakPanel />}
       {import.meta.env.DEV && <WallTweakPanel />}
+      {import.meta.env.DEV && <FxTweakPanel />}
       <main id="main">
         <Outlet />
       </main>
