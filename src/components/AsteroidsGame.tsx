@@ -262,6 +262,17 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let gridPat: CanvasPattern | null = null; // the site's dot-grid paper
     let vig: CanvasGradient | null = null; // corner vignette, focuses the field
     let horizonGrad: CanvasGradient | null = null; // the city's glow, far below
+    // Per-stage backdrops — what's out the window changes with the stage, not
+    // just its colour (see horizonT in draw() below). Stage 1 keeps the city
+    // horizon above; these four are ARCHITECTURE/THE DEMO/RELEASE/POST-LAUNCH,
+    // built from the same primitives (gradients + arcs) rather than a new
+    // visual language. Cached here on the SAME discipline as vig/horizonGrad —
+    // recreating a gradient every frame is the one thing this background has
+    // always avoided, and four more of them would be worth noticing.
+    let laneGrad: CanvasGradient | null = null; // ARCHITECTURE — the debris lane
+    let nebGrads: CanvasGradient[] = []; // THE DEMO — the nebula's three glows
+    let limbGrad: CanvasGradient | null = null; // RELEASE — the ringed world's limb
+    let galGrad: CanvasGradient | null = null; // POST-LAUNCH — the deep-field galaxy
     (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '0.5px';
     const fit = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -285,6 +296,50 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       horizonGrad = ctx.createLinearGradient(0, H - 120, 0, H);
       horizonGrad.addColorStop(0, 'rgba(39, 232, 242, 0)');
       horizonGrad.addColorStop(1, 'rgba(39, 232, 242, 0.06)');
+
+      // ARCHITECTURE — a soft diagonal band (no rotation needed: the gradient
+      // axis runs perpendicular to the band itself). The debris flecks that
+      // drift through it track the same diagonal — see `debris` below.
+      laneGrad = ctx.createLinearGradient(0, H * 0.78, W, H * 0.22);
+      laneGrad.addColorStop(0, 'rgba(159, 182, 198, 0)');
+      laneGrad.addColorStop(0.5, 'rgba(159, 182, 198, 0.055)');
+      laneGrad.addColorStop(1, 'rgba(159, 182, 198, 0)');
+
+      // THE DEMO — three soft, low overlapping glows, two of them mixed toward
+      // NEUTRAL rather than pure accent, so the whole thing reads as a distant
+      // backdrop instead of a lit hotspot (an early pass at full accent alone
+      // measured nearly 40% brighter and over 2x the chroma of the other three
+      // stages' vistas put together).
+      nebGrads = [
+        { x: W * 0.74, y: H * 0.34, r: W * 0.34, a: 0.045, c: '39, 232, 242' },
+        { x: W * 0.88, y: H * 0.5, r: W * 0.22, a: 0.035, c: '159, 182, 198' },
+        { x: W * 0.6, y: H * 0.6, r: W * 0.18, a: 0.03, c: '159, 182, 198' },
+      ].map((b) => {
+        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+        g.addColorStop(0, `rgba(${b.c}, ${b.a})`);
+        g.addColorStop(1, `rgba(${b.c}, 0)`);
+        return g;
+      });
+
+      // RELEASE — a ringed world glimpsed edge-on, low in the frame: a soft
+      // dark limb plus two thin concentric arcs (drawn live, in `draw()`,
+      // since a stroke costs nothing to recompute — only the limb's fill
+      // needs a cached gradient).
+      const ringCx = W * 0.14;
+      const ringCy = H * 1.04;
+      const ringR = H * 0.5;
+      limbGrad = ctx.createRadialGradient(ringCx, ringCy, ringR * 0.8, ringCx, ringCy, ringR);
+      limbGrad.addColorStop(0, 'rgba(159, 182, 198, 0)');
+      limbGrad.addColorStop(1, 'rgba(159, 182, 198, 0.1)');
+
+      // POST-LAUNCH — a small, faint elongated smudge: a distant galaxy the
+      // way Andromeda actually reads to the naked eye (barely an oval haze,
+      // not a spiral illustration). The densest stars are the rest of this
+      // stage's vista — see the star loop in draw().
+      galGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, W * 0.22);
+      galGrad.addColorStop(0, 'rgba(234, 234, 234, 0.09)');
+      galGrad.addColorStop(0.4, 'rgba(159, 182, 198, 0.04)');
+      galGrad.addColorStop(1, 'rgba(159, 182, 198, 0)');
     };
     fit();
     window.addEventListener('resize', fit);
@@ -353,6 +408,20 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let bestAtStart = 0;
     let dispScore = 0; // the odometer eases toward the real score
     const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() * 0.7, ph: Math.random() * 6.28 }));
+    // ARCHITECTURE's debris — larger, slower, sparser than the stars, and it
+    // only ever draws in that one stage. Positions are fractions of W/H (same
+    // trick as `stars`), so a resize doesn't strand them; `jitter` is fixed per
+    // fleck and combines with the live `x` to find `y`, which is what keeps a
+    // fleck sitting inside laneGrad's diagonal band through every wrap rather
+    // than drifting out of it after the first lap.
+    const DEBRIS_N = 22;
+    const debris = Array.from({ length: DEBRIS_N }, () => ({
+      x: Math.random(),
+      jitter: (Math.random() - 0.5) * 0.18,
+      v: 0.02 + Math.random() * 0.035,
+      a: 0.3 + Math.random() * 0.35,
+      r: 1 + Math.random() * 2,
+    }));
 
     // Every message the game has to give the player comes over comms, from the
     // hologram (GameComms). The old centre-screen toast is gone — a line is
@@ -713,6 +782,12 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       // star field: a rush during stage separation, then a whisper of drift
       introV = introLeft > 0 ? 60 + 520 * Math.pow(introLeft / 2.2, 2) : 8;
       starOff += introV * dt;
+      // ARCHITECTURE's debris — ticks every frame regardless of stage (same
+      // as the star field above), it just only ever gets DRAWN in stage 2
+      for (const d of debris) {
+        d.x -= d.v * dt;
+        if (d.x < -0.05) d.x += 1.1;
+      }
       if (!firstWave && introLeft <= 0) {
         firstWave = true;
         spawnWave(); // the opening wave arrives as the rush settles
@@ -889,6 +964,74 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       const bgB = Math.round(16 - 1 * horizonT);
       ctx.fillStyle = `rgba(${bgR}, ${bgG}, ${bgB}, 0.97)`;
       ctx.fillRect(-20, -20, W + 40, H + 40);
+
+      // the stage's own vista — drawn UNDER the paper (gridPat) so the site's
+      // own texture still reads on top, and under the stars so nothing here
+      // ever competes with the field you're actually flying in
+      const vstage = Math.min(wave, 5);
+      if (vstage === 2) {
+        // ARCHITECTURE — a debris lane: we're building, and there's scattered
+        // material drifting past. The band itself sits still (it's the SIZE of
+        // the frame); the flecks drifting through it are what reads as motion.
+        if (laneGrad) {
+          ctx.fillStyle = laneGrad;
+          ctx.fillRect(0, 0, W, H);
+        }
+        for (const d of debris) {
+          const y = 0.78 - d.x * 0.56 + d.jitter;
+          if (y < -0.1 || y > 1.1) continue;
+          ctx.globalAlpha = d.a;
+          ctx.fillStyle = NEUTRAL;
+          ctx.fillRect(d.x * W, y * H, d.r, d.r);
+        }
+        ctx.globalAlpha = 1;
+      } else if (vstage === 3) {
+        // THE DEMO — a distant nebula. A gentle sway (independent of the star
+        // drift) is what keeps three static gradients from reading as painted
+        // wallpaper.
+        ctx.save();
+        ctx.translate(Math.sin(t * 0.025) * W * 0.02, Math.cos(t * 0.018) * H * 0.02);
+        for (const g of nebGrads) {
+          ctx.fillStyle = g;
+          ctx.fillRect(-40, -40, W + 80, H + 80);
+        }
+        ctx.restore();
+      } else if (vstage === 4) {
+        // RELEASE — a ringed world, edge-on: a soft dark limb and two thin
+        // concentric arcs (the site's own hairline language), not a rendered
+        // sphere. Barely tilts — a body this size doesn't hurry past.
+        const ringCx = W * 0.14;
+        const ringCy = H * 1.04;
+        const ringR = H * 0.5;
+        if (limbGrad) {
+          ctx.fillStyle = limbGrad;
+          ctx.beginPath();
+          ctx.arc(ringCx, ringCy, ringR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.strokeStyle = 'rgba(39, 232, 242, 0.16)';
+        ctx.lineWidth = 1;
+        const tilt = -0.36 + Math.sin(t * 0.015) * 0.02;
+        for (const k of [1.35, 1.55]) {
+          ctx.beginPath();
+          ctx.ellipse(ringCx, ringCy, ringR * k, ringR * k * 0.28, tilt, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      } else if (vstage === 5 && galGrad) {
+        // POST-LAUNCH — deep field: a faint elongated smudge, the way a
+        // distant galaxy actually reads to the naked eye. The densest stars
+        // (below) are the rest of this stage's vista.
+        ctx.save();
+        ctx.translate(W * 0.32 + Math.sin(t * 0.012) * W * 0.015, H * 0.28);
+        ctx.rotate(0.5);
+        ctx.scale(1, 0.4);
+        ctx.fillStyle = galGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, W * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
       if (gridPat) {
         ctx.fillStyle = gridPat;
         ctx.fillRect(0, 0, W, H);
