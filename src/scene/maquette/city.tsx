@@ -25,6 +25,12 @@ import { Rise, RocketBody } from './rocket';
  *  because it changes every frame and nothing should re-render for it — the panes
  *  only need a number to stagger themselves against. */
 const winLevel = { k: 0 };
+/** The same idea for the building BODIES, but deliberately not the same number:
+ *  the lights answer a hover (a cheap, reversible glance-response), while turning
+ *  the glass skyline solid is the city actually coming alive and should only
+ *  happen once a visitor commits — so this one ignores `hovered`. Sharing the
+ *  window level meant sweeping the cursor past the tower rebuilt the whole city. */
+const bodyLevel = { k: 0 };
 /** How much of the ramp is spent bringing buildings up one after another (0 = the
  *  whole skyline at once, as it used to be). The rest of the ramp is everything
  *  already lit and simply getting brighter. */
@@ -36,6 +42,7 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   const complete = useSceneSelector((s) => s.completedAt !== null);
   const reduced = useReducedMotion();
   const k = useRef(0);
+  const bk = useRef(0);
   useFrame((s) => {
     // Once the tower has been woken the city stays lit. `visited` used to hold at
     // 0.5, so closing the dossier dimmed every window back down again — the lights
@@ -45,6 +52,10 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
     // read as rooms coming on in turn rather than one switch being thrown.
     k.current += (kT - k.current) * (reduced ? 1 : 0.045);
     winLevel.k = k.current;
+    // …and the bodies on the same ramp minus the hover (see bodyLevel)
+    const bT = selected || visited || complete ? 1 : 0;
+    bk.current += (bT - bk.current) * (reduced ? 1 : 0.045);
+    bodyLevel.k = bk.current;
     const t = s.clock.elapsedTime;
     const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26) * Math.sin(t * 6.3);
     mat.emissiveIntensity = k.current * 1.1 * flick;
@@ -108,10 +119,15 @@ function Building({ x, z, w, d, h, winMat, delay = 0 }: { x: number; z: number; 
   // a block turns solid on the beat its own lights come up rather than the whole
   // skyline hardening at once. Written every frame, read by LiveGlassMat/LiveEdges.
   const wake = useRef(0);
+  // this building's slice of a city-wide ramp — its own beat in the wave that
+  // travels outward from the tower (`delay` is its distance from it)
+  const staggered = (level: number) => {
+    const raw = (level - delay * WIN_STAGGER) / (1 - WIN_STAGGER);
+    return raw <= 0 ? 0 : raw >= 1 ? 1 : raw;
+  };
   useFrame((s) => {
-    const raw = (winLevel.k - delay * WIN_STAGGER) / (1 - WIN_STAGGER);
-    const g = raw <= 0 ? 0 : raw >= 1 ? 1 : raw;
-    wake.current = g;
+    wake.current = staggered(bodyLevel.k); // body + edges: select, not hover
+    const g = staggered(winLevel.k); // windows: hover lights them too
     if (!mat) return; // a building with no window grid still solidifies
     const t = s.clock.elapsedTime;
     // the flicker is offset per building too, so they don't all shimmer in step
