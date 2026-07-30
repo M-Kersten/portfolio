@@ -479,16 +479,33 @@ function landingPoint(route: V3[], nd: ChipNode): [number, number] {
 /** custom-ar-framework as a fixed security / computer-vision camera. A faceted
  *  low-poly bullet head hangs from an articulated two-segment leg — base puck →
  *  knee joint → overhead grip, circular joint discs like a lamp arm — aimed out
- *  past the back of the board. Selecting it spins the head one quick turn and
- *  spawns the hologram: a clean cone of light onto a wireframe cube that bobs
- *  and turns in the beam. Once alive it keeps scanning — small continuous pans
- *  and nods around the cube, selected or not (visited things stay awake). */
+ *  past the back of the board. Selecting it lifts the head once, like a desk lamp
+ *  taking notice, and spawns the hologram: a clean cone of light onto a wireframe
+ *  cube that bobs and turns in the beam. Once alive it keeps looking the cube up
+ *  and down, selected or not (visited things stay awake). */
 const CAM_LENS_Z = 0.17; // cone apex, just past the hood
 const CAM_CUBE_Z = 0.78; // hologram centre, out in front of the lens
 const CAM_CUBE = 0.22; // hologram cube edge length
 const CAM_CONE_R = 0.22; // vision-cone radius where it meets the cube
 const FACET = Math.PI / 8; // spin octagonal parts so a flat facet faces up
 const HEAD_DROP = -0.08; // head centre, hanging below the grip pivot
+
+/* The head's motion. It hangs off the grip pivot with the lens aimed +z, so a
+   positive rotation.x tips that aim DOWN — pitch is the whole performance here
+   and everything else is kept small enough to stay underneath it.
+   One sine per axis, deliberately: the idle used to sum two sines on the yaw,
+   which wandered without ever reading as a decision. */
+const CAM_NOD = 0.12; // pitch sweep, rad (~7° either way)
+const CAM_NOD_RATE = 0.62; // ~10s for a full down-up-down
+// The pan is a fraction of the nod and runs at its own unrelated rate, so the two
+// never phase-lock into a pattern you can predict.
+const CAM_PAN = 0.05;
+const CAM_PAN_RATE = 0.23;
+// Looking up lifts the head a little: the tilt and the rise are one movement, so
+// the bob is derived from the pitch rather than being its own free-running sine.
+const CAM_BOB_PER_RAD = 0.1;
+// The wake gesture — how far the head picks up before settling onto the target.
+const CAM_PERK = 0.34;
 function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
@@ -502,7 +519,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const k = useRef(0); // lens power
   const holo = useRef(0); // hologram presence
   const scanW = useRef(0); // continuous look-around weight (alive)
-  const spinT = useRef(0); // select-spin envelope, 1 → 0
+  const perkT = useRef(0); // wake-gesture envelope, 1 → 0
   const wasSel = useRef(false);
   const lensC = useMemo(() => new Color('#7fe6ff'), []);
 
@@ -532,9 +549,9 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
     // selecting spawns the hologram — and it stays once visited (life mechanic)
     holo.current += (alive - holo.current) * (reduced ? 1 : 0.09);
     scanW.current += (alive - scanW.current) * 0.04;
-    if (selected && !wasSel.current && !reduced) spinT.current = 1; // rising edge
+    if (selected && !wasSel.current && !reduced) perkT.current = 1; // rising edge
     wasSel.current = selected;
-    spinT.current = Math.max(0, spinT.current - delta * 1.15);
+    perkT.current = Math.max(0, perkT.current - delta * 1.15);
     const on = k.current;
     if (lensMat.current) {
       const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.06;
@@ -542,14 +559,22 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
       lensMat.current.emissive.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * on);
       lensMat.current.emissiveIntensity = 0.05 + on * (1.0 + breathe);
     }
-    // head: one quick unwinding turn as the hologram spawns, then a continuous
-    // slight scan — panning and nodding around the cube like it's tracking it.
-    // The cube holds its spot (it lives outside headRef), so the beam plays
-    // over it as the camera looks around.
+    // The head: one clean lift as the hologram spawns, then a steady up-and-down
+    // look over it. The cube holds its spot (it lives outside headRef), so the
+    // beam sweeps across the tracked target as the head nods — the nod amplitude
+    // is sized to keep the cube inside the cone at the extremes.
     if (headRef.current && !reduced) {
-      const spin = -Math.PI * 2 * spinT.current * spinT.current;
-      headRef.current.rotation.y = spin + scanW.current * (Math.sin(t * 0.45) * 0.16 + Math.sin(t * 0.21) * 0.07);
-      headRef.current.rotation.x = scanW.current * Math.sin(t * 0.33) * 0.045;
+      // Wake: the head picks up and settles back onto the target. A half-sine over
+      // the envelope, so it starts and ends at exactly the resting pitch and the
+      // lift happens in between — the gesture has to grow out of where the head
+      // already is, or the first frame is a 20° jump that reads as a glitch.
+      // (This replaced a full 360° unwinding spin — that was a turret whirl; a
+      // lamp takes notice with its head, not a pirouette.)
+      const perk = -CAM_PERK * Math.sin(Math.PI * (1 - perkT.current));
+      const pitch = perk + scanW.current * Math.sin(t * CAM_NOD_RATE) * CAM_NOD;
+      headRef.current.rotation.x = pitch;
+      headRef.current.rotation.y = scanW.current * Math.sin(t * CAM_PAN_RATE) * CAM_PAN;
+      headRef.current.position.y = -pitch * CAM_BOB_PER_RAD; // rises as it looks up
     }
     // the projected hologram materialises out of the lens
     const h = holo.current;
