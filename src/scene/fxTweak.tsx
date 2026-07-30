@@ -92,7 +92,7 @@ export const FX_DEFAULTS: FxConfig = {
   "metalnessWake": 0,
   "dotFreq": 2.15,
   "dotStrength": 0.34,
-  "gridMode": true,
+  "gridMode": false,
   "gridWidth": 0.14,
   "bgColor": "#0e272f",
   "ghostFill": "#7a8694",
