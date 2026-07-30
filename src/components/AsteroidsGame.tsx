@@ -315,17 +315,25 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     // The 3D vehicle is ~150px long, so its nose tip sits about this far out
     // from centre: shots and their sparks leave from THERE, not from mid-hull.
     const NOSE = 56;
-    let paused = false;
+    // The star-rush that plays on arrival is "stage separation" by name in the
+    // comment below but only ever played once, at the very start — a new stage
+    // got a slate and a numeral tick, nothing that actually looked like ground
+    // falling away. Retriggered on every later wave (STAGE_ADVANCE_RUSH_MS,
+    // spawnWave below); shorter than the opening one since the field's already
+    // live and rocks are about to spawn into it, not settling into an empty sky.
+    const STAGE_ADVANCE_RUSH_MS = 900;
     let over = false;
     let shake = 0;
     let flash = 0; // white-out at the moment of disassembly
     let slomo = 0; // hit-stop: the world catches its breath on big hits
     let wavePulse = 0; // the stage numeral watermark breathes on each new wave
     let gridPulse = 0; // the paper brightens for a beat on milestones/clears
-    // arrival: stage separation — stars rush past and settle as you take over.
-    // Wall-clock deadline, not sim time: dt is clamped (1/30), so on a slow
-    // device the sim runs under real time and a sim-timed intro would strand
-    // the field empty for ages (same lesson as the ascent's staging fallback).
+    // stage separation: stars rush past and settle as you take over — on
+    // arrival, and again (STAGE_ADVANCE_RUSH_MS) every time spawnWave moves you
+    // into the next one. Wall-clock deadline, not sim time: dt is clamped
+    // (1/30), so on a slow device the sim runs under real time and a sim-timed
+    // intro would strand the field empty for ages (same lesson as the ascent's
+    // staging fallback).
     let introUntil = 0;
     let firstWave = false; // the opening wave arrives when the rush settles
     let introV = 0; // star streak velocity, decays through the intro
@@ -382,6 +390,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     const spawnWave = () => {
       wave += 1;
       wavePulse = 1;
+      // stage 1's own rush is the arrival intro (reset() below) — this is every
+      // stage AFTER it, which otherwise had no visual "we just travelled" beat
+      if (wave > 1) introUntil = reduced ? 0 : performance.now() + STAGE_ADVANCE_RUSH_MS;
       showSlate(phaseTitle(wave), 'phase');
       const n = Math.min(2 + wave, 7);
       // only what this stage of the project could plausibly have produced
@@ -563,7 +574,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       dispScore = 0;
       wave = 0;
       over = false;
-      paused = false;
       shots = 0;
       hitsCount = 0;
       playTime = 0;
@@ -624,7 +634,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         case 'ArrowRight': case 'KeyD': ship.right = down; break;
         case 'ArrowUp': case 'KeyW': ship.thrust = down; break;
         case 'Space': ship.fire = down; e.preventDefault(); break;
-        case 'KeyP': if (down && !over) paused = !paused; break;
         default: return;
       }
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp'].includes(e.code)) e.preventDefault();
@@ -668,8 +677,13 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     window.addEventListener('pointerup', pu);
     window.addEventListener('pointercancel', pu);
 
+    // Losing the tab used to freeze the sim through a silent P-key hold — its own
+    // flag, no UI, easy to forget you'd left it on. That mechanic is gone; the
+    // menu is the only pause now, so tabbing away opens it, same as reaching
+    // for Esc — a visitor coming back always finds an actionable card, not a
+    // frozen field with no explanation.
     const onVis = () => {
-      if (document.hidden && !over) paused = true;
+      if (document.hidden && !over) setMenu(true);
     };
     document.addEventListener('visibilitychange', onVis);
 
@@ -680,8 +694,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       raf = requestAnimationFrame(frame);
       const raw = Math.min((now - last) / 1000, 1 / 30);
       last = now;
-      // the pause menu freezes the sim exactly like a P hold does
-      if (!paused && !menuRef.current && !over) {
+      // the pause menu is the only thing that freezes the sim now
+      if (!menuRef.current && !over) {
         let dt = raw;
         if (slomo > 0) {
           // hit-stop: a beat of 30% speed on big hits, then straight back
@@ -857,10 +871,23 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     const draw = (t: number) => {
       ctx.save();
       if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+      // How far from the city the run has climbed: 0 at KICKOFF, 1 by RELEASE
+      // (stage 4) and held there through POST-LAUNCH/MAINTENANCE — a run doesn't
+      // keep travelling forever, it arrives and then it's just deep space. Drives
+      // three things below: the void's own tint, how bright/dense the stars read,
+      // and how far the city's horizon has faded and drawn in. A new stage on its
+      // own (the slate, the numeral) said "further along"; nothing actually LOOKED
+      // further away, so it read as one field with a scoreboard rather than a trip.
+      const horizonT = Math.min(1, Math.max(0, (wave - 1) / 3));
       // space — near-opaque fill leaves a 3% smear of the last frame (cheap
       // motion blur), then the site's dot-grid paper, drifting twinkle stars
-      // and a corner vignette to pull the eye to the field
-      ctx.fillStyle = 'rgba(10, 13, 16, 0.97)';
+      // and a corner vignette to pull the eye to the field. The fill itself
+      // cools a few RGB steps deeper as horizonT climbs — too small a shift to
+      // clock frame to frame, enough that KICKOFF and POST-LAUNCH read distinct.
+      const bgR = Math.round(10 - 3 * horizonT);
+      const bgG = Math.round(13 - 4 * horizonT);
+      const bgB = Math.round(16 - 1 * horizonT);
+      ctx.fillStyle = `rgba(${bgR}, ${bgG}, ${bgB}, 0.97)`;
       ctx.fillRect(-20, -20, W + 40, H + 40);
       if (gridPat) {
         ctx.fillStyle = gridPat;
@@ -873,11 +900,13 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         }
       }
       // stars: streaks while stage separation rushes past, then settling into
-      // a calm drift (starOff keeps a whisper of downward motion — we climb)
+      // a calm drift (starOff keeps a whisper of downward motion — we climb).
+      // Denser/brighter deep space the further the run has come (horizonT) —
+      // away from the city's light, more of the field actually shows.
       for (const s of stars) {
         const x = (s.x * W + t * 4 * s.z) % W;
         const y = (s.y * H + starOff * s.z) % H;
-        ctx.globalAlpha = (0.1 + 0.2 * (0.5 + 0.5 * Math.sin(t * 1.9 + s.ph))) * s.z;
+        ctx.globalAlpha = (0.1 + 0.2 * (0.5 + 0.5 * Math.sin(t * 1.9 + s.ph)) + 0.14 * horizonT) * s.z;
         const len = introV * s.z * 0.055;
         if (len > 4) {
           ctx.strokeStyle = INK;
@@ -892,29 +921,41 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         }
       }
       ctx.globalAlpha = 1;
-      // the city below — a faint curved horizon; we are, after all, in orbit
-      const hr = W * 1.5;
-      ctx.strokeStyle = 'rgba(39, 232, 242, 0.13)';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.arc(W / 2, H + hr - 46, hr, Math.PI * 1.5 - 0.42, Math.PI * 1.5 + 0.42);
-      ctx.stroke();
-      if (horizonGrad) {
-        ctx.fillStyle = horizonGrad;
-        ctx.fillRect(0, H - 120, W, 120);
+      // the city below — a faint curved horizon; we are, after all, in orbit.
+      // It's also the one place the run visibly gets further from home: it
+      // fades and draws in tighter (a smaller, more distant limb) the deeper
+      // the project gets, gone entirely by RELEASE — you've left orbit, not
+      // just moved to the next wave of the same field.
+      if (horizonT > 0.01) {
+        const hr = W * 1.5 * (1 - 0.25 * horizonT);
+        ctx.globalAlpha = horizonT;
+        ctx.strokeStyle = 'rgba(39, 232, 242, 0.13)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(W / 2, H + hr - 46, hr, Math.PI * 1.5 - 0.42, Math.PI * 1.5 + 0.42);
+        ctx.stroke();
+        if (horizonGrad) {
+          ctx.fillStyle = horizonGrad;
+          ctx.fillRect(0, H - 120, W, 120);
+        }
+        ctx.globalAlpha = 1;
       }
       if (vig) {
         ctx.fillStyle = vig;
         ctx.fillRect(0, 0, W, H);
       }
 
-      // stage numeral, ghosted bottom-left — the site's layer-index language
-      // ("01 · CITY"); it breathes brighter for a beat when a wave spawns
+      // stage numeral, ghosted bottom-right — the site's layer-index language
+      // ("01 · CITY"); it breathes brighter for a beat when a wave spawns.
+      // Bottom-LEFT used to double as ground control's own corner (.comms in
+      // launch.css), so the transmission panel sat right over the numeral
+      // every time Merijn had a line — which is often. Opposite corner, same
+      // margin, nothing left to fight over.
       ctx.font = `700 ${Math.round(Math.min(150, H * 0.17))}px "Space Mono", monospace`;
-      ctx.textAlign = 'left';
+      ctx.textAlign = 'right';
       ctx.fillStyle = CYAN;
       ctx.globalAlpha = 0.045 + 0.09 * wavePulse;
-      ctx.fillText(String(wave).padStart(2, '0'), 26, H - 30);
+      ctx.fillText(String(wave).padStart(2, '0'), W - 26, H - 30);
       ctx.globalAlpha = 1;
 
       // rocks — the bodies themselves are 3D now (the GameRocket layer above),
@@ -1033,18 +1074,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       // the game-over card
       sv.visible = !over;
 
-      // The P hold's own caption. Suppressed while the pause menu is up — that
-      // menu is the message then, and two of them at once is just noise.
-      if (paused && !menuRef.current && !over) {
-        ctx.fillStyle = INK;
-        ctx.font = '600 30px "Space Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('HOLD HOLD HOLD', W / 2, H / 2);
-        ctx.font = '14px "Space Mono", monospace';
-        ctx.globalAlpha = 0.6;
-        ctx.fillText('press P to resume the count', W / 2, H / 2 + 30);
-        ctx.globalAlpha = 1;
-      }
       ctx.restore();
     };
 
@@ -1103,7 +1132,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
             key hint next to it would have been a lie — and leaving the run is now
             one of the choices inside the menu rather than a thing on the HUD. */}
         <button type="button" className="ast__exit" onClick={() => setMenu(true)} disabled={phase === 'over'}>
-          hold <kbd>Esc</kbd>
+          pause <kbd>Esc</kbd>
         </button>
       </div>
       {/* The slate: separation on arrival, then the name of each stage as it
@@ -1117,7 +1146,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       {/* mission comms — the one narrative voice; every line comes through here */}
       <GameComms sayRef={sayRef} busyRef={commsBusy} />
       {/* the controls: onboarding, so it retires itself once all three are used */}
-      <div className="ast__hint" ref={hintRef}>← → rotate · ↑ thrust · space fire · P hold{' '}
+      <div className="ast__hint" ref={hintRef}>← → rotate · ↑ thrust · space fire{' '}
         <span className="ast__hint-touch">— or steer left half, fire right half</span>
       </div>
 
