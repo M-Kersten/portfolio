@@ -275,13 +275,21 @@
   color: var(--accent-ink);
 }
 /* the global odometer under the invitation — only renders once the count
-   arrives (see lib/launches.ts); the label reads fine without it */
+   arrives (see lib/launches.ts); the label reads fine without it. The count
+   takes the accent so it reads as a live figure being tallied, not a caption
+   — --ink-40 (used here before) all but disappeared against the panel. */
 .nextsite__tally {
   display: block;
   margin-top: 0.2em;
   font-size: 0.85em;
   letter-spacing: 0.08em;
-  color: var(--ink-40);
+  color: var(--ink-60);
+  font-variant-numeric: tabular-nums;
+}
+.nextsite__tally b {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent-ink);
 }
 .nextsite:hover {
   color: var(--ink);

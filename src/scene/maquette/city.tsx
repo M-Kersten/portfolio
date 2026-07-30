@@ -284,12 +284,21 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: num
       {PINE_TIERS.map(([y, r, th], i) => (
         <mesh key={i} position={[0, h * y, 0]} material={mat}>
           <coneGeometry args={[h * r, h * th, 6]} />
-          {/* The wireframe every other object on this layer has — but held back.
-              A box building draws 12 edges; three stacked hexagonal cones draw
-              about 21, five times over for the grove. At full strength the park
-              swapped one imbalance for another and became the busiest corner in
-              frame, so these carry roughly half a building's weight. */}
-          <Edges threshold={30} color={NEUTRAL} transparent opacity={0.42} />
+          {/* The wireframe every other object on this layer has at rest — but
+              LiveEdges, not a plain <Edges>. A plain one is exactly what was
+              here and it was WRONG twice over: with no lifeSkip flag its
+              material falls to LifeGroup's generic line treatment, which never
+              drops opacity below half of its authored value even at full life
+              — so selecting the park made the wireframe MORE visible, the
+              opposite of retiring to the solid tree it used to be. LiveEdges
+              owns its own material (flags lifeSkip) and fades it to nothing as
+              `live` below rises, so the grove returns to exactly the plain lit
+              cones it was before this pass touched it.
+              Held to less than a building's weight at rest: a box draws 12
+              edges, three stacked hexagonal cones draw about 21, five times
+              over for the grove — full strength made the park the busiest
+              corner in frame. */}
+          <LiveEdges slug={slug ?? ''} threshold={30} rest={0.42} />
         </mesh>
       ))}
     </group>
@@ -1338,7 +1347,9 @@ function NextProjectSite() {
           <button type="button" className="nextsite" onClick={engage}>
             <b>my next launch</b> — let's build it together
             {flights != null && (
-              <span className="nextsite__tally">{String(flights).padStart(4, '0')} launches by visitors so far</span>
+              <span className="nextsite__tally">
+                <b>{String(flights).padStart(4, '0')}</b> launches by visitors so far
+              </span>
             )}
           </button>
         </Html>

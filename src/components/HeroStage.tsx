@@ -22,8 +22,12 @@ const CAPTIONS = [
 
 // The exploration game: every object in the maquette IS a project — click one
 // and it comes alive. The tally is quiet instrument chrome that doubles as the
-// model manifest (which projects stand where, which are still dark); 10/10
-// triggers the world's completion state (see scene/maquette).
+// model manifest (which projects stand where, which are still dark); it steps
+// once a hotspot's HUD closes and the zoom-out has settled, not the instant it
+// opens, so the visitor watches the model fill in rather than seeing the
+// number jump while still looking at a close-up. 10/10 triggers the world's
+// completion state (see scene/maquette) — the rocket at NextProjectSite goes
+// from ghost to lit, and the tally's own label says so.
 const TOTAL = HOTSPOTS.length;
 const LAYERS = [
   { key: 'city', index: '01', name: 'city' },
@@ -31,6 +35,13 @@ const LAYERS = [
   { key: 'chip', index: '03', name: 'chip' },
 ] as const;
 const HINT_KEY = 'mk-model-hint';
+// How long the ambient tally waits, after a hotspot's HUD closes, before it
+// steps to the new count. Roughly how long CameraRig's exponential zoom-out
+// takes to visually settle (it eases at k=3.4/s — ~95% of the way there by
+// ~0.9s) — the tally lands once the visitor is actually looking at the whole
+// model again, rather than jumping the instant they open a project, while
+// they're still looking at the close-up and never see the model fill in.
+const TALLY_SETTLE_MS = 900;
 
 export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
@@ -103,8 +114,31 @@ export function HeroStage() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // The real, live count — used wherever truth matters more than pacing: the
+  // manifest dialog (a deliberate "let me check" action) and the aria-label.
   const found = visited.filter((slug) => HOTSPOTS.some((h) => h.slug === slug)).length;
-  const complete = found === TOTAL;
+  const foundRef = useRef(found);
+  foundRef.current = found;
+
+  // The AMBIENT tally — the pips and the label a visitor sees without asking
+  // for it — trails `found` and only steps on a deselect (zoom-out), after
+  // TALLY_SETTLE_MS. Keyed on selectedSlug transitions rather than `found`
+  // itself, so opening a hotspot never moves it; only closing one does.
+  const [revealed, setRevealed] = useState(0);
+  const wasSelected = useRef(selectedSlug);
+  useEffect(() => {
+    const prev = wasSelected.current;
+    wasSelected.current = selectedSlug;
+    if (!prev || selectedSlug) return; // only fires on prev-non-null -> null
+    if (reduced) {
+      setRevealed(foundRef.current);
+      return;
+    }
+    const t = window.setTimeout(() => setRevealed(foundRef.current), TALLY_SETTLE_MS);
+    return () => clearTimeout(t);
+  }, [selectedSlug, reduced]);
+
+  const complete = revealed === TOTAL;
 
   // the whisper waits a beat, then appears — and retires for good on the
   // first opened project
@@ -228,23 +262,27 @@ export function HeroStage() {
                 </ul>
               </div>
             ))}
-            <p className="manifest__foot">every object in the model is a project — click one to wake it</p>
+            <p className="manifest__foot">
+              {found === TOTAL
+                ? 'every project is live — the next one is a rocket, ready to launch'
+                : 'every object in the model is a project — click one to wake it'}
+            </p>
           </div>
         )}
         <button
           type="button"
           className="hero__signals-btn"
           aria-expanded={manifestOpen}
-          aria-label={`Projects live in the model: ${found} of ${TOTAL}. Toggle the manifest.`}
+          aria-label={`Projects live in the model: ${found} of ${TOTAL}${found === TOTAL ? '. The next launch is ready' : ''}. Toggle the manifest.`}
           onClick={() => setManifestOpen((v) => !v)}
         >
           <span className="hero__signals-pips">
             {HOTSPOTS.map((h, i) => (
-              <i key={h.slug} data-on={i < found || undefined} />
+              <i key={h.slug} data-on={i < revealed || undefined} />
             ))}
           </span>
           <span className="hero__signals-label">
-            {complete ? `all ${TOTAL} projects live` : `${found}/${TOTAL} projects live`}
+            {complete ? `${TOTAL}/${TOTAL} · ready to launch` : `${revealed}/${TOTAL} projects live`}
           </span>
         </button>
       </div>

@@ -1,7 +1,14 @@
 // Cross-layer signal threads: related projects on different layers are wired
-// together like a tidy run of cable, with glowing packets and a label that
-// fade in while either end is hovered/selected. Edit RELATIONS to change
-// which projects are linked and what the thread is called.
+// together like a tidy run of cable, with a label that fades in while either
+// end is hovered/selected. Edit RELATIONS to change which projects are linked
+// and what the thread is called.
+//
+// Packets only ever travel once: the "connect-made" sweep that plays after a
+// first-visited node's HUD closes and the camera has settled back on the
+// overview. Highlighting a hotspot lights the cable itself (its colour/opacity/
+// width below) but nothing runs along it — that used to double as a steady
+// flow, which put a moving light on screen the instant you so much as hovered
+// a node, competing with the thing you were actually looking at.
 import { useMemo, useRef, type CSSProperties } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html, Line as DreiLine } from '@react-three/drei';
@@ -146,7 +153,6 @@ export function SignalLine({ thread, from, to, color }: Relation) {
   const colArr = useMemo(() => new Float32Array(SIGNAL_PACKETS * 3), []);
   const baseCol = useMemo(() => new Color(color), [color]);
   const k = useRef(0); // eased activation: 0 dormant-grey, 0.6 hover, 1 selected, ~0.9 while drawing
-  const u = useRef(0); // packet flow phase
   // Discovery hook: the FIRST time either endpoint is woken, a one-shot sweep is
   // armed that draws from the just-woken node toward its partner — tempting the
   // eye toward the still-unexplored project. Deferred until focus is back on the
@@ -216,31 +222,19 @@ export function SignalLine({ thread, from, to, color }: Relation) {
       }
     }
 
-    // Data only flows while the cable is lit (hover/select); during the sweep the
-    // packets bunch into a bright comet trailing the head as it travels from the
-    // just-woken node toward its partner. Both the sweep and the steady flow run
-    // ONE fixed direction (drawDir) — set the moment the first endpoint is
-    // selected — so the flow never reverses on itself.
-    if (!reduced) u.current = (u.current + delta * 0.16) % 1;
+    // Packets run ONLY during the one-shot sweep, in the fixed direction
+    // (drawDir) set the moment the first endpoint woke — a comet trailing the
+    // head as it travels from the just-woken node toward its partner. Hovering
+    // or selecting a node lights the cable (the material block above) but
+    // leaves it still; see the file header for why the old steady flow is gone.
     const pen = pointsRef.current;
     if (pen) {
-      const flowing = kk > 0.04;
-      pen.visible = flowing && bothVisible;
-      if (flowing) {
+      pen.visible = drawing && bothVisible;
+      if (drawing) {
         const head = drawDir.current > 0 ? drawT.current : 1 - drawT.current;
         for (let i = 0; i < SIGNAL_PACKETS; i++) {
-          let f: number;
-          let b: number;
-          if (drawing) {
-            f = Math.min(1, Math.max(0, head - drawDir.current * i * 0.06)); // comet tail behind the head
-            b = (1 - i / SIGNAL_PACKETS) * 1.1;
-          } else {
-            // steady flow in the fixed direction (drawDir); reversing 1−phase
-            // when it points to→from keeps it running the same way as the sweep
-            const phase = (u.current + i / SIGNAL_PACKETS) % 1;
-            f = drawDir.current > 0 ? phase : 1 - phase;
-            b = kk * (0.5 + 0.5 * Math.sin(phase * Math.PI)); // fade in/out at the ends
-          }
+          const f = Math.min(1, Math.max(0, head - drawDir.current * i * 0.06)); // comet tail behind the head
+          const b = (1 - i / SIGNAL_PACKETS) * 1.1;
           curve.getPointAt(f, _sv);
           posArr[i * 3] = _sv.x;
           posArr[i * 3 + 1] = _sv.y;

@@ -83,7 +83,9 @@ export function LaunchOverlay() {
           <p className="launch__lede">You just toured ten projects that shipped, here's the one we haven’t built yet.</p>
           <p className="launch__brief">Let's launch this one together and blast through all the problems that come in a project</p>
           {flights != null && (
-            <span className="launch__tally">{String(flights).padStart(4, '0')} launches performed by visitors before you</span>
+            <span className="launch__tally">
+              <b>{String(flights).padStart(4, '0')}</b> launches performed by visitors before you
+            </span>
           )}
           <div className="launch__row">
             <button type="button" className="btn launch__go" onClick={() => sceneStore.setLaunch('countdown')}>

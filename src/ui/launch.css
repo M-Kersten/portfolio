@@ -50,12 +50,20 @@
   line-height: 1.4;
   text-wrap: balance;
 }
-/* the global odometer — appears only once the count has loaded */
+/* the global odometer — appears only once the count has loaded. The count
+   itself takes the accent so it reads as a live figure being tallied, not a
+   caption; --ink-40 (used here before) all but disappeared on this panel. */
 .launch__tally {
   font-family: var(--font-mono);
   font-size: 0.7rem;
   letter-spacing: 0.08em;
-  color: var(--ink-40);
+  color: var(--ink-60);
+  font-variant-numeric: tabular-nums;
+}
+.launch__tally b {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent-ink);
 }
 .launch__row {
   display: flex;
