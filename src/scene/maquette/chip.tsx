@@ -504,8 +504,17 @@ const CAM_PAN_RATE = 0.23;
 // Looking up lifts the head a little: the tilt and the rise are one movement, so
 // the bob is derived from the pitch rather than being its own free-running sine.
 const CAM_BOB_PER_RAD = 0.1;
-// The wake gesture — how far the head picks up before settling onto the target.
-const CAM_PERK = 0.34;
+/* The wake nod, fired when the hologram appears. A damped oscillation rather than
+   a smooth there-and-back: the head snaps up, overshoots, and wobbles down onto
+   the target. The settle is what sells it as a physical head on a sprung arm
+   instead of a value being interpolated — a symmetric curve arrives with no
+   weight at all. No anticipation wind-up before it, deliberately: this is a
+   REACTION to something appearing, and reactions don't telegraph.
+   Amplitude decays as exp(-DAMP*u), so the swings run ~19° → 5° → 1.4°. */
+const NOD_KICK = 0.6; // scales the whole gesture; the decay makes the first swing ~19°
+const NOD_FREQ = 10.05; // rad/s (~1.6Hz) — a small, light head, not a slow boom
+const NOD_DAMP = 4.2; // three visible swings before it's done
+const NOD_SETTLE = 1.8; // s; past here the term is under 0.03°, so stop evaluating
 function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
@@ -519,7 +528,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const k = useRef(0); // lens power
   const holo = useRef(0); // hologram presence
   const scanW = useRef(0); // continuous look-around weight (alive)
-  const perkT = useRef(0); // wake-gesture envelope, 1 → 0
+  const nodT = useRef(999); // seconds since the wake nod fired (999 = long done)
   const wasSel = useRef(false);
   const lensC = useMemo(() => new Color('#7fe6ff'), []);
 
@@ -549,9 +558,9 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
     // selecting spawns the hologram — and it stays once visited (life mechanic)
     holo.current += (alive - holo.current) * (reduced ? 1 : 0.09);
     scanW.current += (alive - scanW.current) * 0.04;
-    if (selected && !wasSel.current && !reduced) perkT.current = 1; // rising edge
+    if (selected && !wasSel.current && !reduced) nodT.current = 0; // rising edge
     wasSel.current = selected;
-    perkT.current = Math.max(0, perkT.current - delta * 1.15);
+    nodT.current += delta;
     const on = k.current;
     if (lensMat.current) {
       const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.06;
@@ -564,13 +573,12 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
     // beam sweeps across the tracked target as the head nods — the nod amplitude
     // is sized to keep the cube inside the cone at the extremes.
     if (headRef.current && !reduced) {
-      // Wake: the head picks up and settles back onto the target. A half-sine over
-      // the envelope, so it starts and ends at exactly the resting pitch and the
-      // lift happens in between — the gesture has to grow out of where the head
-      // already is, or the first frame is a 20° jump that reads as a glitch.
-      // (This replaced a full 360° unwinding spin — that was a turret whirl; a
-      // lamp takes notice with its head, not a pirouette.)
-      const perk = -CAM_PERK * Math.sin(Math.PI * (1 - perkT.current));
+      // Wake: the head snaps up, overshoots and wobbles onto the target (see the
+      // NOD_* constants). sin() starts at zero, so the gesture always grows out of
+      // wherever the head already is — no first-frame jump — and the exponential
+      // lands it back on the idle pitch rather than at a hard stop.
+      const u = nodT.current;
+      const perk = u < NOD_SETTLE ? -NOD_KICK * Math.exp(-NOD_DAMP * u) * Math.sin(NOD_FREQ * u) : 0;
       const pitch = perk + scanW.current * Math.sin(t * CAM_NOD_RATE) * CAM_NOD;
       headRef.current.rotation.x = pitch;
       headRef.current.rotation.y = scanW.current * Math.sin(t * CAM_PAN_RATE) * CAM_PAN;
