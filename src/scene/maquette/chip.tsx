@@ -9,7 +9,7 @@ import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, fxEnv, type V3 } from './shared';
+import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
 import { GlassMat, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
@@ -191,8 +191,11 @@ function MiscComponents() {
           between the eight occupied slots (see PADS). They used to sit at y 0.122,
           which floated them a full 0.1 above the substrate; they lie ON the board
           now, at the same height as the traces that reach them. */}
+      {/* Kept, but printed rather than drawn: with their runs gone (see ChipRig)
+          these are flat marks lying on the substrate, which is texture, not
+          another set of lines to follow. */}
       {PADS.map((p, i) => (
-        <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[p.x, TY + 0.003, p.z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+        <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[p.x, TY + 0.003, p.z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.22} />
       ))}
     </group>
   );
@@ -764,6 +767,17 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
 // additive rings that expand from the die's edge to the board's and fade on a
 // loop; tied to the die's own engagement (not the whole board) so it doesn't
 // compete when another chip project is open, and silent under reduced motion.
+//
+// Pitched as a soundwave rather than a signal: it should register at the edge of
+// attention and no further. Three things keep it there — the ring is a hairline
+// rather than a band, the peak opacity is a fraction of a normal overlay's, and
+// the amplitude ATTENUATES with distance instead of swelling mid-flight. That
+// last one is what a wave actually does, and it's what stops the ripple from
+// being brightest out at the board's rim, furthest from the thing emitting it.
+const PULSE_RINGS = 3;
+const PULSE_PEAK = 0.14; // vs FX.peak (0.55) for an overlay meant to be read
+const PULSE_ATTACK = 0.1; // fraction of the travel spent fading up off the die
+const PULSE_FALLOFF = 1.8; // >1 = drops away quickly once it's clear of the die
 function DiePulse() {
   const reduced = useReducedMotion();
   const { accent } = useAccent();
@@ -771,7 +785,7 @@ function DiePulse() {
   const groups = useRef<(Group | null)[]>([]);
   const mats = useRef<(MeshBasicMaterial | null)[]>([]);
   const e = useRef(0);
-  const N = 3;
+  const N = PULSE_RINGS;
   useFrame((s) => {
     e.current += ((selected ? 1 : hovered ? 0.45 : 0) - e.current) * FX.engage;
     const t = s.clock.elapsedTime;
@@ -782,7 +796,9 @@ function DiePulse() {
       const p = reduced ? 0.5 : (t * FX.loopSpeed + i / N) % 1;
       const scale = 0.54 + p * 0.5; // die edge → board edge
       g.scale.set(scale, scale, scale);
-      m.opacity = fxEnv(p) * FX.peak * e.current;
+      // up off the die, then away with distance — never a mid-flight swell
+      const amp = Math.min(1, p / PULSE_ATTACK) * Math.pow(1 - p, PULSE_FALLOFF);
+      m.opacity = amp * PULSE_PEAK * e.current;
     }
   });
   return (
@@ -790,7 +806,8 @@ function DiePulse() {
       {Array.from({ length: N }).map((_, i) => (
         <group key={i} ref={(r) => (groups.current[i] = r)}>
           <mesh>
-            <ringGeometry args={[0.93, 1.0, 60]} />
+            {/* a hairline, not a band — the old 0.07-wide ring was a moving stripe */}
+            <ringGeometry args={[0.982, 1.0, 60]} />
             <meshBasicMaterial ref={(r) => (mats.current[i] = r)} color={accent} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} />
           </mesh>
         </group>
@@ -805,10 +822,13 @@ export function ChipRig() {
   // Every run on the board starts at a package land (see landTrace) — the eight
   // parts plus the eight spare pads, four runs per edge, the same pattern turned
   // four times.
+  // Only the eight real parts get a run. The spare pads and the passives used to
+  // be wired up too — twelve more traces, added so nothing dead-ended — but that
+  // tripled the number of lines crossing the board to make a point of fabrication
+  // realism no visitor is reading. What the traces are actually for is showing
+  // that every project on this layer is wired into the chip, and twenty lines
+  // said that far less clearly than eight do.
   const traces = useMemo(() => CHIP_NODES.map((nd) => landTrace(nd.edge, nd.pin, nd.x, nd.z, TY)), []);
-  // …and the spare pads and the passives, so every part on the board has a run
-  // back to the die and no trace dead-ends anywhere.
-  const extra = useMemo(() => [...PADS, ...PASSIVES].map((p) => landTrace(p.edge, p.pin, p.x, p.z, TY)), []);
   return (
     <group>
       {/* The PCB substrate — every part mounts on it, so it reads as one board.
@@ -821,10 +841,11 @@ export function ChipRig() {
       <RoundedBox args={[2.05, 0.02, 2.05]} radius={0.04} smoothness={2} position={[0, 0.01, 0]}>
         <GlassMat color="#10303a" opacity={0.38} />
       </RoundedBox>
-      {/* board outline plus an inner keepout ring — two concentric rules is the
-          cheapest thing that reads as fabricated silkscreen rather than a slab */}
+      {/* board outline. The inner keepout ring that used to double it up was there
+          to stop the substrate reading as a plain slab — the glass and its
+          halftone do that now, so the second concentric rule was just another
+          rounded rectangle to parse. */}
       <Line points={roundedRectPts(2.0, 2.0, 0.06)} position={[0, 0.022, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-      <Line points={roundedRectPts(1.9, 1.9, 0.05)} position={[0, 0.022, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.16} />
 
       {/* silkscreen: a footprint outline printed under each part, and the package's
           own outline + pin-1 dot. Outlines that stay put whether or not the part
@@ -873,15 +894,14 @@ export function ChipRig() {
       {traces.map((t, i) => (
         <ChipTrace key={i} points={t} target={energy} color={accent} />
       ))}
-      {extra.map((t, i) => (
-        <ChipTrace key={`x${i}`} points={t} target={energy} color={accent} />
-      ))}
       {CHIP_NODES.map((nd, i) => {
         // the pad sits where the run arrives, beside the part, not under it
         const [px, pz] = landingPoint(traces[i], nd);
         return (
           <group key={i}>
-            <Line points={circlePts(0.03, 16)} position={[px, TY + 0.003, pz]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.65} />
+            {/* the landing pad. Quieter than it was: at 0.65 eight of these were
+                as loud as the parts they belong to. */}
+            <Line points={circlePts(0.03, 16)} position={[px, TY + 0.003, pz]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
             <ChipLED position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} idle={i === 0 || i === 5} />
           </group>
         );
