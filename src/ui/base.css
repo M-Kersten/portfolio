@@ -209,6 +209,11 @@ img {
   font-size: var(--step-0);
   line-height: 1.65;
   color: color-mix(in srgb, var(--ink) 88%, transparent);
+  /* A case beat is one string in cases.json, so a blank line in that string is
+     the only way to author a paragraph break — without this the browser
+     collapses it and two beats run together as one dense block. A no-op for the
+     single-paragraph cases, which carry no newlines at all. */
+  white-space: pre-line;
 }
 
 /* Storyline footer — "← builds on X · led to Y →" — threads the cases into

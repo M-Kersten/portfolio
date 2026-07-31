@@ -43,12 +43,22 @@ for (const c of cases) {
   else if (slugs.has(c.slug)) errors.push(`${who}: duplicate slug`);
   else slugs.add(c.slug);
   if (!LAYERS.has(c.layer)) errors.push(`${who}: layer must be city | room | chip (got "${c.layer}")`);
-  if (!/^\d{4}(-(0[1-9]|1[0-2]))?$/.test(c.year ?? ''))
+  // `year` and a poster are what the curated wall tile is built from — the date
+  // stamp and the artwork — and the year also places the tile on the timeline.
+  // An `archive` case reaches neither: it only ever appears as a node in the
+  // /projects cloud (which already degrades a missing poster to a styled empty
+  // node) and as a row in the find popup. So for those two they're optional —
+  // still validated when present, so a typo can't slip through, and a missing
+  // poster is reported as a warning rather than being passed over in silence.
+  if (c.year === undefined && c.archive) {
+    // fine — a long-tail entry may not have a date worth pinning
+  } else if (!/^\d{4}(-(0[1-9]|1[0-2]))?$/.test(c.year ?? '')) {
     errors.push(`${who}: year must be "YYYY" or "YYYY-MM" (got "${c.year}")`);
+  }
   for (const field of ['title', 'problem', 'approach', 'outcome'])
     if (!c[field]) errors.push(`${who}: missing "${field}"`);
   if (!existsSync(join(root, 'public', 'posters', `${c.slug}.jpg`)))
-    errors.push(`${who}: no poster at public/posters/${c.slug}.jpg`);
+    (c.archive ? warnings : errors).push(`${who}: no poster at public/posters/${c.slug}.jpg`);
   if (c.video && !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(c.video))
     warnings.push(`${who}: video isn't a YouTube URL — the embed only understands YouTube`);
 }

@@ -287,5 +287,94 @@
     "video": "https://youtu.be/iCZRpxt5iPc",
     "article": "https://docs.google.com/document/d/14nbCjnt5Q4B6Q_BJEFAJffhTqdmsfrQKgQVCw7nFURQ/edit?tab=t.0",
     "draft": false
+  },
+  {
+    "slug": "kastwezens",
+    "title": "Kastwezens",
+    "layer": "city",
+    "client": "Freelance",
+    "kind": "freelance",
+    "sector": "Interactive installation · projection mapping",
+    "problem": "Festivals are full of interactive experiences, but most people are still consuming instead of creating. We wondered if we could build something that blurred that line. What if a simple drawing on paper could become part of the world around you?",
+    "approach": "We spent a weekend in the woods building a network of colourful cabinets suspended between the trees. Visitors draw a butterfly, scan it, and within seconds it appears as a living digital creature projected onto the forest, fluttering from cabinet to cabinet. Under the hood it's a mix of Arduino, Unity, webcams, computer vision and projection mapping, but the goal was never to show off the technology. The goal was to create that split second where someone realizes, “Wait... that's my butterfly.”",
+    "outcome": "Draw a butterfly, watch it fly.",
+    "tech": [
+      "Arduino",
+      "Unity",
+      "Computer vision",
+      "Projection mapping"
+    ],
+    "lesson": "This project reminded me that the best interactive installations don't ask people to press a button. They invite people to leave something of themselves behind. Nobody talks about the webcam, the UV mapping or the projection setup afterwards. They talk about the butterfly they made and watched disappear into the trees. That's exactly the kind of technology I want to build.",
+    "live": false,
+    "media": [],
+    "video": "https://youtu.be/uqjgXV6o8Nw",
+    "draft": false,
+    "archive": true
+  },
+  {
+    "slug": "land-of-the-midnight-sun",
+    "title": "Land of the Midnight Sun",
+    "layer": "room",
+    "client": "OAMK",
+    "sector": "Games · team lead",
+    "problem": "How do you tell an emotional story without using a single line of dialogue? That became the central challenge of this student project. We wanted players to feel connected to the world through exploration, atmosphere and gameplay alone.",
+    "approach": "I led a multidisciplinary team in building a third-person adventure where players guide a young girl through the harsh northern wilderness with the help of an owl companion. Alongside leading the project, I focused on building systems that could grow with the game, integrating audio through FMOD, improving performance and creating animation workflows that helped bring the world to life.",
+    "outcome": "A dialogue-free adventure inspired by Sami mythology.",
+    "tech": [
+      "Unity",
+      "C#",
+      "FMOD"
+    ],
+    "lesson": "This was the first project that showed me software isn't just about writing good code. Every technical decision influences the experience someone has on screen. Winning first place throughout the competition was rewarding, but the bigger takeaway was learning how to align programmers, artists and designers around a single creative vision.",
+    "year": "2017",
+    "live": false,
+    "media": [],
+    "video": "https://youtu.be/ZyWztEz-mkw",
+    "draft": false,
+    "archive": true
+  },
+  {
+    "slug": "sol-ar",
+    "title": "Sol.AR",
+    "layer": "room",
+    "client": "Passion project",
+    "kind": "passion",
+    "sector": "Space · mobile AR",
+    "problem": "Space is difficult to grasp because everything about it is unimaginably large. A textbook can tell you Saturn has rings, but it's hard to appreciate them until you're standing inside them. I wanted to build something that made space feel less like information and more like a place you could explore.",
+    "approach": "Using ARCore, I turned a room into a miniature solar system. You can walk around the planets at scale, inspect them up close and discover interesting facts as you explore. If something catches your attention, you can travel to the surface of that planet or moon to learn more, visit the Mars rovers or even float around the International Space Station. The goal wasn't scientific accuracy down to the millimetre—it was to spark the same sense of curiosity that made me fall in love with space in the first place.",
+    "outcome": "Bring the solar system into your living room.",
+    "tech": [
+      "ARCore",
+      "Unity",
+      "Android"
+    ],
+    "lesson": "I've always believed the best way to learn is by exploring. AR is uniquely good at turning abstract ideas into physical experiences, and this project showed me that sometimes wonder is a better teacher than information.",
+    "live": false,
+    "media": [],
+    "video": "https://youtu.be/8jmDuHAcsaE",
+    "draft": false,
+    "archive": true
+  },
+  {
+    "slug": "amsterdam-underground",
+    "title": "Amsterdam Underground",
+    "layer": "room",
+    "client": "Rebels",
+    "sector": "Multiplayer VR · rebuild",
+    "problem": "The Municipality of Amsterdam had a VR game that taught players about the hidden world beneath the city's streets. It had been built as a student project and, for its time, it was impressive. But years later it no longer ran on modern hardware, and the request landed on my desk: could you update it for an upcoming event?\n\nWithin an hour of opening the project, I knew the answer was no. Not because it was poorly made, but because it had been built to demonstrate an idea, not to evolve. The networking was woven through every gameplay system, dependencies were outdated and simply getting the project to compile required upgrading half the stack. This wasn't going to be an update. It had to become a rebuild.",
+    "approach": "Before writing a single line of code, I spent two days doing detective work. Every scene, every button and every multiplayer interaction had to answer the same question: does this still deserve to exist? Once the architecture became clear, I rebuilt the networking layer around Photon Fusion 2, migrated the project to standalone Quest headsets and modernised the visual experience with improved rendering, shaders, haptics and audio.\n\nI deliberately ignored problems that weren't blocking the project. The gameplay wasn't perfect and the balance could have been improved, but those weren't the reasons the game had stopped working. My goal wasn't to create a different game. It was to give the existing one another decade of life.",
+    "outcome": "Bringing a legacy multiplayer VR experience back to life.",
+    "tech": [
+      "Unity",
+      "Photon Fusion 2",
+      "Meta Quest",
+      "VR"
+    ],
+    "lesson": "Legacy projects reward judgement more than programming. Every hour spent polishing the wrong thing is an hour you never get back. This project reminded me that good engineering isn't fixing everything you find—it's recognising what matters, what can wait and having the confidence to leave the rest alone.",
+    "live": false,
+    "media": [],
+    "video": "https://www.youtube.com/watch?v=U5Mcp2CMTDw",
+    "draft": false,
+    "archive": true
   }
 ]
