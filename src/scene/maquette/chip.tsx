@@ -231,7 +231,9 @@ function PinHeader({ position, n = 6 }: { position: V3; n?: number }) {
       {Array.from({ length: n }).map((_, i) => (
         <mesh key={i} position={[-span / 2 + i * 0.045, 0.105, 0]}>
           <cylinderGeometry args={[0.008, 0.008, 0.06, 8]} />
-          <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.3} roughness={0.4} />
+          {/* plain metal, not self-lit — the same idiom as the city tower's mast.
+              Emissive on a dormant detail made the pins glow on a dead board. */}
+          <meshStandardMaterial color={NEUTRAL} roughness={0.4} metalness={0.5} />
         </mesh>
       ))}
     </group>
@@ -693,7 +695,8 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
               {/* pivot stub + yoke cap the head hangs from */}
               <mesh position={[0, 0.008, 0]}>
                 <cylinderGeometry args={[0.012, 0.012, 0.045, 10]} />
-                <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.25} roughness={0.4} metalness={0.3} />
+                {/* plain metal — see the connector pins; nothing dormant self-lights */}
+                <meshStandardMaterial color={NEUTRAL} roughness={0.4} metalness={0.5} />
               </mesh>
               <mesh position={[0, -0.015, 0]}>
                 <boxGeometry args={[0.034, 0.014, 0.034]} />
@@ -808,10 +811,15 @@ export function ChipRig() {
   const extra = useMemo(() => [...PADS, ...PASSIVES].map((p) => landTrace(p.edge, p.pin, p.x, p.z, TY)), []);
   return (
     <group>
-      {/* the PCB substrate — every part mounts on it, so it reads as one board */}
+      {/* The PCB substrate — every part mounts on it, so it reads as one board.
+          Wears the same frosted glass as every other dormant body in the maquette,
+          just tinted to board-green: as a plain standard material it was the one
+          large surface in the scene with no fresnel rim, no screen-space halftone
+          and depth-writing on, so it read as an opaque slab dropped under a city
+          and a room made of glass. */}
       <BlobShadow position={[0, 0.002, 0]} radius={1.4} opacity={0.34} />
       <RoundedBox args={[2.05, 0.02, 2.05]} radius={0.04} smoothness={2} position={[0, 0.01, 0]}>
-        <meshStandardMaterial color="#10303a" transparent opacity={0.5} roughness={0.6} metalness={0.1} />
+        <GlassMat color="#10303a" opacity={0.38} />
       </RoundedBox>
       {/* board outline plus an inner keepout ring — two concentric rules is the
           cheapest thing that reads as fabricated silkscreen rather than a slab */}
@@ -894,17 +902,16 @@ export function ChipRig() {
         </mesh>
       ))}
 
-      {/* round database stack (top platter is the accent) — front-right corner slot */}
+      {/* round database stack — front-right corner slot. All three platters are
+          glass; the top one just carries a little more of it so the stack still
+          reads as capped. It used to be a solid self-lit disc, which made a piece
+          of dressing the brightest thing on a dormant board. */}
       <group position={[CORNER, 0, CORNER]}>
         {[0, 1, 2].map((i) => (
           <mesh key={i} position={[0, 0.05 + i * 0.07, 0]}>
             <cylinderGeometry args={[0.13, 0.13, 0.06, 28]} />
-            {i === 2 ? (
-              <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.4} roughness={0.45} />
-            ) : (
-              <GlassMat opacity={0.28} />
-            )}
-            {i !== 2 && <Edges threshold={30} color={NEUTRAL} />}
+            <GlassMat opacity={i === 2 ? 0.38 : 0.28} />
+            <Edges threshold={30} color={NEUTRAL} />
           </mesh>
         ))}
       </group>
