@@ -898,7 +898,7 @@ function TransformerHouse({ position }: { position: V3 }) {
           it just carries a touch more opacity to stay a cap, not a pane. */}
       <mesh position={[0, TRAFO_H + 0.007, 0]}>
         <boxGeometry args={[TRAFO_W + 0.03, 0.014, TRAFO_D + 0.03]} />
-        <GlassMat opacity={0.4} />
+        <meshStandardMaterial color="#16232c" roughness={0.1} metalness={0.7} transparent opacity={0.82}/>
         <Edges threshold={20} color={NEUTRAL} />
       </mesh>
       {/* door on the camera-facing (+z) face */}

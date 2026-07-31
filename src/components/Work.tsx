@@ -605,7 +605,6 @@ export function Work() {
         <Link className="btn btn--ghost wall__more-btn" to="/projects">
           Every project <span aria-hidden="true">↗</span>
         </Link>
-        <span className="wall__more-note">the full index — more than the highlights on the route</span>
       </div>
 
       {/* Mobile — a sticky bar reading out the employer at the current scroll
