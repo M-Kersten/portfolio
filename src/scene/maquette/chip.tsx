@@ -11,7 +11,7 @@ import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
-import { GlassMat, LiveGlassMat, SoftBox } from './materials';
+import { GlassMat, LiveEdges, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
@@ -138,7 +138,9 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
           <RoundedBox args={[0.42, 0.3, 0.05]} radius={0.02} smoothness={3}>
             <LiveGlassMat slug={slug} opacity={0.44} />
           </RoundedBox>
-          <Line points={roundedRectPts(0.42, 0.3, 0.03)} position={[0, 0, 0.026]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
+          {/* (the bezel outline is gone — same reason as the die's: a Line in a
+              LifeGroup brightens as the casing solidifies, so it survived as a
+              hard rectangle across a screen that had just powered on) */}
           {/* dark screen (drives its own glow) */}
           <mesh position={[0, 0.012, 0.027]}>
             <planeGeometry args={[0.35, 0.22]} />
@@ -187,16 +189,10 @@ function MiscComponents() {
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
       ))}
-      {/* Spare solder pads — small neutral rings on the outer ring, in the gaps
-          between the eight occupied slots (see PADS). They used to sit at y 0.122,
-          which floated them a full 0.1 above the substrate; they lie ON the board
-          now, at the same height as the traces that reach them. */}
-      {/* Kept, but printed rather than drawn: with their runs gone (see ChipRig)
-          these are flat marks lying on the substrate, which is texture, not
-          another set of lines to follow. */}
-      {PADS.map((p, i) => (
-        <Line key={`p${i}`} points={circlePts(0.03, 18)} position={[p.x, TY + 0.003, p.z]} color={NEUTRAL} lineWidth={1} transparent opacity={0.22} />
-      ))}
+      {/* The spare solder pads that used to ring the board are gone. Once their
+          runs went they were eight unexplained circles scattered across the
+          substrate — the kind of detail that only reads as detail to someone who
+          already knows it's a PCB. */}
     </group>
   );
 }
@@ -318,19 +314,6 @@ const CHIP_NODES: ChipNode[] = [
   { x: -EDGE, z: 0, ly: 0.155, led: '#ff9068', phase: 3.1, speed: 6.8, edge: 2, pin: 4, fp: [0.14, 0.14] }, // cap (left)
   { x: 0, z: -EDGE, ly: 0.155, led: '#7fe6ff', phase: 0.4, speed: 7.0, edge: 3, pin: 4, fp: [0.14, 0.14] }, // cap (back)
 ];
-
-// Two spare pad footprints per edge, in the lateral gaps the parts leave — the
-// unpopulated positions a real board carries between its components. They wire to
-// lands 6 and 2, so on every edge the four runs leave at lateral 0.42 / 0.21 / 0 /
-// −0.21 and arrive at 0.75 / 0.36 / 0 / −0.36: monotonic, so nothing crosses.
-const PAD_D = 0.868; // 0.94 out at 22.5° off the normal
-const PAD_T = 0.36;
-const PADS: { x: number; z: number; edge: number; pin: number }[] = [0, 1, 2, 3].flatMap((e) =>
-  [{ t: PAD_T, pin: 6 }, { t: -PAD_T, pin: 2 }].map(({ t, pin }) => {
-    const [x, z] = onEdge(e, PAD_D, t);
-    return { x, z, edge: e, pin };
-  }),
-);
 
 // The decorative passives sit on the substrate beside the package, in the lateral
 // band outboard of every trace — they used to be dropped on TOP of the die
@@ -639,7 +622,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         <mesh position={[0, 0.02, -0.09]} rotation={[0, FACET, 0]}>
           <cylinderGeometry args={[0.05, 0.058, 0.035, 8]} />
           <LiveGlassMat slug={slug} opacity={0.5} />
-          <Edges threshold={50} color={NEUTRAL} />
+          <LiveEdges slug={slug} threshold={50} />
         </mesh>
         {/* lower segment — twin plates leaning forward to the knee */}
         {[-0.026, 0.026].map((x, i) => (
@@ -652,7 +635,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         <mesh position={[0, 0.2, -0.015]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.032, 0.032, 0.064, 18]} />
           <LiveGlassMat slug={slug} opacity={0.5} />
-          <Edges threshold={30} color={NEUTRAL} />
+          <LiveEdges slug={slug} threshold={30} />
         </mesh>
         {/* upper segment — twin plates leaning back up to the grip hub */}
         {[-0.026, 0.026].map((x, i) => (
@@ -665,7 +648,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         <mesh position={[0, 0.355, -0.075]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.028, 0.028, 0.058, 18]} />
           <LiveGlassMat slug={slug} opacity={0.5} />
-          <Edges threshold={30} color={NEUTRAL} />
+          <LiveEdges slug={slug} threshold={30} />
         </mesh>
         <mesh position={[0, 0.358, -0.036]}>
           <boxGeometry args={[0.026, 0.02, 0.1]} />
@@ -714,7 +697,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                 <mesh position={[0, 0, -0.01]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.054, 0.06, 0.2, 8]} />
                   <LiveGlassMat slug={slug} opacity={0.44} />
-                  <Edges threshold={50} color={NEUTRAL} />
+                  <LiveEdges slug={slug} threshold={50} />
                 </mesh>
                 {/* back cap */}
                 <mesh position={[0, 0, -0.12]} rotation={[Math.PI / 2, FACET, 0]}>
@@ -725,7 +708,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                 <mesh position={[0, 0, 0.135]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.062, 0.058, 0.075, 8, 1, true]} />
                   <LiveGlassMat slug={slug} opacity={0.32} />
-                  <Edges threshold={50} color={NEUTRAL} />
+                  <LiveEdges slug={slug} threshold={50} />
                 </mesh>
                 {/* dark lens recess + the glass element that lights up */}
                 <mesh position={[0, 0, 0.104]} rotation={[Math.PI / 2, FACET, 0]}>
@@ -847,9 +830,10 @@ export function ChipRig() {
           rounded rectangle to parse. */}
       <Line points={roundedRectPts(2.0, 2.0, 0.06)} position={[0, 0.022, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
 
-      {/* silkscreen: a footprint outline printed under each part, and the package's
-          own outline + pin-1 dot. Outlines that stay put whether or not the part
-          above them is awake are what make the board read as a designed thing. */}
+      {/* silkscreen: a footprint printed under each part, staying put whether or
+          not the part above it is awake — that's what makes the board read as a
+          designed thing rather than parts dropped on a sheet. Printed quietly
+          though: at 0.28 six of these were competing with the parts themselves. */}
       {CHIP_NODES.map((nd, i) =>
         nd.fp ? (
           <Line
@@ -859,14 +843,12 @@ export function ChipRig() {
             color={NEUTRAL}
             lineWidth={1}
             transparent
-            opacity={0.28}
+            opacity={0.18}
           />
         ) : null,
       )}
-      {/* pin-1 dot, off the package's back-left corner. It has to sit OUTSIDE the
-          body: inside the 1.05 outline it was buried under the package itself and
-          never drew. The package's own outline comes from SoftBox's `outline`. */}
-      <Line points={circlePts(0.026, 14)} position={[-PKG - 0.05, TY + 0.002, -PKG - 0.05]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.5} />
+      {/* (the pin-1 dot that sat off the package's back-left corner is gone — a
+          26mm circle of authenticity that cost a line and read as a stray mark) */}
 
       {/* soft pads under the raised parts, so they sit ON the board (one per slot) */}
       <BlobShadow position={[0, 0.024, 0]} radius={0.68} opacity={0.26} />
@@ -885,7 +867,12 @@ export function ChipRig() {
           corner radius is small: at 0.08 it clamped to nearly half the 0.12 height
           and the package read as a cushion rather than a moulded slab. */}
       <LifeGroup slug="amsterdam-ai">
-        <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.03} outline liveSlug="amsterdam-ai" />
+        {/* No `outline`: it's a plain Line, so inside a LifeGroup it gets the
+            ghost-wireframe treatment (opacity * (0.5 + 0.5 * life)) and BRIGHTENS
+            as the package solidifies — the die ended up a solid slab wearing a
+            hard white rectangle, which is most of why it didn't read as opaque.
+            The glass rim already draws the silhouette. */}
+        <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.03} liveSlug="amsterdam-ai" />
         <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
         <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.175, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
       </LifeGroup>
