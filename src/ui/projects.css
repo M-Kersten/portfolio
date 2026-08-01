@@ -24,16 +24,39 @@
   padding: var(--space-m) var(--space-l);
   border-bottom: 1px solid var(--hairline);
 }
+/* The way off this page, and it used to be bare text — the quietest thing in
+   a bar that also holds the search trigger. Built as a pill to match that
+   trigger on the opposite side, so the top bar reads as two controls with the
+   title between them. */
 .pc-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2rem;
+  padding: 0 0.75rem;
   font-family: var(--font-mono);
   font-size: var(--step--1);
   letter-spacing: 0.02em;
   color: var(--ink-60);
   text-decoration: none;
   white-space: nowrap;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease), background 0.18s var(--ease);
 }
-.pc-back:hover {
+.pc-back:hover,
+.pc-back:focus-visible {
   color: var(--ink);
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong));
+}
+/* the arrow slides back toward the edge it points at */
+.pc-back span[aria-hidden] {
+  transition: transform 0.18s var(--ease);
+}
+.pc-back:hover span[aria-hidden] {
+  transform: translateX(-2px);
 }
 .pc-title {
   font-size: var(--step-1);
@@ -86,32 +109,58 @@
   min-width: 0;
 }
 
-/* one facet option — quiet until pressed, then it fills with its own colour
-   (layer chips) or the primary accent (tech chips) */
+/* One facet option, built as a key rather than an outline. The search
+   trigger's "F" keycap already sets the vocabulary for this — a raised face,
+   a heavier bottom edge standing in for the side of the key — so the chips
+   borrow it: raised and unlit when off, driven into the surface when on.
+   Transparent with a --line outline, they measured 1.48:1 against the page
+   and read as ghosts. */
 .pi-chip {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-60);
-  background: none;
-  border: 1px solid var(--line);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  /* the key's depth — the lit top face plus a thicker edge underneath */
+  border-bottom-width: 2px;
   border-radius: var(--radius-s);
+  box-shadow: inset 0 1px 0 rgba(234, 234, 234, 0.07);
   /* 32px tall at this size — a real pointer/touch target, where the old
      0.35em padding gave 24px. */
   padding: 0.5em 0.8em;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.18s var(--ease), border-color 0.18s var(--ease), background-color 0.18s var(--ease);
+  transition: color 0.16s var(--ease), border-color 0.16s var(--ease), background-color 0.16s var(--ease),
+    transform 0.08s var(--ease), box-shadow 0.16s var(--ease);
 }
 .pi-chip:hover {
   color: var(--ink);
-  border-color: color-mix(in srgb, var(--c, var(--accent)) 50%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong));
+}
+/* travelling 1px down while the bottom edge collapses is the whole trick —
+   the face moves and the key's side disappears under it */
+.pi-chip:active {
+  transform: translateY(1px);
+  border-bottom-width: 1px;
+  margin-bottom: 1px;
+  box-shadow: none;
 }
 .pi-chip[aria-pressed='true'] {
   color: var(--accent-contrast);
   background: var(--c, var(--accent));
   border-color: var(--c, var(--accent));
+  /* held down: no bottom edge left to see, and the surface shades it */
+  border-bottom-width: 1px;
+  margin-bottom: 1px;
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px -1px rgba(0, 0, 0, 0.45);
+}
+.pi-chip[aria-pressed='true']:hover {
+  color: var(--accent-contrast);
+  background: color-mix(in srgb, var(--c, var(--accent)) 88%, #fff);
 }
 
 /* count · clear · sort, right-aligned opposite the facets */
@@ -158,18 +207,23 @@
   text-transform: uppercase;
   color: var(--ink-40);
 }
+/* same raised face as the chips, so the bar reads as one set of controls */
 .pi-sort select {
   font-family: var(--font-mono);
   font-size: var(--step--1);
   color: var(--ink);
-  background: var(--paper-2);
-  border: 1px solid var(--line);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
   border-radius: var(--radius-s);
+  box-shadow: inset 0 1px 0 rgba(234, 234, 234, 0.07);
   padding: 0.4em 0.6em;
   cursor: pointer;
+  transition: border-color 0.16s var(--ease), background-color 0.16s var(--ease);
 }
 .pi-sort select:hover {
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong));
 }
 
 /* ---- the grid --------------------------------------------------------- */
@@ -360,6 +414,9 @@
   }
   .pc-back {
     grid-area: back;
+    /* it's a pill now, and a grid item stretches to its column by default —
+       without this it spans the whole row */
+    justify-self: start;
   }
   .pc-title {
     grid-area: title;

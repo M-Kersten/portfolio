@@ -56,6 +56,11 @@
   /* ---- Lines + model tones ---- */
   --hairline: rgba(234, 234, 234, 0.08); /* faint dividers */
   --line: rgba(234, 234, 234, 0.16); /* visible hairline on dark */
+  /* The edge of something you can press. Structural rules can be as faint as
+     they like, but a control's boundary is what tells you it's a control, and
+     WCAG 1.4.11 puts that at 3:1 — --line manages 1.48:1 and reads as a ghost
+     outline. 0.38 is where a 1px edge clears the bar on --paper. */
+  --line-strong: rgba(234, 234, 234, 0.38);
   --model-mid: #2a3340;
   --model-deep: #1a212a;
 
