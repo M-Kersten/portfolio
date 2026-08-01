@@ -1,13 +1,17 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { LAYER_LABEL, type CaseStudy, type Layer } from '../content';
+import { DISCIPLINES, LAYER_LABEL, type CaseStudy, type Discipline, type Layer } from '../content';
 import { asset } from '../lib/asset';
 
 // The /projects index — every project (highlights + the long tail) as a
 // scannable card grid. This is the one page a visitor arrives at with a
 // specific question ("what's recent?", "has he shipped AR?"), so the metadata
 // the maquette deliberately can't show — year, client, sector, layer — sits on
-// the face of every card, and the tech chips narrow the set rather than
+// the face of every card, and the discipline chips narrow the set rather than
 // decorate it. Clicking a card opens the same case card the timeline uses.
+//
+// Discipline is the facet rather than tech because tech is the wrong grain to
+// navigate by: most tags are used once, and Unity covers nearly every case.
+// Tech is still fully searchable — the Find overlay indexes it.
 
 const LAYER_COLOR: Record<Layer, string> = { city: 'var(--cyan)', room: 'var(--coral)', chip: 'var(--lime)' };
 
@@ -18,10 +22,6 @@ const SORTS: { value: Sort; label: string }[] = [
   { value: 'curated', label: 'Curated order' },
 ];
 
-// A tech tag only earns a filter chip once it links two projects together —
-// otherwise the row fills with 30 one-off tags that each narrow 16 cases to 1.
-const MIN_TECH_USES = 2;
-
 /** Toggle one value of a Set held in state, without mutating the old set. */
 function toggled<T>(set: ReadonlySet<T>, v: T): Set<T> {
   const next = new Set(set);
@@ -30,24 +30,22 @@ function toggled<T>(set: ReadonlySet<T>, v: T): Set<T> {
 }
 
 export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (slug: string) => void }) {
-  const [techs, setTechs] = useState<ReadonlySet<string>>(new Set());
+  const [picked, setPicked] = useState<ReadonlySet<Discipline>>(new Set());
   const [sort, setSort] = useState<Sort>('new');
 
-  // Facet options come from the whole index, not the filtered view, so chips
-  // never disappear out from under the pointer as you narrow.
-  const techOptions = useMemo(() => {
-    const uses = new Map<string, number>();
-    for (const c of items) for (const t of c.tech ?? []) uses.set(t, (uses.get(t) ?? 0) + 1);
-    return [...uses]
-      .filter(([, n]) => n >= MIN_TECH_USES)
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .map(([t]) => t);
+  // Chips follow the canonical order, but only for disciplines actually in use
+  // — so an empty category never offers a filter that leads nowhere. Derived
+  // from the whole index, not the filtered view, so chips never disappear out
+  // from under the pointer as you narrow.
+  const options = useMemo(() => {
+    const used = new Set(items.flatMap((c) => c.discipline));
+    return DISCIPLINES.filter((d) => used.has(d));
   }, [items]);
 
   const shown = useMemo(() => {
-    // Selected tech tags are OR'd — "Unity or AR", not "Unity and AR" — so
-    // picking a second tag always widens the set rather than emptying it.
-    const hits = items.filter((c) => techs.size === 0 || (c.tech ?? []).some((t) => techs.has(t)));
+    // Selected disciplines are OR'd — "AR or Games", not "AR and Games" — so
+    // picking a second chip always widens the set rather than emptying it.
+    const hits = items.filter((c) => picked.size === 0 || c.discipline.some((d) => picked.has(d)));
     if (sort === 'curated') return hits; // the hand-authored order in cases.json
     // Years are authored as "YYYY" or "YYYY-MM", which compare correctly as
     // strings. A few long-tail entries carry no year at all — those sort last
@@ -58,29 +56,29 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
       if (!ay !== !by) return ay ? -1 : 1;
       return sort === 'new' ? by.localeCompare(ay) : ay.localeCompare(by);
     });
-  }, [items, techs, sort]);
+  }, [items, picked, sort]);
 
-  const filtered = techs.size > 0;
-  const clear = () => setTechs(new Set());
+  const filtered = picked.size > 0;
+  const clear = () => setPicked(new Set());
 
   return (
     <>
       <div className="pi-bar">
         <div className="pi-facets">
           <div className="pi-facet">
-            <span className="pi-facet__name" id="pi-facet-tech">
-              Tech
+            <span className="pi-facet__name" id="pi-facet-discipline">
+              Work
             </span>
-            <div className="pi-chips" role="group" aria-labelledby="pi-facet-tech">
-              {techOptions.map((t) => (
+            <div className="pi-chips" role="group" aria-labelledby="pi-facet-discipline">
+              {options.map((d) => (
                 <button
-                  key={t}
+                  key={d}
                   type="button"
                   className="pi-chip"
-                  aria-pressed={techs.has(t)}
-                  onClick={() => setTechs(toggled(techs, t))}
+                  aria-pressed={picked.has(d)}
+                  onClick={() => setPicked(toggled(picked, d))}
                 >
-                  {t}
+                  {d}
                 </button>
               ))}
             </div>

@@ -20,13 +20,16 @@ const LAYER_COLOR: Record<string, string> = { city: 'var(--cyan)', room: 'var(--
 interface Indexed {
   c: CaseStudy;
   title: string; // strongest
-  strong: string; // client · sector · tag · kind · layer · tech (location + tags)
+  strong: string; // client · sector · tag · kind · layer · discipline · tech
   body: string; // problem · approach · lesson · outcome · year (content)
 }
 const INDEX: Indexed[] = cases.map((c) => ({
   c,
   title: c.title.toLowerCase(),
-  strong: [c.client, c.sector, c.tag, c.kind, LAYER_LABEL[c.layer], ...(c.tech ?? [])].filter(Boolean).join(' ').toLowerCase(),
+  strong: [c.client, c.sector, c.tag, c.kind, LAYER_LABEL[c.layer], ...c.discipline, ...(c.tech ?? [])]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase(),
   body: [c.problem, c.approach, c.lesson, c.outcome, c.year].filter(Boolean).join(' ').toLowerCase(),
 }));
 

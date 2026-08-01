@@ -34,6 +34,9 @@ const cvNl = readJson('src/content/cv.nl.json');
 if (errors.length) fail(); // JSON that doesn't parse blocks every other check
 
 const LAYERS = new Set(['city', 'room', 'chip']);
+// Keep in step with the Discipline union in src/content/types.ts — this is the
+// facet the /projects index filters on, so a typo would silently orphan a case.
+const DISCIPLINES = new Set(['AR', 'VR', 'AI', 'Games', 'Geo', 'Installation']);
 const slugs = new Set();
 
 // ---- cases.json ------------------------------------------------------------
@@ -43,6 +46,13 @@ for (const c of cases) {
   else if (slugs.has(c.slug)) errors.push(`${who}: duplicate slug`);
   else slugs.add(c.slug);
   if (!LAYERS.has(c.layer)) errors.push(`${who}: layer must be city | room | chip (got "${c.layer}")`);
+  // Every case needs at least one discipline or it can never be filtered to.
+  if (!Array.isArray(c.discipline) || c.discipline.length === 0)
+    errors.push(`${who}: needs a non-empty "discipline" array (one or more of ${[...DISCIPLINES].join(' | ')})`);
+  else
+    for (const d of c.discipline)
+      if (!DISCIPLINES.has(d))
+        errors.push(`${who}: unknown discipline "${d}" — must be one of ${[...DISCIPLINES].join(' | ')}`);
   // `year` and a poster are what the curated wall tile is built from — the date
   // stamp and the artwork — and the year also places the tile on the timeline.
   // An `archive` case reaches neither: it only ever appears as a node in the

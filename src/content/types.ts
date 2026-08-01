@@ -6,6 +6,13 @@
 // categories all key off this.
 export type Layer = 'city' | 'room' | 'chip';
 
+// The kind of work a case represents — the facet the /projects index filters
+// on. Tech tags are the wrong grain to navigate by (most are used once, and
+// Unity covers nearly everything); this is the coarse question a visitor
+// actually arrives with. A case may span more than one. Keep DISCIPLINES in
+// index.ts in step with this union — it drives the chip order.
+export type Discipline = 'AR' | 'VR' | 'AI' | 'Games' | 'Geo' | 'Installation';
+
 export interface CaseStudy {
   slug: string;
   title: string;
@@ -13,6 +20,8 @@ export interface CaseStudy {
   layer: Layer;
   client: string;
   sector: string;
+  /** At least one discipline — the /projects index filters on these. */
+  discipline: Discipline[];
   /** The story, told in three beats — these carry the case dialogs. */
   problem: string;
   approach: string;

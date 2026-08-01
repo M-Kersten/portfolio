@@ -7,7 +7,7 @@ import capabilitiesJson from './capabilities.json';
 import casesJson from './cases.json';
 import cvJson from './cv.json';
 import cvNlJson from './cv.nl.json';
-import type { SiteContent, Capability, CaseStudy, CvContent } from './types';
+import type { SiteContent, Capability, CaseStudy, CvContent, Discipline } from './types';
 
 // JSON string values widen to `string`, so the union-typed fields (layer) need
 // an `unknown` hop. The JSON is authored to match these types (see types.ts).
@@ -27,5 +27,9 @@ export const LAYER_LABEL: Record<CaseStudy['layer'], string> = {
   room: 'Room',
   chip: 'Chip',
 };
+
+/** Every discipline, in the order the /projects chips show them — broadest
+ *  bodies of work first. Must cover the Discipline union in types.ts. */
+export const DISCIPLINES: Discipline[] = ['AR', 'VR', 'AI', 'Games', 'Geo', 'Installation'];
 
 export * from './types';

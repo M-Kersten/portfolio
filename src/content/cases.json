@@ -6,6 +6,9 @@
     "layer": "room",
     "client": "Royal Netherlands Marechaussee",
     "sector": "Training · VR",
+    "discipline": [
+      "VR"
+    ],
     "problem": "I joined a VR training sim project that had been in the works for years, and my job was to add multiplayer and VR support to it, quite a task.",
     "approach": "A lot of careful surgery later, instructors could run shared scenarios together in VR, desktop, in editor, it all works. I was responsible for development, lot's of refactoring of code architecture and for the UX flow of the whole application. It gets wheeled out at events and will replace the previous software package used in training new KMar agents, which I’m pretty proud of.",
     "outcome": "Multiplayer VR, retrofitted into a long running project",
@@ -27,6 +30,10 @@
     "layer": "city",
     "client": "Alliander",
     "sector": "Energy · AR",
+    "discipline": [
+      "AR",
+      "Geo"
+    ],
     "problem": "Alliander has to drop transformers into neighbourhoods where people are not waiting for an ugly box in view so they complain, but the energy transition has to start somewhere. Paper plans were used to decide on a location, this could be improved upon.",
     "approach": "We combined RTK GPS, an Android phone, a HoloLens and a backend together so specialists could literally see the transformerhouse floating in exactly the right spot on the real street, to the centimeter. The sighting can be saved and reviewed, visuals give an immediate idea of the resulting environment. I was responsible for development and for the UX flow of the application.",
     "outcome": "Visuals that line up with the world to the cm",
@@ -48,6 +55,9 @@
     "layer": "city",
     "client": "Alliander",
     "sector": "Energy · web 3D",
+    "discipline": [
+      "Geo"
+    ],
     "problem": "Engineers were driving out to the same sites over and over, to check the measurements and sizing of a transformerhouse",
     "approach": "I built a web tool that mashes laser scans, 360° photos and equipment models together, so they could walk the site from their desk and try things out before anyone got in a van.",
     "outcome": "Site visits you can do from your chair",
@@ -67,6 +77,11 @@
     "layer": "city",
     "client": "Wonderment",
     "sector": "Location-based AR · Installation",
+    "discipline": [
+      "AR",
+      "Geo",
+      "Installation"
+    ],
     "problem": "Niantic wanted to hand event visitors a real photo with their favourite characters from the IP's they work with. Think Pokémon, Monster Hunter beasts, basketball stars, the Niantic mascot. It all had to work first time, on a busy show floor, in a different city every other week.",
     "approach": "ARCam, an AR photo installation I built at Wonderment for Niantic. An iPad running the Lightship SDK drops the characters into the scene through a viewfinder that came in a few builds, a sturdy pedestal and 2 portable tripod rigs. Two modes: take a photo with the characters (the main event) or pan around to spot location-based highlights out in the world.",
     "outcome": "ARCam activations, 16 cities worldwide, all packed in a suitcase",
@@ -88,6 +103,10 @@
     "layer": "city",
     "client": "Wonderment",
     "sector": "Location-based · R&D",
+    "discipline": [
+      "AR",
+      "Geo"
+    ],
     "problem": "We kept circling the same question: what can you actually build when digital content is pinned to a real place, how can we tell stories about the places you visit",
     "approach": "A run of location-based experiments: GPS and map-anchored AR prototypes that tie content to real coordinates, poking at how it behaves out in the wild rather than on a tidy desk. I'm especially proud of a concept i developed myself completely which guides a tourist through the landings from operation Market Garden, which shows the allied liberation attempt at my birthplace, a story i really wanted to help tell.",
     "outcome": "A bunch of location-anchored AR prototypes",
@@ -109,6 +128,10 @@
     "layer": "city",
     "client": "DTT",
     "sector": "Apps · AR/VR",
+    "discipline": [
+      "AR",
+      "VR"
+    ],
     "problem": "How do i get started in building interesting project that ship to big clients? That was when i landed an internship at DTT where i quickly learned that this was the right career for me even through the challenges that came up from time to time",
     "approach": "I worked across a run of projects here: educational reading games, iOS optimization, a space VR experience, an AR sample & showcase app that shows off what the tech can do.",
     "outcome": "A shelf of shipped AR / VR / app projects, a flying start to my experience working in and even leading a team of developers",
@@ -130,6 +153,10 @@
     "layer": "room",
     "client": "Niantic",
     "sector": "Games · multiplayer AR",
+    "discipline": [
+      "AR",
+      "Games"
+    ],
     "problem": "Show off shared, multiplayer AR on a noisy trade-show floor with terrible connection, about the most difficult environment you can imagine for a tech demo.",
     "approach": "A multiplayer AR racing game with spectator screens, synced audio and a server holding it all together. People racing little AR cars across a real table together. The track on the table changes every 30 seconds, the cars play a version of tag where the crown can be captured from the leading player.",
     "outcome": "AR races on a show floor (and they actually worked)",
@@ -152,6 +179,9 @@
     "client": "Zwijsen",
     "kind": "Freelance",
     "sector": "Education · mobile AR",
+    "discipline": [
+      "AR"
+    ],
     "problem": "Zwijsen approached me with an interesting assignment. There was a new edition of a classic book coming out, they wanted to spotlight this release with a companion app that would bring the book to life.",
     "approach": "I designed, built and shipped the AR app, from concepting and UX to the technical details of store page submissions. The release was so succesful that we ended up doing 6 more book releases and a series of audiobook apps tied to printed books via QR codes.",
     "outcome": "The apps ended up on tens of thousands of phones",
@@ -172,6 +202,9 @@
     "layer": "room",
     "client": "Popcore",
     "sector": "Mobile games",
+    "discipline": [
+      "Games"
+    ],
     "problem": "Hyper-casual games live and die by speed: it should ship fast, perform well, and kill it if it flops, then repeat the cycle. Question is: can we make the next hit game?",
     "approach": "I built new games but also additions to existing titles, multiplayer features and tools for level and game designers, including for big titles like Parking Jam and Pull the Pin.",
     "outcome": "Lots of tiny games, shipped fast",
@@ -193,6 +226,10 @@
     "layer": "chip",
     "client": "Philips",
     "sector": "Healthcare · R&D",
+    "discipline": [
+      "AR",
+      "AI"
+    ],
     "problem": "Could emerging XR and AI actually be useful in a clinical setting, or were we just making cool demos and calling it research?",
     "approach": "I worked on a few answers: we improved VR equipment demos, did Vision Pro experiments, and worked on a synthetic-data project that generated fake humans in Unreal to train heartbeat-detection from plain video.",
     "outcome": "Research that matters and ended up being used in hospitals",
@@ -215,6 +252,10 @@
     "layer": "chip",
     "client": "Rebels",
     "sector": "AI · AR",
+    "discipline": [
+      "AR",
+      "AI"
+    ],
     "problem": "I wanted to know if an AI tour guide could feel like a person instead of a chatbot. Fictional Amsterdam locals you could actually talk to.",
     "approach": "A prototype stitching together speech-to-text, an LLM, text-to-speech and facial animation into characters you hold an conversation with in AR.",
     "outcome": "AI locals you can actually chat with in the city",
@@ -238,6 +279,9 @@
     "layer": "chip",
     "client": "Saxion",
     "sector": "R&D · tooling",
+    "discipline": [
+      "AR"
+    ],
     "problem": "Back before AR Foundation existed, ARKit and ARCore were two separate worlds, and cross-platform AR meant maintaining two codebases. Could we bridge this divide?",
     "approach": "For my graduation I built a framework that unified both behind one API and even ran cloud anchors so the experience could be shared between an Android and iPhone",
     "outcome": "Two AR platforms working together in one tidy API. The lesson was mostly a technical one, how to set up this project so it will be maintainable and used in the future.",
@@ -259,6 +303,9 @@
     "client": "Freelance",
     "kind": "freelance",
     "sector": "Interactive installation · projection mapping",
+    "discipline": [
+      "Installation"
+    ],
     "problem": "Festivals are full of interactive experiences, but most people are still consuming instead of creating. We wondered if we could build something that blurred that line. What if a simple drawing on paper could become part of the world around you?",
     "approach": "We spent a weekend in the woods building a network of colourful cabinets suspended between the trees. Visitors draw a butterfly, scan it, and within seconds it appears as a living digital creature projected onto the forest, fluttering from cabinet to cabinet. Under the hood it's a mix of Arduino, Unity, webcams, computer vision and projection mapping, but the goal was never to show off the technology. The goal was to create that split second where someone realizes, “Wait... that's my butterfly.”",
     "outcome": "Draw a butterfly, watch it fly.",
@@ -278,6 +325,9 @@
     "layer": "room",
     "client": "OAMK",
     "sector": "Games · team lead",
+    "discipline": [
+      "Games"
+    ],
     "problem": "How do you tell an emotional story without using a single line of dialogue? That became the central challenge of this student project. We wanted players to feel connected to the world through exploration, atmosphere and gameplay alone.",
     "approach": "I led a multidisciplinary team in building a third-person adventure where players guide a young girl through the harsh northern wilderness with the help of an owl companion. Alongside leading the project, I focused on building systems that could grow with the game, integrating audio through FMOD, improving performance and creating animation workflows that helped bring the world to life.",
     "outcome": "A dialogue-free adventure inspired by Sami mythology.",
@@ -298,6 +348,9 @@
     "client": "Passion project",
     "kind": "passion",
     "sector": "Space · mobile AR",
+    "discipline": [
+      "AR"
+    ],
     "problem": "Space is difficult to grasp because everything about it is unimaginably large. A textbook can tell you Saturn has rings, but it's hard to appreciate them until you're standing inside them. I wanted to build something that made space feel less like information and more like a place you could explore.",
     "approach": "Using ARCore, I turned a room into a miniature solar system. You can walk around the planets at scale, inspect them up close and discover interesting facts as you explore. If something catches your attention, you can travel to the surface of that planet or moon to learn more, visit the Mars rovers or even float around the International Space Station. The goal wasn't scientific accuracy down to the millimetre—it was to spark the same sense of curiosity that made me fall in love with space in the first place.",
     "outcome": "Bring the solar system into your living room.",
@@ -316,6 +369,9 @@
     "layer": "room",
     "client": "Rebels",
     "sector": "Multiplayer VR · rebuild",
+    "discipline": [
+      "VR"
+    ],
     "problem": "The Municipality of Amsterdam had a VR game that taught players about the hidden world beneath the city's streets. It had been built as a student project and, for its time, it was impressive. But years later it no longer ran on modern hardware, and the request landed on my desk: could you update it for an upcoming event?\n\nWithin an hour of opening the project, I knew the answer was no. Not because it was poorly made, but because it had been built to demonstrate an idea, not to evolve. The networking was woven through every gameplay system, dependencies were outdated and simply getting the project to compile required upgrading half the stack. This wasn't going to be an update. It had to become a rebuild.",
     "approach": "Before writing a single line of code, I spent two days doing detective work. Every scene, every button and every multiplayer interaction had to answer the same question: does this still deserve to exist? Once the architecture became clear, I rebuilt the networking layer around Photon Fusion 2, migrated the project to standalone Quest headsets and modernised the visual experience with improved rendering, shaders, haptics and audio.\n\nI deliberately ignored problems that weren't blocking the project. The gameplay wasn't perfect and the balance could have been improved, but those weren't the reasons the game had stopped working. My goal wasn't to create a different game. It was to give the existing one another decade of life.",
     "outcome": "Bringing a legacy multiplayer VR experience back to life.",
