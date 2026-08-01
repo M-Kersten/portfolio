@@ -10,7 +10,12 @@ const SITE = 'https://portfolio.merijnkersten.nl';
 
 const raw = JSON.parse(readFileSync(resolve(root, 'src/content/cases.json'), 'utf8'));
 const cases = Array.isArray(raw) ? raw : (raw.cases ?? []);
-const urls = [`${SITE}/`, ...cases.filter((c) => !c.draft).map((c) => `${SITE}/work/${c.slug}`)];
+const urls = [
+  `${SITE}/`,
+  `${SITE}/projects`,
+  `${SITE}/cv`,
+  ...cases.filter((c) => !c.draft).map((c) => `${SITE}/work/${c.slug}`),
+];
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

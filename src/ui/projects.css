@@ -1,20 +1,26 @@
-/* The /projects view — a "signal constellation" of every project (highlights +
-   the long tail) over the site's square-dot field. Each node is a thumbnail +
-   name that opens the same case card the timeline uses. */
+/* The /projects view — a filterable index of every project (highlights + the
+   long tail) over the site's square-dot field. The homepage maquette carries
+   the atmosphere; this page carries the answers, so every card wears its year,
+   client, sector and layer, and the facet bar narrows the set. */
 
 .pc-stage {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  background: var(--paper);
+  background:
+    radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 62%),
+    var(--dots-ink) 0 0 / 30px 30px,
+    var(--paper);
 }
 
-/* top bar — back home, the title, the count */
+/* top bar — back home, the title, the search trigger. Wraps rather than
+   letting the title collide with its neighbours on a narrow screen. */
 .pc-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-m);
+  gap: var(--space-xs) var(--space-m);
   padding: var(--space-m) var(--space-l);
   border-bottom: 1px solid var(--hairline);
 }
@@ -32,6 +38,7 @@
 .pc-title {
   font-size: var(--step-1);
   margin: 0;
+  min-width: 0;
   letter-spacing: -0.01em;
 }
 .pc-top-right {
@@ -39,169 +46,358 @@
   align-items: center;
   gap: var(--space-m);
 }
-.pc-count {
+
+/* ---- the facet bar ---------------------------------------------------- */
+
+.pi-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-s) var(--space-l);
+  padding: var(--space-m) var(--space-l);
+  border-bottom: 1px solid var(--hairline);
+}
+.pi-facets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+.pi-facet {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-s);
+  min-width: 0;
+}
+.pi-facet__name {
+  flex: none;
+  width: 3.4rem;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.pi-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+/* one facet option — quiet until pressed, then it fills with its own colour
+   (layer chips) or the primary accent (tech chips) */
+.pi-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  padding: 0.35em 0.7em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease), background-color 0.18s var(--ease);
+}
+.pi-chip:hover {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--c, var(--accent)) 50%, var(--line));
+}
+.pi-chip[aria-pressed='true'] {
+  color: var(--accent-contrast);
+  background: var(--c, var(--accent));
+  border-color: var(--c, var(--accent));
+}
+
+/* count · clear · sort, right-aligned opposite the facets */
+.pi-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  margin-left: auto;
+}
+.pi-count {
+  margin: 0;
   font-family: var(--font-mono);
   font-size: var(--step--1);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-40);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
-
-/* the field — the constellation lives here, over the square-dot pattern.
-   `perspective` gives the cursor-driven lens + parallax their depth. */
-.pc-field {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 32rem;
-  overflow: hidden;
-  perspective: 1200px;
-  background:
-    radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 62%),
-    var(--dots-ink) 0 0 / 30px 30px,
-    var(--paper);
-}
-/* the group that holds the threads + nodes — the cursor pans and tilts this
-   whole plane (parallax "look-around"); JS sets its transform each frame. */
-.pc-plane {
-  position: absolute;
-  inset: 0;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-/* faint threads between projects that share a layer */
-.pc-links {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-  z-index: 1;
-}
-.pc-links line {
-  stroke-width: 1;
-  stroke-opacity: 0.1;
-  transition: stroke-opacity 0.22s var(--ease);
-}
-.pc-links line.lit {
-  stroke-opacity: 0.5;
-}
-
-/* a project node — thumbnail over a caption, drifting; JS sets the transform */
-.pc-node {
-  position: absolute;
-  z-index: 2;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  width: max-content;
-  max-width: 148px;
-  padding: 0;
-  border: 0;
+.pi-clear {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--accent-ink);
   background: none;
-  color: var(--ink-60);
+  border: 0;
+  padding: 0;
   cursor: pointer;
-  will-change: transform;
-  transform-style: preserve-3d;
-  -webkit-tap-highlight-color: transparent;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+  white-space: nowrap;
 }
-.pc-node[data-big] {
+.pi-clear:hover {
   color: var(--ink);
 }
-.pc-thumb {
-  position: relative;
-  width: 74px;
-  aspect-ratio: 3 / 2;
+.pi-sort {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.pi-sort__name {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.pi-sort select {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  padding: 0.4em 0.6em;
+  cursor: pointer;
+}
+.pi-sort select:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+}
+
+/* ---- the grid --------------------------------------------------------- */
+
+.pi-grid {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-m) var(--space-l) var(--space-xl);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-m);
+}
+.pi-grid > li {
+  min-width: 0;
+}
+
+.pi-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 0;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
+  background: var(--paper-2);
+  color: var(--ink);
+  cursor: pointer;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--c) 38%, var(--line));
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.22s var(--ease), border-color 0.22s var(--ease), box-shadow 0.22s var(--ease);
+}
+/* the layer's colour as a hairline along the top edge — the only decoration */
+.pi-card::before {
+  content: '';
+  display: block;
+  height: 2px;
+  background: var(--c);
+  opacity: 0.55;
+  transition: opacity 0.22s var(--ease);
+}
+.pi-card:hover,
+.pi-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--c) 55%, var(--line));
+  box-shadow: 0 14px 30px -18px #000, 0 0 22px -8px color-mix(in srgb, var(--c) 40%, transparent);
+}
+.pi-card:hover::before,
+.pi-card:focus-visible::before {
+  opacity: 1;
+}
+
+.pi-card__media {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
   background: #06080a;
-  box-shadow: 0 8px 20px -10px #000;
-  transition: transform 0.24s var(--ease), box-shadow 0.24s var(--ease), border-color 0.24s var(--ease);
 }
-.pc-node[data-big] .pc-thumb {
-  width: 106px;
-}
-.pc-thumb img {
+.pi-card__media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  opacity: 0.82;
-  will-change: transform;
-  transition: opacity 0.24s var(--ease);
+  opacity: 0.86;
+  transition: opacity 0.22s var(--ease), transform 0.4s var(--ease);
 }
-/* poster missing (e.g. a fresh archive entry) → a quiet layer-tinted marker */
-.pc-thumb[data-empty] {
+.pi-card:hover .pi-card__media img,
+.pi-card:focus-visible .pi-card__media img {
+  opacity: 1;
+  transform: scale(1.04);
+}
+/* poster missing → a quiet layer-tinted marker rather than a broken frame */
+.pi-card__media[data-empty] {
   display: grid;
   place-items: center;
   background: radial-gradient(120% 100% at 50% 40%, color-mix(in srgb, var(--c) 16%, transparent), transparent 70%), #06080a;
 }
-.pc-thumb[data-empty]::after {
+.pi-card__media[data-empty]::after {
   content: '';
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border: 1.5px solid color-mix(in srgb, var(--c) 70%, transparent);
   border-radius: 50%;
   opacity: 0.7;
 }
-.pc-label {
+
+.pi-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: var(--space-s);
+}
+.pi-card__stamp {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5em;
+  margin-bottom: 0.15rem;
+}
+.pi-card__yr {
+  font-family: var(--font-mono);
+  font-size: var(--step-1);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.pi-card__layer {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c);
+  border: 1px solid color-mix(in srgb, var(--c) 42%, var(--line));
+  border-radius: var(--radius-s);
+  padding: 0.25em 0.6em;
+  white-space: nowrap;
+}
+.pi-card__title {
   font-family: var(--font-display);
-  font-size: 0.74rem;
-  line-height: 1.16;
-  text-align: center;
-  letter-spacing: -0.01em;
-  max-width: 140px;
-  transition: color 0.2s var(--ease), text-shadow 0.2s var(--ease);
-}
-.pc-node[data-big] .pc-label {
-  font-size: 0.88rem;
+  font-size: var(--step-0);
   font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
-.pc-node:focus-visible {
-  outline: none;
+.pi-card__meta {
+  font-size: var(--step--1);
+  color: var(--ink-60);
+  line-height: 1.3;
 }
-.pc-node:hover,
-.pc-node:focus-visible {
-  z-index: 5;
+.pi-card__sector {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.04em;
+  color: var(--ink-40);
+  line-height: 1.3;
 }
-.pc-node:hover .pc-thumb,
-.pc-node:focus-visible .pc-thumb {
-  transform: scale(1.09);
-  border-color: var(--c);
-  box-shadow: 0 12px 28px -10px #000, 0 0 22px color-mix(in srgb, var(--c) 42%, transparent);
+
+/* nothing matched — the only way out is clearing, so say so */
+.pi-empty {
+  /* base.css caps every <p> at --measure, which would otherwise strand this
+     one against the left edge of the flex column */
+  margin-inline: auto;
+  padding: var(--space-xl) var(--space-l);
+  text-align: center;
+  color: var(--ink-60);
 }
-.pc-node:hover .pc-thumb img,
-.pc-node:focus-visible .pc-thumb img {
-  opacity: 1;
+.pi-empty button {
+  font: inherit;
+  color: var(--accent-ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
-.pc-node:hover .pc-label,
-.pc-node:focus-visible .pc-label {
-  color: color-mix(in srgb, var(--c) 74%, var(--ink));
-  text-shadow: 0 0 14px color-mix(in srgb, var(--c) 45%, transparent);
+
+/* Cards fade up once on mount. Keyed by slug, so re-filtering reorders the
+   existing nodes instead of replaying this. */
+@media (prefers-reduced-motion: no-preference) {
+  .pi-grid > li {
+    animation: pi-in 0.5s var(--ease) backwards;
+    animation-delay: calc(min(var(--i), 12) * 35ms);
+  }
+  @keyframes pi-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
 }
 
 @media (max-width: 640px) {
+  /* back link and search share the first row; the title gets its own, so it
+     can never be clipped between them */
   .pc-top {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'back  right'
+      'title title';
+    align-items: center;
+    gap: var(--space-xs) var(--space-s);
     padding: var(--space-s) var(--space-m);
   }
-  .pc-node {
-    max-width: 116px;
+  .pc-back {
+    grid-area: back;
   }
-  .pc-thumb {
-    width: 62px;
+  .pc-title {
+    grid-area: title;
   }
-  .pc-node[data-big] .pc-thumb {
-    width: 84px;
+  .pc-top-right {
+    grid-area: right;
   }
-  .pc-label {
-    font-size: 0.68rem;
+
+  .pi-bar {
+    padding: var(--space-s) var(--space-m);
+    gap: var(--space-s);
   }
-  .pc-node[data-big] .pc-label {
-    font-size: 0.78rem;
+  .pi-facet {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+  }
+  .pi-facet__name {
+    width: auto;
+  }
+  /* count · clear · sort don't fit on one phone-width line once "Clear
+     filters" appears, so let the sort control drop to its own row */
+  .pi-controls {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    row-gap: var(--space-2xs);
+  }
+  /* two columns rather than one — a single column of 16:9 posters turns 16
+     projects into a very long scroll for no extra legibility */
+  .pi-grid {
+    padding: var(--space-s) var(--space-m) var(--space-xl);
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: var(--space-s);
+  }
+  .pi-card__body {
+    padding: var(--space-xs);
+  }
+  .pi-card__yr {
+    font-size: var(--step-0);
   }
 }
 
