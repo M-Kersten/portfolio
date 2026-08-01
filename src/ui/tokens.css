@@ -13,7 +13,12 @@
   --surface-2: #161c23; /* nested / hover surface */
   --ink: #eaeaea; /* near-white text */
   --ink-60: rgba(234, 234, 234, 0.62);
-  --ink-40: rgba(234, 234, 234, 0.4);
+  /* The quiet-metadata tier. It carries real content — sector lines, counts,
+     facet labels — so it has to clear WCAG AA for normal text, not just look
+     recessive. 0.52 is the floor for 4.5:1 on both --paper and --paper-2; the
+     old 0.4 measured 3.35:1 and failed on every surface. Anything genuinely
+     decorative belongs in --ink-20, which makes no such promise. */
+  --ink-40: rgba(234, 234, 234, 0.52);
   --ink-20: rgba(234, 234, 234, 0.16);
 
   /* ---- The spatial palette — one locked job per colour ------------------

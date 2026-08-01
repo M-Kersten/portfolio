@@ -133,11 +133,17 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
                 />
               </span>
               <span className="pi-card__body">
+                {/* An eyebrow, not a headline. The year used to be the loudest
+                    thing on the card at twice the title's size, so the grid
+                    scanned as a list of dates with project names underneath.
+                    Both are metadata now and the title carries the card. */}
                 <span className="pi-card__stamp">
-                  {/* `year` may carry a month for timeline placement; the card
-                      only ever stamps the year itself. */}
-                  <span className="pi-card__yr">{c.year?.slice(0, 4) ?? '—'}</span>
                   <span className="pi-card__layer">{LAYER_LABEL[c.layer]}</span>
+                  {/* `year` may carry a month for timeline placement; the card
+                      only ever stamps the year itself. Right-aligned and
+                      tabular so years line up down the column under the
+                      default newest-first sort. */}
+                  <span className="pi-card__yr">{c.year?.slice(0, 4) ?? '—'}</span>
                 </span>
                 <span className="pi-card__title">{c.title}</span>
                 <span className="pi-card__meta">{c.client}</span>
