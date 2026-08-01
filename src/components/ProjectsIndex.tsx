@@ -6,11 +6,10 @@ import { asset } from '../lib/asset';
 // scannable card grid. This is the one page a visitor arrives at with a
 // specific question ("what's recent?", "has he shipped AR?"), so the metadata
 // the maquette deliberately can't show — year, client, sector, layer — sits on
-// the face of every card, and the facets narrow the set rather than decorate
-// it. Clicking a card opens the same case card the timeline uses.
+// the face of every card, and the tech chips narrow the set rather than
+// decorate it. Clicking a card opens the same case card the timeline uses.
 
 const LAYER_COLOR: Record<Layer, string> = { city: 'var(--cyan)', room: 'var(--coral)', chip: 'var(--lime)' };
-const LAYERS: Layer[] = ['city', 'room', 'chip'];
 
 type Sort = 'new' | 'old' | 'curated';
 const SORTS: { value: Sort; label: string }[] = [
@@ -31,7 +30,6 @@ function toggled<T>(set: ReadonlySet<T>, v: T): Set<T> {
 }
 
 export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (slug: string) => void }) {
-  const [layers, setLayers] = useState<ReadonlySet<Layer>>(new Set());
   const [techs, setTechs] = useState<ReadonlySet<string>>(new Set());
   const [sort, setSort] = useState<Sort>('new');
 
@@ -47,13 +45,9 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
   }, [items]);
 
   const shown = useMemo(() => {
-    // Within a facet the options are OR'd (City *or* Room); across facets they
-    // are AND'd, which is what "City + Unity" reads as.
-    const hits = items.filter(
-      (c) =>
-        (layers.size === 0 || layers.has(c.layer)) &&
-        (techs.size === 0 || (c.tech ?? []).some((t) => techs.has(t))),
-    );
+    // Selected tech tags are OR'd — "Unity or AR", not "Unity and AR" — so
+    // picking a second tag always widens the set rather than emptying it.
+    const hits = items.filter((c) => techs.size === 0 || (c.tech ?? []).some((t) => techs.has(t)));
     if (sort === 'curated') return hits; // the hand-authored order in cases.json
     // Years are authored as "YYYY" or "YYYY-MM", which compare correctly as
     // strings. A few long-tail entries carry no year at all — those sort last
@@ -64,39 +58,15 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
       if (!ay !== !by) return ay ? -1 : 1;
       return sort === 'new' ? by.localeCompare(ay) : ay.localeCompare(by);
     });
-  }, [items, layers, techs, sort]);
+  }, [items, techs, sort]);
 
-  const filtered = layers.size > 0 || techs.size > 0;
-  const clear = () => {
-    setLayers(new Set());
-    setTechs(new Set());
-  };
+  const filtered = techs.size > 0;
+  const clear = () => setTechs(new Set());
 
   return (
     <>
       <div className="pi-bar">
         <div className="pi-facets">
-          <div className="pi-facet">
-            <span className="pi-facet__name" id="pi-facet-layer">
-              Layer
-            </span>
-            <div className="pi-chips" role="group" aria-labelledby="pi-facet-layer">
-              {LAYERS.map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  className="pi-chip"
-                  data-layer={l}
-                  style={{ '--c': LAYER_COLOR[l] } as CSSProperties}
-                  aria-pressed={layers.has(l)}
-                  onClick={() => setLayers(toggled(layers, l))}
-                >
-                  {LAYER_LABEL[l]}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="pi-facet">
             <span className="pi-facet__name" id="pi-facet-tech">
               Tech
@@ -139,50 +109,46 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
         </div>
       </div>
 
-      {shown.length === 0 ? (
-        <p className="pi-empty">
-          Nothing matches that combination. <button type="button" onClick={clear}>Clear the filters</button> and start again.
-        </p>
-      ) : (
-        <ul className="pi-grid">
-          {shown.map((c, i) => (
-            <li key={c.slug} style={{ '--i': i } as CSSProperties}>
-              <button
-                type="button"
-                className="pi-card"
-                data-layer={c.layer}
-                style={{ '--c': LAYER_COLOR[c.layer] } as CSSProperties}
-                onClick={() => onOpen(c.slug)}
-                aria-label={`${c.title} — ${c.client}, ${LAYER_LABEL[c.layer]}${c.year ? `, ${c.year.slice(0, 4)}` : ''}`}
-              >
-                <span className="pi-card__media">
-                  <img
-                    src={asset(`/posters/${c.slug}.jpg`)}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    onError={(e) => {
-                      e.currentTarget.parentElement?.setAttribute('data-empty', '');
-                      e.currentTarget.remove();
-                    }}
-                  />
+      {/* No empty state: every chip comes from the cases themselves and they
+          OR together, so a selection can never match nothing. */}
+      <ul className="pi-grid">
+        {shown.map((c, i) => (
+          <li key={c.slug} style={{ '--i': i } as CSSProperties}>
+            <button
+              type="button"
+              className="pi-card"
+              data-layer={c.layer}
+              style={{ '--c': LAYER_COLOR[c.layer] } as CSSProperties}
+              onClick={() => onOpen(c.slug)}
+              aria-label={`${c.title} — ${c.client}, ${LAYER_LABEL[c.layer]}${c.year ? `, ${c.year.slice(0, 4)}` : ''}`}
+            >
+              <span className="pi-card__media">
+                <img
+                  src={asset(`/posters/${c.slug}.jpg`)}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => {
+                    e.currentTarget.parentElement?.setAttribute('data-empty', '');
+                    e.currentTarget.remove();
+                  }}
+                />
+              </span>
+              <span className="pi-card__body">
+                <span className="pi-card__stamp">
+                  {/* `year` may carry a month for timeline placement; the card
+                      only ever stamps the year itself. */}
+                  <span className="pi-card__yr">{c.year?.slice(0, 4) ?? '—'}</span>
+                  <span className="pi-card__layer">{LAYER_LABEL[c.layer]}</span>
                 </span>
-                <span className="pi-card__body">
-                  <span className="pi-card__stamp">
-                    {/* `year` may carry a month for timeline placement; the card
-                        only ever stamps the year itself. */}
-                    <span className="pi-card__yr">{c.year?.slice(0, 4) ?? '—'}</span>
-                    <span className="pi-card__layer">{LAYER_LABEL[c.layer]}</span>
-                  </span>
-                  <span className="pi-card__title">{c.title}</span>
-                  <span className="pi-card__meta">{c.client}</span>
-                  <span className="pi-card__sector">{c.sector}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+                <span className="pi-card__title">{c.title}</span>
+                <span className="pi-card__meta">{c.client}</span>
+                <span className="pi-card__sector">{c.sector}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
     </>
   );
 }

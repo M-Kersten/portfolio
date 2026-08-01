@@ -307,26 +307,6 @@
   line-height: 1.3;
 }
 
-/* nothing matched — the only way out is clearing, so say so */
-.pi-empty {
-  /* base.css caps every <p> at --measure, which would otherwise strand this
-     one against the left edge of the flex column */
-  margin-inline: auto;
-  padding: var(--space-xl) var(--space-l);
-  text-align: center;
-  color: var(--ink-60);
-}
-.pi-empty button {
-  font: inherit;
-  color: var(--accent-ink);
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
 /* Cards fade up once on mount. Keyed by slug, so re-filtering reorders the
    existing nodes instead of replaying this. */
 @media (prefers-reduced-motion: no-preference) {
