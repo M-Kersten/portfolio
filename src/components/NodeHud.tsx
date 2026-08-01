@@ -2,13 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { caseBySlug, LAYER_LABEL, site, type CaseStudy } from '../content';
-import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { sceneStore } from '../scene/store';
 import { StoryLinks } from './StoryLinks';
 import { Scramble } from './Scramble';
-import { Gallery } from './Gallery';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // Centre of each layer's scroll band on the hero (fraction of scroll travel),
@@ -36,13 +34,7 @@ function Media({ study }: { study: CaseStudy }) {
       </div>
     );
   }
-  const src = study.media?.[0];
-  if (!src) return null; // no still to show — the live object in the ring carries it
-  const url = asset(src);
-  if (/\.(mp4|webm|mov)$/i.test(src)) {
-    return <video className="node-hud__media" src={url} autoPlay muted loop playsInline />;
-  }
-  return <img className="node-hud__media" src={url} alt={study.title} />;
+  return null; // no video — the live object framed in the ring is the visual
 }
 
 export function NodeHud() {
@@ -155,7 +147,6 @@ export function NodeHud() {
           )}
         </div>
 
-        {study.gallery && study.gallery.length > 0 && <Gallery items={study.gallery} />}
 
         {study.tech && study.tech.length > 0 && (
           <ul className="node-hud__tech" aria-label="Technologies">
@@ -201,8 +192,6 @@ export function NodeHud() {
         <span className="node-hud__pill node-hud__pill--layer">{LAYER_LABEL[study.layer]}</span>
         {study.sector && <span className="node-hud__pill">{study.sector}</span>}
         {study.client && <span className="node-hud__pill">{study.client}</span>}
-        {study.live && <span className="node-hud__pill node-hud__pill--flag">Live</span>}
-        {study.draft && <span className="node-hud__pill node-hud__pill--flag">Sample</span>}
       </div>
       {dossier}
     </>,

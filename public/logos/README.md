@@ -10,7 +10,8 @@ the Projects timeline. Filenames must match the `logo` paths in
 - `wonderment.png` — Wonderment
 - `philips.png` — Philips
 - `alliander.png` — Alliander
-- `marechaussee.png` — Koninklijke Marechaussee
+- `zwijsen.png` — Zwijsen
+- `kmar.png` — Koninklijke Marechaussee
 
 Notes:
 - Use a **transparent PNG** at a decent size (~64–128px tall renders crisp).

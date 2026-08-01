@@ -34,20 +34,10 @@ export interface CaseStudy {
   /** Flags independent work so the waypoint tag reads "Freelance" / "Passion"
    *  in its own colour instead of a client company. */
   kind?: 'freelance' | 'passion';
-  /** Marks a case as currently live in production. */
-  live?: boolean;
-  media?: string[];
-  /** Extra captioned pictures for the case — a small gallery shown in BOTH the
-   *  node HUD dossier and the focus card. Each `src` is a path under public/
-   *  (e.g. "/cases/alliander/hololens-1.jpg"); the short `caption` sits beneath
-   *  the image. Add as many as you like; missing files drop out quietly. */
-  gallery?: { src: string; caption?: string }[];
   /** A YouTube URL — embedded in the node HUD and the map card popup. */
   video?: string;
   /** URL to a fuller write-up (e.g. a blog post) — linked from the popups. */
   article?: string;
-  /** Sample content pending sign-off; rendered with a quiet tag. */
-  draft?: boolean;
   /** A long-tail project: it appears in the /projects wordcloud (the full index)
    *  but is kept off the curated hero + timeline. Highlights leave this unset. */
   archive?: boolean;

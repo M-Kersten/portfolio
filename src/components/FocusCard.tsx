@@ -4,7 +4,6 @@ import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { StoryLinks } from './StoryLinks';
-import { Gallery } from './Gallery';
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
 // backdrop. Not the old bottom HUD — a focused card. Esc / ✕ / backdrop closes.
@@ -13,9 +12,8 @@ import { Gallery } from './Gallery';
 export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClose: () => void; onJump: (slug: string) => void }) {
   const [imgOk, setImgOk] = useState(true);
   const embed = youtubeEmbed(study.video);
-  // With a video, only show a photo if a real one is provided; without a video,
-  // fall back to the poster placeholder so the card still has a header image.
-  const photo = embed ? study.media?.[0] : study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
+  // The video is the header when there is one; otherwise the poster stands in.
+  const photo = embed ? null : asset(`/posters/${study.slug}.jpg`);
   const closeRef = useRef<HTMLButtonElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   useFocusTrap(cardRef); // Tab stays inside; focus returns to the card on close
@@ -64,11 +62,6 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
             <div className="worktile__ph" aria-hidden="true" />
             {imgOk && <img className="worktile__img" src={photo} alt="" onError={() => setImgOk(false)} />}
             <div className="worktile__scrim" aria-hidden="true" />
-            {study.live && (
-              <div className="worktile__badges">
-                <span className="worktile__live">Live</span>
-              </div>
-            )}
           </div>
         )}
         <div className="focus__body">
@@ -94,7 +87,6 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
               </section>
             )}
           </div>
-          {study.gallery && study.gallery.length > 0 && <Gallery items={study.gallery} />}
           {study.tech && study.tech.length > 0 && (
             <ul className="worktile__tech" aria-label="Technologies">
               {study.tech.map((t) => (

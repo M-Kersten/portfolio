@@ -547,13 +547,6 @@
   color: var(--pink);
   border-color: color-mix(in srgb, var(--pink) 42%, var(--line));
 }
-/* Live pill floated on the thumbnail. */
-.worktile__live--float {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 3;
-}
 
 .worktile__media {
   position: relative;
@@ -604,22 +597,6 @@
   inset: 0;
   pointer-events: none;
   background: linear-gradient(180deg, transparent 48%, rgba(6, 8, 10, 0.5));
-}
-.worktile__badges {
-  position: absolute;
-  inset: var(--space-xs) var(--space-xs) auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5em;
-}
-.worktile__live {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--accent-contrast);
-  background: var(--card-accent);
-  padding: 0.15em 0.55em;
-  border-radius: var(--radius-s);
 }
 
 .worktile__body {

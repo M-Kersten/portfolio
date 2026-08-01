@@ -246,10 +246,6 @@
   letter-spacing: 0.14em;
   border-color: color-mix(in srgb, var(--card-accent) 45%, var(--line));
 }
-.node-hud__pill--flag {
-  color: var(--card-accent);
-  border-color: color-mix(in srgb, var(--card-accent) 40%, var(--line));
-}
 .node-hud__title { font-size: var(--step-2); margin: 0; letter-spacing: -0.02em; }
 .node-hud__outcome {
   font-family: var(--font-display);
@@ -268,21 +264,6 @@
   background: #06080a;
   margin-bottom: var(--space-s);
 }
-.node-hud__media--empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  color: var(--ink-40);
-  background: radial-gradient(120% 100% at 50% 40%, color-mix(in srgb, var(--card-accent) 12%, transparent), transparent 70%), #06080a;
-}
-.node-hud__play {
-  width: 3rem; height: 3rem; display: grid; place-items: center; border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--card-accent) 50%, var(--line));
-  color: var(--accent-ink); padding-left: 0.15rem;
-}
-.node-hud__mediahint { font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: 0.12em; text-transform: uppercase; }
 .node-hud__media--video { position: relative; overflow: hidden; height: auto; }
 .node-hud__media--video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 

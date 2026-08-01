@@ -16,7 +16,7 @@ export function CaseCard({
   style?: CSSProperties;
 }) {
   const [imgOk, setImgOk] = useState(true);
-  const src = study.media?.[0] ?? asset(`/posters/${study.slug}.jpg`);
+  const src = asset(`/posters/${study.slug}.jpg`);
   const seed = Array.from(study.slug).reduce((a, c) => a + c.charCodeAt(0), 0);
   // The tag reads as the company by default; independent work overrides it with
   // a "Freelance" / "Passion" label (and then the client moves into the meta
@@ -43,7 +43,6 @@ export function CaseCard({
           <img className="worktile__img" src={src} alt="" loading="lazy" decoding="async" onError={() => setImgOk(false)} />
         )}
         <div className="worktile__scrim" aria-hidden="true" />
-        {study.live && <span className="worktile__live worktile__live--float">Live</span>}
       </div>
       <div className="worktile__body">
         <div className="worktile__stamp">

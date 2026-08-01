@@ -594,76 +594,6 @@
   letter-spacing: 0.14em;
 }
 
-/* the droneship, downrange */
-.rud__barge {
-  position: relative;
-  width: min(78%, 15rem);
-  height: 4.6rem;
-  margin-top: 0.9rem;
-  overflow: hidden;
-}
-.rud__booster {
-  position: absolute;
-  left: 50%;
-  top: -1.4rem;
-  width: 7px;
-  height: 22px;
-  margin-left: -3.5px;
-  border: 1px solid var(--accent-ink);
-  border-radius: 2px 2px 0 0;
-  animation: rud-land 2.6s cubic-bezier(0.3, 0.7, 0.4, 1) 0.5s forwards;
-}
-.rud__booster::after {
-  /* the landing burn, killed at touchdown */
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  width: 3px;
-  height: 10px;
-  margin-left: -1.5px;
-  background: linear-gradient(#ffb46a, transparent);
-  animation: rud-burn 2.6s linear 0.5s forwards;
-}
-@keyframes rud-land {
-  from { transform: translateY(0); }
-  85%, 100% { transform: translateY(2.55rem); }
-}
-@keyframes rud-burn {
-  0%, 80% { opacity: 1; }
-  88%, 100% { opacity: 0; }
-}
-.rud__deck {
-  position: absolute;
-  left: 50%;
-  bottom: 0.9rem;
-  transform: translateX(-50%);
-  width: 72%;
-  height: 0.55rem;
-  border: 1px solid var(--line);
-  border-bottom-width: 3px;
-  border-radius: 2px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-.rud__deck span {
-  position: absolute;
-  top: 100%;
-  margin-top: 0.35rem;
-  font-family: var(--font-mono);
-  font-size: 0.56rem;
-  letter-spacing: 0.2em;
-  color: var(--ink-40);
-  white-space: nowrap;
-}
-.rud__sea {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 1.05rem;
-  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 30%, transparent);
-}
 .rud__foot {
   margin: 0.7rem 0 0;
   font-family: var(--font-mono);
@@ -689,8 +619,6 @@
 @media (prefers-reduced-motion: reduce) {
   .launch__go,
   .launch__count,
-  .rud__booster,
-  .rud__booster::after,
   .ast__score-bump,
   .ast__chain-pop,
   /* the hologram still reads — it just stops flickering and scanning */
@@ -702,9 +630,6 @@
   /* the arrival card still informs — it just fades instead of sliding */
   .ast__title {
     animation: ast-title-fade 2.8s var(--ease) forwards;
-  }
-  .rud__booster {
-    transform: translateY(2.55rem);
   }
   .ast__hint {
     animation: none;

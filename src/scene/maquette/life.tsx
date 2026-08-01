@@ -125,9 +125,9 @@ export function LifeGroup({ slug, children }: { slug: string; children: ReactNod
 }
 
 /** An emissive surface that powers on when its hotspot is selected and stays lit
- *  once visited (no hover response) — a smooth "turn on" or a TV-style flicker.
+ *  once visited (no hover response) — a smooth "turn on" that breathes.
  *  On select it also shifts toward a lifelike colour and blooms. */
-export function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest = 0.12, peak = 1.0, flicker = false }: {
+export function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest = 0.12, peak = 1.0 }: {
   slug: string;
   position: V3;
   rotation?: V3;
@@ -136,7 +136,6 @@ export function EmissiveHover({ slug, position, rotation, args, color, liveColor
   liveColor?: string;
   rest?: number;
   peak?: number;
-  flicker?: boolean;
 }) {
   const { accent } = useAccent();
   const col = color ?? accent;
@@ -152,21 +151,15 @@ export function EmissiveHover({ slug, position, rotation, args, color, liveColor
     if (!mat.current) return;
     // select → full on, and it stays on once visited; otherwise off (no hover)
     const kT = selected || visited ? 1 : 0;
-    k.current += (kT - k.current) * (flicker ? 0.32 : 0.12);
+    k.current += (kT - k.current) * 0.12;
     // colour resolves to lifelike once selected, and stays that way once visited
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
     const t = s.clock.elapsedTime;
     // dormant = a grey whisper of the rest level; colour + brightness are the
     // visitor's to switch on (the life mechanic)
     const restLvl = rest * (0.25 + 0.75 * k.current);
-    let lvl;
-    if (flicker) {
-      const n = reduced ? 1 : Math.max(0.18, 0.55 + 0.5 * Math.sin(t * 46) * Math.sin(t * 8.7) + 0.2 * Math.sin(t * 113));
-      lvl = restLvl + k.current * peak * n;
-    } else {
-      const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
-      lvl = restLvl + k.current * (peak + breathe);
-    }
+    const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
+    const lvl = restLvl + k.current * (peak + breathe);
     mat.current.emissiveIntensity = lvl * presence.current;
     mat.current.color.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);
     mat.current.emissive.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);

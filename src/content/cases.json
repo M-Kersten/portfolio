@@ -18,11 +18,8 @@
     ],
     "lesson": "Adding tech to a system that already exists is often harder than starting from scratch. Before i implement a feature i should ask: 'will this even be maintained?'",
     "year": "2026",
-    "live": false,
-    "media": [],
     "video": "https://youtu.be/12BHW91-Flw",
-    "article": "https://www.linkedin.com/pulse/purple-nectar-defensie-herontdekt-zijn-missie-en-wij-bouwen-door-bnoie/",
-    "draft": false
+    "article": "https://www.linkedin.com/pulse/purple-nectar-defensie-herontdekt-zijn-missie-en-wij-bouwen-door-bnoie/"
   },
   {
     "slug": "alliander-hololens",
@@ -42,11 +39,8 @@
     ],
     "lesson": "The tech was the easy half. But getting it to fit how an organisation actually works was the real puzzle and eventual downfall of this project, it did not catch on due to impracticallities. If it were up to me i would not choose a Hololens but an iPad instead.",
     "year": "2024-06",
-    "live": false,
-    "media": [],
     "video": "https://www.youtube.com/watch?v=2HM8ZNnEKeU",
-    "article": "https://www.youtube.com/watch?v=biTN7qPqWCU",
-    "draft": false
+    "article": "https://www.youtube.com/watch?v=biTN7qPqWCU"
   },
   {
     "slug": "alliander-digital-twin",
@@ -65,10 +59,7 @@
     ],
     "lesson": "Technically it worked great, but the organisation wasn’t quite ready to change how it worked so it never fully landed.",
     "year": "2024-06",
-    "live": false,
-    "media": [],
-    "article": "https://merijnkersten.nl/web-explorer",
-    "draft": false
+    "article": "https://merijnkersten.nl/web-explorer"
   },
   {
     "slug": "arcam",
@@ -88,11 +79,8 @@
     ],
     "lesson": "Location-based AR is a systems-integration problem most of all: the physical world is your least reliable dependency, so you end up owning everything. The tracking, databases, web, audio, performance, devices, UX, 3D, even the electronics and broken screws. The backend was an attempt I built on a hunch, vibe-coded years before that was a phrase; it fell over on day one and then ran flawlessly, which taught me how much value you can add just by taking the initiative early. And living out of a suitcase across all of these cities taught me what ‘delivering’ really means.",
     "year": "2022-03",
-    "live": false,
-    "media": [],
     "video": "https://youtu.be/lmf0VN5xsI0",
-    "article": "https://www.wonderment.nl/wonderwall",
-    "draft": false
+    "article": "https://www.wonderment.nl/wonderwall"
   },
   {
     "slug": "wonderment-location",
@@ -112,11 +100,8 @@
     ],
     "lesson": "The real world is messy: GPS drifts, places change and people wander into frame. So designing for that mess up front beats pretending it isn't there.",
     "year": "2023-04",
-    "live": false,
-    "media": [],
     "video": "https://www.youtube.com/watch?v=2JnAffOhn7c",
-    "article": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-sxsw2023-gooutandplay-activity-7053733492467081216-_6Dx/?utm_source=share&utm_medium=member_desktop",
-    "draft": false
+    "article": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-sxsw2023-gooutandplay-activity-7053733492467081216-_6Dx/?utm_source=share&utm_medium=member_desktop"
   },
   {
     "slug": "dtt-amsterdam",
@@ -136,11 +121,8 @@
     ],
     "lesson": "Everyone is pretending until they figure it out. My dedication to a project and willingness to try is what landed me these projects and i should lean into that.",
     "year": "2019-02",
-    "live": false,
-    "media": [],
     "video": "https://youtu.be/QiTaakf7yRE",
-    "article": "https://www.d-tt.nl/apps/edu-play-book",
-    "draft": false
+    "article": "https://www.d-tt.nl/apps/edu-play-book"
   },
   {
     "slug": "lightship-drive",
@@ -160,11 +142,8 @@
     "follows": "arcam",
     "lesson": "Build assuming things will fail, because on a show floor they absolutely will. In this case the server SDK was brand new and cut off sessions after some 10 minutes, not seeing a fix i introduced a 'you won! give the phone to the next visitor' popup when the server decided to close.",
     "year": "2023-06",
-    "live": false,
-    "media": [],
     "video": "https://youtu.be/pXhApOdiq9g",
-    "article": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-wonderment-niantic-activity-7138816231519719424-gjDU/?utm_source=share&utm_medium=member_desktop",
-    "draft": false
+    "article": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-wonderment-niantic-activity-7138816231519719424-gjDU/?utm_source=share&utm_medium=member_desktop"
   },
   {
     "slug": "zwijsen-ar-books",
@@ -184,11 +163,8 @@
     ],
     "lesson": "Owning something end to end teaches you the whole lifecycle and that the last 10% (support, store reviews, weird customer feedback) is most of the work.",
     "year": "2020-02",
-    "live": false,
-    "media": [],
     "video": "https://www.youtube.com/watch?v=7N0ZFuyOyTs",
-    "article": "https://kleutersdigitaal.nl/ga-je-mee-op-droomreis-met-karel/",
-    "draft": false
+    "article": "https://kleutersdigitaal.nl/ga-je-mee-op-droomreis-met-karel/"
   },
   {
     "slug": "popcore-games",
@@ -208,11 +184,8 @@
     "follows": "dtt-amsterdam",
     "lesson": "Shipping fast and iterating beats elegant code. The market really doesn’t care how pretty your architecture is.",
     "year": "2020-06",
-    "live": false,
-    "media": [],
     "video": "https://www.youtube.com/watch?v=yPMbXaRXjvk",
-    "article": "https://www.youtube.com/watch?v=hjyMNTZ0W0A",
-    "draft": false
+    "article": "https://www.youtube.com/watch?v=hjyMNTZ0W0A"
   },
   {
     "slug": "philips-medical-xr",
@@ -232,11 +205,8 @@
     ],
     "lesson": "Research is as much about finding out what you shouldn’t build as what you should. “This isn’t worth it” that's still a valueable outcome, better to find that out early than late.",
     "year": "2025-03",
-    "live": false,
-    "media": [],
     "video": "https://www.youtube.com/watch?v=lDBxik5v1e0",
-    "article": "https://unity.com/resources/philips-healthcare-innovations-xr",
-    "draft": false
+    "article": "https://unity.com/resources/philips-healthcare-innovations-xr"
   },
   {
     "slug": "amsterdam-ai",
@@ -257,12 +227,9 @@
     ],
     "lesson": "Just because you can automate the human out of something doesn’t mean you should. This prototype was functional and i made tutorials, documentation, everything. Still it wasn't doing what we hoped it did and ended up on the shelf.",
     "year": "2025-06",
-    "live": false,
     "follows": "philips-medical-xr",
-    "media": [],
     "video": "https://youtu.be/8UI8EQKnCTY",
-    "article": "https://medium.com/@rebelscontent/ai-chatbots-for-augmented-reality-a0c06f0c599a",
-    "draft": false
+    "article": "https://medium.com/@rebelscontent/ai-chatbots-for-augmented-reality-a0c06f0c599a"
   },
   {
     "slug": "custom-ar-framework",
@@ -282,11 +249,8 @@
     ],
     "lesson": "Building the tool underneath often creates more value than solving the one problem in front of you.",
     "year": "2019-02",
-    "live": false,
-    "media": [],
     "video": "https://youtu.be/iCZRpxt5iPc",
-    "article": "https://docs.google.com/document/d/14nbCjnt5Q4B6Q_BJEFAJffhTqdmsfrQKgQVCw7nFURQ/edit?tab=t.0",
-    "draft": false
+    "article": "https://docs.google.com/document/d/14nbCjnt5Q4B6Q_BJEFAJffhTqdmsfrQKgQVCw7nFURQ/edit?tab=t.0"
   },
   {
     "slug": "kastwezens",
@@ -305,10 +269,7 @@
       "Projection mapping"
     ],
     "lesson": "This project reminded me that the best interactive installations don't ask people to press a button. They invite people to leave something of themselves behind. Nobody talks about the webcam, the UV mapping or the projection setup afterwards. They talk about the butterfly they made and watched disappear into the trees. That's exactly the kind of technology I want to build.",
-    "live": false,
-    "media": [],
     "video": "https://youtu.be/uqjgXV6o8Nw",
-    "draft": false,
     "archive": true
   },
   {
@@ -327,10 +288,7 @@
     ],
     "lesson": "This was the first project that showed me software isn't just about writing good code. Every technical decision influences the experience someone has on screen. Winning first place throughout the competition was rewarding, but the bigger takeaway was learning how to align programmers, artists and designers around a single creative vision.",
     "year": "2017",
-    "live": false,
-    "media": [],
     "video": "https://youtu.be/ZyWztEz-mkw",
-    "draft": false,
     "archive": true
   },
   {
@@ -349,10 +307,7 @@
       "Android"
     ],
     "lesson": "I've always believed the best way to learn is by exploring. AR is uniquely good at turning abstract ideas into physical experiences, and this project showed me that sometimes wonder is a better teacher than information.",
-    "live": false,
-    "media": [],
     "video": "https://youtu.be/8jmDuHAcsaE",
-    "draft": false,
     "archive": true
   },
   {
@@ -371,10 +326,7 @@
       "VR"
     ],
     "lesson": "Legacy projects reward judgement more than programming. Every hour spent polishing the wrong thing is an hour you never get back. This project reminded me that good engineering isn't fixing everything you find—it's recognising what matters, what can wait and having the confidence to leave the rest alone.",
-    "live": false,
-    "media": [],
     "video": "https://www.youtube.com/watch?v=U5Mcp2CMTDw",
-    "draft": false,
     "archive": true
   }
 ]

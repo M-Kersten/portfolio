@@ -100,13 +100,3 @@
 @keyframes focus-fade { from { opacity: 0; } }
 @keyframes focus-pop { from { opacity: 0; transform: scale(0.92) translateY(12px); } }
 
-/* "Sample" chip on draft case studies (node HUD). */
-.modal__draft {
-  font-family: var(--font-mono);
-  color: var(--accent-ink);
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
-  border-radius: var(--radius-s);
-  padding: 0.1em 0.6em;
-  font-size: 0.72rem;
-}
-
