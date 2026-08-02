@@ -179,9 +179,43 @@ a **Web** redirect URI, and note the client and tenant ids.
 
 ### 5. GitHub token
 
-A fine-grained personal access token, scoped to this repository alone, with
-**Contents: read and write**. Nothing else — the CMS never opens pull requests
-or reads issues.
+Create it at **GitHub → Settings → Developer settings → Personal access tokens →
+Fine-grained tokens → Generate new token**:
+
+- **Repository access:** Only select repositories → `m-kersten/portfolio`
+- **Permissions:** Repository permissions → **Contents: Read and write**
+
+Nothing else. The CMS never opens pull requests, reads issues or touches another
+repository, so anything beyond Contents is access it cannot use.
+
+Note the expiry you pick — when the token lapses, publishing starts failing with
+a 401 and nothing else changes, which is a confusing symptom if the expiry has
+been forgotten.
+
+Then set it. **The key is spelled differently in the two places**, which is the
+usual cause of a token that appears to be set and isn't:
+
+```bash
+# On App Service — double underscore, because environment variables cannot
+# contain a colon and ASP.NET Core maps "__" onto the ":" of a config path.
+az webapp config appsettings set -g Default -n merijn-portfolio-cms \
+  --settings GitHub__Token=github_pat_...
+
+# Locally — a real colon, in user secrets rather than appsettings.json, which
+# is committed.
+cd cms/Portfolio.Cms.Web
+dotnet user-secrets set "GitHub:Token" "github_pat_..."
+```
+
+Both land on the same `GitHub:Token` setting. To check what App Service actually
+holds:
+
+```bash
+az webapp config appsettings list -g Default -n merijn-portfolio-cms \
+  --query "[?starts_with(name,'GitHub')].name" -o tsv
+```
+
+That lists the names without printing the values.
 
 ### 6. App settings
 
@@ -251,8 +285,17 @@ disk, and signs you in as a local developer. `Program.cs` refuses to start
 without Entra outside `Development`, so that fallback cannot become the
 production path by omission.
 
-Publishing still needs a `GitHub:Token` — set it in user secrets. Without one
-the publish page says so rather than failing.
+Publishing still needs a `GitHub:Token`:
+
+```bash
+cd cms/Portfolio.Cms.Web
+dotnet user-secrets set "GitHub:Token" "github_pat_..."
+```
+
+Without one the publish page says so rather than failing, and Import falls back
+to reading the checkout the app is running inside. With one, Import reads the
+repository over the API — the same path the deployed app takes, which is worth
+exercising locally before trusting it on App Service.
 
 ## Notes on the content itself
 

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\Portfolio.Cms.Core\Portfolio.Cms.Core.csproj" />
@@ -24,6 +24,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>655e9a79-1cf9-45bd-b965-4bd5b7b62cb0</UserSecretsId>
   </PropertyGroup>
 
 </Project>
