@@ -12,9 +12,14 @@
 // set at creation), so adopting one is the more useful default. The database on
 // it is created here, because that is where the free-tier flag lives.
 //
+// No credentials are passed in or stored anywhere: the app reaches both SQL and
+// blob storage with its system-assigned managed identity. The one thing that
+// cannot be done from here is making that identity a database user — see
+// grant-managed-identity.sql.
+//
 // Deploy with:
-//   az deployment group create -g portfolio-cms -f cms/infra/main.bicep \
-//      -p sqlServerName=<server> sqlAdminLogin=<user> sqlAdminPassword=<password>
+//   az deployment group create -g Default -f cms/infra/main.bicep \
+//      -p location=germanywestcentral sqlServerName=merijndatabasegermany
 
 @description('Short name used as the prefix for every resource.')
 param name string = 'merijn-cms'
@@ -30,16 +35,12 @@ param location string = resourceGroup().location
 @description('Name of the existing SQL server, which must be in this resource group.')
 param sqlServerName string
 
-@description('SQL administrator login, as set when the server was created.')
-param sqlAdminLogin string
-
-@description('SQL administrator password.')
-@secure()
-param sqlAdminPassword string
-
 // Storage account names are globally unique, lowercase and alphanumeric only.
 var storageName = toLower(replace('${name}st${uniqueString(resourceGroup().id)}', '-', ''))
 var posterContainer = 'pending-posters'
+// Named through a variable rather than read off the resource, so the app's
+// connection string doesn't create a reference cycle with the database.
+var databaseName = '${name}-db'
 
 // ── Hosting ──────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,9 @@ resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
 resource app 'Microsoft.Web/sites@2023-12-01' = {
   name: name
   location: location
+  // The connection string names the database through a variable, so the
+  // ordering has to be stated: the app creates its schema on first start.
+  dependsOn: [sqlDatabase]
   identity: {
     // Used to reach blob storage without a key in configuration.
     type: 'SystemAssigned'
@@ -90,7 +94,17 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'Cms'
           type: 'SQLAzure'
-          connectionString: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=${sqlDatabase.name};User ID=${sqlAdminLogin};Password=${sqlAdminPassword};Encrypt=true;TrustServerCertificate=false;Connection Timeout=60;'
+          // No credentials: the app authenticates to SQL with the same
+          // system-assigned identity it uses for blob storage. "Active Directory
+          // Default" resolves to the managed identity on App Service and to the
+          // signed-in az/VS account locally, so the same string works in both
+          // places. It also means nothing secret is stored in configuration —
+          // and the server can keep Entra-only authentication, which leaves no
+          // password to leak in the first place.
+          //
+          // The identity still needs a database user; that is a one-time grant
+          // that cannot be done from ARM. See infra/grant-managed-identity.sql.
+          connectionString: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=${databaseName};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;'
         }
       ]
     }
@@ -118,7 +132,7 @@ resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2023-08-01-prev
 
 resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
   parent: sqlServer
-  name: '${name}-db'
+  name: databaseName
   location: location
   sku: {
     // Serverless General Purpose is the only tier the free offer applies to.

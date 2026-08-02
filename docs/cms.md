@@ -83,48 +83,33 @@ The deployed setup is:
 | App | `merijn-cms` |
 
 ```bash
-az sql server show -g Default -n merijndatabasegermany \
-  --query "{location:location, login:administratorLogin}" -o table
+az sql server show -g Default -n merijndatabasegermany --query location -o tsv
+az sql server ad-only-auth get -g Default -n merijndatabasegermany -o tsv
 ```
 
 The Azure SQL free offer is only available in some regions; Germany West Central
 is one. The database has to sit in the same region as its server, so that region
 is the region for everything else too.
 
-Check whether the server uses Entra-only authentication before going further —
-if it does, there is no admin login or password at all and the connection string
-below cannot work:
-
-```bash
-az sql server ad-only-auth get -g Default -n merijndatabasegermany -o tsv
-```
-
-`True` means either turn SQL authentication back on, or switch the app to
-managed identity for SQL as well as blob storage.
-
-The admin **login** is readable with the command above. The **password** is not
-stored retrievably anywhere — it is write-only by design. If it is unknown,
-reset it rather than hunting for it:
-
-```bash
-read -s -p "New SQL password: " SQL_PW && echo
-az sql server update -g Default -n merijndatabasegermany --admin-password "$SQL_PW"
-```
+**There is no SQL password anywhere in this setup, by design.** The server uses
+a Microsoft Entra admin (`info@merijnkersten.nl`), and the app authenticates
+with the same system-assigned managed identity it uses for blob storage. Azure
+stores SQL admin passwords write-only, so a password-based setup would have
+meant resetting one and then keeping it in configuration forever; this way there
+is nothing to reset, store or leak.
 
 ### 2. Azure resources
 
 ```bash
 az deployment group create -g Default -f cms/infra/main.bicep \
   -p location=germanywestcentral \
-     sqlServerName=merijndatabasegermany \
-     sqlAdminLogin=<the login from step 1> \
-     sqlAdminPassword="$SQL_PW"
+     sqlServerName=merijndatabasegermany
 ```
 
 This creates the App Service plan (F1), the app, the free-tier database, the
 storage account, a firewall rule letting Azure services reach SQL, and a
-system-assigned identity with blob access — so no storage key is ever put in
-configuration. Note the `entraRedirectUri` output.
+system-assigned identity with access to both. No credentials are passed in and
+none are stored. Note the `entraRedirectUri` output.
 
 Then confirm the database really landed on the free tier, because this is the
 difference between €0 and a bill, and the two look identical in the portal:
@@ -136,18 +121,40 @@ az sql db show -g Default -s merijndatabasegermany -n merijn-cms-db \
 
 Expect `True`, `AutoPause`, `GP_S_Gen5`. Anything else means it is billing.
 
-### 3. Entra app registration
+### 3. Let the app into the database
+
+ARM gets the app as far as authenticating with its identity, but a managed
+identity is not a database user until someone says so — and that grant is a
+data-plane operation ARM cannot make. It is the one manual step here.
+
+Open the Azure portal → **merijn-cms-db** → **Query editor**, sign in with
+`info@merijnkersten.nl` (this is what being the Entra admin is for), and run
+[`cms/infra/grant-managed-identity.sql`](../cms/infra/grant-managed-identity.sql):
+
+```sql
+CREATE USER [merijn-cms] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [merijn-cms];
+ALTER ROLE db_datawriter ADD MEMBER [merijn-cms];
+ALTER ROLE db_ddladmin  ADD MEMBER [merijn-cms];
+```
+
+Make sure the editor is connected to `merijn-cms-db` and not `master` — the
+grant has to happen in the database itself. `db_ddladmin` is there because the
+app creates its own schema on first start; `db_owner` would work too and grants
+far more than this app needs.
+
+### 4. Entra app registration
 
 Register a single-tenant app, add the `entraRedirectUri` from the deployment as
 a **Web** redirect URI, and note the client and tenant ids.
 
-### 4. GitHub token
+### 5. GitHub token
 
 A fine-grained personal access token, scoped to this repository alone, with
 **Contents: read and write**. Nothing else — the CMS never opens pull requests
 or reads issues.
 
-### 5. App settings
+### 6. App settings
 
 ```bash
 az webapp config appsettings set -g Default -n merijn-cms --settings \
@@ -167,7 +174,7 @@ tenant is not the same as being allowed to commit to a public repository. **An
 empty list denies everyone**, deliberately: a fresh deployment must not resolve
 to "anyone with a Microsoft account".
 
-### 6. Deploy and import
+### 7. Deploy and import
 
 Check the runtime exists in your region before publishing — .NET 10 is recent
 enough that it is worth confirming rather than discovering on a failed start:
@@ -187,7 +194,7 @@ Then open the app and use **Import from the repository** on the overview page �
 the content already exists, so the first run reads it in rather than asking you
 to retype it.
 
-### 7. Test the publish path somewhere safe
+### 8. Test the publish path somewhere safe
 
 The publish path has never talked to the real GitHub API. Point it at a
 throwaway branch first, publish once, check the commit looks right, and only
