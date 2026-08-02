@@ -67,33 +67,63 @@ will reach.
 
 ## Deploying it
 
-### 1. Azure resources
+The template expects the SQL **server** to exist already and adopts it by name;
+it creates the database on it, because that is where the free-tier flag lives.
+
+### 1. Confirm the SQL server
+
+Everything else has to go in the same resource group and region, so start here:
 
 ```bash
-az group create -n portfolio-cms -l westeurope
-az deployment group create -g portfolio-cms -f cms/infra/main.bicep \
-  -p sqlAdminLogin=<user> sqlAdminPassword=<password>
+az sql server list -o table   # note name, resource group and location
 ```
 
-This creates the App Service, the SQL server and free-tier database, the storage
-account, and a system-assigned identity with blob access — so no storage key is
-ever put in configuration. Note the `entraRedirectUri` output.
+The Azure SQL free offer is only available in some regions — Germany West
+Central is one. Whatever region the server is in is the region for the rest.
 
-### 2. Entra app registration
+### 2. Azure resources
+
+```bash
+RG=<the server's resource group>
+LOCATION=germanywestcentral
+
+az deployment group create -g "$RG" -f cms/infra/main.bicep \
+  -p location="$LOCATION" \
+     sqlServerName=<server-name> \
+     sqlAdminLogin=<user> \
+     sqlAdminPassword=<password>
+```
+
+This creates the App Service plan (F1), the app, the free-tier database, the
+storage account, a firewall rule letting Azure services reach SQL, and a
+system-assigned identity with blob access — so no storage key is ever put in
+configuration. Note the `entraRedirectUri` output.
+
+Then confirm the database really landed on the free tier, because this is the
+difference between €0 and a bill:
+
+```bash
+az sql db show -g "$RG" -s <server-name> -n merijn-cms-db \
+  --query "{free:useFreeLimit, behaviour:freeLimitExhaustionBehavior, sku:sku.name}" -o table
+```
+
+Expect `True`, `AutoPause`, `GP_S_Gen5`. Anything else means it is billing.
+
+### 3. Entra app registration
 
 Register a single-tenant app, add the `entraRedirectUri` from the deployment as
 a **Web** redirect URI, and note the client and tenant ids.
 
-### 3. GitHub token
+### 4. GitHub token
 
 A fine-grained personal access token, scoped to this repository alone, with
 **Contents: read and write**. Nothing else — the CMS never opens pull requests
 or reads issues.
 
-### 4. App settings
+### 5. App settings
 
 ```bash
-az webapp config appsettings set -g portfolio-cms -n merijn-cms --settings \
+az webapp config appsettings set -g "$RG" -n merijn-cms --settings \
   AzureAd__TenantId=<tenant-id> \
   AzureAd__ClientId=<client-id> \
   Cms__AllowedUsers__0=<your-email> \
@@ -110,16 +140,40 @@ tenant is not the same as being allowed to commit to a public repository. **An
 empty list denies everyone**, deliberately: a fresh deployment must not resolve
 to "anyone with a Microsoft account".
 
-### 5. Deploy and import
+### 6. Deploy and import
+
+Check the runtime exists in your region before publishing — .NET 10 is recent
+enough that it is worth confirming rather than discovering on a failed start:
 
 ```bash
-cd cms && dotnet publish Portfolio.Cms.Web -c Release -o ./publish
-az webapp deploy -g portfolio-cms -n merijn-cms --src-path ./publish --type zip
+az webapp list-runtimes --os linux | grep -i dotnet
+```
+
+```bash
+cd cms
+dotnet publish Portfolio.Cms.Web -c Release -o ./publish
+cd publish && zip -r ../cms.zip . && cd ..
+az webapp deploy -g "$RG" -n merijn-cms --src-path cms.zip --type zip
 ```
 
 Then open the app and use **Import from the repository** on the overview page —
 the content already exists, so the first run reads it in rather than asking you
 to retype it.
+
+### 7. Test the publish path somewhere safe
+
+The publish path has never talked to the real GitHub API. Point it at a
+throwaway branch first, publish once, check the commit looks right, and only
+then move it to the branch Pages builds from:
+
+```bash
+git push origin claude/cleanup-refactor:cms-publish-test
+az webapp config appsettings set -g "$RG" -n merijn-cms \
+  --settings GitHub__Branch=cms-publish-test
+```
+
+The first publish is also the one that normalizes nine lines (see below), so
+this is the diff worth reading properly.
 
 ## Running it locally
 

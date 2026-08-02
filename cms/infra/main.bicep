@@ -6,18 +6,31 @@
 // subscription. Blob storage is the only thing that bills, and at ~1.2MB of
 // posters it rounds to nothing.
 //
+// The SQL *server* is not created here — it is expected to exist already, and
+// is passed in by name. Servers are the thing people tend to create by hand
+// first (and the thing that is painful to recreate, since the admin login is
+// set at creation), so adopting one is the more useful default. The database on
+// it is created here, because that is where the free-tier flag lives.
+//
 // Deploy with:
-//   az group create -n portfolio-cms -l westeurope
 //   az deployment group create -g portfolio-cms -f cms/infra/main.bicep \
-//      -p sqlAdminLogin=<user> sqlAdminPassword=<password>
+//      -p sqlServerName=<server> sqlAdminLogin=<user> sqlAdminPassword=<password>
 
 @description('Short name used as the prefix for every resource.')
 param name string = 'merijn-cms'
 
-@description('Region. The App Service free tier allows one F1 plan per region per subscription.')
+@description('''
+Region. Must be one where the Azure SQL free offer is available, and the same
+region as the SQL server — a database cannot live in a different region from
+its server. The App Service free tier allows one F1 plan per region per
+subscription.
+''')
 param location string = resourceGroup().location
 
-@description('SQL administrator login.')
+@description('Name of the existing SQL server, which must be in this resource group.')
+param sqlServerName string
+
+@description('SQL administrator login, as set when the server was created.')
 param sqlAdminLogin string
 
 @description('SQL administrator password.')
@@ -86,15 +99,8 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
 
 // ── Draft database ───────────────────────────────────────────────────────────
 
-resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
-  name: '${name}-sql'
-  location: location
-  properties: {
-    administratorLogin: sqlAdminLogin
-    administratorLoginPassword: sqlAdminPassword
-    minimalTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled'
-  }
+resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' existing = {
+  name: sqlServerName
 }
 
 // App Service outbound IPs are not fixed on the free tier, so the app reaches
@@ -184,7 +190,8 @@ resource posterAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 
 output appUrl string = 'https://${app.properties.defaultHostName}'
 output appName string = app.name
-output sqlServerName string = sqlServer.properties.fullyQualifiedDomainName
+output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
+output sqlDatabaseName string = sqlDatabase.name
 output storageAccount string = storage.name
 
 @description('Redirect URI to register on the Entra app registration.')
