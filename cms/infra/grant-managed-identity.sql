@@ -22,17 +22,17 @@
 --
 --   Azure portal → <name>-db → Query editor → "Continue as <you>"
 
-CREATE USER [merijn-portfolio-cms] FROM EXTERNAL PROVIDER;
+CREATE USER [merijn-cms] FROM EXTERNAL PROVIDER;
 
 -- Read and write the content rows.
-ALTER ROLE db_datareader ADD MEMBER [merijn-portfolio-cms];
-ALTER ROLE db_datawriter ADD MEMBER [merijn-portfolio-cms];
+ALTER ROLE db_datareader ADD MEMBER [merijn-cms];
+ALTER ROLE db_datawriter ADD MEMBER [merijn-cms];
 
 -- Create the tables. The app calls EnsureCreated() on start-up rather than
 -- running migrations, so it needs to be able to make the schema on first run.
 -- db_ddladmin is the narrow role for that — db_owner would also work and grants
 -- considerably more than this app has any reason to hold.
-ALTER ROLE db_ddladmin ADD MEMBER [merijn-portfolio-cms];
+ALTER ROLE db_ddladmin ADD MEMBER [merijn-cms];
 
 -- Verify:
 --   SELECT name, type_desc FROM sys.database_principals WHERE type = 'E';

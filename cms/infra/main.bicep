@@ -25,11 +25,13 @@
 @description('''
 Short name used as the prefix for every resource, and the App Service's own
 name — which makes it part of a *globally* unique hostname,
-<name>.azurewebsites.net. "merijn-cms" is already registered by someone else, so
-this is deliberately longer. Check before changing it:
-  getent hosts <name>.azurewebsites.net    # a record means the name is taken
+<name>.azurewebsites.net. Changing it is not free: it is also the managed
+identity's display name, so the database grant has to change with it (the
+deployment emits a matching one as the grantSql output). Check availability
+first, and remember an existing deployment of your own will also answer:
+  getent hosts <name>.azurewebsites.net    # a record means the name is in use
 ''')
-param name string = 'merijn-portfolio-cms'
+param name string = 'merijn-cms'
 
 @description('''
 Region for the database. Must be the same region as the SQL server — a database
