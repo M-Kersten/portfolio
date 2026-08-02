@@ -14,22 +14,22 @@ export default function CanvasScene({
   frameloop: 'always' | 'demand' | 'never';
   onActivate: (hotspot: Hotspot) => void;
 }) {
-  // Adaptive resolution: everything downstream (bloom, MSAA, transparent
-  // overdraw) scales with pixel count, so on a device that can't hold frame-rate
-  // we drop the device-pixel-ratio toward 1 rather than rendering millions of
-  // extra pixels. We cap the *ceiling* at 1.5 — a full 2× on a Retina panel
-  // quadruples the pixels of 1× for a bloom-heavy scene and was the main reason
-  // even fast machines dropped frames; 1.5 is visually near-identical here
-  // (bloom softens the difference) for ~44% fewer pixels. The flip-flop guard
-  // locks to the low tier if a device sits on the fence, so it never oscillates.
+  // Adaptive resolution: everything downstream (MSAA, the composer passes,
+  // transparent overdraw) scales with pixel count, so on a device that can't
+  // hold frame-rate we drop the device-pixel-ratio toward 1 rather than
+  // rendering millions of extra pixels. We cap the *ceiling* at 1.5 — a full 2×
+  // on a Retina panel quadruples the pixels of 1× and was the main reason even
+  // fast machines dropped frames; 1.5 is visually near-identical here for ~44%
+  // fewer pixels. The flip-flop guard locks to the low tier if a device sits on
+  // the fence, so it never oscillates.
   const [dpr, setDpr] = useState(1.25);
   return (
     <Canvas
       dpr={dpr}
       frameloop={frameloop}
-      // No `antialias`: the EffectComposer resolves its own MSAA, so a
-      // multisampled default framebuffer is pure wasted memory + a redundant
-      // resolve every frame.
+      // No `antialias`: the EffectComposer resolves its own MSAA (see its
+      // `multisampling` prop in Stage), so a multisampled default framebuffer is
+      // pure wasted memory + a redundant resolve every frame.
       gl={{ antialias: false, powerPreference: 'high-performance' }}
       camera={{
         position: [MAQUETTE_HOME.pos.x, MAQUETTE_HOME.pos.y, MAQUETTE_HOME.pos.z],

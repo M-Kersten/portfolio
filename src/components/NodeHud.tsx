@@ -57,7 +57,7 @@ export function NodeHud() {
   // Closing drops you back onto the layer you left from — scroll to the *centre*
   // of that layer's band on the hero so the journey lands squarely on it. Closing
   // the TENTH project is the homecoming: the journey pulls up to the City overview
-  // where the celebration plays out (particle burst, bloom surge, ghost pad).
+  // where the celebration plays out (particle burst, ghost pad).
   const runClose = () => {
     navigate('/');
     if (!study) return;

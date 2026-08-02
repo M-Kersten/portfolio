@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { Environment, Lightformer } from '@react-three/drei';
-import { EffectComposer, Bloom, BrightnessContrast, Vignette, Scanline } from '@react-three/postprocessing';
+import { EffectComposer, BrightnessContrast, Vignette, Scanline } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
-import type { BloomEffect } from 'postprocessing';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { useSceneSelector, bootAt, MAQUETTE_BOOT } from './store';
+import { useSceneSelector } from './store';
 import { fitScale, type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
 import { Maquette } from './maquette';
@@ -27,15 +26,13 @@ const RIM_HEX = '#27e8f2'; // city cyan — the fallback / starting air
 //   2. Pick (on select): the same colour deepens and the fill lights drop, so
 //      the emissive object stays the brightest thing and the scene glows around
 //      the pick.
-function SelectDim({ hemi, dir1, dir2, bloom }: {
+function SelectDim({ hemi, dir1, dir2 }: {
   hemi: RefObject<HemisphereLight | null>;
   dir1: RefObject<DirectionalLight | null>;
   dir2: RefObject<DirectionalLight | null>;
-  bloom: RefObject<BloomEffect | null>;
 }) {
   const selected = useSceneSelector((s) => s.selectedSlug);
   const journeyStep = useSceneSelector((s) => s.journeyStep);
-  const celebrateAt = useSceneSelector((s) => s.celebrateAt);
   const reduced = useReducedMotion();
   const cfg = useFxConfig();
   const scene = useThree((s) => s.scene);
@@ -87,22 +84,6 @@ function SelectDim({ hemi, dir1, dir2, bloom }: {
     // background frame: near-black at rest, tinting only as a node is picked (the
     // scene glowing around the pick) — never a resting colour wash
     if (scene.background instanceof Color) scene.background.copy(bg).lerp(air, cfg.bgTintSelect * k);
-    if (bloom.current) {
-      // One power surge at the homecoming (the 10th node's HUD closing),
-      // decaying back over ~3s while the celebration plays out in view.
-      const surge =
-        celebrateAt !== null && !reduced
-          ? Math.exp(-(performance.now() - celebrateAt) / 1100) * 0.9
-          : 0;
-      // Establishing ignition: a softer surge as the maquette powers on — its beat
-      // in the load sequence, timed off the shared boot clock so it fires just
-      // after the hero name + subhead have resolved (never before its beat, so the
-      // guard on `since`). Decays over ~2s. Skipped under reduced motion.
-      const since = performance.now() - bootAt - MAQUETTE_BOOT;
-      const ignite = reduced || since < 0 ? 0 : Math.exp(-since / 900) * 0.7;
-      bloom.current.intensity = cfg.bloomIntensity + k * cfg.bloomSelectBoost + surge + ignite;
-      (bloom.current.luminanceMaterial as unknown as { threshold: number }).threshold = cfg.bloomThreshold - k * cfg.bloomThresholdSelectDrop;
-    }
   });
   return null;
 }
@@ -115,7 +96,6 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   const hemi = useRef<HemisphereLight>(null);
   const dir1 = useRef<DirectionalLight>(null);
   const dir2 = useRef<DirectionalLight>(null);
-  const bloom = useRef<BloomEffect>(null);
   const cfg = useFxConfig();
 
   // The halftone's two knobs live on every compiled glass shader as the same
@@ -137,7 +117,7 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
       <hemisphereLight ref={hemi} intensity={cfg.hemiIntensity} color="#aebfd6" groundColor={cfg.bgColor} />
       <directionalLight ref={dir1} position={[6, 11, 4]} intensity={1.1} color="#eaf2ff" />
       <directionalLight ref={dir2} position={[-7, 4, -6]} intensity={0.5} color="#27e8f2" />
-      <SelectDim hemi={hemi} dir1={dir1} dir2={dir2} bloom={bloom} />
+      <SelectDim hemi={hemi} dir1={dir1} dir2={dir2} />
 
       {/* Reflections come almost entirely from this procedural environment; kept
           gentle so glossy surfaces catch a soft sheen rather than a hot mirror
@@ -153,19 +133,18 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
 
       <Maquette onActivate={onActivate} />
 
-      {/* A restrained glow — only the brightest accents lift, no neon halo —
-          then a touch more contrast and a soft vignette that pools the light
-          in the centre of the frame, where the maquette lives. */}
+      {/* A touch more contrast, a soft vignette pooling the light in the centre
+          of the frame where the maquette lives, and a faint scanline.
+
+          Bloom used to lead this chain and is gone. It had been tuned to
+          nothing — intensity, radius, smoothing and select-boost all at 0, with
+          the luminance threshold at 1 — so it built a mipmap blur chain every
+          frame and composited a black image over the result. The ignition and
+          celebration surges that drove its intensity went with it: they were
+          already invisible, since a bloom of radius 0 has nothing to spread. */}
       <EffectComposer enableNormalPass={false} multisampling={2}>
-        {/* ref cast: @react-three/postprocessing types the ref as the class, not the instance.
-            intensity/luminanceThreshold are also driven live by SelectDim's useFrame above —
-            these props only seed the very first frame. */}
-        <Bloom ref={bloom as never} mipmapBlur luminanceThreshold={cfg.bloomThreshold} luminanceSmoothing={cfg.bloomSmoothing} intensity={cfg.bloomIntensity} radius={cfg.bloomRadius} />
         <BrightnessContrast contrast={cfg.contrast} />
         <Vignette eskil={false} offset={cfg.vignetteOffset} darkness={cfg.vignetteDarkness} />
-        {/* Off (opacity 0) by default — EffectComposer's children type won't
-            take a conditional `false`, and one more blend pass at opacity 0
-            costs nothing worth avoiding. */}
         <Scanline density={cfg.scanlineDensity} opacity={cfg.scanlineOpacity} />
       </EffectComposer>
     </>
