@@ -1,0 +1,397 @@
+/* About + Contact: the shared instrument-viewport framing, the annotated
+   portrait stage with its pinned facts, and the contact finale. */
+
+/* ---------- About + Contact ---------- */
+
+/* Shared "instrument viewport" framing (§ cohesion). A faint STATIC dot-field
+   behind the content plus scanner-corner brackets, so these editorial sections
+   read as part of the same holographic UI as the hero and the projects
+   timeline. Deliberately static — no hover-glow or live motif — so the copy
+   stays comfortable to read. The dot field mirrors the timeline's base layer;
+   the corner idiom mirrors .wall__frame. */
+.section--instrument {
+  overflow: hidden;
+  isolation: isolate;
+}
+.section--instrument::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--dots-ink);
+  background-size: 30px 30px;
+  opacity: 0.42;
+  pointer-events: none;
+  z-index: 0;
+}
+.section--instrument > .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Corner brackets — four L-shapes. Base fills its positioned parent; the
+   modifiers set the inset/scale for a whole section vs. the portrait. */
+.scanframe {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.scanframe i {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+}
+.scanframe i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.scanframe i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.scanframe i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.scanframe i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+/* Section-scale — hugs the section a little in from the edges. */
+.scanframe--section { inset: var(--space-l) var(--space-m); }
+/* Portrait-scale — a small viewfinder lock-on just inside the photo. */
+.scanframe--portrait { inset: 7px; z-index: 1; }
+.scanframe--portrait i {
+  width: 13px;
+  height: 13px;
+  border-color: color-mix(in srgb, var(--ink) 34%, transparent);
+}
+
+.about__grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: var(--space-xl);
+  align-items: start;
+}
+.about__lead {
+  font-size: var(--step-1);
+}
+.about__side {
+  display: grid;
+  gap: var(--space-l);
+  /* centre the specimen stage against the taller bio column */
+  align-self: stretch;
+  align-content: center;
+}
+/* Scroll-scrubbed portrait — five stacked frames, the active one faded in.
+   Kept compact so the bio + facts still read in one view. */
+.about__portrait {
+  position: relative;
+  margin: 0;
+  width: 100%;
+  max-width: 250px;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 24px 60px -34px rgba(0, 0, 0, 0.85);
+}
+.about__portrait-ph {
+  position: absolute;
+  inset: 0;
+}
+.about__portrait-ph::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: screen;
+}
+.about__portrait-frame {
+  position: absolute;
+  inset: 0;
+  /* Zoomed a touch and anchored low so the empty space above the head is
+     cropped out and the face sits high in the frame. */
+  background-size: 116%;
+  background-position: center 85%;
+}
+.about__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-s);
+}
+.about__list dt {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.about__list dd {
+  margin: 0 0 var(--space-s);
+}
+
+/* The annotated specimen — the portrait becomes the section's hotspot: facts
+   pinned to it with the maquette's leader-line + crosshair language. The SVG
+   overlay and the % positions share one 600×640 design box (the stage keeps
+   that aspect), so lines and text stay in register at any width. */
+.about__stage {
+  position: relative;
+  width: min(100%, 620px);
+  aspect-ratio: 600 / 720;
+  margin-inline: auto;
+  perspective: 1100px;
+}
+/* Everything lives on one plane that leans toward the cursor (--px/--py set in
+   JS), so the leaders stay locked to the photo while the panel reads as a
+   floating holographic specimen. */
+.about__stage-tilt {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(calc(var(--py, 0) * -5deg)) rotateY(calc(var(--px, 0) * 6deg));
+  transition: transform 0.3s var(--ease);
+  will-change: transform;
+}
+.about__stage .about__portrait {
+  position: absolute;
+  left: 27%;
+  top: 12.5%;
+  width: 46%;
+  max-width: none;
+  /* proud of the plane, so it parallaxes forward as the panel tilts */
+  transform: translateZ(38px);
+}
+/* A thin scan line over the photo — the "instrument reading" cue. Rather than a
+   constant sweep it stays dark and only glitches down the frame now and then: a
+   short stuttery burst of flickers roughly every 11s, then quiet again. */
+.about__scan {
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  top: 6%;
+  height: 16px;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent-glow) 24%, transparent) 55%, transparent);
+  mix-blend-mode: screen;
+  animation: about-scan 11s linear infinite;
+}
+@keyframes about-scan {
+  0%, 80% { top: 6%; opacity: 0; transform: translateX(0); }
+  80.4% { top: 20%; opacity: 0.9; transform: translateX(-3px); }
+  81% { top: 20%; opacity: 0.06; transform: translateX(2px); }
+  81.8% { top: 42%; opacity: 0.85; transform: translateX(3px); }
+  82.4% { top: 42%; opacity: 0.1; transform: translateX(-2px); }
+  83.4% { top: 64%; opacity: 0.8; transform: translateX(2px); }
+  84% { top: 64%; opacity: 0.12; transform: translateX(-3px); }
+  85% { top: 86%; opacity: 0.9; transform: translateX(2px); }
+  85.6% { top: 94%; opacity: 0.3; transform: translateX(-1px); }
+  86.2%, 100% { top: 100%; opacity: 0; transform: translateX(0); }
+}
+.about__stage .scanframe--portrait i {
+  transition: border-color 0.25s var(--ease);
+}
+/* the hovered fact's accent locks the viewfinder brackets */
+.about__stage[data-hot] .scanframe--portrait i {
+  border-color: color-mix(in srgb, var(--hotc) 80%, transparent);
+}
+.about__stage-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+/* leaders draw in (dash sweep), crosshairs pop, callouts rise — all staggered
+   via inline transition-delays once the stage scrolls into view */
+.about__lead-line {
+  opacity: 0.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition:
+    stroke-dashoffset 0.5s var(--ease),
+    opacity 0.25s var(--ease);
+}
+.about__lead-g[data-on] .about__lead-line {
+  opacity: 1;
+}
+.about__lead-mark {
+  opacity: 0;
+  transform: scale(0.3);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    opacity 0.3s var(--ease),
+    transform 0.3s var(--ease);
+}
+.about__lead-g[data-on] .about__lead-mark {
+  filter: drop-shadow(0 0 5px var(--hotc));
+}
+/* a hovered fact's leader reads as a live connection — a running dash flow
+   (pathLength=1, so the dash values are fractions of the leader's length) */
+.about__lead-g[data-on] .about__lead-line {
+  stroke-dasharray: 0.06 0.05;
+  animation: about-flow 0.7s linear infinite;
+}
+@keyframes about-flow {
+  to {
+    stroke-dashoffset: -0.11;
+  }
+}
+.about__stage[data-shown] .about__lead-line {
+  stroke-dashoffset: 0;
+}
+.about__stage[data-shown] .about__lead-mark {
+  opacity: 1;
+  transform: scale(1);
+}
+.about__pins {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  pointer-events: none;
+}
+.about__callout {
+  position: absolute;
+  margin: 0;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(7px);
+  transition:
+    opacity 0.45s var(--ease),
+    transform 0.45s var(--ease);
+}
+.about__stage[data-shown] .about__callout {
+  opacity: 1;
+  transform: none;
+}
+.about__callout dt {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c) 82%, transparent);
+  margin-bottom: 0.35em;
+}
+.about__callout dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--ink-60);
+  transition: color 0.25s var(--ease);
+}
+.about__callout[data-on] dd {
+  color: var(--ink);
+}
+.about__fallback {
+  display: none;
+}
+@media (max-width: 899px) {
+  .about__stage {
+    display: none;
+  }
+  .about__fallback {
+    display: grid;
+    gap: var(--space-l);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .about__lead-line,
+  .about__lead-mark,
+  .about__callout {
+    transition: none;
+  }
+  .about__scan,
+  .about__lead-g[data-on] .about__lead-line {
+    animation: none;
+  }
+  .about__scan {
+    display: none;
+  }
+  .about__stage-tilt {
+    transition: none;
+  }
+}
+
+/* Open like About — no card border or raised fill boxing it in; it sits on the
+   section's own dot-field. `overflow: hidden` stays so the letter motif can
+   spawn just off the left edge and be clipped until it rides into view. */
+.contact {
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-s) 0 var(--space-2xl);
+  text-align: center;
+}
+/* Rebalance the section's own padding: About's tall exit plus this section's
+   full 2xl entrance plus .contact's old xl inner pad stacked to ~340px of
+   empty black before the title — trim the entrance, keep the theatrical exit
+   (the motif letterbox lives in .contact's bottom padding) and pull the
+   letterbox down to sit just above the footer. */
+#contact.section {
+  padding-top: var(--space-xl);
+  padding-bottom: var(--space-m);
+}
+.contact > * {
+  position: relative;
+}
+/* The contact story — a scroll-driven backdrop behind the card's content: the
+   letter spawns just past the card's edge (clipped by its overflow) and rides
+   the dotted route down to the letterbox standing on the card's bottom edge. */
+.contact__motif {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.contact__motif canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.contact h2 {
+  color: var(--ink);
+  font-size: var(--step-4);
+}
+/* Hierarchy ladder: step-4 title → step-1 lead → step-2 email (the CTA) →
+   quiet mono buttons, with the gaps widening down the ladder. */
+.contact p {
+  font-size: var(--step-1);
+  color: var(--ink-60);
+  margin-inline: auto;
+}
+.contact__email {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  color: var(--accent-ink);
+  margin-top: var(--space-m);
+}
+.contact__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+  justify-content: center;
+  margin-top: var(--space-l);
+}
+/* On a phone the four buttons wrap 3+1; cap the row so they land 2+2. */
+@media (max-width: 480px) {
+  .contact__links {
+    max-width: 19rem;
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .about__grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-l);
+  }
+  /* Flatten the side + fallback wrappers so the portrait and the facts become
+     direct items of the single-column grid — then the portrait sits ABOVE the
+     bio, centred, with the facts below it. */
+  .about__side,
+  .about__fallback {
+    display: contents;
+  }
+  .about__fallback .about__portrait {
+    order: -1;
+    margin-inline: auto;
+  }
+  .about__list {
+    order: 1;
+  }
+}
+

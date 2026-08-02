@@ -1,0 +1,115 @@
+/* The load fade-up (BootVeil.tsx) — the scene and the hero chrome open out of
+   black while the camera dollies in.
+
+   BEHIND the fixed header (50), so the chrome is already in place and the fade
+   reads as the world arriving underneath it rather than the whole browser window
+   switching on. Above the reticle (42), the intro card (40) and the hero text (5),
+   so everything that belongs to the scene comes up together. `pointer-events: none`
+   from the start, so it can never swallow a click mid-fade. */
+.boot-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: var(--paper);
+  pointer-events: none;
+  /* NOT --ease: that's cubic-bezier(0.22, 1, 0.36, 1), a hard ease-OUT, which puts
+     92% of the fade into the first fifth of the duration — the veil was practically
+     gone in half a second and the load just looked like it flashed. A fade-up wants
+     the opposite shape, so this is a symmetric ease-in-out, and the keyframes hold
+     full black for the first beat (covering React's mount and the first canvas
+     frame) before any of it starts. */
+  animation: boot-veil-out 2.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
+}
+/* Opacity ONLY — deliberately. Animating `visibility` alongside it took the whole
+   thing off the compositor and onto the main thread, which is the busiest it will
+   ever be during exactly this window (three.js is compiling the scene): measured
+   mid-fade, the veil was still at 0.88 two seconds in, because the animation was
+   being starved rather than running. An opacity-only keyframe is GPU-composited and
+   immune to that. A fully transparent fixed layer isn't painted, so leaving it at
+   opacity 0 costs nothing that hiding it would have saved. */
+@keyframes boot-veil-out {
+  0%,
+  14% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* No dolly under reduced motion (CameraRig bails out), so there's no zoom for the
+   fade to ride — the page just appears, as it did before. */
+@media (prefers-reduced-motion: reduce) {
+  .boot-veil {
+    animation: none;
+    opacity: 0;
+  }
+}
+/* Never in print. `npm run cv` prints /cv 150ms after networkidle, and the veil
+   holds full black for its first 308ms — so the generated PDFs came out as two
+   black pages. A screen-only load flourish has no business in a document, and
+   killing it for print fixes the generator and a browser "save as PDF" alike
+   without either of them having to wait the fade out. */
+@media print {
+  .boot-veil {
+    display: none;
+  }
+}
+
+/* The movie-intro title card — centred over the maquette on first load while
+   the camera dollies in, then clears. Light type on the dark scene, with a soft
+   scrim so it reads over the wireframe city. Decorative overlay (no pointer
+   events); its own component handles the timing (IntroCard.tsx). */
+.intro-card {
+  position: fixed;
+  left: 50%;
+  top: 40%;
+  z-index: 40;
+  width: min(44rem, 88vw);
+  padding: var(--space-m);
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%) translateY(12px);
+  transition: opacity 0.6s var(--ease), transform 0.7s var(--ease);
+}
+.intro-card[data-show] {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+/* soft dark halo so the type lifts off the busy wireframe behind it */
+.intro-card::before {
+  content: '';
+  position: absolute;
+  inset: -30% -8%;
+  z-index: -1;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--paper) 72%, transparent) 0%, transparent 68%);
+  pointer-events: none;
+}
+.intro-card__title {
+  margin: 0 0 0.55em;
+  font-size: clamp(1.6rem, 1rem + 2.8vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.04;
+  color: var(--ink);
+  text-wrap: balance;
+  text-shadow: 0 2px 34px rgba(0, 0, 0, 0.9), 0 1px 4px rgba(0, 0, 0, 0.92);
+}
+.intro-card__body {
+  margin: 0 auto;
+  max-width: 40ch;
+  font-size: clamp(0.98rem, 0.82rem + 0.7vw, 1.2rem);
+  line-height: 1.5;
+  color: var(--ink-70, var(--ink-60));
+  text-wrap: balance;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.9);
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-card {
+    transition: opacity 0.4s var(--ease);
+    transform: translate(-50%, -50%);
+  }
+  .intro-card[data-show] {
+    transform: translate(-50%, -50%);
+  }
+}

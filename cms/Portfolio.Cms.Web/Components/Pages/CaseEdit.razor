@@ -1,0 +1,331 @@
+@page "/cases/{Slug}"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ContentStore Store
+@inject PosterStore Posters
+@inject NavigationManager Nav
+
+<PageTitle>@(_isNew ? "New project" : _case?.Title) · Portfolio CMS</PageTitle>
+
+@if (_case is null)
+{
+    <p class="muted">@(_notFound ? "No project with that slug." : "Loading…")</p>
+}
+else
+{
+    <header class="head head--row">
+        <div>
+            <h1>@(_isNew ? "New project" : _case.Title)</h1>
+            <p class="muted mono">@_case.Slug</p>
+        </div>
+        <div class="head__actions">
+            <a class="btn btn--ghost" href="cases">Back</a>
+            <button class="btn btn--primary" disabled="@_saving" @onclick="Save">
+                @(_saving ? "Saving…" : "Save draft")
+            </button>
+        </div>
+    </header>
+
+    @if (_message is not null)
+    {
+        <div class="panel @(_failed ? "panel--error" : "panel--ok")">@_message</div>
+    }
+
+    <section class="form">
+        <h2>Identity</h2>
+
+        <label class="field">
+            <span>Slug</span>
+            <input class="input mono" @bind="_case.Slug" @bind:event="oninput" disabled="@(!_isNew)" />
+            <small class="muted">
+                @if (_isNew)
+                {
+                    @("Lowercase and hyphenated. Also the poster filename, so it is fixed once saved.")
+                }
+                else
+                {
+                    @("Fixed after creation — the 3D scene, the poster file and other projects' storyline links all point at it by name.")
+                }
+            </small>
+        </label>
+
+        <label class="field">
+            <span>Title</span>
+            <input class="input" @bind="_case.Title" @bind:event="oninput" />
+        </label>
+
+        <div class="field-row">
+            <label class="field">
+                <span>Layer</span>
+                <select class="input" value="@_case.Layer" @onchange="e => _case.Layer = Enum.Parse<Layer>(e.Value!.ToString()!)">
+                    @foreach (var layer in Enum.GetValues<Layer>())
+                    {
+                        <option value="@layer">@layer</option>
+                    }
+                </select>
+                <small class="muted">City is maps and the real world, Room is games and apps, Chip is tools.</small>
+            </label>
+
+            <label class="field">
+                <span>Year</span>
+                <input class="input" @bind="_case.Year" @bind:event="oninput" placeholder="2026 or 2026-03" />
+                <small class="muted">Required unless archived — it stamps the tile and places it on the timeline.</small>
+            </label>
+        </div>
+
+        <div class="field-row">
+            <label class="field">
+                <span>Client</span>
+                <input class="input" @bind="_case.Client" @bind:event="oninput" />
+            </label>
+
+            <label class="field">
+                <span>Sector</span>
+                <input class="input" @bind="_case.Sector" @bind:event="oninput" placeholder="Energy · AR" />
+            </label>
+        </div>
+
+        <div class="field-row">
+            <label class="field">
+                <span>Kind</span>
+                <input class="input" list="kinds" @bind="_case.Kind" @bind:event="oninput" placeholder="(client work)" />
+                <small class="@(KindIsOdd ? "warn" : "muted")">
+                    @if (KindIsOdd)
+                    {
+                        @($"\"{_case.Kind}\" isn't one the site understands — the waypoint will show the client name with no badge. Use freelance or passion, or clear it.")
+                    }
+                    else
+                    {
+                        @("Leave empty for client work. Only freelance and passion render a badge.")
+                    }
+                </small>
+                <datalist id="kinds">
+                    @foreach (var kind in CaseKind.Known)
+                    {
+                        <option value="@kind"></option>
+                    }
+                </datalist>
+            </label>
+
+            <label class="field">
+                <span>Map tag</span>
+                <input class="input" @bind="_case.Tag" @bind:event="oninput" placeholder="(defaults to the client)" />
+                <small class="muted">Ignored when a kind is set.</small>
+            </label>
+        </div>
+
+        <fieldset class="field">
+            <legend>Disciplines</legend>
+            <div class="checks">
+                @foreach (var discipline in Enum.GetValues<Discipline>())
+                {
+                    var value = discipline;
+                    <label class="check">
+                        <input type="checkbox" checked="@_case.Discipline.Contains(value)"
+                               @onchange="e => ToggleDiscipline(value, (bool)e.Value!)" />
+                        <span>@value</span>
+                    </label>
+                }
+            </div>
+            <small class="@(_case.Discipline.Count == 0 ? "error" : "muted")">
+                At least one — /projects filters on these, and a project with none can never be reached.
+            </small>
+        </fieldset>
+
+        <h2>The story</h2>
+
+        <label class="field">
+            <span>Problem</span>
+            <textarea class="input" rows="4" @bind="_case.Problem" @bind:event="oninput"></textarea>
+        </label>
+
+        <label class="field">
+            <span>Approach</span>
+            <textarea class="input" rows="4" @bind="_case.Approach" @bind:event="oninput"></textarea>
+        </label>
+
+        <label class="field">
+            <span>Outcome</span>
+            <textarea class="input" rows="2" @bind="_case.Outcome" @bind:event="oninput"></textarea>
+            <small class="muted">One hard result — this is the big summary line.</small>
+        </label>
+
+        <label class="field">
+            <span>Lesson</span>
+            <textarea class="input" rows="3" @bind="_case.Lesson" @bind:event="oninput"></textarea>
+            <small class="muted">Optional third beat.</small>
+        </label>
+
+        <h2>Links and stack</h2>
+
+        <div class="field">
+            <span class="field__label">Tech</span>
+            <StringList Items="_tech" Changed="StateHasChanged" AddLabel="Add tech" Placeholder="Unity" />
+        </div>
+
+        <div class="field-row">
+            <label class="field">
+                <span>Video</span>
+                <input class="input" @bind="_case.Video" @bind:event="oninput" placeholder="https://youtu.be/…" />
+                <small class="muted">YouTube only — the embed understands nothing else.</small>
+            </label>
+
+            <label class="field">
+                <span>Article</span>
+                <input class="input" @bind="_case.Article" @bind:event="oninput" />
+            </label>
+        </div>
+
+        <label class="field">
+            <span>Builds on</span>
+            <select class="input" value="@(_case.Follows ?? "")"
+                    @onchange="e => _case.Follows = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value!.ToString()">
+                <option value="">(nothing)</option>
+                @foreach (var other in _otherSlugs)
+                {
+                    <option value="@other">@other</option>
+                }
+            </select>
+            <small class="muted">Threads projects into a storyline. The reverse link is derived.</small>
+        </label>
+
+        <label class="check check--block">
+            <input type="checkbox" checked="@(_case.Archive == true)"
+                   @onchange="e => _case.Archive = (bool)e.Value! ? true : null" />
+            <span>
+                Archive — keep it in the /projects index but off the curated hero and timeline.
+                Archived projects may go without a year or a poster.
+            </span>
+        </label>
+
+        <h2>Poster</h2>
+        <p class="muted">
+            Resized to 1024px wide at quality 78 on upload, matching
+            <code>npm run posters</code>. Staged until you publish, then committed as
+            <code>public/posters/@(_case.Slug).jpg</code>.
+        </p>
+
+        @if (_posterStaged)
+        {
+            <p class="ok">✓ A new poster is staged for this project.</p>
+        }
+        <InputFile OnChange="UploadPoster" accept="image/*" class="input" />
+        @if (_uploading)
+        {
+            <p class="muted">Processing…</p>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private ContentSet? _content;
+    private CaseStudy? _case;
+    private List<string> _tech = [];
+    private List<string> _otherSlugs = [];
+    private bool _isNew, _notFound, _saving, _uploading, _posterStaged, _failed;
+    private string? _message;
+
+    private bool KindIsOdd => !string.IsNullOrEmpty(_case?.Kind) && !CaseKind.IsKnown(_case.Kind);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Store.IsEmptyAsync()) { _notFound = true; return; }
+
+        _content = await Store.LoadAsync();
+        _isNew = Slug == "new";
+
+        if (_isNew)
+        {
+            _case = new CaseStudy
+            {
+                Slug = "", Title = "", Layer = Layer.Room, Client = "",
+                Sector = "", Problem = "", Approach = "", Outcome = "",
+            };
+        }
+        else
+        {
+            _case = _content.Cases.FirstOrDefault(c => c.Slug == Slug);
+            if (_case is null) { _notFound = true; return; }
+        }
+
+        _tech = _case.Tech ?? [];
+        _otherSlugs = [.. _content.Cases.Where(c => c.Slug != _case.Slug).Select(c => c.Slug).Order()];
+        _posterStaged = (await Posters.GetPendingAsync()).ContainsKey(_case.Slug);
+    }
+
+    private void ToggleDiscipline(Discipline discipline, bool on)
+    {
+        if (on) { if (!_case!.Discipline.Contains(discipline)) _case.Discipline.Add(discipline); }
+        else _case!.Discipline.Remove(discipline);
+    }
+
+    private async Task Save()
+    {
+        if (_case is null || _content is null) return;
+        _saving = true;
+        _message = null;
+        _failed = false;
+
+        // An empty list and an absent one differ in the output: `tech` is
+        // omitted entirely when there is nothing in it.
+        _case.Tech = _tech.Count > 0 ? _tech : null;
+
+        if (string.IsNullOrWhiteSpace(_case.Slug))
+        {
+            _message = "A slug is required — it is how the poster, the 3D scene and storyline links find this project.";
+            _failed = true;
+            _saving = false;
+            return;
+        }
+
+        if (_isNew)
+        {
+            if (_content.Cases.Any(c => c.Slug == _case.Slug))
+            {
+                _message = $"There is already a project with the slug \"{_case.Slug}\".";
+                _failed = true;
+                _saving = false;
+                return;
+            }
+            _content.Cases.Add(_case);
+        }
+
+        await Store.SaveAsync(_content);
+        _saving = false;
+
+        if (_isNew) Nav.NavigateTo($"cases/{_case.Slug}");
+        else _message = "Saved as a draft. It reaches the site when you publish.";
+    }
+
+    private async Task UploadPoster(InputFileChangeEventArgs e)
+    {
+        if (_case is null || string.IsNullOrWhiteSpace(_case.Slug))
+        {
+            _message = "Give the project a slug and save it before uploading a poster.";
+            _failed = true;
+            return;
+        }
+
+        _uploading = true;
+        _message = null;
+        try
+        {
+            // 20MB ceiling: camera originals are 1–2MB, so anything past this is
+            // a mistake rather than a photo.
+            await using var stream = e.File.OpenReadStream(20 * 1024 * 1024);
+            await Posters.SaveAsync(_case.Slug, stream);
+            _posterStaged = true;
+        }
+        catch (Exception ex)
+        {
+            _message = $"That image couldn't be processed: {ex.Message}";
+            _failed = true;
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+}

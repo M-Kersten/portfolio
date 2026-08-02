@@ -1,0 +1,174 @@
+@page "/publish"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject IServiceProvider Services
+@inject ContentStore Store
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Publish · Portfolio CMS</PageTitle>
+
+<header class="head">
+    <h1>Publish</h1>
+    <p class="muted">
+        Runs the same checks as the site build, then commits what changed. The
+        GitHub Pages workflow picks it up and the site is live about a minute later.
+    </p>
+</header>
+
+@if (_setupNeeded is not null)
+{
+    <div class="panel panel--warning">
+        <h3>GitHub isn't configured yet</h3>
+        <p>@_setupNeeded</p>
+        <p class="muted">
+            Everything else works without it — edits are saved to the draft store as
+            usual. Only publishing needs a token.
+        </p>
+    </div>
+}
+
+<div class="head__actions">
+    <button class="btn" disabled="@(_busy || _setupNeeded is not null)" @onclick="Preview">
+        @(_busy && !_publishing ? "Checking…" : "Check for changes")
+    </button>
+    <button class="btn btn--primary"
+            disabled="@(_busy || _setupNeeded is not null || _outcome is null || !_outcome.HasChanges || _outcome.Blocked)"
+            @onclick="DoPublish">
+        @(_publishing ? "Publishing…" : "Publish")
+    </button>
+</div>
+
+@if (_error is not null)
+{
+    <div class="panel panel--error">
+        <h3>Publish failed</h3>
+        <p>@_error</p>
+    </div>
+}
+
+@if (_published is not null)
+{
+    <div class="panel panel--ok">
+        <h3>Published</h3>
+        <p>
+            Commit <code>@_published[..7]</code> is on the publish branch. The Pages
+            build takes about a minute.
+        </p>
+    </div>
+}
+
+@if (_outcome is not null)
+{
+    <section class="panel">
+        <h3>Checks</h3>
+        <ValidationPanel Result="_outcome.Validation" />
+    </section>
+
+    <section class="panel">
+        <h3>Files</h3>
+        @if (!_outcome.HasChanges)
+        {
+            <p class="muted">
+                Nothing differs from the branch — the draft and the live site already agree.
+            </p>
+        }
+        else
+        {
+            <p class="muted">@_outcome.ChangedFiles.Count file(s) would change:</p>
+            <ul class="files">
+                @foreach (var file in _outcome.ChangedFiles)
+                {
+                    <li class="mono">@file</li>
+                }
+            </ul>
+
+            <label class="field">
+                <span>Commit message</span>
+                <input class="input" @bind="_message" @bind:event="oninput" placeholder="@Placeholder" />
+                <small class="muted">Left empty, one is written from the files that changed.</small>
+            </label>
+        }
+    </section>
+}
+
+@code {
+    private PublishOutcome? _outcome;
+    private string? _error, _published, _message, _setupNeeded;
+    private bool _busy, _publishing;
+
+    private const string Placeholder = "Update the Alliander case copy";
+
+    /// <summary>
+    /// Resolved on demand rather than injected. The options are validated when
+    /// the service is constructed, so an unset token would otherwise take the
+    /// whole page down with a 500 instead of explaining what is missing —
+    /// which is the state the CMS is in until a token is configured.
+    /// </summary>
+    private PublishService Publisher => Services.GetRequiredService<PublishService>();
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            _ = Publisher;
+        }
+        catch (Microsoft.Extensions.Options.OptionsValidationException ex)
+        {
+            _setupNeeded = string.Join(" ", ex.Failures);
+        }
+    }
+
+    private async Task Preview()
+    {
+        _busy = true;
+        _error = null;
+        _published = null;
+        try
+        {
+            _outcome = await Publisher.PreviewAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = Explain(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DoPublish()
+    {
+        _busy = _publishing = true;
+        _error = null;
+        try
+        {
+            var user = (await Auth.GetAuthenticationStateAsync()).User.Identity?.Name;
+            var outcome = await Publisher.PublishAsync(
+                string.IsNullOrWhiteSpace(_message) ? "" : _message, user);
+
+            _outcome = outcome;
+            _published = outcome.CommitSha;
+            _message = null;
+        }
+        catch (Exception ex)
+        {
+            _error = Explain(ex);
+        }
+        finally
+        {
+            _busy = _publishing = false;
+        }
+    }
+
+    /// <summary>
+    /// A conflict is the one failure with an obvious next step, so it gets said
+    /// plainly rather than surfacing as a raw exception.
+    /// </summary>
+    private static string Explain(Exception ex) => ex switch
+    {
+        PublishConflictException conflict =>
+            conflict.Message + " Someone — or a hand edit — pushed to the branch since this draft was loaded.",
+        _ => ex.Message,
+    };
+}

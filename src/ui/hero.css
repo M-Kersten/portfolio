@@ -1,0 +1,349 @@
+/* The hero: three invisible scroll panels that give the 3D layer journey
+   its length, plus the fixed name/subtitle block over the maquette. */
+
+/* ---------- Hero stage (scroll layer journey) ---------- */
+
+.hero {
+  position: relative;
+}
+/* Three panels give the camera journey its scroll length and are transparent so
+   the fixed canvas shows through. Their combined height sets how far you scroll
+   per layer — HeroStage weights the travel City<0.25 · Room 0.25–0.75 · Chip≥0.75
+   so Room (the only one you must stop mid-scroll to hold) gets the widest, most
+   forgiving band. No scroll-snap: the old snap points didn't line up with the
+   viewport and made the page feel like it stuck when scrolling past the hero. */
+.hero__panel {
+  height: 46svh;
+}
+
+/* Minimal title — fixed, fades when a node is inspected or scrolled past.
+   Its left offset mirrors the .container gutter so the name sits on the same
+   grid line as every section title below (flush-left it sat ~80px short of
+   that line on wide screens). */
+.hero__title {
+  position: fixed;
+  left: max(0px, calc((100vw - var(--container)) / 2));
+  top: 0;
+  z-index: 5;
+  /* Sits lower than the header alone would need: the extra top padding drops the
+     name and subhead clear of the windmill's hotspot in the city layer, which
+     they used to overlap on the left. */
+  padding: calc(var(--header-h) + var(--space-xl) + 4.5rem) var(--space-m) 0;
+  max-width: 32rem;
+  pointer-events: none;
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+}
+.hero__title[data-visible='false'] {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+.hero__name {
+  font-size: var(--step-5);
+  font-weight: 700; /* Space Grotesk's heaviest weight */
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+  margin: 0 0 0.4em;
+  color: var(--ink);
+  /* Load boot — beat 2: the name fades + rises in as it decodes (Scramble, same
+     delay), after the header. Held hidden until then so the decode isn't on
+     screen during the header's beat. */
+  animation: hero-name-in 0.34s var(--ease) 0.38s both;
+}
+.hero__sub {
+  /* Fluid with the viewport width: keeps the desktop size but shrinks further
+     than --step-2's floor on a phone, so it no longer eats the hero and crowds
+     the maquette. */
+  font-size: clamp(1.05rem, 0.7rem + 1.8vw, 2.25rem);
+  color: var(--ink-60);
+  max-width: 26ch;
+  margin: 0;
+  text-wrap: balance;
+  /* Load boot — beat 3: rises in after the name has finished decoding (~0.93s). */
+  animation: hero-sub-in 0.34s var(--ease) 1.05s both;
+}
+@keyframes hero-name-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes hero-sub-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero__name,
+  .hero__sub,
+  .hero__signals-label--flash {
+    animation: none;
+  }
+}
+/* Layer narration — one mono line, bottom-left on the container grid line,
+   that introduces whichever layer the journey has centred. Remounted per step
+   (keyed on journeyStep) so each line slides in fresh. */
+.hero__caption {
+  position: fixed;
+  left: max(0px, calc((100vw - var(--container)) / 2));
+  bottom: var(--space-l);
+  z-index: 5;
+  padding-inline: var(--space-m);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease);
+  animation: caption-in 0.5s var(--ease);
+}
+.hero__caption b {
+  font-weight: 700;
+  color: var(--cap-accent, var(--accent));
+}
+.hero__caption span {
+  color: var(--ink-40);
+  letter-spacing: 0.08em;
+  text-transform: none;
+}
+@keyframes caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* The model tally — quiet instrument chrome bottom-right. Every object in the
+   maquette is a project; pips fill as they're brought alive, and the whole
+   chip is a button that opens the manifest (which stands where, what's still
+   dark). At 10/10 the readout takes the accent and the scene's completion
+   state does the real celebrating. */
+.hero__signals {
+  position: fixed;
+  right: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
+  bottom: var(--space-l);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  /* the hero section is pointer-through (page-shell.css) so the 3D hotspots
+     stay clickable — the tally is its one interactive instrument, so opt back in */
+  pointer-events: auto;
+  transition: opacity 0.4s var(--ease);
+}
+.hero__signals-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.35em 0.55em;
+  margin: -0.35em -0.55em;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+.hero__signals-btn:hover .hero__signals-label,
+.hero__signals-btn:focus-visible .hero__signals-label {
+  color: var(--ink);
+}
+
+/* the first-visit whisper — states the premise once, then retires. Floats
+   above the tally so it never shifts the chrome around. */
+.hero__hint {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.7rem);
+  margin: 0;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  color: var(--accent-ink);
+  animation: hero-hint-in 0.8s var(--ease);
+}
+@keyframes hero-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* the manifest — a small dossier above the tally: found projects are named
+   and clickable, unfound ones stay redacted (you know the layer, not the name) */
+.manifest {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.8rem);
+  width: 17rem;
+  max-height: min(60vh, 26rem);
+  overflow-y: auto;
+  padding: 0.8rem 0.95rem 0.7rem;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  backdrop-filter: blur(10px);
+  font-family: var(--font-mono);
+  animation: hero-hint-in 0.25s var(--ease);
+}
+.manifest__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin-bottom: 0.55rem;
+}
+.manifest__head span {
+  color: var(--ink-40);
+  letter-spacing: 0.12em;
+}
+.manifest__layer {
+  padding-top: 0.45rem;
+}
+.manifest__layer + .manifest__layer {
+  margin-top: 0.45rem;
+  border-top: 1px solid var(--hairline);
+}
+.manifest__index {
+  display: block;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.manifest__layer ul {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.manifest__layer li button,
+.manifest__dark {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  width: 100%;
+  padding: 0.18em 0.3em;
+  margin-inline: -0.3em;
+  font: inherit;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-s);
+  color: var(--ink);
+}
+.manifest__layer li button {
+  cursor: pointer;
+}
+.manifest__layer li button:hover,
+.manifest__layer li button:focus-visible {
+  background: var(--surface-2);
+  color: var(--accent-ink);
+}
+.manifest__dark {
+  color: var(--ink-40);
+}
+.manifest__layer i {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+}
+.manifest__layer i[data-on] {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+.manifest__foot {
+  margin: 0.65rem 0 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  color: var(--ink-40);
+}
+.hero__signals-pips {
+  display: inline-flex;
+  gap: 4px;
+}
+.hero__signals-pips i {
+  width: 5px;
+  height: 5px;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+  transition: background 0.4s var(--ease), box-shadow 0.4s var(--ease);
+}
+.hero__signals-pips i[data-on] {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+.hero__signals-label {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.4s var(--ease);
+}
+.hero__signals[data-complete] .hero__signals-label {
+  color: var(--accent-ink);
+}
+/* the tally steps (see HeroStage's TALLY_SETTLE_MS), and this is the moment it
+   does it — a bright flash that settles back into whichever colour the rule
+   above actually wants, so it still resolves correctly on the one flash that
+   lands on 10/10. Re-keyed per change (see the JSX) so it restarts every time
+   rather than only playing once. */
+@keyframes signals-flash {
+  0% { color: #8fe9ff; text-shadow: 0 0 10px rgba(39, 232, 242, 0.6); }
+  100% { color: var(--ink-40); text-shadow: none; }
+}
+.hero__signals-label--flash {
+  animation: signals-flash 0.9s var(--ease);
+}
+
+@media (max-width: 760px) {
+  .hero__name {
+    font-size: var(--step-4);
+  }
+  .hero__title {
+    max-width: 86vw;
+  }
+  /* Keep the tally on screen (incl. the 10/10 completion state), stacked just
+     above the caption on the same left gutter so the two never collide. */
+  .hero__signals {
+    right: auto;
+    left: max(0px, calc((100vw - var(--container)) / 2));
+    bottom: calc(var(--space-l) + 2.6rem);
+    padding-inline: var(--space-m);
+    gap: 0.5em;
+  }
+  .hero__signals-pips {
+    gap: 3px;
+  }
+  .hero__signals-pips i {
+    width: 4px;
+    height: 4px;
+  }
+  /* tally sits at the left gutter on phones — hang the whisper + manifest
+     off the left edge so they stay on screen */
+  .hero__hint {
+    right: auto;
+    left: var(--space-m);
+    white-space: normal;
+    max-width: 78vw;
+  }
+  .manifest {
+    right: auto;
+    left: var(--space-m);
+    width: min(17rem, 88vw);
+  }
+  /* let the narration wrap within the viewport instead of running off the edge;
+     the tally above leaves room for up to two lines */
+  .hero__caption {
+    max-width: calc(100vw - 2 * var(--space-m));
+  }
+}

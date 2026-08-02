@@ -1,4 +1,0 @@
-# Baked 3DBAG district models (.glb) go here — one per registry entry in
-# src/data/places.ts. See scripts/bake-district.md. Self-hosted; no external
-# tile traffic. Until a model is present, the twin renders the procedural
-# placeholder.

@@ -1,0 +1,175 @@
+@page "/"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ContentStore Store
+@inject PosterStore Posters
+@inject IServiceProvider Services
+
+<PageTitle>Overview · Portfolio CMS</PageTitle>
+
+<header class="head">
+    <h1>Overview</h1>
+    <p class="muted">
+        Edits are saved as a draft here. Nothing reaches the site until you publish,
+        which commits to the repository and triggers the GitHub Pages build.
+    </p>
+</header>
+
+@if (_loading)
+{
+    <p class="muted">Loading…</p>
+}
+else if (_empty)
+{
+    <div class="panel panel--warning">
+        <h3>Nothing imported yet</h3>
+        <p>
+            The repository already holds the content, so the first step is to pull it
+            in rather than retype it. Import reads the five files at the tip of the
+            publish branch and seeds the draft store from them.
+        </p>
+        <p class="muted">
+            This reads from GitHub, so it needs the token configured. Running locally
+            without one, it falls back to the checkout the app is running inside.
+        </p>
+        <button class="btn btn--primary" disabled="@_working" @onclick="Import">
+            @(_working ? "Importing…" : "Import from the repository")
+        </button>
+        @if (_error is not null)
+        {
+            <p class="error">@_error</p>
+        }
+    </div>
+}
+else
+{
+    <div class="cards">
+        <a class="card" href="cases">
+            <span class="card__count">@_caseCount</span>
+            <span class="card__label">projects</span>
+            <span class="card__note">@_archiveCount archived · @_missingPosters without a poster</span>
+        </a>
+        <a class="card" href="site">
+            <span class="card__count">@_careerCount</span>
+            <span class="card__label">career stints</span>
+            <span class="card__note">plus the hero, about and contact copy</span>
+        </a>
+        <a class="card" href="cv">
+            <span class="card__count">2</span>
+            <span class="card__label">CV languages</span>
+            <span class="card__note">English and Dutch, edited side by side</span>
+        </a>
+        <a class="card" href="publish">
+            <span class="card__count">@_pendingPosters</span>
+            <span class="card__label">posters staged</span>
+            <span class="card__note">waiting to go out with the next publish</span>
+        </a>
+    </div>
+
+    <div class="panel">
+        <h3>What the CMS does not edit</h3>
+        <p>
+            The 3D maquette is code, not content. Each hotspot in
+            <code>src/scene/framing.ts</code> is a hand-placed position with its own
+            camera framing, attached to a modelled object. A new project appears on
+            /projects, in its dialog, in search and in the sitemap — but putting it
+            in the maquette is a change to the scene, made by hand.
+        </p>
+        <p class="muted">
+            That also means a project that already has a hotspot cannot be deleted here:
+            the site build would fail on the orphaned reference. The publish check will
+            say so, and name the file to fix.
+        </p>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private bool _empty;
+    private bool _working;
+    private string? _error;
+
+    private int _caseCount, _archiveCount, _missingPosters, _careerCount, _pendingPosters;
+
+    protected override async Task OnInitializedAsync() => await Refresh();
+
+    private async Task Refresh()
+    {
+        _loading = true;
+        _empty = await Store.IsEmptyAsync();
+
+        if (!_empty)
+        {
+            var content = await Store.LoadAsync();
+            var staged = await Posters.GetPendingAsync();
+
+            _caseCount = content.Cases.Count;
+            _archiveCount = content.Cases.Count(c => c.Archive == true);
+            _careerCount = content.Site.Career?.Count ?? 0;
+            _pendingPosters = staged.Count;
+            // Only an approximation until the publish check runs against the
+            // repository — it is the staged posters we can see from here.
+            _missingPosters = content.Cases.Count(c => !staged.ContainsKey(c.Slug) && c.Archive == true);
+        }
+
+        _loading = false;
+    }
+
+    private async Task Import()
+    {
+        _working = true;
+        _error = null;
+        try
+        {
+            await Store.ImportAsync(await ReadContentFilesAsync());
+            await Refresh();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _working = false;
+        }
+    }
+
+    /// <summary>
+    /// Reads the content files from wherever this instance can see them. GitHub
+    /// is the source of truth and the only option on App Service, where there
+    /// is no checkout; the local fallback exists so the CMS can be run against
+    /// the repo before any token is configured.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<string, string>> ReadContentFilesAsync()
+    {
+        GitHubRepository github;
+        try
+        {
+            github = Services.GetRequiredService<GitHubRepository>();
+        }
+        catch (Microsoft.Extensions.Options.OptionsValidationException)
+        {
+            // Not configured at all. Anything else — a bad token, an API
+            // failure — is a real error and must not fall through to a
+            // checkout that probably isn't there either.
+            return LocalContentFiles();
+        }
+
+        return await github.ReadContentFilesAsync();
+    }
+
+    private static Dictionary<string, string> LocalContentFiles()
+    {
+        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, "src", "content")))
+            dir = dir.Parent;
+
+        if (dir is null)
+            throw new DirectoryNotFoundException(
+                "GitHub isn't configured and there is no checkout to read from. Set GitHub__Token "
+                + "(and GitHub__Owner / GitHub__Repository / GitHub__Branch) so the content can be "
+                + "imported from the repository.");
+
+        return ContentFile.ReadFrom(dir.FullName);
+    }
+}

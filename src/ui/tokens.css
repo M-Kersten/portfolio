@@ -1,63 +1,124 @@
-/* Design tokens — dark, high-contrast, electric-cyan aesthetic.
-   One accent only, shared across the hero accent, hotspots, the twin legend and
-   the data ramp, so both 3D scenes read as one system. */
+/* Design tokens — refined futuristic / spatial-computing aesthetic.
+   Dark matte canvas, big editorial type, tiny mono metadata, a small locked
+   accent palette (cyan · coral · lime · lavender · pink) and a set of
+   signature gradients + halftone/grain textures shared across the whole system.
+
+   Component code keeps using --accent (cyan) as the primary. Every other hue
+   has one fixed job — see "The spatial palette" block below. */
 
 :root {
-  /* Palette — near-black canvas, off-white type, electric cyan accent.
-     Variable names are kept stable across the codebase; only the values are
-     dark-themed. */
-  --paper: #0a0c0f; /* near-black canvas / page + ground */
-  --paper-2: #14181d; /* raised card surface */
-  --surface-2: #1a1f26; /* hover / nested surface */
-  --ink: #eaf2f4; /* off-white text */
-  --ink-60: rgba(234, 242, 244, 0.62);
-  --ink-40: rgba(234, 242, 244, 0.4);
+  /* ---- Core surfaces — dark matte ---- */
+  --paper: #0a0d10; /* page + 3D ground */
+  --paper-2: #11151b; /* raised acrylic base */
+  --surface-2: #161c23; /* nested / hover surface */
+  --ink: #eaeaea; /* near-white text */
+  --ink-60: rgba(234, 234, 234, 0.62);
+  /* The quiet-metadata tier. It carries real content — sector lines, counts,
+     facet labels — so it has to clear WCAG AA for normal text, not just look
+     recessive. 0.52 is the floor for 4.5:1 on both --paper and --paper-2; the
+     old 0.4 measured 3.35:1 and failed on every surface. Anything genuinely
+     decorative belongs in --ink-20, which makes no such promise. */
+  --ink-40: rgba(234, 234, 234, 0.52);
+  --ink-20: rgba(234, 234, 234, 0.16);
 
-  --model-mid: #3a4a63; /* building / maquette base (indigo-slate) */
-  --model-deep: #243044;
-  --hairline: #20262b; /* faint dividers */
-  --line: #2c343d; /* visible hairline on dark */
+  /* ---- The spatial palette — one locked job per colour ------------------
+     The colour system is deliberately small so the whole site reads as one
+     instrument. Each hue means exactly one thing, everywhere:
 
-  --accent: #2ee6e6; /* electric cyan */
-  --accent-2: #14b8b8; /* darker cyan for gradients */
-  --accent-ink: #4beded; /* accent as text on dark */
-  --accent-contrast: #04181b; /* near-black text on a cyan fill */
-  --accent-glow: rgba(46, 230, 230, 0.3);
+       cyan     — interactive / primary: links, focus, "Live", the hero's
+                  default accent, AND the CITY layer. --accent aliases this.
+       coral    — the ROOM layer (games / apps / web). Layer colour only.
+       lime     — the CHIP layer (tools / data / CV). Layer colour only.
+       lavender — the "Freelance" project tag. Nothing else.
+       pink     — the "Passion" project tag (+ coral's gradient partner).
 
-  --shadow: rgba(0, 0, 0, 0.55);
+     Layer → colour is fixed and used identically by the hero maquette, the
+     capabilities band, the project cards and the focus popup:
+       city = cyan · room = coral · chip = lime.
 
-  /* Type */
+     The employer / career palette (site.json `career[].color`) is a separate,
+     deliberately muted set. It only ever tints the timeline route + its
+     tooltips — never UI chrome — so career context never competes with the
+     accents above. */
+  --cyan: #27e8f2; /* interactive / primary · city layer */
+  --lime: #a9f75c; /* chip layer */
+  --coral: #ff9068; /* room layer */
+  --lavender: #a89eff; /* "Freelance" project tag */
+  --pink: #ff74b0; /* "Passion" project tag · coral's gradient partner */
+
+  /* Primary accent = cyan (names kept stable for existing components). */
+  --accent: #27e8f2;
+  --accent-2: #15b6c0; /* deeper cyan for gradients */
+  --accent-ink: #5cf0f7; /* accent as text on dark */
+  --accent-contrast: #06181b; /* near-black text on an accent fill */
+  --accent-glow: rgba(39, 232, 242, 0.3);
+
+  /* ---- Lines + model tones ---- */
+  --hairline: rgba(234, 234, 234, 0.08); /* faint dividers */
+  --line: rgba(234, 234, 234, 0.16); /* visible hairline on dark */
+  /* The edge of something you can press. Structural rules can be as faint as
+     they like, but a control's boundary is what tells you it's a control, and
+     WCAG 1.4.11 puts that at 3:1 — --line manages 1.48:1 and reads as a ghost
+     outline. 0.38 is where a 1px edge clears the bar on --paper. */
+  --line-strong: rgba(234, 234, 234, 0.38);
+  --model-mid: #2a3340;
+  --model-deep: #1a212a;
+
+  /* ---- Signature gradients ---- */
+  --grad-cyan-lavender: linear-gradient(105deg, #27e8f2, #a89eff);
+  --grad-cyan-lime: linear-gradient(105deg, #27e8f2, #a9f75c);
+  --grad-orange-pink: linear-gradient(105deg, #ff9068, #ff74b0);
+  --grad-spectrum: linear-gradient(105deg, #27e8f2 0%, #a89eff 42%, #ff9068 74%, #a9f75c 100%);
+
+  /* ---- Textures (reusable backgrounds) ----
+     The dot language is little SQUARES, not circles — tileable SVGs so every
+     background field (timeline, About/Contact, case cards, hero flourishes)
+     reads as one system. Colours are baked in (the palette is locked). */
+  --dots-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Crect x='14' y='14' width='2' height='2' fill='%23eaeaea' fill-opacity='.13'/%3E%3C/svg%3E");
+  /* A fainter ink field for raised surfaces (the HUD card). */
+  --dots-faint: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Crect x='14' y='14' width='2' height='2' fill='%23eaeaea' fill-opacity='.16'/%3E%3C/svg%3E");
+  --dots-cyan: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Crect x='14' y='14' width='2.2' height='2.2' fill='%2327e8f2' fill-opacity='.92'/%3E%3C/svg%3E");
+  /* Accent-dot field for hero/section flourishes (finer 14px grid). */
+  --dotfield: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Crect x='6' y='6' width='1.8' height='1.8' fill='%2327e8f2' fill-opacity='.6'/%3E%3C/svg%3E");
+  --dotfield-size: 14px 14px;
+
+  --shadow: rgba(0, 0, 0, 0.5);
+
+  /* ---- Type — Space Grotesk (display + text), Space Mono (meta) ---- */
   --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
-  --font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --font-body: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
-  /* Fluid type scale */
-  --step--1: clamp(0.83rem, 0.79rem + 0.18vw, 0.94rem);
+  /* Fluid type scale — large, bold editorial display end. */
+  --step--1: clamp(0.78rem, 0.74rem + 0.18vw, 0.88rem);
   --step-0: clamp(1rem, 0.95rem + 0.24vw, 1.13rem);
-  --step-1: clamp(1.2rem, 1.11rem + 0.43vw, 1.5rem);
-  --step-2: clamp(1.44rem, 1.29rem + 0.73vw, 2rem);
-  --step-3: clamp(1.73rem, 1.49rem + 1.19vw, 2.66rem);
-  --step-4: clamp(2.07rem, 1.71rem + 1.83vw, 3.55rem);
-  --step-5: clamp(2.49rem, 1.85rem + 3.2vw, 5.2rem);
+  --step-1: clamp(1.2rem, 1.1rem + 0.5vw, 1.55rem);
+  --step-2: clamp(1.5rem, 1.3rem + 0.95vw, 2.25rem);
+  --step-3: clamp(1.9rem, 1.55rem + 1.7vw, 3.4rem);
+  --step-4: clamp(2.4rem, 1.85rem + 2.7vw, 4.8rem);
+  --step-5: clamp(3rem, 1.95rem + 5vw, 7.5rem);
 
-  /* Spacing scale */
+  /* ---- Spacing — generous whitespace ---- */
   --space-2xs: 0.5rem;
   --space-xs: 0.75rem;
   --space-s: 1rem;
   --space-m: 1.5rem;
-  --space-l: 2.5rem;
-  --space-xl: 4rem;
-  --space-2xl: 6.5rem;
+  --space-l: 2.75rem;
+  --space-xl: 4.5rem;
+  --space-2xl: 7.5rem;
 
-  /* Layout */
-  --measure: 66ch;
-  --container: 78rem;
-  --radius: 4px; /* sharper, edgier corners */
+  /* ---- Layout ---- */
+  --measure: 62ch;
+  /* Wide canvas: slimmer gutters keep the fixed hero title clear of the
+     maquette and let every section breathe. All the "one grid line" math
+     (hero title, band gutters, wall cue) derives from this token. */
+  --container: 87.5rem;
+  --radius: 4px; /* crisp, tactile corners (was a soft acrylic 14px) */
   --radius-s: 2px;
 
   --header-h: 4.25rem;
 
-  /* Motion */
+  /* ---- Motion ---- */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --dur: 0.5s;
 }

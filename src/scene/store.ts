@@ -1,42 +1,87 @@
 import { useSyncExternalStore } from 'react';
-import type { TwinAttribute } from '../data/places';
+import { Vector3 } from 'three';
+import { HOTSPOTS } from './framing';
 
-// One renderer, two scenes (§6). DOM components (hotspots, routes, overlay) and
-// the in-Canvas components (CameraRig, scenes) live in different React
-// reconcilers, so they coordinate through this tiny module-level store rather
-// than React context — no context bridging into <Canvas> required.
+/** Wall-clock moment the app first loaded. The boot sequence sequences off this
+ *  one shared clock so the DOM beats (header → name → subhead) and the 3D beat
+ *  (the maquette powering on) stay in order across the two React reconcilers. */
+export const bootAt = typeof performance !== 'undefined' ? performance.now() : 0;
+/** ms after boot that the maquette powers on — its beat, after the hero text
+ *  (header ~0.1s · name decode ~0.4–0.9s · subhead ~1.05–1.4s · then this). */
+export const MAQUETTE_BOOT = 1450;
 
-export type SceneMode = 'maquette' | 'twin';
+/** The launch easter egg's stage machine (see city.tsx LaunchSite +
+ *  components/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;
+ *  'countdown' = T-minus running; 'ascend' = rocket flying, camera chasing;
+ *  'game' = the asteroids overlay is up. */
+export type LaunchStage = 'idle' | 'pad' | 'countdown' | 'ascend' | 'game';
+
+/** Where the rocket is RIGHT NOW, in world space — written by the rocket every
+ *  frame, read by the CameraRig to aim at the pad and chase the ascent. Plain
+ *  mutable vector (per-frame data, deliberately not reactive state). */
+export const launchTrack = new Vector3(0, 0, 0);
+
+// One renderer, one scene. DOM components (hotspots, routes, overlay) and the
+// in-Canvas components (CameraRig, scene) live in different React reconcilers,
+// so they coordinate through this tiny module-level store rather than React
+// context — no context bridging into <Canvas> required.
 
 interface SceneState {
-  mode: SceneMode;
   /** Which layer the scroll journey has centred: 0 = City (top), 1 = Room, 2 = Chip. */
   journeyStep: number;
   /** The inspected node's case slug, or null in the overview. Drives the zoom +
    *  the bottom HUD + hiding the title. */
   selectedSlug: string | null;
-  /** Active place id for the twin (allowlist-resolved elsewhere). */
-  placeId: string;
-  /** Flips true once the twin establishing move has settled and orbit is live. */
-  twinSettled: boolean;
-  /** Increment to request a one-shot "reset view" back to the establishing shot. */
-  resetNonce: number;
-  /** Attribute the twin buildings are coloured by (§5.5). */
-  twinAttribute: TwinAttribute;
-  /** True when the twin is showing the synthetic placeholder, not a baked 3DBAG
-   *  model — drives the honest caption so attribution never claims fake data. */
-  twinPlaceholder: boolean;
+  /** The hovered project dot's slug, or null. Drives the hover highlight on the
+   *  object that project is attached to. */
+  hoveredSlug: string | null;
+  /** Slugs the visitor has opened at least once. Their objects stay "alive"
+   *  (lifelike colour + a gentle idle), so exploring brings the scene to life. */
+  visited: string[];
+  /** Set (once, to performance.now()) the moment every hotspot has been
+   *  visited — "all systems live". Drives the 10/10 tally state. */
+  completedAt: number | null;
+  /** True between waking the 10th project and closing its HUD — the close
+   *  handler consumes it to run the homecoming (scroll to the City layer). */
+  celebrationPending: boolean;
+  /** The homecoming moment: set when the 10th node is deselected. Anchors the
+   *  celebration — the particle burst, the bloom surge and the ghost
+   *  "next launch" pad materialising — so it all happens in full view. */
+  celebrateAt: number | null;
+  /** The launch easter egg's current stage (idle when not engaged). */
+  launch: LaunchStage;
+  /** True once the load intro (the movie-intro title card) has finished or been
+   *  dismissed. Held false during the intro so the hero title + subtitle + the
+   *  bottom instrument line reveal *after* the premise card, never on top of it. */
+  introOver: boolean;
+  /** Where the just-selected object sits on screen at the moment of selection
+   *  (viewport %), tagged with its slug — the porthole reticle snaps onto this
+   *  point and then flies to the ring centre as the camera zooms in. `pos` is null
+   *  when the target is off-screen or motion is reduced (reticle opens centred);
+   *  the whole field is null in the overview. Written once per selection by the
+   *  CameraRig (it has the camera); read by the DOM FocusReticle. */
+  reticleStart: { slug: string; pos: { x: number; y: number } | null } | null;
+  /** False for the moment right after picking a node, while CameraRig's push-in
+   *  is still travelling; true once it's arrived (or immediately, under reduced
+   *  motion / in the overview). useActive ANDs this into `selected`, so every
+   *  in-scene "coming alive" reaction — the life system, the bounce-on-select,
+   *  the bespoke per-object wake-ups — waits for the zoom rather than firing
+   *  mid-swoop. Written by CameraRig every frame; read via useActive. */
+  zoomSettled: boolean;
 }
 
 let state: SceneState = {
-  mode: 'maquette',
   journeyStep: 0,
   selectedSlug: null,
-  placeId: '',
-  twinSettled: false,
-  resetNonce: 0,
-  twinAttribute: 'bouwjaar',
-  twinPlaceholder: false,
+  hoveredSlug: null,
+  visited: [],
+  completedAt: null,
+  celebrationPending: false,
+  celebrateAt: null,
+  launch: 'idle',
+  introOver: false,
+  reticleStart: null,
+  zoomSettled: true,
 };
 
 const listeners = new Set<() => void>();
@@ -53,29 +98,45 @@ export const sceneStore = {
     return () => listeners.delete(listener);
   },
   snapshot: () => state,
-  setMode(mode: SceneMode) {
-    if (mode !== state.mode) set({ mode, twinSettled: false });
-  },
-  setPlace(placeId: string) {
-    if (placeId !== state.placeId) set({ placeId, twinSettled: false });
-  },
   setJourneyStep(journeyStep: number) {
     if (journeyStep !== state.journeyStep) set({ journeyStep });
   },
   setSelected(selectedSlug: string | null) {
-    if (selectedSlug !== state.selectedSlug) set({ selectedSlug });
+    if (selectedSlug === state.selectedSlug) return;
+    // zoomSettled is latched here, in the SAME update as the selection — never a
+    // frame later by the CameraRig. When the rig owned both edges there was a
+    // one-frame window where consumers saw selected=true against a settled flag
+    // still left true by the overview, so every wake animation fired at once,
+    // got yanked back when the rig caught up, then fired AGAIN after the delay.
+    // The rig now only ever releases it (see ZOOM_SETTLE there).
+    set({ selectedSlug, zoomSettled: selectedSlug === null });
   },
-  markTwinSettled() {
-    if (!state.twinSettled) set({ twinSettled: true });
+  setHovered(hoveredSlug: string | null) {
+    if (hoveredSlug !== state.hoveredSlug) set({ hoveredSlug });
   },
-  resetTwinView() {
-    set({ resetNonce: state.resetNonce + 1, twinSettled: false });
+  markVisited(slug: string) {
+    if (state.visited.includes(slug)) return;
+    const visited = [...state.visited, slug];
+    const complete = state.completedAt === null && HOTSPOTS.every((h) => visited.includes(h.slug));
+    set(complete ? { visited, completedAt: performance.now(), celebrationPending: true } : { visited });
   },
-  setTwinAttribute(twinAttribute: TwinAttribute) {
-    if (twinAttribute !== state.twinAttribute) set({ twinAttribute });
+  /** Consume the pending celebration (called when the 10th node's HUD closes). */
+  celebrate() {
+    if (state.celebrationPending) set({ celebrationPending: false, celebrateAt: performance.now() });
   },
-  setTwinPlaceholder(twinPlaceholder: boolean) {
-    if (twinPlaceholder !== state.twinPlaceholder) set({ twinPlaceholder });
+  setLaunch(launch: LaunchStage) {
+    if (launch !== state.launch) set({ launch });
+  },
+  /** Mark the load intro finished — releases the hero chrome (idempotent). */
+  endIntro() {
+    if (!state.introOver) set({ introOver: true });
+  },
+  /** Record where the reticle should acquire the target (see reticleStart). */
+  setReticleStart(reticleStart: SceneState['reticleStart']) {
+    set({ reticleStart });
+  },
+  setZoomSettled(zoomSettled: boolean) {
+    if (zoomSettled !== state.zoomSettled) set({ zoomSettled });
   },
 };
 

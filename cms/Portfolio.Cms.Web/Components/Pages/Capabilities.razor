@@ -1,0 +1,79 @@
+@page "/capabilities"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ContentStore Store
+
+<PageTitle>Capabilities · Portfolio CMS</PageTitle>
+
+<header class="head head--row">
+    <div>
+        <h1>Capabilities</h1>
+        <p class="muted">
+            The three-column band on the home page — one column per layer. The layout
+            assumes exactly three, so this page adds and removes nothing.
+        </p>
+    </div>
+    <button class="btn btn--primary" disabled="@_saving" @onclick="Save">
+        @(_saving ? "Saving…" : "Save draft")
+    </button>
+</header>
+
+@if (_saved)
+{
+    <div class="panel panel--ok">Saved as a draft.</div>
+}
+
+@if (_content is null)
+{
+    <p class="muted">Loading…</p>
+}
+else
+{
+    @foreach (var capability in _content.Capabilities)
+    {
+        var item = capability;
+        <section class="form">
+            <h2>@item.Layer</h2>
+
+            <div class="field-row">
+                <label class="field">
+                    <span>Index</span>
+                    <input class="input mono" @bind="item.Index" @bind:event="oninput" />
+                </label>
+                <label class="field field--wide">
+                    <span>Title</span>
+                    <input class="input" @bind="item.Title" @bind:event="oninput" />
+                </label>
+            </div>
+
+            <label class="field">
+                <span>Body</span>
+                <textarea class="input" rows="4" @bind="item.Body" @bind:event="oninput"></textarea>
+            </label>
+
+            <div class="field">
+                <span class="field__label">Tags</span>
+                <StringList Items="item.Tags" Changed="StateHasChanged" AddLabel="Add tag" />
+            </div>
+        </section>
+    }
+}
+
+@code {
+    private ContentSet? _content;
+    private bool _saving, _saved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await Store.IsEmptyAsync()) _content = await Store.LoadAsync();
+    }
+
+    private async Task Save()
+    {
+        if (_content is null) return;
+        _saving = true;
+        await Store.SaveAsync(_content);
+        _saving = false;
+        _saved = true;
+    }
+}

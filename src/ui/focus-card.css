@@ -1,0 +1,102 @@
+/* The focus card — a project lifted off the timeline into a centered
+   dialog (video/photo header + full write-up). */
+
+/* ---------- Focus card — a project lifted off the wall ---------- */
+.focus {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  /* `main` is its own stacking context (z-index 1), so this overlay sits *below*
+     the fixed header — reserve the header's height at the top so the centred
+     card is nudged down and never tucks under it. */
+  padding: calc(var(--header-h) + var(--space-s)) var(--space-m) var(--space-l);
+  background: color-mix(in srgb, var(--paper) 74%, transparent);
+  backdrop-filter: blur(10px);
+  animation: focus-fade 0.3s var(--ease);
+}
+.focus__card {
+  --card-accent: var(--accent);
+  position: relative;
+  width: min(760px, 100%);
+  /* Fit inside the header-reserved area above so the card never overflows back
+     under the header on short viewports. */
+  max-height: calc(100svh - var(--header-h) - var(--space-xl));
+  overflow: hidden auto;
+  display: block;
+  /* the same square-dot field the rest of the site uses, faint on the raised
+     card; it stays fixed to the card as the content scrolls */
+  background: var(--dots-faint),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
+    color-mix(in srgb, var(--paper-2) 90%, transparent);
+  background-size: 30px 30px, auto, auto;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 45%, var(--line));
+  border-radius: var(--radius);
+  box-shadow: 0 44px 96px rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(22px) saturate(1.3);
+  animation: focus-pop 0.35s var(--ease);
+}
+.focus__card[data-layer='city'] { --card-accent: var(--cyan); }
+.focus__card[data-layer='room'] { --card-accent: var(--coral); }
+.focus__card[data-layer='chip'] { --card-accent: var(--lime); }
+/* Full-bleed video / photo header at the top of the card — the card's own
+   overflow:hidden rounds their top corners. */
+.focus__video {
+  overflow: hidden;
+  background: #06080a;
+}
+.focus__video iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+.focus__photo {
+  aspect-ratio: 16 / 9;
+}
+.focus__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+  align-items: center;
+  margin-top: 0.2em;
+}
+.focus__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+  padding: var(--space-l);
+}
+.focus__title {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.05;
+  margin: 0.1em 0 0;
+}
+.focus__outcome {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  color: var(--card-accent);
+  margin: 0 0 var(--space-xs);
+}
+.focus__close {
+  position: absolute;
+  top: var(--space-s);
+  right: var(--space-s);
+  z-index: 2;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  backdrop-filter: blur(4px);
+}
+.focus__close:hover { border-color: var(--card-accent); color: var(--card-accent); }
+@keyframes focus-fade { from { opacity: 0; } }
+@keyframes focus-pop { from { opacity: 0; transform: scale(0.92) translateY(12px); } }
+

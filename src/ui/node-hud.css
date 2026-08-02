@@ -1,0 +1,328 @@
+/* The node focus view — a large circular reticle you look *through* at the woken
+   3D object (a round instrument window), with the case dossier in a column to the
+   right. The ring locks ON as the camera zooms in — growing and rotating into
+   place like a camera acquiring focus — and unlocks as it zooms back out
+   (FocusReticle, driven by the selection); the dossier is the route-driven HUD. */
+
+/* Porthole geometry, hoisted to :root so the reticle, the dossier's clear-margin
+   and the meta pills all read the same centre + radius across breakpoints. */
+:root {
+  --fr-cx: 30%;              /* ring centre X — pushed left so the dossier has room */
+  --fr-cy: 50%;              /* ring centre Y — mobile drops it into the upper area */
+  --fr-r: 56vh;             /* radius > half the viewport, so the ring spills off the
+                                top/bottom/left edges — you look THROUGH it, arcs only */
+}
+
+/* ---------- The porthole reticle (persistent, animates with the zoom) ---------- */
+.focus-reticle {
+  --cx: var(--fr-cx);
+  --r: var(--fr-r);
+  --d: calc(var(--r) * 2);
+  --fr-accent: var(--cyan);
+  position: fixed;
+  inset: 0;
+  z-index: 42; /* over the scene, but *behind* the fixed header (50) so the header
+                  stays crisp — only the dossier (52) rides above it */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s var(--ease);
+}
+.focus-reticle[data-open] { opacity: 1; }
+/* during an acquire the fade is the animation's own (a crisp materialise on the
+   target), so the container shows instantly — it still fades out on close */
+.focus-reticle[data-fly] { transition-duration: 0s; }
+.focus-reticle[data-layer='city'] { --fr-accent: var(--cyan); }
+.focus-reticle[data-layer='room'] { --fr-accent: var(--coral); }
+.focus-reticle[data-layer='chip'] { --fr-accent: var(--lime); }
+
+/* the window: bright inside the ring, the rest washed down to paper so the
+   object reads as seen through a porthole */
+.focus-reticle__mask {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease);
+  /* soft, gradual wash that never fully blacks out — the scene stays faintly
+     visible past the ring so much less is occluded, darkest only out where the
+     dossier reads */
+  background: radial-gradient(circle at var(--cx) var(--fr-cy),
+    transparent calc(var(--r) - 4vh),
+    color-mix(in srgb, var(--paper) 26%, transparent) var(--r),
+    color-mix(in srgb, var(--paper) 66%, transparent) calc(var(--r) + 14vh),
+    color-mix(in srgb, var(--paper) 90%, transparent) calc(var(--r) + 38vh));
+}
+.focus-reticle[data-open] .focus-reticle__mask { opacity: 1; }
+/* the vignette belongs to the LOCKED frame, so during a fly-in it holds off
+   through the acquire beats and washes in as the ring travels home */
+.focus-reticle[data-fly] .focus-reticle__mask { transition-delay: 0.42s; }
+
+/* the reticle itself — sized to the ring's box; at rest it simply sits at the
+   porthole centre, locked (this is also the reduced-motion / off-screen state). */
+.focus-reticle__svg {
+  position: absolute;
+  left: var(--fr-cx);
+  top: var(--fr-cy);
+  width: var(--d);
+  height: var(--d);
+  overflow: visible;
+  transform: translate(-50%, -50%) scale(1) rotate(0deg);
+}
+
+/* The acquire — a camera finding its target, in three beats:
+   1. it materialises wide and turned OVER the object, out where it actually sits,
+      and contracts onto it (the viewfinder catching focus);
+   2. a brief hold, locked small on the target — the "got it" beat;
+   3. it pushes in: travelling to the porthole centre while rotating level and
+      growing to the full ring, tracking the camera's own zoom glide.
+   Replayed per selection (the SVG is keyed by slug, so it remounts). */
+@keyframes fr-acquire {
+  0% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.62) rotate(-104deg);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  9% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.33) rotate(-88deg);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.3, 0.8, 0.3, 1);
+  }
+  18% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.19) rotate(-76deg);
+    animation-timing-function: linear;
+  }
+  /* The hold — sitting on the target, barely breathing. Ends at 26% of 1.55s =
+     0.4s, which is exactly ACQUIRE_HOLD in CameraRig: the camera is frozen until
+     here, so the push-in and this travel begin on the same beat. */
+  26% {
+    left: var(--sx, var(--fr-cx));
+    top: var(--sy, var(--fr-cy));
+    transform: translate(-50%, -50%) scale(0.2) rotate(-72deg);
+    /* Front-loaded to match the camera, whose glide is exponential
+       (1 - e^-3.4t: ~63% covered in 0.3s, ~86% in 0.6s, then a long settle).
+       The old curve eased IN here, so the ring crawled while the scene had
+       already arrived — that was the timing that read as wrong. */
+    animation-timing-function: cubic-bezier(0.12, 0.82, 0.22, 1);
+  }
+  100% {
+    left: var(--fr-cx);
+    top: var(--fr-cy);
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+}
+.focus-reticle[data-fly] .focus-reticle__svg {
+  animation: fr-acquire 1.55s both;
+}
+/* a clean hairline rim, a soft outer bloom, and a ring of short ticks whose sweep
+   makes the lock-on rotation read — a camera viewfinder, not a busy gauge */
+.focus-reticle .fr-ring { fill: none; stroke: var(--fr-accent); stroke-width: 0.13; opacity: 0.5; }
+.focus-reticle .fr-tick { stroke: var(--fr-accent); stroke-width: 0.1; opacity: 0.45; }
+.focus-reticle .fr-glow { fill: none; stroke: var(--fr-accent); stroke-width: 1; opacity: 0.07; }
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-reticle,
+  .focus-reticle__mask { transition: opacity 0.3s var(--ease); }
+  /* no acquire under reduced motion (CameraRig sends no start point either) —
+     the ring just sits locked at the centre */
+  .focus-reticle[data-fly] .focus-reticle__svg { animation: none; }
+  .focus-reticle[data-fly] .focus-reticle__mask { transition-delay: 0s; }
+}
+
+/* ---------- The dossier (route-driven HUD, right column) ---------- */
+.node-hud {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  left: calc(var(--fr-cx) + var(--fr-r) + var(--space-l)); /* clears the ring's visible right arc */
+  right: var(--space-l);
+  z-index: 52; /* above the fixed header (50); the reticle (42) sits behind it */
+  /* centred on the porthole, but capped so the top (now the title) always clears
+     the header by a gap — on short viewports 84svh would slide up under it */
+  max-height: calc(100svh - 2 * (var(--header-h) + var(--space-s)));
+  display: flex;
+  flex-direction: column;
+  --card-accent: var(--accent);
+  /* legible over the faintly-visible scene the softened vignette lets through */
+  text-shadow: 0 1px 12px var(--paper), 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+.node-hud[data-layer='city'] { --card-accent: var(--cyan); }
+.node-hud[data-layer='room'] { --card-accent: var(--coral); }
+.node-hud[data-layer='chip'] { --card-accent: var(--lime); }
+
+/* content column scrolls, no visible scrollbar */
+.node-hud__col {
+  overflow: auto;
+  padding-right: 0.4rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* The dossier fades up once the reticle has opened (data-shown, set a frame
+     after mount so it survives re-renders), and clears fast on close so the
+     porthole irises shut cleanly behind it. */
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.45s var(--ease) 0.35s, transform 0.45s var(--ease) 0.35s;
+}
+.node-hud[data-shown] .node-hud__col { opacity: 1; transform: none; }
+.node-hud[data-closing] .node-hud__col {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.26s var(--ease), transform 0.26s var(--ease);
+}
+.node-hud__col::-webkit-scrollbar { width: 0; height: 0; }
+/* the /projects focus card scrolls too — keep its scrollbar hidden (this used to
+   live in the shared rule that the porthole rewrite replaced) */
+.focus__card { scrollbar-width: none; -ms-overflow-style: none; }
+.focus__card::-webkit-scrollbar { width: 0; height: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .node-hud__col { transition: opacity 0.3s var(--ease); transform: none; }
+}
+
+.node-hud__close {
+  position: absolute;
+  top: -0.4rem;
+  right: 0;
+  z-index: 2;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 1rem;
+}
+.node-hud__close:hover { border-color: var(--card-accent); color: var(--accent-ink); }
+
+/* ---------- Meta pills — a row at the bottom, centred under the porthole ---------- */
+.node-hud__tags {
+  position: fixed;
+  bottom: var(--space-l);
+  left: var(--fr-cx);
+  transform: translateX(-50%);
+  z-index: 52; /* the dossier plane — above the reticle; well clear of the header */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5em;
+  max-width: min(90vw, 42rem);
+  pointer-events: none; /* labels, not controls — never block the scene behind */
+  --card-accent: var(--accent);
+  /* fade up once the reticle has locked on, in step with the dossier column */
+  opacity: 0;
+  transition: opacity 0.5s var(--ease) 0.35s;
+}
+.node-hud__tags[data-shown] { opacity: 1; }
+.node-hud__tags[data-closing] { opacity: 0; transition: opacity 0.24s var(--ease); }
+.node-hud__tags[data-layer='city'] { --card-accent: var(--cyan); }
+.node-hud__tags[data-layer='room'] { --card-accent: var(--coral); }
+.node-hud__tags[data-layer='chip'] { --card-accent: var(--lime); }
+@media (prefers-reduced-motion: reduce) {
+  .node-hud__tags { transition: opacity 0.3s var(--ease); }
+}
+
+/* glass capsules in the site's chip idiom: mono, hairline border, blurred paper fill */
+.node-hud__pill {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.05em;
+  color: var(--ink-60);
+  padding: 0.4em 0.9em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 66%, transparent);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+.node-hud__pill--layer {
+  color: var(--card-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  border-color: color-mix(in srgb, var(--card-accent) 45%, var(--line));
+}
+.node-hud__title { font-size: var(--step-2); margin: 0; letter-spacing: -0.02em; }
+.node-hud__outcome {
+  font-family: var(--font-display);
+  color: var(--accent-ink);
+  font-size: var(--step-0);
+  margin: var(--space-2xs) 0 var(--space-s);
+}
+
+.node-hud__media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 30svh;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: #06080a;
+  margin-bottom: var(--space-s);
+}
+.node-hud__media--video { position: relative; overflow: hidden; height: auto; }
+.node-hud__media--video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+.node-hud__story { margin-bottom: var(--space-m); }
+.node-hud__tech {
+  display: flex; flex-wrap: wrap; gap: 0.35em; list-style: none; padding: 0; margin: 0 0 var(--space-s);
+}
+.node-hud__tech li {
+  font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; color: var(--accent-ink);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 30%, var(--line)); border-radius: var(--radius-s); padding: 0.15em 0.5em;
+}
+.node-hud__actions { display: flex; flex-wrap: wrap; gap: var(--space-s); align-items: center; margin-top: 0.2em; }
+.node-hud__discuss { display: inline-flex; }
+.node-hud .story-links { margin-top: var(--space-m); padding-bottom: var(--space-s); }
+
+/* narrow desktops: don't let the column get too tight against a big ring */
+@media (max-width: 1120px) and (min-width: 761px) {
+  :root { --fr-cx: 24%; --fr-r: 46vh; }
+  .node-hud { left: calc(var(--fr-cx) + var(--fr-r) + var(--space-m)); }
+}
+
+/* ---------- Mobile: a round window up top, content sheet rising beneath ---------- */
+@media (max-width: 760px) {
+  /* A big ring centred horizontally that spills off BOTH sides (radius > 50vw),
+     dropped into the upper area so the object reads THROUGH it while the sheet
+     rises underneath — the same porthole idea as desktop, portrait-shaped. */
+  :root { --fr-cx: 50%; --fr-cy: 39%; --fr-r: 58vw; }
+  .focus-reticle__mask {
+    background: radial-gradient(circle at 50% var(--fr-cy),
+      transparent calc(var(--r) - 5vh),
+      color-mix(in srgb, var(--paper) 30%, transparent) var(--r),
+      color-mix(in srgb, var(--paper) 74%, transparent) calc(var(--r) + 12vh),
+      color-mix(in srgb, var(--paper) 94%, transparent) calc(var(--r) + 30vh));
+  }
+  /* the meta pills are desktop-only — the sheet's own header carries the context */
+  .node-hud__tags { display: none; }
+  .node-hud {
+    top: auto;
+    bottom: 0;
+    transform: none;
+    left: 0;
+    right: 0;
+    max-height: 46svh;
+    padding: 0; /* the column spans edge to edge — it owns the inset (below) */
+  }
+  /* the sheet rises as a soft panel — its top fades in so the porthole's lower
+     arc washes into it rather than hard-cutting. Full-bleed: the wash runs the
+     whole width and the column's own padding keeps the text off the edges. */
+  .node-hud__col {
+    background: linear-gradient(180deg, transparent,
+      color-mix(in srgb, var(--paper) 84%, transparent) 12%,
+      color-mix(in srgb, var(--paper) 92%, transparent));
+    padding: var(--space-s) var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
+  }
+  .node-hud__close {
+    position: fixed;
+    top: calc(var(--header-h) + var(--space-xs));
+    left: var(--space-m);
+    right: auto;
+    z-index: 48;
+  }
+}

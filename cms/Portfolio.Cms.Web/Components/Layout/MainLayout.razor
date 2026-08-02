@@ -1,0 +1,31 @@
+@inherits LayoutComponentBase
+
+<div class="page">
+    <nav class="sidebar">
+        <NavMenu />
+    </nav>
+
+    <main class="main">
+        <AuthorizeView>
+            <Authorized>
+                @Body
+            </Authorized>
+            <NotAuthorized>
+                <div class="signin">
+                    <h1>Portfolio CMS</h1>
+                    <p class="muted">
+                        This editor commits straight to the portfolio repository, so it is
+                        restricted to the site owner.
+                    </p>
+                    <a class="btn btn--primary" href="MicrosoftIdentity/Account/SignIn">Sign in</a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Something went wrong.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

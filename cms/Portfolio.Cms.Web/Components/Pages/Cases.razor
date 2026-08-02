@@ -1,0 +1,112 @@
+@page "/cases"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ContentStore Store
+@inject NavigationManager Nav
+
+<PageTitle>Projects · Portfolio CMS</PageTitle>
+
+<header class="head head--row">
+    <div>
+        <h1>Projects</h1>
+        <p class="muted">@_cases.Count projects · order here is the order on the site</p>
+    </div>
+    <button class="btn btn--primary" @onclick="AddCase">+ New project</button>
+</header>
+
+@if (_cases.Count == 0)
+{
+    <p class="muted">Nothing yet — import from the overview page first.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+        <tr>
+            <th></th>
+            <th>Title</th>
+            <th>Layer</th>
+            <th>Client</th>
+            <th>Year</th>
+            <th>Disciplines</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        @for (var i = 0; i < _cases.Count; i++)
+        {
+            var index = i;
+            var c = _cases[index];
+            <tr class="@(c.Archive == true ? "row--muted" : "")">
+                <td class="cell--move">
+                    <button class="btn btn--icon" disabled="@(index == 0)"
+                            @onclick="() => Move(index, -1)" title="Move up">↑</button>
+                    <button class="btn btn--icon" disabled="@(index == _cases.Count - 1)"
+                            @onclick="() => Move(index, 1)" title="Move down">↓</button>
+                </td>
+                <td>
+                    <a href="@($"cases/{c.Slug}")"><strong>@c.Title</strong></a>
+                    <div class="muted mono">@c.Slug</div>
+                </td>
+                <td><span class="tag tag--@c.Layer.ToString().ToLowerInvariant()">@c.Layer</span></td>
+                <td>
+                    @c.Client
+                    @if (c.Kind is not null)
+                    {
+                        <span class="tag @(CaseKind.IsKnown(c.Kind) ? "tag--kind" : "tag--odd")"
+                              title="@(CaseKind.IsKnown(c.Kind)
+                                        ? "Renders as a kind label"
+                                        : "Not a value the site understands — the waypoint falls back to the client name")">
+                            @c.Kind
+                        </span>
+                    }
+                </td>
+                <td>@(c.Year ?? "—")</td>
+                <td class="muted">@string.Join(", ", c.Discipline)</td>
+                <td>
+                    @if (c.Archive == true)
+                    {
+                        <span class="muted">archived</span>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@if (_saving)
+{
+    <p class="muted">Saving…</p>
+}
+
+@code {
+    private List<CaseStudy> _cases = [];
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Store.IsEmptyAsync()) return;
+        _cases = (await Store.LoadAsync()).Cases;
+    }
+
+    /// <summary>
+    /// Order is content, not presentation — cases.json is rendered in array
+    /// order — so a move is saved immediately rather than waiting for a form
+    /// submit that this page doesn't have.
+    /// </summary>
+    private async Task Move(int index, int delta)
+    {
+        var target = index + delta;
+        if (target < 0 || target >= _cases.Count) return;
+        (_cases[index], _cases[target]) = (_cases[target], _cases[index]);
+
+        _saving = true;
+        var content = await Store.LoadAsync();
+        content.Cases = _cases;
+        await Store.SaveAsync(content);
+        _saving = false;
+    }
+
+    private void AddCase() => Nav.NavigateTo("cases/new");
+}

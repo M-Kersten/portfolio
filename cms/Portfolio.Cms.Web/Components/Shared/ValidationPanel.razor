@@ -1,0 +1,49 @@
+@*
+    Shows what the site build would say about the current draft.
+
+    Errors and warnings are kept visually distinct because the difference is
+    load-bearing: an error blocks publishing because it would fail the build,
+    a warning is something worth knowing that the build tolerates. Collapsing
+    the two would either block on trivia or hide a broken deploy.
+*@
+
+@if (Result is null)
+{
+    <p class="muted">Not checked yet.</p>
+}
+else if (Result.Messages.Count == 0)
+{
+    <p class="ok">✓ Everything checks out.</p>
+}
+else
+{
+    @if (Result.Errors.Any())
+    {
+        <div class="panel panel--error">
+            <h3>@Result.Errors.Count() problem@(Result.Errors.Count() == 1 ? "" : "s") — publishing is blocked</h3>
+            <ul>
+                @foreach (var message in Result.Errors)
+                {
+                    <li><strong>@message.Where</strong> @message.Problem</li>
+                }
+            </ul>
+        </div>
+    }
+
+    @if (Result.Warnings.Any())
+    {
+        <div class="panel panel--warning">
+            <h3>@Result.Warnings.Count() warning@(Result.Warnings.Count() == 1 ? "" : "s") — publishing is still fine</h3>
+            <ul>
+                @foreach (var message in Result.Warnings)
+                {
+                    <li><strong>@message.Where</strong> @message.Problem</li>
+                }
+            </ul>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public ValidationResult? Result { get; set; }
+}

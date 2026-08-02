@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0A0C0F" />
+    <meta name="theme-color" content="#0A0D10" />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
 
     <title>Merijn Kersten — creative technologist</title>
@@ -12,13 +12,44 @@
       content="I’m Merijn — I make things with AR, VR and code, and care way too much about whether they survive outside the demo room."
     />
 
-    <!-- Open Graph / sharing -->
+    <!-- Open Graph / sharing. Absolute URLs (scrapers don't resolve relatives);
+         update the domain here + in public/sitemap.xml if the site moves. -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Merijn Kersten" />
+    <meta property="og:url" content="https://portfolio.merijnkersten.nl/" />
     <meta property="og:title" content="Merijn Kersten — VR, AR & digital twins" />
     <meta
       property="og:description"
       content="Building things that survive outside the demo room"
     />
+    <meta property="og:image" content="https://portfolio.merijnkersten.nl/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Merijn Kersten — creative technologist" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Merijn Kersten — VR, AR & digital twins" />
+    <meta name="twitter:description" content="Building things that survive outside the demo room" />
+    <meta name="twitter:image" content="https://portfolio.merijnkersten.nl/og.png" />
+    <link rel="canonical" href="https://portfolio.merijnkersten.nl/" />
+
+    <!-- Structured data so search engines connect the site to the person. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": "Merijn Kersten",
+        "jobTitle": "Creative technologist",
+        "url": "https://portfolio.merijnkersten.nl/",
+        "email": "mailto:info@merijnkersten.nl",
+        "address": { "@type": "PostalAddress", "addressLocality": "Utrecht", "addressCountry": "NL" },
+        "sameAs": [
+          "https://www.linkedin.com/in/merijn-kersten/",
+          "https://github.com/m-kersten",
+          "https://www.instagram.com/merijnkersten/",
+          "https://www.youtube.com/@mrspazzout1/featured"
+        ]
+      }
+    </script>
 
     <!-- SPA redirect restore for GitHub Pages deep links (see public/404.html). -->
     <script>
@@ -37,8 +68,8 @@
       <div style="max-width: 40rem; margin: 4rem auto; padding: 0 1.5rem; font-family: system-ui, sans-serif; color: #1B2A2E;">
         <h1>Merijn Kersten</h1>
         <p>I make things with AR, VR and code. This site leans on JavaScript for
-        the interactive 3D, but every project is readable as plain text too — and
-        you can always just email me at
+        the interactive 3D, but every project is readable as plain text too and
+        you can always just email me at:
         <a href="mailto:info@merijnkersten.nl">info@merijnkersten.nl</a>.</p>
       </div>
     </noscript>

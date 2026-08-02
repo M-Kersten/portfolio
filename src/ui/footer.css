@@ -1,0 +1,19 @@
+/* Footer. */
+
+/* ---------- Footer ---------- */
+
+.footer {
+  padding-block: var(--space-l);
+  border-top: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-60);
+  background: var(--paper);
+}
+.footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s) var(--space-m);
+  align-items: center;
+  justify-content: space-between;
+}

@@ -1,0 +1,24 @@
+<div class="nav">
+    <div class="nav__brand">
+        <span class="nav__title">Portfolio CMS</span>
+        <span class="nav__subtitle">merijnkersten.nl</span>
+    </div>
+
+    <AuthorizeView>
+        <Authorized>
+            <ul class="nav__links">
+                <li><NavLink href="" Match="NavLinkMatch.All">Overview</NavLink></li>
+                <li><NavLink href="cases">Projects</NavLink></li>
+                <li><NavLink href="site">Site copy</NavLink></li>
+                <li><NavLink href="cv">CV</NavLink></li>
+                <li><NavLink href="capabilities">Capabilities</NavLink></li>
+                <li><NavLink href="publish">Publish</NavLink></li>
+            </ul>
+
+            <div class="nav__foot">
+                <span class="muted">@context.User.Identity?.Name</span>
+                <a href="MicrosoftIdentity/Account/SignOut">Sign out</a>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+</div>

@@ -1,0 +1,161 @@
+using Portfolio.Cms.Core.Json;
+using Portfolio.Cms.Core.Models;
+using Portfolio.Cms.Core.Validation;
+
+namespace Portfolio.Cms.Tests;
+
+/// <summary>
+/// The CMS is only safe to publish from if it refuses exactly what the site
+/// build refuses. These cover the agreement with scripts/check-content.mjs on
+/// the real content, and then each way ordinary editing can break the build.
+/// </summary>
+public class ValidationTests
+{
+    private static string RepoRoot
+    {
+        get
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, "src", "content")))
+                dir = dir.Parent;
+            return dir?.FullName
+                ?? throw new DirectoryNotFoundException("Could not locate the repo root from the test binary.");
+        }
+    }
+
+    private static (ContentSet Content, RepoFacts Repo) Load() =>
+        (ContentSet.LoadFrom(RepoRoot), RepoFacts.FromCheckout(RepoRoot));
+
+    private static ValidationResult Validate(Action<ContentSet>? mutate = null)
+    {
+        var (content, repo) = Load();
+        mutate?.Invoke(content);
+        return ContentValidator.Validate(content, repo);
+    }
+
+    [Fact]
+    public void Current_content_publishes_cleanly()
+    {
+        var result = Validate();
+
+        Assert.True(result.CanPublish,
+            "unedited repo content must validate, or the CMS would refuse to publish what is already live:\n  "
+            + string.Join("\n  ", result.Errors));
+    }
+
+    /// <summary>
+    /// The three off-vocabulary `kind` values are reported, but as warnings —
+    /// they are pre-existing content the CMS must still be able to publish.
+    /// </summary>
+    [Fact]
+    public void Unknown_kind_values_warn_without_blocking()
+    {
+        var result = Validate();
+
+        var flagged = result.Warnings
+            .Where(w => w.Field?.EndsWith(".kind") == true)
+            .Select(w => w.Where)
+            .Order()
+            .ToArray();
+
+        Assert.Equal(
+            ["cases.json → \"amsterdam-ai\"", "cases.json → \"custom-ar-framework\"", "cases.json → \"zwijsen-ar-books\""],
+            flagged);
+        Assert.True(result.CanPublish);
+    }
+
+    /// <summary>
+    /// The one that matters most. Cases are wired into the maquette by slug
+    /// from TypeScript the CMS can't see, so deleting the wrong case breaks the
+    /// build — after the commit has already been pushed.
+    /// </summary>
+    [Fact]
+    public void Deleting_a_case_that_has_a_3d_hotspot_is_an_error()
+    {
+        var (_, repo) = Load();
+        var wired = repo.HotspotSlugs.First();
+
+        var result = Validate(c => c.Cases.RemoveAll(x => x.Slug == wired));
+
+        Assert.False(result.CanPublish);
+        Assert.Contains(result.Errors, e => e.Where == "framing.ts" && e.Problem.Contains(wired));
+    }
+
+    [Fact]
+    public void Deleting_a_case_another_case_follows_is_an_error()
+    {
+        var (content, _) = Load();
+        var target = content.Cases.First(c => c.Follows is not null).Follows!;
+
+        var result = Validate(c => c.Cases.RemoveAll(x => x.Slug == target));
+
+        Assert.False(result.CanPublish);
+        Assert.Contains(result.Errors, e => e.Problem.Contains($"follows \"{target}\""));
+    }
+
+    /// <summary>
+    /// cv.nl.json's career overrides are matched to site.json's career list by
+    /// position, so adding a job in one file and not the other breaks the build.
+    /// </summary>
+    [Fact]
+    public void Adding_a_career_entry_without_its_dutch_translation_is_an_error()
+    {
+        var result = Validate(c => c.Site.Career!.Add(new CareerEntry
+        {
+            Company = "New Job",
+            From = "2026-08",
+            To = null,
+            Color = "#ffffff",
+        }));
+
+        Assert.False(result.CanPublish);
+        Assert.Contains(result.Errors, e => e.Field == "cvNl.career" && e.Problem.Contains("matched by position"));
+    }
+
+    [Fact]
+    public void A_new_case_without_a_poster_is_an_error_unless_it_is_archived()
+    {
+        CaseStudy NewCase(bool archive) => new()
+        {
+            Slug = "brand-new-case",
+            Title = "Brand new case",
+            Layer = Layer.Room,
+            Client = "Someone",
+            Sector = "Test",
+            Discipline = [Discipline.AR],
+            Problem = "p",
+            Approach = "a",
+            Outcome = "o",
+            Year = "2026",
+            Archive = archive ? true : null,
+        };
+
+        var curated = Validate(c => c.Cases.Add(NewCase(archive: false)));
+        Assert.False(curated.CanPublish);
+        Assert.Contains(curated.Errors, e => e.Problem.Contains("public/posters/brand-new-case.jpg"));
+
+        // An archive case only ever appears as a node in the index, which
+        // already degrades a missing poster gracefully.
+        var archived = Validate(c => c.Cases.Add(NewCase(archive: true)));
+        Assert.True(archived.CanPublish);
+        Assert.Contains(archived.Warnings, w => w.Problem.Contains("public/posters/brand-new-case.jpg"));
+    }
+
+    [Fact]
+    public void A_case_with_no_discipline_is_an_error()
+    {
+        var result = Validate(c => c.Cases[0].Discipline.Clear());
+
+        Assert.False(result.CanPublish);
+        Assert.Contains(result.Errors, e => e.Problem.Contains("at least one discipline"));
+    }
+
+    [Fact]
+    public void Duplicate_slugs_are_an_error()
+    {
+        var result = Validate(c => c.Cases.Add(c.Cases[0]));
+
+        Assert.False(result.CanPublish);
+        Assert.Contains(result.Errors, e => e.Problem == "duplicate slug");
+    }
+}

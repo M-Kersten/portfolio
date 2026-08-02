@@ -1,0 +1,9 @@
+# .NET build output
+bin/
+obj/
+
+# Local configuration — connection strings, Entra client secrets, GitHub tokens.
+# The deployed app reads these from App Service configuration instead.
+appsettings.Development.json
+appsettings.Local.json
+*.user
