@@ -22,8 +22,14 @@
 //      -p location=germanywestcentral appLocation=westeurope \
 //         sqlServerName=merijndatabasegermany
 
-@description('Short name used as the prefix for every resource.')
-param name string = 'merijn-cms'
+@description('''
+Short name used as the prefix for every resource, and the App Service's own
+name — which makes it part of a *globally* unique hostname,
+<name>.azurewebsites.net. "merijn-cms" is already registered by someone else, so
+this is deliberately longer. Check before changing it:
+  getent hosts <name>.azurewebsites.net    # a record means the name is taken
+''')
+param name string = 'merijn-portfolio-cms'
 
 @description('''
 Region for the database. Must be the same region as the SQL server — a database
@@ -222,3 +228,18 @@ output storageAccount string = storage.name
 
 @description('Redirect URI to register on the Entra app registration.')
 output entraRedirectUri string = 'https://${app.properties.defaultHostName}/signin-oidc'
+
+@description('''
+The grant that makes the app's managed identity a user of the database — the one
+step ARM cannot perform itself. Emitted rather than kept only as a static file
+because the identity's name is the App Service's name: if `name` is changed and
+a hand-written script is not, the grant silently applies to nobody and the app
+fails to start with a login error that points nowhere near the cause.
+Run it against the database, as the server's Entra admin.
+''')
+output grantSql string = join([
+  'CREATE USER [${name}] FROM EXTERNAL PROVIDER;'
+  'ALTER ROLE db_datareader ADD MEMBER [${name}];'
+  'ALTER ROLE db_datawriter ADD MEMBER [${name}];'
+  'ALTER ROLE db_ddladmin ADD MEMBER [${name}];'
+], '\n')

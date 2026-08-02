@@ -80,7 +80,7 @@ The deployed setup is:
 | Resource group | `Default` |
 | SQL server | `merijndatabasegermany` |
 | Region | `germanywestcentral` |
-| App | `merijn-cms` |
+| App | `merijn-portfolio-cms` |
 
 ```bash
 az sql server show -g Default -n merijndatabasegermany --query location -o tsv
@@ -118,7 +118,7 @@ Service compute quota is granted **per region per subscription**, and a personal
 subscription routinely has a limit of zero VMs in one region and normal quota in
 another — Germany West Central is one of the regions where that happens.
 
-If the deployment fails on `merijn-cms-plan` with:
+If the deployment fails on the App Service plan with:
 
 ```
 Unauthorized … Operation cannot be completed without additional quota.
@@ -144,7 +144,7 @@ Then confirm the database really landed on the free tier, because this is the
 difference between €0 and a bill, and the two look identical in the portal:
 
 ```bash
-az sql db show -g Default -s merijndatabasegermany -n merijn-cms-db \
+az sql db show -g Default -s merijndatabasegermany -n merijn-portfolio-cms-db \
   --query "{free:useFreeLimit, behaviour:freeLimitExhaustionBehavior, sku:sku.name}" -o table
 ```
 
@@ -156,18 +156,18 @@ ARM gets the app as far as authenticating with its identity, but a managed
 identity is not a database user until someone says so — and that grant is a
 data-plane operation ARM cannot make. It is the one manual step here.
 
-Open the Azure portal → **merijn-cms-db** → **Query editor**, sign in with
+Open the Azure portal → **merijn-portfolio-cms-db** → **Query editor**, sign in with
 `info@merijnkersten.nl` (this is what being the Entra admin is for), and run
 [`cms/infra/grant-managed-identity.sql`](../cms/infra/grant-managed-identity.sql):
 
 ```sql
-CREATE USER [merijn-cms] FROM EXTERNAL PROVIDER;
-ALTER ROLE db_datareader ADD MEMBER [merijn-cms];
-ALTER ROLE db_datawriter ADD MEMBER [merijn-cms];
-ALTER ROLE db_ddladmin  ADD MEMBER [merijn-cms];
+CREATE USER [merijn-portfolio-cms] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [merijn-portfolio-cms];
+ALTER ROLE db_datawriter ADD MEMBER [merijn-portfolio-cms];
+ALTER ROLE db_ddladmin  ADD MEMBER [merijn-portfolio-cms];
 ```
 
-Make sure the editor is connected to `merijn-cms-db` and not `master` — the
+Make sure the editor is connected to `merijn-portfolio-cms-db` and not `master` — the
 grant has to happen in the database itself. `db_ddladmin` is there because the
 app creates its own schema on first start; `db_owner` would work too and grants
 far more than this app needs.
@@ -186,7 +186,7 @@ or reads issues.
 ### 6. App settings
 
 ```bash
-az webapp config appsettings set -g Default -n merijn-cms --settings \
+az webapp config appsettings set -g Default -n merijn-portfolio-cms --settings \
   AzureAd__TenantId=<tenant-id> \
   AzureAd__ClientId=<client-id> \
   Cms__AllowedUsers__0=info@merijnkersten.nl \
@@ -216,7 +216,7 @@ az webapp list-runtimes --os linux | grep -i dotnet
 cd cms
 dotnet publish Portfolio.Cms.Web -c Release -o ./publish
 cd publish && zip -r ../cms.zip . && cd ..
-az webapp deploy -g Default -n merijn-cms --src-path cms.zip --type zip
+az webapp deploy -g Default -n merijn-portfolio-cms --src-path cms.zip --type zip
 ```
 
 Then open the app and use **Import from the repository** on the overview page —
@@ -231,7 +231,7 @@ then move it to the branch Pages builds from:
 
 ```bash
 git push origin claude/cleanup-refactor:cms-publish-test
-az webapp config appsettings set -g Default -n merijn-cms \
+az webapp config appsettings set -g Default -n merijn-portfolio-cms \
   --settings GitHub__Branch=cms-publish-test
 ```
 
