@@ -103,6 +103,7 @@ is nothing to reset, store or leak.
 ```bash
 az deployment group create -g Default -f cms/infra/main.bicep \
   -p location=germanywestcentral \
+     appLocation=westeurope \
      sqlServerName=merijndatabasegermany
 ```
 
@@ -110,6 +111,34 @@ This creates the App Service plan (F1), the app, the free-tier database, the
 storage account, a firewall rule letting Azure services reach SQL, and a
 system-assigned identity with access to both. No credentials are passed in and
 none are stored. Note the `entraRedirectUri` output.
+
+`location` and `appLocation` are separate on purpose. Only the database is tied
+to the SQL server's region; the app can sit anywhere. That matters because App
+Service compute quota is granted **per region per subscription**, and a personal
+subscription routinely has a limit of zero VMs in one region and normal quota in
+another — Germany West Central is one of the regions where that happens.
+
+If the deployment fails on `merijn-cms-plan` with:
+
+```
+Unauthorized … Operation cannot be completed without additional quota.
+Current Limit (Total VMs): 0
+```
+
+that is the quota, not a permissions problem or the free tier. Move the app,
+not the database — try `appLocation=westeurope`, then `northeurope`. What the
+subscription is entitled to is worth knowing either way:
+
+```bash
+az account show --query "{name:name, state:state, type:subscriptionPolicies.quotaId}" -o table
+```
+
+A `quotaId` of `FreeTrial_*` means the trial credit is what is being used, and
+it can expire into a state that allows free-tier services but grants no App
+Service compute anywhere. Converting to pay-as-you-go lifts that and still costs
+nothing at this scale — none of the resources here bill on their own. If every
+region shows zero, that is the situation, and the fix is the subscription rather
+than the template.
 
 Then confirm the database really landed on the free tier, because this is the
 difference between €0 and a bill, and the two look identical in the portal:

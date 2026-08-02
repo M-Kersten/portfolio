@@ -19,18 +19,28 @@
 //
 // Deploy with:
 //   az deployment group create -g Default -f cms/infra/main.bicep \
-//      -p location=germanywestcentral sqlServerName=merijndatabasegermany
+//      -p location=germanywestcentral appLocation=westeurope \
+//         sqlServerName=merijndatabasegermany
 
 @description('Short name used as the prefix for every resource.')
 param name string = 'merijn-cms'
 
 @description('''
-Region. Must be one where the Azure SQL free offer is available, and the same
-region as the SQL server — a database cannot live in a different region from
-its server. The App Service free tier allows one F1 plan per region per
-subscription.
+Region for the database. Must be the same region as the SQL server — a database
+cannot live in a different region from its server — and one where the Azure SQL
+free offer is available.
 ''')
 param location string = resourceGroup().location
+
+@description('''
+Region for the App Service and storage. Deliberately separate from `location`:
+only the database is tied to the SQL server's region, and App Service compute
+quota is granted per region per subscription — a personal subscription can
+easily have a limit of zero VMs in one region and normal quota in another. When
+that happens, move the app rather than the database. The extra hop to SQL is a
+few milliseconds and this is a single-user admin panel.
+''')
+param appLocation string = location
 
 @description('Name of the existing SQL server, which must be in this resource group.')
 param sqlServerName string
@@ -46,7 +56,7 @@ var databaseName = '${name}-db'
 
 resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: '${name}-plan'
-  location: location
+  location: appLocation
   kind: 'linux'
   sku: {
     // F1 is free forever. It has no Always On, so the app cold-starts after
@@ -63,7 +73,7 @@ resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
 
 resource app 'Microsoft.Web/sites@2023-12-01' = {
   name: name
-  location: location
+  location: appLocation
   // The connection string names the database through a variable, so the
   // ordering has to be stated: the app creates its schema on first start.
   dependsOn: [sqlDatabase]
@@ -118,9 +128,11 @@ resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' existing = {
 }
 
 // App Service outbound IPs are not fixed on the free tier, so the app reaches
-// SQL through the "allow Azure services" rule rather than a pinned range. The
-// database holds drafts of content that is public anyway, and the admin login
-// is still required.
+// SQL through the "allow Azure services" rule rather than a pinned range. This
+// also covers the app living in a different region from the database, which it
+// may well have to. The rule opens the network path only — reaching the data
+// still requires an Entra token for an identity that has been made a database
+// user, and the drafts here are of content that is public anyway.
 resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
   parent: sqlServer
   name: 'AllowAllWindowsAzureIps'
@@ -159,7 +171,7 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageName
-  location: location
+  location: appLocation
   sku: {
     name: 'Standard_LRS'
   }
