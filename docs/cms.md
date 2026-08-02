@@ -72,26 +72,53 @@ it creates the database on it, because that is where the free-tier flag lives.
 
 ### 1. Confirm the SQL server
 
-Everything else has to go in the same resource group and region, so start here:
+Everything else has to go in the same resource group and region, so start here.
+The deployed setup is:
+
+| | |
+| --- | --- |
+| Resource group | `Default` |
+| SQL server | `merijndatabasegermany` |
+| Region | `germanywestcentral` |
+| App | `merijn-cms` |
 
 ```bash
-az sql server list -o table   # note name, resource group and location
+az sql server show -g Default -n merijndatabasegermany \
+  --query "{location:location, login:administratorLogin}" -o table
 ```
 
-The Azure SQL free offer is only available in some regions — Germany West
-Central is one. Whatever region the server is in is the region for the rest.
+The Azure SQL free offer is only available in some regions; Germany West Central
+is one. The database has to sit in the same region as its server, so that region
+is the region for everything else too.
+
+Check whether the server uses Entra-only authentication before going further —
+if it does, there is no admin login or password at all and the connection string
+below cannot work:
+
+```bash
+az sql server ad-only-auth get -g Default -n merijndatabasegermany -o tsv
+```
+
+`True` means either turn SQL authentication back on, or switch the app to
+managed identity for SQL as well as blob storage.
+
+The admin **login** is readable with the command above. The **password** is not
+stored retrievably anywhere — it is write-only by design. If it is unknown,
+reset it rather than hunting for it:
+
+```bash
+read -s -p "New SQL password: " SQL_PW && echo
+az sql server update -g Default -n merijndatabasegermany --admin-password "$SQL_PW"
+```
 
 ### 2. Azure resources
 
 ```bash
-RG=<the server's resource group>
-LOCATION=germanywestcentral
-
-az deployment group create -g "$RG" -f cms/infra/main.bicep \
-  -p location="$LOCATION" \
-     sqlServerName=<server-name> \
-     sqlAdminLogin=<user> \
-     sqlAdminPassword=<password>
+az deployment group create -g Default -f cms/infra/main.bicep \
+  -p location=germanywestcentral \
+     sqlServerName=merijndatabasegermany \
+     sqlAdminLogin=<the login from step 1> \
+     sqlAdminPassword="$SQL_PW"
 ```
 
 This creates the App Service plan (F1), the app, the free-tier database, the
@@ -100,10 +127,10 @@ system-assigned identity with blob access — so no storage key is ever put in
 configuration. Note the `entraRedirectUri` output.
 
 Then confirm the database really landed on the free tier, because this is the
-difference between €0 and a bill:
+difference between €0 and a bill, and the two look identical in the portal:
 
 ```bash
-az sql db show -g "$RG" -s <server-name> -n merijn-cms-db \
+az sql db show -g Default -s merijndatabasegermany -n merijn-cms-db \
   --query "{free:useFreeLimit, behaviour:freeLimitExhaustionBehavior, sku:sku.name}" -o table
 ```
 
@@ -123,10 +150,10 @@ or reads issues.
 ### 5. App settings
 
 ```bash
-az webapp config appsettings set -g "$RG" -n merijn-cms --settings \
+az webapp config appsettings set -g Default -n merijn-cms --settings \
   AzureAd__TenantId=<tenant-id> \
   AzureAd__ClientId=<client-id> \
-  Cms__AllowedUsers__0=<your-email> \
+  Cms__AllowedUsers__0=info@merijnkersten.nl \
   GitHub__Token=<pat> \
   GitHub__Branch=claude/cleanup-refactor
 ```
@@ -153,7 +180,7 @@ az webapp list-runtimes --os linux | grep -i dotnet
 cd cms
 dotnet publish Portfolio.Cms.Web -c Release -o ./publish
 cd publish && zip -r ../cms.zip . && cd ..
-az webapp deploy -g "$RG" -n merijn-cms --src-path cms.zip --type zip
+az webapp deploy -g Default -n merijn-cms --src-path cms.zip --type zip
 ```
 
 Then open the app and use **Import from the repository** on the overview page —
@@ -168,7 +195,7 @@ then move it to the branch Pages builds from:
 
 ```bash
 git push origin claude/cleanup-refactor:cms-publish-test
-az webapp config appsettings set -g "$RG" -n merijn-cms \
+az webapp config appsettings set -g Default -n merijn-cms \
   --settings GitHub__Branch=cms-publish-test
 ```
 
