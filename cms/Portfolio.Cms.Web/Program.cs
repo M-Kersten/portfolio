@@ -1,3 +1,4 @@
+using Portfolio.Cms.Web;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -16,26 +17,51 @@ var config = builder.Configuration;
 // Entra ID, and then an allow-list on top. Being signed in to a tenant is not
 // the same as being allowed to publish: this app commits to a public
 // repository, so the bar is "is this the owner", not "is this a valid user".
-builder.Services
-    .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApp(config.GetSection("AzureAd"));
+//
+// Entra can't be configured before the app exists to register, so with no
+// client id the app runs unauthenticated — but only ever in Development. In any
+// other environment a missing client id is a misconfiguration that must not
+// quietly resolve to "no login required".
+var entraConfigured = !string.IsNullOrWhiteSpace(config["AzureAd:ClientId"]);
+if (!entraConfigured && !builder.Environment.IsDevelopment())
+    throw new InvalidOperationException(
+        "AzureAd:ClientId is not set. The CMS commits to a public repository and will not "
+        + "start without authentication outside Development.");
 
 var allowed = config.GetSection("Cms:AllowedUsers").Get<string[]>() ?? [];
-builder.Services.AddAuthorizationBuilder()
-    .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .RequireAssertion(context =>
-        {
-            // No allow-list configured means a fresh deployment nobody has
-            // locked down yet. Denying everyone is the safe reading — an empty
-            // list must not mean "anyone with a Microsoft account".
-            if (allowed.Length == 0) return false;
-            var identifiers = context.User.Claims
-                .Where(c => c.Type is "preferred_username" or "email" or ClaimConstants.ObjectId)
-                .Select(c => c.Value);
-            return identifiers.Any(id => allowed.Contains(id, StringComparer.OrdinalIgnoreCase));
-        })
-        .Build());
+
+if (entraConfigured)
+{
+    builder.Services
+        .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+        .AddMicrosoftIdentityWebApp(config.GetSection("AzureAd"));
+
+    builder.Services.AddAuthorizationBuilder()
+        .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .RequireAssertion(context =>
+            {
+                // An empty allow-list means a fresh deployment nobody has locked
+                // down yet. Denying everyone is the safe reading — it must not
+                // mean "anyone with a Microsoft account".
+                if (allowed.Length == 0) return false;
+                var identifiers = context.User.Claims
+                    .Where(c => c.Type is "preferred_username" or "email" or ClaimConstants.ObjectId)
+                    .Select(c => c.Value);
+                return identifiers.Any(id => allowed.Contains(id, StringComparer.OrdinalIgnoreCase));
+            })
+            .Build());
+}
+else
+{
+    builder.Services.AddAuthentication(LocalDevAuthHandler.SchemeName)
+        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, LocalDevAuthHandler>(
+            LocalDevAuthHandler.SchemeName, null);
+    builder.Services.AddAuthorizationBuilder()
+        .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+            .RequireAssertion(_ => true)
+            .Build());
+}
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
@@ -54,12 +80,14 @@ builder.Services.AddDbContext<CmsDbContext>(options =>
 builder.Services.AddScoped<ContentStore>();
 
 // ── Publishing ──────────────────────────────────────────────────────────────
-builder.Services.AddOptions<GitHubOptions>()
+var github = builder.Services.AddOptions<GitHubOptions>()
     .Bind(config.GetSection(GitHubOptions.SectionName))
-    .ValidateDataAnnotations()
-    // Fail at start-up rather than on the first publish: a missing token should
-    // not present itself as a mysterious failure halfway through a commit.
-    .ValidateOnStart();
+    .ValidateDataAnnotations();
+
+// Fail at start-up rather than halfway through a commit — but only where the
+// app is actually expected to publish. Locally the editor is worth running
+// against a draft database before any token exists.
+if (!builder.Environment.IsDevelopment()) github.ValidateOnStart();
 builder.Services.AddScoped<GitHubRepository>();
 builder.Services.AddScoped<PublishService>();
 

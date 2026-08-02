@@ -93,7 +93,10 @@ public sealed class PublishService(
         if (!commit || changes.Count == 0)
             return new PublishOutcome(validation, changedPaths);
 
-        var sha = await github.CommitAsync(changes, message ?? DefaultMessage(changedPaths), headSha);
+        var sha = await github.CommitAsync(
+            changes,
+            string.IsNullOrWhiteSpace(message) ? DefaultMessage(changedPaths) : message,
+            headSha);
 
         if (sha is not null)
         {

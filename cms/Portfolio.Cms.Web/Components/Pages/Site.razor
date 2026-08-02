@@ -1,0 +1,270 @@
+@page "/site"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ContentStore Store
+
+<PageTitle>Site copy · Portfolio CMS</PageTitle>
+
+<header class="head head--row">
+    <div>
+        <h1>Site copy</h1>
+        <p class="muted">Everything in site.json — the hero, the section intros, the career timeline, about and contact.</p>
+    </div>
+    <button class="btn btn--primary" disabled="@_saving" @onclick="Save">
+        @(_saving ? "Saving…" : "Save draft")
+    </button>
+</header>
+
+@if (_saved)
+{
+    <div class="panel panel--ok">Saved as a draft.</div>
+}
+
+@if (_content is null)
+{
+    <p class="muted">Loading…</p>
+}
+else
+{
+    var site = _content.Site;
+
+    <section class="form">
+        <h2>Hero</h2>
+        <div class="field-row">
+            <label class="field">
+                <span>Brand</span>
+                <input class="input" @bind="site.Brand" @bind:event="oninput" />
+            </label>
+            <label class="field">
+                <span>Name</span>
+                <input class="input" @bind="site.Hero.Name" @bind:event="oninput" />
+            </label>
+        </div>
+
+        <label class="field">
+            <span>Subheading</span>
+            <input class="input" @bind="site.Hero.Subheading" @bind:event="oninput" />
+        </label>
+
+        <label class="check check--block">
+            <input type="checkbox" checked="@(site.Hero.Intro is not null)" @onchange="ToggleIntro" />
+            <span>Show the intro title card on first load</span>
+        </label>
+
+        @if (site.Hero.Intro is not null)
+        {
+            <div class="field-row">
+                <label class="field">
+                    <span>Intro title</span>
+                    <input class="input" @bind="site.Hero.Intro.Title" @bind:event="oninput" />
+                </label>
+                <label class="field">
+                    <span>Intro body</span>
+                    <input class="input" @bind="site.Hero.Intro.Body" @bind:event="oninput" />
+                </label>
+            </div>
+        }
+
+        <label class="field">
+            <span>Spawn date</span>
+            <input class="input mono" @bind="site.Spawn" @bind:event="oninput" placeholder="1997-03-16" />
+            <small class="muted">Drawn as the start of the projects-map timeline.</small>
+        </label>
+
+        <h2>Section intros</h2>
+        <div class="field-row">
+            <label class="field">
+                <span>Capabilities title</span>
+                <input class="input" @bind="site.CapabilitiesIntro.Title" @bind:event="oninput" />
+            </label>
+            <label class="field">
+                <span>Capabilities lead</span>
+                <input class="input" @bind="site.CapabilitiesIntro.Lead" @bind:event="oninput" />
+            </label>
+        </div>
+        <div class="field-row">
+            <label class="field">
+                <span>Work title</span>
+                <input class="input" @bind="site.WorkIntro.Title" @bind:event="oninput" />
+            </label>
+            <label class="field">
+                <span>Work lead</span>
+                <textarea class="input" rows="2" @bind="site.WorkIntro.Lead" @bind:event="oninput"></textarea>
+            </label>
+        </div>
+
+        <h2>Navigation</h2>
+        @for (var i = 0; i < site.Nav.Count; i++)
+        {
+            var item = site.Nav[i];
+            <div class="field-row">
+                <label class="field">
+                    <span>Label</span>
+                    <input class="input" @bind="item.Label" @bind:event="oninput" />
+                </label>
+                <label class="field">
+                    <span>Href</span>
+                    <input class="input mono" @bind="item.Href" @bind:event="oninput" />
+                </label>
+            </div>
+        }
+
+        <h2>About</h2>
+        <label class="field">
+            <span>Title</span>
+            <input class="input" @bind="site.About.Title" @bind:event="oninput" />
+        </label>
+        <label class="field">
+            <span>Lead</span>
+            <textarea class="input" rows="2" @bind="site.About.Lead" @bind:event="oninput"></textarea>
+        </label>
+        <div class="field">
+            <span class="field__label">Body paragraphs</span>
+            <StringList Items="site.About.Body" Changed="StateHasChanged" Multiline="true" AddLabel="Add paragraph" />
+        </div>
+
+        <div class="field">
+            <span class="field__label">Facts</span>
+            @foreach (var fact in site.About.Facts)
+            {
+                var item = fact;
+                <div class="field-row">
+                    <input class="input" @bind="item.Label" @bind:event="oninput" placeholder="Based in" />
+                    <input class="input field--wide" @bind="item.Value" @bind:event="oninput" />
+                </div>
+            }
+        </div>
+
+        <h2>Contact</h2>
+        <div class="field-row">
+            <label class="field">
+                <span>Title</span>
+                <input class="input" @bind="site.Contact.Title" @bind:event="oninput" />
+            </label>
+            <label class="field">
+                <span>Email</span>
+                <input class="input" @bind="site.Contact.Email" @bind:event="oninput" />
+            </label>
+        </div>
+        <label class="field">
+            <span>Lead</span>
+            <textarea class="input" rows="2" @bind="site.Contact.Lead" @bind:event="oninput"></textarea>
+        </label>
+        @foreach (var link in site.Contact.Links)
+        {
+            var item = link;
+            <div class="field-row">
+                <input class="input" @bind="item.Label" @bind:event="oninput" placeholder="LinkedIn" />
+                <input class="input field--wide mono" @bind="item.Href" @bind:event="oninput" placeholder="https://…" />
+            </div>
+        }
+    </section>
+
+    <section class="form">
+        <h2>Career</h2>
+        <div class="panel panel--warning">
+            The Dutch CV translates these by position, so adding or removing an entry
+            here changes cv.nl.json too. This page keeps the two in step — but the new
+            Dutch text still needs writing on the CV page, or the publish check will
+            block on it.
+        </div>
+
+        @for (var i = 0; i < (site.Career?.Count ?? 0); i++)
+        {
+            var index = i;
+            var job = site.Career![index];
+            <details class="entry" open="@(index == 0)">
+                <summary>
+                    <strong>@job.Company</strong>
+                    <span class="muted">@job.From → @(job.To ?? "now")</span>
+                    @if (job.Freelance == true)
+                    {
+                        <span class="tag tag--kind">freelance</span>
+                    }
+                </summary>
+
+                <div class="field-row">
+                    <label class="field"><span>Company</span>
+                        <input class="input" @bind="job.Company" @bind:event="oninput" /></label>
+                    <label class="field"><span>Role</span>
+                        <input class="input" @bind="job.Role" @bind:event="oninput" /></label>
+                </div>
+                <div class="field-row">
+                    <label class="field"><span>From</span>
+                        <input class="input mono" @bind="job.From" @bind:event="oninput" placeholder="2024-03" /></label>
+                    <label class="field"><span>To</span>
+                        <input class="input mono" @bind="job.To" @bind:event="oninput" placeholder="(empty = current)" /></label>
+                    <label class="field"><span>Colour</span>
+                        <input class="input mono" @bind="job.Color" @bind:event="oninput" /></label>
+                </div>
+                <div class="field-row">
+                    <label class="field"><span>Location</span>
+                        <input class="input" @bind="job.Location" @bind:event="oninput" /></label>
+                    <label class="field"><span>Sector</span>
+                        <input class="input" @bind="job.Sector" @bind:event="oninput" /></label>
+                </div>
+                <div class="field-row">
+                    <label class="field"><span>URL</span>
+                        <input class="input mono" @bind="job.Url" @bind:event="oninput" /></label>
+                    <label class="field"><span>Logo</span>
+                        <input class="input mono" @bind="job.Logo" @bind:event="oninput" placeholder="/logos/…" /></label>
+                </div>
+                <label class="field"><span>Blurb (site tooltip)</span>
+                    <textarea class="input" rows="2" @bind="job.Blurb" @bind:event="oninput"></textarea></label>
+                <label class="field"><span>Detail (CV paragraph)</span>
+                    <textarea class="input" rows="3" @bind="job.Detail" @bind:event="oninput"></textarea></label>
+                <label class="check">
+                    <input type="checkbox" checked="@(job.Freelance == true)"
+                           @onchange="e => job.Freelance = (bool)e.Value! ? true : null" />
+                    <span>Concurrent freelance work — drawn as an overlay, not a stretch of the route</span>
+                </label>
+
+                <button class="btn btn--danger" @onclick="() => RemoveCareer(index)">Remove this stint</button>
+            </details>
+        }
+
+        <button class="btn btn--ghost" @onclick="AddCareer">+ Add a career stint</button>
+    </section>
+}
+
+@code {
+    private ContentSet? _content;
+    private bool _saving, _saved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await Store.IsEmptyAsync()) _content = await Store.LoadAsync();
+    }
+
+    private void ToggleIntro(ChangeEventArgs e) =>
+        _content!.Site.Hero.Intro = (bool)e.Value!
+            ? new HeroIntro { Title = "", Body = "" }
+            : null;
+
+    /// <summary>
+    /// Adds the matching Dutch override at the same index. Leaving that to the
+    /// user is how the build gets broken: the two lists are matched by
+    /// position, and nothing about editing site.json suggests otherwise.
+    /// </summary>
+    private void AddCareer()
+    {
+        _content!.Site.Career ??= [];
+        _content.Site.Career.Add(new CareerEntry { Company = "New role", From = "2026-01", To = null, Color = "#7f9cc0" });
+        (_content.CvNl.Career ??= []).Add(new CvCareerOverride { Detail = "" });
+    }
+
+    private void RemoveCareer(int index)
+    {
+        _content!.Site.Career!.RemoveAt(index);
+        if (_content.CvNl.Career is { } overrides && index < overrides.Count) overrides.RemoveAt(index);
+    }
+
+    private async Task Save()
+    {
+        if (_content is null) return;
+        _saving = true;
+        await Store.SaveAsync(_content);
+        _saving = false;
+        _saved = true;
+    }
+}

@@ -1,0 +1,79 @@
+@*
+    Editor for a plain list of strings — tech stacks, tags, about paragraphs,
+    the CV's stack and languages. Order is preserved because several of these
+    render in sequence on the site, so the move buttons are part of the editing,
+    not a nicety.
+*@
+
+<div class="string-list">
+    @for (var i = 0; i < Items.Count; i++)
+    {
+        var index = i;
+        <div class="string-list__row">
+            @if (Multiline)
+            {
+                <textarea class="input" rows="3" value="@Items[index]"
+                          @onchange="e => Set(index, e.Value?.ToString())"
+                          placeholder="@Placeholder"></textarea>
+            }
+            else
+            {
+                <input class="input" value="@Items[index]"
+                       @onchange="e => Set(index, e.Value?.ToString())"
+                       placeholder="@Placeholder" />
+            }
+            <div class="string-list__controls">
+                <button type="button" class="btn btn--icon" title="Move up"
+                        disabled="@(index == 0)" @onclick="() => Move(index, -1)">↑</button>
+                <button type="button" class="btn btn--icon" title="Move down"
+                        disabled="@(index == Items.Count - 1)" @onclick="() => Move(index, 1)">↓</button>
+                <button type="button" class="btn btn--icon btn--danger" title="Remove"
+                        @onclick="() => Remove(index)">✕</button>
+            </div>
+        </div>
+    }
+
+    @if (Items.Count == 0)
+    {
+        <p class="muted">Nothing here yet.</p>
+    }
+
+    <button type="button" class="btn btn--ghost" @onclick="Add">+ @AddLabel</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<string> Items { get; set; } = [];
+
+    /// <summary>Raised after any change so the parent can mark itself dirty.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    [Parameter] public bool Multiline { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "";
+    [Parameter] public string AddLabel { get; set; } = "Add";
+
+    private async Task Set(int index, string? value)
+    {
+        Items[index] = value ?? "";
+        await Changed.InvokeAsync();
+    }
+
+    private async Task Add()
+    {
+        Items.Add("");
+        await Changed.InvokeAsync();
+    }
+
+    private async Task Remove(int index)
+    {
+        Items.RemoveAt(index);
+        await Changed.InvokeAsync();
+    }
+
+    private async Task Move(int index, int delta)
+    {
+        var target = index + delta;
+        if (target < 0 || target >= Items.Count) return;
+        (Items[index], Items[target]) = (Items[target], Items[index]);
+        await Changed.InvokeAsync();
+    }
+}

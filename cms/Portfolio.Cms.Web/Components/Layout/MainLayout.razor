@@ -1,23 +1,31 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
 <div class="page">
-    <div class="sidebar">
+    <nav class="sidebar">
         <NavMenu />
-    </div>
+    </nav>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
+    <main class="main">
+        <AuthorizeView>
+            <Authorized>
+                @Body
+            </Authorized>
+            <NotAuthorized>
+                <div class="signin">
+                    <h1>Portfolio CMS</h1>
+                    <p class="muted">
+                        This editor commits straight to the portfolio repository, so it is
+                        restricted to the site owner.
+                    </p>
+                    <a class="btn btn--primary" href="MicrosoftIdentity/Account/SignIn">Sign in</a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
     </main>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
+    Something went wrong.
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>

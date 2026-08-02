@@ -1,30 +1,24 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Portfolio.Cms.Web</a>
+<div class="nav">
+    <div class="nav__brand">
+        <span class="nav__title">Portfolio CMS</span>
+        <span class="nav__subtitle">merijnkersten.nl</span>
     </div>
+
+    <AuthorizeView>
+        <Authorized>
+            <ul class="nav__links">
+                <li><NavLink href="" Match="NavLinkMatch.All">Overview</NavLink></li>
+                <li><NavLink href="cases">Projects</NavLink></li>
+                <li><NavLink href="site">Site copy</NavLink></li>
+                <li><NavLink href="cv">CV</NavLink></li>
+                <li><NavLink href="capabilities">Capabilities</NavLink></li>
+                <li><NavLink href="publish">Publish</NavLink></li>
+            </ul>
+
+            <div class="nav__foot">
+                <span class="muted">@context.User.Identity?.Name</span>
+                <a href="MicrosoftIdentity/Account/SignOut">Sign out</a>
+            </div>
+        </Authorized>
+    </AuthorizeView>
 </div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-    </nav>
-</div>
-

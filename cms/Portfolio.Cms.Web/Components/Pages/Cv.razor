@@ -1,0 +1,211 @@
+@page "/cv"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject ContentStore Store
+
+<PageTitle>CV · Portfolio CMS</PageTitle>
+
+<header class="head head--row">
+    <div>
+        <h1>CV</h1>
+        <p class="muted">
+            cv.json and cv.nl.json. The work history itself lives in the site copy —
+            here the Dutch pack only translates each stint.
+        </p>
+    </div>
+    <button class="btn btn--primary" disabled="@_saving" @onclick="Save">
+        @(_saving ? "Saving…" : "Save draft")
+    </button>
+</header>
+
+@if (_saved)
+{
+    <div class="panel panel--ok">Saved as a draft.</div>
+}
+
+@if (_content is null)
+{
+    <p class="muted">Loading…</p>
+}
+else
+{
+    <div class="tabs">
+        <button class="tab @(_dutch ? "" : "tab--on")" @onclick="() => _dutch = false">English</button>
+        <button class="tab @(_dutch ? "tab--on" : "")" @onclick="() => _dutch = true">Dutch</button>
+    </div>
+
+    var pack = _dutch ? _content.CvNl : _content.Cv;
+
+    <section class="form">
+        <h2>Header</h2>
+        <label class="field">
+            <span>Tagline</span>
+            <input class="input" @bind="pack.Tagline" @bind:event="oninput" />
+        </label>
+        <label class="field">
+            <span>Profile</span>
+            <textarea class="input" rows="5" @bind="pack.Profile" @bind:event="oninput"></textarea>
+        </label>
+        <div class="field-row">
+            <label class="field"><span>Location</span>
+                <input class="input" @bind="pack.Location" @bind:event="oninput" /></label>
+            <label class="field"><span>Phone</span>
+                <input class="input mono" @bind="pack.Phone" @bind:event="oninput" /></label>
+            <label class="field"><span>Photo</span>
+                <input class="input mono" @bind="pack.Photo" @bind:event="oninput" placeholder="/profile/5.png" /></label>
+        </div>
+        <label class="field">
+            <span>Off the clock</span>
+            <input class="input" @bind="pack.OffTheClock" @bind:event="oninput" />
+        </label>
+
+        <h2>Links</h2>
+        @foreach (var link in pack.Links)
+        {
+            var item = link;
+            <div class="field-row">
+                <input class="input" @bind="item.Label" @bind:event="oninput" placeholder="merijnkersten.nl" />
+                <input class="input field--wide mono" @bind="item.Href" @bind:event="oninput" placeholder="https://…" />
+            </div>
+        }
+
+        <h2>Stack</h2>
+        <StringList Items="pack.Stack" Changed="StateHasChanged" AddLabel="Add a line" />
+
+        <h2>Languages</h2>
+        <StringList Items="pack.Languages" Changed="StateHasChanged" AddLabel="Add a language" />
+
+        <h2>Certificates</h2>
+        <StringList Items="Certificates(pack)" Changed="StateHasChanged" AddLabel="Add a certificate" />
+
+        <h2>Education</h2>
+        @foreach (var entry in pack.Education)
+        {
+            var item = entry;
+            <details class="entry">
+                <summary><strong>@item.School</strong> <span class="muted">@item.Degree</span></summary>
+                <div class="field-row">
+                    <label class="field"><span>School</span>
+                        <input class="input" @bind="item.School" @bind:event="oninput" /></label>
+                    <label class="field"><span>Location</span>
+                        <input class="input" @bind="item.Location" @bind:event="oninput" /></label>
+                </div>
+                <label class="field"><span>Degree</span>
+                    <input class="input" @bind="item.Degree" @bind:event="oninput" /></label>
+                <div class="field-row">
+                    <label class="field"><span>From</span>
+                        <input class="input mono" @bind="item.From" @bind:event="oninput" placeholder="2014-10" /></label>
+                    <label class="field"><span>To</span>
+                        <input class="input mono" @bind="item.To" @bind:event="oninput" placeholder="2019-06" /></label>
+                </div>
+                <label class="field"><span>Note</span>
+                    <textarea class="input" rows="3" @bind="item.Note" @bind:event="oninput"></textarea></label>
+            </details>
+        }
+
+        <h2>Labels</h2>
+        <p class="muted">The CV's own UI strings, in this language.</p>
+        <div class="field-row">
+            <label class="field"><span>Profile</span>
+                <input class="input" @bind="pack.Ui.Profile" @bind:event="oninput" /></label>
+            <label class="field"><span>Experience</span>
+                <input class="input" @bind="pack.Ui.Experience" @bind:event="oninput" /></label>
+            <label class="field"><span>Education</span>
+                <input class="input" @bind="pack.Ui.Education" @bind:event="oninput" /></label>
+        </div>
+        <div class="field-row">
+            <label class="field"><span>Certificates</span>
+                <input class="input" @bind="pack.Ui.Certificates" @bind:event="oninput" /></label>
+            <label class="field"><span>Stack</span>
+                <input class="input" @bind="pack.Ui.Stack" @bind:event="oninput" /></label>
+            <label class="field"><span>Languages</span>
+                <input class="input" @bind="pack.Ui.Languages" @bind:event="oninput" /></label>
+        </div>
+        <div class="field-row">
+            <label class="field"><span>Years unit</span>
+                <input class="input" @bind="pack.Ui.YearsUnit" @bind:event="oninput" /></label>
+            <label class="field"><span>Off the clock</span>
+                <input class="input" @bind="pack.Ui.OffTheClockLabel" @bind:event="oninput" /></label>
+            <label class="field"><span>Now</span>
+                <input class="input" @bind="pack.Ui.Now" @bind:event="oninput" /></label>
+        </div>
+        <div class="field-row">
+            <label class="field"><span>Back</span>
+                <input class="input" @bind="pack.Ui.Back" @bind:event="oninput" /></label>
+            <label class="field"><span>Download</span>
+                <input class="input" @bind="pack.Ui.Download" @bind:event="oninput" /></label>
+        </div>
+    </section>
+
+    <section class="form">
+        <h2>Career translations</h2>
+        <p class="muted">
+            Shown against the English text they translate. These are matched to the
+            career list by position, so every stint needs one — an empty Dutch detail
+            blocks publishing.
+        </p>
+
+        @{
+            var stints = _content.Site.Career ?? [];
+            var overrides = _content.CvNl.Career ??= [];
+        }
+
+        @if (overrides.Count != stints.Count)
+        {
+            <div class="panel panel--error">
+                @overrides.Count Dutch entries against @stints.Count career stints. Add or
+                remove stints on the site copy page, which keeps both lists in step.
+            </div>
+        }
+
+        @for (var i = 0; i < Math.Min(stints.Count, overrides.Count); i++)
+        {
+            var stint = stints[i];
+            var translation = overrides[i];
+            <div class="translate">
+                <div class="translate__source">
+                    <strong>@stint.Company</strong>
+                    <span class="muted">@stint.Sector</span>
+                    <p class="muted">@(stint.Detail ?? stint.Blurb)</p>
+                </div>
+                <div class="translate__target">
+                    <label class="field"><span>Sector (nl)</span>
+                        <input class="input" @bind="translation.Sector" @bind:event="oninput" /></label>
+                    <label class="field"><span>Detail (nl)</span>
+                        <textarea class="input @(string.IsNullOrWhiteSpace(translation.Detail) ? "input--error" : "")"
+                                  rows="4" @bind="translation.Detail" @bind:event="oninput"></textarea></label>
+                </div>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private ContentSet? _content;
+    private bool _saving, _saved, _dutch;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await Store.IsEmptyAsync()) _content = await Store.LoadAsync();
+    }
+
+    /// <summary>
+    /// Certificates is optional in the JSON, so the list has to exist before it
+    /// can be edited — but it is only written back out if something is in it.
+    /// </summary>
+    private static List<string> Certificates(CvContent pack) => pack.Certificates ??= [];
+
+    private async Task Save()
+    {
+        if (_content is null) return;
+        _saving = true;
+
+        // An empty optional list must not become "certificates": [] in the file.
+        if (_content.Cv.Certificates is { Count: 0 }) _content.Cv.Certificates = null;
+        if (_content.CvNl.Certificates is { Count: 0 }) _content.CvNl.Certificates = null;
+
+        await Store.SaveAsync(_content);
+        _saving = false;
+        _saved = true;
+    }
+}
