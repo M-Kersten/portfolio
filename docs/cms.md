@@ -80,7 +80,7 @@ The deployed setup is:
 | Resource group | `Default` |
 | SQL server | `merijndatabasegermany` |
 | Region | `germanywestcentral` |
-| App | `merijn-portfolio-cms` |
+| App | `merijn-cms` |
 
 ```bash
 az sql server show -g Default -n merijndatabasegermany --query location -o tsv
@@ -144,7 +144,7 @@ Then confirm the database really landed on the free tier, because this is the
 difference between €0 and a bill, and the two look identical in the portal:
 
 ```bash
-az sql db show -g Default -s merijndatabasegermany -n merijn-portfolio-cms-db \
+az sql db show -g Default -s merijndatabasegermany -n merijn-cms-db \
   --query "{free:useFreeLimit, behaviour:freeLimitExhaustionBehavior, sku:sku.name}" -o table
 ```
 
@@ -156,18 +156,18 @@ ARM gets the app as far as authenticating with its identity, but a managed
 identity is not a database user until someone says so — and that grant is a
 data-plane operation ARM cannot make. It is the one manual step here.
 
-Open the Azure portal → **merijn-portfolio-cms-db** → **Query editor**, sign in with
+Open the Azure portal → **merijn-cms-db** → **Query editor**, sign in with
 `info@merijnkersten.nl` (this is what being the Entra admin is for), and run
 [`cms/infra/grant-managed-identity.sql`](../cms/infra/grant-managed-identity.sql):
 
 ```sql
-CREATE USER [merijn-portfolio-cms] FROM EXTERNAL PROVIDER;
-ALTER ROLE db_datareader ADD MEMBER [merijn-portfolio-cms];
-ALTER ROLE db_datawriter ADD MEMBER [merijn-portfolio-cms];
-ALTER ROLE db_ddladmin  ADD MEMBER [merijn-portfolio-cms];
+CREATE USER [merijn-cms] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [merijn-cms];
+ALTER ROLE db_datawriter ADD MEMBER [merijn-cms];
+ALTER ROLE db_ddladmin  ADD MEMBER [merijn-cms];
 ```
 
-Make sure the editor is connected to `merijn-portfolio-cms-db` and not `master` — the
+Make sure the editor is connected to `merijn-cms-db` and not `master` — the
 grant has to happen in the database itself. `db_ddladmin` is there because the
 app creates its own schema on first start; `db_owner` would work too and grants
 far more than this app needs.
@@ -198,7 +198,7 @@ usual cause of a token that appears to be set and isn't:
 ```bash
 # On App Service — double underscore, because environment variables cannot
 # contain a colon and ASP.NET Core maps "__" onto the ":" of a config path.
-az webapp config appsettings set -g Default -n merijn-portfolio-cms \
+az webapp config appsettings set -g Default -n merijn-cms \
   --settings GitHub__Token=github_pat_...
 
 # Locally — a real colon, in user secrets rather than appsettings.json, which
@@ -211,7 +211,7 @@ Both land on the same `GitHub:Token` setting. To check what App Service actually
 holds:
 
 ```bash
-az webapp config appsettings list -g Default -n merijn-portfolio-cms \
+az webapp config appsettings list -g Default -n merijn-cms \
   --query "[?starts_with(name,'GitHub')].name" -o tsv
 ```
 
@@ -220,7 +220,7 @@ That lists the names without printing the values.
 ### 6. App settings
 
 ```bash
-az webapp config appsettings set -g Default -n merijn-portfolio-cms --settings \
+az webapp config appsettings set -g Default -n merijn-cms --settings \
   AzureAd__TenantId=<tenant-id> \
   AzureAd__ClientId=<client-id> \
   Cms__AllowedUsers__0=info@merijnkersten.nl \
@@ -250,7 +250,7 @@ az webapp list-runtimes --os linux | grep -i dotnet
 cd cms
 dotnet publish Portfolio.Cms.Web -c Release -o ./publish
 cd publish && zip -r ../cms.zip . && cd ..
-az webapp deploy -g Default -n merijn-portfolio-cms --src-path cms.zip --type zip
+az webapp deploy -g Default -n merijn-cms --src-path cms.zip --type zip
 ```
 
 Then open the app and use **Import from the repository** on the overview page —
@@ -265,7 +265,7 @@ then move it to the branch Pages builds from:
 
 ```bash
 git push origin claude/cleanup-refactor:cms-publish-test
-az webapp config appsettings set -g Default -n merijn-portfolio-cms \
+az webapp config appsettings set -g Default -n merijn-cms \
   --settings GitHub__Branch=cms-publish-test
 ```
 

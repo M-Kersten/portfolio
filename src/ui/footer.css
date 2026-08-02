@@ -17,3 +17,19 @@
   align-items: center;
   justify-content: space-between;
 }
+
+/* The CMS link. Almost invisible until you go looking for it — it's a private
+   tool sitting on a public page, so it should read as furniture rather than as
+   something a visitor is being invited to click. */
+.footer__admin {
+  color: var(--ink-20);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: var(--step--1);
+  transition: color 160ms ease;
+}
+.footer__admin:hover,
+.footer__admin:focus-visible {
+  color: var(--ink-60);
+}
