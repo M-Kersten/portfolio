@@ -148,6 +148,36 @@ public class ContentStoreTests : IDisposable
             Assert.Equal(15, await db.Cases.CountAsync());
     }
 
+    /// <summary>
+    /// The path the admin's Import button actually takes. On App Service there
+    /// is no checkout, so the files arrive as text from the GitHub API — this
+    /// covers that entry point rather than only the disk one.
+    /// </summary>
+    [Fact]
+    public async Task Importing_from_raw_texts_seeds_the_same_draft_as_a_checkout()
+    {
+        var files = ContentFile.ReadFrom(RepoRoot);
+
+        await using (var db = NewContext())
+            await new ContentStore(db).ImportAsync(files);
+
+        await using var read = NewContext();
+        var loaded = await new ContentStore(read).LoadAsync();
+
+        Assert.Equal(16, loaded.Cases.Count);
+        Assert.Equal(ContentSet.LoadFrom(RepoRoot).Serialize(), loaded.Serialize());
+    }
+
+    [Fact]
+    public void A_missing_file_in_the_import_names_the_file()
+    {
+        var files = ContentFile.ReadFrom(RepoRoot);
+        files.Remove(ContentFile.Site.RelativePath);
+
+        var error = Assert.Throws<KeyNotFoundException>(() => ContentSet.FromTexts(files));
+        Assert.Contains("site.json", error.Message);
+    }
+
     [Fact]
     public async Task Loading_before_an_import_says_what_to_do()
     {

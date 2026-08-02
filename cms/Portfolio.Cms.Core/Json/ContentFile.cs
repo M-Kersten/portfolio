@@ -39,6 +39,10 @@ public sealed record ContentFile(string RelativePath, IReadOnlySet<string> Inlin
     public static readonly IReadOnlyList<ContentFile> All =
         [Cases, Capabilities, Site, Cv, CvNl];
 
+    /// <summary>Reads the raw file texts from a checkout, keyed by repo-relative path.</summary>
+    public static Dictionary<string, string> ReadFrom(string repoRoot) =>
+        All.ToDictionary(f => f.RelativePath, f => File.ReadAllText(Path.Combine(repoRoot, f.RelativePath)));
+
     /// <summary>Just the file name, for log lines and error messages.</summary>
     public string Name => RelativePath[(RelativePath.LastIndexOf('/') + 1)..];
 
@@ -70,10 +74,18 @@ public sealed class ContentSet
         [ContentFile.CvNl.RelativePath] = ContentFile.CvNl.Render(CvNl),
     };
 
-    /// <summary>Reads a content set from a checkout (or any directory laid out like one).</summary>
-    public static ContentSet LoadFrom(string repoRoot)
+    /// <summary>
+    /// Parses a content set from the raw file texts, keyed by repo-relative
+    /// path. Kept separate from reading them because the CMS gets these two
+    /// ways: from a checkout when running locally, and over the GitHub API when
+    /// running on App Service, where there is no checkout at all.
+    /// </summary>
+    public static ContentSet FromTexts(IReadOnlyDictionary<string, string> files)
     {
-        string Read(ContentFile f) => File.ReadAllText(Path.Combine(repoRoot, f.RelativePath));
+        string Read(ContentFile f) => files.TryGetValue(f.RelativePath, out var text)
+            ? text
+            : throw new KeyNotFoundException($"No content supplied for {f.RelativePath}.");
+
         return new ContentSet
         {
             Cases = ContentJson.Deserialize<List<CaseStudy>>(Read(ContentFile.Cases)),
@@ -83,4 +95,7 @@ public sealed class ContentSet
             CvNl = ContentJson.Deserialize<CvContent>(Read(ContentFile.CvNl)),
         };
     }
+
+    /// <summary>Reads a content set from a checkout (or any directory laid out like one).</summary>
+    public static ContentSet LoadFrom(string repoRoot) => FromTexts(ContentFile.ReadFrom(repoRoot));
 }

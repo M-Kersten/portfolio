@@ -86,10 +86,16 @@ public sealed class ContentStore(CmsDbContext db)
         !await db.Documents.AnyAsync(ct);
 
     /// <summary>
-    /// Seeds the draft from a checkout. This is how the CMS starts life: the
-    /// repository already holds the content, so the first run imports it rather
-    /// than asking anyone to retype it.
+    /// Seeds the draft from the raw content files. This is how the CMS starts
+    /// life: the repository already holds the content, so the first run imports
+    /// it rather than asking anyone to retype it. The caller supplies the texts
+    /// because where they come from differs — a checkout locally, the GitHub
+    /// API on App Service.
     /// </summary>
+    public Task ImportAsync(IReadOnlyDictionary<string, string> files, CancellationToken ct = default) =>
+        SaveAsync(ContentSet.FromTexts(files), ct);
+
+    /// <summary>Seeds the draft from a checkout.</summary>
     public Task ImportFromCheckoutAsync(string repoRoot, CancellationToken ct = default) =>
         SaveAsync(ContentSet.LoadFrom(repoRoot), ct);
 

@@ -3,6 +3,7 @@
 @attribute [Authorize]
 @inject ContentStore Store
 @inject PosterStore Posters
+@inject IServiceProvider Services
 
 <PageTitle>Overview · Portfolio CMS</PageTitle>
 
@@ -26,6 +27,10 @@ else if (_empty)
             The repository already holds the content, so the first step is to pull it
             in rather than retype it. Import reads the five files at the tip of the
             publish branch and seeds the draft store from them.
+        </p>
+        <p class="muted">
+            This reads from GitHub, so it needs the token configured. Running locally
+            without one, it falls back to the checkout the app is running inside.
         </p>
         <button class="btn btn--primary" disabled="@_working" @onclick="Import">
             @(_working ? "Importing…" : "Import from the repository")
@@ -116,9 +121,7 @@ else
         _error = null;
         try
         {
-            // Seeding from the local checkout is the development path; on App
-            // Service the repository is read over the API instead.
-            await Store.ImportFromCheckoutAsync(FindRepoRoot());
+            await Store.ImportAsync(await ReadContentFilesAsync());
             await Refresh();
         }
         catch (Exception ex)
@@ -131,13 +134,42 @@ else
         }
     }
 
-    private static string FindRepoRoot()
+    /// <summary>
+    /// Reads the content files from wherever this instance can see them. GitHub
+    /// is the source of truth and the only option on App Service, where there
+    /// is no checkout; the local fallback exists so the CMS can be run against
+    /// the repo before any token is configured.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<string, string>> ReadContentFilesAsync()
+    {
+        GitHubRepository github;
+        try
+        {
+            github = Services.GetRequiredService<GitHubRepository>();
+        }
+        catch (Microsoft.Extensions.Options.OptionsValidationException)
+        {
+            // Not configured at all. Anything else — a bad token, an API
+            // failure — is a real error and must not fall through to a
+            // checkout that probably isn't there either.
+            return LocalContentFiles();
+        }
+
+        return await github.ReadContentFilesAsync();
+    }
+
+    private static Dictionary<string, string> LocalContentFiles()
     {
         var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, "src", "content")))
             dir = dir.Parent;
-        return dir?.FullName
-            ?? throw new DirectoryNotFoundException(
-                "No checkout found. On App Service, import from the repository over the API instead.");
+
+        if (dir is null)
+            throw new DirectoryNotFoundException(
+                "GitHub isn't configured and there is no checkout to read from. Set GitHub__Token "
+                + "(and GitHub__Owner / GitHub__Repository / GitHub__Branch) so the content can be "
+                + "imported from the repository.");
+
+        return ContentFile.ReadFrom(dir.FullName);
     }
 }
