@@ -26,8 +26,8 @@ const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };
 // The establishing reveal: the maquette powers on as its beat in the load
 // sequence (after the hero name + subhead resolve — see the shared boot clock),
 // scaling from a hair small up to full with a touch of overshoot (easeOutBack)
-// so the world "clicks" into the frame. Paired with a bloom ignition surge in
-// Stage on the same clock. One-shot; instant (no animation) under reduced motion.
+// so the world "clicks" into the frame. (A bloom ignition surge used to fire on
+// the same clock; the bloom pass is gone.) One-shot; instant under reduced motion.
 const REVEAL_FROM = 0.92;
 const REVEAL_DUR = 1400; // ms — the settle
 function Reveal({ children }: { children: ReactNode }) {

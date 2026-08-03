@@ -45,8 +45,8 @@ interface SceneState {
    *  handler consumes it to run the homecoming (scroll to the City layer). */
   celebrationPending: boolean;
   /** The homecoming moment: set when the 10th node is deselected. Anchors the
-   *  celebration — the particle burst, the bloom surge and the ghost
-   *  "next launch" pad materialising — so it all happens in full view. */
+   *  celebration — the particle burst and the ghost "next launch" pad
+   *  materialising — so it all happens in full view. */
   celebrateAt: number | null;
   /** The launch easter egg's current stage (idle when not engaged). */
   launch: LaunchStage;
