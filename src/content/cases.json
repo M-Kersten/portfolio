@@ -4,7 +4,7 @@
     "title": "Virtuele Brigade",
     "tag": "Marechaussee",
     "layer": "room",
-    "client": "Royal Netherlands Marechaussee",
+    "client": "Royal Netherlands Marechaussee (Via Rebels)",
     "sector": "Training · VR",
     "discipline": [
       "VR"
@@ -28,7 +28,7 @@
     "slug": "alliander-hololens",
     "title": "Alliander HoloLens suite",
     "layer": "city",
-    "client": "Alliander",
+    "client": "Alliander (Via Rebels)",
     "sector": "Energy · AR",
     "discipline": [
       "AR",
@@ -53,7 +53,7 @@
     "slug": "alliander-digital-twin",
     "title": "Alliander digital twin",
     "layer": "city",
-    "client": "Alliander",
+    "client": "Alliander (Via Rebels)",
     "sector": "Energy · web 3D",
     "discipline": [
       "Geo"
@@ -224,7 +224,7 @@
     "slug": "philips-medical-xr",
     "title": "Philips medical XR & AI",
     "layer": "chip",
-    "client": "Philips",
+    "client": "Philips (Via Rebels)",
     "sector": "Healthcare · R&D",
     "discipline": [
       "AR",
@@ -369,7 +369,7 @@
     "slug": "amsterdam-underground",
     "title": "Amsterdam Underground",
     "layer": "room",
-    "client": "Rebels",
+    "client": "Municipality of Amsterdam (Via Rebels)",
     "sector": "Multiplayer VR · rebuild",
     "discipline": [
       "VR"
