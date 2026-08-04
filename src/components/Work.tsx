@@ -164,19 +164,29 @@ function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig
 // freelance stint if one overlaps at the same spot.
 function bandsAt(bands: CareerBand[], x: number): { main: CareerBand; concurrent?: CareerBand } | null {
   if (!bands.length) return null;
+  // The plane runs a little past the last band (the "now" marker and its
+  // padding), so at either end of the scroll the viewport centre sits outside
+  // every band. Clamp first, so main and concurrent are answering about the same
+  // moment: main falls back to the nearest band, concurrent has no fallback, and
+  // without this the final screen kept the employer but silently dropped the
+  // concurrent stint running alongside it.
+  const lo = Math.min(...bands.map((b) => b.x1));
+  const hi = Math.max(...bands.map((b) => b.x2));
+  const at = Math.min(Math.max(x, lo), hi);
+
   const primary = bands.filter((b) => !b.freelance);
   const pool = primary.length ? primary : bands;
-  let main = pool.find((b) => x >= b.x1 && x <= b.x2);
+  let main = pool.find((b) => at >= b.x1 && at <= b.x2);
   if (!main) {
     main = pool.reduce(
       (best, b) => {
-        const d = Math.abs((b.x1 + b.x2) / 2 - x);
+        const d = Math.abs((b.x1 + b.x2) / 2 - at);
         return d < best.d ? { b, d } : best;
       },
       { b: pool[0], d: Infinity },
     ).b;
   }
-  const concurrent = bands.find((b) => b.freelance && b !== main && x >= b.x1 && x <= b.x2);
+  const concurrent = bands.find((b) => b.freelance && b !== main && at >= b.x1 && at <= b.x2);
   return { main, concurrent };
 }
 
@@ -540,12 +550,19 @@ export function Work() {
                     </span>
                   );
                   const segStyle = { left: `${b.x1}px`, width: `${b.x2 - b.x1}px`, '--band': b.color } as CSSProperties;
+                  // Concurrent work is drawn under the spine, so its hover target
+                  // sits under it too. Without the split every overlay silently
+                  // ate the hover of the stints it spans — it covers the same
+                  // strip and, being appended to the band list last, lands later
+                  // in the DOM and wins. Above the line reaches the employer,
+                  // below it the concurrent band.
+                  const segClass = `tl-seg${b.freelance ? ' tl-seg--free' : ''}`;
                   return b.url ? (
-                    <a className="tl-seg tl-seg--link" style={segStyle} href={b.url} target="_blank" rel="noreferrer" aria-label={`${b.company} — visit website`}>
+                    <a className={`${segClass} tl-seg--link`} style={segStyle} href={b.url} target="_blank" rel="noreferrer" aria-label={`${b.company} — visit website`}>
                       {tip}
                     </a>
                   ) : (
-                    <div className="tl-seg" style={segStyle}>
+                    <div className={segClass} style={segStyle}>
                       {tip}
                     </div>
                   );
@@ -641,9 +658,13 @@ export function Work() {
                     {(b.role || b.location) && (
                       <span className="tl-now__role">{[b.role, b.location].filter(Boolean).join(' · ')}</span>
                     )}
+                    {/* No suffix: the `freelance` flag really means "runs
+                        alongside", and not every concurrent stint is freelance —
+                        Rebels is an agency the client placements run through.
+                        The leading + and the band's own colour carry it. */}
                     {now.concurrent && (
                       <span className="tl-now__free" style={{ '--band': now.concurrent.color } as CSSProperties}>
-                        + {now.concurrent.company} · freelance
+                        + {now.concurrent.company}
                       </span>
                     )}
                   </span>

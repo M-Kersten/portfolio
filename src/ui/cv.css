@@ -46,8 +46,12 @@
 .cv {
   --cv-paper: #f6f8f9;
   --cv-ink: #10161b;
-  --cv-mut: rgba(16, 22, 27, 0.6);
-  --cv-soft: rgba(16, 22, 27, 0.5);
+  /* 0.6 computed 4.7:1 but rendered as a hair under 4.5:1 once antialiased —
+     passing on paper and failing on screen. 0.65 gives 5.5:1 and real headroom. */
+  --cv-mut: rgba(16, 22, 27, 0.65);
+  /* 0.5 measured 3.4:1 against the paper — under AA for the small uppercase
+     labels it carries. 0.62 lands at 5.0:1 and still reads as the quiet grey. */
+  --cv-soft: rgba(16, 22, 27, 0.62);
   --cv-line: rgba(16, 22, 27, 0.14);
   --cv-dot: rgba(16, 22, 27, 0.12);
   --cv-accent: #0f9fae; /* the site's cyan, darkened for paper */
@@ -80,11 +84,16 @@
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
 }
 
+/* Section labels. They are <h2> for the document outline (the sheet used to go
+   straight from the name to the job titles, leaving a screen reader with an h1
+   and seven h3s and no way to jump between sections), so the heading's own
+   margins have to be cleared — .cv-sec below sets the real spacing. */
 .cv .cv-lbl {
   font: 700 8.5px/1 var(--font-mono, 'Space Mono', monospace);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--cv-soft);
+  margin: 0;
 }
 /* section headers (Experience, Education) — a hairline, then the label. No
    bottom margin: the following entry's own top padding provides that gap (so
@@ -287,14 +296,92 @@
   margin: 9px 0 0;
   padding: 0;
 }
+/* 11px, not 10.5px: the stack and language lists are content, and half a pixel
+   below the legibility floor buys nothing on paper or screen. */
 .cv .cv-extras li {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.7;
   color: var(--cv-mut);
 }
 /* the stack is technologies too — same blue spot colour as the job meta */
 .cv .cv-stack li {
   color: var(--cv-blue);
+}
+
+/* ---------- narrow screens ---------- */
+/* The sheet is a literal A4 page — 210mm wide, because it is also what
+   `npm run cv` prints the PDF from. On a phone that is 794px of fixed width in
+   a 390px viewport: the page scrolled sideways, the header clipped the name to
+   "ersten" and the phone number to "1 6 21173954".
+   Scoped to `screen` deliberately. Print never matches it, so the PDF keeps the
+   paper geometry — and the desktop sheet keeps its paper facsimile — untouched. */
+@media screen and (max-width: 820px) {
+  .cv-stage {
+    padding: 2.5rem 0 3.5rem;
+  }
+  .cv {
+    --cv-gutter: 20px;
+    width: 100%;
+    min-height: 0;
+    box-shadow: none;
+  }
+
+  /* The band stacks. Side by side, the portrait takes the width the name needs
+     — and the name is the one thing on this page that must never wrap badly. */
+  .cv .cv-head {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+    gap: 0;
+    padding-right: var(--cv-gutter);
+  }
+  .cv .cv-id {
+    padding: 22px 0 18px;
+  }
+  .cv .cv-photo {
+    align-self: flex-end;
+    height: 132px;
+    margin-right: calc(-1 * var(--cv-gutter));
+  }
+  .cv h1 {
+    font-size: clamp(28px, 8.5vw, 42px);
+  }
+
+  /* Paper type sizes are set for a 794px sheet held at reading distance. At
+     390px the same values fall under the 11px legibility floor, so the
+     functional text steps up — screen only, so the printed CV is unchanged. */
+  .cv .cv-lbl {
+    font-size: 11px;
+  }
+  .cv .cv-contact,
+  .cv .cv-meta {
+    font-size: 11px;
+  }
+  .cv .cv-profile,
+  .cv .cv-job p,
+  .cv .cv-edu p {
+    font-size: 13px;
+  }
+}
+
+/* Touch targets. The toolbar links are ~15px tall, which is a fine mouse target
+   and a poor thumb one — the EN/NL pair measured 16×15px. The hit area grows
+   with a pseudo-element rather than padding, so the underline stays where it
+   was drawn and nothing moves on a desktop. */
+@media (pointer: coarse) {
+  .cv-tools a,
+  .cv-langs a {
+    position: relative;
+  }
+  .cv-tools a::after,
+  .cv-langs a::after {
+    content: '';
+    position: absolute;
+    inset: -15px -10px;
+  }
+  .cv-langs {
+    gap: 1.4rem;
+  }
 }
 
 /* ---------- print / PDF ---------- */
