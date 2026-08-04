@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-04T00:00:00.000Z",
+  "title": "Design System: Merijn Kersten — Portfolio",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "Deep Circuit Black", "canonical": "#0a0d10", "tonalRamp": ["#232629", "#42474d", "#5e666e", "#7b858e", "#9ca3ab", "#b7bdc2", "#d3d6d9", "#eef0f1"] },
+      "ink": { "role": "neutral", "displayName": "Near-White Ink", "canonical": "#eaeaea", "tonalRamp": ["#262626", "#474747", "#666666", "#858585", "#a3a3a3", "#bdbdbd", "#d6d6d6", "#f0f0f0"] },
+      "cyan": { "role": "primary", "displayName": "Circuit Cyan", "canonical": "#27e8f2", "tonalRamp": ["#044548", "#088087", "#0cb8c0", "#18e6f1", "#52edf5", "#82f2f7", "#b2f7fa", "#e2fcfd"] },
+      "coral": { "role": "secondary", "displayName": "Signal Coral", "canonical": "#ff9068", "tonalRamp": ["#4d1400", "#8f2600", "#cc3600", "#ff4b0a", "#ff7847", "#ff9e7a", "#ffc3ad", "#ffe9e0"] },
+      "lime": { "role": "tertiary", "displayName": "Charge Lime", "canonical": "#a9f75c", "tonalRamp": ["#264904", "#478807", "#65c20a", "#84f416", "#a3f650", "#bcf981", "#d6fbb1", "#f0fee2"] },
+      "lavender": { "role": "tag", "displayName": "Freelance Lavender", "canonical": "#a89eff", "tonalRamp": ["#08004d", "#0f008f", "#1500cc", "#230aff", "#5a47ff", "#887aff", "#b6adff", "#e4e0ff"] },
+      "pink": { "role": "tag", "displayName": "Passion Pink", "canonical": "#ff74b0", "tonalRamp": ["#4d0021", "#8f003e", "#cc0058", "#ff0a74", "#ff4797", "#ff7ab4", "#ffadd1", "#ffe0ee"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Section titles, hero name, dialog headlines. Space Grotesk 700, always with text-wrap: balance." },
+      "body": { "displayName": "Body", "purpose": "Running case-study prose and copy. Same family as display (Space Grotesk), regular weight, 58–65ch measure." },
+      "label": { "displayName": "Label / Mono", "purpose": "Every piece of metadata: nav, buttons, tags, timeline dates, story kickers. Always Space Mono, uppercase, letter-spaced — never used for content." }
+    },
+    "shadows": [
+      { "name": "dialog-lift", "value": "0 44px 96px rgba(0,0,0,0.62)", "purpose": "The focus card overlay — the deepest, most forward surface in the system." },
+      { "name": "card-hover-lift", "value": "0 30px 60px -26px rgba(0,0,0,0.9), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent)", "purpose": "Timeline waypoint tile on hover/focus — shadow deepens and an accent ring appears as the object 'comes alive'." },
+      { "name": "card-rest", "value": "0 18px 40px -24px rgba(0,0,0,0.8)", "purpose": "Timeline waypoint tile at rest." },
+      { "name": "tooltip-lift", "value": "0 18px 40px rgba(0,0,0,0.5)", "purpose": "Timeline tooltips and other mid-depth floating callouts." },
+      { "name": "chrome-lift", "value": "0 20px 40px var(--shadow)", "purpose": "UI chrome overlaying content: mobile nav drawer, sticky bars." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Default easing for every transition and animation in the system." },
+      { "name": "duration-standard", "value": "0.5s", "purpose": "Default transition duration (--dur); most micro-interactions use a shorter explicit value layered on this ease." }
+    ],
+    "breakpoints": [
+      { "name": "nav-collapse", "value": "720px", "purpose": "Header nav collapses into the mobile drawer." },
+      { "name": "about-stack", "value": "760px", "purpose": "About grid collapses to a single stacked column." },
+      { "name": "about-stage-hide", "value": "899px", "purpose": "The annotated portrait stage (tilt/leader-line interaction) is replaced by the flat fallback list." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The filled accent CTA — used sparingly, since the accent's rarity is the point.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Discuss this</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 0.5em; font-family: var(--font-mono); font-size: var(--step--1); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1; padding: 0.85em 1.2em; border-radius: var(--radius-s); border: 1px solid transparent; background: var(--accent); color: var(--accent-contrast); cursor: pointer; transition: transform 0.18s var(--ease), background 0.18s var(--ease); } .ds-btn-primary:hover { transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The default secondary action — transparent fill, brightens to the accent on hover.",
+      "html": "<button class=\"ds-btn ds-btn-ghost\">CV (PDF)</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; gap: 0.5em; font-family: var(--font-mono); font-size: var(--step--1); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1; padding: 0.85em 1.2em; border-radius: var(--radius-s); border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; transition: transform 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease); } .ds-btn-ghost:hover { transform: translateY(-1px); border-color: var(--accent); color: var(--accent-ink); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }"
+    },
+    {
+      "name": "Tech Chip",
+      "kind": "chip",
+      "refersTo": "chip-tech",
+      "description": "Engraved/OLED-plate tag used for tech stack labels on project cards — reads as a stamped component label.",
+      "html": "<ul class=\"ds-chips\"><li class=\"ds-chip\">Unity</li><li class=\"ds-chip\">C#</li></ul>",
+      "css": ".ds-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4em; margin: 0; padding: 0; } .ds-chip { font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: 0.04em; color: color-mix(in srgb, var(--accent) 70%, var(--ink)); background: color-mix(in srgb, #05070a 55%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); border-radius: 2px; padding: 0.14em 0.5em; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35); }"
+    },
+    {
+      "name": "Tag Chip (Freelance / Passion)",
+      "kind": "chip",
+      "refersTo": "chip-tag",
+      "description": "Single-purpose locked-colour tag — Freelance Lavender or Passion Pink only, never a general-purpose colour chip.",
+      "html": "<span class=\"ds-tag ds-tag--freelance\">Freelance</span>",
+      "css": ".ds-tag { display: inline-block; font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.25em 0.6em; border-radius: var(--radius-s); white-space: nowrap; } .ds-tag--freelance { color: var(--lavender); border: 1px solid color-mix(in srgb, var(--lavender) 42%, var(--line)); } .ds-tag--passion { color: var(--pink); border: 1px solid color-mix(in srgb, var(--pink) 42%, var(--line)); }"
+    },
+    {
+      "name": "Waypoint Card",
+      "kind": "card",
+      "refersTo": "card-waypoint",
+      "description": "A project tile on the timeline — glass gradient over paper-2, layer-tinted border, lifts and brightens on hover as it 'comes alive'.",
+      "html": "<button class=\"ds-card\" data-layer=\"city\"><div class=\"ds-card__body\"><div class=\"ds-card__yr\">2024</div><div class=\"ds-card__title\">Project Title</div></div></button>",
+      "css": ".ds-card { --card-accent: var(--cyan); display: block; width: 250px; text-align: left; background: linear-gradient(165deg, rgba(255,255,255,0.05), rgba(255,255,255,0.012)), var(--paper-2); border: 1px solid color-mix(in srgb, var(--card-accent) 16%, var(--line)); border-radius: var(--radius); overflow: hidden; cursor: pointer; color: inherit; font: inherit; padding: 0; box-shadow: 0 18px 40px -24px rgba(0,0,0,0.8); transition: transform 0.3s var(--ease), border-color 0.28s var(--ease), box-shadow 0.28s var(--ease); } .ds-card:hover, .ds-card:focus-visible { transform: translateY(-6px) scale(1.035); border-color: color-mix(in srgb, var(--card-accent) 55%, var(--line)); box-shadow: 0 30px 60px -26px rgba(0,0,0,0.9), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent); } .ds-card__body { display: flex; flex-direction: column; gap: 0.35em; padding: 1rem; } .ds-card__yr { font-family: var(--font-mono); font-size: var(--step-1); color: var(--ink); font-variant-numeric: tabular-nums; } .ds-card__title { font-family: var(--font-display); font-size: var(--step-0); line-height: 1.12; }"
+    },
+    {
+      "name": "Timeline Tooltip",
+      "kind": "custom",
+      "refersTo": "tooltip-timeline",
+      "description": "Floating callout for a career stint on the timeline route — mid-depth glass panel, layer/employer-tinted border.",
+      "html": "<div class=\"ds-tooltip\"><b>Employer</b><span>2022 — 2024</span></div>",
+      "css": ".ds-tooltip { display: flex; flex-direction: column; gap: 4px; max-width: 340px; padding: 0.7em 0.85em; background: color-mix(in srgb, var(--paper-2) 94%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: var(--radius-s); box-shadow: 0 18px 40px rgba(0,0,0,0.5); backdrop-filter: blur(8px); } .ds-tooltip b { font-family: var(--font-display); font-size: var(--step-0); color: var(--ink); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Ghost Circuit",
+    "overview": "Every interactive object on this site starts inert — a faint monochrome wireframe on a near-black stage. Visiting it floods in its authored colour and materials, permanently, for the session: exploring the site is literally powering a circuit on, one node at a time. That mechanic is the whole aesthetic, not a decoration bolted onto it — dark, precise surfaces read as unpowered board, and the locked five-hue palette reads as current running through specific traces once you touch them. The voice is playful & kinetic: the blinking aperture logo, the hover glow that chases the cursor across the timeline, the ghost→alive reveal, and the scroll-driven camera moves all treat the interface as something alive and a little mischievous, not a static gallery. Density stays editorial and confident — big display type, generous whitespace, quiet mono metadata — so the kinetic touches read as personality on top of a controlled system, never as noise. The system has explicitly moved away from a softer, rounder, 'acrylic' look (a prior 14px corner radius) toward crisp, tactile, small-radius geometry; treat that softness as a confirmed anti-reference, not a fallback to drift back toward.",
+    "keyCharacteristics": [
+      "Near-black matte stage (--paper) with a fixed, five-hue accent system — every hue has exactly one job, everywhere.",
+      "Ghost→alive interaction model: objects are monochrome until visited, then carry their real colour permanently.",
+      "Editorial type scale (large display, quiet mono metadata) over a dark, spatial-computing surface.",
+      "Crisp, small-radius, tactile component geometry — never soft or acrylic.",
+      "A fine, fixed film-grain veil over the entire page for a screenprint/instrument texture."
+    ],
+    "rules": [
+      { "name": "The One Job Rule", "body": "Every hue in the palette has exactly one fixed role, used identically everywhere it appears (cyan = interactive + City; coral = Room only; lime = Chip only; lavender/pink = single tag roles). Never introduce a new accent hue or repurpose an existing one for a different job.", "section": "colors" },
+      { "name": "The Quiet Metadata Rule", "body": "Any ink tint carrying real content must clear 4.5:1 contrast on its surface. --ink-40 is already tuned to that floor; don't drop metadata opacity below it. --ink-20 is decorative-only.", "section": "colors" },
+      { "name": "The Mono Meta Rule", "body": "Metadata — labels, tags, timestamps, nav, button text, story kickers — is always Space Mono, uppercase, letter-spaced. Content — headings, body copy — is always Space Grotesk. The two never swap roles.", "section": "typography" },
+      { "name": "The Proximity Rule", "body": "Shadow and blur weight tracks how far an element is meant to feel lifted toward the viewer, not whether it happens to overlay something. Resting page content stays flat. The focus dialog holds the deepest shadow as the ceiling.", "section": "elevation" },
+      { "name": "The Completion Chord Rule", "body": "--grad-spectrum (all locked hues in sequence) is reserved for exactly one moment: the hero model tally reaching 10/10, where every layer is provably alive at once (.hero__signals[data-complete] .hero__signals-pips i[data-on] in hero.css). It is the sole exception to the One Job Rule and must stay singular — never as gradient text, never anywhere else.", "section": "colors" }
+    ],
+    "dos": [
+      "Do keep every accent hue locked to its one job (cyan = interactive/City, coral = Room, lime = Chip, lavender = Freelance tag, pink = Passion tag).",
+      "Do route all metadata, labels, tags, and button text through Space Mono, uppercase, letter-spaced.",
+      "Do scale shadow/blur weight to how forward an element is meant to feel, with the focus dialog as the ceiling.",
+      "Do keep quiet-but-informational text at or above --ink-40's measured 4.5:1 contrast floor.",
+      "Do honour prefers-reduced-motion for every animation, camera move, and scroll-driven effect already in the system."
+    ],
+    "donts": [
+      "Don't soften corners back toward the discarded 14px acrylic radius — 2–4px crisp corners are a confirmed, deliberate rejection of that look.",
+      "Don't add ambient shadow to resting, flat page sections; shadow is earned by forward/floating elements only.",
+      "Don't introduce a sixth accent hue or repurpose coral/lime/lavender/pink outside their single locked role.",
+      "Don't use --grad-spectrum anywhere but the 10/10 completion pips, and never as gradient text.",
+      "Don't let any case study depend on the 3D scene to be understood — every case must remain fully readable as plain text/media."
+    ]
+  }
+}
