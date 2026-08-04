@@ -164,19 +164,29 @@ function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig
 // freelance stint if one overlaps at the same spot.
 function bandsAt(bands: CareerBand[], x: number): { main: CareerBand; concurrent?: CareerBand } | null {
   if (!bands.length) return null;
+  // The plane runs a little past the last band (the "now" marker and its
+  // padding), so at either end of the scroll the viewport centre sits outside
+  // every band. Clamp first, so main and concurrent are answering about the same
+  // moment: main falls back to the nearest band, concurrent has no fallback, and
+  // without this the final screen kept the employer but silently dropped the
+  // concurrent stint running alongside it.
+  const lo = Math.min(...bands.map((b) => b.x1));
+  const hi = Math.max(...bands.map((b) => b.x2));
+  const at = Math.min(Math.max(x, lo), hi);
+
   const primary = bands.filter((b) => !b.freelance);
   const pool = primary.length ? primary : bands;
-  let main = pool.find((b) => x >= b.x1 && x <= b.x2);
+  let main = pool.find((b) => at >= b.x1 && at <= b.x2);
   if (!main) {
     main = pool.reduce(
       (best, b) => {
-        const d = Math.abs((b.x1 + b.x2) / 2 - x);
+        const d = Math.abs((b.x1 + b.x2) / 2 - at);
         return d < best.d ? { b, d } : best;
       },
       { b: pool[0], d: Infinity },
     ).b;
   }
-  const concurrent = bands.find((b) => b.freelance && b !== main && x >= b.x1 && x <= b.x2);
+  const concurrent = bands.find((b) => b.freelance && b !== main && at >= b.x1 && at <= b.x2);
   return { main, concurrent };
 }
 
