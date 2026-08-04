@@ -80,12 +80,23 @@
   font-size: 10px;
 }
 /* Hover target that spans a stint's line + label; opens a tooltip about it. */
+/* Hover targets are split at the route line, because concurrent work is drawn
+   below it and would otherwise cover the employers it spans — same strip, and
+   later in the DOM, so it won every hover. The two zones tile the old 56px
+   footprint exactly: everything above the line (the spine and its label) belongs
+   to the employer, everything below (the dashed band and its label) to the
+   concurrent stint. +5px is the gap between the two — clear of the 4px spine,
+   clear of the dashed line at +7px. */
 .tl-seg {
   position: absolute;
   top: calc(50% - 30px);
-  height: 56px;
+  height: 35px;
   z-index: 3;
   cursor: help;
+}
+.tl-seg--free {
+  top: calc(50% + 5px);
+  height: 21px;
 }
 /* When the stint links to the company site, the whole band is a link. */
 .tl-seg--link {

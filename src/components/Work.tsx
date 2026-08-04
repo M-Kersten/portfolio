@@ -540,12 +540,19 @@ export function Work() {
                     </span>
                   );
                   const segStyle = { left: `${b.x1}px`, width: `${b.x2 - b.x1}px`, '--band': b.color } as CSSProperties;
+                  // Concurrent work is drawn under the spine, so its hover target
+                  // sits under it too. Without the split every overlay silently
+                  // ate the hover of the stints it spans — it covers the same
+                  // strip and, being appended to the band list last, lands later
+                  // in the DOM and wins. Above the line reaches the employer,
+                  // below it the concurrent band.
+                  const segClass = `tl-seg${b.freelance ? ' tl-seg--free' : ''}`;
                   return b.url ? (
-                    <a className="tl-seg tl-seg--link" style={segStyle} href={b.url} target="_blank" rel="noreferrer" aria-label={`${b.company} — visit website`}>
+                    <a className={`${segClass} tl-seg--link`} style={segStyle} href={b.url} target="_blank" rel="noreferrer" aria-label={`${b.company} — visit website`}>
                       {tip}
                     </a>
                   ) : (
-                    <div className="tl-seg" style={segStyle}>
+                    <div className={segClass} style={segStyle}>
                       {tip}
                     </div>
                   );
