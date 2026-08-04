@@ -103,15 +103,15 @@ export function CvPage() {
         </header>
 
         <section aria-label={t.profile}>
-          <div className="cv-lbl cv-sec">
+          <h2 className="cv-lbl cv-sec">
             {t.profile} — {years}+ {t.yearsUnit}
-          </div>
+          </h2>
           <p className="cv-profile">{cv.profile}</p>
         </section>
 
         {/* work history — flush-left entries, newest first */}
         <section aria-label={t.experience}>
-          <div className="cv-lbl cv-sec">{t.experience}</div>
+          <h2 className="cv-lbl cv-sec">{t.experience}</h2>
           {career.map((job) => {
             const story = job.detail ?? job.blurb;
             const meta = [job.sector, job.tech?.join(' · ')].filter(Boolean).join('  —  ');
@@ -143,7 +143,7 @@ export function CvPage() {
         </section>
 
         <section aria-label={t.education} className="cv-keep">
-          <div className="cv-lbl cv-sec">{t.education}</div>
+          <h2 className="cv-lbl cv-sec">{t.education}</h2>
           {cv.education.map((e) => (
             <div key={e.school} className="cv-edu">
               {e.from && e.to && (
@@ -163,7 +163,7 @@ export function CvPage() {
 
         {cv.certificates && cv.certificates.length > 0 && (
           <section aria-label={t.certificates}>
-            <div className="cv-lbl cv-sec">{t.certificates}</div>
+            <h2 className="cv-lbl cv-sec">{t.certificates}</h2>
             <ul className="cv-certs">
               {cv.certificates.map((c) => (
                 <li key={c}>{c}</li>
@@ -174,7 +174,7 @@ export function CvPage() {
 
         <div className="cv-extras">
           <section>
-            <div className="cv-lbl">{t.stack}</div>
+            <h2 className="cv-lbl">{t.stack}</h2>
             <ul className="cv-stack">
               {cv.stack.map((s) => (
                 <li key={s}>{s}</li>
@@ -182,7 +182,7 @@ export function CvPage() {
             </ul>
           </section>
           <section>
-            <div className="cv-lbl">{t.languages}</div>
+            <h2 className="cv-lbl">{t.languages}</h2>
             <ul>
               {cv.languages.map((l) => (
                 <li key={l}>{l}</li>
@@ -190,7 +190,7 @@ export function CvPage() {
             </ul>
           </section>
           <section>
-            <div className="cv-lbl">{t.offTheClockLabel}</div>
+            <h2 className="cv-lbl">{t.offTheClockLabel}</h2>
             <ul>
               <li>{cv.offTheClock}</li>
             </ul>
