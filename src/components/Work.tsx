@@ -658,9 +658,13 @@ export function Work() {
                     {(b.role || b.location) && (
                       <span className="tl-now__role">{[b.role, b.location].filter(Boolean).join(' · ')}</span>
                     )}
+                    {/* No suffix: the `freelance` flag really means "runs
+                        alongside", and not every concurrent stint is freelance —
+                        Rebels is an agency the client placements run through.
+                        The leading + and the band's own colour carry it. */}
                     {now.concurrent && (
                       <span className="tl-now__free" style={{ '--band': now.concurrent.color } as CSSProperties}>
-                        + {now.concurrent.company} · freelance
+                        + {now.concurrent.company}
                       </span>
                     )}
                   </span>
