@@ -87,9 +87,13 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
 const ROOFS = ['plant', 'setback'] as const;
 type Roof = (typeof ROOFS)[number];
 
-/** Podium and parapet heights. */
+/** The podium's height. There was a parapet band above the shaft too, and it had
+ *  to go: untraced (see the podium) it was a wider, brighter slab with no edge
+ *  tying it to anything, so it read as a shelf floating above the shaft's top
+ *  wireframe with a gap beneath — and tracing it was what made the silhouette
+ *  unreadable in the first place. Its job was to give the block a crisp top line,
+ *  which the top face of the shaft's own outline already does. */
 const PLINTH_H = 0.045;
-const PARAPET_H = 0.016;
 /** The shaft's height: the setback roof gives its top slice to a narrower crown. */
 const shaftOf = (h: number, roof: Roof) => (roof === 'setback' ? h - 0.075 : h);
 
@@ -245,26 +249,20 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
         <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.3} wake={wake} />
         <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
-      {/* parapet — the brow that gives the block a crisp top line against the sky
-          (untraced, for the reason given at the podium) */}
-      <mesh position={[0, PLINTH_H + shaftH + PARAPET_H / 2, 0]}>
-        <boxGeometry args={[w + 0.006, PARAPET_H, d + 0.006]} />
-        <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.42} wake={wake} />
-      </mesh>
-      {/* …and what sits on it, so the blocks stop reading as one object placed
-          six times. Centred and squared up rather than nudged off-axis: an
-          off-centre roof unit adds a second silhouette to read at a scale where
-          there isn't room for one. */}
+      {/* What sits on the roof, straight onto the shaft, so the blocks stop
+          reading as one object placed six times. Centred and squared up rather
+          than nudged off-axis: an off-centre roof unit adds a second silhouette
+          to read at a scale where there isn't room for one. */}
       {roof === 'plant' && (
         // rooftop plant: the lift overrun / air handler every flat roof carries
-        <mesh position={[0, PLINTH_H + shaftH + PARAPET_H + 0.019, 0]}>
+        <mesh position={[0, PLINTH_H + shaftH + 0.019, 0]}>
           <boxGeometry args={[w * 0.44, 0.038, d * 0.44]} />
           <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.44} wake={wake} />
         </mesh>
       )}
       {roof === 'setback' && (
-        // a narrower crown stepped back from the parapet — a stepped tower
-        <mesh position={[0, PLINTH_H + shaftH + PARAPET_H + 0.037, 0]}>
+        // a narrower crown stepped back from the roofline — a stepped tower
+        <mesh position={[0, PLINTH_H + shaftH + 0.037, 0]}>
           <boxGeometry args={[w * 0.62, 0.075, d * 0.62]} />
           <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.3} wake={wake} />
           <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
