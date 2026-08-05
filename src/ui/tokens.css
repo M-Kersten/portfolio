@@ -64,10 +64,12 @@
   --model-mid: #2a3340;
   --model-deep: #1a212a;
 
-  /* ---- Signature gradients ---- */
-  --grad-cyan-lavender: linear-gradient(105deg, #27e8f2, #a89eff);
-  --grad-cyan-lime: linear-gradient(105deg, #27e8f2, #a9f75c);
-  --grad-orange-pink: linear-gradient(105deg, #ff9068, #ff74b0);
+  /* ---- The completion gradient ----
+     One signature gradient, reserved for one moment: all locked hues appear
+     together only when the model tally hits 10/10 (see .hero__signals-pips
+     in hero.css) — the single point where "every layer is alive" is literally
+     true. Nowhere else mixes hues; that's what makes this one moment read as
+     earned rather than decorative. */
   --grad-spectrum: linear-gradient(105deg, #27e8f2 0%, #a89eff 42%, #ff9068 74%, #a9f75c 100%);
 
   /* ---- Textures (reusable backgrounds) ----

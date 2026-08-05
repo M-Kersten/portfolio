@@ -280,6 +280,12 @@
   background: var(--accent);
   box-shadow: 0 0 6px var(--accent-glow);
 }
+/* 10/10 — every layer proven alive at once. The one moment the locked
+   per-layer hues appear together, on the pips that earned it. */
+.hero__signals[data-complete] .hero__signals-pips i[data-on] {
+  background: var(--grad-spectrum);
+  box-shadow: 0 0 6px rgba(168, 158, 255, 0.45);
+}
 .hero__signals-label {
   font-family: var(--font-mono);
   font-size: var(--step--1);

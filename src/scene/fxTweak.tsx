@@ -70,7 +70,7 @@ export const FX_DEFAULTS: FxConfig = {
   "bloomSmoothing": 0,
   "bloomRadius": 0,
   "contrast": 0.08,
-  "vignetteOffset": 0.41,
+  "vignetteOffset": 0.1,
   "vignetteDarkness": 0.89,
   "scanlineDensity": 2.45,
   "scanlineOpacity": 0.1,

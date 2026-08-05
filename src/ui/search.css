@@ -43,7 +43,7 @@
   background: var(--paper);
   border: 1px solid var(--line);
   border-bottom-width: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius-s);
   padding: 0.2em 0.42em;
 }
 .find:hover .find__key,
@@ -116,7 +116,7 @@
   color: var(--ink-40);
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 3px;
+  border-radius: var(--radius-s);
   padding: 0.28em 0.5em;
   cursor: pointer;
   transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
@@ -247,7 +247,7 @@
   color: var(--ink-60);
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 3px;
+  border-radius: var(--radius-s);
   padding: 0.12em 0.36em;
   margin-right: 0.1rem;
 }
