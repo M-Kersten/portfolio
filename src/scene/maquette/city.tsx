@@ -5,7 +5,7 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html } from '@react-three/drei';
-import { AdditiveBlending, Box3, BufferAttribute, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, LineBasicMaterial, Matrix4, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
 import { launchTrack, sceneStore, useSceneSelector } from '../store';
@@ -222,13 +222,20 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
   return (
     <group position={[x, 0, z]}>
       <BlobShadow position={[0, 0.004, 0]} radius={Math.max(w, d) * 0.95} opacity={0.4} />
-      {/* podium — the ground floor, stepped out to meet the pavement. The step
-          is small on purpose: these shafts are only ~0.15 across, so an overhang
-          that looked modest in the numbers read as a tabletop in the frame. */}
+      {/* Podium — the ground floor, stepped out to meet the pavement. The step is
+          small on purpose: these shafts are only ~0.15 across, so an overhang
+          that looked modest in the numbers read as a tabletop in the frame.
+
+          No outline, and neither has the parapet below. The shaft's wireframe IS
+          the building's drawing; wrapping a second and third box in their own
+          full set of edges took a block from 12 lines to nearly 40, and at this
+          scale that much linework stops describing a silhouette and starts
+          obscuring it. A band a millimetre or two proud of the shaft reads as a
+          step from its fill and its own edge-on silhouette alone — it doesn't
+          need to be traced. */}
       <mesh position={[0, PLINTH_H / 2, 0]}>
         <boxGeometry args={[w + 0.009, PLINTH_H, d + 0.009]} />
         <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.36} wake={wake} />
-        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
       <mesh position={[0, PLINTH_H + shaftH / 2, 0]}>
         <boxGeometry args={[w, shaftH, d]} />
@@ -238,11 +245,11 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
         <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.3} wake={wake} />
         <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
-      {/* parapet — the brow that gives the block a crisp top line against the sky */}
+      {/* parapet — the brow that gives the block a crisp top line against the sky
+          (untraced, for the reason given at the podium) */}
       <mesh position={[0, PLINTH_H + shaftH + PARAPET_H / 2, 0]}>
         <boxGeometry args={[w + 0.006, PARAPET_H, d + 0.006]} />
         <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.42} wake={wake} />
-        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
       {/* …and what sits on it, so the blocks stop reading as one object placed
           six times. Centred and squared up rather than nudged off-axis: an
@@ -274,17 +281,25 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
 
 /** The low fringe between the city grid and its neighbours.
  *
- *  The grid used to stop at ±0.9 and the ground was simply empty from there to
- *  the windmill, the park and the launch site — so those three read as separate
+ *  The grid stops at ±0.9 and the ground was simply empty from there to the
+ *  windmill, the park and the launch site — so those three read as separate
  *  models parked on a shared floor rather than as the edges of one town. This
  *  fills that gap the way a real outskirt does: low buildings on jittered rings,
  *  shorter and sparser the further out they sit, stopping short of every
  *  neighbour's own ground so each still has its clearing.
  *
- *  Two draw calls for the lot. The bodies ride one instanced box, and the
- *  wireframes are baked into a single lineSegments buffer with each box's edges
- *  already transformed — the outline has to be there (it's the layer's whole
- *  drawing language) but twenty <Edges> would have cost twenty more. */
+ *  ABSENT UNTIL THE CITY IS WOKEN. Standing there at rest they were another
+ *  dozen glass boxes behind an already-busy skyline of glass boxes, and the
+ *  silhouette that has to carry the hero shot is the seven towers, not the
+ *  scenery behind them. Arriving on the tail of the tower's ramp they do the
+ *  same job with none of that cost, and they read better for it: the wave that
+ *  travels out from the tower now visibly extends the town rather than just
+ *  hardening what was already drawn.
+ *
+ *  Two draw calls, both idle while hidden. The bodies ride one instanced box and
+ *  the contact pools one instanced disc; there is no wireframe, because a fringe
+ *  that only ever appears already-lit never passes through the sketch stage the
+ *  outlines exist to draw. */
 const FRINGE_SEED = 5501;
 /** Angular span of the fringe: the back half plus both flanks. The front is left
  *  clear — the curved road, the hero copy and the room layer showing through the
@@ -385,55 +400,36 @@ function Outskirts({ clear, blocks }: { clear: V3[][]; blocks: { x: number; z: n
     sh.computeBoundingSphere();
   }, [plots]);
 
-  // One buffer holding every box's twelve edges, already placed. Built off the
-  // same plot list, so the outlines can't drift out of register with the bodies.
-  const wire = useMemo(() => {
-    const verts: number[] = [];
-    const c = new Vector3();
-    const push = (b: (typeof plots)[number], ax: number, ay: number, az: number, bx: number, by: number, bz: number) => {
-      const cos = Math.cos(b.yaw);
-      const sin = Math.sin(b.yaw);
-      for (const [px, py, pz] of [[ax, ay, az], [bx, by, bz]] as const) {
-        c.set(px * b.w, py * b.h, pz * b.d);
-        verts.push(b.x + c.x * cos + c.z * sin, c.y + b.h / 2, b.z - c.x * sin + c.z * cos);
-      }
-    };
-    for (const b of plots) {
-      for (const y of [-0.5, 0.5])
-        for (const [ax, az, bx, bz] of [[-0.5, -0.5, 0.5, -0.5], [0.5, -0.5, 0.5, 0.5], [0.5, 0.5, -0.5, 0.5], [-0.5, 0.5, -0.5, -0.5]] as const)
-          push(b, ax, y, az, bx, y, bz);
-      for (const [cx, cz] of [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]] as const) push(b, cx, -0.5, cz, cx, 0.5, cz);
-    }
-    return new Float32Array(verts);
-  }, [plots]);
-
-  // The fringe wakes on the tail of the city's ramp — the wave of lights and
+  // The fringe arrives on the tail of the city's ramp — the wave of lights and
   // solidifying glass travels outward from the tower, and this is where it ends.
+  const group = useRef<Group>(null);
   const wake = useRef(0);
-  const lineMat = useRef<LineBasicMaterial>(null);
+  const shadowMat = useRef<MeshBasicMaterial>(null);
   const presence = useContext(PresenceCtx);
   useFrame(() => {
     wake.current = staggered(bodyLevel.k, 1); // delay 1: the outermost beat
-    // …and its outline retires as it solidifies, exactly as LiveEdges does.
-    if (lineMat.current) lineMat.current.opacity = 0.55 * (1 - wake.current) * presence.current;
+    // Hidden outright below the threshold rather than merely transparent, so a
+    // resting city pays nothing at all for scenery it isn't showing — and so the
+    // fringe can't fog the towers behind it while it's meant to be absent.
+    if (group.current) group.current.visible = wake.current > 0.01;
+    // The pools come up with the bodies; a contact shadow arriving before the
+    // thing casting it reads as a stain on the floor.
+    if (shadowMat.current) shadowMat.current.opacity = 0.34 * wake.current * presence.current;
   });
   if (plots.length === 0) return null;
   return (
-    <group>
+    <group ref={group} visible={false}>
       <instancedMesh ref={shadows} args={[undefined, undefined, plots.length]} renderOrder={-1}>
         <circleGeometry args={[1, 20]} />
-        <meshBasicMaterial userData={{ lifeSkip: true }} map={shadowTex} transparent opacity={0.34} depthWrite={false} />
+        <meshBasicMaterial ref={shadowMat} userData={{ lifeSkip: true }} map={shadowTex} transparent opacity={0} depthWrite={false} />
       </instancedMesh>
+      {/* opacity={0} at rest: with ghost={false} that's LiveGlassMat's floor, so
+          the boxes ramp from nothing to solid instead of fading up from a ghost
+          — they're arriving, not waking. */}
       <instancedMesh ref={bodies} args={[undefined, undefined, plots.length]}>
         <boxGeometry args={[1, 1, 1]} />
-        <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.26} wake={wake} />
+        <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0} wake={wake} />
       </instancedMesh>
-      <lineSegments>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[wire, 3]} />
-        </bufferGeometry>
-        <lineBasicMaterial ref={lineMat} color={NEUTRAL} transparent opacity={0.55} depthWrite={false} userData={{ lifeSkip: true }} />
-      </lineSegments>
     </group>
   );
 }
