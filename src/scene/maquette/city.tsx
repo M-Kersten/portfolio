@@ -80,27 +80,73 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
 /* ---------- shape helpers ---------- */
 /** How each block finishes at the top. Six identical extruded boxes read as one
  *  object repeated, so the roofline is where the variety has to come from — it's
- *  the only part of a tall thin slab you actually see against the sky. */
-const ROOFS = ['plant', 'setback', 'mast'] as const;
+ *  the only part of a tall thin slab you actually see against the sky. Two kinds,
+ *  not three: a slim aerial mast was the third, and a scatter of thin spikes over
+ *  the skyline read as noise next to the tower's own — which should be the only
+ *  spire on the layer. */
+const ROOFS = ['plant', 'setback'] as const;
 type Roof = (typeof ROOFS)[number];
 
-/** Podium and parapet heights. Module-level because OccupiedWindows lights panes
- *  on these same facades and has to sit on the same grid — it used to place them
- *  from its own copy of the row maths, which drifted the moment the shaft stopped
- *  starting at y=0. */
+/** Podium and parapet heights. */
 const PLINTH_H = 0.045;
 const PARAPET_H = 0.016;
-/** Where a building's window grid starts, how far apart the rows are, and the
- *  column offsets — the one definition both grids read. */
-const WIN_Y0 = PLINTH_H + 0.09;
-const WIN_ROW = 0.11;
-const winCols = (w: number) => (w > 0.155 ? [-1, 0, 1] : [-1, 1]);
 /** The shaft's height: the setback roof gives its top slice to a narrower crown. */
 const shaftOf = (h: number, roof: Roof) => (roof === 'setback' ? h - 0.075 : h);
-const winRows = (h: number, roof: Roof) => Math.max(1, Math.floor((shaftOf(h, roof) - 0.06) / WIN_ROW));
+
+/** The facade module — one pane, and the pitch it repeats on, in world units and
+ *  identical on every block.
+ *
+ *  Deriving the pane and its spacing from each building's own width (the first
+ *  pass did: panes at ±0.26w, width 0.22w) meant a 0.13 block and a 0.18 block
+ *  wore differently-sized windows on differently-sized gaps, and standing side by
+ *  side that reads as sloppy rather than as variety. A fixed module is how a real
+ *  curtain wall works and it's what makes the skyline look drawn rather than
+ *  generated. */
+const PANE: [number, number] = [0.034, 0.05];
+const BAY = 0.058; // horizontal pitch
+const WIN_ROW = 0.11; // vertical pitch
+// floor, not round: rounding up fitted a third bay onto the widest block and
+// left its outer panes 0.013 off the corner while every other block sat at
+// 0.02–0.04, which is exactly the kind of near-miss that reads as uneven.
+// Flooring keeps the corner margin at or above the gap between panes.
+const bays = (width: number) => Math.max(2, Math.floor((width - 0.03) / BAY));
+
+/** Every window position on a block of this size: the y of each row and the
+ *  offset of each bay along both axes.
+ *
+ *  The rows are centred in the band between podium and parapet rather than
+ *  started at a fixed height and cut off by whatever the shaft had left. That was
+ *  the other half of the unevenness: at a fixed y0 the leftover gap under the
+ *  parapet came out anywhere from 0.08 to 0.16 depending on the block, so some
+ *  towers had windows crowding their brow and others a blank storey below it.
+ *  Centring makes the top and bottom margins equal on every one, and the pitch
+ *  stays a flat 0.11 so neighbouring blocks line up floor for floor.
+ *
+ *  Shared with OccupiedWindows, which lights a few panes at rest and has to land
+ *  exactly on a slot — a lit pane that misses by a millimetre reads as a smear on
+ *  the glass rather than as somebody's light being on. */
+function facade(w: number, d: number, h: number, roof: Roof) {
+  const bot = PLINTH_H + 0.03;
+  const avail = PLINTH_H + shaftOf(h, roof) - 0.03 - bot;
+  const rows = Math.max(1, Math.floor(avail / WIN_ROW));
+  const y0 = bot + (avail - rows * WIN_ROW) / 2 + WIN_ROW / 2;
+  const spread = (n: number) => Array.from({ length: n }, (_, i) => (i - (n - 1) / 2) * BAY);
+  return {
+    ys: Array.from({ length: rows }, (_, r) => y0 + r * WIN_ROW),
+    xs: spread(bays(w)),
+    zs: spread(bays(d)),
+  };
+}
+
+/** A block's own slice of the city-wide ramp — its beat in the wave that travels
+ *  outward from the tower (`delay` is its distance from it). */
+function staggered(level: number, delay: number) {
+  const raw = (level - delay * WIN_STAGGER) / (1 - WIN_STAGGER);
+  return raw <= 0 ? 0 : raw >= 1 ? 1 : raw;
+}
 
 /** A square diorama building (glass fill, neutral edges): a podium at the
- *  pavement, the shaft, a parapet cap and one of three rooflines. When given a
+ *  pavement, the shaft, a parapet cap and one of two rooflines. When given a
  *  shared `winMat`, it grows a grid of windows on all four sides that light up
  *  when the town hall is hovered. */
 function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: number; z: number; w: number; d: number; h: number; winMat?: MeshStandardMaterial; delay?: number; roof?: Roof }) {
@@ -109,32 +155,29 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
   // pushed through the ground — which is what read as "unfinished" at this
   // scale far more than any amount of facade detail would.
   const shaftH = shaftOf(h, roof);
-  // Every window shares one material and one unit-plane geometry, so the whole
-  // grid collapses into a single instanced draw call instead of one mesh per
-  // pane (a tall tower is ~40 panes). Position, facing and size are baked into
-  // each instance's matrix.
+  // Every window shares one material and one plane geometry — and now one SIZE,
+  // so the pane is baked into the geometry and each instance's matrix carries
+  // only where it sits and which way it faces. The whole grid is a single
+  // instanced draw call rather than one mesh per pane (a tall block is ~30).
   const windows = useMemo(() => {
-    if (!winMat) return [] as { p: V3; ry: number; s: [number, number] }[];
-    const out: { p: V3; ry: number; s: [number, number] }[] = [];
-    const rows = winRows(h, roof);
-    // A third pane down the middle once a face is wide enough to carry it —
-    // free, since they all ride the one instanced mesh.
-    const cols = winCols(w);
-    for (let r = 0; r < rows; r++) {
-      const yy = WIN_Y0 + r * WIN_ROW;
-      if (yy > PLINTH_H + shaftH - 0.05) break;
-      for (const c of cols) {
-        // All four faces, not just the two facing front-right. The city is seen
-        // from both sides of the hero (the rig parallaxes with the cursor) and
-        // from the far left every block turned its blank back to the camera.
-        out.push({ p: [c * w * 0.26, yy, d / 2 + 0.004], ry: 0, s: [w * 0.22, 0.05] });
-        out.push({ p: [c * w * 0.26, yy, -d / 2 - 0.004], ry: Math.PI, s: [w * 0.22, 0.05] });
-        out.push({ p: [w / 2 + 0.004, yy, c * d * 0.26], ry: Math.PI / 2, s: [d * 0.22, 0.05] });
-        out.push({ p: [-w / 2 - 0.004, yy, c * d * 0.26], ry: -Math.PI / 2, s: [d * 0.22, 0.05] });
+    if (!winMat) return [] as { p: V3; ry: number }[];
+    const out: { p: V3; ry: number }[] = [];
+    const { ys, xs, zs } = facade(w, d, h, roof);
+    for (const yy of ys) {
+      // All four faces, not just the two facing front-right. The city is seen
+      // from both sides of the hero (the rig parallaxes with the cursor) and
+      // from the far left every block turned its blank back to the camera.
+      for (const cx of xs) {
+        out.push({ p: [cx, yy, d / 2 + 0.004], ry: 0 });
+        out.push({ p: [cx, yy, -d / 2 - 0.004], ry: Math.PI });
+      }
+      for (const cz of zs) {
+        out.push({ p: [w / 2 + 0.004, yy, cz], ry: Math.PI / 2 });
+        out.push({ p: [-w / 2 - 0.004, yy, cz], ry: -Math.PI / 2 });
       }
     }
     return out;
-  }, [w, d, h, roof, shaftH, winMat]);
+  }, [w, d, h, roof, winMat]);
   const winRef = useRef<InstancedMesh>(null);
   useLayoutEffect(() => {
     const im = winRef.current;
@@ -143,12 +186,11 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
     const q = new Quaternion();
     const e = new Euler();
     const p = new Vector3();
-    const s = new Vector3();
+    const one = new Vector3(1, 1, 1);
     windows.forEach((win, i) => {
       p.set(win.p[0], win.p[1], win.p[2]);
       q.setFromEuler(e.set(0, win.ry, 0));
-      s.set(win.s[0], win.s[1], 1);
-      im.setMatrixAt(i, mtx.compose(p, q, s));
+      im.setMatrixAt(i, mtx.compose(p, q, one));
     });
     im.instanceMatrix.needsUpdate = true;
     im.computeBoundingSphere(); // so building-level frustum culling stays correct
@@ -167,15 +209,9 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
   // a block turns solid on the beat its own lights come up rather than the whole
   // skyline hardening at once. Written every frame, read by LiveGlassMat/LiveEdges.
   const wake = useRef(0);
-  // this building's slice of a city-wide ramp — its own beat in the wave that
-  // travels outward from the tower (`delay` is its distance from it)
-  const staggered = (level: number) => {
-    const raw = (level - delay * WIN_STAGGER) / (1 - WIN_STAGGER);
-    return raw <= 0 ? 0 : raw >= 1 ? 1 : raw;
-  };
   useFrame((s) => {
-    wake.current = staggered(bodyLevel.k); // body + edges: select, not hover
-    const g = staggered(winLevel.k); // windows: hover lights them too
+    wake.current = staggered(bodyLevel.k, delay); // body + edges: select, not hover
+    const g = staggered(winLevel.k, delay); // windows: hover lights them too
     if (!mat) return; // a building with no window grid still solidifies
     const t = s.clock.elapsedTime;
     // the flicker is offset per building too, so they don't all shimmer in step
@@ -208,12 +244,14 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
         <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.42} wake={wake} />
         <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
-      {/* …and what sits on it. One roofline each, so the six blocks stop reading
-          as the same object placed six times. */}
+      {/* …and what sits on it, so the blocks stop reading as one object placed
+          six times. Centred and squared up rather than nudged off-axis: an
+          off-centre roof unit adds a second silhouette to read at a scale where
+          there isn't room for one. */}
       {roof === 'plant' && (
         // rooftop plant: the lift overrun / air handler every flat roof carries
-        <mesh position={[w * 0.14, PLINTH_H + shaftH + PARAPET_H + 0.022, -d * 0.12]}>
-          <boxGeometry args={[w * 0.42, 0.044, d * 0.36]} />
+        <mesh position={[0, PLINTH_H + shaftH + PARAPET_H + 0.019, 0]}>
+          <boxGeometry args={[w * 0.44, 0.038, d * 0.44]} />
           <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.44} wake={wake} />
         </mesh>
       )}
@@ -225,16 +263,9 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
           <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
         </mesh>
       )}
-      {roof === 'mast' && (
-        // a slim aerial mast — the same neutral metal as the tower's own
-        <mesh position={[w * 0.2, PLINTH_H + shaftH + PARAPET_H + 0.05, d * 0.16]}>
-          <cylinderGeometry args={[0.0035, 0.0035, 0.1, 6]} />
-          <meshStandardMaterial color={NEUTRAL} metalness={0.6} roughness={0.4} transparent opacity={0.8} />
-        </mesh>
-      )}
       {windows.length > 0 && mat && (
         <instancedMesh ref={winRef} args={[undefined, undefined, windows.length]} material={mat}>
-          <planeGeometry args={[1, 1]} />
+          <planeGeometry args={PANE} />
         </instancedMesh>
       )}
     </group>
@@ -296,8 +327,10 @@ function Outskirts({ clear, blocks }: { clear: V3[][]; blocks: { x: number; z: n
       const r0 = 0.95 + ring * 0.25;
       // Candidates, not plots: the mill, the park and the pad each claim a wide
       // berth and most of a ring's arc lands inside one of them, so roughly half
-      // of these are rejected below.
-      const n = 19 - ring * 5; // sparser the further out
+      // of these are rejected below. Kept deliberately thin — the fringe is here
+      // to carry the density outward, and past about a dozen plots it stops
+      // reading as an edge and starts reading as clutter behind the skyline.
+      const n = 12 - ring * 4; // sparser the further out
       for (let i = 0; i < n; i++) {
         const a = FRINGE_A0 + ((i + 0.5) / n) * (FRINGE_A1 - FRINGE_A0) + (rnd() - 0.5) * 0.2;
         const r = r0 + (rnd() - 0.5) * 0.2;
@@ -380,8 +413,7 @@ function Outskirts({ clear, blocks }: { clear: V3[][]; blocks: { x: number; z: n
   const lineMat = useRef<LineBasicMaterial>(null);
   const presence = useContext(PresenceCtx);
   useFrame(() => {
-    const raw = (bodyLevel.k - WIN_STAGGER) / (1 - WIN_STAGGER);
-    wake.current = raw <= 0 ? 0 : raw >= 1 ? 1 : raw;
+    wake.current = staggered(bodyLevel.k, 1); // delay 1: the outermost beat
     // …and its outline retires as it solidifies, exactly as LiveEdges does.
     if (lineMat.current) lineMat.current.opacity = 0.55 * (1 - wake.current) * presence.current;
   });
@@ -1123,7 +1155,16 @@ function TransformerHouse({ position }: { position: V3 }) {
   }, []);
   useEffect(() => () => capMat.dispose(), [capMat]);
   const k = useRef(0.12);
+  // The house solidifies with the city, on its own beat in the wave out from the
+  // tower, exactly as the blocks do. It didn't before — it wore plain GlassMat
+  // and plain Edges, so once the skyline (and now the outskirts) had hardened it
+  // was the one thing left standing as a wireframe, which read as a piece that
+  // had been forgotten rather than as a prop. Its distance from the tower is the
+  // same `delay` the blocks derive theirs from.
+  const wake = useRef(0);
+  const delay = Math.min(1, Math.hypot(position[0], position[2]) / 0.85);
   useFrame((s) => {
+    wake.current = staggered(bodyLevel.k, delay);
     // rest to a faint smoulder; brighten with the grid (hover < visited < live/complete)
     const kT = selected || complete ? 1 : hovered ? 0.7 : visited ? 0.42 : 0.12;
     k.current += (kT - k.current) * 0.08;
@@ -1136,11 +1177,13 @@ function TransformerHouse({ position }: { position: V3 }) {
   return (
     <group position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={Math.max(TRAFO_W, TRAFO_D) * 0.85} opacity={0.42} />
-      {/* body — the same quiet frosted glass as the buildings */}
+      {/* body — the same quiet frosted glass as the buildings, and it hardens
+          with them (ghost={false}: a prop rests as its own glass, it isn't a
+          hotspot ghost waiting to be found) */}
       <mesh position={[0, TRAFO_H / 2, 0]}>
         <boxGeometry args={[TRAFO_W, TRAFO_H, TRAFO_D]} />
-        <GlassMat opacity={0.34} />
-        <Edges threshold={20} color={NEUTRAL} />
+        <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.34} wake={wake} />
+        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
       {/* overhanging flat roof — the trafohuisje signature. Wears the body's own
           glass: a lighter grey at higher opacity made the slab the brightest thing
@@ -1150,7 +1193,9 @@ function TransformerHouse({ position }: { position: V3 }) {
       <mesh position={[0, TRAFO_H + 0.007, 0]}>
         <boxGeometry args={[TRAFO_W + 0.03, 0.014, TRAFO_D + 0.03]} />
         <meshStandardMaterial color="#16232c" roughness={0.1} metalness={0.7} transparent opacity={0.82}/>
-        <Edges threshold={20} color={NEUTRAL} />
+        {/* the slab itself is already near-solid metal, but its outline has to
+            retire with the body's or the roof keeps a wireframe the walls lost */}
+        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
       {/* door on the camera-facing (+z) face */}
       <mesh position={[-TRAFO_W * 0.2, TRAFO_H * 0.44, TRAFO_D / 2 + 0.002]}>
@@ -1728,18 +1773,17 @@ function OccupiedWindows({ buildings }: { buildings: { x: number; z: number; w: 
   const mats = useRef<(MeshStandardMaterial | null)[]>([]);
   const wins = useMemo(() => {
     const rnd = makeRand(4231);
-    const out: { p: V3; ry: number; s: number; lvl: number; spd: number; ph: number; wink: boolean }[] = [];
+    const out: { p: V3; ry: number; lvl: number; spd: number; ph: number; wink: boolean }[] = [];
     buildings.forEach((b, i) => {
       if (i % 3 === 1) return; // only some buildings are occupied
-      // Snapped to the facade grid (shared WIN_* / winCols), not floated near it:
-      // a lit pane that misses its slot by a few millimetres reads as a smear on
-      // the glass rather than as somebody's light being on.
-      const yy = WIN_Y0 + Math.floor(rnd() * winRows(b.h, b.roof)) * WIN_ROW;
+      // Snapped to a real slot on the shared facade grid, not floated near one.
+      const { ys, xs, zs } = facade(b.w, b.d, b.h, b.roof);
+      const yy = ys[Math.floor(rnd() * ys.length)];
       const front = rnd() > 0.4; // camera-facing +Z (front) or +X (side) face
-      const cols = winCols(b.w);
+      const cols = front ? xs : zs;
       const c = cols[Math.floor(rnd() * cols.length)];
-      const p: V3 = front ? [b.x + c * b.w * 0.26, yy, b.z + b.d / 2 + 0.006] : [b.x + b.w / 2 + 0.006, yy, b.z + c * b.d * 0.26];
-      out.push({ p, ry: front ? 0 : Math.PI / 2, s: (front ? b.w : b.d) * 0.22, lvl: 0.5 + rnd() * 0.5, spd: 0.3 + rnd() * 0.4, ph: rnd() * 6.28, wink: rnd() < 0.4 });
+      const p: V3 = front ? [b.x + c, yy, b.z + b.d / 2 + 0.006] : [b.x + b.w / 2 + 0.006, yy, b.z + c];
+      out.push({ p, ry: front ? 0 : Math.PI / 2, lvl: 0.5 + rnd() * 0.5, spd: 0.3 + rnd() * 0.4, ph: rnd() * 6.28, wink: rnd() < 0.4 });
     });
     return out;
   }, [buildings]);
@@ -1758,7 +1802,7 @@ function OccupiedWindows({ buildings }: { buildings: { x: number; z: number; w: 
     <group>
       {wins.map((w, i) => (
         <mesh key={i} position={w.p} rotation={[0, w.ry, 0]}>
-          <planeGeometry args={[w.s, 0.05]} />
+          <planeGeometry args={PANE} />
           <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={accent} emissive={accent} emissiveIntensity={w.lvl * 0.5} transparent opacity={0.92} roughness={0.4} toneMapped={false} depthWrite={false} />
         </mesh>
       ))}
