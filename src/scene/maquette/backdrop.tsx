@@ -201,7 +201,10 @@ export function PointCloud({ seed, life = 0 }: { seed: number; life?: number }) 
    sit ON their floor instead of hovering over it. One shared radial texture;
    every blob is a cheap transparent disc — no real shadow rendering. */
 let blobTex: CanvasTexture | null = null;
-function blobShadowTexture() {
+/** Exported so a cluster with too many objects to give each its own <BlobShadow>
+ *  (the city's outskirts) can pool them into one instanced disc off this texture
+ *  and still sit on the floor rather than hover over it. */
+export function blobShadowTexture() {
   if (blobTex) return blobTex;
   const c = document.createElement('canvas');
   c.width = c.height = 64;
