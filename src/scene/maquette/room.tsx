@@ -56,7 +56,11 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
     g.translate(0, 0, -d / 2);
     return g;
   }, [args]);
-  const screenGeo = useMemo(() => roundedPlaneGeometry(args[0] * 0.84, args[1] * 0.9, Math.min(args[0], args[1]) * 0.16), [args]);
+  // Bezels: 0.84 × 0.90 of the body left a chin and forehead wide enough to date
+  // the handset to about 2016. 0.93 × 0.955 puts the glass close to the edge the
+  // way a current phone does, and the corner radius rises with it so the screen
+  // still follows the body's own curve rather than cutting across it.
+  const screenGeo = useMemo(() => roundedPlaneGeometry(args[0] * 0.93, args[1] * 0.955, Math.min(args[0], args[1]) * 0.19), [args]);
   useEffect(() => {
     return () => {
       bodyGeo.dispose();
@@ -181,6 +185,34 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
         <mesh geometry={screenGeo} position={[0, 0, args[2] * 0.9 + 0.0006]}>
           <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={true} side={DoubleSide} />
         </mesh>
+        {/* Side hardware — a volume rocker and a longer power key opposite it.
+            They sit a hair proud of the body's bevel so they catch their own
+            highlight; without them the handset is a blank lozenge from every
+            angle but straight on. `lifeSkip` keeps them off the life system's
+            ghost lerp, matching the screen. */}
+        {([
+          [-1, args[1] * 0.20, args[1] * 0.17], // volume rocker, upper left
+          [-1, args[1] * -0.03, args[1] * 0.09], // second volume key
+          [1, args[1] * 0.10, args[1] * 0.20], // power, upper right and longer
+        ] as [number, number, number][]).map(([side, y, len], i) => (
+          <mesh key={i} position={[side * (args[0] / 2 + args[2] * 0.28), y, 0]}>
+            <boxGeometry args={[args[2] * 0.7, len, args[2] * 1.5]} />
+            <meshStandardMaterial
+              userData={{ lifeSkip: true }}
+              color={accent}
+              emissive={accent}
+              emissiveIntensity={0.16}
+              roughness={0.3}
+              metalness={0.25}
+              toneMapped={false}
+            />
+          </mesh>
+        ))}
+        {/* camera bump — the other thing that dates a phone, on the back */}
+        <mesh position={[args[0] * 0.26, args[1] * 0.3, -args[2] * 1.1]}>
+          <boxGeometry args={[args[0] * 0.34, args[1] * 0.17, args[2] * 0.5]} />
+          <meshStandardMaterial userData={{ lifeSkip: true }} color="#0d151c" roughness={0.35} metalness={0.3} toneMapped={false} />
+        </mesh>
       </group>
       {balls.map((b, i) => (
         <mesh
@@ -257,34 +289,83 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
 
 // A tiny race car for the Lightship Drive AR table — chassis, nose, cabin, a
 // rear wing and four wheels — pointing along its local +z (its heading).
+/** An open-wheel racer. This is the object under the tightest camera in the whole
+ *  maquette (lightship-drive frames at fovZoom 30), so it carries the detail
+ *  that zoom asks for: a tapered nose, a raised airbox behind the cockpit, a
+ *  rear wing on endplates, and wheels with a visible rim face. It used to be
+ *  four axis-aligned boxes, which at that framing read as a doorstop. */
 function RaceCar({ color }: { color: string }) {
+  const body = (
+    <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} roughness={0.35} metalness={0.15} toneMapped={false} />
+  );
   return (
     <group>
-      <mesh position={[0, 0.007, -0.002]}>
-        <boxGeometry args={[0.03, 0.012, 0.06]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} roughness={0.4} metalness={0.1} toneMapped={false} />
+      {/* floor pan — the widest part, sitting low between the wheels */}
+      <mesh position={[0, 0.004, -0.002]}>
+        <boxGeometry args={[0.03, 0.005, 0.062]} />
+        {body}
       </mesh>
-      {/* nose */}
-      <mesh position={[0, 0.005, 0.032]}>
-        <boxGeometry args={[0.024, 0.008, 0.018]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} roughness={0.4} toneMapped={false} />
+      {/* central tub, narrower than the floor so the pan shows as a lip */}
+      <mesh position={[0, 0.01, -0.004]}>
+        <boxGeometry args={[0.022, 0.011, 0.05]} />
+        {body}
       </mesh>
-      {/* cabin / windscreen */}
-      <mesh position={[0, 0.017, -0.004]}>
-        <boxGeometry args={[0.022, 0.012, 0.026]} />
-        <meshStandardMaterial color="#0b1418" emissive={color} emissiveIntensity={0.12} roughness={0.25} toneMapped={false} />
+      {/* nose cone — tapers to a point ahead of the front axle */}
+      <mesh position={[0, 0.0085, 0.038]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.004, 0.011, 0.03, 4]} />
+        {body}
       </mesh>
-      {/* rear wing */}
-      <mesh position={[0, 0.016, -0.03]}>
-        <boxGeometry args={[0.032, 0.002, 0.008]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} roughness={0.4} toneMapped={false} />
+      {/* front wing on the deck, spanning the front axle */}
+      <mesh position={[0, 0.0045, 0.05]}>
+        <boxGeometry args={[0.036, 0.0022, 0.011]} />
+        {body}
       </mesh>
-      {/* wheels */}
-      {([[-0.018, 0.022], [0.018, 0.022], [-0.018, -0.022], [0.018, -0.022]] as [number, number][]).map(([wx, wz], i) => (
-        <mesh key={i} position={[wx, 0.002, wz]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.008, 0.008, 0.006, 12]} />
-          <meshStandardMaterial color="#161f27" roughness={0.6} />
+      {/* sidepods flanking the tub, angled inward toward the rear */}
+      {([-1, 1] as const).map((s, i) => (
+        <mesh key={i} position={[s * 0.016, 0.0105, -0.008]} rotation={[0, s * 0.11, 0]}>
+          <boxGeometry args={[0.009, 0.011, 0.032]} />
+          {body}
         </mesh>
+      ))}
+      {/* cockpit opening — dark, set into the tub */}
+      <mesh position={[0, 0.0165, 0.006]}>
+        <boxGeometry args={[0.015, 0.004, 0.018]} />
+        <meshStandardMaterial color="#08111a" roughness={0.3} toneMapped={false} />
+      </mesh>
+      {/* airbox / roll hoop rising behind the driver */}
+      <mesh position={[0, 0.021, -0.012]}>
+        <boxGeometry args={[0.013, 0.014, 0.02]} />
+        {body}
+      </mesh>
+      {/* engine cover tapering back to the wing */}
+      <mesh position={[0, 0.0165, -0.026]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.0035, 0.008, 0.022, 5]} />
+        {body}
+      </mesh>
+      {/* rear wing, carried on two endplates rather than floating */}
+      {([-1, 1] as const).map((s, i) => (
+        <mesh key={i} position={[s * 0.014, 0.019, -0.032]}>
+          <boxGeometry args={[0.0025, 0.011, 0.01]} />
+          {body}
+        </mesh>
+      ))}
+      <mesh position={[0, 0.0235, -0.032]} rotation={[0.18, 0, 0]}>
+        <boxGeometry args={[0.031, 0.0022, 0.011]} />
+        {body}
+      </mesh>
+      {/* wheels: a tyre plus a brighter rim face, so they read as wheels rather
+          than plain cylinders at close range */}
+      {([[-0.019, 0.024], [0.019, 0.024], [-0.019, -0.024], [0.019, -0.024]] as [number, number][]).map(([wx, wz], i) => (
+        <group key={i} position={[wx, 0.0065, wz]} rotation={[0, 0, Math.PI / 2]}>
+          <mesh>
+            <cylinderGeometry args={[0.0065, 0.0065, 0.007, 14]} />
+            <meshStandardMaterial color="#141c24" roughness={0.75} />
+          </mesh>
+          <mesh position={[0, Math.sign(wx) * 0.0038, 0]}>
+            <cylinderGeometry args={[0.0037, 0.0037, 0.0012, 12]} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.35} roughness={0.4} toneMapped={false} />
+          </mesh>
+        </group>
       ))}
     </group>
   );
@@ -410,14 +491,31 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     <group position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.4} />
       <group>
+        {/* The top is filleted rather than a hard-edged disc, so it catches the
+            light the way the desk's SoftBox does instead of showing one bright
+            cut line around the rim. A slightly inset core plus a torus round the
+            edge is the round-table equivalent of SoftBox's radius. Edges are
+            kept off the torus — a threshold outline on a curved band draws a
+            ring on every segment. */}
         <mesh position={[0, 0.18, 0]}>
-          <cylinderGeometry args={[0.32, 0.32, 0.03, 40]} />
+          <cylinderGeometry args={[0.32, 0.32, 0.019, 44]} />
           <LiveGlassMat slug="lightship-drive" opacity={0.2} />
-          <Edges threshold={30} color={NEUTRAL} />
         </mesh>
+        <mesh position={[0, 0.18, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.3145, 0.0095, 8, 44]} />
+          <LiveGlassMat slug="lightship-drive" opacity={0.2} />
+        </mesh>
+        <mesh position={[0, 0.18, 0]}>
+          <cylinderGeometry args={[0.3145, 0.3145, 0.0295, 44]} />
+          <LiveGlassMat slug="lightship-drive" opacity={0.2} />
+        </mesh>
+        {/* the silhouette line, drawn once on the widest circle */}
+        <Line points={circlePts(0.32)} position={[0, 0.18, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.32} />
+        {/* legs taper toward the floor and toe in, so the table stands rather
+            than resting on four identical dowels */}
         {([[0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2]] as [number, number][]).map(([lx, lz], i) => (
-          <mesh key={i} position={[lx, 0.09, lz]}>
-            <cylinderGeometry args={[0.016, 0.016, 0.18, 10]} />
+          <mesh key={i} position={[lx * 0.94, 0.088, lz * 0.94]} rotation={[lz * 0.09, 0, -lx * 0.09]}>
+            <cylinderGeometry args={[0.011, 0.017, 0.176, 10]} />
             <LiveGlassMat slug="lightship-drive" opacity={0.24} />
           </mesh>
         ))}
@@ -1073,10 +1171,18 @@ export function RoomRig() {
             </mesh>
           ))}
           <LifeGroup slug="virtuele-brigade">
-            <mesh position={[0, 0.45, -0.05]}>
-              <cylinderGeometry args={[0.016, 0.016, 0.14, 12]} />
+            {/* Stand: foot on the desk, then a neck that rises BEHIND the panel.
+                The neck used to sit at z -0.05 while the panel is at -0.14, so
+                it stood 90mm proud of the screen on the viewer's side and cut
+                straight down the display. Everything structural now lives at
+                z -0.16 or further back, so nothing crosses the picture. */}
+            <SoftBox position={[0, 0.404, -0.15]} args={[0.17, 0.012, 0.11]} radius={0.006} liveSlug="virtuele-brigade" />
+            <mesh position={[0, 0.5, -0.163]}>
+              <cylinderGeometry args={[0.013, 0.017, 0.19, 12]} />
               <GlassMat opacity={0.26} />
             </mesh>
+            {/* the hinge block where the neck meets the panel's back */}
+            <SoftBox position={[0, 0.6, -0.157]} args={[0.07, 0.05, 0.022]} radius={0.008} liveSlug="virtuele-brigade" />
             <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} liveSlug="virtuele-brigade" />
             <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
           </LifeGroup>
@@ -1089,14 +1195,53 @@ export function RoomRig() {
           {/* the antenna deploying out of the monitor, hailing for a link */}
           <BrigadeAntenna />
         </group>
-        {/* chair in front of the desk, facing the monitor */}
+        {/* Chair in front of the desk, facing the monitor. An office chair, so
+            it is built as one: five arms on castors, a gas cylinder, a seat that
+            overhangs it, and a backrest carried on posts rather than growing
+            straight out of the seat. It used to be two slabs on a single pole
+            with nothing on the floor, which read as a stool floating over its
+            own shadow. */}
         <group position={[0, 0, 0.05]} rotation={[0, Math.PI, 0]}>
-          <SoftBox position={[0, 0.24, 0]} args={[0.3, 0.06, 0.3]} radius={0.05} liveSlug="virtuele-brigade" liveGhost={false} />
-          <SoftBox position={[0, 0.42, -0.14]} args={[0.3, 0.32, 0.05]} radius={0.05} liveSlug="virtuele-brigade" liveGhost={false} />
-          <mesh position={[0, 0.12, 0]}>
-            <cylinderGeometry args={[0.022, 0.022, 0.24, 12]} />
+          {/* base: five arms at 72°, each ending in a castor */}
+          {Array.from({ length: 5 }, (_, i) => {
+            const a = (i / 5) * Math.PI * 2 + 0.3;
+            const r = 0.115;
+            return (
+              <group key={i} rotation={[0, -a, 0]}>
+                <SoftBox position={[0, 0.028, r * 0.55]} args={[0.028, 0.016, r]} radius={0.007} liveSlug="virtuele-brigade" liveGhost={false} />
+                <mesh position={[0, 0.016, r]} rotation={[0, 0, Math.PI / 2]}>
+                  <cylinderGeometry args={[0.016, 0.016, 0.012, 10]} />
+                  <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.3} />
+                </mesh>
+              </group>
+            );
+          })}
+          {/* gas cylinder, tapered so it reads as a column not a dowel */}
+          <mesh position={[0, 0.135, 0]}>
+            <cylinderGeometry args={[0.019, 0.026, 0.19, 12]} />
             <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.26} />
           </mesh>
+          <SoftBox position={[0, 0.238, 0]} args={[0.32, 0.055, 0.31]} radius={0.055} outline liveSlug="virtuele-brigade" liveGhost={false} />
+          {/* two posts carrying the back, so daylight shows between seat and rest */}
+          {([-0.1, 0.1] as const).map((lx, i) => (
+            <mesh key={i} position={[lx, 0.3, -0.135]}>
+              <cylinderGeometry args={[0.011, 0.011, 0.1, 8]} />
+              <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.28} />
+            </mesh>
+          ))}
+          <SoftBox position={[0, 0.44, -0.142]} args={[0.3, 0.3, 0.045]} radius={0.05} outline liveSlug="virtuele-brigade" liveGhost={false} />
+          {/* lumbar band — one horizontal break so the back is not a plain slab */}
+          <SoftBox position={[0, 0.355, -0.118]} args={[0.26, 0.055, 0.022]} radius={0.02} opacity={0.22} liveSlug="virtuele-brigade" liveGhost={false} />
+          {/* armrests */}
+          {([-0.17, 0.17] as const).map((lx, i) => (
+            <group key={i}>
+              <mesh position={[lx, 0.29, -0.05]}>
+                <cylinderGeometry args={[0.009, 0.009, 0.085, 8]} />
+                <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.26} />
+              </mesh>
+              <SoftBox position={[lx, 0.335, -0.03]} args={[0.035, 0.016, 0.15]} radius={0.008} liveSlug="virtuele-brigade" liveGhost={false} />
+            </group>
+          ))}
         </group>
       </group>
 
@@ -1108,11 +1253,43 @@ export function RoomRig() {
           phone solidifies the couch it sits on. */}
       <group position={couch.position} rotation={[0, couch.rotationY, 0]}>
         <BlobShadow position={[0, 0.004, -0.02]} radius={0.6} aspect={0.58} opacity={0.4} />
-        <SoftBox position={[0, 0.12, 0]} args={[0.92, 0.16, 0.44]} radius={0.07} outline liveSlug="popcore-games" liveGhost={false} />
-        <SoftBox position={[0, 0.3, -0.2]} args={[0.92, 0.28, 0.09]} radius={0.06} liveSlug="popcore-games" liveGhost={false} />
-        <SoftBox position={[-0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} liveSlug="popcore-games" liveGhost={false} />
-        <SoftBox position={[0.46, 0.22, 0]} args={[0.09, 0.24, 0.44]} radius={0.045} liveSlug="popcore-games" liveGhost={false} />
-        <SoftBox position={[-0.24, 0.22, 0.02]} args={[0.3, 0.12, 0.32]} radius={0.06} opacity={0.22} liveSlug="popcore-games" liveGhost={false} />
+
+        {/* The couch reads as furniture rather than stacked slabs by separating
+            the three things a real one has: a frame that sits on legs, loose
+            cushions that sit in the frame, and arms that stop short of the back.
+            Before, the seat was one 0.92-wide block whose underside nearly met
+            the floor, so the whole piece had no visible ground line and no gap
+            anywhere to catch a shadow. */}
+
+        {/* legs — the frame is lifted off the floor, which is most of the fix */}
+        {([[-0.4, 0.16], [0.4, 0.16], [-0.4, -0.16], [0.4, -0.16]] as [number, number][]).map(([lx, lz], i) => (
+          <mesh key={i} position={[lx, 0.032, lz]}>
+            <cylinderGeometry args={[0.019, 0.014, 0.064, 8]} />
+            <LiveGlassMat slug="popcore-games" ghost={false} opacity={0.3} />
+          </mesh>
+        ))}
+
+        {/* the frame: a plinth the cushions drop into */}
+        <SoftBox position={[0, 0.098, 0]} args={[0.92, 0.075, 0.44]} radius={0.022} outline liveSlug="popcore-games" liveGhost={false} />
+
+        {/* two seat cushions, with a seam between them */}
+        {([-0.222, 0.222] as const).map((cx, i) => (
+          <SoftBox key={i} position={[cx, 0.163, 0.012]} args={[0.42, 0.075, 0.4]} radius={0.032} outline liveSlug="popcore-games" liveGhost={false} />
+        ))}
+
+        {/* back: a low rail, then two cushions leaning on it */}
+        <SoftBox position={[0, 0.235, -0.196]} args={[0.92, 0.2, 0.055]} radius={0.02} liveSlug="popcore-games" liveGhost={false} />
+        {([-0.222, 0.222] as const).map((cx, i) => (
+          <SoftBox key={i} position={[cx, 0.272, -0.163]} args={[0.42, 0.185, 0.07]} radius={0.032} rotation={[0.11, 0, 0]} outline liveSlug="popcore-games" liveGhost={false} />
+        ))}
+
+        {/* arms — stop short of the back rail and taper toward the front */}
+        {([-0.452, 0.452] as const).map((ax, i) => (
+          <SoftBox key={i} position={[ax, 0.18, 0.022]} args={[0.078, 0.165, 0.4]} radius={0.036} outline liveSlug="popcore-games" liveGhost={false} />
+        ))}
+
+        {/* one throw cushion, propped in the left corner against the arm */}
+        <SoftBox position={[-0.3, 0.245, -0.075]} args={[0.19, 0.175, 0.06]} radius={0.05} rotation={[0.22, 0.34, 0.12]} opacity={0.24} liveSlug="popcore-games" liveGhost={false} />
         <LifeGroup slug="popcore-games">
           <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor="#ff7a3d" />
         </LifeGroup>
