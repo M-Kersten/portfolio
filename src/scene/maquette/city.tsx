@@ -1983,14 +1983,29 @@ export function CityRig() {
     [],
   );
   // …and the four tails that carry the remaining ends somewhere: west to the
-  // mill, north-east to the launch apron, and the front avenue's two ends
-  // curving down to meet the bypass.
+  // mill, north to the launch apron, and the front avenue's two ends bending
+  // down to meet the bypass.
+  //
+  // Two rules make a tail actually join the avenue it leaves rather than merely
+  // touch it, and the first attempt broke both.
+  //
+  // It has to LEAVE STRAIGHT. Catmull-Rom's tangent at the first point is
+  // (P1-P0)/2, so the second control point sets the direction the ribbon starts
+  // in — and a tail that set off diagonally began with its cross-section rotated
+  // 45° from the avenue's square end cut, opening a wedge-shaped notch at the
+  // corner. Each of these now has its second point collinear with the avenue, so
+  // the two cross-sections coincide exactly and the bend happens further along.
+  //
+  // And it has to be the SAME WIDTH. At 0.055 against the avenue's 0.08 every
+  // join wore a shoulder a sixteenth of a unit deep on each side, which at this
+  // scale reads as one road stopping and another starting near it. These aren't
+  // lanes beside the town, they're its streets carrying on out of it.
   const lanes = useMemo(
     () => [
-      { points: smoothCurve([[-0.78, 0.01, -AVE], [-0.86, 0.01, -0.22], [-0.92, 0.01, -0.13], [-0.94, 0.01, MILL_POS[2]]]), width: 0.055 },
-      { points: smoothCurve([[AVE, 0.01, -0.78], [0.48, 0.01, -0.88], [0.68, 0.01, -0.93], [0.82, 0.01, -0.88]]), width: 0.055 },
-      { points: smoothCurve([[-0.78, 0.01, AVE], [-0.85, 0.01, 0.45], [-0.9, 0.01, 0.58], [-0.93, 0.01, 0.66]]), width: 0.055 },
-      { points: smoothCurve([[0.78, 0.01, AVE], [0.86, 0.01, 0.45], [0.92, 0.01, 0.58], [0.95, 0.01, 0.67]]), width: 0.055 },
+      { points: smoothCurve([[-0.78, 0.01, -AVE], [-0.87, 0.01, -AVE], [-0.93, 0.01, -0.19], [-0.94, 0.01, MILL_POS[2]]]), width: 0.08 },
+      { points: smoothCurve([[AVE, 0.01, -0.78], [AVE, 0.01, -0.87], [0.5, 0.01, -0.95], [0.7, 0.01, -0.94], [0.82, 0.01, -0.88]]), width: 0.08 },
+      { points: smoothCurve([[-0.78, 0.01, AVE], [-0.87, 0.01, AVE], [-0.95, 0.01, 0.42], [-0.99, 0.01, 0.55], [-1.0, 0.01, 0.64]]), width: 0.08 },
+      { points: smoothCurve([[0.78, 0.01, AVE], [0.87, 0.01, AVE], [0.95, 0.01, 0.42], [0.99, 0.01, 0.55], [1.0, 0.01, 0.64]]), width: 0.08 },
       { points: curveB, width: 0.09 },
     ],
     [curveB],
