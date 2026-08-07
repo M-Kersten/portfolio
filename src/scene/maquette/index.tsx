@@ -136,7 +136,7 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
                     others rest dimmed (see presence.tsx). Only the dressing —
                     the life system's objects are exempt inside. */}
                 <PresenceGroup active={presenceLayer === id}>
-                  <DotFloor step={id === 'city' ? 0.17 : 0.26} />
+                  <DotFloor />
                   <SurveyMarks />
                   <PointCloud seed={SEED[id]} life={life} />
                   <Rig />

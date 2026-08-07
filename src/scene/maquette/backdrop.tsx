@@ -119,24 +119,6 @@ export function SurveyMarks() {
     const pos: number[] = [];
     const seg = (x1: number, z1: number, x2: number, z2: number) => pos.push(x1, 0, z1, x2, 0, z2);
 
-    // Ground contours. Wobbled off true circles by two out-of-phase harmonics —
-    // a perfect ring reads as a target, and terrain contours never are.
-    for (let ring = 0; ring < 3; ring++) {
-      const base = 1.06 + ring * 0.37;
-      const N = 108;
-      let px = 0;
-      let pz = 0;
-      for (let i = 0; i <= N; i++) {
-        const a = (i / N) * Math.PI * 2;
-        const r = base * (1 + 0.052 * Math.sin(a * 3 + ring * 1.7) + 0.028 * Math.sin(a * 5 - ring * 0.9));
-        const x = Math.cos(a) * r;
-        const z = Math.sin(a) * r;
-        if (i) seg(px, pz, x, z);
-        px = x;
-        pz = z;
-      }
-    }
-
     // Bearing graduations round the rim, long every 30°.
     const R = FLOOR_R - 0.12;
     for (let i = 0; i < 72; i++) {
