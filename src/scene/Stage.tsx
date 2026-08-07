@@ -11,6 +11,7 @@ import { Maquette } from './maquette';
 import { GHOST_FILL, GHOST_LINE } from './maquette/life';
 import { RIM, DOT_TUNE } from './maquette/materials';
 import { useFxConfig } from './fxTweak';
+import { PsxGrade, usePsxBuffer, usePsxVertexSnap } from './psx';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
 // further toward it when a node in it is picked.
@@ -98,6 +99,12 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   const dir2 = useRef<DirectionalLight>(null);
   const cfg = useFxConfig();
 
+  // The PSX spike (scene/psx.tsx), off unless the fx panel's `psx` toggle is on.
+  // The snap has to run after the maquette has mounted its materials, which it
+  // does — hooks in the parent commit their effects after the children's.
+  usePsxVertexSnap(cfg.psx, cfg.psxSnap);
+  usePsxBuffer(cfg.psx, cfg.psxScale);
+
   // The halftone's two knobs live on every compiled glass shader as the same
   // shared uniform objects (see DOT_TUNE) — mutate `.value` in place here on
   // change rather than a per-frame loop, since (unlike SelectDim's washes)
@@ -142,10 +149,14 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
           frame and composited a black image over the result. The ignition and
           celebration surges that drove its intensity went with it: they were
           already invisible, since a bloom of radius 0 has nothing to spread. */}
-      <EffectComposer enableNormalPass={false} multisampling={2}>
+      {/* MSAA off in PSX mode: smooth edges are the opposite of the point, and
+          the console had none. */}
+      <EffectComposer enableNormalPass={false} multisampling={cfg.psx ? 0 : 2}>
         <BrightnessContrast contrast={cfg.contrast} />
         <Vignette eskil={false} offset={cfg.vignetteOffset} darkness={cfg.vignetteDarkness} />
         <Scanline density={cfg.scanlineDensity} opacity={cfg.scanlineOpacity} />
+        {/* last in the chain — the palette is the last thing the hardware did */}
+        <PsxGrade levels={cfg.psx ? cfg.psxLevels : 0} dither={cfg.psxDither} />
       </EffectComposer>
     </>
   );

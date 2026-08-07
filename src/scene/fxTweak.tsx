@@ -51,6 +51,13 @@ export interface FxConfig {
   gridMode: boolean;
   gridWidth: number; // grid line thickness (lattice cells, so it's zoom-stable)
 
+  // ---- PSX mode (scene/psx.tsx) — a spike, off by default ----
+  psx: boolean; // master toggle for all four knobs below
+  psxSnap: number; // vertex-snap grid, in virtual pixels across the frame (lower = more wobble)
+  psxScale: number; // how many times smaller the render buffer is (1 = native)
+  psxLevels: number; // colour steps per channel (32 = the console's 5-bit framebuffer)
+  psxDither: number; // ordered-dither strength; 0 = hard banding
+
   // ---- Palette — the blueprint ground (SelectDim pushes these into the live
   // Color objects every frame, so they scrub like the numbers do) ----
   bgColor: string; // stage background + fog base — the "paper" of the drawing
@@ -94,6 +101,11 @@ export const FX_DEFAULTS: FxConfig = {
   "dotStrength": 0.34,
   "gridMode": false,
   "gridWidth": 0.14,
+  "psx": false,
+  "psxSnap": 160,
+  "psxScale": 3,
+  "psxLevels": 32,
+  "psxDither": 1,
   "bgColor": "#0e272f",
   "ghostFill": "#7a8694",
   "ghostLine": "#dfe5ec",
@@ -166,6 +178,17 @@ const GROUPS: Group[] = [
       { k: 'dotStrength', label: 'dot/grid strength', min: 0, max: 1, step: 0.01 },
       { k: 'scanlineDensity', label: 'scanline density', min: 0.25, max: 4, step: 0.05 },
       { k: 'scanlineOpacity', label: 'scanline opacity', min: 0, max: 1, step: 0.01 },
+    ],
+  },
+  {
+    name: 'psx (spike)',
+    fields: [
+      { k: 'psx', label: 'psx mode', toggle: true },
+      { k: 'psxScale', label: 'buffer ÷', min: 1, max: 6, step: 0.5 },
+      // recompiles every material on change, so it steps rather than scrubs
+      { k: 'psxSnap', label: 'vertex snap grid', min: 80, max: 640, step: 20 },
+      { k: 'psxLevels', label: 'colour steps', min: 2, max: 64, step: 1 },
+      { k: 'psxDither', label: 'dither', min: 0, max: 2, step: 0.05 },
     ],
   },
   {
