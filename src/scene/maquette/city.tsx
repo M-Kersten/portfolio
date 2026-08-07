@@ -12,9 +12,9 @@ import { launchTrack, sceneStore, useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useLaunchCount } from '../../lib/launches';
 import { asset } from '../../lib/asset';
-import { NEUTRAL, GLASS, PALETTE, SOFT, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, FIRE, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
+import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, FIRE, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
-import { glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat, SoftGeo } from './materials';
+import { glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
 import { PresenceCtx } from './presence';
 import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
@@ -238,16 +238,16 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
           step from its fill and its own edge-on silhouette alone — it doesn't
           need to be traced. */}
       <mesh position={[0, PLINTH_H / 2, 0]}>
-        <SoftGeo args={[w + 0.009, PLINTH_H, d + 0.009]} />
+        <boxGeometry args={[w + 0.009, PLINTH_H, d + 0.009]} />
         <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
       </mesh>
       <mesh position={[0, PLINTH_H + shaftH / 2, 0]}>
-        <SoftGeo args={[w, shaftH, d]} />
+        <boxGeometry args={[w, shaftH, d]} />
         {/* ghost={false}: a building is dressing, not a hotspot ghost, so it rests
             as its own quiet glass and only hardens as the city comes live — then
             it reads solid, like the windmill does once woken. */}
         <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
-        <LiveEdges slug="alliander-hololens" threshold={SOFT.edge} wake={wake} />
+        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
       {/* What sits on the roof, straight onto the shaft, so the blocks stop
           reading as one object placed six times. Centred and squared up rather
@@ -256,16 +256,16 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
       {roof === 'plant' && (
         // rooftop plant: the lift overrun / air handler every flat roof carries
         <mesh position={[0, PLINTH_H + shaftH + 0.019, 0]}>
-          <SoftGeo args={[w * 0.44, 0.038, d * 0.44]} />
+          <boxGeometry args={[w * 0.44, 0.038, d * 0.44]} />
           <LiveGlassMat slug="alliander-hololens" ghost={false} tint="pale" wake={wake} />
         </mesh>
       )}
       {roof === 'setback' && (
         // a narrower crown stepped back from the roofline — a stepped tower
         <mesh position={[0, PLINTH_H + shaftH + 0.037, 0]}>
-          <SoftGeo args={[w * 0.62, 0.075, d * 0.62]} />
+          <boxGeometry args={[w * 0.62, 0.075, d * 0.62]} />
           <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
-          <LiveEdges slug="alliander-hololens" threshold={SOFT.edge} wake={wake} />
+          <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
         </mesh>
       )}
       {windows.length > 0 && mat && (
@@ -424,14 +424,8 @@ function Outskirts({ clear, blocks }: { clear: V3[][]; blocks: { x: number; z: n
       {/* opacity={0} at rest: with ghost={false} that's LiveGlassMat's floor, so
           the boxes ramp from nothing to solid instead of fading up from a ghost
           — they're arriving, not waking. */}
-      {/* One unit cube, scaled per instance — so unlike every other box in the
-          maquette this one can't take softRadius, because the fillet gets
-          stretched by whatever scale the instance carries. An explicit fraction
-          instead: on a plot around 0.15 across it lands near the rule's own
-          0.03, and on the squat ones it leaves the roof edge crisp while the
-          vertical corners stay soft, which is what a low-rise wants anyway. */}
       <instancedMesh ref={bodies} args={[undefined, undefined, plots.length]}>
-        <SoftGeo args={[1, 1, 1]} radius={0.12} />
+        <boxGeometry args={[1, 1, 1]} />
         <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={SURFACE_ABSENT} wake={wake} />
       </instancedMesh>
     </group>
@@ -476,7 +470,7 @@ function MillWind() {
     <group>
       {streaks.map((d, i) => (
         <mesh key={i} ref={(r) => (refs.current[i] = r)} scale={[d.len, 1, 1]}>
-          <SoftGeo args={[0.07, 0.004, 0.004]} />
+          <boxGeometry args={[0.07, 0.004, 0.004]} />
           <meshStandardMaterial color={windCol} emissive={windCol} emissiveIntensity={1.4} transparent opacity={0} toneMapped={false} depthWrite={false} blending={AdditiveBlending} userData={{ lifeSkip: true }} />
         </mesh>
       ))}
@@ -535,7 +529,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
         {[0, 1, 2, 3].map((i) => (
           <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
             <mesh position={[0, 0.24, 0]}>
-              <SoftGeo args={[0.05, 0.46, 0.01]} />
+              <boxGeometry args={[0.05, 0.46, 0.01]} />
               <LiveGlassMat slug={slug ?? ''} tint="pale" />
               <LiveEdges slug={slug ?? ''} threshold={30} rest={0.4} />
             </mesh>
@@ -951,7 +945,7 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
         {/* a little jetty over the water — neutral grey, no timber brown */}
         <group position={[0.13, 0, -0.07]} rotation={[0, -0.5, 0]}>
           <mesh position={[0, 0.045, 0]}>
-            <SoftGeo args={[0.13, 0.012, 0.035]} />
+            <boxGeometry args={[0.13, 0.012, 0.035]} />
             <GlassMat tint="pale" />
             <Edges threshold={30} color={NEUTRAL} />
           </mesh>
@@ -1084,7 +1078,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
         {Array.from({ length: TOWER_SIDES }).map((_, i) => (
           <group key={i} rotation={[0, (i / TOWER_SIDES) * Math.PI * 2, 0]}>
             <mesh position={[finR, TOWER_H / 2, 0]} rotation={[0, 0, finTilt]}>
-              <SoftGeo args={[0.016, finL, 0.02]} />
+              <boxGeometry args={[0.016, finL, 0.02]} />
               <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.18} roughness={0.4} metalness={0.3} />
             </mesh>
           </group>
@@ -1188,9 +1182,9 @@ function TransformerHouse({ position }: { position: V3 }) {
           with them (ghost={false}: a prop rests as its own glass, it isn't a
           hotspot ghost waiting to be found) */}
       <mesh position={[0, TRAFO_H / 2, 0]}>
-        <SoftGeo args={[TRAFO_W, TRAFO_H, TRAFO_D]} />
+        <boxGeometry args={[TRAFO_W, TRAFO_H, TRAFO_D]} />
         <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
-        <LiveEdges slug="alliander-hololens" threshold={SOFT.edge} wake={wake} />
+        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
       {/* overhanging flat roof — the trafohuisje signature. Wears the body's own
           glass: a lighter grey at higher opacity made the slab the brightest thing
@@ -1198,11 +1192,11 @@ function TransformerHouse({ position }: { position: V3 }) {
           edges already read as a separate plane, so the material needn't shout —
           it just carries a touch more opacity to stay a cap, not a pane. */}
       <mesh position={[0, TRAFO_H + 0.007, 0]}>
-        <SoftGeo args={[TRAFO_W + 0.03, 0.014, TRAFO_D + 0.03]} />
+        <boxGeometry args={[TRAFO_W + 0.03, 0.014, TRAFO_D + 0.03]} />
         <GlassMat tint="deep" />
         {/* the slab itself is already near-solid metal, but its outline has to
             retire with the body's or the roof keeps a wireframe the walls lost */}
-        <LiveEdges slug="alliander-hololens" threshold={SOFT.edge} wake={wake} />
+        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
       {/* door on the camera-facing (+z) face */}
       <mesh position={[-TRAFO_W * 0.2, TRAFO_H * 0.44, TRAFO_D / 2 + 0.002]}>
@@ -1212,7 +1206,7 @@ function TransformerHouse({ position }: { position: V3 }) {
       {/* louvre vents on the +x side */}
       {[0.32, 0.52, 0.72].map((f, i) => (
         <mesh key={i} position={[TRAFO_W / 2 + 0.001, TRAFO_H * f, 0]}>
-          <SoftGeo args={[0.003, 0.006, TRAFO_D * 0.5]} />
+          <boxGeometry args={[0.003, 0.006, TRAFO_D * 0.5]} />
           <GlassMat tint="pale" />
         </mesh>
       ))}
@@ -1684,11 +1678,11 @@ function NextProjectSite() {
           {([[-1, -1], [1, -1], [-1, 1], [1, 1]] as [number, number][]).map(([sx, sz], i) => (
             <group key={i} position={[sx * 0.15, 0, sz * 0.15]}>
               <mesh position={[sx * -0.022, 0, 0]}>
-                <SoftGeo args={[0.052, 0.004, 0.007]} />
+                <boxGeometry args={[0.052, 0.004, 0.007]} />
                 <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.5} />
               </mesh>
               <mesh position={[0, 0, sz * -0.022]}>
-                <SoftGeo args={[0.007, 0.004, 0.052]} />
+                <boxGeometry args={[0.007, 0.004, 0.052]} />
                 <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.5} />
               </mesh>
             </group>
@@ -1701,7 +1695,7 @@ function NextProjectSite() {
           <Rise animate={anim}>
             {([[-0.05, -0.05], [0.05, -0.05], [-0.05, 0.05], [0.05, 0.05]] as [number, number][]).map(([x, z], i) => (
               <mesh key={i} position={[x, 0.045, z]}>
-                <SoftGeo args={[0.014, 0.065, 0.014]} />
+                <boxGeometry args={[0.014, 0.065, 0.014]} />
                 <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
               </mesh>
             ))}
@@ -1759,12 +1753,12 @@ function NextProjectSite() {
         {built >= BUILD.towerLo && (
           <Rise animate={anim}>
             <mesh position={[0, 0.015, 0]}>
-              <SoftGeo args={[0.14, 0.03, 0.14]} />
+              <boxGeometry args={[0.14, 0.03, 0.14]} />
               <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.3} />
             </mesh>
             {([[-post, -post], [post, -post], [-post, post], [post, post]] as [number, number][]).map(([x, z], i) => (
               <mesh key={i} position={[x, MAST_H * 0.2 + 0.03, z]}>
-                <SoftGeo args={[0.012, MAST_H * 0.4, 0.012]} />
+                <boxGeometry args={[0.012, MAST_H * 0.4, 0.012]} />
                 <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
               </mesh>
             ))}
@@ -1778,7 +1772,7 @@ function NextProjectSite() {
           <Rise animate={anim}>
             {([[-post, -post], [post, -post], [-post, post], [post, post]] as [number, number][]).map(([x, z], i) => (
               <mesh key={i} position={[x, MAST_H * 0.7 + 0.03, z]}>
-                <SoftGeo args={[0.012, MAST_H * 0.6, 0.012]} />
+                <boxGeometry args={[0.012, MAST_H * 0.6, 0.012]} />
                 <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.6} />
               </mesh>
             ))}
@@ -1797,7 +1791,7 @@ function NextProjectSite() {
         {built >= BUILD.arm && (
           <Rise animate={anim}>
             <mesh position={[-0.085, 0.6, 0.045]} rotation={[0, 0.6, 0]}>
-              <SoftGeo args={[0.14, 0.014, 0.03]} />
+              <boxGeometry args={[0.14, 0.014, 0.03]} />
               <meshStandardMaterial color={GHOST_LINE} transparent opacity={0.55} />
             </mesh>
           </Rise>
