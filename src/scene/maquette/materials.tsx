@@ -35,17 +35,13 @@ const SPEC = 0.15;
 export const DOT_TUNE = {
   freq: { value: 1.7 }, // higher = smaller, denser cells
   strength: { value: 0.3 }, // 0 = pattern invisible; scales both the rgb darkening and the alpha lift below, keeping their original ratio (~0.53)
-  grid: { value: 0 }, // 0 = halftone dots · 1 = blueprint grid lines (mixed, so it crossfades)
-  gridWidth: { value: 0.14 }, // grid line thickness, in lattice cells
 };
 export function glassRim(shader: any) {
   shader.uniforms.uRim = { value: RIM };
   shader.uniforms.uDotFreq = DOT_TUNE.freq;
   shader.uniforms.uDotStrength = DOT_TUNE.strength;
-  shader.uniforms.uGrid = DOT_TUNE.grid;
-  shader.uniforms.uGridWidth = DOT_TUNE.gridWidth;
   shader.fragmentShader = shader.fragmentShader
-    .replace('void main() {', 'uniform vec3 uRim;\nuniform float uDotFreq;\nuniform float uDotStrength;\nuniform float uGrid;\nuniform float uGridWidth;\nvoid main() {')
+    .replace('void main() {', 'uniform vec3 uRim;\nuniform float uDotFreq;\nuniform float uDotStrength;\nvoid main() {')
     .replace('#include <aomap_fragment>', `reflectedLight.directSpecular *= ${SPEC};\n#include <aomap_fragment>`)
     .replace(
       '#include <opaque_fragment>',
@@ -62,15 +58,7 @@ export function glassRim(shader: any) {
         // site. Screen-locked (not surface-mapped), so overlapping panes stay
         // coherent; kept gentle so the delicate glass still reads.
         'float _dg = sin(gl_FragCoord.x * uDotFreq) * sin(gl_FragCoord.y * uDotFreq);',
-        'float _dot = smoothstep(-0.2, 0.6, _dg);',
-        // …or, in blueprint mode, graph-paper lines on the same lattice: distance
-        // to the nearest gridline, on the same cell size the dots use (uDotFreq is
-        // an angular frequency, hence the 1/2pi) so the two crossfade in register.
-        'vec2 _gp = gl_FragCoord.xy * uDotFreq * 0.15915494;',
-        'vec2 _gd = 0.5 - abs(fract(_gp) - 0.5);',
-        'float _line = 1.0 - smoothstep(0.0, uGridWidth, min(_gd.x, _gd.y));',
-        // one pattern value either way, so the application math below is shared
-        'float _pat = mix(_dot, _line, uGrid);',
+        'float _pat = smoothstep(-0.2, 0.6, _dg);',
         'gl_FragColor.rgb *= 0.85 + uDotStrength * _pat;',
         'gl_FragColor.a = clamp(gl_FragColor.a * (0.9 + uDotStrength * 0.533 * _pat), 0.0, 1.0);',
       ].join('\n'),
@@ -124,7 +112,6 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
     // off the environment rather than the key light (see SPEC above), so the
     // floor only needs to stop the lobe tightening back into a hotspot.
     m.roughness = cfg.roughnessBase - cfg.roughnessWakeDelta * k.current;
-    m.metalness = cfg.metalnessWake * k.current;
     m.depthWrite = k.current > 0.5;
   });
   return (

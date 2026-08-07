@@ -11,7 +11,6 @@ import { Maquette } from './maquette';
 import { GHOST_FILL, GHOST_LINE } from './maquette/life';
 import { RIM, DOT_TUNE } from './maquette/materials';
 import { useFxConfig } from './fxTweak';
-import { PsxGrade, usePsxBuffer, usePsxVertexSnap } from './psx';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
 // further toward it when a node in it is picked.
@@ -99,12 +98,6 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   const dir2 = useRef<DirectionalLight>(null);
   const cfg = useFxConfig();
 
-  // The PSX spike (scene/psx.tsx), off unless the fx panel's `psx` toggle is on.
-  // The snap has to run after the maquette has mounted its materials, which it
-  // does — hooks in the parent commit their effects after the children's.
-  usePsxVertexSnap(cfg.psx, cfg.psxSnap);
-  usePsxBuffer(cfg.psx, cfg.psxScale);
-
   // The halftone's two knobs live on every compiled glass shader as the same
   // shared uniform objects (see DOT_TUNE) — mutate `.value` in place here on
   // change rather than a per-frame loop, since (unlike SelectDim's washes)
@@ -112,9 +105,7 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   useEffect(() => {
     DOT_TUNE.freq.value = cfg.dotFreq;
     DOT_TUNE.strength.value = cfg.dotStrength;
-    DOT_TUNE.grid.value = cfg.gridMode ? 1 : 0;
-    DOT_TUNE.gridWidth.value = cfg.gridWidth;
-  }, [cfg.dotFreq, cfg.dotStrength, cfg.gridMode, cfg.gridWidth]);
+  }, [cfg.dotFreq, cfg.dotStrength]);
 
   return (
     <>
@@ -141,22 +132,13 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
       <Maquette onActivate={onActivate} />
 
       {/* A touch more contrast, a soft vignette pooling the light in the centre
-          of the frame where the maquette lives, and a faint scanline.
-
-          Bloom used to lead this chain and is gone. It had been tuned to
-          nothing — intensity, radius, smoothing and select-boost all at 0, with
-          the luminance threshold at 1 — so it built a mipmap blur chain every
-          frame and composited a black image over the result. The ignition and
-          celebration surges that drove its intensity went with it: they were
-          already invisible, since a bloom of radius 0 has nothing to spread. */}
-      {/* MSAA off in PSX mode: smooth edges are the opposite of the point, and
-          the console had none. */}
-      <EffectComposer enableNormalPass={false} multisampling={cfg.psx ? 0 : 2}>
+          of the frame where the maquette lives, and a faint scanline. Bloom used
+          to lead this chain; it had been tuned to nothing, so it built a mipmap
+          blur every frame and composited black over the result. */}
+      <EffectComposer enableNormalPass={false} multisampling={2}>
         <BrightnessContrast contrast={cfg.contrast} />
         <Vignette eskil={false} offset={cfg.vignetteOffset} darkness={cfg.vignetteDarkness} />
         <Scanline density={cfg.scanlineDensity} opacity={cfg.scanlineOpacity} />
-        {/* last in the chain — the palette is the last thing the hardware did */}
-        <PsxGrade levels={cfg.psx ? cfg.psxLevels : 0} dither={cfg.psxDither} />
       </EffectComposer>
     </>
   );

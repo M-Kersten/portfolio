@@ -11,12 +11,6 @@ import { useSyncExternalStore, type CSSProperties } from 'react';
 // ---------------------------------------------------------------------------
 export interface FxConfig {
   // ---- Postprocessing (Stage's <EffectComposer>) ----
-  bloomIntensity: number; // resting bloom strength
-  bloomSelectBoost: number; // added on top, scaled by the select-in factor k
-  bloomThreshold: number; // resting luminance threshold (lower = more glows)
-  bloomThresholdSelectDrop: number; // how far the threshold falls at full select
-  bloomSmoothing: number;
-  bloomRadius: number;
   contrast: number;
   vignetteOffset: number;
   vignetteDarkness: number;
@@ -41,22 +35,8 @@ export interface FxConfig {
   wakeSpeed: number; // per-frame ease rate both LiveGlassMat and LiveEdges use
   roughnessBase: number; // LiveGlassMat's resting roughness
   roughnessWakeDelta: number; // how much roughness drops as an object wakes
-  metalnessWake: number; // metalness gained at full wake
   dotFreq: number; // glassRim's screen-space halftone — dot size (higher = smaller/denser)
   dotStrength: number; // 0 = dots invisible
-  // Blueprint pattern: swaps the halftone DOTS for graph-paper GRID lines —
-  // both the screen-space pattern on glass (glassRim) and the maquette's floor
-  // lattice (backdrop's PatternFloor), so the whole model reads as drawn on
-  // squared paper. dotFreq/dotStrength keep driving it (spacing / contrast).
-  gridMode: boolean;
-  gridWidth: number; // grid line thickness (lattice cells, so it's zoom-stable)
-
-  // ---- PSX mode (scene/psx.tsx) — a spike, off by default ----
-  psx: boolean; // master toggle for all four knobs below
-  psxSnap: number; // vertex-snap grid, in virtual pixels across the frame (lower = more wobble)
-  psxScale: number; // how many times smaller the render buffer is (1 = native)
-  psxLevels: number; // colour steps per channel (32 = the console's 5-bit framebuffer)
-  psxDither: number; // ordered-dither strength; 0 = hard banding
 
   // ---- Palette — the blueprint ground (SelectDim pushes these into the live
   // Color objects every frame, so they scrub like the numbers do) ----
@@ -70,12 +50,6 @@ export interface FxConfig {
 }
 
 export const FX_DEFAULTS: FxConfig = {
-  "bloomIntensity": 0,
-  "bloomSelectBoost": 0,
-  "bloomThreshold": 1,
-  "bloomThresholdSelectDrop": 0,
-  "bloomSmoothing": 0,
-  "bloomRadius": 0,
   "contrast": 0.08,
   "vignetteOffset": 0.1,
   "vignetteDarkness": 0.89,
@@ -96,16 +70,8 @@ export const FX_DEFAULTS: FxConfig = {
   "wakeSpeed": 0.06,
   "roughnessBase": 1,
   "roughnessWakeDelta": 0.07,
-  "metalnessWake": 0,
   "dotFreq": 2.15,
   "dotStrength": 0.34,
-  "gridMode": false,
-  "gridWidth": 0.14,
-  "psx": false,
-  "psxSnap": 160,
-  "psxScale": 3,
-  "psxLevels": 32,
-  "psxDither": 1,
   "bgColor": "#0e272f",
   "ghostFill": "#7a8694",
   "ghostLine": "#dfe5ec",
@@ -144,11 +110,9 @@ export function useFxConfig(): FxConfig {
 /* ---------------------------------- panel --------------------------------- */
 
 type NumKey = { [K in keyof FxConfig]: FxConfig[K] extends number ? K : never }[keyof FxConfig];
-type BoolKey = { [K in keyof FxConfig]: FxConfig[K] extends boolean ? K : never }[keyof FxConfig];
-type ColorKey = Exclude<keyof FxConfig, NumKey | BoolKey>;
+type ColorKey = Exclude<keyof FxConfig, NumKey>;
 type FieldSpec =
   | { k: NumKey; label: string; min: number; max: number; step: number }
-  | { k: BoolKey; label: string; toggle: true }
   | { k: ColorKey; label: string; color: true };
 interface Group {
   name: string;
@@ -158,12 +122,6 @@ const GROUPS: Group[] = [
   {
     name: 'postprocessing',
     fields: [
-      { k: 'bloomIntensity', label: 'bloom intensity', min: 0, max: 2, step: 0.01 },
-      { k: 'bloomSelectBoost', label: 'bloom select boost', min: 0, max: 2, step: 0.01 },
-      { k: 'bloomThreshold', label: 'bloom threshold', min: 0, max: 1, step: 0.01 },
-      { k: 'bloomThresholdSelectDrop', label: 'bloom threshold drop', min: 0, max: 1, step: 0.01 },
-      { k: 'bloomSmoothing', label: 'bloom smoothing', min: 0, max: 1, step: 0.01 },
-      { k: 'bloomRadius', label: 'bloom radius', min: 0, max: 1, step: 0.01 },
       { k: 'contrast', label: 'contrast', min: -1, max: 1, step: 0.01 },
       { k: 'vignetteOffset', label: 'vignette offset', min: 0, max: 1, step: 0.01 },
       { k: 'vignetteDarkness', label: 'vignette darkness', min: 0, max: 1, step: 0.01 },
@@ -172,23 +130,10 @@ const GROUPS: Group[] = [
   {
     name: 'texture',
     fields: [
-      { k: 'gridMode', label: 'grid (blueprint)', toggle: true },
-      { k: 'gridWidth', label: 'grid line width', min: 0.02, max: 0.45, step: 0.01 },
-      { k: 'dotFreq', label: 'dot/grid spacing', min: 0.3, max: 4, step: 0.05 },
-      { k: 'dotStrength', label: 'dot/grid strength', min: 0, max: 1, step: 0.01 },
+      { k: 'dotFreq', label: 'dot spacing', min: 0.3, max: 4, step: 0.05 },
+      { k: 'dotStrength', label: 'dot strength', min: 0, max: 1, step: 0.01 },
       { k: 'scanlineDensity', label: 'scanline density', min: 0.25, max: 4, step: 0.05 },
       { k: 'scanlineOpacity', label: 'scanline opacity', min: 0, max: 1, step: 0.01 },
-    ],
-  },
-  {
-    name: 'psx (spike)',
-    fields: [
-      { k: 'psx', label: 'psx mode', toggle: true },
-      { k: 'psxScale', label: 'buffer ÷', min: 1, max: 6, step: 0.5 },
-      // recompiles every material on change, so it steps rather than scrubs
-      { k: 'psxSnap', label: 'vertex snap grid', min: 80, max: 640, step: 20 },
-      { k: 'psxLevels', label: 'colour steps', min: 2, max: 64, step: 1 },
-      { k: 'psxDither', label: 'dither', min: 0, max: 2, step: 0.05 },
     ],
   },
   {
@@ -214,7 +159,6 @@ const GROUPS: Group[] = [
       { k: 'wakeSpeed', label: 'wake speed', min: 0.01, max: 0.3, step: 0.005 },
       { k: 'roughnessBase', label: 'roughness (rest)', min: 0, max: 1, step: 0.01 },
       { k: 'roughnessWakeDelta', label: 'roughness wake delta', min: 0, max: 0.5, step: 0.01 },
-      { k: 'metalnessWake', label: 'metalness (awake)', min: 0, max: 0.5, step: 0.01 },
     ],
   },
   {
@@ -266,15 +210,6 @@ const btnStyle: CSSProperties = {
   cursor: 'pointer',
   padding: '3px 7px',
 };
-
-function ToggleRow({ f, value }: { f: Extract<FieldSpec, { toggle: true }>; value: boolean }) {
-  return (
-    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, cursor: 'pointer', color: value ? '#7fe0d0' : '#9fb6c6' }}>
-      <span>{f.label}</span>
-      <input type="checkbox" checked={value} onChange={(e) => setVal(f.k, e.target.checked)} style={{ cursor: 'pointer' }} />
-    </label>
-  );
-}
 
 function ColorRow({ f, value }: { f: Extract<FieldSpec, { color: true }>; value: string }) {
   return (
@@ -335,15 +270,7 @@ export function FxTweakPanel() {
       {GROUPS.map((g) => (
         <div key={g.name} style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(159,182,198,0.12)' }}>
           <div style={{ color: '#7fe0d0', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 10 }}>{g.name}</div>
-          {g.fields.map((f) =>
-            'color' in f ? (
-              <ColorRow key={f.k} f={f} value={cfg[f.k]} />
-            ) : 'toggle' in f ? (
-              <ToggleRow key={f.k} f={f} value={cfg[f.k]} />
-            ) : (
-              <Row key={f.k} f={f} value={cfg[f.k]} />
-            ),
-          )}
+          {g.fields.map((f) => ('color' in f ? <ColorRow key={f.k} f={f} value={cfg[f.k]} /> : <Row key={f.k} f={f} value={cfg[f.k]} />))}
         </div>
       ))}
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>

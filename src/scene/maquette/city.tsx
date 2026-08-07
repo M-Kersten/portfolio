@@ -852,7 +852,6 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
     const wk = wakeK.current;
     glass.opacity = (0.5 + (0.94 - 0.5) * wk) * presence.current;
     glass.roughness = cfg.roughnessBase - cfg.roughnessWakeDelta * wk;
-    glass.metalness = cfg.metalnessWake * wk;
     glass.depthWrite = wk > 0.5;
     flash.current = Math.max(0, flash.current - dt * 3.4);
     // the viewfinder is a transparent glass panel at rest, flaring bright on a shot
