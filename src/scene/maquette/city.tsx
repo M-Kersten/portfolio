@@ -94,26 +94,46 @@ type Roof = (typeof ROOFS)[number];
  *  unreadable in the first place. Its job was to give the block a crisp top line,
  *  which the top face of the shaft's own outline already does. */
 const PLINTH_H = 0.045;
+/** How tall the setback's crown is, and how much of the shaft's width it keeps.
+ *  Both came down: at 0.075 tall and 62% wide, sitting on a block that is now
+ *  shorter than it used to be, the crown stopped reading as a storey stepped
+ *  back and started reading as a lid balanced on a box. A setback has to be
+ *  clearly smaller than the thing it steps back from. */
+const CROWN_H = 0.05;
+const CROWN_W = 0.54;
 /** The shaft's height: the setback roof gives its top slice to a narrower crown. */
-const shaftOf = (h: number, roof: Roof) => (roof === 'setback' ? h - 0.075 : h);
+const shaftOf = (h: number, roof: Roof) => (roof === 'setback' ? h - CROWN_H : h);
 
-/** The facade module — one pane, and the pitch it repeats on, in world units and
- *  identical on every block.
+/** The facade module — the pane, and how four of them divide a wall.
  *
- *  Deriving the pane and its spacing from each building's own width (the first
- *  pass did: panes at ±0.26w, width 0.22w) meant a 0.13 block and a 0.18 block
- *  wore differently-sized windows on differently-sized gaps, and standing side by
- *  side that reads as sloppy rather than as variety. A fixed module is how a real
- *  curtain wall works and it's what makes the skyline look drawn rather than
- *  generated. */
-const PANE: [number, number] = [0.034, 0.05];
-const BAY = 0.058; // horizontal pitch
-const WIN_ROW = 0.11; // vertical pitch
-// floor, not round: rounding up fitted a third bay onto the widest block and
-// left its outer panes 0.013 off the corner while every other block sat at
-// 0.02–0.04, which is exactly the kind of near-miss that reads as uneven.
-// Flooring keeps the corner margin at or above the gap between panes.
-const bays = (width: number) => Math.max(2, Math.floor((width - 0.03) / BAY));
+ *  FOUR BAYS ON EVERY BLOCK. The old rule fitted as many fixed-pitch bays as a
+ *  block was wide, which on a 0.13–0.18 footprint came out at two almost every
+ *  time — and a facade two windows across doesn't read as a building, it reads
+ *  as the core of one. Paired with a 3:1 slab that is most of why the skyline
+ *  looked like a shelf of columns. A count, not a pitch, is what fixes it: the
+ *  grid is now wider than it is tall on every face, which is what makes a box
+ *  read as architecture.
+ *
+ *  The pane stays FIXED, though, and that part of the old rule was right — the
+ *  first pass sized panes from each block's own width and neighbouring towers
+ *  wore visibly different windows, which reads as sloppy rather than as variety.
+ *  So the pane is constant and the WALL absorbs the difference: the leftover
+ *  width is split into three mullion gaps and two corner piers.
+ *
+ *  Piers are deliberately wider than the mullions (PIER). Equal splits put the
+ *  outer panes as close to the corner as they are to their neighbour, which
+ *  reads as a facade that has been cut off rather than one that ends. */
+const BAYS = 4;
+const PANE: [number, number] = [0.03, 0.036];
+const WIN_ROW = 0.056; // vertical pitch — a 0.02 spandrel, matching the mullion gap
+const PIER = 1.6; // corner pier : mullion gap
+/** Where the four panes sit across a wall of this width, centred. */
+function bayOffsets(width: number) {
+  // width = 4 panes + 3 gaps + 2 piers, with pier = PIER * gap
+  const gap = (width - BAYS * PANE[0]) / (BAYS - 1 + 2 * PIER);
+  const pitch = PANE[0] + gap;
+  return Array.from({ length: BAYS }, (_, i) => (i - (BAYS - 1) / 2) * pitch);
+}
 
 /** Every window position on a block of this size: the y of each row and the
  *  offset of each bay along both axes.
@@ -134,11 +154,10 @@ function facade(w: number, d: number, h: number, roof: Roof) {
   const avail = PLINTH_H + shaftOf(h, roof) - 0.03 - bot;
   const rows = Math.max(1, Math.floor(avail / WIN_ROW));
   const y0 = bot + (avail - rows * WIN_ROW) / 2 + WIN_ROW / 2;
-  const spread = (n: number) => Array.from({ length: n }, (_, i) => (i - (n - 1) / 2) * BAY);
   return {
     ys: Array.from({ length: rows }, (_, r) => y0 + r * WIN_ROW),
-    xs: spread(bays(w)),
-    zs: spread(bays(d)),
+    xs: bayOffsets(w),
+    zs: bayOffsets(d),
   };
 }
 
@@ -262,8 +281,8 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
       )}
       {roof === 'setback' && (
         // a narrower crown stepped back from the roofline — a stepped tower
-        <mesh position={[0, PLINTH_H + shaftH + 0.037, 0]}>
-          <boxGeometry args={[w * 0.62, 0.075, d * 0.62]} />
+        <mesh position={[0, PLINTH_H + shaftH + CROWN_H / 2, 0]}>
+          <boxGeometry args={[w * CROWN_W, CROWN_H, d * CROWN_W]} />
           <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
           <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
         </mesh>
@@ -2049,7 +2068,21 @@ export function CityRig() {
           const x = cx + (rnd() - 0.5) * 0.12;
           const z = cz + (rnd() - 0.5) * 0.12;
           const fall = Math.max(0.1, 1 - (x * x + z * z) * 0.8);
-          const bld = { x, z, w: 0.13 + rnd() * 0.05, d: 0.13 + rnd() * 0.05, h: 0.2 + fall * 0.4 + rnd() * 0.12, roof: ROOFS[out.length % ROOFS.length] };
+          // Wider and shorter than they were. The old blocks ran 0.13–0.18 across
+          // and 0.41–0.62 tall — better than 3:1, which is a chimney, not a
+          // building, and it left no wall for a facade to happen on. These are
+          // roughly 1.7–2.4:1, which is what a real mid-rise block sits at and
+          // what gives four bays somewhere to go. The first pass floored the
+          // range at 1.4:1 and the shortest plot came out a plain cube with a
+          // lid on it, which is its own kind of wrong.
+          //
+          // Same five rnd() draws in the same order, deliberately: this generator
+          // seeds every position in the city, so taking one more or one fewer
+          // number here would shuffle the whole skyline instead of resizing it.
+          // The plots are ±0.55 with ±0.06 of jitter and the avenues run at ±0.3
+          // with a 0.04 half-width, so 0.26 is the widest a block can get before
+          // its corner is standing in the road.
+          const bld = { x, z, w: 0.21 + rnd() * 0.05, d: 0.21 + rnd() * 0.05, h: 0.24 + fall * 0.3 + rnd() * 0.1, roof: ROOFS[out.length % ROOFS.length] };
           // front-centre plot goes to the transformer house — build the RNG for it
           // (so the rest of the skyline is unchanged), then drop the building.
           if (cx === 0 && cz === 0.55) continue;
