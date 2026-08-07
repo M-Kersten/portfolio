@@ -1219,138 +1219,165 @@ function TransformerHouse({ position }: { position: V3 }) {
   );
 }
 
-/** A flat ground ribbon built from a centre-line — reads as a paved road (a
- *  faint surface with crisp edges) rather than a single hairline. */
-function roadRibbon(points: V3[], width: number) {
-  const half = width / 2;
-  const left: V3[] = [];
-  const right: V3[] = [];
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const a = points[Math.max(0, i - 1)];
-    const b = points[Math.min(points.length - 1, i + 1)];
-    const tx = b[0] - a[0];
-    const tz = b[2] - a[2];
-    const len = Math.hypot(tx, tz) || 1;
-    const px = -tz / len;
-    const pz = tx / len; // perpendicular in the ground plane
-    left.push([p[0] + px * half, p[1], p[2] + pz * half]);
-    right.push([p[0] - px * half, p[1], p[2] - pz * half]);
-  }
-  const verts: number[] = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    verts.push(...left[i], ...right[i], ...left[i + 1]);
-    verts.push(...right[i], ...right[i + 1], ...left[i + 1]);
-  }
-  return { array: new Float32Array(verts), left, right };
-}
+/** One road, as a centre-line and how wide it is. */
+type Road = { points: V3[]; width: number };
 
-/** One straight street: which line it sits on, and where along it it runs. Each
- *  carries its own span because each end goes somewhere different — the eastern
- *  avenues stop on the park's boundary, the northern one stops at the last
- *  junction because the plot beyond it was never built. */
-type Street = { at: number; from: number; to: number };
-
-/** An axis-aligned street grid, built as a planar subdivision rather than a pile
- *  of overlapping ribbons.
+/** THE WHOLE ROAD NETWORK AS ONE SURFACE.
  *
- *  The E–W streets run through and so pave every junction; the N–S streets fill
- *  only the gaps between their crossings. Overlapping strips would have
- *  alpha-blended twice at every crossing — bright squares on the floor — and
- *  drawn kerbstones straight across the intersections, the one place a kerb
- *  never runs. Each kerb instead breaks at the mouth of a side street, and only
- *  on the side that street actually reaches, which is what makes a T-junction
- *  read as a T rather than as two roads laid on top of each other.
+ *  Every previous version of this built each road as its own quad strip and set
+ *  them next to each other, and you could see every cut: butted ribbons show
+ *  their seam however carefully the endpoints are matched, overlapping ones
+ *  blend twice and leave a bright patch, and a strip that turns leaves a wedge
+ *  open on the outside of the bend. Matching widths and tangents got the seams
+ *  down to hairlines, but hairlines are still seams — there is no arrangement of
+ *  separate pieces that reads as one continuous surface.
  *
- *  Two draw calls for the whole grid, whatever its size. */
-function orthoNet(xs: Street[], zs: Street[], w: number) {
-  // the lines of `others` that genuinely cross `s` — both spans have to reach
-  const cross = (s: Street, others: Street[]) =>
-    others.filter((o) => o.at >= s.from && o.at <= s.to && s.at >= o.from && s.at <= o.to).map((o) => o.at).sort((a, b) => a - b);
-  /** `s` split into the stretches that survive its crossings. */
-  const runs = (s: Street, others: Street[]) => {
-    const out: [number, number][] = [];
-    let a = s.from;
-    for (const c of cross(s, others)) {
-      if (c - w > a) out.push([a, c - w]);
-      a = c + w;
+ *  So the network isn't assembled from pieces at all. `d` below is the distance
+ *  from any point on the ground to the nearest road centre-line, minus that
+ *  road's half width — negative inside the tarmac, positive outside it,
+ *  regardless of how many roads happen to overlap there. The paved area is
+ *  simply everywhere d < 0, and this contours that one region into one mesh.
+ *  Junctions, bends and forks aren't cases to handle; they're just places where
+ *  the region happens to be wider, and they come out seamless because there was
+ *  never a seam to hide.
+ *
+ *  The kerb falls out of the same thing: it's the boundary of that region, so it
+ *  wraps every junction mouth and every road end by construction, and no kerb
+ *  can run across an intersection because the intersection is interior.
+ *
+ *  Contoured over triangles rather than squares — marching squares has two
+ *  ambiguous saddle cases and a wrong guess punches a hole in the road, while a
+ *  triangle can only be cut one way. Each cell splits into two, and each of
+ *  those emits nothing, a corner, a quad or itself.
+ *
+ *  Two draw calls for every road in the city. */
+function roadMesh(roads: Road[], cell: number) {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, maxHalf = 0;
+  for (const r of roads) {
+    maxHalf = Math.max(maxHalf, r.width / 2);
+    for (const p of r.points) {
+      minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
+      minZ = Math.min(minZ, p[2]); maxZ = Math.max(maxZ, p[2]);
     }
-    if (s.to > a) out.push([a, s.to]);
-    return out;
-  };
+  }
+  const pad = maxHalf + 3 * cell;
+  minX -= pad; maxX += pad; minZ -= pad; maxZ += pad;
+  const nx = Math.ceil((maxX - minX) / cell) + 1;
+  const nz = Math.ceil((maxZ - minZ) / cell) + 1;
+  // +Infinity is "nowhere near a road", which tests as outside for free
+  const d = new Float32Array(nx * nz).fill(Infinity);
 
-  const fill: number[] = [];
-  const quad = (ax: number, az: number, bx: number, bz: number) => {
-    fill.push(ax, 0, az, bx, 0, az, ax, 0, bz);
-    fill.push(bx, 0, az, bx, 0, bz, ax, 0, bz);
-  };
-  for (const z of zs) quad(z.from, z.at - w, z.to, z.at + w);
-  for (const x of xs) for (const [a, b] of runs(x, zs)) quad(x.at - w, a, x.at + w, b);
-
-  const kerb: number[] = [];
-  const seg = (ax: number, az: number, bx: number, bz: number) => kerb.push(ax, 0, az, bx, 0, bz);
-  for (const z of zs)
-    for (const s of [-1, 1]) {
-      const zz = z.at + s * w;
-      let a = z.from;
-      for (const c of cross(z, xs)) {
-        const side = xs.find((x) => x.at === c)!;
-        // break only where the side street has pavement on THIS side of the
-        // junction; a street arriving from the north leaves the southern kerb whole
-        if (s < 0 ? side.from < z.at - w : side.to > z.at + w) {
-          seg(a, zz, c - w, zz);
-          a = c + w;
+  // Scatter each segment into its own neighbourhood rather than sweeping the
+  // whole grid per segment: a few hundred segments over a 3.8 x 2.1 field would
+  // otherwise be millions of distance evaluations at scene start.
+  for (const r of roads) {
+    const h = r.width / 2;
+    const reach = h + 2 * cell; // one cell past the isoline, so the contour interpolates against real values
+    for (let s = 0; s < r.points.length - 1; s++) {
+      const ax = r.points[s][0], az = r.points[s][2];
+      const ex = r.points[s + 1][0] - ax, ez = r.points[s + 1][2] - az;
+      const len2 = ex * ex + ez * ez || 1;
+      const i0 = Math.max(0, Math.floor((Math.min(ax, ax + ex) - reach - minX) / cell));
+      const i1 = Math.min(nx - 1, Math.ceil((Math.max(ax, ax + ex) + reach - minX) / cell));
+      const j0 = Math.max(0, Math.floor((Math.min(az, az + ez) - reach - minZ) / cell));
+      const j1 = Math.min(nz - 1, Math.ceil((Math.max(az, az + ez) + reach - minZ) / cell));
+      for (let j = j0; j <= j1; j++) {
+        const pz = minZ + j * cell;
+        for (let i = i0; i <= i1; i++) {
+          const px = minX + i * cell;
+          let t = ((px - ax) * ex + (pz - az) * ez) / len2;
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          const v = Math.hypot(px - (ax + ex * t), pz - (az + ez * t)) - h;
+          const k = j * nx + i;
+          if (v < d[k]) d[k] = v;
         }
       }
-      seg(a, zz, z.to, zz);
     }
-  for (const x of xs) for (const [a, b] of runs(x, zs)) for (const s of [-1, 1]) seg(x.at + s * w, a, x.at + s * w, b);
+  }
+
+  const fill: number[] = [];
+  const kerb: number[] = [];
+  const tri = (x0: number, z0: number, x1: number, z1: number, x2: number, z2: number) => fill.push(x0, 0, z0, x1, 0, z1, x2, 0, z2);
+  // where the isoline crosses the edge between two samples
+  const lerp = (xa: number, za: number, da: number, xb: number, zb: number, db: number) => {
+    const t = da / (da - db);
+    return [xa + (xb - xa) * t, za + (zb - za) * t] as [number, number];
+  };
+  /** One triangle of the lattice, clipped to d < 0. */
+  const march = (
+    x0: number, z0: number, d0: number,
+    x1: number, z1: number, d1: number,
+    x2: number, z2: number, d2: number,
+  ) => {
+    const n = (d0 < 0 ? 1 : 0) + (d1 < 0 ? 1 : 0) + (d2 < 0 ? 1 : 0);
+    if (n === 0) return;
+    if (n === 3) { tri(x0, z0, x1, z1, x2, z2); return; }
+    // rotate so the odd vertex out is first
+    let ax = x0, az = z0, da = d0, bx = x1, bz = z1, db = d1, cx = x2, cz = z2, dc = d2;
+    if (n === 1) {
+      if (d1 < 0) { ax = x1; az = z1; da = d1; bx = x2; bz = z2; db = d2; cx = x0; cz = z0; dc = d0; }
+      else if (d2 < 0) { ax = x2; az = z2; da = d2; bx = x0; bz = z0; db = d0; cx = x1; cz = z1; dc = d1; }
+    } else {
+      if (d1 >= 0) { ax = x1; az = z1; da = d1; bx = x2; bz = z2; db = d2; cx = x0; cz = z0; dc = d0; }
+      else if (d2 >= 0) { ax = x2; az = z2; da = d2; bx = x0; bz = z0; db = d0; cx = x1; cz = z1; dc = d1; }
+    }
+    const p = lerp(ax, az, da, bx, bz, db);
+    const q = lerp(ax, az, da, cx, cz, dc);
+    kerb.push(p[0], 0, p[1], q[0], 0, q[1]);
+    if (n === 1) tri(ax, az, p[0], p[1], q[0], q[1]);
+    else { tri(bx, bz, cx, cz, q[0], q[1]); tri(bx, bz, q[0], q[1], p[0], p[1]); }
+  };
+
+  // Cells wholly inside the tarmac are merged along each row before anything is
+  // emitted: the middle of a road is a long identical run, and marching it cell
+  // by cell spent four thousand triangles describing a rectangle. The run's
+  // ends land on grid corners the neighbouring row also uses, so the T-vertices
+  // this leaves are harmless — one flat colour on one flat plane has no
+  // interpolation to crack along.
+  const run = (i0: number, i1: number, j: number) => {
+    const xa = minX + i0 * cell, xb = minX + i1 * cell;
+    const za = minZ + j * cell, zb = za + cell;
+    tri(xa, za, xb, za, xb, zb);
+    tri(xa, za, xb, zb, xa, zb);
+  };
+  for (let j = 0; j < nz - 1; j++) {
+    let start = -1;
+    for (let i = 0; i < nx - 1; i++) {
+      const k = j * nx + i;
+      const dA = d[k], dB = d[k + 1], dC = d[k + nx + 1], dD = d[k + nx];
+      if (dA < 0 && dB < 0 && dC < 0 && dD < 0) {
+        if (start < 0) start = i;
+        continue;
+      }
+      if (start >= 0) { run(start, i, j); start = -1; }
+      if (dA > 0 && dB > 0 && dC > 0 && dD > 0) continue; // wholly outside, the common case
+      const xa = minX + i * cell, xb = xa + cell;
+      const za = minZ + j * cell, zb = za + cell;
+      march(xa, za, dA, xb, za, dB, xb, zb, dC);
+      march(xa, za, dA, xb, zb, dC, xa, zb, dD);
+    }
+    if (start >= 0) run(start, nx - 1, j);
+  }
   return { fill: new Float32Array(fill), kerb: new Float32Array(kerb) };
 }
 
 const ROAD_FILL = '#223240';
+/** Contour resolution. The roads are 0.08 across, so this puts ~4 samples over a
+ *  carriageway — enough to resolve it, and the isoline is interpolated so the
+ *  kerb stays smooth between samples rather than stepping. */
+const ROAD_CELL = 0.02;
 
-function StreetGrid({ xs, zs, width = 0.08 }: { xs: Street[]; zs: Street[]; width?: number }) {
-  const { fill, kerb } = useMemo(() => orthoNet(xs, zs, width / 2), [xs, zs, width]);
+function RoadNetwork({ roads }: { roads: Road[] }) {
+  const { fill, kerb } = useMemo(() => roadMesh(roads, ROAD_CELL), [roads]);
   return (
     <group position={[0, 0.01, 0]}>
       <mesh>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[fill, 3]} />
         </bufferGeometry>
-        <meshBasicMaterial color={ROAD_FILL} transparent opacity={0.62} side={DoubleSide} depthWrite={false} />
-      </mesh>
-      <lineSegments>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[kerb, 3]} />
-        </bufferGeometry>
-        <lineBasicMaterial color={NEUTRAL} transparent opacity={0.42} depthWrite={false} />
-      </lineSegments>
-    </group>
-  );
-}
-
-/** Everything that isn't on the lattice — the bypass and the lanes out of town —
- *  merged into the same two draw calls the grid uses. Each path keeps its own
- *  width, so a country lane still reads narrower than the highway. */
-function RoadLanes({ paths }: { paths: { points: V3[]; width: number }[] }) {
-  const { fill, kerb } = useMemo(() => {
-    const f: number[] = [];
-    const k: number[] = [];
-    for (const { points, width } of paths) {
-      const { array, left, right } = roadRibbon(points, width);
-      f.push(...array);
-      for (const side of [left, right])
-        for (let i = 0; i < side.length - 1; i++) k.push(...side[i], ...side[i + 1]);
-    }
-    return { fill: new Float32Array(f), kerb: new Float32Array(k) };
-  }, [paths]);
-  return (
-    <group>
-      <mesh>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[fill, 3]} />
-        </bufferGeometry>
+        {/* No depth write and one flat colour, as before — but now it can't
+            double-blend anywhere, because the tessellation covers the paved
+            region exactly once. */}
         <meshBasicMaterial color={ROAD_FILL} transparent opacity={0.62} side={DoubleSide} depthWrite={false} />
       </mesh>
       <lineSegments>
@@ -1959,49 +1986,32 @@ export function CityRig() {
   // x=-AVE avenue simply stops at the z=-AVE junction, because the plot north of
   // it was never built and a street to nowhere is what started all this.
   const AVE = 0.3;
-  const streets = useMemo(
-    () => ({
-      xs: [
-        { at: -AVE, from: -AVE, to: 0.8 },
-        { at: AVE, from: -0.78, to: 0.82 },
-      ],
-      zs: [
-        { at: -AVE, from: -0.78, to: 0.805 },
-        { at: AVE, from: -0.78, to: 0.78 },
-      ],
-    }),
-    [],
-  );
-  // The bypass, and the town's southern edge in one road. Reshaped to pass
-  // THROUGH the foot of both N–S avenues — those two points are control points,
-  // so the curve interpolates them exactly and the avenues T into it with no
-  // linking stub at all. It used to run parallel to the ring's southern side a
-  // tenth of a unit away, joined by a slip road: two carriageways doing one
-  // road's work, which is most of what read as too much.
+  // The bypass, and the town's southern edge in one road. It passes THROUGH the
+  // foot of both N-S avenues — those two points are control points, so the curve
+  // interpolates them exactly.
   const curveB = useMemo(
     () => smoothCurve([[-1.9, 0.01, 0.3], [-1.05, 0.01, 0.62], [-AVE, 0.01, 0.8], [AVE, 0.01, 0.82], [1.05, 0.01, 0.64], [1.8, 0.01, 0.32]]),
     [],
   );
-  // …and the four tails that carry the remaining ends somewhere: west to the
-  // mill, north to the launch apron, and the front avenue's two ends bending
-  // down to meet the bypass.
+  // Every road as a centre-line, handed to RoadNetwork as one set. There is no
+  // ordering or crossing logic here any more and nothing has to be told about
+  // anything else: two centre-lines that pass near each other simply make one
+  // wider piece of tarmac, because the surface is contoured off all of them at
+  // once. Roads that meet do so by ending on each other's line.
   //
-  // Two rules make a tail actually join the avenue it leaves rather than merely
-  // touch it, and the first attempt broke both.
-  //
-  // It has to LEAVE STRAIGHT. Catmull-Rom's tangent at the first point is
-  // (P1-P0)/2, so the second control point sets the direction the ribbon starts
-  // in — and a tail that set off diagonally began with its cross-section rotated
-  // 45° from the avenue's square end cut, opening a wedge-shaped notch at the
-  // corner. Each of these now has its second point collinear with the avenue, so
-  // the two cross-sections coincide exactly and the bend happens further along.
-  //
-  // And it has to be the SAME WIDTH. At 0.055 against the avenue's 0.08 every
-  // join wore a shoulder a sixteenth of a unit deep on each side, which at this
-  // scale reads as one road stopping and another starting near it. These aren't
-  // lanes beside the town, they're its streets carrying on out of it.
-  const lanes = useMemo(
+  // Each street's ends are chosen so the paved region reaches exactly where it
+  // should. `to: 0.765` on the eastern avenue rather than the park's boundary at
+  // 0.805, because the contour rounds every terminus off at the road's own half
+  // width — so the tarmac reaches 0.805 and stops at the grass.
+  const roads = useMemo<Road[]>(
     () => [
+      // the avenues: two each way, bounding the nine plots
+      { points: [[-AVE, 0.01, -AVE], [-AVE, 0.01, 0.8]], width: 0.08 }, // stops at the z=-AVE junction; the plot north of it was never built
+      { points: [[AVE, 0.01, -0.78], [AVE, 0.01, 0.82]], width: 0.08 },
+      { points: [[-0.78, 0.01, -AVE], [0.765, 0.01, -AVE]], width: 0.08 }, // east end lands on the park boundary
+      { points: [[-0.78, 0.01, AVE], [0.78, 0.01, AVE]], width: 0.08 },
+      // and the tails that carry the outer ends somewhere: the mill, the launch
+      // apron, and the front avenue's two ends bending down to the bypass
       { points: smoothCurve([[-0.78, 0.01, -AVE], [-0.87, 0.01, -AVE], [-0.93, 0.01, -0.19], [-0.94, 0.01, MILL_POS[2]]]), width: 0.08 },
       { points: smoothCurve([[AVE, 0.01, -0.78], [AVE, 0.01, -0.87], [0.5, 0.01, -0.95], [0.7, 0.01, -0.94], [0.82, 0.01, -0.88]]), width: 0.08 },
       { points: smoothCurve([[-0.78, 0.01, AVE], [-0.87, 0.01, AVE], [-0.95, 0.01, 0.42], [-0.99, 0.01, 0.55], [-1.0, 0.01, 0.64]]), width: 0.08 },
@@ -2011,14 +2021,7 @@ export function CityRig() {
     [curveB],
   );
   // Every centre-line the fringe has to stay off, so no shed lands in a road.
-  const keepClear = useMemo(
-    () => [
-      ...streets.xs.map((s) => [[s.at, 0.01, s.from], [s.at, 0.01, s.to]] as V3[]),
-      ...streets.zs.map((s) => [[s.from, 0.01, s.at], [s.to, 0.01, s.at]] as V3[]),
-      ...lanes.map((l) => l.points),
-    ],
-    [streets, lanes],
-  );
+  const keepClear = useMemo(() => roads.map((r) => r.points), [roads]);
   // Sparse blocks of square buildings around a central plaza; taller toward
   // the middle so the cluster still reads as a skyline. Each block takes one of
   // three rooflines off the shared list, cycled by index rather than drawn from
@@ -2069,10 +2072,8 @@ export function CityRig() {
   );
   return (
     <group>
-      {/* the street plan: two avenues each way, bounding the nine plots */}
-      <StreetGrid xs={streets.xs} zs={streets.zs} width={0.08} />
-      {/* the bypass and the tails that carry the avenue ends out of town */}
-      <RoadLanes paths={lanes} />
+      {/* every road, contoured into one surface */}
+      <RoadNetwork roads={roads} />
       {/* a lone car easing along the bypass every so often */}
       <Traffic path={curveB} />
 
