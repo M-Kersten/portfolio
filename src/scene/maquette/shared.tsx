@@ -82,6 +82,63 @@ export const SURFACE_GLOW = '#0c2a30';
 /** LINE — the drawn edge, at one weight and one resting strength. */
 export const LINE_REST = 0.55;
 
+/* ---------------------------------------------------------------------------
+ * CORNERS — one fillet, every layer.
+ *
+ * The maquette used to be half hard-edged (48 raw boxes, the entire city among
+ * them) and half rounded (29 SoftBoxes carrying 13 different hand-picked radii
+ * between 0.006 and 0.055). That is the same defect the colours had, in
+ * geometry: every value chosen against its own neighbours instead of a rule, so
+ * a desk and the building above it were finished by two different hands.
+ *
+ * The rule: a fillet is a FRACTION of the piece's smallest dimension, capped.
+ * Proportional is what makes a tower and a keycap look cut from the same stock —
+ * an absolute radius melts the small parts and barely touches the big ones. The
+ * cap stops a chunky piece turning into a pebble, so everything past roughly
+ * 0.12 across shares one large-form corner.
+ * ------------------------------------------------------------------------- */
+export const SOFT = {
+  /** Fillet as a fraction of the smallest dimension.
+   *
+   *  Tuned down from a quarter, which is what the room's hand-picked radii
+   *  averaged out to and which looks right on furniture — but the city's shafts
+   *  are only ~0.1 across, so a quarter of that turned the skyline into a shelf
+   *  of bottles: rounded bar, rounded cap, rounded pad at the base. An eighth
+   *  reads as a finished edge on both, which is the whole point of having one
+   *  number rather than two. */
+  frac: 0.12,
+  /** …but never larger than this, so big forms share one corner */
+  max: 0.016,
+  /** Below this the piece is a few pixels on screen and has no corners to be
+   *  coherent about, so it stays a plain box — a fillet there is invisible and
+   *  costs twenty times the triangles. (The detail floor, applied to geometry.) */
+  floor: 0.012,
+  /** Segments across the fillet. Two, deliberately — see `edge`. */
+  curve: 2,
+  bevel: 1,
+  /** Smooth-shade the whole fillet (every dihedral on a filleted box is ≤45°),
+   *  so two segments read as round rather than as a chamfer. */
+  crease: 0.9,
+  /** The wireframe threshold that goes with `curve: 2`.
+   *
+   *  Rounded boxes and edge outlines fight each other, which is why SoftBox
+   *  always avoided <Edges> and drew an explicit top line instead: a fillet
+   *  split into N facets presents N+1 dihedral angles where the sharp edge used
+   *  to be, so a threshold low enough to catch them draws the silhouette two or
+   *  three times over — exactly the "too many lines" problem the city already
+   *  had. At two segments the sequence across a corner is 22.5° · 45° · 22.5°,
+   *  so a threshold between those two values emits exactly ONE line, running
+   *  along the crown of the fillet. Which is where a draughtsman would put it. */
+  edge: 30,
+};
+/** The fillet for a box, from the rule above. 0 means "below the floor — leave
+ *  it a box". */
+export function softRadius(w: number, h: number, d: number): number {
+  const m = Math.min(w, h, d);
+  if (m < SOFT.floor) return 0;
+  return Math.min(m * SOFT.frac, SOFT.max, m / 2 - 1e-4);
+}
+
 /** GROUND — the sheet under the model. */
 export const GROUND = {
   sheet: '#22384f', // roads, aprons, paved ground

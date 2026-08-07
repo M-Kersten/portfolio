@@ -13,6 +13,7 @@ import { Edges } from '@react-three/drei';
 import type { Group } from 'three';
 import { NEUTRAL, SURFACE } from './shared';
 import { GHOST_FILL, GHOST_LINE } from './life';
+import { SoftGeo } from './materials';
 
 const FINS: [number, number][] = [[-0.042, 0], [0.042, 0], [0, -0.042], [0, 0.042]];
 const LEGS: [number, number][] = [[-0.03, 0.03], [0.03, 0.03], [-0.03, -0.03], [0.03, -0.03]];
@@ -133,7 +134,7 @@ export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?:
           <group rotation={[0, Math.PI / 4, 0]}>
           {FINS.map(([x, z], i) => (
             <mesh key={`f${i}`} position={[x, 0.475, z]} rotation={[0, i < 2 ? 0 : Math.PI / 2, 0]}>
-              <boxGeometry args={[0.008, 0.034, 0.026]} />
+              <SoftGeo args={[0.008, 0.034, 0.026]} />
               <Strut opacity={0.55} />
             </mesh>
           ))}
@@ -145,7 +146,7 @@ export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?:
           {/* landing legs against the tail */}
           {LEGS.map(([x, z], i) => (
             <mesh key={`l${i}`} position={[x * 1.15, 0.15, z * 1.15]} rotation={[z === 0 ? 0 : z > 0 ? -0.12 : 0.12, 0, x === 0 ? 0 : x > 0 ? 0.12 : -0.12]}>
-              <boxGeometry args={[0.008, 0.13, 0.008]} />
+              <SoftGeo args={[0.008, 0.13, 0.008]} />
               <Strut opacity={0.5} />
             </mesh>
           ))}

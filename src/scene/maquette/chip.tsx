@@ -5,13 +5,13 @@
 // engaged. ChipRig composes and places everything.
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges, RoundedBox } from '@react-three/drei';
+import { Edges } from '@react-three/drei';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { SURFACE, NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
+import { SURFACE, NEUTRAL, useAccent, circlePts, roundedRectPts, Line, softRadius, useActive, FX, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
-import { GlassMat, LiveEdges, LiveGlassMat, SoftBox } from './materials';
+import { GlassMat, LiveEdges, LiveGlassMat, SoftBox, SoftGeo } from './materials';
 import { BlobShadow } from './backdrop';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
@@ -135,13 +135,14 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
     <group position={position}>
       <group>
         {/* base pad on the board */}
-        <SoftBox position={[0, 0.035, 0.02]} args={[0.36, 0.05, 0.16]} radius={0.02} opacity={0.34} liveSlug={slug} />
+        <SoftBox position={[0, 0.035, 0.02]} args={[0.36, 0.05, 0.16]} opacity={0.34} liveSlug={slug} />
         {/* the monitor unit, tilted to face up-and-forward */}
         <group position={[0, 0.21, 0]} rotation={[-0.34, 0, 0]}>
           {/* casing — solidifies once visited, like every hotspot body */}
-          <RoundedBox args={[0.42, 0.3, 0.05]} radius={0.02} smoothness={3}>
+          <mesh>
+            <SoftGeo args={[0.42, 0.3, 0.05]} />
             <LiveGlassMat slug={slug} tint="deep" />
-          </RoundedBox>
+          </mesh>
           {/* (the bezel outline is gone — same reason as the die's: a Line in a
               LifeGroup brightens as the casing solidifies, so it survived as a
               hard rectangle across a screen that had just powered on) */}
@@ -188,7 +189,7 @@ function MiscComponents() {
     <group>
       {PASSIVES.map((p) => (
         <mesh key={p.edge} position={[p.x, 0.035, p.z]} rotation={[0, p.edge === 0 || p.edge === 2 ? 0 : Math.PI / 2, 0]}>
-          <boxGeometry args={[0.09, 0.03, 0.04]} />
+          <SoftGeo args={[0.09, 0.03, 0.04]} />
           <GlassMat tint="glass" />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
@@ -210,10 +211,10 @@ function MiscComponents() {
 function Heatsink({ position }: { position: V3 }) {
   return (
     <group position={position}>
-      <SoftBox position={[0, 0.04, 0]} args={[0.24, 0.04, 0.24]} radius={0.01} opacity={0.34} />
+      <SoftBox position={[0, 0.04, 0]} args={[0.24, 0.04, 0.24]} opacity={0.34} />
       {[-0.08, -0.04, 0, 0.04, 0.08].map((x, i) => (
         <mesh key={i} position={[x, 0.115, 0]}>
-          <boxGeometry args={[0.014, 0.11, 0.2]} />
+          <SoftGeo args={[0.014, 0.11, 0.2]} />
           <GlassMat tint="glass" />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
@@ -230,7 +231,7 @@ function PinHeader({ position, n = 6 }: { position: V3; n?: number }) {
       {/* A taller, more solid body than the old 0.04 sliver: at board level that
           barely registered against the substrate and the pins read as six little
           cylinders floating on their own. A connector needs a block under it. */}
-      <SoftBox position={[0, 0.05, 0]} args={[span + 0.05, 0.06, 0.085]} radius={0.01} opacity={0.5} />
+      <SoftBox position={[0, 0.05, 0]} args={[span + 0.05, 0.06, 0.085]} opacity={0.5} />
       {Array.from({ length: n }).map((_, i) => (
         <mesh key={i} position={[-span / 2 + i * 0.045, 0.105, 0]}>
           <cylinderGeometry args={[0.008, 0.008, 0.06, 8]} />
@@ -533,9 +534,16 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const wasSel = useRef(false);
   const lensC = useMemo(() => new Color(accent), [accent]);
 
-  // the tracked cube's wireframe, on an owned material (opted out of ghosting)
+  // The tracked cube's wireframe, on an owned material (opted out of ghosting).
+  // Drawn from the fillet's CROWN box, not the full one: the solid inside it is
+  // a SoftGeo now, and a wireframe cut to the nominal size would stand off the
+  // rounded corners. The crown of a radius-r fillet sits r(1 − 1/√2) inside the
+  // nominal face, which is where <Edges threshold={SOFT.edge}> puts the line on
+  // every other softened box in the maquette — this just reproduces that by
+  // hand, because this cube's outline is a separate object from its solid.
   const cube = useMemo(() => {
-    const geo = new EdgesGeometry(new BoxGeometry(CAM_CUBE, CAM_CUBE, CAM_CUBE));
+    const crown = CAM_CUBE - 2 * softRadius(CAM_CUBE, CAM_CUBE, CAM_CUBE) * (1 - Math.SQRT1_2);
+    const geo = new EdgesGeometry(new BoxGeometry(crown, crown, crown));
     const mat = new LineBasicMaterial({ color: new Color(accentPale), transparent: true, toneMapped: false, opacity: 0.9, depthWrite: false });
     mat.userData.lifeSkip = true;
     return { obj: new LineSegments(geo, mat), mat, geo };
@@ -636,7 +644,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         {/* lower segment — twin plates leaning forward to the knee */}
         {[-0.026, 0.026].map((x, i) => (
           <mesh key={`l${i}`} position={[x, 0.118, -0.053]} rotation={[0.43, 0, 0]}>
-            <boxGeometry args={[0.011, 0.19, 0.034]} />
+            <SoftGeo args={[0.011, 0.19, 0.034]} />
             <LiveGlassMat slug={slug} tint="deep" />
           </mesh>
         ))}
@@ -649,7 +657,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         {/* upper segment — twin plates leaning back up to the grip hub */}
         {[-0.026, 0.026].map((x, i) => (
           <mesh key={`u${i}`} position={[x, 0.278, -0.045]} rotation={[-0.37, 0, 0]}>
-            <boxGeometry args={[0.011, 0.17, 0.034]} />
+            <SoftGeo args={[0.011, 0.17, 0.034]} />
             <LiveGlassMat slug={slug} tint="deep" />
           </mesh>
         ))}
@@ -660,7 +668,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
           <LiveEdges slug={slug} threshold={30} />
         </mesh>
         <mesh position={[0, 0.358, -0.036]}>
-          <boxGeometry args={[0.026, 0.02, 0.1]} />
+          <SoftGeo args={[0.026, 0.02, 0.1]} />
           <LiveGlassMat slug={slug} tint="deep" />
         </mesh>
 
@@ -673,7 +681,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
               <group ref={cubeRef} position={[0, 0, CAM_CUBE_Z]}>
                 <primitive object={cube.obj} />
                 <mesh>
-                  <boxGeometry args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
+                  <SoftGeo args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
                   <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
                 </mesh>
                 {corners.map((c, i) => (
@@ -694,7 +702,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                 <meshStandardMaterial color={NEUTRAL} roughness={0.4} metalness={0.5} />
               </mesh>
               <mesh position={[0, -0.015, 0]}>
-                <boxGeometry args={[0.034, 0.014, 0.034]} />
+                <SoftGeo args={[0.034, 0.014, 0.034]} />
                 <LiveGlassMat slug={slug} tint="deep" />
               </mesh>
               {/* the barrel: everything past the yoke, beam included, so the focus
@@ -831,9 +839,10 @@ export function ChipRig() {
           and depth-writing on, so it read as an opaque slab dropped under a city
           and a room made of glass. */}
       <BlobShadow position={[0, 0.002, 0]} radius={1.4} opacity={0.34} />
-      <RoundedBox args={[2.05, 0.02, 2.05]} radius={0.04} smoothness={2} position={[0, 0.01, 0]}>
+      <mesh position={[0, 0.01, 0]}>
+        <SoftGeo args={[2.05, 0.02, 2.05]} />
         <GlassMat tint="deep" />
-      </RoundedBox>
+      </mesh>
       {/* board outline. The inner keepout ring that used to double it up was there
           to stop the substrate reading as a plain slab — the glass and its
           halftone do that now, so the second concentric rule was just another
@@ -882,7 +891,7 @@ export function ChipRig() {
             as the package solidifies — the die ended up a solid slab wearing a
             hard white rectangle, which is most of why it didn't read as opaque.
             The glass rim already draws the silhouette. */}
-        <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.03} liveSlug="amsterdam-ai" />
+        <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} liveSlug="amsterdam-ai" />
         <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor={accent} />
         <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.175, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
       </LifeGroup>

@@ -5,13 +5,13 @@
 // everything.
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Edges, RoundedBox } from '@react-three/drei';
+import { Edges } from '@react-three/drei';
 import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { useTweak } from '../devTweak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { FIRE, GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
-import { GlassMat, GroundMat, LiveGlassMat, SoftBox } from './materials';
+import { GlassMat, GroundMat, LiveGlassMat, SoftBox, SoftGeo } from './materials';
 import { BlobShadow } from './backdrop';
 
 const PHONE_BALLS = 6;
@@ -196,7 +196,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
           [1, args[1] * 0.10, args[1] * 0.20], // power, upper right and longer
         ] as [number, number, number][]).map(([side, y, len], i) => (
           <mesh key={i} position={[side * (args[0] / 2 + args[2] * 0.28), y, 0]}>
-            <boxGeometry args={[args[2] * 0.7, len, args[2] * 1.5]} />
+            <SoftGeo args={[args[2] * 0.7, len, args[2] * 1.5]} />
             <meshStandardMaterial
               userData={{ lifeSkip: true }}
               color={accent}
@@ -210,7 +210,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
         ))}
         {/* camera bump — the other thing that dates a phone, on the back */}
         <mesh position={[args[0] * 0.26, args[1] * 0.3, -args[2] * 1.1]}>
-          <boxGeometry args={[args[0] * 0.34, args[1] * 0.17, args[2] * 0.5]} />
+          <SoftGeo args={[args[0] * 0.34, args[1] * 0.17, args[2] * 0.5]} />
           <meshStandardMaterial userData={{ lifeSkip: true }} color={SURFACE.deep.color} roughness={0.35} metalness={0.3} toneMapped={false} />
         </mesh>
       </group>
@@ -276,7 +276,7 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
   });
   return (
     <mesh position={position} rotation={rotation}>
-      <boxGeometry args={args} />
+      <SoftGeo args={args} />
       <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.3} roughness={0.4} toneMapped={false} />
     </mesh>
   );
@@ -302,12 +302,12 @@ function RaceCar({ color }: { color: string }) {
     <group>
       {/* floor pan — the widest part, sitting low between the wheels */}
       <mesh position={[0, 0.004, -0.002]}>
-        <boxGeometry args={[0.03, 0.005, 0.062]} />
+        <SoftGeo args={[0.03, 0.005, 0.062]} />
         {body}
       </mesh>
       {/* central tub, narrower than the floor so the pan shows as a lip */}
       <mesh position={[0, 0.01, -0.004]}>
-        <boxGeometry args={[0.022, 0.011, 0.05]} />
+        <SoftGeo args={[0.022, 0.011, 0.05]} />
         {body}
       </mesh>
       {/* nose cone — tapers to a point ahead of the front axle */}
@@ -317,24 +317,24 @@ function RaceCar({ color }: { color: string }) {
       </mesh>
       {/* front wing on the deck, spanning the front axle */}
       <mesh position={[0, 0.0045, 0.05]}>
-        <boxGeometry args={[0.036, 0.0022, 0.011]} />
+        <SoftGeo args={[0.036, 0.0022, 0.011]} />
         {body}
       </mesh>
       {/* sidepods flanking the tub, angled inward toward the rear */}
       {([-1, 1] as const).map((s, i) => (
         <mesh key={i} position={[s * 0.016, 0.0105, -0.008]} rotation={[0, s * 0.11, 0]}>
-          <boxGeometry args={[0.009, 0.011, 0.032]} />
+          <SoftGeo args={[0.009, 0.011, 0.032]} />
           {body}
         </mesh>
       ))}
       {/* cockpit opening — dark, set into the tub */}
       <mesh position={[0, 0.0165, 0.006]}>
-        <boxGeometry args={[0.015, 0.004, 0.018]} />
+        <SoftGeo args={[0.015, 0.004, 0.018]} />
         <meshStandardMaterial color={SURFACE.deep.color} roughness={0.3} toneMapped={false} />
       </mesh>
       {/* airbox / roll hoop rising behind the driver */}
       <mesh position={[0, 0.021, -0.012]}>
-        <boxGeometry args={[0.013, 0.014, 0.02]} />
+        <SoftGeo args={[0.013, 0.014, 0.02]} />
         {body}
       </mesh>
       {/* engine cover tapering back to the wing */}
@@ -345,12 +345,12 @@ function RaceCar({ color }: { color: string }) {
       {/* rear wing, carried on two endplates rather than floating */}
       {([-1, 1] as const).map((s, i) => (
         <mesh key={i} position={[s * 0.014, 0.019, -0.032]}>
-          <boxGeometry args={[0.0025, 0.011, 0.01]} />
+          <SoftGeo args={[0.0025, 0.011, 0.01]} />
           {body}
         </mesh>
       ))}
       <mesh position={[0, 0.0235, -0.032]} rotation={[0.18, 0, 0]}>
-        <boxGeometry args={[0.031, 0.0022, 0.011]} />
+        <SoftGeo args={[0.031, 0.0022, 0.011]} />
         {body}
       </mesh>
       {/* wheels: a tyre plus a brighter rim face, so they read as wheels rather
@@ -656,12 +656,13 @@ function Keyboard({ position, rotation }: { position: V3; rotation?: V3 }) {
   ];
   return (
     <group position={position} rotation={rotation}>
-      <RoundedBox args={[0.3, 0.016, 0.115]} radius={0.006} smoothness={2}>
+      <mesh>
+        <SoftGeo args={[0.3, 0.016, 0.115]} />
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
-      </RoundedBox>
+      </mesh>
       {rows.map((p, i) => (
         <mesh key={i} position={p}>
-          <boxGeometry args={[0.26, 0.0035, 0.015]} />
+          <SoftGeo args={[0.26, 0.0035, 0.015]} />
           <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
         </mesh>
       ))}
@@ -674,9 +675,10 @@ function Keyboard({ position, rotation }: { position: V3; rotation?: V3 }) {
 function Mouse({ position, rotation }: { position: V3; rotation?: V3 }) {
   return (
     <group position={position} rotation={rotation}>
-      <RoundedBox args={[0.046, 0.026, 0.072]} radius={0.012} smoothness={3}>
+      <mesh>
+        <SoftGeo args={[0.046, 0.026, 0.072]} />
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
-      </RoundedBox>
+      </mesh>
       <Line
         points={[[0, 0.014, 0.004], [0, 0.014, 0.034]]}
         color={NEUTRAL}
@@ -832,12 +834,12 @@ function BookHalf({ side, tex }: { side: -1 | 1; tex: Texture | null }) {
     <>
       {/* cover board */}
       <mesh position={[x, 0, 0]}>
-        <boxGeometry args={[BOOK_W / 2, BOOK_T, BOOK_H]} />
+        <SoftGeo args={[BOOK_W / 2, BOOK_T, BOOK_H]} />
         <meshStandardMaterial color={accentDeep} emissive={accentDeep} emissiveIntensity={0.16} roughness={0.5} />
       </mesh>
       {/* page block */}
       <mesh position={[x, BOOK_T / 2 + BOOK_PT / 2, 0]}>
-        <boxGeometry args={[BOOK_W / 2 - 0.012, BOOK_PT, BOOK_H - 0.014]} />
+        <SoftGeo args={[BOOK_W / 2 - 0.012, BOOK_PT, BOOK_H - 0.014]} />
         <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.1} roughness={0.85} />
       </mesh>
       {/* the printed page on top of the block */}
@@ -890,7 +892,7 @@ function BookAR({ slug }: { slug: string }) {
       {items.map((it, i) => (
         <group key={i} ref={(r) => (refs.current[i] = r)}>
           <mesh>
-            {it.kind === 0 ? <boxGeometry args={[0.026, 0.026, 0.026]} /> : it.kind === 1 ? <tetrahedronGeometry args={[0.021]} /> : <octahedronGeometry args={[0.02]} />}
+            {it.kind === 0 ? <SoftGeo args={[0.026, 0.026, 0.026]} /> : it.kind === 1 ? <tetrahedronGeometry args={[0.021]} /> : <octahedronGeometry args={[0.02]} />}
             <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={accent} emissive={accent} emissiveIntensity={1.4} transparent opacity={0} wireframe toneMapped={false} depthWrite={false} userData={{ lifeSkip: true }} />
           </mesh>
         </group>
@@ -960,7 +962,7 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
       </group>
       {/* spine */}
       <mesh position={[0, -0.001, 0]}>
-        <boxGeometry args={[0.015, BOOK_T + 0.003, BOOK_H]} />
+        <SoftGeo args={[0.015, BOOK_T + 0.003, BOOK_H]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.14} roughness={0.5} />
       </mesh>
       {/* holographic content lifting off the open spread */}
@@ -1094,34 +1096,34 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
       <BlobShadow position={[0, 0.004, 0.04]} radius={0.52} aspect={0.55} opacity={0.4} />
       <group>
       {/* case frame: back, sides, top, base — solidifies once the book is opened */}
-      <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} liveSlug="zwijsen-ar-books" liveGhost={false} />
-      <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
-      <SoftBox position={[0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
-      <SoftBox position={[0, 0.915, 0.04]} args={[0.74, 0.03, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
-      <SoftBox position={[0, 0.02, 0.04]} args={[0.74, 0.04, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
+      <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} liveSlug="zwijsen-ar-books" liveGhost={false} />
+      <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} liveSlug="zwijsen-ar-books" liveGhost={false} />
+      <SoftBox position={[0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} liveSlug="zwijsen-ar-books" liveGhost={false} />
+      <SoftBox position={[0, 0.915, 0.04]} args={[0.74, 0.03, 0.26]} liveSlug="zwijsen-ar-books" liveGhost={false} />
+      <SoftBox position={[0, 0.02, 0.04]} args={[0.74, 0.04, 0.26]} liveSlug="zwijsen-ar-books" liveGhost={false} />
       {/* shelves */}
       {[0.16, 0.42, 0.68].map((sy, s) => (
-        <SoftBox key={s} position={[0, sy, 0.04]} args={[0.7, 0.02, 0.24]} radius={0.006} opacity={0.3} liveSlug="zwijsen-ar-books" liveGhost={false} />
+        <SoftBox key={s} position={[0, sy, 0.04]} args={[0.7, 0.02, 0.24]} opacity={0.3} liveSlug="zwijsen-ar-books" liveGhost={false} />
       ))}
       {/* books — their spines glow when the bookcase is on */}
       {BOOKS.map((bk, i) => (
         <mesh key={i} position={bk.p} rotation={bk.r}>
-          <boxGeometry args={bk.s} />
+          <SoftGeo args={bk.s} />
           <meshStandardMaterial ref={(m) => (bookMats.current[i] = m)} color={SURFACE[bk.c].color} emissive={SURFACE[bk.c].color} emissiveIntensity={0.1} roughness={0.6} />
         </mesh>
       ))}
       {/* a horizontal stack on the bottom-right shelf */}
       <group position={[0.19, 0.19, 0.02]}>
         <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[0.2, 0.03, 0.16]} />
+          <SoftGeo args={[0.2, 0.03, 0.16]} />
           <meshStandardMaterial color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.12} roughness={0.6} />
         </mesh>
         <mesh position={[0.01, 0.032, 0.006]}>
-          <boxGeometry args={[0.19, 0.028, 0.155]} />
+          <SoftGeo args={[0.19, 0.028, 0.155]} />
           <meshStandardMaterial color={SURFACE.glass.color} emissive={SURFACE.glass.color} emissiveIntensity={0.12} roughness={0.6} />
         </mesh>
         <mesh position={[-0.008, 0.062, -0.004]}>
-          <boxGeometry args={[0.18, 0.026, 0.15]} />
+          <SoftGeo args={[0.18, 0.026, 0.15]} />
           <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.12} roughness={0.6} />
         </mesh>
       </group>
@@ -1173,7 +1175,7 @@ export function RoomRig() {
       <group position={desk.position} rotation={[0, desk.rotationY, 0]}>
         <BlobShadow position={[0, 0.004, -0.16]} radius={0.6} aspect={0.72} opacity={0.38} />
         <group position={[0, 0, -0.3]}>
-          <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline liveSlug="virtuele-brigade" liveGhost={false} />
+          <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} outline liveSlug="virtuele-brigade" liveGhost={false} />
           {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
             <mesh key={i} position={[lx, 0.18, lz]}>
               <cylinderGeometry args={[0.02, 0.02, 0.36, 12]} />
@@ -1186,14 +1188,14 @@ export function RoomRig() {
                 it stood 90mm proud of the screen on the viewer's side and cut
                 straight down the display. Everything structural now lives at
                 z -0.16 or further back, so nothing crosses the picture. */}
-            <SoftBox position={[0, 0.404, -0.15]} args={[0.17, 0.012, 0.11]} radius={0.006} liveSlug="virtuele-brigade" />
+            <SoftBox position={[0, 0.404, -0.15]} args={[0.17, 0.012, 0.11]} liveSlug="virtuele-brigade" />
             <mesh position={[0, 0.5, -0.163]}>
               <cylinderGeometry args={[0.013, 0.017, 0.19, 12]} />
               <GlassMat tint="pale" />
             </mesh>
             {/* the hinge block where the neck meets the panel's back */}
-            <SoftBox position={[0, 0.6, -0.157]} args={[0.07, 0.05, 0.022]} radius={0.008} liveSlug="virtuele-brigade" />
-            <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} liveSlug="virtuele-brigade" />
+            <SoftBox position={[0, 0.6, -0.157]} args={[0.07, 0.05, 0.022]} liveSlug="virtuele-brigade" />
+            <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} liveSlug="virtuele-brigade" />
             <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
           </LifeGroup>
           {/* The desk set — keyboard square in front of the monitor, mouse to its
@@ -1218,7 +1220,7 @@ export function RoomRig() {
             const r = 0.115;
             return (
               <group key={i} rotation={[0, -a, 0]}>
-                <SoftBox position={[0, 0.028, r * 0.55]} args={[0.028, 0.016, r]} radius={0.007} liveSlug="virtuele-brigade" liveGhost={false} />
+                <SoftBox position={[0, 0.028, r * 0.55]} args={[0.028, 0.016, r]} liveSlug="virtuele-brigade" liveGhost={false} />
                 <mesh position={[0, 0.016, r]} rotation={[0, 0, Math.PI / 2]}>
                   <cylinderGeometry args={[0.016, 0.016, 0.012, 10]} />
                   <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="glass" />
@@ -1231,7 +1233,7 @@ export function RoomRig() {
             <cylinderGeometry args={[0.019, 0.026, 0.19, 12]} />
             <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="pale" />
           </mesh>
-          <SoftBox position={[0, 0.238, 0]} args={[0.32, 0.055, 0.31]} radius={0.055} outline liveSlug="virtuele-brigade" liveGhost={false} />
+          <SoftBox position={[0, 0.238, 0]} args={[0.32, 0.055, 0.31]} outline liveSlug="virtuele-brigade" liveGhost={false} />
           {/* two posts carrying the back, so daylight shows between seat and rest */}
           {([-0.1, 0.1] as const).map((lx, i) => (
             <mesh key={i} position={[lx, 0.3, -0.135]}>
@@ -1239,9 +1241,9 @@ export function RoomRig() {
               <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="glass" />
             </mesh>
           ))}
-          <SoftBox position={[0, 0.44, -0.142]} args={[0.3, 0.3, 0.045]} radius={0.05} outline liveSlug="virtuele-brigade" liveGhost={false} />
+          <SoftBox position={[0, 0.44, -0.142]} args={[0.3, 0.3, 0.045]} outline liveSlug="virtuele-brigade" liveGhost={false} />
           {/* lumbar band — one horizontal break so the back is not a plain slab */}
-          <SoftBox position={[0, 0.355, -0.118]} args={[0.26, 0.055, 0.022]} radius={0.02} opacity={0.22} liveSlug="virtuele-brigade" liveGhost={false} />
+          <SoftBox position={[0, 0.355, -0.118]} args={[0.26, 0.055, 0.022]} opacity={0.22} liveSlug="virtuele-brigade" liveGhost={false} />
           {/* armrests */}
           {([-0.17, 0.17] as const).map((lx, i) => (
             <group key={i}>
@@ -1249,7 +1251,7 @@ export function RoomRig() {
                 <cylinderGeometry args={[0.009, 0.009, 0.085, 8]} />
                 <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="pale" />
               </mesh>
-              <SoftBox position={[lx, 0.335, -0.03]} args={[0.035, 0.016, 0.15]} radius={0.008} liveSlug="virtuele-brigade" liveGhost={false} />
+              <SoftBox position={[lx, 0.335, -0.03]} args={[0.035, 0.016, 0.15]} liveSlug="virtuele-brigade" liveGhost={false} />
             </group>
           ))}
         </group>
@@ -1280,26 +1282,26 @@ export function RoomRig() {
         ))}
 
         {/* the frame: a plinth the cushions drop into */}
-        <SoftBox position={[0, 0.098, 0]} args={[0.92, 0.075, 0.44]} radius={0.022} outline liveSlug="popcore-games" liveGhost={false} />
+        <SoftBox position={[0, 0.098, 0]} args={[0.92, 0.075, 0.44]} outline liveSlug="popcore-games" liveGhost={false} />
 
         {/* two seat cushions, with a seam between them */}
         {([-0.222, 0.222] as const).map((cx, i) => (
-          <SoftBox key={i} position={[cx, 0.163, 0.012]} args={[0.42, 0.075, 0.4]} radius={0.032} outline liveSlug="popcore-games" liveGhost={false} />
+          <SoftBox key={i} position={[cx, 0.163, 0.012]} args={[0.42, 0.075, 0.4]} outline liveSlug="popcore-games" liveGhost={false} />
         ))}
 
         {/* back: a low rail, then two cushions leaning on it */}
-        <SoftBox position={[0, 0.235, -0.196]} args={[0.92, 0.2, 0.055]} radius={0.02} liveSlug="popcore-games" liveGhost={false} />
+        <SoftBox position={[0, 0.235, -0.196]} args={[0.92, 0.2, 0.055]} liveSlug="popcore-games" liveGhost={false} />
         {([-0.222, 0.222] as const).map((cx, i) => (
-          <SoftBox key={i} position={[cx, 0.272, -0.163]} args={[0.42, 0.185, 0.07]} radius={0.032} rotation={[0.11, 0, 0]} outline liveSlug="popcore-games" liveGhost={false} />
+          <SoftBox key={i} position={[cx, 0.272, -0.163]} args={[0.42, 0.185, 0.07]} rotation={[0.11, 0, 0]} outline liveSlug="popcore-games" liveGhost={false} />
         ))}
 
         {/* arms — stop short of the back rail and taper toward the front */}
         {([-0.452, 0.452] as const).map((ax, i) => (
-          <SoftBox key={i} position={[ax, 0.18, 0.022]} args={[0.078, 0.165, 0.4]} radius={0.036} outline liveSlug="popcore-games" liveGhost={false} />
+          <SoftBox key={i} position={[ax, 0.18, 0.022]} args={[0.078, 0.165, 0.4]} outline liveSlug="popcore-games" liveGhost={false} />
         ))}
 
         {/* one throw cushion, propped in the left corner against the arm */}
-        <SoftBox position={[-0.3, 0.245, -0.075]} args={[0.19, 0.175, 0.06]} radius={0.05} rotation={[0.22, 0.34, 0.12]} opacity={0.24} liveSlug="popcore-games" liveGhost={false} />
+        <SoftBox position={[-0.3, 0.245, -0.075]} args={[0.19, 0.175, 0.06]} rotation={[0.22, 0.34, 0.12]} opacity={0.24} liveSlug="popcore-games" liveGhost={false} />
         <LifeGroup slug="popcore-games">
           <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor={accent} />
         </LifeGroup>

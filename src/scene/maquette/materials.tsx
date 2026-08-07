@@ -1,11 +1,12 @@
 // The maquette's material language: frosted holographic glass (with a fresnel
 // rim + screen-space dot grid injected into the shader), its "comes alive once
 // visited" variant, and the rounded soft box.
-import { useContext, useMemo, useRef } from 'react';
+import { useContext, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges, RoundedBox, type EdgesRef } from '@react-three/drei';
-import { Color, FrontSide, MeshStandardMaterial, type Material, type Side } from 'three';
-import { useActive, GROUND, NEUTRAL, SURFACE, SURFACE_AWAKE, SURFACE_GLOW, Line, roundedRectPts, type Tint, type V3 } from './shared';
+import { Edges, type EdgesRef } from '@react-three/drei';
+import { Color, FrontSide, MeshStandardMaterial, Shape, type ExtrudeGeometry, type Material, type Side } from 'three';
+import { toCreasedNormals } from 'three-stdlib';
+import { useActive, GROUND, NEUTRAL, SOFT, SURFACE, SURFACE_AWAKE, SURFACE_GLOW, Line, roundedRectPts, softRadius, type Tint, type V3 } from './shared';
 import { GHOST_FILL } from './life';
 import { PresenceCtx } from './presence';
 import { useFxConfig } from '../fxTweak';
@@ -211,16 +212,61 @@ export function LiveEdges({ slug, threshold = 20, rest = 1, wake }: { slug: stri
 }
 
 
-export function SoftBox({ position, args, radius = 0.03, opacity = 0.2, outline = false, rotation, color, liveSlug, liveGhost = true }: { position: V3; args: V3; radius?: number; opacity?: number; outline?: boolean; rotation?: V3; color?: string; liveSlug?: string; liveGhost?: boolean }) {
-  // Clamp so the corner radius never exceeds half the smallest side.
-  const r = Math.min(radius, Math.min(args[0], args[1], args[2]) / 2 - 0.002);
+/* ---------- corners ---------- */
+
+const EPS = 1e-5;
+/** The extruded profile of a filleted box: a w×h rectangle with `r` corners. */
+function cornerShape(w: number, h: number, r: number): Shape {
+  const rr = r - EPS;
+  const s = new Shape();
+  s.absarc(EPS, EPS, EPS, -Math.PI / 2, -Math.PI, true);
+  s.absarc(EPS, h - rr * 2, EPS, Math.PI, Math.PI / 2, true);
+  s.absarc(w - rr * 2, h - rr * 2, EPS, Math.PI / 2, 0, true);
+  s.absarc(w - rr * 2, EPS, EPS, 0, -Math.PI / 2, true);
+  return s;
+}
+
+/** Drop-in for `<boxGeometry args={[w, h, d]} />` that arrives with the
+ *  maquette's corner on it — same call shape, so softening a hard box is a
+ *  one-word edit and the mesh keeps whatever material it already had.
+ *
+ *  Below SOFT.floor it hands back a plain box: at that size the fillet is
+ *  invisible and the extrusion would cost twenty times the triangles for it.
+ *
+ *  This is also what SoftBox is built from now, so the model has ONE piece of
+ *  corner geometry rather than a hand-rolled one for furniture and none at all
+ *  for architecture. It's cheaper as well as more consistent — SoftBox used to
+ *  ask drei for smoothness 3, which is 1,004 triangles a box; the rule's two
+ *  segments are 236, and a fillet two segments wide is sub-pixel at every
+ *  distance this maquette is ever seen from. */
+export function SoftGeo({ args, radius }: { args: V3; radius?: number }) {
+  const [w, h, d] = args;
+  const r = radius ?? softRadius(w, h, d);
+  const shape = useMemo(() => (r > 0 ? cornerShape(w, h, r) : null), [w, h, r]);
+  const params = useMemo(
+    () => ({ depth: d - r * 2, bevelEnabled: true, bevelSegments: SOFT.bevel * 2, steps: 1, bevelSize: r - EPS, bevelThickness: r, curveSegments: SOFT.curve }),
+    [d, r],
+  );
+  const geo = useRef<ExtrudeGeometry>(null);
+  useLayoutEffect(() => {
+    const g = geo.current;
+    if (!g) return;
+    g.center(); // ExtrudeGeometry builds from the origin; every box here is centred
+    toCreasedNormals(g, SOFT.crease);
+  }, [shape, params]);
+  if (!shape) return <boxGeometry args={args} />;
+  return <extrudeGeometry ref={geo} args={[shape, params]} />;
+}
+
+export function SoftBox({ position, args, radius, opacity, tint, outline = false, rotation, color, liveSlug, liveGhost = true }: { position: V3; args: V3; radius?: number; opacity?: number; tint?: Tint; outline?: boolean; rotation?: V3; color?: string; liveSlug?: string; liveGhost?: boolean }) {
   return (
     <group position={position} rotation={rotation}>
-      <RoundedBox args={args} radius={r} smoothness={3}>
-        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={liveGhost} opacity={opacity} color={color} /> : <GlassMat opacity={opacity} color={color} />}
-      </RoundedBox>
+      <mesh>
+        <SoftGeo args={args} radius={radius} />
+        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={liveGhost} tint={tint} opacity={opacity} color={color} /> : <GlassMat tint={tint} opacity={opacity} color={color} />}
+      </mesh>
       {outline && (
-        <Line points={roundedRectPts(args[0], args[2], radius * 1.6)} position={[0, args[1] / 2, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
+        <Line points={roundedRectPts(args[0], args[2], softRadius(...args) * 1.6)} position={[0, args[1] / 2, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
       )}
     </group>
   );
