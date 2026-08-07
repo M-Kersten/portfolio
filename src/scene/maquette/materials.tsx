@@ -4,8 +4,8 @@
 import { useContext, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, RoundedBox, type EdgesRef } from '@react-three/drei';
-import { Color, MeshStandardMaterial, type Material } from 'three';
-import { useActive, GLASS, NEUTRAL, Line, roundedRectPts, type V3 } from './shared';
+import { Color, FrontSide, MeshStandardMaterial, type Material, type Side } from 'three';
+import { useActive, GROUND, NEUTRAL, SURFACE, SURFACE_AWAKE, SURFACE_GLOW, Line, roundedRectPts, type Tint, type V3 } from './shared';
 import { GHOST_FILL } from './life';
 import { PresenceCtx } from './presence';
 import { useFxConfig } from '../fxTweak';
@@ -65,15 +65,25 @@ export function glassRim(shader: any) {
     );
 }
 
-export function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opacity?: number }) {
+/** The substance, standing still.
+ *
+ *  There used to be a real difference here — GlassMat was its own material with
+ *  its own defaults, so a prop and a hotspot's companion piece were literally
+ *  different stock sitting next to each other. Now it's the same declaration as
+ *  LiveGlassMat's resting state, which is the whole point of the system: a
+ *  study model is cut from one sheet, and the only reason a part looks different
+ *  is that it's a different VALUE of that sheet (see SURFACE) or that something
+ *  has woken it up. */
+export function GlassMat({ tint = 'glass', color, opacity }: { tint?: Tint; color?: string; opacity?: number }) {
+  const cut = SURFACE[tint];
   return (
     <meshStandardMaterial
-      color={color}
+      color={color ?? cut.color}
       transparent
-      opacity={opacity}
+      opacity={opacity ?? cut.rest}
       roughness={0.34}
       metalness={0}
-      emissive="#0c2a30"
+      emissive={SURFACE_GLOW}
       emissiveIntensity={0.14}
       depthWrite={false}
       onBeforeCompile={glassRim}
@@ -91,11 +101,14 @@ export function GlassMat({ color = GLASS, opacity = 0.2 }: { color?: string; opa
  *  simply "is my hotspot open" — the skyline solidifies on the city's staggered
  *  window ramp, outward from the tower, so each building hands its own level in.
  *  A ref because it changes every frame and must not re-render. */
-export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true, solid = 0.94, wake }: { slug: string; color?: string; opacity?: number; ghost?: boolean; solid?: number; wake?: { current: number } }) {
+export function LiveGlassMat({ slug, tint = 'glass', color, opacity, ghost = true, solid = SURFACE_AWAKE, wake }: { slug: string; tint?: Tint; color?: string; opacity?: number; ghost?: boolean; solid?: number; wake?: { current: number } }) {
+  const cut = SURFACE[tint];
+  const fill = color ?? cut.color;
+  const restOpacity = opacity ?? cut.rest;
   const { selected, visited } = useActive(slug);
   const mat = useRef<MeshStandardMaterial>(null);
   const k = useRef(0);
-  const baseC = useMemo(() => new Color(color), [color]);
+  const baseC = useMemo(() => new Color(fill), [fill]);
   const presence = useContext(PresenceCtx); // a layer that isn't the subject recedes
   const cfg = useFxConfig();
   useFrame(() => {
@@ -106,7 +119,7 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
     if (wake) k.current = wake.current;
     else k.current += ((selected || visited ? 1 : 0) - k.current) * cfg.wakeSpeed;
     m.color.copy(GHOST_FILL).lerp(baseC, ghost ? 0.3 + 0.7 * k.current : 1);
-    const rest = ghost ? opacity * 0.3 : opacity;
+    const rest = ghost ? restOpacity * 0.3 : restOpacity;
     m.opacity = (rest + (solid - rest) * k.current) * presence.current;
     // Waking an object still makes it glossier, but gently — the shine now comes
     // off the environment rather than the key light (see SPEC above), so the
@@ -118,17 +131,34 @@ export function LiveGlassMat({ slug, color = GLASS, opacity = 0.2, ghost = true,
     <meshStandardMaterial
       ref={mat}
       userData={{ lifeSkip: true }}
-      color={color}
+      color={fill}
       transparent
-      opacity={opacity}
+      opacity={restOpacity}
       roughness={0.34}
       metalness={0}
-      emissive="#0c2a30"
+      emissive={SURFACE_GLOW}
       emissiveIntensity={0.14}
       depthWrite={false}
       onBeforeCompile={glassRim}
     />
   );
+}
+
+/** The sheet the model stands on — roads, aprons, the rug, any paved patch.
+ *
+ *  GROUND is a separate category from SURFACE for a reason that only shows up
+ *  once you try to merge them: a floor marking has no volume, so lighting it
+ *  makes no sense (there's nothing for the light to fall across), and giving it
+ *  a SURFACE cut makes it read as a very thin slab of the model lying down
+ *  rather than as something printed on the paper. Unlit, single-valued, and
+ *  never a hotspot: if it's drawn ON the sheet rather than standing on it, it
+ *  comes from here.
+ *
+ *  This is also the one category the first sweep missed — the rug and the park
+ *  apron were `GlassMat` at hand-picked opacities (0.06, 0.15), so routing them
+ *  to a SURFACE cut quadrupled them into bright discs. They were never surfaces. */
+export function GroundMat({ opacity = GROUND.film, side }: { opacity?: number; side?: Side }) {
+  return <meshBasicMaterial color={GROUND.sheet} transparent opacity={opacity} side={side ?? FrontSide} depthWrite={false} />;
 }
 
 /** Flat highlight box. Defaults to the layer accent, but decorative (non-hotspot)

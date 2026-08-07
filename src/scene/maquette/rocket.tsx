@@ -11,6 +11,7 @@ import { useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges } from '@react-three/drei';
 import type { Group } from 'three';
+import { NEUTRAL, SURFACE } from './shared';
 import { GHOST_FILL, GHOST_LINE } from './life';
 
 const FINS: [number, number][] = [[-0.042, 0], [0.042, 0], [0, -0.042], [0, 0.042]];
@@ -58,14 +59,14 @@ export function Rise({ animate, children }: { animate: boolean; children: ReactN
 export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?: 'ghost' | 'lit'; parts?: RocketParts; assemble?: boolean }) {
   const lit = mode === 'lit';
   // lit: faint panel seams, not neon piping — the shading carries the form
-  const line = lit ? '#93a3b0' : GHOST_LINE;
+  const line = lit ? NEUTRAL : GHOST_LINE;
   const p = { legs: true, booster: true, fins: true, interstage: true, nose: true, ...parts };
   // hull: ghost = faint frosted glass; lit = a REAL vehicle — painted white
   // aluminium that takes the key light and the engine's warm bounce, so the
   // cylinder reads round instead of glowing teal
   const Hull = ({ opacity }: { opacity: number }) =>
     lit ? (
-      <meshStandardMaterial color="#dfe5ea" metalness={0.45} roughness={0.42} />
+      <meshStandardMaterial color={SURFACE.pale.color} metalness={0.45} roughness={0.42} />
     ) : (
       <meshStandardMaterial color={GHOST_FILL} transparent opacity={opacity} />
     );
@@ -75,7 +76,7 @@ export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?:
   // reading as a gap punched through the vehicle.
   const Band = ({ opacity }: { opacity: number }) =>
     lit ? (
-      <meshStandardMaterial color="#6d7883" metalness={0.12} roughness={0.62} />
+      <meshStandardMaterial color={SURFACE.glass.color} metalness={0.12} roughness={0.62} />
     ) : (
       <meshStandardMaterial color={GHOST_FILL} transparent opacity={opacity} />
     );
@@ -89,7 +90,7 @@ export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?:
   // low and let the key light do the work.
   const Strut = ({ opacity }: { opacity: number }) =>
     lit ? (
-      <meshStandardMaterial color="#98a2aa" metalness={0.18} roughness={0.42} />
+      <meshStandardMaterial color={SURFACE.pale.color} metalness={0.18} roughness={0.42} />
     ) : (
       <meshStandardMaterial color={GHOST_LINE} transparent opacity={opacity} />
     );

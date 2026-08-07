@@ -9,9 +9,9 @@ import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { useTweak } from '../devTweak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { NEUTRAL, useAccent, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
+import { FIRE, GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
-import { GlassMat, LiveGlassMat, SoftBox } from './materials';
+import { GlassMat, GroundMat, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
 
 const PHONE_BALLS = 6;
@@ -211,7 +211,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
         {/* camera bump — the other thing that dates a phone, on the back */}
         <mesh position={[args[0] * 0.26, args[1] * 0.3, -args[2] * 1.1]}>
           <boxGeometry args={[args[0] * 0.34, args[1] * 0.17, args[2] * 0.5]} />
-          <meshStandardMaterial userData={{ lifeSkip: true }} color="#0d151c" roughness={0.35} metalness={0.3} toneMapped={false} />
+          <meshStandardMaterial userData={{ lifeSkip: true }} color={SURFACE.deep.color} roughness={0.35} metalness={0.3} toneMapped={false} />
         </mesh>
       </group>
       {balls.map((b, i) => (
@@ -224,7 +224,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
           visible={false}
         >
           <sphereGeometry args={[R, 16, 12]} />
-          <meshStandardMaterial color="#fffdf5" emissive="#fff0d0" emissiveIntensity={0.2} roughness={0.55} toneMapped={false} />
+          <meshStandardMaterial color={SURFACE.pale.color} emissive={FIRE} emissiveIntensity={0.2} roughness={0.55} toneMapped={false} />
         </mesh>
       ))}
     </>
@@ -330,7 +330,7 @@ function RaceCar({ color }: { color: string }) {
       {/* cockpit opening — dark, set into the tub */}
       <mesh position={[0, 0.0165, 0.006]}>
         <boxGeometry args={[0.015, 0.004, 0.018]} />
-        <meshStandardMaterial color="#08111a" roughness={0.3} toneMapped={false} />
+        <meshStandardMaterial color={SURFACE.deep.color} roughness={0.3} toneMapped={false} />
       </mesh>
       {/* airbox / roll hoop rising behind the driver */}
       <mesh position={[0, 0.021, -0.012]}>
@@ -359,7 +359,7 @@ function RaceCar({ color }: { color: string }) {
         <group key={i} position={[wx, 0.0065, wz]} rotation={[0, 0, Math.PI / 2]}>
           <mesh>
             <cylinderGeometry args={[0.0065, 0.0065, 0.007, 14]} />
-            <meshStandardMaterial color="#141c24" roughness={0.75} />
+            <meshStandardMaterial color={SURFACE.deep.color} roughness={0.75} />
           </mesh>
           <mesh position={[0, Math.sign(wx) * 0.0038, 0]}>
             <cylinderGeometry args={[0.0037, 0.0037, 0.0012, 12]} />
@@ -373,7 +373,7 @@ function RaceCar({ color }: { color: string }) {
 
 /** The little gold crown that floats over whichever car is winning. Deliberately
  *  not one of the layer accents — it isn't a project colour, it's a trophy. */
-const CROWN = '#ffcf5e';
+const CROWN = GOLD;
 function LeaderCrown() {
   const pts = useMemo(() => Array.from({ length: 5 }, (_, i) => (i / 5) * Math.PI * 2), []);
   return (
@@ -425,8 +425,8 @@ function LeaderCrown() {
    alongside instead of straight through the other car. */
 const R = 0.2; // track radius — the drawn loop
 const CARS = [
-  { color: '#ff9068', at: 0, dr: 0.016, wob: 3, amp: 0.2, phase: 0, pace: 0 },
-  { color: '#9fb6c6', at: -1.8, dr: -0.016, wob: 2, amp: 0.26, phase: 1.9, pace: Math.PI },
+  { color: PALETTE.room.accent, at: 0, dr: 0.016, wob: 3, amp: 0.2, phase: 0, pace: 0 },
+  { color: NEUTRAL, at: -1.8, dr: -0.016, wob: 2, amp: 0.26, phase: 1.9, pace: Math.PI },
 ];
 const PACE = 0.17; // depth of the slow pace swing
 const PACE_W = 0.175; // rad/s — a full swing every ~36s, so a pass is an event
@@ -499,15 +499,15 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
             ring on every segment. */}
         <mesh position={[0, 0.18, 0]}>
           <cylinderGeometry args={[0.32, 0.32, 0.019, 44]} />
-          <LiveGlassMat slug="lightship-drive" opacity={0.2} />
+          <LiveGlassMat slug="lightship-drive" tint="pale" />
         </mesh>
         <mesh position={[0, 0.18, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.3145, 0.0095, 8, 44]} />
-          <LiveGlassMat slug="lightship-drive" opacity={0.2} />
+          <LiveGlassMat slug="lightship-drive" tint="pale" />
         </mesh>
         <mesh position={[0, 0.18, 0]}>
           <cylinderGeometry args={[0.3145, 0.3145, 0.0295, 44]} />
-          <LiveGlassMat slug="lightship-drive" opacity={0.2} />
+          <LiveGlassMat slug="lightship-drive" tint="pale" />
         </mesh>
         {/* the silhouette line, drawn once on the widest circle */}
         <Line points={circlePts(0.32)} position={[0, 0.18, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.32} />
@@ -516,7 +516,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         {([[0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2]] as [number, number][]).map(([lx, lz], i) => (
           <mesh key={i} position={[lx * 0.94, 0.088, lz * 0.94]} rotation={[lz * 0.09, 0, -lx * 0.09]}>
             <cylinderGeometry args={[0.011, 0.017, 0.176, 10]} />
-            <LiveGlassMat slug="lightship-drive" opacity={0.24} />
+            <LiveGlassMat slug="lightship-drive" tint="pale" />
           </mesh>
         ))}
         {/* the AR race loop — a circle */}
@@ -657,12 +657,12 @@ function Keyboard({ position, rotation }: { position: V3; rotation?: V3 }) {
   return (
     <group position={position} rotation={rotation}>
       <RoundedBox args={[0.3, 0.016, 0.115]} radius={0.006} smoothness={2}>
-        <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.3} />
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
       </RoundedBox>
       {rows.map((p, i) => (
         <mesh key={i} position={p}>
           <boxGeometry args={[0.26, 0.0035, 0.015]} />
-          <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.34} />
+          <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
         </mesh>
       ))}
       <Line points={roundedRectPts(0.3, 0.115, 0.006)} position={[0, 0.009, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
@@ -675,7 +675,7 @@ function Mouse({ position, rotation }: { position: V3; rotation?: V3 }) {
   return (
     <group position={position} rotation={rotation}>
       <RoundedBox args={[0.046, 0.026, 0.072]} radius={0.012} smoothness={3}>
-        <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.34} />
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
       </RoundedBox>
       <Line
         points={[[0, 0.014, 0.004], [0, 0.014, 0.034]]}
@@ -695,21 +695,21 @@ function CoffeeCup({ position, rotation }: { position: V3; rotation?: V3 }) {
     <group position={position} rotation={rotation}>
       <mesh position={[0, 0.036, 0]}>
         <cylinderGeometry args={[0.031, 0.024, 0.072, 20, 1, true]} />
-        <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.32} />
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
       </mesh>
       {/* the coffee — sits 0.006 under the rim, so the cup has a wall above it */}
       <mesh position={[0, 0.066, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.029, 20]} />
-        <meshStandardMaterial color="#2b1d16" emissive="#5a3a24" emissiveIntensity={0.22} roughness={0.35} side={DoubleSide} />
+        <meshStandardMaterial color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.22} roughness={0.35} side={DoubleSide} />
       </mesh>
       {/* base disc, so it doesn't read as an open-ended tube from a low angle */}
       <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.024, 20]} />
-        <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.32} />
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
       </mesh>
       <mesh position={[0.032, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.019, 0.0045, 8, 16, Math.PI]} />
-        <LiveGlassMat slug={DESK_SLUG} ghost={false} opacity={0.32} />
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
       </mesh>
       <Line points={circlePts(0.031, 20)} position={[0, 0.072, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
     </group>
@@ -723,15 +723,15 @@ function FloorLamp({ position }: { position: V3 }) {
       <BlobShadow position={[0, 0.003, 0]} radius={0.2} opacity={0.34} />
       <mesh position={[0, 0.006, 0]}>
         <cylinderGeometry args={[0.12, 0.13, 0.012, 24]} />
-        <GlassMat opacity={0.22} />
+        <GlassMat tint="pale" />
       </mesh>
       <mesh position={[0, 0.34, 0]}>
         <cylinderGeometry args={[0.01, 0.01, 0.66, 8]} />
-        <GlassMat opacity={0.3} />
+        <GlassMat tint="glass" />
       </mesh>
       <mesh position={[0, 0.72, 0]}>
         <coneGeometry args={[0.14, 0.18, 22, 1, true]} />
-        <GlassMat opacity={0.2} />
+        <GlassMat tint="pale" />
         <Edges threshold={30} color={NEUTRAL} />
       </mesh>
     </group>
@@ -756,13 +756,13 @@ function PottedPlant({ position, liveSlug }: { position: V3; liveSlug?: string }
       {/* pot — kept to the scene's neutral glass, no terracotta */}
       <mesh position={[0, 0.08, 0]}>
         <cylinderGeometry args={[0.13, 0.1, 0.16, 22]} />
-        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} opacity={0.4} /> : <GlassMat opacity={0.4} />}
+        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} tint="deep" /> : <GlassMat tint="deep" />}
         <Edges threshold={24} color={NEUTRAL} />
       </mesh>
       {/* soil, as understated glass rather than dark earth */}
       <mesh position={[0, 0.165, 0]}>
         <cylinderGeometry args={[0.12, 0.12, 0.012, 20]} />
-        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} opacity={0.3} /> : <GlassMat opacity={0.3} />}
+        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} tint="glass" /> : <GlassMat tint="glass" />}
       </mesh>
       {/* leaf blades — same neutral glass, no green, barely there at rest */}
       {blades.map((b, i) => (
@@ -770,7 +770,7 @@ function PottedPlant({ position, liveSlug }: { position: V3; liveSlug?: string }
           <group rotation={[b.tilt, 0, 0]}>
             <mesh position={[0, b.len / 2, 0]} scale={[1, 1, 0.18]}>
               <coneGeometry args={[0.045, b.len, 5]} />
-              {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} opacity={0.14} solid={0.5} /> : <GlassMat opacity={0.14} />}
+              {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} tint="pale" solid={0.5} /> : <GlassMat tint="pale" />}
             </mesh>
           </group>
         </group>
@@ -780,33 +780,38 @@ function PottedPlant({ position, liveSlug }: { position: V3; liveSlug?: string }
 }
 
 // Books on the shelves (local to the bookcase group), standing spine-out with
-// real depth, varied size + muted colour; a couple lean. Each shelf packed.
-const BOOKS: { p: V3; s: V3; c: string; r?: V3 }[] = [
+// real depth and varied size; a couple lean. Each shelf packed.
+//
+// The spines used to be six hand-mixed blues. They were already a value ramp —
+// which is the right instinct — so they're now that ramp expressed in the three
+// SURFACE cuts instead of its own private set. Books stay opaque: a stack of
+// paper is the densest thing in the room, and the cut only supplies the value.
+const BOOKS: { p: V3; s: V3; c: Tint; r?: V3 }[] = [
   // top shelf (y ≈ 0.78)
-  { p: [-0.30, 0.78, 0.02], s: [0.05, 0.17, 0.18], c: '#2f4a6b' },
-  { p: [-0.245, 0.785, 0.02], s: [0.045, 0.18, 0.18], c: '#3a608a' },
-  { p: [-0.19, 0.778, 0.02], s: [0.052, 0.165, 0.18], c: '#4f74a6' },
-  { p: [-0.12, 0.79, 0.02], s: [0.06, 0.19, 0.18], c: '#26405f' },
-  { p: [-0.05, 0.775, 0.02], s: [0.046, 0.16, 0.18], c: '#5b7cab' },
-  { p: [0.02, 0.783, 0.02], s: [0.05, 0.175, 0.18], c: '#6f8cb6' },
-  { p: [0.10, 0.78, 0.02], s: [0.055, 0.17, 0.18], c: '#2f4a6b' },
-  { p: [0.185, 0.787, 0.02], s: [0.05, 0.185, 0.18], c: '#3a608a' },
-  { p: [0.258, 0.742, 0.02], s: [0.05, 0.16, 0.18], c: '#4f74a6', r: [0, 0, 0.17] }, // leaning
+  { p: [-0.30, 0.78, 0.02], s: [0.05, 0.17, 0.18], c: 'deep' },
+  { p: [-0.245, 0.785, 0.02], s: [0.045, 0.18, 0.18], c: 'glass' },
+  { p: [-0.19, 0.778, 0.02], s: [0.052, 0.165, 0.18], c: 'glass' },
+  { p: [-0.12, 0.79, 0.02], s: [0.06, 0.19, 0.18], c: 'deep' },
+  { p: [-0.05, 0.775, 0.02], s: [0.046, 0.16, 0.18], c: 'glass' },
+  { p: [0.02, 0.783, 0.02], s: [0.05, 0.175, 0.18], c: 'pale' },
+  { p: [0.10, 0.78, 0.02], s: [0.055, 0.17, 0.18], c: 'deep' },
+  { p: [0.185, 0.787, 0.02], s: [0.05, 0.185, 0.18], c: 'glass' },
+  { p: [0.258, 0.742, 0.02], s: [0.05, 0.16, 0.18], c: 'glass', r: [0, 0, 0.17] }, // leaning
   // middle shelf (y ≈ 0.52) — gap at x ≈ 0.12 for the open Zwijsen book
-  { p: [-0.30, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#5b7cab' },
-  { p: [-0.245, 0.515, 0.02], s: [0.048, 0.16, 0.18], c: '#26405f' },
-  { p: [-0.185, 0.523, 0.02], s: [0.055, 0.18, 0.18], c: '#3a608a' },
-  { p: [-0.11, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#6f8cb6' },
-  { p: [-0.04, 0.518, 0.02], s: [0.052, 0.165, 0.18], c: '#2f4a6b' },
-  { p: [0.26, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: '#5b7cab' },
-  { p: [0.214, 0.5, 0.02], s: [0.05, 0.15, 0.18], c: '#26405f', r: [0, 0, -0.15] }, // leaning into the gap
+  { p: [-0.30, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: 'glass' },
+  { p: [-0.245, 0.515, 0.02], s: [0.048, 0.16, 0.18], c: 'deep' },
+  { p: [-0.185, 0.523, 0.02], s: [0.055, 0.18, 0.18], c: 'glass' },
+  { p: [-0.11, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: 'pale' },
+  { p: [-0.04, 0.518, 0.02], s: [0.052, 0.165, 0.18], c: 'deep' },
+  { p: [0.26, 0.52, 0.02], s: [0.05, 0.17, 0.18], c: 'glass' },
+  { p: [0.214, 0.5, 0.02], s: [0.05, 0.15, 0.18], c: 'deep', r: [0, 0, -0.15] }, // leaning into the gap
   // bottom shelf (y ≈ 0.26) — books, then a horizontal stack fills the right
-  { p: [-0.30, 0.26, 0.02], s: [0.052, 0.17, 0.18], c: '#3a608a' },
-  { p: [-0.24, 0.265, 0.02], s: [0.05, 0.18, 0.18], c: '#4f74a6' },
-  { p: [-0.18, 0.258, 0.02], s: [0.055, 0.165, 0.18], c: '#2f4a6b' },
-  { p: [-0.11, 0.262, 0.02], s: [0.048, 0.175, 0.18], c: '#26405f' },
-  { p: [-0.04, 0.26, 0.02], s: [0.05, 0.17, 0.18], c: '#5b7cab' },
-  { p: [0.03, 0.255, 0.02], s: [0.052, 0.16, 0.18], c: '#6f8cb6' },
+  { p: [-0.30, 0.26, 0.02], s: [0.052, 0.17, 0.18], c: 'glass' },
+  { p: [-0.24, 0.265, 0.02], s: [0.05, 0.18, 0.18], c: 'glass' },
+  { p: [-0.18, 0.258, 0.02], s: [0.055, 0.165, 0.18], c: 'deep' },
+  { p: [-0.11, 0.262, 0.02], s: [0.048, 0.175, 0.18], c: 'deep' },
+  { p: [-0.04, 0.26, 0.02], s: [0.05, 0.17, 0.18], c: 'glass' },
+  { p: [0.03, 0.255, 0.02], s: [0.052, 0.16, 0.18], c: 'pale' },
 ];
 
 /** The Zwijsen AR-books hotspot — a real little book. Two rigid halves (cover
@@ -821,18 +826,19 @@ const BOOK_T = 0.011; // cover board thickness
 const BOOK_PT = 0.009; // page block thickness per half
 const BOOK_ANG = 0.22; // resting V of the halves once open
 function BookHalf({ side, tex }: { side: -1 | 1; tex: Texture | null }) {
+  const { accentDeep } = useAccent();
   const x = (side * BOOK_W) / 4;
   return (
     <>
       {/* cover board */}
       <mesh position={[x, 0, 0]}>
         <boxGeometry args={[BOOK_W / 2, BOOK_T, BOOK_H]} />
-        <meshStandardMaterial color="#ff7a3d" emissive="#ff7a3d" emissiveIntensity={0.16} roughness={0.5} />
+        <meshStandardMaterial color={accentDeep} emissive={accentDeep} emissiveIntensity={0.16} roughness={0.5} />
       </mesh>
       {/* page block */}
       <mesh position={[x, BOOK_T / 2 + BOOK_PT / 2, 0]}>
         <boxGeometry args={[BOOK_W / 2 - 0.012, BOOK_PT, BOOK_H - 0.014]} />
-        <meshStandardMaterial color="#efe6d0" emissive="#efe6d0" emissiveIntensity={0.1} roughness={0.85} />
+        <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.1} roughness={0.85} />
       </mesh>
       {/* the printed page on top of the block */}
       <mesh position={[x, BOOK_T / 2 + BOOK_PT + 0.0008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -840,7 +846,7 @@ function BookHalf({ side, tex }: { side: -1 | 1; tex: Texture | null }) {
         {tex ? (
           <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.5} roughness={0.75} toneMapped={false} side={DoubleSide} />
         ) : (
-          <meshStandardMaterial color="#f3ead4" emissive="#f3ead4" emissiveIntensity={0.14} roughness={0.85} side={DoubleSide} />
+          <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.14} roughness={0.85} side={DoubleSide} />
         )}
       </mesh>
     </>
@@ -894,6 +900,7 @@ function BookAR({ slug }: { slug: string }) {
 }
 
 function OpenBook({ slug, position }: { slug: string; position: V3 }) {
+  const { accent } = useAccent();
   const { selected } = useActive(slug);
   const reduced = useReducedMotion();
   const grp = useRef<Group>(null);
@@ -954,7 +961,7 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
       {/* spine */}
       <mesh position={[0, -0.001, 0]}>
         <boxGeometry args={[0.015, BOOK_T + 0.003, BOOK_H]} />
-        <meshStandardMaterial color="#e06a30" emissive="#e06a30" emissiveIntensity={0.14} roughness={0.5} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.14} roughness={0.5} />
       </mesh>
       {/* holographic content lifting off the open spread */}
       <BookAR slug={slug} />
@@ -968,6 +975,7 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
  *  so the bookcase's select-bounce doesn't squash it. */
 const MOUSE_GROUND = 0.03; // belly on the floor, bookcase-local
 function BookcaseMouse({ gap }: { gap: V3 }) {
+  const { accent, accentPale } = useAccent();
   const { selected } = useActive('zwijsen-ar-books');
   const reduced = useReducedMotion();
   const ref = useRef<Group>(null);
@@ -1033,33 +1041,33 @@ function BookcaseMouse({ gap }: { gap: V3 }) {
     g.rotation.x = phase.current === 'jump' ? Math.max(-0.5, Math.min(0.5, -vel.y * 0.3)) : 0;
   });
 
-  const GREY = '#8b929c';
-  const PINK = '#b58794';
+  const GREY = SURFACE.pale.color;
+  const PINK = PALETTE.room.accentPale;
   return (
     <group ref={ref} visible={false}>
       <mesh scale={[0.024, 0.02, 0.034]}>
         <sphereGeometry args={[1, 12, 10]} />
-        <meshStandardMaterial color={GREY} emissive="#3a3f47" emissiveIntensity={0.25} roughness={0.7} flatShading />
+        <meshStandardMaterial color={GREY} emissive={SURFACE.deep.color} emissiveIntensity={0.25} roughness={0.7} flatShading />
       </mesh>
       <mesh position={[0, 0.004, 0.03]} scale={[0.015, 0.014, 0.018]}>
         <sphereGeometry args={[1, 12, 10]} />
-        <meshStandardMaterial color="#949aa4" emissive="#3a3f47" emissiveIntensity={0.25} roughness={0.7} flatShading />
+        <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.deep.color} emissiveIntensity={0.25} roughness={0.7} flatShading />
       </mesh>
       {[-1, 1].map((sx, i) => (
         <mesh key={`ear${i}`} position={[sx * 0.011, 0.016, 0.026]}>
           <sphereGeometry args={[0.008, 10, 8]} />
-          <meshStandardMaterial color={PINK} emissive="#3a3f47" emissiveIntensity={0.2} roughness={0.7} />
+          <meshStandardMaterial color={PINK} emissive={SURFACE.deep.color} emissiveIntensity={0.2} roughness={0.7} />
         </mesh>
       ))}
       {[-1, 1].map((sx, i) => (
         <mesh key={`eye${i}`} position={[sx * 0.007, 0.006, 0.042]}>
           <sphereGeometry args={[0.0035, 8, 8]} />
-          <meshStandardMaterial color="#ffd7e0" emissive="#ff6a90" emissiveIntensity={1.2} toneMapped={false} />
+          <meshStandardMaterial color={accentPale} emissive={accent} emissiveIntensity={1.2} toneMapped={false} />
         </mesh>
       ))}
       <mesh position={[0, 0.001, 0.05]}>
         <sphereGeometry args={[0.004, 8, 8]} />
-        <meshStandardMaterial color="#d98aa0" emissive="#d98aa0" emissiveIntensity={0.5} toneMapped={false} />
+        <meshStandardMaterial color={accentPale} emissive={accentPale} emissiveIntensity={0.5} toneMapped={false} />
       </mesh>
       <mesh position={[0, 0.007, -0.03]} rotation={[-0.5, 0, 0]}>
         <cylinderGeometry args={[0.0015, 0.003, 0.05, 6]} />
@@ -1099,33 +1107,33 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
       {BOOKS.map((bk, i) => (
         <mesh key={i} position={bk.p} rotation={bk.r}>
           <boxGeometry args={bk.s} />
-          <meshStandardMaterial ref={(m) => (bookMats.current[i] = m)} color={bk.c} emissive={bk.c} emissiveIntensity={0.1} roughness={0.6} />
+          <meshStandardMaterial ref={(m) => (bookMats.current[i] = m)} color={SURFACE[bk.c].color} emissive={SURFACE[bk.c].color} emissiveIntensity={0.1} roughness={0.6} />
         </mesh>
       ))}
       {/* a horizontal stack on the bottom-right shelf */}
       <group position={[0.19, 0.19, 0.02]}>
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[0.2, 0.03, 0.16]} />
-          <meshStandardMaterial color="#26405f" emissive="#26405f" emissiveIntensity={0.12} roughness={0.6} />
+          <meshStandardMaterial color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.12} roughness={0.6} />
         </mesh>
         <mesh position={[0.01, 0.032, 0.006]}>
           <boxGeometry args={[0.19, 0.028, 0.155]} />
-          <meshStandardMaterial color="#3a608a" emissive="#3a608a" emissiveIntensity={0.12} roughness={0.6} />
+          <meshStandardMaterial color={SURFACE.glass.color} emissive={SURFACE.glass.color} emissiveIntensity={0.12} roughness={0.6} />
         </mesh>
         <mesh position={[-0.008, 0.062, -0.004]}>
           <boxGeometry args={[0.18, 0.026, 0.15]} />
-          <meshStandardMaterial color="#4f74a6" emissive="#4f74a6" emissiveIntensity={0.12} roughness={0.6} />
+          <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.12} roughness={0.6} />
         </mesh>
       </group>
       {/* a little potted plant on top for detail — neutral glass, no green/brown */}
       <group position={[0.25, 0.93, 0.05]}>
         <mesh position={[0, 0.018, 0]}>
           <cylinderGeometry args={[0.03, 0.024, 0.04, 16]} />
-          <GlassMat opacity={0.4} />
+          <GlassMat tint="deep" />
         </mesh>
         <mesh position={[0, 0.07, 0]}>
           <icosahedronGeometry args={[0.045, 0]} />
-          <GlassMat opacity={0.16} />
+          <GlassMat tint="pale" />
         </mesh>
       </group>
       <LifeGroup slug="zwijsen-ar-books">
@@ -1139,6 +1147,7 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
 }
 
 export function RoomRig() {
+  const { accent } = useAccent();
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const desk = useTweak('Room.Desk', { position: [-1.2, 0, 0.18], rotationY: 1.76 });
   const couch = useTweak('Room.Couch', { position: [0.12, 0, -0.22], rotationY: -0.16 });
@@ -1148,11 +1157,12 @@ export function RoomRig() {
   const lamp = useTweak('Room.Floor lamp', { position: [-0.32, 0, -1.57] });
   return (
     <group>
-      {/* round rug centred on the scene — lined up with the chip die below it;
-          kept very sheer so it reads as a floor marking, not a bright disc */}
+      {/* round rug centred on the scene — lined up with the chip die below it.
+          GROUND, not SURFACE: it's a marking on the sheet, the same substance
+          as the city's roads one layer up, so the two floors match. */}
       <mesh position={[0, 0.012, 0]}>
         <cylinderGeometry args={[1.05, 1.05, 0.02, 56]} />
-        <GlassMat opacity={0.06} />
+        <GroundMat />
       </mesh>
       <Line points={circlePts(1.05)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.2} />
       <Line points={circlePts(0.78)} position={[0, 0.026, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.1} />
@@ -1167,7 +1177,7 @@ export function RoomRig() {
           {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
             <mesh key={i} position={[lx, 0.18, lz]}>
               <cylinderGeometry args={[0.02, 0.02, 0.36, 12]} />
-              <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.26} />
+              <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="pale" />
             </mesh>
           ))}
           <LifeGroup slug="virtuele-brigade">
@@ -1179,7 +1189,7 @@ export function RoomRig() {
             <SoftBox position={[0, 0.404, -0.15]} args={[0.17, 0.012, 0.11]} radius={0.006} liveSlug="virtuele-brigade" />
             <mesh position={[0, 0.5, -0.163]}>
               <cylinderGeometry args={[0.013, 0.017, 0.19, 12]} />
-              <GlassMat opacity={0.26} />
+              <GlassMat tint="pale" />
             </mesh>
             {/* the hinge block where the neck meets the panel's back */}
             <SoftBox position={[0, 0.6, -0.157]} args={[0.07, 0.05, 0.022]} radius={0.008} liveSlug="virtuele-brigade" />
@@ -1211,7 +1221,7 @@ export function RoomRig() {
                 <SoftBox position={[0, 0.028, r * 0.55]} args={[0.028, 0.016, r]} radius={0.007} liveSlug="virtuele-brigade" liveGhost={false} />
                 <mesh position={[0, 0.016, r]} rotation={[0, 0, Math.PI / 2]}>
                   <cylinderGeometry args={[0.016, 0.016, 0.012, 10]} />
-                  <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.3} />
+                  <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="glass" />
                 </mesh>
               </group>
             );
@@ -1219,14 +1229,14 @@ export function RoomRig() {
           {/* gas cylinder, tapered so it reads as a column not a dowel */}
           <mesh position={[0, 0.135, 0]}>
             <cylinderGeometry args={[0.019, 0.026, 0.19, 12]} />
-            <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.26} />
+            <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="pale" />
           </mesh>
           <SoftBox position={[0, 0.238, 0]} args={[0.32, 0.055, 0.31]} radius={0.055} outline liveSlug="virtuele-brigade" liveGhost={false} />
           {/* two posts carrying the back, so daylight shows between seat and rest */}
           {([-0.1, 0.1] as const).map((lx, i) => (
             <mesh key={i} position={[lx, 0.3, -0.135]}>
               <cylinderGeometry args={[0.011, 0.011, 0.1, 8]} />
-              <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.28} />
+              <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="glass" />
             </mesh>
           ))}
           <SoftBox position={[0, 0.44, -0.142]} args={[0.3, 0.3, 0.045]} radius={0.05} outline liveSlug="virtuele-brigade" liveGhost={false} />
@@ -1237,7 +1247,7 @@ export function RoomRig() {
             <group key={i}>
               <mesh position={[lx, 0.29, -0.05]}>
                 <cylinderGeometry args={[0.009, 0.009, 0.085, 8]} />
-                <LiveGlassMat slug="virtuele-brigade" ghost={false} opacity={0.26} />
+                <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="pale" />
               </mesh>
               <SoftBox position={[lx, 0.335, -0.03]} args={[0.035, 0.016, 0.15]} radius={0.008} liveSlug="virtuele-brigade" liveGhost={false} />
             </group>
@@ -1265,7 +1275,7 @@ export function RoomRig() {
         {([[-0.4, 0.16], [0.4, 0.16], [-0.4, -0.16], [0.4, -0.16]] as [number, number][]).map(([lx, lz], i) => (
           <mesh key={i} position={[lx, 0.032, lz]}>
             <cylinderGeometry args={[0.019, 0.014, 0.064, 8]} />
-            <LiveGlassMat slug="popcore-games" ghost={false} opacity={0.3} />
+            <LiveGlassMat slug="popcore-games" ghost={false} tint="glass" />
           </mesh>
         ))}
 
@@ -1291,7 +1301,7 @@ export function RoomRig() {
         {/* one throw cushion, propped in the left corner against the arm */}
         <SoftBox position={[-0.3, 0.245, -0.075]} args={[0.19, 0.175, 0.06]} radius={0.05} rotation={[0.22, 0.34, 0.12]} opacity={0.24} liveSlug="popcore-games" liveGhost={false} />
         <LifeGroup slug="popcore-games">
-          <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor="#ff7a3d" />
+          <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor={accent} />
         </LifeGroup>
       </group>
 

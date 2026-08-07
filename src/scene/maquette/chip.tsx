@@ -9,7 +9,7 @@ import { Edges, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
+import { SURFACE, NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
 import { GlassMat, LiveEdges, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
@@ -47,6 +47,7 @@ function traceObject(points: V3[], hex: string) {
 }
 
 function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
+  const { accent, accentPale } = useAccent();
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const screenMat = useRef<MeshStandardMaterial>(null);
@@ -55,9 +56,12 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
   const live = useRef(0); // 0 dormant → 1 alive
   const k = useRef(0); // hover/select brightness
 
-  const grey = useMemo(() => new Color('#8fa1ad'), []);
-  const green = useMemo(() => new Color('#5fd07a'), []);
-  const cyan = useMemo(() => new Color('#7fe6ff'), []);
+  // A patient monitor draws two traces at once, so they have to be told apart —
+  // but by VALUE, not by a second hue: the accent and its pale sibling, exactly
+  // how the room separates a car body from its livery. `grey` is the dead screen.
+  const grey = useMemo(() => new Color(NEUTRAL), []);
+  const green = useMemo(() => new Color(accent), [accent]);
+  const cyan = useMemo(() => new Color(accentPale), [accentPale]);
 
   const ecg = useMemo<V3[]>(() => [...ecgBeat(-0.15), ...ecgBeat(-0.008)], []);
   const pleth = useMemo<V3[]>(() => {
@@ -68,8 +72,8 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
     }
     return p;
   }, []);
-  const ecgObj = useMemo(() => traceObject(ecg, '#5fd07a'), [ecg]);
-  const plethObj = useMemo(() => traceObject(pleth, '#7fe6ff'), [pleth]);
+  const ecgObj = useMemo(() => traceObject(ecg, accent), [ecg, accent]);
+  const plethObj = useMemo(() => traceObject(pleth, accentPale), [pleth, accentPale]);
   useEffect(
     () => () => {
       ecgObj.line.geometry.dispose();
@@ -136,7 +140,7 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
         <group position={[0, 0.21, 0]} rotation={[-0.34, 0, 0]}>
           {/* casing — solidifies once visited, like every hotspot body */}
           <RoundedBox args={[0.42, 0.3, 0.05]} radius={0.02} smoothness={3}>
-            <LiveGlassMat slug={slug} opacity={0.44} />
+            <LiveGlassMat slug={slug} tint="deep" />
           </RoundedBox>
           {/* (the bezel outline is gone — same reason as the die's: a Line in a
               LifeGroup brightens as the casing solidifies, so it survived as a
@@ -144,7 +148,7 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
           {/* dark screen (drives its own glow) */}
           <mesh position={[0, 0.012, 0.027]}>
             <planeGeometry args={[0.35, 0.22]} />
-            <meshStandardMaterial ref={screenMat} userData={{ lifeSkip: true }} color="#050f16" emissive="#0c2734" emissiveIntensity={0.06} roughness={0.5} toneMapped={false} />
+            <meshStandardMaterial ref={screenMat} userData={{ lifeSkip: true }} color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.06} roughness={0.5} toneMapped={false} />
           </mesh>
           {/* screen contents — just the two traces, sitting proud of the panel */}
           <group position={[0, 0.012, 0.03]}>
@@ -152,12 +156,12 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
             <primitive object={plethObj.line} position={[0, -0.045, 0.001]} />
             <mesh ref={blip} visible={false}>
               <sphereGeometry args={[0.009, 12, 12]} />
-              <meshStandardMaterial color="#5fd07a" emissive="#5fd07a" emissiveIntensity={1.8} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
+              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.8} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
             </mesh>
             {[0, 1, 2].map((i) => (
               <mesh key={i} ref={(r) => (trailRefs.current[i] = r)} visible={false}>
                 <sphereGeometry args={[0.009, 10, 10]} />
-                <meshStandardMaterial color="#5fd07a" emissive="#5fd07a" emissiveIntensity={1.5} transparent opacity={0} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
+                <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.5} transparent opacity={0} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
               </mesh>
             ))}
           </group>
@@ -165,7 +169,7 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
           {[-0.15, -0.11, -0.07].map((bx, i) => (
             <mesh key={i} position={[bx, -0.12, 0.028]} rotation={[Math.PI / 2, 0, 0]}>
               <cylinderGeometry args={[0.013, 0.013, 0.01, 16]} />
-              <LiveGlassMat slug={slug} opacity={0.5} />
+              <LiveGlassMat slug={slug} tint="deep" />
             </mesh>
           ))}
         </group>
@@ -185,7 +189,7 @@ function MiscComponents() {
       {PASSIVES.map((p) => (
         <mesh key={p.edge} position={[p.x, 0.035, p.z]} rotation={[0, p.edge === 0 || p.edge === 2 ? 0 : Math.PI / 2, 0]}>
           <boxGeometry args={[0.09, 0.03, 0.04]} />
-          <GlassMat opacity={0.34} />
+          <GlassMat tint="glass" />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
       ))}
@@ -210,7 +214,7 @@ function Heatsink({ position }: { position: V3 }) {
       {[-0.08, -0.04, 0, 0.04, 0.08].map((x, i) => (
         <mesh key={i} position={[x, 0.115, 0]}>
           <boxGeometry args={[0.014, 0.11, 0.2]} />
-          <GlassMat opacity={0.3} />
+          <GlassMat tint="glass" />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
       ))}
@@ -299,20 +303,24 @@ function onEdge(e: number, d: number, t: number): [number, number] {
 // than floating above the board, so it stays tied to whatever occupies the slot;
 // `fp` is its silkscreen footprint. `edge`/`pin` say which land it wires to —
 // the corner units take the outermost land (8), the edge parts the centre one (4).
-// LED palette stays inside the site's accents: cyan, lime, the coral from the
-// Room layer, and the die's amber — no stray primary reds.
-interface ChipNode { x: number; z: number; ly: number; led: string; phase: number; speed: number; edge: number; pin: number; fp?: [number, number] }
+// The LEDs used to be four unrelated hues — cyan, coral, lime, amber — sitting
+// on a lime board, which is a lot of the reason this layer read as assembled
+// rather than made. They're one hue at three values now (`Lamp`): the board
+// still reads as busy because eight lamps blink out of phase, which is what was
+// actually doing the work.
+type Lamp = 'accent' | 'pale' | 'deep';
+interface ChipNode { x: number; z: number; ly: number; led: Lamp; phase: number; speed: number; edge: number; pin: number; fp?: [number, number] }
 const CHIP_NODES: ChipNode[] = [
   // corners — the units, each leaving the edge it sits counter-clockwise from
-  { x: CORNER, z: -CORNER, ly: 0.2, led: '#7fe6ff', phase: 0.0, speed: 6.5, edge: 3, pin: 8, fp: [0.3, 0.3] }, // custom-ar camera (back-right)
-  { x: -CORNER, z: -CORNER, ly: 0.175, led: '#ff9068', phase: 1.1, speed: 5.0, edge: 2, pin: 8, fp: [0.44, 0.22] }, // philips monitor (back-left)
-  { x: CORNER, z: CORNER, ly: 0.225, led: '#a9f75c', phase: 2.0, speed: 7.5, edge: 0, pin: 8, fp: [0.3, 0.3] }, // database stack (front-right)
-  { x: -CORNER, z: CORNER, ly: 0.185, led: '#ffcf5e', phase: 0.7, speed: 5.8, edge: 1, pin: 8, fp: [0.3, 0.3] }, // heatsink (front-left)
+  { x: CORNER, z: -CORNER, ly: 0.2, led: 'accent', phase: 0.0, speed: 6.5, edge: 3, pin: 8, fp: [0.3, 0.3] }, // custom-ar camera (back-right)
+  { x: -CORNER, z: -CORNER, ly: 0.175, led: 'deep', phase: 1.1, speed: 5.0, edge: 2, pin: 8, fp: [0.44, 0.22] }, // philips monitor (back-left)
+  { x: CORNER, z: CORNER, ly: 0.225, led: 'accent', phase: 2.0, speed: 7.5, edge: 0, pin: 8, fp: [0.3, 0.3] }, // database stack (front-right)
+  { x: -CORNER, z: CORNER, ly: 0.185, led: 'pale', phase: 0.7, speed: 5.8, edge: 1, pin: 8, fp: [0.3, 0.3] }, // heatsink (front-left)
   // edge midpoints — the small parts, straight out of the centre land
-  { x: EDGE, z: 0, ly: 0.045, led: '#7fe6ff', phase: 2.6, speed: 6.0, edge: 0, pin: 4 }, // computer-vision footprint (right)
-  { x: 0, z: EDGE, ly: 0.15, led: '#a9f75c', phase: 1.6, speed: 8.0, edge: 1, pin: 4, fp: [0.3, 0.13] }, // pin header (front)
-  { x: -EDGE, z: 0, ly: 0.155, led: '#ff9068', phase: 3.1, speed: 6.8, edge: 2, pin: 4, fp: [0.14, 0.14] }, // cap (left)
-  { x: 0, z: -EDGE, ly: 0.155, led: '#7fe6ff', phase: 0.4, speed: 7.0, edge: 3, pin: 4, fp: [0.14, 0.14] }, // cap (back)
+  { x: EDGE, z: 0, ly: 0.045, led: 'pale', phase: 2.6, speed: 6.0, edge: 0, pin: 4 }, // computer-vision footprint (right)
+  { x: 0, z: EDGE, ly: 0.15, led: 'accent', phase: 1.6, speed: 8.0, edge: 1, pin: 4, fp: [0.3, 0.13] }, // pin header (front)
+  { x: -EDGE, z: 0, ly: 0.155, led: 'deep', phase: 3.1, speed: 6.8, edge: 2, pin: 4, fp: [0.14, 0.14] }, // cap (left)
+  { x: 0, z: -EDGE, ly: 0.155, led: 'pale', phase: 0.4, speed: 7.0, edge: 3, pin: 4, fp: [0.14, 0.14] }, // cap (back)
 ];
 
 // The decorative passives sit on the substrate beside the package, in the lateral
@@ -506,6 +514,7 @@ const FOCUS_DOLLY = 0.055; // barrel travel along the aim; ~0.035 on the first s
 const FOCUS_CONE = 0.31; // cone radius swing; ~20% tighter on the first swing
 const FOCUS_SETTLE = 2.4; // s; past here the term is negligible, so stop evaluating
 function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
+  const { accent, accentPale } = useAccent();
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const headRef = useRef<Group>(null);
@@ -522,12 +531,12 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const bodyRef = useRef<Group>(null); // the barrel — dollies along the aim
   const coneRef = useRef<Group>(null); // the vision cone + rim — widens/narrows
   const wasSel = useRef(false);
-  const lensC = useMemo(() => new Color('#7fe6ff'), []);
+  const lensC = useMemo(() => new Color(accent), [accent]);
 
   // the tracked cube's wireframe, on an owned material (opted out of ghosting)
   const cube = useMemo(() => {
     const geo = new EdgesGeometry(new BoxGeometry(CAM_CUBE, CAM_CUBE, CAM_CUBE));
-    const mat = new LineBasicMaterial({ color: new Color('#8fd8ff'), transparent: true, toneMapped: false, opacity: 0.9, depthWrite: false });
+    const mat = new LineBasicMaterial({ color: new Color(accentPale), transparent: true, toneMapped: false, opacity: 0.9, depthWrite: false });
     mat.userData.lifeSkip = true;
     return { obj: new LineSegments(geo, mat), mat, geo };
   }, []);
@@ -621,38 +630,38 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
             it all once visited, like every other hotspot body. */}
         <mesh position={[0, 0.02, -0.09]} rotation={[0, FACET, 0]}>
           <cylinderGeometry args={[0.05, 0.058, 0.035, 8]} />
-          <LiveGlassMat slug={slug} opacity={0.5} />
+          <LiveGlassMat slug={slug} tint="deep" />
           <LiveEdges slug={slug} threshold={50} />
         </mesh>
         {/* lower segment — twin plates leaning forward to the knee */}
         {[-0.026, 0.026].map((x, i) => (
           <mesh key={`l${i}`} position={[x, 0.118, -0.053]} rotation={[0.43, 0, 0]}>
             <boxGeometry args={[0.011, 0.19, 0.034]} />
-            <LiveGlassMat slug={slug} opacity={0.44} />
+            <LiveGlassMat slug={slug} tint="deep" />
           </mesh>
         ))}
         {/* knee joint disc */}
         <mesh position={[0, 0.2, -0.015]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.032, 0.032, 0.064, 18]} />
-          <LiveGlassMat slug={slug} opacity={0.5} />
+          <LiveGlassMat slug={slug} tint="deep" />
           <LiveEdges slug={slug} threshold={30} />
         </mesh>
         {/* upper segment — twin plates leaning back up to the grip hub */}
         {[-0.026, 0.026].map((x, i) => (
           <mesh key={`u${i}`} position={[x, 0.278, -0.045]} rotation={[-0.37, 0, 0]}>
             <boxGeometry args={[0.011, 0.17, 0.034]} />
-            <LiveGlassMat slug={slug} opacity={0.44} />
+            <LiveGlassMat slug={slug} tint="deep" />
           </mesh>
         ))}
         {/* grip hub + the horizontal arm reaching over the head */}
         <mesh position={[0, 0.355, -0.075]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.028, 0.028, 0.058, 18]} />
-          <LiveGlassMat slug={slug} opacity={0.5} />
+          <LiveGlassMat slug={slug} tint="deep" />
           <LiveEdges slug={slug} threshold={30} />
         </mesh>
         <mesh position={[0, 0.358, -0.036]}>
           <boxGeometry args={[0.026, 0.02, 0.1]} />
-          <LiveGlassMat slug={slug} opacity={0.46} />
+          <LiveGlassMat slug={slug} tint="deep" />
         </mesh>
 
         {/* ---- the pivot: the head hangs from the grip and pans/nods on it ---- */}
@@ -665,12 +674,12 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                 <primitive object={cube.obj} />
                 <mesh>
                   <boxGeometry args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
-                  <meshStandardMaterial color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
+                  <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
                 </mesh>
                 {corners.map((c, i) => (
                   <mesh key={i} position={c}>
                     <sphereGeometry args={[0.006, 8, 8]} />
-                    <meshStandardMaterial ref={(r) => (cornerMats.current[i] = r)} color="#d6f2ff" emissive="#8fd8ff" emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
+                    <meshStandardMaterial ref={(r) => (cornerMats.current[i] = r)} color={accentPale} emissive={accent} emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
                   </mesh>
                 ))}
               </group>
@@ -686,7 +695,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
               </mesh>
               <mesh position={[0, -0.015, 0]}>
                 <boxGeometry args={[0.034, 0.014, 0.034]} />
-                <LiveGlassMat slug={slug} opacity={0.5} />
+                <LiveGlassMat slug={slug} tint="deep" />
               </mesh>
               {/* the barrel: everything past the yoke, beam included, so the focus
                   rack dollies the lens and its light together while the stub and
@@ -696,28 +705,28 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                     so only the octagonal rims draw (the facets read via shading) */}
                 <mesh position={[0, 0, -0.01]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.054, 0.06, 0.2, 8]} />
-                  <LiveGlassMat slug={slug} opacity={0.44} />
+                  <LiveGlassMat slug={slug} tint="deep" />
                   <LiveEdges slug={slug} threshold={50} />
                 </mesh>
                 {/* back cap */}
                 <mesh position={[0, 0, -0.12]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.06, 0.046, 0.025, 8]} />
-                  <LiveGlassMat slug={slug} opacity={0.5} />
+                  <LiveGlassMat slug={slug} tint="deep" />
                 </mesh>
                 {/* hood — an open octagonal shade past the lens */}
                 <mesh position={[0, 0, 0.135]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.062, 0.058, 0.075, 8, 1, true]} />
-                  <LiveGlassMat slug={slug} opacity={0.32} />
+                  <LiveGlassMat slug={slug} tint="glass" />
                   <LiveEdges slug={slug} threshold={50} />
                 </mesh>
                 {/* dark lens recess + the glass element that lights up */}
                 <mesh position={[0, 0, 0.104]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.048, 0.048, 0.012, 8]} />
-                  <meshStandardMaterial color="#0b1418" roughness={0.5} metalness={0.2} />
+                  <meshStandardMaterial color={SURFACE.deep.color} roughness={0.5} metalness={0.2} />
                 </mesh>
                 <mesh position={[0, 0, 0.114]} scale={[1, 1, 0.5]}>
                   <sphereGeometry args={[0.04, 24, 18]} />
-                  <meshStandardMaterial ref={lensMat} userData={{ lifeSkip: true }} color="#7fe6ff" emissive="#7fe6ff" emissiveIntensity={0.14} transparent opacity={0.6} roughness={0.12} metalness={0.1} toneMapped={false} />
+                  <meshStandardMaterial ref={lensMat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.14} transparent opacity={0.6} roughness={0.12} metalness={0.1} toneMapped={false} />
                 </mesh>
 
                 {/* the beam — a clean cone of light, swinging with the head */}
@@ -730,10 +739,10 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                   <group ref={coneRef}>
                     <mesh position={[0, 0, (CAM_LENS_Z + CAM_CUBE_Z) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
                       <coneGeometry args={[CAM_CONE_R, CAM_CUBE_Z - CAM_LENS_Z, 32, 1, true]} />
-                      <meshBasicMaterial ref={coneMat} userData={{ lifeSkip: true }} color="#7fe6ff" transparent opacity={0} blending={AdditiveBlending} toneMapped={false} depthWrite={false} side={DoubleSide} />
+                      <meshBasicMaterial ref={coneMat} userData={{ lifeSkip: true }} color={accent} transparent opacity={0} blending={AdditiveBlending} toneMapped={false} depthWrite={false} side={DoubleSide} />
                     </mesh>
                     {/* the beam's rim where it reaches the cube */}
-                    <Line points={circlePts(CAM_CONE_R, 48)} position={[0, 0, CAM_CUBE_Z]} rotation={[Math.PI / 2, 0, 0]} color="#7fe6ff" lineWidth={1} transparent opacity={0.35} />
+                    <Line points={circlePts(CAM_CONE_R, 48)} position={[0, 0, CAM_CUBE_Z]} rotation={[Math.PI / 2, 0, 0]} color={accent} lineWidth={1} transparent opacity={0.35} />
                   </group>
                 </group>
               </group>
@@ -800,7 +809,8 @@ function DiePulse() {
 }
 
 export function ChipRig() {
-  const { accent } = useAccent();
+  const { accent, accentPale, accentDeep } = useAccent();
+  const LAMP: Record<Lamp, string> = { accent, pale: accentPale, deep: accentDeep };
   const energy = useChipEnergyTarget();
   // Every run on the board starts at a package land (see landTrace) — the eight
   // parts plus the eight spare pads, four runs per edge, the same pattern turned
@@ -822,7 +832,7 @@ export function ChipRig() {
           and a room made of glass. */}
       <BlobShadow position={[0, 0.002, 0]} radius={1.4} opacity={0.34} />
       <RoundedBox args={[2.05, 0.02, 2.05]} radius={0.04} smoothness={2} position={[0, 0.01, 0]}>
-        <GlassMat color="#10303a" opacity={0.38} />
+        <GlassMat tint="deep" />
       </RoundedBox>
       {/* board outline. The inner keepout ring that used to double it up was there
           to stop the substrate reading as a plain slab — the glass and its
@@ -873,7 +883,7 @@ export function ChipRig() {
             hard white rectangle, which is most of why it didn't read as opaque.
             The glass rim already draws the silhouette. */}
         <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.03} liveSlug="amsterdam-ai" />
-        <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor="#ffcf5e" />
+        <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor={accent} />
         <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.175, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
       </LifeGroup>
 
@@ -889,7 +899,7 @@ export function ChipRig() {
             {/* the landing pad. Quieter than it was: at 0.65 eight of these were
                 as loud as the parts they belong to. */}
             <Line points={circlePts(0.03, 16)} position={[px, TY + 0.003, pz]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-            <ChipLED position={[nd.x, nd.ly, nd.z]} color={nd.led} target={energy} phase={nd.phase} speed={nd.speed} idle={i === 0 || i === 5} />
+            <ChipLED position={[nd.x, nd.ly, nd.z]} color={LAMP[nd.led]} target={energy} phase={nd.phase} speed={nd.speed} idle={i === 0 || i === 5} />
           </group>
         );
       })}
@@ -904,7 +914,7 @@ export function ChipRig() {
       {([[-EDGE, 0], [0, -EDGE]] as [number, number][]).map(([cx, cz], i) => (
         <mesh key={i} position={[cx, 0.08, cz]}>
           <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
-          <GlassMat opacity={0.34} />
+          <GlassMat tint="glass" />
           <Edges threshold={30} color={NEUTRAL} />
         </mesh>
       ))}
@@ -917,7 +927,7 @@ export function ChipRig() {
         {[0, 1, 2].map((i) => (
           <mesh key={i} position={[0, 0.05 + i * 0.07, 0]}>
             <cylinderGeometry args={[0.13, 0.13, 0.06, 28]} />
-            <GlassMat opacity={i === 2 ? 0.38 : 0.28} />
+            <GlassMat tint={i === 2 ? 'deep' : 'pale'} />
             <Edges threshold={30} color={NEUTRAL} />
           </mesh>
         ))}

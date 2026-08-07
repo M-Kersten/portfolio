@@ -10,7 +10,7 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, layerGap, type Hotspot, type LayerId } from '../framing';
 import { useSceneSelector, bootAt, MAQUETTE_BOOT } from '../store';
 import { AccentCtx, PALETTE } from './shared';
-import { DotFloor, PointCloud, DepthVeil, HoloFloor } from './backdrop';
+import { DotFloor, SurveyMarks, PointCloud, DepthVeil, HoloFloor } from './backdrop';
 import { PresenceGroup } from './presence';
 import { CityRig } from './city';
 import { RoomRig } from './room';
@@ -137,6 +137,7 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
                     the life system's objects are exempt inside. */}
                 <PresenceGroup active={presenceLayer === id}>
                   <DotFloor step={id === 'city' ? 0.17 : 0.26} />
+                  <SurveyMarks />
                   <PointCloud seed={SEED[id]} life={life} />
                   <Rig />
                 </PresenceGroup>

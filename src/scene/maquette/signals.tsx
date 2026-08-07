@@ -16,7 +16,7 @@ import { AdditiveBlending, BufferAttribute, CatmullRomCurve3, Color, Vector3, ty
 
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { HOTSPOTS, anchorWorld, layerGap, type Hotspot } from '../framing';
-import { useActive } from './shared';
+import { PALETTE, useActive } from './shared';
 import { useSceneSelector } from '../store';
 
 // journeyStep per layer (same mapping the layer culling uses in ./index.tsx):
@@ -43,7 +43,13 @@ interface Relation {
 // table, which surfaces as a city park. XR · simulation: the medical-XR module
 // feeds the brigade's training sim. AI · data: the model serves the game backend
 // and the city's Alliander grid work.
-const THREAD = { ar: '#46d6e6', xr: '#c79bff', data: '#bff06a' };
+//
+// A thread spans two layers, so it can't take "the layer accent" — but it can
+// take the accent of the layer its subject belongs to, which is what these
+// already nearly were. AR is the city's cyan, simulation the room's coral, data
+// the chip's lime. That drops the one hue in the whole maquette that came from
+// nowhere (the XR thread's violet) without giving up the category coding.
+const THREAD = { ar: PALETTE.city.accent, xr: PALETTE.room.accent, data: PALETTE.chip.accent };
 export const RELATIONS: Relation[] = [
   { thread: 'Location based AR', from: 'lightship-drive', to: 'arcam', color: THREAD.ar },
   { thread: 'AR', from: 'custom-ar-framework', to: 'zwijsen-ar-books', color: THREAD.ar },

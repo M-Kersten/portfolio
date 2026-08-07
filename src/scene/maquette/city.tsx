@@ -12,9 +12,9 @@ import { launchTrack, sceneStore, useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useLaunchCount } from '../../lib/launches';
 import { asset } from '../../lib/asset';
-import { NEUTRAL, GLASS, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
+import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, FIRE, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
-import { glassRim, GlassMat, LiveEdges, LiveGlassMat } from './materials';
+import { glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
 import { PresenceCtx } from './presence';
 import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
@@ -239,14 +239,14 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
           need to be traced. */}
       <mesh position={[0, PLINTH_H / 2, 0]}>
         <boxGeometry args={[w + 0.009, PLINTH_H, d + 0.009]} />
-        <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.36} wake={wake} />
+        <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
       </mesh>
       <mesh position={[0, PLINTH_H + shaftH / 2, 0]}>
         <boxGeometry args={[w, shaftH, d]} />
         {/* ghost={false}: a building is dressing, not a hotspot ghost, so it rests
             as its own quiet glass and only hardens as the city comes live — then
             it reads solid, like the windmill does once woken. */}
-        <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.3} wake={wake} />
+        <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
         <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
       {/* What sits on the roof, straight onto the shaft, so the blocks stop
@@ -257,14 +257,14 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
         // rooftop plant: the lift overrun / air handler every flat roof carries
         <mesh position={[0, PLINTH_H + shaftH + 0.019, 0]}>
           <boxGeometry args={[w * 0.44, 0.038, d * 0.44]} />
-          <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.44} wake={wake} />
+          <LiveGlassMat slug="alliander-hololens" ghost={false} tint="pale" wake={wake} />
         </mesh>
       )}
       {roof === 'setback' && (
         // a narrower crown stepped back from the roofline — a stepped tower
         <mesh position={[0, PLINTH_H + shaftH + 0.037, 0]}>
           <boxGeometry args={[w * 0.62, 0.075, d * 0.62]} />
-          <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.3} wake={wake} />
+          <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
           <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
         </mesh>
       )}
@@ -426,7 +426,7 @@ function Outskirts({ clear, blocks }: { clear: V3[][]; blocks: { x: number; z: n
           — they're arriving, not waking. */}
       <instancedMesh ref={bodies} args={[undefined, undefined, plots.length]}>
         <boxGeometry args={[1, 1, 1]} />
-        <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0} wake={wake} />
+        <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={SURFACE_ABSENT} wake={wake} />
       </instancedMesh>
     </group>
   );
@@ -503,7 +503,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
           read as a wireframe while every other hotspot came alive properly. */}
       <mesh position={[0, 0.03, 0]}>
         <cylinderGeometry args={[0.24, 0.3, 0.06, 20]} />
-        <LiveGlassMat slug={slug ?? ''} color="#3e6459" opacity={0.18} />
+        <LiveGlassMat slug={slug ?? ''} tint="deep" />
       </mesh>
       {/* Tapered body. A smooth cylinder, not the 8-sided smock it used to be:
           once the edge outlines retire on activation, facets that coarse read as
@@ -511,13 +511,13 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
           behind. */}
       <mesh position={[0, 0.34, 0]}>
         <cylinderGeometry args={[0.12, 0.19, 0.56, 28]} />
-        <LiveGlassMat slug={slug ?? ''} opacity={0.44} />
+        <LiveGlassMat slug={slug ?? ''} />
         <LiveEdges slug={slug ?? ''} threshold={20} />
       </mesh>
       {/* cap */}
       <mesh position={[0, 0.67, 0]}>
         <coneGeometry args={[0.15, 0.16, 28]} />
-        <LiveGlassMat slug={slug ?? ''} color="#5b6b74" opacity={0.3} />
+        <LiveGlassMat slug={slug ?? ''} tint="pale" />
         <LiveEdges slug={slug ?? ''} threshold={20} />
       </mesh>
       {/* sails — a turning cross on the front face; they spin up when engaged.
@@ -530,7 +530,7 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
           <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
             <mesh position={[0, 0.24, 0]}>
               <boxGeometry args={[0.05, 0.46, 0.01]} />
-              <LiveGlassMat slug={slug ?? ''} color="#4f7d92" opacity={0.34} />
+              <LiveGlassMat slug={slug ?? ''} tint="pale" />
               <LiveEdges slug={slug ?? ''} threshold={30} rest={0.4} />
             </mesh>
           </group>
@@ -562,11 +562,13 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: num
   // `lifeSkip` meant LifeGroup never ghosted them either, so the grove sat there
   // looking switched on while the city around it was still a sketch. That one
   // corner was carrying more visual weight than the tower.
-  const TREE_REST = 0.2; // a shade under the buildings' glass — foliage is dense
-  const restCol = useMemo(() => new Color('#6f8592'), []); // the layer's neutral glass, not a green
-  const vivid = useMemo(() => new Color('#5ea78d'), []); // restrained sea-green once visited
+  // Foliage is the dense cut, and it takes that cut's opacity with it — a tree
+  // canopy is a thick piece of the stock, not a thin one tinted darker.
+  const TREE_REST = SURFACE.deep.rest;
+  const restCol = useMemo(() => new Color(SURFACE.deep.color), []); // foliage recedes — it is the deep cut of the stock
+  const vivid = useMemo(() => new Color(SURFACE.pale.color), []); // …and comes forward as it wakes, by value, not by hue
   const mat = useMemo(() => {
-    const m = new MeshStandardMaterial({ color: '#6f8592', flatShading: true, roughness: 0.7, metalness: 0, transparent: true, opacity: TREE_REST });
+    const m = new MeshStandardMaterial({ color: SURFACE.deep.color, roughness: 0.7, metalness: 0, transparent: true, opacity: TREE_REST });
     m.userData.lifeSkip = true; // greens up itself once visited
     return m;
   }, []);
@@ -580,7 +582,7 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: num
     <group position={position} rotation={[0, yaw, 0]}>
       <mesh position={[0, h * 0.05, 0]}>
         <cylinderGeometry args={[h * 0.022, h * 0.03, h * 0.1, 6]} />
-        <GlassMat color="#70828e" opacity={0.5} />
+        <GlassMat tint="deep" />
       </mesh>
       {PINE_TIERS.map(([y, r, th], i) => (
         <mesh key={i} position={[0, h * y, 0]} material={mat}>
@@ -610,6 +612,7 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: num
  *  few while the park is dormant; visiting it brings them out properly. */
 const FLY_COUNT = 9;
 function Fireflies({ slug }: { slug?: string }) {
+  const { accent } = useAccent();
   const { selected, visited } = useActive(slug ?? '');
   const reduced = useReducedMotion();
   const live = useRef(0);
@@ -654,7 +657,7 @@ function Fireflies({ slug }: { slug?: string }) {
           }}
         >
           <sphereGeometry args={[0.009, 8, 6]} />
-          <meshBasicMaterial userData={{ lifeSkip: true }} color="#9fe8b0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} />
+          <meshBasicMaterial userData={{ lifeSkip: true }} color={accent} transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} />
         </mesh>
       ))}
     </group>
@@ -693,15 +696,15 @@ function LakeDucks() {
         >
           <mesh scale={[1.3, 0.75, 1]}>
             <sphereGeometry args={[0.014, 10, 8]} />
-            <GlassMat color="#c6d0d8" opacity={0.55} />
+            <GlassMat tint="pale" />
           </mesh>
           <mesh position={[0.014, 0.012, 0]}>
             <sphereGeometry args={[0.008, 8, 6]} />
-            <GlassMat color="#c6d0d8" opacity={0.6} />
+            <GlassMat tint="pale" />
           </mesh>
           <mesh position={[0.024, 0.012, 0]} rotation={[0, 0, -Math.PI / 2]}>
             <coneGeometry args={[0.003, 0.008, 6]} />
-            <GlassMat color="#d3b06e" opacity={0.7} />
+            <GlassMat tint="glass" />
           </mesh>
         </group>
       ))}
@@ -747,6 +750,7 @@ const BINOS_SCREEN_SIZE: [number, number] = [0.07, 0.075];
 const BINOS_STAND_H = 0.14;
 const BINOS_STAND_R = 0.02;
 function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY?: number; slug?: string }) {
+  const { accent } = useAccent();
   const { selected, visited } = useActive(slug ?? '');
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
@@ -773,7 +777,7 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
       opacity: 0.5,
       roughness: 0.34,
       metalness: 0,
-      emissive: '#0c2a30',
+      emissive: SURFACE_GLOW,
       emissiveIntensity: 0.14,
       depthWrite: false,
     });
@@ -880,7 +884,7 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
                 ref={screenMat}
                 userData={{ lifeSkip: true }}
                 color={GLASS}
-                emissive="#dff6ff"
+                emissive={accent}
                 emissiveIntensity={0.15}
                 transparent
                 opacity={0.18}
@@ -897,7 +901,7 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
 }
 
 function Park({ position, slug }: { position: V3; slug?: string }) {
-  const { accent } = useAccent();
+  const { accent, accentPale } = useAccent();
   const { selected, visited } = useActive(slug ?? '');
   const live = selected || visited;
   // an irregular lake outline + its filled water shape
@@ -914,37 +918,41 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
     <group position={position}>
       <BlobShadow position={[0, 0.003, 0]} radius={0.68} opacity={0.34} />
       <group>
+      {/* the park's ground. GROUND, not SURFACE — it's the paved plot the park
+          sits on, so it's the same substance as the roads that reach it, and
+          keeping it out of the SURFACE cuts is what lets the `deep` water read
+          against it instead of merging with it. */}
       <mesh position={[0, 0.012, 0]}>
         <cylinderGeometry args={[0.5, 0.5, 0.02, 44]} />
-        <LiveGlassMat slug="arcam" color="#3e6459" opacity={0.15} />
+        <GroundMat />
       </mesh>
       <Line points={circlePts(0.5)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
       {/* lake — an irregular water body with shore, ripples, a jetty + reeds */}
       <group position={[-0.14, 0, 0.18]}>
         <mesh geometry={lake.geo} position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <LiveGlassMat slug="arcam" color="#27557d" opacity={0.4} />
+          <LiveGlassMat slug="arcam" tint="deep" />
         </mesh>
         {/* lighter shallows */}
         <mesh position={[0.03, 0.025, -0.02]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.1, 28]} />
-          <LiveGlassMat slug="arcam" color="#4a96c0" opacity={0.3} />
+          <LiveGlassMat slug="arcam" tint="glass" />
         </mesh>
         {/* shoreline */}
-        <Line points={lake.shore} position={[0, 0.03, 0]} color={live ? '#5fc4ff' : accent} lineWidth={1.2} transparent opacity={0.6} />
+        <Line points={lake.shore} position={[0, 0.03, 0]} color={live ? accentPale : accent} lineWidth={1.2} transparent opacity={0.6} />
         {/* ripples */}
-        <Line points={circlePts(0.06, 22)} position={[-0.03, 0.032, 0.02]} color={live ? '#7fd0ff' : NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-        <Line points={circlePts(0.035, 18)} position={[0.06, 0.032, -0.04]} color={live ? '#7fd0ff' : NEUTRAL} lineWidth={1} transparent opacity={0.35} />
+        <Line points={circlePts(0.06, 22)} position={[-0.03, 0.032, 0.02]} color={live ? accentPale : NEUTRAL} lineWidth={1} transparent opacity={0.4} />
+        <Line points={circlePts(0.035, 18)} position={[0.06, 0.032, -0.04]} color={live ? accentPale : NEUTRAL} lineWidth={1} transparent opacity={0.35} />
         {/* a little jetty over the water — neutral grey, no timber brown */}
         <group position={[0.13, 0, -0.07]} rotation={[0, -0.5, 0]}>
           <mesh position={[0, 0.045, 0]}>
             <boxGeometry args={[0.13, 0.012, 0.035]} />
-            <GlassMat color="#7e8b94" opacity={0.55} />
+            <GlassMat tint="pale" />
             <Edges threshold={30} color={NEUTRAL} />
           </mesh>
           {[-0.05, 0.04].map((px, i) => (
             <mesh key={i} position={[px, 0.022, 0.013]}>
               <cylinderGeometry args={[0.005, 0.005, 0.05, 6]} />
-              <GlassMat color="#7e8b94" opacity={0.5} />
+              <GlassMat tint="pale" />
             </mesh>
           ))}
         </group>
@@ -952,14 +960,14 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
         {([[-0.16, 0.03], [-0.185, -0.02], [-0.15, -0.06]] as [number, number][]).map(([rx, rz], i) => (
           <mesh key={`r${i}`} position={[rx, 0.06, rz]} rotation={[0.12 * (i - 1), 0, 0.13]}>
             <cylinderGeometry args={[0.003, 0.005, 0.11, 5]} />
-            <GlassMat color="#597a6d" opacity={0.6} />
+            <GlassMat tint="deep" />
           </mesh>
         ))}
         {/* lily pads */}
         {([[0.07, 0.06], [-0.02, -0.08]] as [number, number][]).map(([lx, lz], i) => (
           <mesh key={`l${i}`} position={[lx, 0.028, lz]} rotation={[-Math.PI / 2, 0, 0]}>
             <circleGeometry args={[0.022, 12]} />
-            <meshStandardMaterial color="#4a6f66" roughness={0.7} transparent opacity={0.75} side={DoubleSide} />
+            <GlassMat tint="pale" />
           </mesh>
         ))}
         {/* two ducks drifting their lazy loops */}
@@ -1063,7 +1071,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
             hotspot is visited, then it solidifies */}
         <mesh position={[0, TOWER_H / 2, 0]}>
           <cylinderGeometry args={[TOWER_R_TOP, TOWER_R_BOT, TOWER_H, TOWER_SIDES]} />
-          <LiveGlassMat slug="alliander-hololens" opacity={0.34} />
+          <LiveGlassMat slug="alliander-hololens" />
           <Edges threshold={15} color={NEUTRAL} />
         </mesh>
         {/* full-height mullion fins along the eight edges */}
@@ -1106,7 +1114,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
             mast + a slow-pulsing beacon — a tower crown, not a spike */}
         <mesh position={[0, TOWER_H + 0.05, 0]}>
           <cylinderGeometry args={[0.055, TOWER_R_TOP, 0.1, TOWER_SIDES]} />
-          <LiveGlassMat slug="alliander-hololens" opacity={0.34} />
+          <LiveGlassMat slug="alliander-hololens" />
           <Edges threshold={15} color={NEUTRAL} />
         </mesh>
         <mesh position={[0, TOWER_H + 0.15, 0]}>
@@ -1175,7 +1183,7 @@ function TransformerHouse({ position }: { position: V3 }) {
           hotspot ghost waiting to be found) */}
       <mesh position={[0, TRAFO_H / 2, 0]}>
         <boxGeometry args={[TRAFO_W, TRAFO_H, TRAFO_D]} />
-        <LiveGlassMat slug="alliander-hololens" ghost={false} opacity={0.34} wake={wake} />
+        <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
         <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
       </mesh>
       {/* overhanging flat roof — the trafohuisje signature. Wears the body's own
@@ -1185,7 +1193,7 @@ function TransformerHouse({ position }: { position: V3 }) {
           it just carries a touch more opacity to stay a cap, not a pane. */}
       <mesh position={[0, TRAFO_H + 0.007, 0]}>
         <boxGeometry args={[TRAFO_W + 0.03, 0.014, TRAFO_D + 0.03]} />
-        <meshStandardMaterial color="#16232c" roughness={0.1} metalness={0.7} transparent opacity={0.82}/>
+        <GlassMat tint="deep" />
         {/* the slab itself is already near-solid metal, but its outline has to
             retire with the body's or the roof keeps a wireframe the walls lost */}
         <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
@@ -1193,13 +1201,13 @@ function TransformerHouse({ position }: { position: V3 }) {
       {/* door on the camera-facing (+z) face */}
       <mesh position={[-TRAFO_W * 0.2, TRAFO_H * 0.44, TRAFO_D / 2 + 0.002]}>
         <planeGeometry args={[TRAFO_W * 0.26, TRAFO_H * 0.72]} />
-        <meshStandardMaterial color="#16232c" roughness={0.6} metalness={0.1} transparent opacity={0.72} side={DoubleSide} />
+        <GlassMat tint="deep" />
       </mesh>
       {/* louvre vents on the +x side */}
       {[0.32, 0.52, 0.72].map((f, i) => (
         <mesh key={i} position={[TRAFO_W / 2 + 0.001, TRAFO_H * f, 0]}>
           <boxGeometry args={[0.003, 0.006, TRAFO_D * 0.5]} />
-          <GlassMat color="#6f7d86" opacity={0.6} />
+          <GlassMat tint="pale" />
         </mesh>
       ))}
       {/* ceramic bushings on the roof — the electrical bit; the caps carry power */}
@@ -1207,7 +1215,7 @@ function TransformerHouse({ position }: { position: V3 }) {
         <group key={i} position={[bx, TRAFO_H + 0.014, -TRAFO_D * 0.14]}>
           <mesh position={[0, 0.02, 0]}>
             <cylinderGeometry args={[0.009, 0.012, 0.04, 10]} />
-            <meshStandardMaterial color="#c7d0d6" roughness={0.5} metalness={0.1} transparent opacity={0.9} />
+            <GlassMat tint="pale" />
           </mesh>
           <mesh position={[0, 0.045, 0]} material={capMat}>
             <sphereGeometry args={[0.0075, 10, 10]} />
@@ -1360,7 +1368,6 @@ function roadMesh(roads: Road[], cell: number) {
   return { fill: new Float32Array(fill), kerb: new Float32Array(kerb) };
 }
 
-const ROAD_FILL = '#223240';
 /** Contour resolution. The roads are 0.08 across, so this puts ~4 samples over a
  *  carriageway — enough to resolve it, and the isoline is interpolated so the
  *  kerb stays smooth between samples rather than stepping. */
@@ -1377,7 +1384,7 @@ function RoadNetwork({ roads }: { roads: Road[] }) {
         {/* No depth write and one flat colour, as before — but now it can't
             double-blend anywhere, because the tessellation covers the paved
             region exactly once. */}
-        <meshBasicMaterial color={ROAD_FILL} transparent opacity={0.62} side={DoubleSide} depthWrite={false} />
+        <GroundMat side={DoubleSide} />
       </mesh>
       <lineSegments>
         <bufferGeometry>
@@ -1448,7 +1455,7 @@ function Constellation({ anchor }: { anchor: V3 }) {
   });
   return (
     <group ref={grp} position={[anchor[0] + 0.1, anchor[1] + 1.0, anchor[2] - 0.7]} rotation={[0.05, 0.4, 0]} visible={false}>
-      <Line ref={lineRef} segments points={segs} color="#dcefff" lineWidth={3.0} transparent opacity={0} />
+      <Line ref={lineRef} segments points={segs} color={NEUTRAL} lineWidth={3.0} transparent opacity={0} />
       {stars.map((p, i) => (
         <mesh key={i} position={p}>
           <sphereGeometry args={[0.0033 + DIPPER_MAG[i] * 0.0028, 10, 10]} />
@@ -1457,8 +1464,8 @@ function Constellation({ anchor }: { anchor: V3 }) {
               starMats.current[i] = m;
             }}
             userData={{ lifeSkip: true }}
-            color="#eaf6ff"
-            emissive="#cfe8ff"
+            color={NEUTRAL}
+            emissive={NEUTRAL}
             emissiveIntensity={0}
             transparent
             opacity={0}
@@ -1475,6 +1482,7 @@ function Constellation({ anchor }: { anchor: V3 }) {
  *  glowing blue when the tower is engaged, and staying lit once visited. All tubes
  *  share one material, animated in one place. */
 function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
+  const { accent } = useAccent();
   const { hovered, selected, visited } = useActive('alliander-hololens');
   const k = useRef(0);
   const tubes = useMemo(
@@ -1512,8 +1520,8 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
   );
   const mat = useMemo(() => {
     const m = new MeshStandardMaterial({
-      color: '#284a5c',
-      emissive: '#4fd8ff',
+      color: SURFACE.deep.color,
+      emissive: accent,
       emissiveIntensity: 0.12,
       transparent: true,
       opacity: 0.55,
@@ -1555,6 +1563,7 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
 const BUILD = { mount: 1, towerLo: 2, towerHi: 3, legs: 4, booster: 5, fins: 6, interstage: 7, arm: 8, nose: 9 };
 
 function NextProjectSite() {
+  const { accent } = useAccent();
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
   const built = useSceneSelector((s) => s.visited.length); // assembly progress
   const launch = useSceneSelector((s) => s.launch);
@@ -1728,11 +1737,11 @@ function NextProjectSite() {
           <group ref={exhaust} position={[0, 0.075, 0]} visible={false}>
             <mesh position={[0, -0.1, 0]}>
               <coneGeometry args={[0.03, 0.22, 12, 1, true]} />
-              <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+              <meshBasicMaterial color={FIRE} transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
             </mesh>
             <mesh position={[0, -0.02, 0]}>
               <sphereGeometry args={[0.05, 12, 12]} />
-              <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+              <meshBasicMaterial color={FIRE} transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
             </mesh>
           </group>
         </group>
@@ -1774,7 +1783,7 @@ function NextProjectSite() {
             {/* beacon — a standby ember until the site powers on at 10/10 */}
             <mesh position={[0, MAST_H + 0.06, 0]}>
               <sphereGeometry args={[0.012, 10, 10]} />
-              <meshStandardMaterial ref={beaconMat} color="#ff9068" emissive="#ff9068" emissiveIntensity={0.06} toneMapped={false} userData={{ lifeSkip: true }} />
+              <meshStandardMaterial ref={beaconMat} color={accent} emissive={accent} emissiveIntensity={0.06} toneMapped={false} userData={{ lifeSkip: true }} />
             </mesh>
           </Rise>
         )}
@@ -1810,7 +1819,7 @@ function NextProjectSite() {
    homecoming (celebrateAt), gone within ~3s. A quiet glass-raise, not
    fireworks. */
 const BURST_N = 32;
-const BURST_COLORS = ['#27e8f2', '#ff9068'];
+const BURST_COLORS = [PALETTE.city.accent, PALETTE.room.accent];
 
 function CelebrationBurst() {
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
@@ -1937,6 +1946,7 @@ function OccupiedWindows({ buildings }: { buildings: { x: number; z: number; w: 
 // gap between passes, fading in and out at the ends, and gone entirely under
 // reduced motion. Path is in the layer's local road coordinates.
 function Traffic({ path }: { path: V3[] }) {
+  const { accent } = useAccent();
   const reduced = useReducedMotion();
   const ref = useRef<Mesh>(null);
   const mat = useRef<MeshStandardMaterial>(null);
@@ -1962,7 +1972,7 @@ function Traffic({ path }: { path: V3[] }) {
   return (
     <mesh ref={ref} position={[path[0][0], 0.03, path[0][2]]}>
       <sphereGeometry args={[0.018, 8, 8]} />
-      <meshStandardMaterial ref={mat} color="#dff2ff" emissive="#dff2ff" emissiveIntensity={2.4} transparent opacity={0} toneMapped={false} depthWrite={false} />
+      <meshStandardMaterial ref={mat} color={accent} emissive={accent} emissiveIntensity={2.4} transparent opacity={0} toneMapped={false} depthWrite={false} />
     </mesh>
   );
 }

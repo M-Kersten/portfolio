@@ -6,7 +6,7 @@ import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, CanvasTexture, Color, type Mesh, type Points as ThreePoints, type PointsMaterial } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useSceneSelector } from '../store';
-import { BG, NEUTRAL, makeRand, useAccent, type V3 } from './shared';
+import { BG, GROUND, NEUTRAL, makeRand, useAccent, type V3 } from './shared';
 
 /** The holo-table: a soft luminous plate under the active layer's objects, so
  *  they sit ON a projected glass surface. Deliberately NOT a mirror — a flat
@@ -93,6 +93,89 @@ export function DotFloor({ step = 0.26 }: { step?: number }) {
       </bufferGeometry>
       <pointsMaterial size={0.022} vertexColors transparent opacity={0.7} sizeAttenuation depthWrite={false} />
     </points>
+  );
+}
+
+/** The survey marks on the sheet the model stands on.
+ *
+ *  A study model is only half the drawing; the other half is the sheet under it,
+ *  and this is that half — ground contours running out past the built area, a
+ *  datum cross at the origin, and bearing graduations round the rim.
+ *
+ *  It does two jobs. It puts the cartographic idea somewhere it can't break:
+ *  the floor never has to read at three pixels or hold a hover state, so the
+ *  notation of the work can live here at full strength while every object above
+ *  stays one quiet substance. And it keeps the model from being a generic
+ *  frosted diorama — a frosted diorama standing on a survey sheet is specific.
+ *
+ *  The contours start beyond the built area on purpose. Under the city they'd be
+ *  clutter competing with the street plan; out here they read as the site plan
+ *  carrying on past the edge of what's been modelled, which is true.
+ *
+ *  One merged lineSegments — the whole sheet is a single draw call. */
+export function SurveyMarks() {
+  const { accent } = useAccent();
+  const positions = useMemo(() => {
+    const pos: number[] = [];
+    const seg = (x1: number, z1: number, x2: number, z2: number) => pos.push(x1, 0, z1, x2, 0, z2);
+
+    // Ground contours. Wobbled off true circles by two out-of-phase harmonics —
+    // a perfect ring reads as a target, and terrain contours never are.
+    for (let ring = 0; ring < 3; ring++) {
+      const base = 1.06 + ring * 0.37;
+      const N = 108;
+      let px = 0;
+      let pz = 0;
+      for (let i = 0; i <= N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        const r = base * (1 + 0.052 * Math.sin(a * 3 + ring * 1.7) + 0.028 * Math.sin(a * 5 - ring * 0.9));
+        const x = Math.cos(a) * r;
+        const z = Math.sin(a) * r;
+        if (i) seg(px, pz, x, z);
+        px = x;
+        pz = z;
+      }
+    }
+
+    // Bearing graduations round the rim, long every 30°.
+    const R = FLOOR_R - 0.12;
+    for (let i = 0; i < 72; i++) {
+      const a = (i / 72) * Math.PI * 2;
+      const len = i % 6 === 0 ? 0.11 : 0.045;
+      seg(Math.cos(a) * R, Math.sin(a) * R, Math.cos(a) * (R + len), Math.sin(a) * (R + len));
+    }
+    return new Float32Array(pos);
+  }, []);
+
+  // The datum cross sits at the origin under the model's centre, and it is the
+  // one mark that takes the layer's accent: it's the survey point everything
+  // else on the sheet is measured from.
+  const datum = useMemo(() => {
+    const pos: number[] = [];
+    const d = 0.13;
+    pos.push(-d, 0, 0, d, 0, 0, 0, 0, -d, 0, 0, d);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      pos.push(Math.cos(a) * 0.075, 0, Math.sin(a) * 0.075, Math.cos(a) * 0.105, 0, Math.sin(a) * 0.105);
+    }
+    return new Float32Array(pos);
+  }, []);
+
+  return (
+    <group position={[0, 0.002, 0]}>
+      <lineSegments>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color={NEUTRAL} transparent opacity={GROUND.mark} depthWrite={false} />
+      </lineSegments>
+      <lineSegments>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[datum, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color={accent} transparent opacity={GROUND.mark * 1.5} depthWrite={false} />
+      </lineSegments>
+    </group>
   );
 }
 

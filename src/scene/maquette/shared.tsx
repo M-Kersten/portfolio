@@ -17,13 +17,101 @@ export const NEUTRAL = '#d3e4f6'; // drawn-ink white-blue — the wireframe line
 export const GLASS = '#5b7da0';
 export const BG = '#0c2044'; // matches fxTweak bgColor — the drawing's paper
 
+/* ===========================================================================
+ * THE MATERIAL SYSTEM
+ *
+ * The maquette is a study model: one frosted stock, cut into shapes, standing
+ * on a survey sheet. Everything you can see belongs to exactly one of four
+ * categories below, and takes its colour and its opacity from here — never from
+ * a literal in an object file.
+ *
+ * This exists because the model had accumulated 56 literal hex colours and 37
+ * distinct opacities across three layers, each one chosen against its own
+ * neighbours rather than against a rule. That is what made a set of individually
+ * fine objects read as stuck together: two adjacent things could be different
+ * substances for no reason anybody could name.
+ *
+ *   SURFACE  Anything solid. ONE substance in three VALUES — not three
+ *            materials. A denser part of a model isn't more opaque, it's a
+ *            lighter or darker cut of the same stock, which is how a real
+ *            acrylic model separates a jetty from the water under it.
+ *   LINE     The drawn edge. One ink, one weight, and only ever on a
+ *            silhouette — never tracing a band, a cap or a plinth.
+ *   MARK     The only place colour is allowed. Emissive, and it means
+ *            "this is alive or interactive". Takes the layer's accent.
+ *   GROUND   The sheet: floor lattice, survey marks, roads, contact shadows.
+ *            Quiet by definition — it must never compete with the model.
+ * ======================================================================== */
+
+/** SURFACE — one stock, three cuts.
+ *
+ *  Each cut carries its own resting opacity, and that is not a loophole back to
+ *  authoring opacity per object: in real acrylic, thickness IS opacity, so a
+ *  dense piece being both darker and more solid is the same physical fact
+ *  described twice. Tying the two together is what lets a jetty read against
+ *  the water under it without anyone choosing a number.
+ *
+ *  The first version of this system held every surface at one opacity and let
+ *  the tints do all the separating. It didn't work: three values at 0.30 over a
+ *  dark ground compress to almost nothing, and the park and the transformer
+ *  house — both of which had been leaning on hue for their identity —
+ *  dissolved. Widening the spread and pairing it with opacity fixed both. */
+export const SURFACE = {
+  /** thin, lit, or sitting on top of something else */
+  pale: { color: '#b9cde3', rest: 0.24 },
+  /** the default — most of the model is this */
+  glass: { color: GLASS, rest: 0.32 },
+  /** dense: water, foliage mass, a solid core, a shadowed interior */
+  deep: { color: '#2c4460', rest: 0.46 },
+} as const;
+export type Tint = keyof typeof SURFACE;
+
+/** Where any cut ends up once its hotspot is woken. One value for all three, so
+ *  a woken object is the same solid whatever it was cut from. */
+export const SURFACE_AWAKE = 0.94;
+/** Not yet built. The one state the cuts don't cover: scenery that arrives as
+ *  the model comes alive rather than waking up with it. */
+export const SURFACE_ABSENT = 0;
+
+/** The faint self-glow every cut carries, so the stock reads as lit from within
+ *  rather than as a dark pane on a dark ground. Part of the substance — it is
+ *  not a colour choice an object gets to make, which is why it lives here and
+ *  not as a literal in three separate material declarations. */
+export const SURFACE_GLOW = '#0c2a30';
+
+/** LINE — the drawn edge, at one weight and one resting strength. */
+export const LINE_REST = 0.55;
+
+/** GROUND — the sheet under the model. */
+export const GROUND = {
+  sheet: '#22384f', // roads, aprons, paved ground
+  film: 0.62, // their opacity
+  mark: 0.34, // survey marks: contours, ticks, bearings
+};
+
+/** MARK — the two licensed exceptions to "emissive means the layer accent".
+ *  Both are things the world would colour for you, not UI states: a flame is a
+ *  real light source (tinting it cyan in the city would read as a coolant leak)
+ *  and a trophy is gold because trophies are gold. Everything else emissive
+ *  takes `useAccent()`. Two exceptions, both named here — an object file adding
+ *  a third one of its own is the bug this list exists to make visible. */
+export const FIRE = '#ff9d5c';
+export const GOLD = '#ffcf5e';
+
+/** A layer's accent, at three values — the same discipline SURFACE uses, for the
+ *  same reason. A mark with parts (a car's body and its livery, a screen and its
+ *  bezel glow) separates them by value, never by reaching for a second hue. The
+ *  room used to hold four unrelated car colours plus two pinks; they're all this
+ *  one coral now, at different depths. */
 interface Palette {
   accent: string;
+  accentPale: string;
+  accentDeep: string;
 }
 export const PALETTE: Record<LayerId, Palette> = {
-  city: { accent: '#27e8f2' },
-  room: { accent: '#ff9068' },
-  chip: { accent: '#a9f75c' },
+  city: { accent: '#27e8f2', accentPale: '#9ef2f8', accentDeep: '#12909c' },
+  room: { accent: '#ff9068', accentPale: '#ffc5ab', accentDeep: '#c25b38' },
+  chip: { accent: '#a9f75c', accentPale: '#d6fbaa', accentDeep: '#6faa33' },
 };
 export const AccentCtx = createContext<Palette>(PALETTE.city);
 export const useAccent = () => useContext(AccentCtx);
