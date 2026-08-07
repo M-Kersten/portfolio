@@ -100,3 +100,172 @@
 @keyframes focus-fade { from { opacity: 0; } }
 @keyframes focus-pop { from { opacity: 0; transform: scale(0.92) translateY(12px); } }
 
+/* ---------- Gallery — a case's picture set, for the projects whose
+     argument is the photographs rather than the write-up ---------- */
+.gal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+/* auto-fill, not auto-fit: a set of three shouldn't stretch to three huge
+   panes across the card — the frames keep their size and the row runs short,
+   which is what a contact sheet does. */
+.gal__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: var(--space-2xs);
+}
+/* A phone has room for two across once the card's padding is off, and two is
+   the point where it still reads as a sheet. At the desktop minimum it fitted
+   exactly one, which is a list of photographs, not a gallery. */
+@media (max-width: 34rem) {
+  .gal__grid { grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); }
+}
+.gal__thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  overflow: hidden;
+  cursor: zoom-in;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--paper) 60%, transparent);
+  transition: border-color 0.18s var(--ease);
+}
+.gal__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Resting a touch flat and cool, so a dozen frames read as one sheet rather
+     than a dozen competing photographs; the one under the pointer comes up to
+     full colour. */
+  filter: saturate(0.82) brightness(0.88);
+  transition: filter 0.18s var(--ease), transform 0.3s var(--ease);
+}
+.gal__thumb:hover,
+.gal__thumb:focus-visible { border-color: var(--card-accent); }
+.gal__thumb:hover img,
+.gal__thumb:focus-visible img {
+  filter: none;
+  transform: scale(1.04);
+}
+
+/* ---------- Lightbox — one frame, full size ---------- */
+.lb {
+  position: fixed;
+  inset: 0;
+  z-index: 100; /* over the case card (90) it was opened from */
+  display: grid;
+  place-items: center;
+  padding: var(--space-s);
+  background: color-mix(in srgb, #05070a 88%, transparent);
+  backdrop-filter: blur(8px);
+  animation: focus-fade 0.22s var(--ease);
+}
+.lb__frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  max-width: min(1280px, 100%);
+  max-height: 100%;
+}
+.lb__img {
+  display: block;
+  /* The controls and caption bar need room, so the picture takes the rest —
+     `min-height: 0` lets it actually shrink inside the flex column. */
+  min-height: 0;
+  max-width: 100%;
+  max-height: calc(100svh - 8rem);
+  object-fit: contain;
+  margin: auto;
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--paper-2) 70%, transparent);
+  opacity: 0;
+  transition: opacity 0.25s var(--ease);
+}
+.lb__img[data-loaded] { opacity: 1; }
+.lb__bar {
+  display: flex;
+  gap: var(--space-s);
+  align-items: baseline;
+  justify-content: space-between;
+  min-height: 1.5em; /* holds its line so the picture doesn't jump between frames */
+}
+.lb__caption {
+  margin: 0;
+  font-size: var(--step--1);
+  color: var(--ink-60);
+  max-width: 68ch;
+}
+.lb__count {
+  margin: 0;
+  margin-left: auto;
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-40);
+}
+.lb__btn {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1;
+  backdrop-filter: blur(4px);
+}
+.lb__btn:hover { border-color: var(--ink); }
+.lb__close {
+  top: var(--space-2xs);
+  right: var(--space-2xs);
+  font-size: 1rem;
+}
+.lb__prev,
+.lb__next {
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.6rem;
+}
+.lb__prev { left: var(--space-2xs); }
+.lb__next { right: var(--space-2xs); }
+
+/* Narrow screens: swipe is the real control, but the arrows have to stay for
+   keyboard and for anyone who doesn't think to swipe. Pinned to the bottom
+   CORNERS OF THE VIEWPORT rather than to the frame — the frame shrink-wraps the
+   picture, so anchoring to it put them straight through the caption bar and
+   clipped the counter. (`.lb` sets backdrop-filter, which makes it the
+   containing block, so `fixed` here means "the overlay", not "the document".)
+   The picture gives up the height they now occupy. */
+@media (max-width: 34rem) {
+  .lb__prev,
+  .lb__next {
+    position: fixed;
+    top: auto;
+    bottom: var(--space-s);
+    transform: none;
+  }
+  .lb__prev { left: var(--space-s); }
+  .lb__next { right: var(--space-s); }
+  .lb__img { max-height: calc(100svh - 12rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gal__thumb img,
+  .lb__img { transition: none; }
+  .gal__thumb:hover img,
+  .gal__thumb:focus-visible img { transform: none; }
+  .lb { animation: none; }
+  .lb__img { opacity: 1; }
+}
+

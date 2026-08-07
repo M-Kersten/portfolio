@@ -214,6 +214,16 @@ else
         {
             <p class="muted">Processing…</p>
         }
+
+        <h2>Gallery</h2>
+        <p class="muted">
+            Extra frames for a picture-led project — a grid in the case popup that opens full-size.
+            The poster stays the card image. Filenames only: every frame lives in
+            <code>public/gallery/@(_case.Slug)/</code>, committed to the repo alongside the JSON
+            (there is no upload for these yet), then shrunk with <code>npm run posters</code>.
+            A frame with no caption is treated as decorative and gets an empty alt attribute.
+        </p>
+        <GalleryList Items="_gallery" Changed="StateHasChanged" />
     </section>
 }
 
@@ -223,6 +233,7 @@ else
     private ContentSet? _content;
     private CaseStudy? _case;
     private List<string> _tech = [];
+    private List<GalleryImage> _gallery = [];
     private List<string> _otherSlugs = [];
     private bool _isNew, _notFound, _saving, _uploading, _posterStaged, _failed;
     private string? _message;
@@ -251,6 +262,7 @@ else
         }
 
         _tech = _case.Tech ?? [];
+        _gallery = _case.Gallery ?? [];
         _otherSlugs = [.. _content.Cases.Where(c => c.Slug != _case.Slug).Select(c => c.Slug).Order()];
         _posterStaged = (await Posters.GetPendingAsync()).ContainsKey(_case.Slug);
     }
@@ -268,9 +280,12 @@ else
         _message = null;
         _failed = false;
 
-        // An empty list and an absent one differ in the output: `tech` is
-        // omitted entirely when there is nothing in it.
+        // An empty list and an absent one differ in the output: `tech` and
+        // `gallery` are omitted entirely when there is nothing in them. For the
+        // gallery that is not cosmetic — the site's build check rejects
+        // `"gallery": []` outright.
         _case.Tech = _tech.Count > 0 ? _tech : null;
+        _case.Gallery = _gallery.Count > 0 ? _gallery : null;
 
         if (string.IsNullOrWhiteSpace(_case.Slug))
         {

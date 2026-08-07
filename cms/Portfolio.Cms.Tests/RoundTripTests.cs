@@ -11,20 +11,26 @@ namespace Portfolio.Cms.Tests;
 /// diff — and any mismatch is a field the model is silently dropping or
 /// mangling on the way through.
 /// <para>
-/// Three of the five files match byte for byte. The two that don't are pinned
-/// here to an exact, enumerated set of differences, so a new mismatch fails
-/// loudly instead of quietly widening.
+/// Four of the five files match byte for byte. The one that doesn't —
+/// site.json — is pinned here to an exact, enumerated set of differences, so a
+/// new mismatch fails loudly instead of quietly widening.
 /// </para>
 /// </summary>
 public class RoundTripTests
 {
     /// <summary>
-    /// cases.json is internally inconsistent about where <c>kind</c> sits:
-    /// three entries put it after <c>client</c>, two after <c>title</c>. The
-    /// model uses the majority position, which reorders these two on first
-    /// publish and none after. Listed explicitly so a third would fail here.
+    /// Cases whose key order the model moves on the way through.
+    /// <para>
+    /// Empty, and that is the finished state rather than a gap. cases.json used
+    /// to be inconsistent about where <c>kind</c> sat — three entries after
+    /// <c>client</c>, two after <c>title</c> — and this pinned the two the
+    /// model's majority order would move. Those have since been normalized in
+    /// the repo, so nothing moves any more. Kept as an empty list rather than
+    /// deleted, because the assertion below is what would catch a future edit
+    /// (or a hand-written entry) drifting out of the model's key order.
+    /// </para>
     /// </summary>
-    private static readonly string[] ExpectedCaseReorders = ["amsterdam-ai", "custom-ar-framework"];
+    private static readonly string[] ExpectedCaseReorders = [];
 
     private static string RepoRoot
     {
@@ -52,8 +58,8 @@ public class RoundTripTests
 
         Assert.Equal(16, set.Cases.Count);
         Assert.Equal(3, set.Capabilities.Count);
-        Assert.Equal(9, set.Site.Career?.Count);
-        Assert.Equal(9, set.CvNl.Career?.Count);
+        Assert.Equal(10, set.Site.Career?.Count);
+        Assert.Equal(10, set.CvNl.Career?.Count);
         // English reads sector/detail straight from site.json, so it carries no
         // overrides of its own — an easy thing to get backwards.
         Assert.Null(set.Cv.Career);
@@ -117,6 +123,77 @@ public class RoundTripTests
             .Order()
             .ToArray();
         Assert.Equal(ExpectedCaseReorders.Order(), moved);
+    }
+
+    /// <summary>
+    /// A gallery has to survive the model exactly, and no case in the repo has
+    /// one yet — so this pins the shape directly rather than waiting for real
+    /// content to catch a regression.
+    /// <para>
+    /// Three things are asserted at once and each has bitten this pipeline
+    /// before: <c>gallery</c> lands last (so adding the field to sixteen
+    /// existing cases is a pure addition, not a reshuffle), an absent caption
+    /// stays absent rather than serializing as <c>null</c> or <c>""</c> — the
+    /// site reads "no caption" as "decorative, use alt=''" — and the frames
+    /// expand one key per line, which is what cases.json does everywhere else.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void A_gallery_renders_in_the_repo_s_own_shape()
+    {
+        var one = new CaseStudy
+        {
+            Slug = "picture-led", Title = "Picture led", Layer = Layer.Room, Client = "Someone",
+            Sector = "Test", Discipline = [Discipline.Installation],
+            Problem = "p", Approach = "a", Outcome = "o", Year = "2026", Archive = true,
+            Gallery =
+            [
+                new GalleryImage { File = "01.jpg", Caption = "The cabinet, closed." },
+                new GalleryImage { File = "02.jpg" },
+            ],
+        };
+
+        var rendered = ContentFile.Cases.Render(new List<CaseStudy> { one });
+
+        AssertTextEqual(
+            """
+            [
+              {
+                "slug": "picture-led",
+                "title": "Picture led",
+                "layer": "room",
+                "client": "Someone",
+                "sector": "Test",
+                "discipline": [
+                  "Installation"
+                ],
+                "problem": "p",
+                "approach": "a",
+                "outcome": "o",
+                "year": "2026",
+                "archive": true,
+                "gallery": [
+                  {
+                    "file": "01.jpg",
+                    "caption": "The cabinet, closed."
+                  },
+                  {
+                    "file": "02.jpg"
+                  }
+                ]
+              }
+            ]
+
+            """.ReplaceLineEndings(ContentJson.Newline),
+            rendered,
+            "a case with a gallery");
+
+        // …and it comes back the way it went in.
+        var parsed = ContentJson.Deserialize<List<CaseStudy>>(rendered)[0];
+        var gallery = Assert.IsType<List<GalleryImage>>(parsed.Gallery);
+        Assert.Equal(["01.jpg", "02.jpg"], gallery.Select(g => g.File));
+        Assert.Equal("The cabinet, closed.", gallery[0].Caption);
+        Assert.Null(gallery[1].Caption);
     }
 
     /// <summary>Key names of one case, in the order they appear in the raw text.</summary>

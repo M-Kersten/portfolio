@@ -13,6 +13,24 @@ export type Layer = 'city' | 'room' | 'chip';
 // index.ts in step with this union — it drives the chip order.
 export type Discipline = 'AR' | 'VR' | 'AI' | 'Games' | 'Geo' | 'Installation';
 
+/** One frame of a case's gallery.
+ *
+ *  `file` is a filename, not a path: the images live in
+ *  `public/gallery/<slug>/`, the same slug-derived convention the posters use,
+ *  so the JSON stays readable and there is exactly one place a picture can be.
+ *  They are listed rather than discovered because a static build has no
+ *  directory listing at runtime — and listing them is what gives you an order
+ *  and a place to write the captions. */
+export interface GalleryImage {
+  /** Filename inside `public/gallery/<slug>/`, e.g. "03-install.jpg". */
+  file: string;
+  /** Shown under the image in the lightbox, and used as its alt text. An
+   *  uncaptioned frame is treated as decorative and gets `alt=""` — which is
+   *  correct: a screen reader reading out "image, image, image" twelve times
+   *  is worse than silence. */
+  caption?: string;
+}
+
 export interface CaseStudy {
   slug: string;
   title: string;
@@ -50,6 +68,11 @@ export interface CaseStudy {
   /** A long-tail project: it appears in the /projects wordcloud (the full index)
    *  but is kept off the curated hero + timeline. Highlights leave this unset. */
   archive?: boolean;
+  /** Extra frames, for a project whose argument is the pictures rather than the
+   *  write-up. They show as a grid inside the case popup and open full-size in
+   *  a lightbox; the poster stays the card image either way, so a case can have
+   *  a gallery and still read normally everywhere else. */
+  gallery?: GalleryImage[];
 }
 
 export interface Capability {

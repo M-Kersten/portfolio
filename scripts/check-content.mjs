@@ -2,12 +2,14 @@
 //
 // The site is edited by hand in src/content/*.json, and several things point
 // at each other by typed-out slug: the 3D hotspots (src/scene/framing.ts),
-// the cross-layer relation cables (src/scene/maquette/signals.tsx) and the
-// poster images (public/posters/<slug>.jpg). A typo in any of them fails
-// silently in the browser — a hotspot that opens nothing, a cable to nowhere,
-// a card without artwork. This script fails the build instead, with a message
-// that says exactly what to fix. Warnings (⚠) don't fail the build.
-import { readFileSync, existsSync } from 'node:fs';
+// the cross-layer relation cables (src/scene/maquette/signals.tsx), the poster
+// images (public/posters/<slug>.jpg) and a case's gallery frames
+// (public/gallery/<slug>/*). A typo in any of them fails silently in the
+// browser — a hotspot that opens nothing, a cable to nowhere, a card without
+// artwork, a photograph that was uploaded but never listed. This script fails
+// the build instead, with a message that says exactly what to fix. Warnings
+// (⚠) don't fail the build.
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -71,7 +73,68 @@ for (const c of cases) {
     (c.archive ? warnings : errors).push(`${who}: no poster at public/posters/${c.slug}.jpg`);
   if (c.video && !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(c.video))
     warnings.push(`${who}: video isn't a YouTube URL — the embed only understands YouTube`);
+  checkGallery(c, who);
 }
+/** A case's picture set. The images live in public/gallery/<slug>/ and are
+ *  listed in the JSON — a static build has no directory listing, so the list is
+ *  the only thing that puts them on the page.
+ *
+ *  Which means the failure mode is asymmetric, and so are the rules. A LISTED
+ *  file that isn't on disk is a broken image in the popup: an error. A file on
+ *  disk that nobody listed is invisible — no broken layout, no console noise,
+ *  just a photo you uploaded and can't find. That's the one this check really
+ *  exists for, and it can only ever be a warning, because leaving a source
+ *  file or an alternate crop in the folder is legitimate. */
+function checkGallery(c, who) {
+  const dir = join(root, 'public', 'gallery', c.slug);
+  const onDisk = existsSync(dir)
+    ? readdirSync(dir).filter((f) => /\.(jpe?g|png|webp|avif|gif)$/i.test(f))
+    : [];
+
+  if (c.gallery === undefined) {
+    if (onDisk.length)
+      warnings.push(
+        `${who}: public/gallery/${c.slug}/ holds ${onDisk.length} image${onDisk.length > 1 ? 's' : ''} but the case has no "gallery" — nothing will show`,
+      );
+    return;
+  }
+  if (!Array.isArray(c.gallery) || c.gallery.length === 0) {
+    errors.push(`${who}: "gallery" must be a non-empty array of { file, caption? } — drop the key if there are no images`);
+    return;
+  }
+
+  const listed = new Set();
+  for (const [i, img] of c.gallery.entries()) {
+    const at = `${who} → gallery[${i}]`;
+    if (!img || typeof img !== 'object' || Array.isArray(img)) {
+      errors.push(`${at}: must be an object like { "file": "01.jpg", "caption": "…" }`);
+      continue;
+    }
+    for (const k of Object.keys(img))
+      if (k !== 'file' && k !== 'caption') errors.push(`${at}: unknown key "${k}" — only "file" and "caption" are read`);
+    if (typeof img.file !== 'string' || !img.file) {
+      errors.push(`${at}: missing "file" (the filename inside public/gallery/${c.slug}/)`);
+      continue;
+    }
+    // `file` is a filename, not a path — the folder comes from the slug. A
+    // slash here would resolve somewhere the validator never looked.
+    if (/[\\/]/.test(img.file))
+      errors.push(`${at}: "file" is a filename, not a path — the folder is always public/gallery/${c.slug}/`);
+    else if (!existsSync(join(dir, img.file)))
+      errors.push(`${at}: no image at public/gallery/${c.slug}/${img.file}`);
+    if (listed.has(img.file)) warnings.push(`${at}: "${img.file}" is listed more than once`);
+    listed.add(img.file);
+    if (img.caption !== undefined && typeof img.caption !== 'string')
+      errors.push(`${at}: "caption" must be a string`);
+  }
+
+  const orphans = onDisk.filter((f) => !listed.has(f));
+  if (orphans.length)
+    warnings.push(
+      `${who}: public/gallery/${c.slug}/ has ${orphans.length} image${orphans.length > 1 ? 's' : ''} not listed in "gallery" — ${orphans.slice(0, 4).join(', ')}${orphans.length > 4 ? ', …' : ''}`,
+    );
+}
+
 // `follows` storyline links must point at real cases (checked after the slug
 // set is complete, so forward references work too).
 for (const c of cases)

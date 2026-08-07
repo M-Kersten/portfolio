@@ -158,4 +158,100 @@ public class ValidationTests
         Assert.False(result.CanPublish);
         Assert.Contains(result.Errors, e => e.Problem == "duplicate slug");
     }
+
+    /* ---------- galleries ----------
+       These pretend files exist rather than writing any, because what the
+       validator actually consults is RepoFacts.PublicFiles — a snapshot that is
+       gathered from a checkout locally but over the GitHub API when the CMS
+       runs on App Service with no working tree. Testing through the snapshot is
+       testing the path that runs in production. */
+
+    /// <summary>Puts a case's gallery frames into the repo snapshot, as if they
+    /// had been committed under public/gallery/{slug}/.</summary>
+    private static ValidationResult ValidateWithFiles(string slug, string[] onDisk, Action<ContentSet> mutate)
+    {
+        var (content, repo) = Load();
+        mutate(content);
+        return ContentValidator.Validate(
+            content,
+            repo with
+            {
+                PublicFiles = new HashSet<string>(
+                    repo.PublicFiles.Concat(onDisk.Select(f => $"/gallery/{slug}/{f}")),
+                    StringComparer.Ordinal),
+            });
+    }
+
+    private static CaseStudy WithGallery(ContentSet content, params GalleryImage[] images)
+    {
+        var c = content.Cases[0];
+        c.Gallery = [.. images];
+        return c;
+    }
+
+    [Fact]
+    public void A_gallery_frame_that_is_not_in_the_repo_is_an_error()
+    {
+        var slug = Load().Content.Cases[0].Slug;
+
+        var ok = ValidateWithFiles(slug, ["01.jpg", "02.jpg"],
+            c => WithGallery(c, new GalleryImage { File = "01.jpg" }, new GalleryImage { File = "02.jpg", Caption = "Two" }));
+        Assert.True(ok.CanPublish, string.Join("\n", ok.Errors.Select(e => e.Problem)));
+
+        var missing = ValidateWithFiles(slug, ["01.jpg"],
+            c => WithGallery(c, new GalleryImage { File = "01.jpg" }, new GalleryImage { File = "nope.jpg" }));
+        Assert.False(missing.CanPublish);
+        Assert.Contains(missing.Errors, e => e.Problem == $"no image at public/gallery/{slug}/nope.jpg");
+    }
+
+    /// <summary>
+    /// A path would resolve somewhere neither this validator nor
+    /// scripts/check-content.mjs looks, so it has to be refused at the field
+    /// rather than discovered as a broken image in production.
+    /// </summary>
+    [Fact]
+    public void A_gallery_file_must_be_a_bare_filename()
+    {
+        var slug = Load().Content.Cases[0].Slug;
+
+        var result = ValidateWithFiles(slug, ["01.jpg"],
+            c => WithGallery(c, new GalleryImage { File = "sub/01.jpg" }));
+
+        Assert.False(result.CanPublish);
+        Assert.Contains(result.Errors, e => e.Problem.Contains("must be a bare filename"));
+    }
+
+    /// <summary>An empty list publishes <c>"gallery": []</c>, which the site's
+    /// build check rejects — so the CMS has to refuse it first.</summary>
+    [Fact]
+    public void An_empty_gallery_is_an_error()
+    {
+        var result = Validate(c => c.Cases[0].Gallery = []);
+
+        Assert.False(result.CanPublish);
+        Assert.Contains(result.Errors, e => e.Problem.Contains("gallery is empty"));
+    }
+
+    /// <summary>
+    /// The one this check really exists for: an uploaded photograph nobody
+    /// listed is invisible — nothing breaks, nothing logs, it just never
+    /// appears. A warning rather than an error, because keeping a source file
+    /// or an alternate crop in the folder is legitimate.
+    /// </summary>
+    [Fact]
+    public void Images_in_the_folder_that_the_gallery_does_not_list_are_a_warning()
+    {
+        var slug = Load().Content.Cases[0].Slug;
+
+        var partial = ValidateWithFiles(slug, ["01.jpg", "02.jpg", "03.jpg"],
+            c => WithGallery(c, new GalleryImage { File = "01.jpg" }));
+        Assert.True(partial.CanPublish);
+        Assert.Contains(partial.Warnings, w => w.Problem.Contains("02.jpg, 03.jpg"));
+
+        // …and the same folder with no gallery field at all is worth saying out
+        // loud too, since that is what an upload-then-forget looks like.
+        var none = ValidateWithFiles(slug, ["01.jpg"], c => c.Cases[0].Gallery = null);
+        Assert.True(none.CanPublish);
+        Assert.Contains(none.Warnings, w => w.Problem.Contains("the case has no gallery"));
+    }
 }

@@ -34,6 +34,12 @@ public static class ContentValidator
     private static readonly Regex HttpOrMailto = new(@"^(https?://|mailto:)", RegexOptions.Compiled);
     private static readonly Regex YouTube = new(@"^https://(www\.)?(youtube\.com|youtu\.be)/", RegexOptions.Compiled);
 
+    /// <summary>What counts as a gallery frame on disk. Matches the extension
+    /// list in scripts/check-content.mjs, so the two agree on which stray files
+    /// in a gallery folder are worth reporting as unlisted.</summary>
+    private static readonly Regex ImageFile =
+        new(@"\.(jpe?g|png|webp|avif|gif)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     public static ValidationResult Validate(ContentSet content, RepoFacts repo)
     {
         var result = new ValidationResult();
@@ -101,6 +107,8 @@ public static class ContentValidator
                     $"kind \"{c.Kind}\" isn't one of {string.Join(" | ", CaseKind.Known)} — the waypoint "
                     + "will fall back to the client name with no kind styling",
                     $"{path}.kind");
+
+            ValidateGallery(c, repo, result, who, path);
         }
 
         // Checked after the slug set is complete so forward references work.
@@ -113,6 +121,76 @@ public static class ContentValidator
         }
 
         return slugs;
+    }
+
+    /// <summary>
+    /// A case's picture set — mirrors <c>checkGallery</c> in
+    /// scripts/check-content.mjs, which is what actually blocks the site build.
+    /// <para>
+    /// The failure modes are asymmetric and so are the rules. A LISTED file
+    /// that isn't in the repo is a broken image in the popup: an error. A file
+    /// sitting in the folder that nobody listed is invisible — no broken
+    /// layout, nothing in the console, just a photograph that was uploaded and
+    /// can't be found. That second one is what this check is really for, and it
+    /// can only ever be a warning, because keeping a source file or an
+    /// alternate crop in the folder is a legitimate thing to do.
+    /// </para>
+    /// </summary>
+    private static void ValidateGallery(CaseStudy c, RepoFacts repo, ValidationResult result, string who, string path)
+    {
+        var dir = $"/gallery/{c.Slug}/";
+        var onDisk = repo.PublicFiles
+            .Where(f => f.StartsWith(dir, StringComparison.Ordinal) && ImageFile.IsMatch(f))
+            .Select(f => f[dir.Length..])
+            .Where(f => !f.Contains('/')) // the folder itself, not anything nested in it
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (c.Gallery is null)
+        {
+            if (onDisk.Count > 0)
+                result.Warn(who,
+                    $"public{dir} holds {onDisk.Count} image{(onDisk.Count > 1 ? "s" : "")} but the case has no "
+                    + "gallery — nothing will show",
+                    $"{path}.gallery");
+            return;
+        }
+        if (c.Gallery.Count == 0)
+        {
+            result.Error(who,
+                "gallery is empty — clear it entirely rather than publishing \"gallery\": [], which the "
+                + "site's build check rejects",
+                $"{path}.gallery");
+            return;
+        }
+
+        var listed = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < c.Gallery.Count; i++)
+        {
+            var img = c.Gallery[i];
+            var at = $"{path}.gallery[{i}]";
+            if (string.IsNullOrWhiteSpace(img.File))
+            {
+                result.Error(who, $"gallery image {i + 1} has no filename", at);
+                continue;
+            }
+            // A filename, never a path — the folder always comes from the slug.
+            // A separator here would point somewhere no check ever looks.
+            if (img.File.Contains('/') || img.File.Contains('\\'))
+                result.Error(who,
+                    $"gallery image {i + 1} (\"{img.File}\") must be a bare filename — the folder is always public{dir}",
+                    at);
+            else if (!repo.PublicFiles.Contains(dir + img.File))
+                result.Error(who, $"no image at public{dir}{img.File}", at);
+            if (!listed.Add(img.File))
+                result.Warn(who, $"gallery lists \"{img.File}\" more than once", at);
+        }
+
+        var orphans = onDisk.Where(f => !listed.Contains(f)).Order().ToList();
+        if (orphans.Count > 0)
+            result.Warn(who,
+                $"public{dir} has {orphans.Count} image{(orphans.Count > 1 ? "s" : "")} the gallery doesn't list — "
+                + string.Join(", ", orphans.Take(4)) + (orphans.Count > 4 ? ", …" : ""),
+                $"{path}.gallery");
     }
 
     /// <summary>

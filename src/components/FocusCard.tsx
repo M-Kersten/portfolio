@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
+import { Gallery, Lightbox } from './Gallery';
 import { StoryLinks } from './StoryLinks';
 
 // A project lifted off the wall: scaled-up card with the full detail, over a dim
@@ -16,12 +17,37 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
   const photo = embed ? null : asset(`/posters/${study.slug}.jpg`);
   const closeRef = useRef<HTMLButtonElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(cardRef); // Tab stays inside; focus returns to the card on close
+  // Which gallery frame is open full-size, or null for none. Owned here rather
+  // than inside the gallery so this component can keep ONE Escape handler for
+  // both layers — two handlers on `document` both fire, and the card would
+  // close out from under the lightbox that was meant to swallow the key.
+  const [frame, setFrame] = useState<number | null>(null);
+  const shots = study.gallery ?? [];
+  // The lightbox wraps: at the last frame, Next returns to the first. A gallery
+  // is a loop you flick through, not a form you can overrun.
+  const step = useCallback(
+    (delta: number) => setFrame((i) => (i === null ? i : (i + delta + shots.length) % shots.length)),
+    [shots.length],
+  );
+  useFocusTrap(cardRef, frame === null); // Tab stays inside; the lightbox takes over when it's up
 
+  // Mount only — the key handler below re-subscribes as the lightbox opens and
+  // closes, and pulling focus back to the card's ✕ each time would take it off
+  // whichever control the visitor had just reached.
   useEffect(() => {
     closeRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        if (frame !== null) setFrame(null); // innermost layer first
+        else onClose();
+        return;
+      }
+      if (frame === null) return;
+      if (e.key === 'ArrowLeft') step(-1);
+      else if (e.key === 'ArrowRight') step(1);
     };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
@@ -30,7 +56,7 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose]);
+  }, [onClose, frame, step]);
 
   return (
     <div className="focus" onClick={onClose}>
@@ -87,6 +113,10 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
               </section>
             )}
           </div>
+          {/* After the story, before the stack: the pictures document what was
+              just described, and on a picture-led project they carry most of
+              the weight — so they sit above the tech tags, not under them. */}
+          {shots.length > 0 && <Gallery slug={study.slug} images={shots} onOpen={setFrame} />}
           {study.tech && study.tech.length > 0 && (
             <ul className="worktile__tech" aria-label="Technologies">
               {study.tech.map((t) => (
@@ -110,6 +140,12 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
           <StoryLinks study={study} onJump={onJump} />
         </div>
       </div>
+      {/* A sibling of the card, not a child: the card sets backdrop-filter,
+          which makes it the containing block for fixed descendants, so a
+          lightbox nested inside would be clipped to the card's own box. */}
+      {frame !== null && (
+        <Lightbox slug={study.slug} images={shots} index={frame} onStep={step} onClose={() => setFrame(null)} />
+      )}
     </div>
   );
 }

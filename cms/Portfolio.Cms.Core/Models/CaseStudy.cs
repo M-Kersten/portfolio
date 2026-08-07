@@ -111,4 +111,19 @@ public sealed class CaseStudy
     /// </summary>
     [JsonPropertyOrder(18), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? Archive { get; set; }
+
+    /// <summary>
+    /// Extra frames for a picture-led project — shown as a grid in the case
+    /// popup, opening full-size in a lightbox. Null when the case has none;
+    /// an empty list would write <c>"gallery": []</c> into the JSON, which the
+    /// site's build check rejects, so <see cref="Validation.ContentValidator"/>
+    /// treats that as an error rather than letting it publish.
+    /// <para>
+    /// Last in the key order because it is the newest field and every existing
+    /// entry ends before it — which keeps the first publish after this change a
+    /// pure addition rather than a reshuffle of all sixteen cases.
+    /// </para>
+    /// </summary>
+    [JsonPropertyOrder(19), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<GalleryImage>? Gallery { get; set; }
 }

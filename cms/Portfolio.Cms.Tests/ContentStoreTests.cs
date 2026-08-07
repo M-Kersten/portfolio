@@ -99,9 +99,59 @@ public class ContentStoreTests : IDisposable
 
         Assert.All(loaded.Cases.Where(c => c.Archive != true), c => Assert.Null(c.Archive));
         Assert.Equal(4, loaded.Cases.Count(c => c.Archive == true));
-        // cv.json carries no career overrides; cv.nl.json carries nine.
+        // cv.json carries no career overrides; cv.nl.json translates every stint.
         Assert.Null(loaded.Cv.Career);
-        Assert.Equal(9, loaded.CvNl.Career?.Count);
+        Assert.Equal(10, loaded.CvNl.Career?.Count);
+    }
+
+    /// <summary>
+    /// A gallery is stored as a JSON blob on the case row rather than a child
+    /// table, so nothing about it is enforced by the schema — its order, its
+    /// optional captions and its very presence all depend on that one column
+    /// being written and read correctly. No case in the repo has a gallery yet,
+    /// so this is the only thing standing between a mapping slip and a publish
+    /// that silently drops every picture off a project.
+    /// </summary>
+    [Fact]
+    public async Task A_gallery_survives_the_database()
+    {
+        string target;
+        HashSet<string> hadOne;
+        await using (var db = NewContext())
+        {
+            var store = new ContentStore(db);
+            await store.ImportFromCheckoutAsync(RepoRoot);
+            var content = await store.LoadAsync();
+            // Compared as a set rather than "everything else is null", so this
+            // keeps working the day the repo's own content grows a gallery.
+            hadOne = [.. content.Cases.Where(c => c.Gallery is not null).Select(c => c.Slug)];
+            var subject = content.Cases.First(c => c.Gallery is null);
+            target = subject.Slug;
+            subject.Gallery =
+            [
+                new GalleryImage { File = "01.jpg", Caption = "First" },
+                new GalleryImage { File = "02.jpg" },
+            ];
+            await store.SaveAsync(content);
+        }
+
+        await using var read = NewContext();
+        var loaded = await new ContentStore(read).LoadAsync();
+
+        var gallery = Assert.IsType<List<GalleryImage>>(loaded.Cases.Single(c => c.Slug == target).Gallery);
+        Assert.Equal(["01.jpg", "02.jpg"], gallery.Select(g => g.File));
+        Assert.Equal("First", gallery[0].Caption);
+        // An absent caption must come back absent, not as "" — the site reads
+        // "no caption" as "decorative", and an empty string would publish a
+        // difference that means nothing.
+        Assert.Null(gallery[1].Caption);
+        // Exactly one case gained a gallery and none lost one. An empty list
+        // here would be worse than a missing one: it publishes "gallery": [],
+        // which the site's build check rejects.
+        Assert.Equal(
+            [.. hadOne.Append(target).Order()],
+            loaded.Cases.Where(c => c.Gallery is not null).Select(c => c.Slug).Order());
+        Assert.All(loaded.Cases, c => Assert.True(c.Gallery is null or { Count: > 0 }));
     }
 
     [Fact]

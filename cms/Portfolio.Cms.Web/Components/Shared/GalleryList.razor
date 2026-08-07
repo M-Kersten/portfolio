@@ -1,0 +1,100 @@
+@*
+    Editor for a case's picture set. Two fields per row rather than one, so it
+    can't reuse StringList — but the ordering controls are the same idea and for
+    the same reason: the order here IS the order the frames appear in the
+    popup's grid and the order the lightbox steps through, so moving a row is
+    editing the content, not tidying the form.
+
+    Filenames only. The folder is always public/gallery/{slug}/ — the field
+    refuses a separator rather than letting a path through, because a path here
+    would point somewhere neither the CMS validator nor the site's build check
+    ever looks, and the first sign of it would be a broken image in production.
+*@
+@using Portfolio.Cms.Core.Models
+
+<div class="string-list">
+    @for (var i = 0; i < Items.Count; i++)
+    {
+        var index = i;
+        var image = Items[index];
+        <div class="string-list__row">
+            <div class="field-row" style="flex: 1;">
+                <label class="field">
+                    <span>File</span>
+                    <input class="input" value="@image.File" placeholder="01-install.jpg"
+                           @onchange="e => SetFile(index, e.Value?.ToString())" />
+                </label>
+                <label class="field">
+                    <span>Caption</span>
+                    <input class="input" value="@image.Caption" placeholder="(optional)"
+                           @onchange="e => SetCaption(index, e.Value?.ToString())" />
+                </label>
+            </div>
+            <div class="string-list__controls">
+                <button type="button" class="btn btn--icon" title="Move up"
+                        disabled="@(index == 0)" @onclick="() => Move(index, -1)">↑</button>
+                <button type="button" class="btn btn--icon" title="Move down"
+                        disabled="@(index == Items.Count - 1)" @onclick="() => Move(index, 1)">↓</button>
+                <button type="button" class="btn btn--icon btn--danger" title="Remove"
+                        @onclick="() => Remove(index)">✕</button>
+            </div>
+        </div>
+    }
+
+    @if (Items.Count == 0)
+    {
+        <p class="muted">No gallery. Add a frame to give this project a picture set.</p>
+    }
+
+    <button type="button" class="btn btn--ghost" @onclick="Add">+ Add image</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<GalleryImage> Items { get; set; } = [];
+
+    /// <summary>Raised after any change so the parent can mark itself dirty.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private async Task SetFile(int index, string? value)
+    {
+        // Trim a pasted path down to its last segment rather than rejecting it:
+        // dragging a file in from a file manager is the obvious way to fill this
+        // field, and the useful thing to do with "…/gallery/foo/03.jpg" is to
+        // take the "03.jpg". Anything still wrong is caught by the validator,
+        // which checks the file is actually in the repo.
+        var name = (value ?? "").Trim().Replace('\\', '/');
+        var cut = name.LastIndexOf('/');
+        Items[index].File = cut >= 0 ? name[(cut + 1)..] : name;
+        await Changed.InvokeAsync();
+    }
+
+    private async Task SetCaption(int index, string? value)
+    {
+        // Empty means "decorative" and has to stay out of the JSON — the site
+        // gives an uncaptioned frame alt="" on purpose, and "caption": "" would
+        // publish a difference that means nothing.
+        var caption = (value ?? "").Trim();
+        Items[index].Caption = caption.Length == 0 ? null : caption;
+        await Changed.InvokeAsync();
+    }
+
+    private async Task Add()
+    {
+        Items.Add(new GalleryImage { File = "" });
+        await Changed.InvokeAsync();
+    }
+
+    private async Task Remove(int index)
+    {
+        Items.RemoveAt(index);
+        await Changed.InvokeAsync();
+    }
+
+    private async Task Move(int index, int delta)
+    {
+        var target = index + delta;
+        if (target < 0 || target >= Items.Count) return;
+        (Items[index], Items[target]) = (Items[target], Items[index]);
+        await Changed.InvokeAsync();
+    }
+}

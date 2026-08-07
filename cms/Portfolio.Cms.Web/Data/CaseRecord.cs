@@ -55,6 +55,21 @@ public class CaseRecord
     /// </summary>
     public bool? Archive { get; set; }
 
+    /// <summary>
+    /// JSON array of <see cref="GalleryImage"/>, or null when the case has no
+    /// gallery. A blob rather than a child table on purpose: the list is short,
+    /// ordered, only ever read and written whole, and its order is content (it
+    /// is the order the frames appear in), which a relational child table would
+    /// force us to reconstruct from a sort column for no gain.
+    /// <para>
+    /// The schema comes from EnsureCreated, not migrations — see CmsDbContext
+    /// on why this database is a draft store and not the source of truth — so a
+    /// database created before this field existed needs recreating rather than
+    /// upgrading. Nothing is lost by that: the repo is the truth.
+    /// </para>
+    /// </summary>
+    public string? GalleryJson { get; set; }
+
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public CaseStudy ToModel() => new()
@@ -77,6 +92,7 @@ public class CaseRecord
         Video = Video,
         Article = Article,
         Archive = Archive,
+        Gallery = GalleryJson is null ? null : JsonSerializer.Deserialize<List<GalleryImage>>(GalleryJson, ContentJson.Options),
     };
 
     /// <summary>Copies a model onto this row, leaving <see cref="Id"/> alone so
@@ -102,6 +118,7 @@ public class CaseRecord
         Video = model.Video;
         Article = model.Article;
         Archive = model.Archive;
+        GalleryJson = model.Gallery is null ? null : JsonSerializer.Serialize(model.Gallery, ContentJson.Options);
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
