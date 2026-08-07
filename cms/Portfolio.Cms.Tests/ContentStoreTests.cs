@@ -90,15 +90,21 @@ public class ContentStoreTests : IDisposable
     /// <summary>
     /// Absent and false mean the same thing to the site, but only absent keeps
     /// the key out of the JSON — so a nullable bool that comes back as `false`
-    /// would add `"archive": false` to twelve cases.
+    /// would add <c>"archive": false</c> to every curated case.
+    /// <para>
+    /// Counted against the repo rather than pinned to a number: what matters is
+    /// that the flag survives unchanged, and a literal here just breaks every
+    /// time a project is added.
+    /// </para>
     /// </summary>
     [Fact]
     public async Task Unset_optional_flags_stay_unset()
     {
+        var onDisk = ContentSet.LoadFrom(RepoRoot);
         var loaded = await ImportThenLoadAsync();
 
         Assert.All(loaded.Cases.Where(c => c.Archive != true), c => Assert.Null(c.Archive));
-        Assert.Equal(4, loaded.Cases.Count(c => c.Archive == true));
+        Assert.Equal(onDisk.Cases.Count(c => c.Archive == true), loaded.Cases.Count(c => c.Archive == true));
         // cv.json carries no career overrides; cv.nl.json translates every stint.
         Assert.Null(loaded.Cv.Career);
         Assert.Equal(10, loaded.CvNl.Career?.Count);
@@ -186,16 +192,18 @@ public class ContentStoreTests : IDisposable
         await using (var db = NewContext())
             await new ContentStore(db).ImportFromCheckoutAsync(RepoRoot);
 
+        int before;
         await using (var db = NewContext())
         {
             var store = new ContentStore(db);
             var content = await store.LoadAsync();
+            before = content.Cases.Count;
             content.Cases.RemoveAt(0);
             await store.SaveAsync(content);
         }
 
         await using (var db = NewContext())
-            Assert.Equal(15, await db.Cases.CountAsync());
+            Assert.Equal(before - 1, await db.Cases.CountAsync());
     }
 
     /// <summary>
@@ -214,7 +222,7 @@ public class ContentStoreTests : IDisposable
         await using var read = NewContext();
         var loaded = await new ContentStore(read).LoadAsync();
 
-        Assert.Equal(16, loaded.Cases.Count);
+        Assert.Equal(ContentSet.LoadFrom(RepoRoot).Cases.Count, loaded.Cases.Count);
         Assert.Equal(ContentSet.LoadFrom(RepoRoot).Serialize(), loaded.Serialize());
     }
 

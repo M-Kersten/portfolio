@@ -34,6 +34,7 @@ public enum Discipline
     Games,
     Geo,
     Installation,
+    Design,
 }
 
 /// <summary>

@@ -11,7 +11,7 @@ export type Layer = 'city' | 'room' | 'chip';
 // Unity covers nearly everything); this is the coarse question a visitor
 // actually arrives with. A case may span more than one. Keep DISCIPLINES in
 // index.ts in step with this union — it drives the chip order.
-export type Discipline = 'AR' | 'VR' | 'AI' | 'Games' | 'Geo' | 'Installation';
+export type Discipline = 'AR' | 'VR' | 'AI' | 'Games' | 'Geo' | 'Installation' | 'Design';
 
 /** One frame of a case's gallery.
  *

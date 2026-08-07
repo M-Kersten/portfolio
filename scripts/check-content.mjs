@@ -38,7 +38,7 @@ if (errors.length) fail(); // JSON that doesn't parse blocks every other check
 const LAYERS = new Set(['city', 'room', 'chip']);
 // Keep in step with the Discipline union in src/content/types.ts — this is the
 // facet the /projects index filters on, so a typo would silently orphan a case.
-const DISCIPLINES = new Set(['AR', 'VR', 'AI', 'Games', 'Geo', 'Installation']);
+const DISCIPLINES = new Set(['AR', 'VR', 'AI', 'Games', 'Geo', 'Installation', 'Design']);
 const slugs = new Set();
 
 // ---- cases.json ------------------------------------------------------------

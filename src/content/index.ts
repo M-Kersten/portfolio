@@ -30,6 +30,6 @@ export const LAYER_LABEL: Record<CaseStudy['layer'], string> = {
 
 /** Every discipline, in the order the /projects chips show them — broadest
  *  bodies of work first. Must cover the Discipline union in types.ts. */
-export const DISCIPLINES: Discipline[] = ['AR', 'VR', 'AI', 'Games', 'Geo', 'Installation'];
+export const DISCIPLINES: Discipline[] = ['AR', 'VR', 'AI', 'Games', 'Geo', 'Installation', 'Design'];
 
 export * from './types';

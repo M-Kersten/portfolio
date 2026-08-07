@@ -56,7 +56,7 @@ public class RoundTripTests
     {
         var set = ContentSet.LoadFrom(RepoRoot);
 
-        Assert.Equal(16, set.Cases.Count);
+        Assert.Equal(17, set.Cases.Count);
         Assert.Equal(3, set.Capabilities.Count);
         Assert.Equal(10, set.Site.Career?.Count);
         Assert.Equal(10, set.CvNl.Career?.Count);

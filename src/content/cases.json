@@ -387,5 +387,24 @@
     "year": "2025",
     "video": "https://www.youtube.com/watch?v=U5Mcp2CMTDw",
     "archive": true
+  },
+  {
+    "slug": "nieuwe-kerk-utrecht",
+    "title": "Nieuwe Kerk Utrecht",
+    "layer": "room",
+    "client": "Nieuwe Kerk Utrecht",
+    "kind": "passion",
+    "sector": "Visual identity & communication",
+    "discipline": [
+      "Design"
+    ],
+    "problem": "After being part of Nieuwe Kerk Utrecht for a few months, I noticed something small: the flyers and posters around the church didn't quite represent the energy of the community anymore. I suggested designing some new flags, expecting it to be a one-off project. Instead it opened the door to a lot more questions: how do we make people feel welcome before they even walk through the doors?",
+    "approach": "What started with flags grew into designing flyers, posters, stickers, banners, social media content, PowerPoint presentations and visuals for the church communication app. The biggest challenge was understanding what each piece needed to achieve. Who is this for? What should someone feel or do after seeing it? Over time the style evolved from my usual digital product mindset into something more tailored to the personality of the church.",
+    "outcome": "Helping a church find its visual voice",
+    "lesson": "The better I understand the people, purpose and context behind a request, the better the result becomes. Seeing something I created printed large and hanging in the church is so rewarding because it feels like a practical way to contribute. It also taught me where my limits are: a complete brand redesign is a different discipline, and knowing what you don't want to specialise in is just as valuable as knowing what you do.",
+    "year": "2023-10",
+    "video": "https://www.youtube.com/watch?v=XA5rmpUBhYY",
+    "article": "https://nk-utrecht.nl/",
+    "archive": true
   }
 ]
