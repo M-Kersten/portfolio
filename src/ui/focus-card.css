@@ -160,6 +160,25 @@
   padding: var(--space-m);
   border-top: 1px solid var(--line);
 }
+/* In the sheet's full-width row a frame earns more than the 9.5rem contact-
+   sheet minimum: the real sets are 16:9 presentation boards whose detail is
+   illegible at the 167px seven-across gave. Five across at ~228px reads. Still
+   auto-fill, so a short set stays frame-sized and runs short rather than
+   stretching into a few huge panes. Below the stacking breakpoint the narrower
+   default applies, where two across is the most a phone can hold. */
+@media (min-width: 60.0625rem) {
+  .focus__gal .gal__grid {
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  }
+}
+/* 16:9 frames rather than the 4:3 default, because these sets are composed
+   presentation boards, not photographs. Centre-cropping a photograph costs it
+   some edge; centre-cropping a board cuts words off its layout — the 4:3 frame
+   was slicing ~24% of the width off titles. The lightbox is still the place
+   the frame is read whole. */
+.focus__gal .gal__thumb {
+  aspect-ratio: 16 / 9;
+}
 
 /* The title block — the one thing every technical drawing has. It closes the
    thought the survey lines on the maquette floor start. */
