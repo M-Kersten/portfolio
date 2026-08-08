@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { site, type CaseStudy } from '../content';
+import { LAYER_LABEL, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
@@ -69,34 +69,23 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
         aria-label={study.title}
         onClick={(e) => e.stopPropagation()}
       >
-        <button ref={closeRef} type="button" className="focus__close" onClick={onClose} aria-label="Close">
-          <span aria-hidden="true">✕</span>
-        </button>
-        {embed && (
-          <div className="focus__video">
-            <iframe
-              src={embed}
-              title={`${study.title} — video`}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              loading="lazy"
-            />
-          </div>
-        )}
-        {photo && (
-          <div className="focus__photo worktile__media">
-            <div className="worktile__ph" aria-hidden="true" />
-            {imgOk && <img className="worktile__img" src={photo} alt="" onError={() => setImgOk(false)} />}
-            <div className="worktile__scrim" aria-hidden="true" />
-          </div>
-        )}
-        <div className="focus__body">
-          <span className="worktile__meta">
-            {study.client} · {study.sector}
+        {/* The sheet's header rule — what you are looking at, and the way out. */}
+        <div className="focus__bar">
+          <span className="focus__ref">
+            <b>{LAYER_LABEL[study.layer]}</b> — {study.title}
           </span>
-          <h3 className="focus__title">{study.title}</h3>
-          <p className="focus__outcome">{study.outcome}</p>
-          {/* The story — the three beats visitors come for. */}
+          <button ref={closeRef} type="button" className="focus__close" onClick={onClose} aria-label="Close">
+            <span aria-hidden="true">✕</span>
+          </button>
+        </div>
+
+        <div className="focus__body">
+          <div>
+            <h3 className="focus__title">{study.title}</h3>
+            <p className="focus__outcome">{study.outcome}</p>
+          </div>
+          {/* The story — the three beats visitors come for. `.story` lays them
+              side by side here and stacks them in the narrow node dossier. */}
           <div className="story">
             <section>
               <h4 className="story__h">The problem</h4>
@@ -113,17 +102,6 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
               </section>
             )}
           </div>
-          {/* After the story, before the stack: the pictures document what was
-              just described, and on a picture-led project they carry most of
-              the weight — so they sit above the tech tags, not under them. */}
-          {shots.length > 0 && <Gallery slug={study.slug} images={shots} onOpen={setFrame} />}
-          {study.tech && study.tech.length > 0 && (
-            <ul className="worktile__tech" aria-label="Technologies">
-              {study.tech.map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
-          )}
           <div className="focus__actions">
             <a
               className="btn worktile__discuss"
@@ -139,10 +117,61 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
           </div>
           <StoryLinks study={study} onJump={onJump} />
         </div>
+
+        {/* Supporting column: the evidence, then the title block. Media lives
+            here rather than across the top because as a 16:9 header it took
+            57% of the visible sheet and pushed the writing off the fold. It
+            stays after the write-up in source order too, so the stacked phone
+            layout and the tab order both lead with the words. */}
+        <aside className="focus__side">
+          {embed && (
+            <div className="focus__video">
+              <iframe
+                src={embed}
+                title={`${study.title} — video`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                loading="lazy"
+              />
+            </div>
+          )}
+          {photo && (
+            <div className="focus__photo worktile__media">
+              <div className="worktile__ph" aria-hidden="true" />
+              {imgOk && <img className="worktile__img" src={photo} alt="" onError={() => setImgOk(false)} />}
+              <div className="worktile__scrim" aria-hidden="true" />
+            </div>
+          )}
+          {/* The pictures document what the write-up describes, so they follow
+              the film and sit above the title block. */}
+          {shots.length > 0 && <Gallery slug={study.slug} images={shots} onOpen={setFrame} />}
+          {/* The title block. The stack rides in it as a schedule row rather
+              than as loose chips under the write-up: it is metadata about the
+              project, so it belongs with the other metadata, and grouping it
+              here keeps the reading column to title, story and actions. */}
+          <dl className="focus__block">
+            {study.tech && study.tech.length > 0 && (
+              <>
+                <dt>Stack</dt>
+                <dd>{study.tech.join(' · ')}</dd>
+              </>
+            )}
+            <dt>Client</dt>
+            <dd>{study.client}</dd>
+            <dt>Sector</dt>
+            <dd>{study.sector}</dd>
+            {study.year && (
+              <>
+                <dt>Year</dt>
+                <dd>{study.year.slice(0, 4)}</dd>
+              </>
+            )}
+          </dl>
+        </aside>
       </div>
-      {/* A sibling of the card, not a child: the card sets backdrop-filter,
-          which makes it the containing block for fixed descendants, so a
-          lightbox nested inside would be clipped to the card's own box. */}
+      {/* A sibling of the sheet, not a child: the lightbox is `fixed` and must
+          measure the viewport, so it has to stay outside any ancestor that
+          could become its containing block. */}
       {frame !== null && (
         <Lightbox slug={study.slug} images={shots} index={frame} onStep={step} onClose={() => setFrame(null)} />
       )}

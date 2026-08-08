@@ -187,12 +187,21 @@ img {
 /* ---------- Case story ---------- */
 
 /* The three beats every case is told in — the problem, the approach, the
-   lesson — shared by the focus dialog and the node HUD. This text is what
+   lesson — shared by the focus sheet and the node HUD. This text is what
    visitors come for, so it reads at full body size on a comfortable measure,
-   with only a quiet mono kicker per beat (the dialog's layer colour). */
+   with only a quiet mono kicker per beat (the dialog's layer colour).
+
+   One rule serves both because it measures the space it is given: in the node
+   dossier's 416px column auto-fit resolves to a single track, and in the wide
+   focus sheet the same rule lays the three beats side by side. That is what
+   keeps the sheet off a scrollbar — the same words in a third of the height.
+   The beats are separate grid items rather than CSS multi-column, which would
+   need a fixed height and could silently clip a fourth column. */
 .story {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: var(--space-m);
+  align-items: start;
 }
 .story__h {
   margin: 0 0 0.5em;

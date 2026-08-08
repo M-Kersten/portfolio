@@ -1,7 +1,19 @@
-/* The focus card — a project lifted off the timeline into a centered
-   dialog (video/photo header + full write-up). */
+/* The focus sheet — a project lifted off the timeline and laid out as a
+   drawing sheet: hairline rules, a wide two-column body, and a title block in
+   the corner carrying client / sector / year.
 
-/* ---------- Focus card — a project lifted off the wall ---------- */
+   It is deliberately a *sheet*, not a card. The old version was a 760px modal
+   with a 16:9 media header, which put 57% of the visible box under a video and
+   pushed 41% of the write-up into a nested scrollbar. A 400-word case with a
+   gallery is not modal-sized content, so the geometry — not the styling — was
+   the defect. Two things fix it: the media moves out of the header into the
+   side column, and the story runs in columns instead of one long ribbon.
+
+   The chrome is gone for the same reason the node dossier has none: this is a
+   readout laid over the page you came from, so no rounded corners, no drop
+   shadow, no glass. Just a ruled edge. */
+
+/* ---------- Focus sheet — a project lifted off the wall ---------- */
 .focus {
   position: fixed;
   inset: 0;
@@ -10,41 +22,103 @@
   place-items: center;
   /* `main` is its own stacking context (z-index 1), so this overlay sits *below*
      the fixed header — reserve the header's height at the top so the centred
-     card is nudged down and never tucks under it. */
-  padding: calc(var(--header-h) + var(--space-s)) var(--space-m) var(--space-l);
-  background: color-mix(in srgb, var(--paper) 74%, transparent);
+     sheet is nudged down and never tucks under it. */
+  padding: calc(var(--header-h) + var(--space-s)) var(--space-m) var(--space-m);
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
   backdrop-filter: blur(10px);
   animation: focus-fade 0.3s var(--ease);
 }
 .focus__card {
   --card-accent: var(--accent);
   position: relative;
-  width: min(760px, 100%);
-  /* Fit inside the header-reserved area above so the card never overflows back
-     under the header on short viewports. */
-  max-height: calc(100svh - var(--header-h) - var(--space-xl));
+  /* Wide enough for three beats side by side at full size, and to give the
+     writing room to breathe — the whole point of the shape. */
+  width: min(1280px, 100%);
+  max-height: calc(100svh - var(--header-h) - var(--space-l));
   overflow: hidden auto;
-  display: block;
-  /* the same square-dot field the rest of the site uses, faint on the raised
-     card; it stays fixed to the card as the content scrolls */
-  background: var(--dots-faint),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
-    color-mix(in srgb, var(--paper-2) 90%, transparent);
-  background-size: 30px 30px, auto, auto;
-  border: 1px solid color-mix(in srgb, var(--card-accent) 45%, var(--line));
-  border-radius: var(--radius);
-  box-shadow: 0 44px 96px rgba(0, 0, 0, 0.62);
-  backdrop-filter: blur(22px) saturate(1.3);
+  /* bar spans both; body and side sit under it */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 21rem;
+  grid-template-rows: auto 1fr;
+  align-content: start;
+  /* the same square-dot field the rest of the site uses, flat — no lift
+     gradient and no glass, because a sheet is not a raised object */
+  background: var(--dots-faint), var(--paper-2);
+  background-size: 30px 30px, auto;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 40%, var(--line));
   animation: focus-pop 0.35s var(--ease);
 }
 .focus__card[data-layer='city'] { --card-accent: var(--cyan); }
 .focus__card[data-layer='room'] { --card-accent: var(--coral); }
 .focus__card[data-layer='chip'] { --card-accent: var(--lime); }
-/* Full-bleed video / photo header at the top of the card — the card's own
-   overflow:hidden rounds their top corners. */
+
+/* The sheet's header rule: what this is, and the way out. Spans both columns
+   so the ✕ has a home that isn't on top of the video. */
+.focus__bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-2xs) var(--space-2xs) var(--space-2xs) var(--space-m);
+  border-bottom: 1px solid color-mix(in srgb, var(--card-accent) 28%, var(--line));
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  color: var(--ink-40);
+}
+.focus__ref {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.focus__ref b { color: var(--card-accent); font-weight: 400; }
+
+.focus__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-m);
+  padding: var(--space-m) var(--space-m) var(--space-l);
+  min-width: 0;
+}
+.focus__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-m);
+  padding: var(--space-m);
+  border-left: 1px solid var(--line);
+  min-width: 0;
+}
+.focus__title {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.05;
+  margin: 0;
+  text-wrap: balance;
+}
+.focus__outcome {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  line-height: 1.2;
+  color: var(--card-accent);
+  margin: 0.2em 0 0;
+  max-width: 40ch;
+}
+.focus__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+  align-items: center;
+  margin-top: auto; /* actions settle at the foot of the column */
+  padding-top: var(--space-2xs);
+}
+
+/* Media is supporting evidence, not the headline — so it rides in the side
+   column at a size that suits a preview, and the writing keeps the fold. */
 .focus__video {
   overflow: hidden;
   background: #06080a;
+  border: 1px solid var(--line);
 }
 .focus__video iframe {
   display: block;
@@ -54,51 +128,78 @@
 }
 .focus__photo {
   aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
 }
-.focus__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-s);
-  align-items: center;
-  margin-top: 0.2em;
+
+/* The title block — the one thing every technical drawing has. It closes the
+   thought the survey lines on the maquette floor start. */
+.focus__block {
+  margin: auto 0 0; /* pinned to the foot of the side column */
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
 }
-.focus__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-s);
-  padding: var(--space-l);
+.focus__block dt,
+.focus__block dd {
+  margin: 0;
+  padding: 0.4em 0.7em;
+  border-bottom: 1px solid var(--line);
+  letter-spacing: 0.04em;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
-.focus__title {
-  font-family: var(--font-display);
-  font-size: var(--step-2);
-  line-height: 1.05;
-  margin: 0.1em 0 0;
+.focus__block dt {
+  color: var(--ink-40);
+  text-transform: uppercase;
+  border-right: 1px solid var(--line);
+  white-space: nowrap;
 }
-.focus__outcome {
-  font-family: var(--font-display);
-  font-size: var(--step-1);
-  color: var(--card-accent);
-  margin: 0 0 var(--space-xs);
-}
+.focus__block dd { color: var(--ink); }
+.focus__block > :nth-last-child(-n + 2) { border-bottom: 0; }
+
 .focus__close {
-  position: absolute;
-  top: var(--space-s);
-  right: var(--space-s);
-  z-index: 2;
+  flex: none;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
   width: 2.3rem;
   height: 2.3rem;
-  border-radius: var(--radius-s);
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--paper) 72%, transparent);
+  background: transparent;
   color: var(--ink);
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
-  backdrop-filter: blur(4px);
 }
 .focus__close:hover { border-color: var(--card-accent); color: var(--card-accent); }
+
+/* Below the two-column threshold the side column stops being a column and the
+   sheet stacks. It keeps source order rather than hoisting the media back to
+   the top: leading with a 16:9 block is the very thing that pushed the writing
+   off the fold, and a visual order that matched would also put the tab stops
+   out of step with the reading order. */
+@media (max-width: 60rem) {
+  .focus__card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
+  .focus__side {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .focus__block { margin-top: 0; }
+}
+@media (max-width: 40rem) {
+  .focus { padding: calc(var(--header-h) + var(--space-2xs)) var(--space-2xs) var(--space-2xs); }
+  .focus__body { padding: var(--space-s) var(--space-s) var(--space-m); }
+  .focus__side { padding: var(--space-s); }
+  .focus__bar { padding-left: var(--space-s); }
+}
+
 @keyframes focus-fade { from { opacity: 0; } }
-@keyframes focus-pop { from { opacity: 0; transform: scale(0.92) translateY(12px); } }
+@keyframes focus-pop { from { opacity: 0; transform: translateY(10px); } }
 
 /* ---------- Gallery — a case's picture set, for the projects whose
      argument is the photographs rather than the write-up ---------- */
