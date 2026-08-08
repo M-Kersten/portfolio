@@ -405,6 +405,13 @@
     "year": "2023-10",
     "video": "https://www.youtube.com/watch?v=XA5rmpUBhYY",
     "article": "https://nk-utrecht.nl/",
-    "archive": true
+    "archive": true,
+    "gallery": [
+      { "file": "flags.jpg", "caption": "Flags and signs for the church" },
+      { "file": "posters.jpg", "caption": "Posters inside the church" },
+      { "file": "flyers.jpg", "caption": "Flyers for the church community" },
+      { "file": "online-content.jpg", "caption": "Social media content" },
+      { "file": "icons.jpg", "caption": "Presentation slides for church events" }
+      ]
   }
 ]
