@@ -36,6 +36,8 @@
   width: min(1280px, 100%);
   max-height: calc(100svh - var(--header-h) - var(--space-l));
   overflow: hidden auto;
+  /* a flick past the end of the gallery shouldn't rubber-band the page behind */
+  overscroll-behavior: contain;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 21rem;
   grid-template-areas:
@@ -106,6 +108,17 @@
   border-left: 1px solid var(--line);
   min-width: 0;
 }
+/* Each beat becomes a ruled field, the way a drawing sheet divides its notes.
+   With the three columns sharing one line across the top, the kickers read as
+   column headings rather than as three loose labels floating over the prose —
+   and it gives the ragged bottoms of unequal beats something to hang from.
+   Scoped to the sheet: in the dossier's single column a rule per beat would be
+   three stacked lines down a narrow strip, which is fussier than it is useful. */
+.focus__body .story > section {
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-2xs);
+}
+
 .focus__title {
   font-family: var(--font-display);
   font-size: var(--step-2);
@@ -240,6 +253,22 @@
   }
   .focus__block { margin-top: 0; }
 }
+/* Short laptop screens have the width for the three-column layout but not the
+   height: at 1280x800 the case ran ~40px past the fold. The outer chrome and
+   the body's foot are the cheapest height to give back, and giving it back
+   here costs nothing on a tall screen. */
+@media (min-width: 60.0625rem) and (max-height: 54rem) {
+  .focus {
+    padding-top: calc(var(--header-h) + var(--space-2xs));
+    padding-bottom: var(--space-2xs);
+  }
+  .focus__card { max-height: calc(100svh - var(--header-h) - var(--space-m)); }
+  .focus__body {
+    gap: var(--space-s);
+    padding-bottom: var(--space-m);
+  }
+}
+
 @media (max-width: 40rem) {
   .focus { padding: calc(var(--header-h) + var(--space-2xs)) var(--space-2xs) var(--space-2xs); }
   .focus__body { padding: var(--space-s) var(--space-s) var(--space-m); }
@@ -411,6 +440,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* The sheet's own entrance was missing from this list: it faded the backdrop
+     and slid the sheet up regardless of the setting. */
+  .focus,
+  .focus__card { animation: none; }
   .gal__thumb img,
   .lb__img { transition: none; }
   .gal__thumb:hover img,
