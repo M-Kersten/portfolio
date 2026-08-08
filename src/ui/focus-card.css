@@ -36,10 +36,12 @@
   width: min(1280px, 100%);
   max-height: calc(100svh - var(--header-h) - var(--space-l));
   overflow: hidden auto;
-  /* bar spans both; body and side sit under it */
   display: grid;
   grid-template-columns: minmax(0, 1fr) 21rem;
-  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'bar  bar'
+    'body side'
+    'gal  gal';
   align-content: start;
   /* the same square-dot field the rest of the site uses, flat — no lift
      gradient and no glass, because a sheet is not a raised object */
@@ -52,29 +54,43 @@
 .focus__card[data-layer='room'] { --card-accent: var(--coral); }
 .focus__card[data-layer='chip'] { --card-accent: var(--lime); }
 
-/* The sheet's header rule: what this is, and the way out. Spans both columns
-   so the ✕ has a home that isn't on top of the video. */
+/* The sheet's header rule: the stack, and the way out. Spans both columns so
+   the ✕ has a home that isn't on top of the video. */
 .focus__bar {
-  grid-column: 1 / -1;
+  grid-area: bar;
   display: flex;
   align-items: center;
   gap: var(--space-s);
   padding: var(--space-2xs) var(--space-2xs) var(--space-2xs) var(--space-m);
   border-bottom: 1px solid color-mix(in srgb, var(--card-accent) 28%, var(--line));
+  min-height: 3.05rem; /* holds the rule's height when a case lists no stack */
+}
+/* Engraved plate chips: sharp corners, solid ground, hairline mechanical
+   border, mono — each tag reads as a component label stamped on the sheet.
+   They wrap rather than scroll, so a long stack takes a second line instead of
+   hiding its tail. */
+.focus__chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.focus__chips li {
   font-family: var(--font-mono);
   font-size: var(--step--1);
-  letter-spacing: 0.06em;
-  color: var(--ink-40);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--card-accent) 70%, var(--ink));
+  background: color-mix(in srgb, #05070a 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 26%, var(--line));
+  padding: 0.14em 0.5em;
 }
-.focus__ref {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-.focus__ref b { color: var(--card-accent); font-weight: 400; }
 
 .focus__body {
+  grid-area: body;
   display: flex;
   flex-direction: column;
   gap: var(--space-m);
@@ -82,6 +98,7 @@
   min-width: 0;
 }
 .focus__side {
+  grid-area: side;
   display: flex;
   flex-direction: column;
   gap: var(--space-m);
@@ -129,6 +146,19 @@
 .focus__photo {
   aspect-ratio: 16 / 9;
   border: 1px solid var(--line);
+}
+
+/* The contact sheet spans the full width in a row of its own. In the 21rem
+   side column a nine-frame set resolved to a single column and stacked to
+   2461px — nine times taller than the sheet it was in. Down here it runs seven
+   across, and because it is its own grid row it does not stretch the side
+   column beside the story either. A gallery is deliberate extra content, so it
+   is also the one thing allowed to sit below the fold: the write-up above it
+   is still complete without scrolling. */
+.focus__gal {
+  grid-area: gal;
+  padding: var(--space-m);
+  border-top: 1px solid var(--line);
 }
 
 /* The title block — the one thing every technical drawing has. It closes the
@@ -183,7 +213,7 @@
 @media (max-width: 60rem) {
   .focus__card {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
+    grid-template-areas: 'bar' 'body' 'side' 'gal';
   }
   .focus__side {
     border-left: 0;

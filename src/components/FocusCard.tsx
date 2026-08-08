@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LAYER_LABEL, site, type CaseStudy } from '../content';
+import { site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
@@ -69,11 +69,16 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
         aria-label={study.title}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* The sheet's header rule — what you are looking at, and the way out. */}
+        {/* The sheet's header rule. It carries the stack rather than the layer
+            and title, which only repeated the heading two lines below it. */}
         <div className="focus__bar">
-          <span className="focus__ref">
-            <b>{LAYER_LABEL[study.layer]}</b> — {study.title}
-          </span>
+          {study.tech && study.tech.length > 0 && (
+            <ul className="focus__chips" aria-label="Technologies">
+              {study.tech.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          )}
           <button ref={closeRef} type="button" className="focus__close" onClick={onClose} aria-label="Close">
             <span aria-hidden="true">✕</span>
           </button>
@@ -142,20 +147,9 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
               <div className="worktile__scrim" aria-hidden="true" />
             </div>
           )}
-          {/* The pictures document what the write-up describes, so they follow
-              the film and sit above the title block. */}
-          {shots.length > 0 && <Gallery slug={study.slug} images={shots} onOpen={setFrame} />}
-          {/* The title block. The stack rides in it as a schedule row rather
-              than as loose chips under the write-up: it is metadata about the
-              project, so it belongs with the other metadata, and grouping it
-              here keeps the reading column to title, story and actions. */}
+          {/* The title block: who it was for and when. The stack sits in the
+              header rule instead, so this stays the facts about the job. */}
           <dl className="focus__block">
-            {study.tech && study.tech.length > 0 && (
-              <>
-                <dt>Stack</dt>
-                <dd>{study.tech.join(' · ')}</dd>
-              </>
-            )}
             <dt>Client</dt>
             <dd>{study.client}</dd>
             <dt>Sector</dt>
@@ -168,6 +162,15 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
             )}
           </dl>
         </aside>
+
+        {/* The contact sheet gets the full width of the sheet, in a row of its
+            own under the write-up — it is the widest thing a case owns, and in
+            the side column nine frames stacked into a single 2461px ribbon. */}
+        {shots.length > 0 && (
+          <div className="focus__gal">
+            <Gallery slug={study.slug} images={shots} onOpen={setFrame} />
+          </div>
+        )}
       </div>
       {/* A sibling of the sheet, not a child: the lightbox is `fixed` and must
           measure the viewport, so it has to stay outside any ancestor that
