@@ -6,8 +6,9 @@
    with a 16:9 media header, which put 57% of the visible box under a video and
    pushed 41% of the write-up into a nested scrollbar. A 400-word case with a
    gallery is not modal-sized content, so the geometry — not the styling — was
-   the defect. Two things fix it: the media moves out of the header into the
-   side column, and the story runs in columns instead of one long ribbon.
+   the defect. Two things fix it: the media moves out of the header into a
+   full-height poster panel down the side, and the story runs in columns
+   instead of one long ribbon.
 
    The chrome is gone for the same reason the node dossier has none: this is a
    readout laid over the page you came from, so no rounded corners, no drop
@@ -103,8 +104,6 @@
   grid-area: side;
   display: flex;
   flex-direction: column;
-  gap: var(--space-m);
-  padding: var(--space-m);
   border-left: 1px solid var(--line);
   min-width: 0;
 }
@@ -143,22 +142,63 @@
   padding-top: var(--space-2xs);
 }
 
-/* Media is supporting evidence, not the headline — so it rides in the side
-   column at a size that suits a preview, and the writing keeps the fold. */
-.focus__video {
+/* The poster panel. A 16:9 preview in a 21rem column came out 287px wide and
+   left 313px of nothing under it; widening the column only moved the problem,
+   because every rem it took came off the writing and made the body taller. So
+   the picture takes the whole column instead and dead space becomes impossible
+   — the film is one press away rather than sitting there at thumbnail size.
+
+   The crop is deliberate: `cover` fills the panel and clips the poster's sides.
+   That costs the two posters that are collages a little of their wordmark, and
+   it is the same crop the timeline tiles already make. */
+.focus__media {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 14rem;
   overflow: hidden;
   background: #06080a;
-  border: 1px solid var(--line);
 }
-.focus__video iframe {
-  display: block;
+.focus__media img {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  border: 0;
+  height: 100%;
+  object-fit: cover;
+  /* resting slightly cool so the writing keeps the eye; it comes up to full
+     colour under the pointer, the same manners as the gallery frames */
+  filter: saturate(0.9) brightness(0.8);
+  transition: filter 0.25s var(--ease), transform 0.45s var(--ease);
 }
-.focus__photo {
-  aspect-ratio: 16 / 9;
-  border: 1px solid var(--line);
+.focus__media[data-playable]:hover img,
+.focus__media:has(.focus__play:focus-visible) img {
+  filter: none;
+  transform: scale(1.03);
+}
+.focus__play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--card-accent);
+}
+.focus__play span {
+  display: grid;
+  place-items: center;
+  width: 3.75rem;
+  height: 3.75rem;
+  padding-left: 0.15em; /* optical centring: a triangle's mass sits left */
+  border: 1px solid var(--card-accent);
+  background: color-mix(in srgb, #05070a 60%, transparent);
+  font-size: 1.05rem;
+  line-height: 1;
+  backdrop-filter: blur(3px);
+  transition: background 0.2s var(--ease), transform 0.2s var(--ease);
+}
+.focus__play:hover span {
+  background: color-mix(in srgb, var(--card-accent) 88%, transparent);
+  color: #06080a;
+  transform: scale(1.06);
 }
 
 /* The contact sheet spans the full width in a row of its own. In the 21rem
@@ -196,10 +236,11 @@
 /* The title block — the one thing every technical drawing has. It closes the
    thought the survey lines on the maquette floor start. */
 .focus__block {
-  margin: auto 0 0; /* pinned to the foot of the side column */
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  border: 1px solid var(--line);
+  /* flush to the sheet's foot under the panel — the picture runs to the edges,
+     so a boxed block floating inside padding would read as a separate object */
+  border-top: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: var(--step--1);
 }
@@ -251,7 +292,13 @@
     border-left: 0;
     border-top: 1px solid var(--line);
   }
-  .focus__block { margin-top: 0; }
+  /* nothing to stretch to down here, so the panel takes the poster's own shape
+     instead of cropping a wide picture into a tall slot */
+  .focus__media {
+    flex: none;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
 }
 /* Short laptop screens have the width for the three-column layout but not the
    height: at 1280x800 the case ran ~40px past the fold. The outer chrome and
@@ -332,6 +379,24 @@
 .gal__thumb:focus-visible img {
   filter: none;
   transform: scale(1.04);
+}
+
+/* ---------- Film — the case's video, over the sheet ---------- */
+/* Sized from its height so the 16:9 box always fits whichever way the viewport
+   is tight, rather than being clamped in one axis and letterboxing itself. */
+.film__stage {
+  position: relative;
+  height: min(720px, calc((100vw - 2rem) * 9 / 16), calc(100svh - 5rem));
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border: 1px solid var(--line);
+}
+.film__stage iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 /* ---------- Lightbox — one frame, full size ---------- */
@@ -444,6 +509,11 @@
      and slid the sheet up regardless of the setting. */
   .focus,
   .focus__card { animation: none; }
+  .focus__media img,
+  .focus__play span { transition: none; }
+  .focus__media[data-playable]:hover img,
+  .focus__media:has(.focus__play:focus-visible) img { transform: none; }
+  .focus__play:hover span { transform: none; }
   .gal__thumb img,
   .lb__img { transition: none; }
   .gal__thumb:hover img,

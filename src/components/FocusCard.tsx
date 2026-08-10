@@ -3,6 +3,7 @@ import { site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
+import { FilmBox } from './FilmBox';
 import { Gallery, Lightbox } from './Gallery';
 import { StoryLinks } from './StoryLinks';
 
@@ -13,8 +14,12 @@ import { StoryLinks } from './StoryLinks';
 export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClose: () => void; onJump: (slug: string) => void }) {
   const [imgOk, setImgOk] = useState(true);
   const embed = youtubeEmbed(study.video);
-  // The video is the header when there is one; otherwise the poster stands in.
-  const photo = embed ? null : asset(`/posters/${study.slug}.jpg`);
+  // The poster is the side panel for every case now, not a stand-in for a
+  // missing film: it fills the column edge to edge and the film plays over it.
+  const poster = asset(`/posters/${study.slug}.jpg`);
+  // Whether the film is up. A third layer over the sheet and the lightbox, so
+  // it joins the one Escape handler below rather than adding a second.
+  const [film, setFilm] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   // Which gallery frame is open full-size, or null for none. Owned here rather
@@ -29,7 +34,7 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
     (delta: number) => setFrame((i) => (i === null ? i : (i + delta + shots.length) % shots.length)),
     [shots.length],
   );
-  useFocusTrap(cardRef, frame === null); // Tab stays inside; the lightbox takes over when it's up
+  useFocusTrap(cardRef, frame === null && !film); // Tab stays inside; an overlay takes over when it's up
 
   // Mount only — the key handler below re-subscribes as the lightbox opens and
   // closes, and pulling focus back to the card's ✕ each time would take it off
@@ -41,7 +46,9 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (frame !== null) setFrame(null); // innermost layer first
+        // innermost layer first
+        if (film) setFilm(false);
+        else if (frame !== null) setFrame(null);
         else onClose();
         return;
       }
@@ -56,7 +63,7 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose, frame, step]);
+  }, [onClose, frame, film, step]);
 
   return (
     <div className="focus" onClick={onClose}>
@@ -129,24 +136,21 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
             stays after the write-up in source order too, so the stacked phone
             layout and the tab order both lead with the words. */}
         <aside className="focus__side">
-          {embed && (
-            <div className="focus__video">
-              <iframe
-                src={embed}
-                title={`${study.title} — video`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                loading="lazy"
-              />
-            </div>
-          )}
-          {photo && (
-            <div className="focus__photo worktile__media">
-              <div className="worktile__ph" aria-hidden="true" />
-              {imgOk && <img className="worktile__img" src={photo} alt="" onError={() => setImgOk(false)} />}
-              <div className="worktile__scrim" aria-hidden="true" />
-            </div>
-          )}
+          <div className="focus__media" data-playable={embed ? '' : undefined}>
+            {imgOk && (
+              <img src={poster} alt="" onError={() => setImgOk(false)} />
+            )}
+            {embed && (
+              <button
+                type="button"
+                className="focus__play"
+                onClick={() => setFilm(true)}
+                aria-label={`Play the ${study.title} film`}
+              >
+                <span aria-hidden="true">&#9654;</span>
+              </button>
+            )}
+          </div>
           {/* The title block: who it was for and when. The stack sits in the
               header rule instead, so this stays the facts about the job. */}
           <dl className="focus__block">
@@ -178,6 +182,7 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
       {frame !== null && (
         <Lightbox slug={study.slug} images={shots} index={frame} onStep={step} onClose={() => setFrame(null)} />
       )}
+      {film && embed && <FilmBox embed={embed} title={study.title} onClose={() => setFilm(false)} />}
     </div>
   );
 }
