@@ -16,7 +16,14 @@ import { BlobShadow } from './backdrop';
 
 const PHONE_BALLS = 6;
 const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
-function Phone({ slug, position, args, liveColor }: { slug: string; position: V3; args: V3; liveColor: string }) {
+/** The phone that used to lie on the couch, with its ping-pong balls. Nothing
+ *  mounts it at the moment — it came off the couch in "3D scene improvements",
+ *  and the couch itself carries the popcore-games slug, so the hotspot still
+ *  has something to wake. Exported rather than deleted because the component is
+ *  intact and only its call site went: `tsc` counts an unexported unused
+ *  function as dead code and fails the build, and the alternative was throwing
+ *  away working physics on a guess about whether it is coming back. */
+export function Phone({ slug, position, args, liveColor }: { slug: string; position: V3; args: V3; liveColor: string }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
@@ -1147,7 +1154,7 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
 }
 
 export function RoomRig() {
-  const { accent } = useAccent();
+  // (RoomRig's `accent` went with the phone's liveColor — see Phone above.)
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const desk = useTweak('Room.Desk', { position: [-1.2, 0, 0.18], rotationY: 1.76 });
   const couch = useTweak('Room.Couch', { position: [0.12, 0, -0.22], rotationY: -0.16 });
