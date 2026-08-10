@@ -1280,29 +1280,22 @@ export function RoomRig() {
         ))}
 
         {/* the frame: a plinth the cushions drop into */}
-        <SoftBox position={[0, 0.098, 0]} args={[0.92, 0.075, 0.44]} radius={0.022} outline liveSlug="popcore-games" liveGhost={false} />
-
+        <SoftBox position={[0, 0.098, 0]} args={[0.92, 0.075, 0.44]} radius={0.022} liveSlug="popcore-games" liveGhost={false} />
         {/* two seat cushions, with a seam between them */}
         {([-0.222, 0.222] as const).map((cx, i) => (
-          <SoftBox key={i} position={[cx, 0.163, 0.012]} args={[0.42, 0.075, 0.4]} radius={0.032} outline liveSlug="popcore-games" liveGhost={false} />
+          <SoftBox key={i} position={[cx, 0.163, 0.012]} args={[0.42, 0.075, 0.4]} radius={0.032} liveSlug="popcore-games" liveGhost={false} />
         ))}
 
         {/* back: a low rail, then two cushions leaning on it */}
         <SoftBox position={[0, 0.235, -0.196]} args={[0.92, 0.2, 0.055]} radius={0.02} liveSlug="popcore-games" liveGhost={false} />
         {([-0.222, 0.222] as const).map((cx, i) => (
-          <SoftBox key={i} position={[cx, 0.272, -0.163]} args={[0.42, 0.185, 0.07]} radius={0.032} rotation={[0.11, 0, 0]} outline liveSlug="popcore-games" liveGhost={false} />
+          <SoftBox key={i} position={[cx, 0.272, -0.163]} args={[0.42, 0.185, 0.07]} radius={0.032} rotation={[0.11, 0, 0]} liveSlug="popcore-games" liveGhost={false} />
         ))}
 
         {/* arms — stop short of the back rail and taper toward the front */}
         {([-0.452, 0.452] as const).map((ax, i) => (
-          <SoftBox key={i} position={[ax, 0.18, 0.022]} args={[0.078, 0.165, 0.4]} radius={0.036} outline liveSlug="popcore-games" liveGhost={false} />
+          <SoftBox key={i} position={[ax, 0.18, 0.022]} args={[0.078, 0.165, 0.4]} radius={0.036} liveSlug="popcore-games" liveGhost={false} />
         ))}
-
-        {/* one throw cushion, propped in the left corner against the arm */}
-        <SoftBox position={[-0.3, 0.245, -0.075]} args={[0.19, 0.175, 0.06]} radius={0.05} rotation={[0.22, 0.34, 0.12]} opacity={0.24} liveSlug="popcore-games" liveGhost={false} />
-        <LifeGroup slug="popcore-games">
-          <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor={accent} />
-        </LifeGroup>
       </group>
 
       {/* coffee table with AR racing (Lightship Drive), directly in front of the couch */}

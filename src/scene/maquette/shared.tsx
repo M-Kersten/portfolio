@@ -86,7 +86,7 @@ export const LINE_REST = 0.55;
 export const GROUND = {
   sheet: '#22384f', // roads, aprons, paved ground
   film: 0.62, // their opacity
-  mark: 0.34, // survey marks: contours, ticks, bearings
+  mark: 0.10, // survey marks: contours, ticks, bearings
 };
 
 /** MARK — the two licensed exceptions to "emissive means the layer accent".

@@ -129,20 +129,6 @@ export function SurveyMarks() {
     return new Float32Array(pos);
   }, []);
 
-  // The datum cross sits at the origin under the model's centre, and it is the
-  // one mark that takes the layer's accent: it's the survey point everything
-  // else on the sheet is measured from.
-  const datum = useMemo(() => {
-    const pos: number[] = [];
-    const d = 0.13;
-    pos.push(-d, 0, 0, d, 0, 0, 0, 0, -d, 0, 0, d);
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-      pos.push(Math.cos(a) * 0.075, 0, Math.sin(a) * 0.075, Math.cos(a) * 0.105, 0, Math.sin(a) * 0.105);
-    }
-    return new Float32Array(pos);
-  }, []);
-
   return (
     <group position={[0, 0.002, 0]}>
       <lineSegments>
@@ -152,9 +138,6 @@ export function SurveyMarks() {
         <lineBasicMaterial color={NEUTRAL} transparent opacity={GROUND.mark} depthWrite={false} />
       </lineSegments>
       <lineSegments>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[datum, 3]} />
-        </bufferGeometry>
         <lineBasicMaterial color={accent} transparent opacity={GROUND.mark * 1.5} depthWrite={false} />
       </lineSegments>
     </group>
