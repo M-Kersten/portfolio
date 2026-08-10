@@ -16,14 +16,7 @@ import { BlobShadow } from './backdrop';
 
 const PHONE_BALLS = 6;
 const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
-/** The phone that used to lie on the couch, with its ping-pong balls. Nothing
- *  mounts it at the moment — it came off the couch in "3D scene improvements",
- *  and the couch itself carries the popcore-games slug, so the hotspot still
- *  has something to wake. Exported rather than deleted because the component is
- *  intact and only its call site went: `tsc` counts an unexported unused
- *  function as dead code and fails the build, and the alternative was throwing
- *  away working physics on a guess about whether it is coming back. */
-export function Phone({ slug, position, args, liveColor }: { slug: string; position: V3; args: V3; liveColor: string }) {
+function Phone({ slug, position, args, liveColor }: { slug: string; position: V3; args: V3; liveColor: string }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
@@ -1154,7 +1147,7 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
 }
 
 export function RoomRig() {
-  // (RoomRig's `accent` went with the phone's liveColor — see Phone above.)
+  const { accent } = useAccent();
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const desk = useTweak('Room.Desk', { position: [-1.2, 0, 0.18], rotationY: 1.76 });
   const couch = useTweak('Room.Couch', { position: [0.12, 0, -0.22], rotationY: -0.16 });
@@ -1325,6 +1318,14 @@ export function RoomRig() {
             <SoftBox position={[ax, 0.222, 0.022]} args={[0.082, 0.078, 0.4]} radius={0.039} liveSlug="popcore-games" liveGhost={false} />
           </group>
         ))}
+
+        {/* The phone. This is what the couch is here FOR — the popcore hotspot
+            anchors to it, and a couch with nothing on it gives the marker
+            nothing to point at. It lands on the right-hand cushion, whose top
+            is at 0.2005 in couch-local space. */}
+        <LifeGroup slug="popcore-games">
+          <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor={accent} />
+        </LifeGroup>
       </group>
 
       {/* coffee table with AR racing (Lightship Drive), directly in front of the couch */}

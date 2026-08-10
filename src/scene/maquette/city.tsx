@@ -11,7 +11,6 @@ import { useTweak } from '../devTweak';
 import { launchTrack, sceneStore, useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useLaunchCount } from '../../lib/launches';
-import { HOTSPOTS } from '../framing';
 import { asset } from '../../lib/asset';
 import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, FIRE, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
@@ -21,20 +20,38 @@ import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { Rise, RocketBody } from './rocket';
 
-/** The city's window ramp: written once per frame by WindowDriver and read by every
- *  Building's instanced grid. A module-level box rather than state or context
- *  because it changes every frame and nothing should re-render for it — the panes
- *  only need a number to stagger themselves against. */
-const winLevel = { k: 0 };
-/** The same for the building BODIES. These were two different numbers while the
- *  windows answered hover and the bodies only answered a commit; now both are
- *  driven by the same signal, and the pair is kept only because they are read in
- *  different places with different stagger delays. */
-const bodyLevel = { k: 0 };
+/** The city's wake ramp: written once per frame by WindowDriver, read by every
+ *  Building for both its windows and its body. A module-level box rather than
+ *  state or context because it changes every frame and nothing should re-render
+ *  for it — the panes only need a number to stagger themselves against.
+ *
+ *  This was two boxes, one for windows and one for bodies, back when the windows
+ *  also answered hover and the bodies did not. They have carried the same value
+ *  since hover came out, so it is one number now. */
+const cityLevel = { k: 0 };
 /** How much of the ramp is spent bringing buildings up one after another (0 = the
  *  whole skyline at once, as it used to be). The rest of the ramp is everything
  *  already lit and simply getting brighter. */
 const WIN_STAGGER = 0.62;
+/** How fast the ramp closes on its target, per second. */
+const RAMP = 2.7;
+
+/** The warm-up flicker, and the reason it stops.
+ *
+ *  This used to be a flat `0.82 + 0.18 * …` applied at every level, so a city
+ *  that had finished lighting went on wavering by nearly 20% for as long as the
+ *  page was open. Filament settling is a thing lights do while they come on, not
+ *  something they do forever, and a skyline that never stops guttering reads as
+ *  a fault rather than as atmosphere — "it doesn't stay lit".
+ *
+ *  So the amplitude rides on how far from settled the ramp is: full flicker in
+ *  the dark, none at all once the level reaches 1. `phase` offsets each building
+ *  so they don't all shimmer in step. */
+function flicker(level: number, t: number, phase: number, reduced: boolean) {
+  if (reduced) return 1;
+  const amp = 0.18 * (1 - level);
+  return 1 - amp + amp * Math.sin(t * 26 + phase) * Math.sin(t * 6.3);
+}
 
 /* ---------- where the outlying pieces stand ----------
  *  Hoisted out of CityRig because the outskirts have to keep clear of all three,
@@ -49,39 +66,31 @@ const PARK_POS: V3 = [1.3, 0, -0.23];
  *  gap behind the city, joined to the grid by the service lane. */
 const SITE_POS: V3 = [0.86, 0, -0.9];
 
-/** Every project that lives on the city layer. The lights used to answer only
- *  the skyscraper, so a visitor who opened the windmill or the park watched the
- *  node they picked come alive while the skyline it stands in stayed a dead
- *  wireframe behind it. Waking anything on this layer wakes the layer. */
-const CITY_SLUGS = HOTSPOTS.filter((h) => h.layer === 'city').map((h) => h.slug);
+/** The skyline answers to the tower and nothing else. It is the city layer's own
+ *  project, and the windmill and the park are their own objects standing in the
+ *  city rather than switches for it. */
+const TOWER = 'alliander-hololens';
 
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
-  // One boolean out of the selector, not an array: returning `visited` itself
-  // would re-render on any layer's visit, and returning a derived array would
-  // never compare equal.
-  const live = useSceneSelector(
-    (s) => s.completedAt !== null || CITY_SLUGS.some((slug) => slug === s.selectedSlug || s.visited.includes(slug)),
-  );
+  // Open the tower and the city stays lit for the rest of the visit. `visited`
+  // is the latch — the store appends to it and never clears it — and `selected`
+  // is only here so the ramp starts on the same frame as the click rather than
+  // waiting on the route effect. Nothing else feeds this: no hover, because the
+  // lights were then the one thing on the layer that could go back OUT, and no
+  // `completedAt`, because visiting all ten includes the tower anyway.
+  const lit = useSceneSelector((s) => s.selectedSlug === TOWER || s.visited.includes(TOWER));
   const reduced = useReducedMotion();
   const k = useRef(0);
-  const bk = useRef(0);
-  useFrame((s) => {
-    // Windows and bodies now ride the same signal, and it only ever goes up:
-    // the city lights on the first city node you open and stays lit for the
-    // rest of the visit. Hover used to raise the windows too — a cheap
-    // reversible glance-response — but that made the lights the one thing on
-    // the layer that could go back out, which read as a bug rather than as a
-    // preview. Committing is what turns the city on.
-    const kT = live ? 1 : 0;
-    // Slower than the old 0.09 — the stagger below needs a ramp long enough to
-    // read as rooms coming on in turn rather than one switch being thrown.
-    k.current += (kT - k.current) * (reduced ? 1 : 0.045);
-    winLevel.k = k.current;
-    bk.current += (kT - bk.current) * (reduced ? 1 : 0.045);
-    bodyLevel.k = bk.current;
+  useFrame((s, delta) => {
+    // Per second, not per frame. The old `* 0.045` was a fixed slice of the gap
+    // every frame, so how long the city took to light depended on the frame
+    // rate: measured at 0.34 after six seconds on a software renderer, where it
+    // should be all but done in two. Anyone on a slow machine watched the
+    // skyline creep for the better part of a minute and never saw it arrive.
+    k.current += ((lit ? 1 : 0) - k.current) * (reduced ? 1 : Math.min(1, delta * RAMP));
+    cityLevel.k = k.current;
     const t = s.clock.elapsedTime;
-    const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26) * Math.sin(t * 6.3);
-    mat.emissiveIntensity = k.current * 1.1 * flick;
+    mat.emissiveIntensity = k.current * 1.1 * flicker(k.current, t, 0, reduced);
     mat.opacity = 0.08 + k.current * 0.6;
   });
   return null;
@@ -243,12 +252,11 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
   // skyline hardening at once. Written every frame, read by LiveGlassMat/LiveEdges.
   const wake = useRef(0);
   useFrame((s) => {
-    wake.current = staggered(bodyLevel.k, delay); // body + edges: select, not hover
-    const g = staggered(winLevel.k, delay); // windows: hover lights them too
+    wake.current = staggered(cityLevel.k, delay); // body + edges
+    const g = wake.current; // …and the windows, on the same beat
     if (!mat) return; // a building with no window grid still solidifies
     const t = s.clock.elapsedTime;
-    // the flicker is offset per building too, so they don't all shimmer in step
-    const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26 + delay * 9) * Math.sin(t * 6.3);
+    const flick = flicker(g, t, delay * 9, reduced);
     mat.emissiveIntensity = g * 1.1 * flick;
     mat.opacity = 0.08 + g * 0.6;
   });
@@ -434,7 +442,7 @@ function Outskirts({ clear, blocks }: { clear: V3[][]; blocks: { x: number; z: n
   const shadowMat = useRef<MeshBasicMaterial>(null);
   const presence = useContext(PresenceCtx);
   useFrame(() => {
-    wake.current = staggered(bodyLevel.k, 1); // delay 1: the outermost beat
+    wake.current = staggered(cityLevel.k, 1); // delay 1: the outermost beat
     // Hidden outright below the threshold rather than merely transparent, so a
     // resting city pays nothing at all for scenery it isn't showing — and so the
     // fringe can't fog the towers behind it while it's meant to be absent.
@@ -1194,7 +1202,7 @@ function TransformerHouse({ position }: { position: V3 }) {
   const wake = useRef(0);
   const delay = Math.min(1, Math.hypot(position[0], position[2]) / 0.85);
   useFrame((s) => {
-    wake.current = staggered(bodyLevel.k, delay);
+    wake.current = staggered(cityLevel.k, delay);
     // rest to a faint smoulder; brighten with the grid (hover < visited < live/complete)
     const kT = selected || complete ? 1 : hovered ? 0.7 : visited ? 0.42 : 0.12;
     k.current += (kT - k.current) * 0.08;
