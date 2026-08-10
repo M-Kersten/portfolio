@@ -11,6 +11,7 @@ import { useTweak } from '../devTweak';
 import { launchTrack, sceneStore, useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useLaunchCount } from '../../lib/launches';
+import { HOTSPOTS } from '../framing';
 import { asset } from '../../lib/asset';
 import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, FIRE, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
@@ -25,11 +26,10 @@ import { Rise, RocketBody } from './rocket';
  *  because it changes every frame and nothing should re-render for it — the panes
  *  only need a number to stagger themselves against. */
 const winLevel = { k: 0 };
-/** The same idea for the building BODIES, but deliberately not the same number:
- *  the lights answer a hover (a cheap, reversible glance-response), while turning
- *  the glass skyline solid is the city actually coming alive and should only
- *  happen once a visitor commits — so this one ignores `hovered`. Sharing the
- *  window level meant sweeping the cursor past the tower rebuilt the whole city. */
+/** The same for the building BODIES. These were two different numbers while the
+ *  windows answered hover and the bodies only answered a commit; now both are
+ *  driven by the same signal, and the pair is kept only because they are read in
+ *  different places with different stagger delays. */
 const bodyLevel = { k: 0 };
 /** How much of the ramp is spent bringing buildings up one after another (0 = the
  *  whole skyline at once, as it used to be). The rest of the ramp is everything
@@ -49,25 +49,35 @@ const PARK_POS: V3 = [1.3, 0, -0.23];
  *  gap behind the city, joined to the grid by the service lane. */
 const SITE_POS: V3 = [0.86, 0, -0.9];
 
+/** Every project that lives on the city layer. The lights used to answer only
+ *  the skyscraper, so a visitor who opened the windmill or the park watched the
+ *  node they picked come alive while the skyline it stands in stayed a dead
+ *  wireframe behind it. Waking anything on this layer wakes the layer. */
+const CITY_SLUGS = HOTSPOTS.filter((h) => h.layer === 'city').map((h) => h.slug);
+
 function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
-  const { hovered, selected, visited } = useActive('alliander-hololens');
-  // Every hotspot visited -> the whole city stays lit ("all systems live").
-  const complete = useSceneSelector((s) => s.completedAt !== null);
+  // One boolean out of the selector, not an array: returning `visited` itself
+  // would re-render on any layer's visit, and returning a derived array would
+  // never compare equal.
+  const live = useSceneSelector(
+    (s) => s.completedAt !== null || CITY_SLUGS.some((slug) => slug === s.selectedSlug || s.visited.includes(slug)),
+  );
   const reduced = useReducedMotion();
   const k = useRef(0);
   const bk = useRef(0);
   useFrame((s) => {
-    // Once the tower has been woken the city stays lit. `visited` used to hold at
-    // 0.5, so closing the dossier dimmed every window back down again — the lights
-    // you just turned on shouldn't go half-out when you look away.
-    const kT = hovered || selected || visited || complete ? 1 : 0;
+    // Windows and bodies now ride the same signal, and it only ever goes up:
+    // the city lights on the first city node you open and stays lit for the
+    // rest of the visit. Hover used to raise the windows too — a cheap
+    // reversible glance-response — but that made the lights the one thing on
+    // the layer that could go back out, which read as a bug rather than as a
+    // preview. Committing is what turns the city on.
+    const kT = live ? 1 : 0;
     // Slower than the old 0.09 — the stagger below needs a ramp long enough to
     // read as rooms coming on in turn rather than one switch being thrown.
     k.current += (kT - k.current) * (reduced ? 1 : 0.045);
     winLevel.k = k.current;
-    // …and the bodies on the same ramp minus the hover (see bodyLevel)
-    const bT = selected || visited || complete ? 1 : 0;
-    bk.current += (bT - bk.current) * (reduced ? 1 : 0.045);
+    bk.current += (kT - bk.current) * (reduced ? 1 : 0.045);
     bodyLevel.k = bk.current;
     const t = s.clock.elapsedTime;
     const flick = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 26) * Math.sin(t * 6.3);
@@ -2068,21 +2078,22 @@ export function CityRig() {
           const x = cx + (rnd() - 0.5) * 0.12;
           const z = cz + (rnd() - 0.5) * 0.12;
           const fall = Math.max(0.1, 1 - (x * x + z * z) * 0.8);
-          // Wider and shorter than they were. The old blocks ran 0.13–0.18 across
-          // and 0.41–0.62 tall — better than 3:1, which is a chimney, not a
-          // building, and it left no wall for a facade to happen on. These are
-          // roughly 1.7–2.4:1, which is what a real mid-rise block sits at and
-          // what gives four bays somewhere to go. The first pass floored the
-          // range at 1.4:1 and the shortest plot came out a plain cube with a
-          // lid on it, which is its own kind of wrong.
+          // Slimmer again, but nowhere near the 0.13–0.18 the very first pass
+          // used: that was past 3:1, which is a chimney rather than a building,
+          // and left no wall for a facade to happen on. 0.21–0.26 overcorrected
+          // into blocks that read as chunky, so these sit at 0.175–0.215 —
+          // roughly 2:1 to 3:1 against the same heights.
+          //
+          // The floor is set by the facade, not by taste. `bayOffsets` splits
+          // (w - 4 panes) between three mullion gaps and two corner piers, so at
+          // 0.175 the gap is still ~0.009 against a 0.03 pane. Much under that
+          // and the mullions vanish, and a punched facade turns into an
+          // unbroken curtain wall.
           //
           // Same five rnd() draws in the same order, deliberately: this generator
           // seeds every position in the city, so taking one more or one fewer
           // number here would shuffle the whole skyline instead of resizing it.
-          // The plots are ±0.55 with ±0.06 of jitter and the avenues run at ±0.3
-          // with a 0.04 half-width, so 0.26 is the widest a block can get before
-          // its corner is standing in the road.
-          const bld = { x, z, w: 0.21 + rnd() * 0.05, d: 0.21 + rnd() * 0.05, h: 0.24 + fall * 0.3 + rnd() * 0.1, roof: ROOFS[out.length % ROOFS.length] };
+          const bld = { x, z, w: 0.175 + rnd() * 0.04, d: 0.175 + rnd() * 0.04, h: 0.24 + fall * 0.3 + rnd() * 0.1, roof: ROOFS[out.length % ROOFS.length] };
           // front-centre plot goes to the transformer house — build the RNG for it
           // (so the rest of the skyline is unchanged), then drop the building.
           if (cx === 0 && cz === 0.55) continue;

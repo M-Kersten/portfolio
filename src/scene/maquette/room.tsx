@@ -1281,20 +1281,42 @@ export function RoomRig() {
 
         {/* the frame: a plinth the cushions drop into */}
         <SoftBox position={[0, 0.098, 0]} args={[0.92, 0.075, 0.44]} radius={0.022} liveSlug="popcore-games" liveGhost={false} />
-        {/* two seat cushions, with a seam between them */}
-        {([-0.222, 0.222] as const).map((cx, i) => (
-          <SoftBox key={i} position={[cx, 0.163, 0.012]} args={[0.42, 0.075, 0.4]} radius={0.032} liveSlug="popcore-games" liveGhost={false} />
+
+        {/* Two seat cushions, with a seam between them — and a crease at each
+            end. They used to be 0.42 wide and ran 0.019 INTO the arms, so the
+            cushion and the arm shared a face and read as one milled block. */}
+        {([-0.1905, 0.1905] as const).map((cx, i) => (
+          <SoftBox key={i} position={[cx, 0.163, 0.012]} args={[0.35, 0.075, 0.4]} radius={0.032} liveSlug="popcore-games" liveGhost={false} />
         ))}
 
         {/* back: a low rail, then two cushions leaning on it */}
         <SoftBox position={[0, 0.235, -0.196]} args={[0.92, 0.2, 0.055]} radius={0.02} liveSlug="popcore-games" liveGhost={false} />
-        {([-0.222, 0.222] as const).map((cx, i) => (
-          <SoftBox key={i} position={[cx, 0.272, -0.163]} args={[0.42, 0.185, 0.07]} radius={0.032} rotation={[0.11, 0, 0]} liveSlug="popcore-games" liveGhost={false} />
+        {/* The back cushions run wider than the seat ones, right up against the
+            arms. The crease belongs at the seat, where a real couch has a gap
+            you lose things down; up the back the cushion is pressed into the
+            arm, and leaving the same gap there opened a slot straight through
+            the corner of the frame. */}
+        {([-0.1985, 0.1985] as const).map((cx, i) => (
+          <SoftBox key={i} position={[cx, 0.272, -0.163]} args={[0.375, 0.185, 0.07]} radius={0.032} rotation={[0.11, 0, 0]} liveSlug="popcore-games" liveGhost={false} />
         ))}
 
-        {/* arms — stop short of the back rail and taper toward the front */}
-        {([-0.452, 0.452] as const).map((ax, i) => (
-          <SoftBox key={i} position={[ax, 0.18, 0.022]} args={[0.078, 0.165, 0.4]} radius={0.036} liveSlug="popcore-games" liveGhost={false} />
+        {/* Arms, in two parts. One rounded slab was the artificial bit: a couch
+            arm is a padded roll over a frame, and a single box gives it a flat
+            top and four equal chamfers, which is a plinth. So the base carries
+            the height and a near-circular roll sits on it — a RoundedBox whose
+            radius is capped at half its smallest side comes out as a bar, which
+            is exactly the profile wanted, and its flat front cap reads as the
+            arm's end panel.
+            The roll is a touch wider than its base (0.082 vs 0.078) because
+            padding overhangs the frame it is wrapped around; that sliver of
+            overhang is what stops it reading as machined.
+            They also moved in from ±0.452 to sit flush with the 0.92 frame
+            rather than floating 0.031 proud of it with nothing underneath. */}
+        {([-0.419, 0.419] as const).map((ax, i) => (
+          <group key={i}>
+            <SoftBox position={[ax, 0.1525, 0.022]} args={[0.078, 0.095, 0.4]} radius={0.018} liveSlug="popcore-games" liveGhost={false} />
+            <SoftBox position={[ax, 0.222, 0.022]} args={[0.082, 0.078, 0.4]} radius={0.039} liveSlug="popcore-games" liveGhost={false} />
+          </group>
         ))}
       </group>
 
