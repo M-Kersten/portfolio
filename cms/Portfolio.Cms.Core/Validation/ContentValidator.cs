@@ -108,6 +108,7 @@ public static class ContentValidator
                     + "will fall back to the client name with no kind styling",
                     $"{path}.kind");
 
+            ValidateLinks(c, result, who, path);
             ValidateGallery(c, repo, result, who, path);
         }
 
@@ -121,6 +122,51 @@ public static class ContentValidator
         }
 
         return slugs;
+    }
+
+    /// <summary>
+    /// A case's outbound links — mirrors <c>checkLinks</c> in
+    /// scripts/check-content.mjs, which is what actually blocks the site build.
+    /// <para>
+    /// Both halves are load-bearing and neither degrades into something a
+    /// visitor can recover from, so both are errors: a blank label renders a
+    /// button with no words on it, and a bad URL renders one that goes nowhere.
+    /// Neither appears in a build log — you find them by clicking.
+    /// </para>
+    /// </summary>
+    private static void ValidateLinks(CaseStudy c, ValidationResult result, string who, string path)
+    {
+        if (c.Links is null) return;
+        if (c.Links.Count == 0)
+        {
+            result.Error(who,
+                "links is empty — clear it entirely rather than publishing \"links\": [], which the "
+                + "site's build check rejects",
+                $"{path}.links");
+            return;
+        }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < c.Links.Count; i++)
+        {
+            var link = c.Links[i];
+            var at = $"{path}.links[{i}]";
+            if (string.IsNullOrWhiteSpace(link.Label))
+                result.Error(who, $"link {i + 1} has no label — the button would render with no words on it", at);
+            if (string.IsNullOrWhiteSpace(link.Url))
+            {
+                result.Error(who, $"link {i + 1} has no url", at);
+                continue;
+            }
+            // Strict about the protocol: a bare host resolves against the site's
+            // own origin, so the button 404s on your own domain.
+            if (!link.Url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                && !link.Url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                result.Error(who,
+                    $"link {i + 1} (\"{link.Url}\") must start with http:// or https://", at);
+            if (!seen.Add(link.Url))
+                result.Warn(who, $"links point at \"{link.Url}\" more than once", at);
+        }
     }
 
     /// <summary>

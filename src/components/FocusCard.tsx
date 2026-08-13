@@ -121,11 +121,15 @@ export function FocusCard({ study, onClose, onJump }: { study: CaseStudy; onClos
             >
               Ask me about it
             </a>
-            {study.article && (
-              <a className="btn btn--ghost" href={study.article} target="_blank" rel="noreferrer">
-                Read more <span aria-hidden="true">↗</span>
+            {/* Every outbound link the case carries, in the order authored and
+                with its own words. This was one hardcoded "Read more" off a
+                single `article` field, which could hold exactly one URL and
+                described two YouTube videos as reading. */}
+            {study.links?.map((link) => (
+              <a key={link.url} className="btn btn--ghost" href={link.url} target="_blank" rel="noreferrer">
+                {link.label} <span aria-hidden="true">↗</span>
               </a>
-            )}
+            ))}
           </div>
           <StoryLinks study={study} onJump={onJump} />
         </div>

@@ -99,9 +99,15 @@ public sealed class CaseStudy
     [JsonPropertyOrder(16), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Video { get; set; }
 
-    /// <summary>URL to a fuller write-up, linked from the popups.</summary>
+    /// <summary>
+    /// Outbound links — write-ups, talks, press, demo films. Rendered as
+    /// buttons in the case dialogs, in the order given, each with its own
+    /// label. Took over slot 17 from the single <c>article</c> string it
+    /// replaced, so the JSON key lands in the same place and the round-trip
+    /// stays byte-identical.
+    /// </summary>
     [JsonPropertyOrder(17), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Article { get; set; }
+    public List<CaseLink>? Links { get; set; }
 
     /// <summary>
     /// A long-tail project: it appears in the /projects index but is kept off

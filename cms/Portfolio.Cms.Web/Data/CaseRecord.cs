@@ -47,7 +47,13 @@ public class CaseRecord
     [MaxLength(100)] public string? Follows { get; set; }
     [MaxLength(10)] public string? Year { get; set; }
     [MaxLength(500)] public string? Video { get; set; }
-    [MaxLength(500)] public string? Article { get; set; }
+
+    /// <summary>
+    /// The links, stored as JSON in one column for the same reason the gallery
+    /// is: a child table would buy relational tidiness the CMS never uses and
+    /// cost an ordering column to preserve the sequence the site renders in.
+    /// </summary>
+    public string? LinksJson { get; set; }
 
     /// <summary>
     /// Nullable on purpose: the site treats absent and false identically, and
@@ -90,7 +96,7 @@ public class CaseRecord
         Follows = Follows,
         Year = Year,
         Video = Video,
-        Article = Article,
+        Links = LinksJson is null ? null : JsonSerializer.Deserialize<List<CaseLink>>(LinksJson, ContentJson.Options),
         Archive = Archive,
         Gallery = GalleryJson is null ? null : JsonSerializer.Deserialize<List<GalleryImage>>(GalleryJson, ContentJson.Options),
     };
@@ -116,7 +122,7 @@ public class CaseRecord
         Follows = model.Follows;
         Year = model.Year;
         Video = model.Video;
-        Article = model.Article;
+        LinksJson = model.Links is null ? null : JsonSerializer.Serialize(model.Links, ContentJson.Options);
         Archive = model.Archive;
         GalleryJson = model.Gallery is null ? null : JsonSerializer.Serialize(model.Gallery, ContentJson.Options);
         UpdatedAt = DateTimeOffset.UtcNow;

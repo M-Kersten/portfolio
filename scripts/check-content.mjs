@@ -73,7 +73,35 @@ for (const c of cases) {
     (c.archive ? warnings : errors).push(`${who}: no poster at public/posters/${c.slug}.jpg`);
   if (c.video && !/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(c.video))
     warnings.push(`${who}: video isn't a YouTube URL — the embed only understands YouTube`);
+  checkLinks(c, who);
   checkGallery(c, who);
+}
+/** A case's outbound links. Both halves are load-bearing and neither can be
+ *  recovered if it's wrong, so both are errors rather than warnings: a blank
+ *  label renders a button with nothing written on it, and a bad URL renders one
+ *  that goes nowhere. Neither shows up in a build log — you find them by
+ *  clicking, which is to say you don't.
+ *
+ *  The protocol check is deliberately strict about `http(s)`. A bare
+ *  "example.com" in the JSON reads fine to a human and resolves against the
+ *  site's own origin in a browser, so the button quietly 404s on your own
+ *  domain instead of going where it was meant to. */
+function checkLinks(c, who) {
+  if (c.links === undefined) return;
+  if (!Array.isArray(c.links) || c.links.length === 0)
+    return errors.push(`${who}: "links" must be a non-empty array — drop the field instead of leaving it empty`);
+  const seen = new Set();
+  c.links.forEach((l, i) => {
+    const at = `${who}: links[${i}]`;
+    if (!l || typeof l !== 'object') return errors.push(`${at}: must be an object with "url" and "label"`);
+    if (!l.label || !String(l.label).trim())
+      errors.push(`${at}: missing "label" — the button would render with no words on it`);
+    if (!l.url) return errors.push(`${at}: missing "url"`);
+    if (!/^https?:\/\//.test(l.url))
+      errors.push(`${at}: url must start with http:// or https:// (got "${l.url}")`);
+    if (seen.has(l.url)) warnings.push(`${at}: duplicate url — two buttons pointing at the same place`);
+    seen.add(l.url);
+  });
 }
 /** A case's picture set. The images live in public/gallery/<slug>/ and are
  *  listed in the JSON — a static build has no directory listing, so the list is

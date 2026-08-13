@@ -189,6 +189,70 @@ public class ValidationTests
         return c;
     }
 
+    private static CaseStudy WithLinks(ContentSet content, params CaseLink[] links)
+    {
+        var c = content.Cases[0];
+        c.Links = [.. links];
+        return c;
+    }
+
+    /// <summary>
+    /// Both halves of a link are load-bearing and neither degrades into
+    /// something a visitor can recover from: a blank label is a button with no
+    /// words on it, a bad URL is one that goes nowhere.
+    /// </summary>
+    [Fact]
+    public void A_link_needs_both_a_label_and_a_url()
+    {
+        var ok = Validate(c => WithLinks(c, new CaseLink { Url = "https://example.com", Label = "Read it" }));
+        Assert.True(ok.CanPublish, string.Join("\n", ok.Errors.Select(e => e.Problem)));
+
+        var blank = Validate(c => WithLinks(c, new CaseLink { Url = "https://example.com", Label = "   " }));
+        Assert.False(blank.CanPublish);
+        Assert.Contains(blank.Errors, e => e.Problem.Contains("no label"));
+
+        var noUrl = Validate(c => WithLinks(c, new CaseLink { Url = "", Label = "Somewhere" }));
+        Assert.False(noUrl.CanPublish);
+        Assert.Contains(noUrl.Errors, e => e.Problem.Contains("no url"));
+    }
+
+    /// <summary>
+    /// A bare host reads fine to a human but resolves against the site's own
+    /// origin, so the button 404s on the wrong domain instead of going where it
+    /// was meant to — which is exactly the kind of fault nobody sees in a log.
+    /// </summary>
+    [Fact]
+    public void A_link_url_must_carry_its_protocol()
+    {
+        var result = Validate(c => WithLinks(c, new CaseLink { Url = "example.com/thing", Label = "Read it" }));
+
+        Assert.False(result.CanPublish);
+        Assert.Contains(result.Errors, e => e.Problem.Contains("must start with http:// or https://"));
+    }
+
+    /// <summary>Two buttons pointing at the same place is odd but publishable.</summary>
+    [Fact]
+    public void Duplicate_link_urls_are_only_a_warning()
+    {
+        var result = Validate(c => WithLinks(c,
+            new CaseLink { Url = "https://example.com/a", Label = "One" },
+            new CaseLink { Url = "https://example.com/a", Label = "Two" }));
+
+        Assert.True(result.CanPublish);
+        Assert.Contains(result.Warnings, w => w.Problem.Contains("more than once"));
+    }
+
+    /// <summary>An empty list publishes <c>"links": []</c>, which the site's
+    /// build check rejects — so the CMS has to refuse it first.</summary>
+    [Fact]
+    public void An_empty_link_list_is_an_error()
+    {
+        var result = Validate(c => c.Cases[0].Links = []);
+
+        Assert.False(result.CanPublish);
+        Assert.Contains(result.Errors, e => e.Problem.Contains("links is empty"));
+    }
+
     [Fact]
     public void A_gallery_frame_that_is_not_in_the_repo_is_an_error()
     {

@@ -156,25 +156,21 @@ else
             <small class="muted">Optional third beat.</small>
         </label>
 
-        <h2>Links and stack</h2>
+        <h2>Film and stack</h2>
 
         <div class="field">
             <span class="field__label">Tech</span>
             <StringList Items="_tech" Changed="StateHasChanged" AddLabel="Add tech" Placeholder="Unity" />
         </div>
 
-        <div class="field-row">
-            <label class="field">
-                <span>Video</span>
-                <input class="input" @bind="_case.Video" @bind:event="oninput" placeholder="https://youtu.be/…" />
-                <small class="muted">YouTube only — the embed understands nothing else.</small>
-            </label>
-
-            <label class="field">
-                <span>Article</span>
-                <input class="input" @bind="_case.Article" @bind:event="oninput" />
-            </label>
-        </div>
+        <label class="field">
+            <span>Video</span>
+            <input class="input" @bind="_case.Video" @bind:event="oninput" placeholder="https://youtu.be/…" />
+            <small class="muted">
+                YouTube only — the embed understands nothing else. This is the film that plays from the
+                poster panel; a second film belongs in Links.
+            </small>
+        </label>
 
         <label class="field">
             <span>Builds on</span>
@@ -215,6 +211,16 @@ else
             <p class="muted">Processing…</p>
         }
 
+        <h2>Links</h2>
+        <p class="muted">
+            Outbound buttons on the case — a write-up, a talk, a press piece, a second film.
+            They render in this order, each with its own text, so say what is on the end of
+            the link rather than "Read more". A URL without <code>https://</code> gets one.
+        </p>
+        <LinkList Items="_links" Changed="StateHasChanged" />
+    </section>
+
+    <section class="card">
         <h2>Gallery</h2>
         <p class="muted">
             Extra frames for a picture-led project — a grid in the case popup that opens full-size.
@@ -233,6 +239,7 @@ else
     private ContentSet? _content;
     private CaseStudy? _case;
     private List<string> _tech = [];
+    private List<CaseLink> _links = [];
     private List<GalleryImage> _gallery = [];
     private List<string> _otherSlugs = [];
     private bool _isNew, _notFound, _saving, _uploading, _posterStaged, _failed;
@@ -262,6 +269,7 @@ else
         }
 
         _tech = _case.Tech ?? [];
+        _links = _case.Links ?? [];
         _gallery = _case.Gallery ?? [];
         _otherSlugs = [.. _content.Cases.Where(c => c.Slug != _case.Slug).Select(c => c.Slug).Order()];
         _posterStaged = (await Posters.GetPendingAsync()).ContainsKey(_case.Slug);
@@ -285,6 +293,8 @@ else
         // gallery that is not cosmetic — the site's build check rejects
         // `"gallery": []` outright.
         _case.Tech = _tech.Count > 0 ? _tech : null;
+        // Empty stays out of the JSON — both checks reject "links": [].
+        _case.Links = _links.Count > 0 ? _links : null;
         _case.Gallery = _gallery.Count > 0 ? _gallery : null;
 
         if (string.IsNullOrWhiteSpace(_case.Slug))

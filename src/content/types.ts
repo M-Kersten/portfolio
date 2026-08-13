@@ -31,6 +31,25 @@ export interface GalleryImage {
   caption?: string;
 }
 
+/** One outbound link on a case, with the words that go on its button.
+ *
+ *  This replaced a single `article?: string` that rendered a hardcoded "Read
+ *  more". One field could only ever hold one destination, and several projects
+ *  have a handful — a write-up, a talk, a press piece, a demo film. Worse, the
+ *  fixed label was already lying: two of the thirteen `article` values were
+ *  YouTube URLs sitting behind a button that said "Read more".
+ *
+ *  So the label is authored per link rather than derived from the URL. A guess
+ *  from the domain gets "medium.com" right and "some-agency.nl/a-thing" wrong,
+ *  and the person writing the case always knows what the thing on the end of
+ *  the link actually is. */
+export interface CaseLink {
+  /** Absolute http(s) URL. Opens in a new tab. */
+  url: string;
+  /** The button's words, e.g. "Read the write-up", "Watch the talk". */
+  label: string;
+}
+
 export interface CaseStudy {
   slug: string;
   title: string;
@@ -63,8 +82,9 @@ export interface CaseStudy {
   kind?: 'freelance' | 'passion';
   /** A YouTube URL — embedded in the node HUD and the map card popup. */
   video?: string;
-  /** URL to a fuller write-up (e.g. a blog post) — linked from the popups. */
-  article?: string;
+  /** Outbound links — write-ups, talks, press, demo films. Rendered as buttons
+   *  in the case dialogs, in the order given, each with its own label. */
+  links?: CaseLink[];
   /** A long-tail project: it appears in the /projects wordcloud (the full index)
    *  but is kept off the curated hero + timeline. Highlights leave this unset. */
   archive?: boolean;

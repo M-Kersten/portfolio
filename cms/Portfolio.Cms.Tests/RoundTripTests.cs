@@ -196,6 +196,71 @@ public class RoundTripTests
         Assert.Null(gallery[1].Caption);
     }
 
+    /// <summary>
+    /// Links render as an array of objects, in the order authored, and land in
+    /// the slot the single <c>article</c> string used to hold — between
+    /// <c>video</c> and <c>archive</c>. That position is the whole reason the
+    /// migration is invisible in the diff of every case that had one.
+    /// </summary>
+    [Fact]
+    public void Links_render_in_the_repo_s_own_shape()
+    {
+        var one = new CaseStudy
+        {
+            Slug = "well-documented", Title = "Well documented", Layer = Layer.City, Client = "Someone",
+            Sector = "Test", Discipline = [Discipline.Geo],
+            Problem = "p", Approach = "a", Outcome = "o", Year = "2026", Archive = true,
+            Video = "https://youtu.be/abcdefghijk",
+            Links =
+            [
+                new CaseLink { Url = "https://example.com/write-up", Label = "Read the write-up" },
+                new CaseLink { Url = "https://youtu.be/zyxwvutsrqp", Label = "Watch the talk" },
+            ],
+        };
+
+        var rendered = ContentFile.Cases.Render(new List<CaseStudy> { one });
+
+        AssertTextEqual(
+            """
+            [
+              {
+                "slug": "well-documented",
+                "title": "Well documented",
+                "layer": "city",
+                "client": "Someone",
+                "sector": "Test",
+                "discipline": [
+                  "Geo"
+                ],
+                "problem": "p",
+                "approach": "a",
+                "outcome": "o",
+                "year": "2026",
+                "video": "https://youtu.be/abcdefghijk",
+                "links": [
+                  {
+                    "url": "https://example.com/write-up",
+                    "label": "Read the write-up"
+                  },
+                  {
+                    "url": "https://youtu.be/zyxwvutsrqp",
+                    "label": "Watch the talk"
+                  }
+                ],
+                "archive": true
+              }
+            ]
+
+            """.ReplaceLineEndings(ContentJson.Newline),
+            rendered,
+            "a case with several links");
+
+        var parsed = ContentJson.Deserialize<List<CaseStudy>>(rendered)[0];
+        var links = Assert.IsType<List<CaseLink>>(parsed.Links);
+        Assert.Equal(["Read the write-up", "Watch the talk"], links.Select(l => l.Label));
+        Assert.Equal("https://example.com/write-up", links[0].Url);
+    }
+
     /// <summary>Key names of one case, in the order they appear in the raw text.</summary>
     private static List<string> KeysOf(string json, string slug)
     {

@@ -22,7 +22,12 @@
     "lesson": "Adding tech to a system that already exists is often harder than starting from scratch. Before i implement a feature i should ask: 'will this even be maintained?'",
     "year": "2026",
     "video": "https://youtu.be/12BHW91-Flw",
-    "article": "https://www.linkedin.com/pulse/purple-nectar-defensie-herontdekt-zijn-missie-en-wij-bouwen-door-bnoie/"
+    "links": [
+      {
+        "url": "https://www.linkedin.com/pulse/purple-nectar-defensie-herontdekt-zijn-missie-en-wij-bouwen-door-bnoie/",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "alliander-hololens",
@@ -47,7 +52,12 @@
     "lesson": "The tech was the easy half. But getting it to fit how an organisation actually works was the real puzzle and eventual downfall of this project, it did not catch on due to impracticallities. If it were up to me i would not choose a Hololens but an iPad instead.",
     "year": "2024-06",
     "video": "https://www.youtube.com/watch?v=2HM8ZNnEKeU",
-    "article": "https://www.youtube.com/watch?v=biTN7qPqWCU"
+    "links": [
+      {
+        "url": "https://www.youtube.com/watch?v=biTN7qPqWCU",
+        "label": "Watch"
+      }
+    ]
   },
   {
     "slug": "alliander-digital-twin",
@@ -69,7 +79,12 @@
     ],
     "lesson": "Technically it worked great, but the organisation wasn’t quite ready to change how it worked so it never fully landed.",
     "year": "2024-06",
-    "article": "https://merijnkersten.nl/web-explorer"
+    "links": [
+      {
+        "url": "https://merijnkersten.nl/web-explorer",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "arcam",
@@ -95,7 +110,12 @@
     "lesson": "Location-based AR is a systems-integration problem most of all: the physical world is your least reliable dependency, so you end up owning everything. The tracking, databases, web, audio, performance, devices, UX, 3D, even the electronics and broken screws. The backend was an attempt I built on a hunch, vibe-coded years before that was a phrase; it fell over on day one and then ran flawlessly, which taught me how much value you can add just by taking the initiative early. And living out of a suitcase across all of these cities taught me what ‘delivering’ really means.",
     "year": "2022-03",
     "video": "https://youtu.be/lmf0VN5xsI0",
-    "article": "https://www.wonderment.nl/wonderwall"
+    "links": [
+      {
+        "url": "https://www.wonderment.nl/wonderwall",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "wonderment-location",
@@ -120,7 +140,12 @@
     "lesson": "The real world is messy: GPS drifts, places change and people wander into frame. So designing for that mess up front beats pretending it isn't there.",
     "year": "2023-04",
     "video": "https://www.youtube.com/watch?v=2JnAffOhn7c",
-    "article": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-sxsw2023-gooutandplay-activity-7053733492467081216-_6Dx/?utm_source=share&utm_medium=member_desktop"
+    "links": [
+      {
+        "url": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-sxsw2023-gooutandplay-activity-7053733492467081216-_6Dx/?utm_source=share&utm_medium=member_desktop",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "dtt-amsterdam",
@@ -145,7 +170,12 @@
     "lesson": "Everyone is pretending until they figure it out. My dedication to a project and willingness to try is what landed me these projects and i should lean into that.",
     "year": "2019-02",
     "video": "https://youtu.be/QiTaakf7yRE",
-    "article": "https://www.d-tt.nl/apps/edu-play-book"
+    "links": [
+      {
+        "url": "https://www.d-tt.nl/apps/edu-play-book",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "lightship-drive",
@@ -170,7 +200,12 @@
     "lesson": "Build assuming things will fail, because on a show floor they absolutely will. In this case the server SDK was brand new and cut off sessions after some 10 minutes, not seeing a fix i introduced a 'you won! give the phone to the next visitor' popup when the server decided to close.",
     "year": "2023-06",
     "video": "https://youtu.be/pXhApOdiq9g",
-    "article": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-wonderment-niantic-activity-7138816231519719424-gjDU/?utm_source=share&utm_medium=member_desktop"
+    "links": [
+      {
+        "url": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-wonderment-niantic-activity-7138816231519719424-gjDU/?utm_source=share&utm_medium=member_desktop",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "zwijsen-ar-books",
@@ -194,7 +229,12 @@
     "lesson": "Owning something end to end teaches you the whole lifecycle and that the last 10% (support, store reviews, weird customer feedback) is most of the work.",
     "year": "2020-02",
     "video": "https://www.youtube.com/watch?v=7N0ZFuyOyTs",
-    "article": "https://kleutersdigitaal.nl/ga-je-mee-op-droomreis-met-karel/"
+    "links": [
+      {
+        "url": "https://kleutersdigitaal.nl/ga-je-mee-op-droomreis-met-karel/",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "popcore-games",
@@ -218,7 +258,12 @@
     "lesson": "Shipping fast and iterating beats elegant code. The market really doesn’t care how pretty your architecture is.",
     "year": "2020-06",
     "video": "https://www.youtube.com/watch?v=yPMbXaRXjvk",
-    "article": "https://www.youtube.com/watch?v=hjyMNTZ0W0A"
+    "links": [
+      {
+        "url": "https://www.youtube.com/watch?v=hjyMNTZ0W0A",
+        "label": "Watch"
+      }
+    ]
   },
   {
     "slug": "philips-medical-xr",
@@ -243,7 +288,12 @@
     "lesson": "Research is as much about finding out what you shouldn’t build as what you should. “This isn’t worth it” that's still a valueable outcome, better to find that out early than late.",
     "year": "2025-03",
     "video": "https://www.youtube.com/watch?v=lDBxik5v1e0",
-    "article": "https://unity.com/resources/philips-healthcare-innovations-xr"
+    "links": [
+      {
+        "url": "https://unity.com/resources/philips-healthcare-innovations-xr",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "amsterdam-ai",
@@ -270,7 +320,12 @@
     "lesson": "Just because you can automate the human out of something doesn’t mean you should. This prototype was functional and i made tutorials, documentation, everything. Still it wasn't doing what we hoped it did and ended up on the shelf.",
     "year": "2025-06",
     "video": "https://youtu.be/8UI8EQKnCTY",
-    "article": "https://medium.com/@rebelscontent/ai-chatbots-for-augmented-reality-a0c06f0c599a"
+    "links": [
+      {
+        "url": "https://medium.com/@rebelscontent/ai-chatbots-for-augmented-reality-a0c06f0c599a",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "custom-ar-framework",
@@ -294,7 +349,12 @@
     "lesson": "Building the tool underneath often creates more value than solving the one problem in front of you.",
     "year": "2019-02",
     "video": "https://youtu.be/iCZRpxt5iPc",
-    "article": "https://docs.google.com/document/d/14nbCjnt5Q4B6Q_BJEFAJffhTqdmsfrQKgQVCw7nFURQ/edit?tab=t.0"
+    "links": [
+      {
+        "url": "https://docs.google.com/document/d/14nbCjnt5Q4B6Q_BJEFAJffhTqdmsfrQKgQVCw7nFURQ/edit?tab=t.0",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "kastwezens",
@@ -404,14 +464,34 @@
     "lesson": "The better I understand the people, purpose and context behind a request, the better the result becomes. Seeing something I created printed large and hanging in the church is so rewarding because it feels like a practical way to contribute. It also taught me where my limits are: a complete brand redesign is a different discipline, and knowing what you don't want to specialise in is just as valuable as knowing what you do.",
     "year": "2023-10",
     "video": "https://www.youtube.com/watch?v=XA5rmpUBhYY",
-    "article": "https://nk-utrecht.nl/",
+    "links": [
+      {
+        "url": "https://nk-utrecht.nl/",
+        "label": "Read more"
+      }
+    ],
     "archive": true,
     "gallery": [
-      { "file": "flags.jpg", "caption": "Flags and signs for the church" },
-      { "file": "posters.jpg", "caption": "Posters inside the church" },
-      { "file": "flyers.jpg", "caption": "Flyers for the church community" },
-      { "file": "online-content.jpg", "caption": "Social media content" },
-      { "file": "icons.jpg", "caption": "Presentation slides for church events" }
-      ]
+      {
+        "file": "flags.jpg",
+        "caption": "Flags and signs for the church"
+      },
+      {
+        "file": "posters.jpg",
+        "caption": "Posters inside the church"
+      },
+      {
+        "file": "flyers.jpg",
+        "caption": "Flyers for the church community"
+      },
+      {
+        "file": "online-content.jpg",
+        "caption": "Social media content"
+      },
+      {
+        "file": "icons.jpg",
+        "caption": "Presentation slides for church events"
+      }
+    ]
   }
 ]

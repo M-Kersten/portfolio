@@ -160,11 +160,11 @@ export function NodeHud() {
           <a className="btn node-hud__discuss" href={`mailto:${site.contact.email}?subject=${encodeURIComponent(study.title)}`}>
             Ask me about it
           </a>
-          {study.article && (
-            <a className="btn btn--ghost" href={study.article} target="_blank" rel="noreferrer">
-              Read more <span aria-hidden="true">↗</span>
+          {study.links?.map((link) => (
+            <a key={link.url} className="btn btn--ghost" href={link.url} target="_blank" rel="noreferrer">
+              {link.label} <span aria-hidden="true">↗</span>
             </a>
-          )}
+          ))}
         </div>
 
         {/* Walk the storyline without leaving the HUD — the camera flies along. */}
