@@ -50,6 +50,24 @@
   margin-top: var(--space-l);
   overflow: hidden;
   transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+
+  /* The band's three measurements, named because the outer columns' indent is
+     derived from them rather than guessed alongside them. */
+  --cap-measure: 33ch; /* how wide the copy is allowed to run */
+  --cap-pad: clamp(1.5rem, 4vw, 3.5rem); /* the inline padding either side of it */
+  /* Where the container's left/right grid line falls, measured from the band's
+     edge — the outer columns aim their text edge at it so the copy starts on
+     the same line as the section title above. */
+  --cap-gutter: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
+  /* ...but only as far as the column can afford. Past the container width the
+     gutter grows by half of every pixel added to the window while the column
+     grows by a third, so aiming at it unchecked made the outer columns NARROWER
+     the wider the window got: 380px of copy at 1440 down to 193px at 2560, with
+     the body text in a gulley and the title clipped. Capping the indent at
+     whatever leaves the measure intact holds the copy steady and keeps the
+     alignment at the widths where it actually fits. 100% is the grid column
+     here, so this tracks the real cell rather than a guess at it. */
+  --cap-indent: max(var(--space-m), min(var(--cap-gutter), calc(100% - var(--cap-measure) - var(--cap-pad))));
 }
 .cap-band:not([data-shown]) { opacity: 0; transform: translateY(24px); }
 .cap-band__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -69,27 +87,27 @@
   min-height: clamp(250px, 22vw, 330px);
   padding-block: clamp(2rem, 4vw, 3rem) clamp(1.75rem, 3vw, 2.5rem);
   /* inline padding + a capped inner width keep the copy clear of the seams */
-  padding-inline: clamp(1.5rem, 4vw, 3.5rem);
+  padding-inline: var(--cap-pad);
   transition: opacity 0.4s var(--ease);
 }
 .capc[data-layer='city'] { --card-accent: var(--cyan); align-items: flex-start; }
 .capc[data-layer='room'] { --card-accent: var(--coral); align-items: center; }
 .capc[data-layer='chip'] { --card-accent: var(--lime); align-items: flex-end; }
-/* The outer columns' text edges sit exactly on the container grid (same line
-   as the section title above) at every width; the outer edges carry no seams,
-   and padding inside a 1fr grid item doesn't move the track boundaries the
-   hover regions map to. */
+/* The outer columns' text edges sit on the container grid (same line as the
+   section title above) for as long as that leaves the copy its measure — see
+   --cap-indent. The outer edges carry no seams, and padding inside a 1fr grid
+   item doesn't move the track boundaries the hover regions map to. */
 .capc[data-layer='city'] {
-  padding-left: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
+  padding-left: var(--cap-indent);
 }
 .capc[data-layer='chip'] {
-  padding-right: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
+  padding-right: var(--cap-indent);
 }
 .capc__inner {
   display: flex;
   flex-direction: column;
   gap: 0.5em;
-  max-width: 33ch;
+  max-width: var(--cap-measure);
 }
 .cap-band[data-active] .capc:not([data-on]) { opacity: 0.42; }
 

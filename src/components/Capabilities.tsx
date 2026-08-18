@@ -16,7 +16,11 @@ function CapText({ c, delay = 0 }: { c: Capability; delay?: number }) {
     <>
       <span className="capc__index">{c.index}</span>
       <h3 className="capc__title">
-        <Scramble text={c.title} delay={delay} />
+        {/* Wrapping, not clipping. These titles are authored in the CMS and run
+            to a full sentence ("City: maps & the real world"), so at any width
+            or font size where one doesn't fit its column the no-wrap default
+            painted it straight through the clip-path and lopped off the end. */}
+        <Scramble text={c.title} delay={delay} wrap />
       </h3>
       <p className="capc__text">{c.body}</p>
       <ul className="capc__tags">
