@@ -29,12 +29,26 @@ import { Rise, RocketBody } from './rocket';
  *  also answered hover and the bodies did not. They have carried the same value
  *  since hover came out, so it is one number now. */
 const cityLevel = { k: 0 };
-/** How much of the ramp is spent bringing buildings up one after another (0 = the
- *  whole skyline at once, as it used to be). The rest of the ramp is everything
- *  already lit and simply getting brighter. */
-const WIN_STAGGER = 0.62;
-/** How fast the ramp closes on its target, per second. */
-const RAMP = 2.7;
+/** How long the whole skyline takes to come on, in seconds, and how much of that
+ *  is spent staggering. At 0.75 the last building starts at 0.75s and every one
+ *  takes the remaining 0.25s to come up, so the city is fully lit at 1.0s and no
+ *  single window creeps. */
+const ON_SECONDS = 1;
+const WIN_STAGGER = 0.75;
+/** Seed for the order the lights come on in. Its own generator, deliberately:
+ *  the block generator's draw sequence places every building in the city, so
+ *  taking numbers out of it here would reshuffle the skyline. */
+const LIGHT_SEED = 0x5eed11;
+
+/** Has the tower ever been opened this visit?
+ *
+ *  Module-level, not a ref and not state, because it has to outlive the driver.
+ *  `k` below is a `useRef(0)`, so anything that remounts WindowDriver — the city
+ *  group going away when you scroll off the layer, the shared window material
+ *  being rebuilt — used to restart the ramp from dark and play the whole
+ *  come-on again. That is the "they don't stay on" everyone was seeing: not the
+ *  latch failing, the ramp starting over. */
+let cityLatched = false;
 
 /** The warm-up flicker, and the reason it stops.
  *
@@ -80,14 +94,16 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   // `completedAt`, because visiting all ten includes the tower anyway.
   const lit = useSceneSelector((s) => s.selectedSlug === TOWER || s.visited.includes(TOWER));
   const reduced = useReducedMotion();
-  const k = useRef(0);
+  // Seeded from the latch, so a remount while the city is lit comes back lit
+  // instead of replaying the come-on from dark.
+  const k = useRef(cityLatched ? 1 : 0);
   useFrame((s, delta) => {
-    // Per second, not per frame. The old `* 0.045` was a fixed slice of the gap
-    // every frame, so how long the city took to light depended on the frame
-    // rate: measured at 0.34 after six seconds on a software renderer, where it
-    // should be all but done in two. Anyone on a slow machine watched the
-    // skyline creep for the better part of a minute and never saw it arrive.
-    k.current += ((lit ? 1 : 0) - k.current) * (reduced ? 1 : Math.min(1, delta * RAMP));
+    if (lit) cityLatched = true;
+    // One direction only. There is no target to lerp toward and no path back to
+    // zero: once the tower has been opened the level climbs to 1 over
+    // ON_SECONDS and stays there for the rest of the visit, whatever `lit`,
+    // presence or the route do afterwards.
+    if (cityLatched) k.current = reduced ? 1 : Math.min(1, k.current + delta / ON_SECONDS);
     cityLevel.k = k.current;
     const t = s.clock.elapsedTime;
     mat.emissiveIntensity = k.current * 1.1 * flicker(k.current, t, 0, reduced);
@@ -2110,6 +2126,28 @@ export function CityRig() {
       }
     return out;
   }, []);
+  /** When each block's lights come on, as a fraction of the one-second come-on.
+   *
+   *  A shuffled even spread rather than six raw random draws. With only six
+   *  blocks, raw draws bunch — the seeded set came out 0.11, 0.27, 0.31, 0.33,
+   *  0.33, 0.52, so four of the six lit within a tenth of a second of each
+   *  other and the last was done by 0.64. Spacing them and then shuffling keeps
+   *  the ORDER random, which is the part that reads, while actually using the
+   *  whole second.
+   *
+   *  Its own generator so the block sequence above is untouched — that one
+   *  places every building in the city, and drawing from it here would move the
+   *  whole skyline rather than reorder its lights. */
+  const lightOrder = useMemo(() => {
+    const rnd = makeRand(LIGHT_SEED);
+    const n = cluster.length;
+    const slots = cluster.map((_, i) => (n === 1 ? 0 : i / (n - 1)));
+    for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [slots[i], slots[j]] = [slots[j], slots[i]];
+    }
+    return slots;
+  }, [cluster]);
   const { accent } = useAccent();
   // one shared material for every window, ramped by WindowDriver on town-hall hover
   const winMat = useMemo(() => {
@@ -2140,10 +2178,12 @@ export function CityRig() {
 
       {/* the skyline + its civic peak; windows light up on town-hall hover */}
       <WindowDriver mat={winMat} />
-      {/* delay by distance from the tower, so waking it sends the lights outward
-          across the grid rather than flipping the whole skyline at once */}
+      {/* Each block lights at its own random moment inside the one-second
+          come-on. This was a radial wave — delay by distance from the tower —
+          which reads as a mechanism sweeping outward rather than as a city
+          waking up. Lights going on in a real skyline have no order to them. */}
       {cluster.map((b, i) => (
-        <Building key={i} {...b} winMat={winMat} delay={Math.min(1, Math.hypot(b.x, b.z) / 0.85)} />
+        <Building key={i} {...b} winMat={winMat} delay={lightOrder[i]} />
       ))}
       {/* the low fringe that carries the density out to the neighbours */}
       <Outskirts clear={keepClear} blocks={cluster} />
