@@ -65,6 +65,32 @@ few times a month that is a fair trade; **B1 at ~€12/month** is the upgrade th
 removes both. Nothing else needs to change — SQL stays free at any scale this
 will reach.
 
+### If it answers 503
+
+The two free tiers compound. The app unloads after about 20 minutes idle, and
+the database auto-pauses after 60, so the ordinary request is the one that
+arrives at a cold app *and* a paused database. Resuming the database takes tens
+of seconds, and while it happens its first connections fail outright.
+
+That used to be fatal, because the app created its schema *before* it started
+listening: start-up either threw on those failing connections or outran App
+Service's start limit, and the platform answered 503. Trying again a minute
+later worked, which made it look like the site refused to spin up on demand.
+
+Two things fixed it, both in the app rather than the plan:
+
+- the schema is created in the background (`SchemaGate`), so the app binds
+  straight away and serves the sign-in redirect while the database wakes behind
+  it — and the Entra round-trip usually covers the resume;
+- the SQL provider has a retry strategy, which is not optional against a
+  serverless database.
+
+So a cold start is now **slow on the first page, not broken**. If you see a real
+503 again, check the F1 daily CPU quota (60 minutes/day, after which the app is
+stopped until UTC midnight) and the SQL free allowance — `freeLimitExhaustionBehavior`
+is set to `AutoPause`, so an exhausted monthly allowance stops the database
+rather than billing you.
+
 ## Deploying it
 
 The template expects the SQL **server** to exist already and adopts it by name;

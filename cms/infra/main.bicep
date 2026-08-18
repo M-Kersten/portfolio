@@ -98,6 +98,16 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
       minTlsVersion: '1.2'
       // Not available on F1 — left off explicitly so the intent is clear rather
       // than looking like an oversight.
+      //
+      // Worth knowing what this costs, because the two free tiers compound: the
+      // app unloads after ~20 minutes idle, and the draft database below is
+      // serverless with a 60-minute auto-pause. The common request is therefore
+      // the one that hits a cold app AND a paused database, and resuming the
+      // database takes tens of seconds during which its first connections fail.
+      // That combination used to return 503, because the app created its schema
+      // BEFORE it started listening. It no longer does — see SchemaGate — so a
+      // cold start now answers immediately and wakes the database behind the
+      // sign-in redirect. Moving to B1 would remove the cold start itself.
       alwaysOn: false
       appSettings: [
         { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }

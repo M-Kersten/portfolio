@@ -15,11 +15,20 @@ namespace Portfolio.Cms.Web.Data;
 /// could not check either.
 /// </para>
 /// </summary>
-public sealed class ContentStore(CmsDbContext db)
+public sealed class ContentStore(CmsDbContext db, SchemaGate? schema = null)
 {
+    /// <summary>
+    /// Waits for the schema, which is created off the start-up path so a cold
+    /// app on a paused database answers instead of timing out (see
+    /// <see cref="SchemaGate"/>). Optional so the tests can keep building a
+    /// store straight over a context they created themselves.
+    /// </summary>
+    private Task ReadyAsync() => schema?.Ready ?? Task.CompletedTask;
+
     /// <summary>Reads the current draft.</summary>
     public async Task<ContentSet> LoadAsync(CancellationToken ct = default)
     {
+        await ReadyAsync();
         var cases = await db.Cases.OrderBy(c => c.Position).AsNoTracking().ToListAsync(ct);
         var documents = await db.Documents.AsNoTracking().ToDictionaryAsync(d => d.Key, d => d.Json, ct);
 
@@ -45,6 +54,7 @@ public sealed class ContentStore(CmsDbContext db)
     /// </summary>
     public async Task SaveAsync(ContentSet content, CancellationToken ct = default)
     {
+        await ReadyAsync();
         var existing = await db.Cases.ToDictionaryAsync(c => c.Slug, ct);
 
         for (var i = 0; i < content.Cases.Count; i++)
@@ -82,8 +92,11 @@ public sealed class ContentStore(CmsDbContext db)
     }
 
     /// <summary>True when nothing has been imported yet.</summary>
-    public async Task<bool> IsEmptyAsync(CancellationToken ct = default) =>
-        !await db.Documents.AnyAsync(ct);
+    public async Task<bool> IsEmptyAsync(CancellationToken ct = default)
+    {
+        await ReadyAsync();
+        return !await db.Documents.AnyAsync(ct);
+    }
 
     /// <summary>
     /// Seeds the draft from the raw content files. This is how the CMS starts
@@ -100,6 +113,9 @@ public sealed class ContentStore(CmsDbContext db)
         SaveAsync(ContentSet.LoadFrom(repoRoot), ct);
 
     /// <summary>The most recent publish, or null if the CMS has never pushed.</summary>
-    public Task<PublishRecord?> LastPublishAsync(CancellationToken ct = default) =>
-        db.Publishes.OrderByDescending(p => p.PublishedAt).AsNoTracking().FirstOrDefaultAsync(ct);
+    public async Task<PublishRecord?> LastPublishAsync(CancellationToken ct = default)
+    {
+        await ReadyAsync();
+        return await db.Publishes.OrderByDescending(p => p.PublishedAt).AsNoTracking().FirstOrDefaultAsync(ct);
+    }
 }

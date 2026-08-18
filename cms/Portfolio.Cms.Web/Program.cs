@@ -74,10 +74,24 @@ builder.Services.AddControllersWithViews().AddMicrosoftIdentityUI();
 var sqlConnection = config.GetConnectionString("Cms");
 builder.Services.AddDbContext<CmsDbContext>(options =>
 {
-    if (!string.IsNullOrWhiteSpace(sqlConnection)) options.UseSqlServer(sqlConnection);
+    // EnableRetryOnFailure is not optional against this database. It is
+    // serverless with a 60-minute auto-pause, and a paused database answers its
+    // first connections with transient errors for tens of seconds while it
+    // resumes. Without a retry strategy the very first query after an idle
+    // period simply throws.
+    if (!string.IsNullOrWhiteSpace(sqlConnection))
+        options.UseSqlServer(sqlConnection, sql => sql.EnableRetryOnFailure(
+            maxRetryCount: 8,
+            maxRetryDelay: TimeSpan.FromSeconds(15),
+            errorNumbersToAdd: null));
     else options.UseSqlite($"Data Source={Path.Combine(builder.Environment.ContentRootPath, "cms-draft.db")}");
 });
 builder.Services.AddScoped<ContentStore>();
+// The schema is created in the background at start-up rather than before the
+// app starts listening — see SchemaGate for why that distinction is the whole
+// difference between a working cold start and a 503.
+builder.Services.AddSingleton<SchemaGate>();
+builder.Services.AddHostedService<SchemaInitializer>();
 
 // ── Publishing ──────────────────────────────────────────────────────────────
 var github = builder.Services.AddOptions<GitHubOptions>()
@@ -119,12 +133,6 @@ builder.Services.AddScoped<PosterStore>(sp =>
 });
 
 var app = builder.Build();
-
-// The draft schema is created on start-up rather than through a migration step.
-// There is one user and one database, and the content of record lives in git —
-// so the cost of being wrong here is re-importing, not losing anything.
-using (var scope = app.Services.CreateScope())
-    await scope.ServiceProvider.GetRequiredService<CmsDbContext>().Database.EnsureCreatedAsync();
 
 if (!app.Environment.IsDevelopment())
 {
