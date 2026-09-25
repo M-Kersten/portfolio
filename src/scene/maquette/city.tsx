@@ -5,7 +5,7 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html } from '@react-three/drei';
-import { AdditiveBlending, Box3, BufferAttribute, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, type BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
 import { launchTrack, sceneStore, useSceneSelector } from '../store';
@@ -17,6 +17,8 @@ import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
 import { PresenceCtx } from './presence';
 import { LIT_SOLID_OPACITY, litMat, litShade, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
+import { REMODEL } from './remodel';
+import { block, faceted, lathe, merge, place, tube, useGeometry } from './shapes';
 import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { Rise, RocketBody } from './rocket';
@@ -204,6 +206,30 @@ function staggered(level: number, delay: number) {
   return raw <= 0 ? 0 : raw >= 1 ? 1 : raw;
 }
 
+/** REMODEL (proposal): the frame the windows sit back in — see Building. */
+function facadeFrame(w: number, d: number, h: number, roof: Roof) {
+  const { ys, xs, zs } = facade(w, d, h, roof);
+  const P = 0.006; // how far the frame stands proud of the wall
+  const lo = ys[0] - WIN_ROW / 2;
+  const hi = ys[ys.length - 1] + WIN_ROW / 2;
+  const parts: BufferGeometry[] = [];
+  for (const [span, offs, half, rotY] of [
+    [w, xs, d / 2, 0],
+    [w, xs, d / 2, Math.PI],
+    [d, zs, w / 2, Math.PI / 2],
+    [d, zs, w / 2, -Math.PI / 2],
+  ] as [number, number[], number, number][]) {
+    const face: BufferGeometry[] = [];
+    const gap = offs[1] - offs[0] - PANE[0];
+    for (let i = 0; i < offs.length - 1; i++) face.push(place(block(gap * 0.5, hi - lo, P), [(offs[i] + offs[i + 1]) / 2, (lo + hi) / 2, P / 2]));
+    for (let k = 0; k <= ys.length; k++) face.push(place(block(span - 0.008, 0.008, P), [0, lo + k * WIN_ROW, P / 2]));
+    face.push(place(block(span + 0.012, 0.01, P + 0.004), [0, PLINTH_H + shaftOf(h, roof) - 0.005, (P + 0.004) / 2 - 0.002])); // cornice
+    if (rotY === 0) face.push(place(block(0.07, 0.005, 0.024), [0, PLINTH_H + 0.007, 0.012])); // canopy over the door
+    parts.push(place(place(merge(face), [0, 0, half]), [0, 0, 0], [0, rotY, 0]));
+  }
+  return { geo: merge(parts) };
+}
+
 /** A square diorama building (glass fill, neutral edges): a podium at the
  *  pavement, the shaft, a parapet cap and one of two rooflines. When given a
  *  shared `winMat`, it grows a grid of windows on all four sides that light up
@@ -238,6 +264,10 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
     return out;
   }, [w, d, h, roof, winMat]);
   const winRef = useRef<InstancedMesh>(null);
+  // REMODEL (proposal): a frame round the windows — mullions between the
+  // bays and a band at every floor, standing 6 mm proud so the panes sit back
+  // in it — a cornice at the roofline and a canopy over the front door.
+  const frame = useGeometry(() => (REMODEL.has('city') && winMat ? facadeFrame(w, d, h, roof) : ({} as Record<string, BufferGeometry>)), [w, d, h, roof, winMat]);
   useLayoutEffect(() => {
     const im = winRef.current;
     if (!im || windows.length === 0) return;
@@ -320,6 +350,12 @@ function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: num
           <boxGeometry args={[w * CROWN_W, CROWN_H, d * CROWN_W]} />
           <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
           <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
+        </mesh>
+      )}
+      {frame.geo && (
+        <mesh geometry={frame.geo}>
+          {/* the wall's own glass: the frame reads by its depth, not a colour */}
+          <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
         </mesh>
       )}
       {windows.length > 0 && mat && (
@@ -596,6 +632,112 @@ function Windmill({ position, slug }: { position: V3; slug?: string }) {
   );
 }
 
+/* ---------- REMODEL (proposal): the windmill ---------- */
+
+// A Dutch gallery mill (stellingmolen) on the old mill's footprint, height and
+// sail hub, so the hotspot, the wind streaks and the spin are untouched. The
+// three things that make one recognisable are all here: the octagonal smock
+// body — faceted on purpose, with a post down every corner to draw the
+// panels — on a brick base; the gallery round it at a third of the height,
+// railed and braced, with the tail pole coming down to it and the winding
+// wheel at its foot; and lattice sails, a stock with a row of crossbars
+// between two rails and a leading board on the other side. The cap is a
+// rounded bonnet, longer front to back, with the windshaft poking out.
+const OCT = Math.PI / 8; // a facet, not a corner, faces the front
+const SMOCK: [number, number][] = [[0, 0.2], [0.172, 0.2], [0.152, 0.33], [0.134, 0.47], [0.118, 0.6], [0, 0.6]];
+function WindmillNew({ position, slug }: { position: V3; slug?: string }) {
+  const sails = useRef<Group>(null);
+  const reduced = useReducedMotion();
+  const { hovered, selected, visited } = useActive(slug ?? '');
+  const spin = useRef(0);
+  useFrame((_s, delta) => {
+    const target = hovered || selected || visited ? 0.9 : 0;
+    spin.current += (target - spin.current) * 0.04;
+    if (sails.current && !reduced) sails.current.rotation.z += delta * spin.current;
+  });
+  const g = useGeometry(() => {
+    const mound = lathe([[0, 0], [0.31, 0], [0.3, 0.012], [0.26, 0.04], [0.21, 0.058], [0.19, 0.062], [0, 0.062]], 28);
+    const body = place(faceted(lathe(SMOCK, 8)), [0, 0, 0], [0, OCT, 0]);
+    const brick: BufferGeometry[] = [place(faceted(lathe([[0, 0.058], [0.198, 0.058], [0.186, 0.2], [0, 0.2]], 8)), [0, 0, 0], [0, OCT, 0])];
+    // the door on the front facet at the gallery, windows above and at the sides
+    const facetZ = (y: number) => {
+      const t = (y - 0.2) / 0.4;
+      return (0.172 - t * 0.054) * Math.cos(OCT);
+    };
+    const slope = Math.atan(0.054 / 0.4);
+    brick.push(place(block(0.052, 0.085, 0.01), [0, 0.2485, facetZ(0.2485) + 0.003], [-slope, 0, 0]));
+    for (const [y, a] of [[0.44, 0], [0.36, Math.PI / 2], [0.36, -Math.PI / 2]] as const) {
+      brick.push(place(place(block(0.032, 0.042, 0.008), [0, y, facetZ(y) + 0.002], [-slope, 0, 0]), [0, 0, 0], [0, a, 0]));
+    }
+    brick.push(place(lathe([[0, 0], [0.018, 0], [0.018, 0.05], [0, 0.05]], 12), [0, 0.62, 0.15], [Math.PI / 2, 0, 0])); // windshaft
+    const trim: BufferGeometry[] = [];
+    // a post down every corner of the smock
+    for (let k = 0; k < 8; k++) {
+      const a = k * (Math.PI / 4) + OCT;
+      trim.push(tube(SMOCK.slice(1, -1).map(([r, y]) => [Math.sin(a) * (r + 0.002), y, Math.cos(a) * (r + 0.002)] as [number, number, number]), 0.0045, 4, 16));
+    }
+    // the gallery: an octagonal deck, sixteen posts, two rails, eight braces
+    trim.push(place(faceted(lathe([[0.17, 0.194], [0.275, 0.194], [0.275, 0.206], [0.17, 0.206], [0.17, 0.194]], 8)), [0, 0, 0], [0, OCT, 0]));
+    const ring = (r: number, y: number) => Array.from({ length: 16 }, (_, i) => [Math.sin((i / 16) * Math.PI * 2) * r, y, Math.cos((i / 16) * Math.PI * 2) * r] as [number, number, number]);
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      trim.push(place(block(0.006, 0.045, 0.006), [Math.sin(a) * 0.266, 0.2285, Math.cos(a) * 0.266]));
+    }
+    trim.push(tube(ring(0.266, 0.251), 0.003, 5, 64, true));
+    trim.push(tube(ring(0.266, 0.229), 0.002, 4, 64, true));
+    for (let k = 0; k < 8; k++) {
+      const a = k * (Math.PI / 4) + OCT;
+      trim.push(tube([[Math.sin(a) * 0.186, 0.12, Math.cos(a) * 0.186], [Math.sin(a) * 0.262, 0.194, Math.cos(a) * 0.262]], 0.004, 4, 2));
+    }
+    // the cap: a rounded bonnet, longer front to back
+    trim.push(place(lathe([[0, 0.595], [0.152, 0.595], [0.155, 0.605], [0.148, 0.64], [0.128, 0.68], [0.095, 0.71], [0.05, 0.728], [0, 0.732]], 24), [0, 0, 0], [0, 0, 0], [0.94, 1, 1.18]));
+    // the tail pole down to the gallery, its two braces, and the winding wheel
+    trim.push(tube([[0, 0.63, -0.17], [0, 0.285, -0.305]], 0.007, 5, 2));
+    for (const sx of [-1, 1]) trim.push(tube([[sx * 0.085, 0.612, -0.14], [0, 0.42, -0.245]], 0.0045, 4, 2));
+    trim.push(tube(Array.from({ length: 12 }, (_, i) => [0.012, 0.3 + Math.sin((i / 12) * Math.PI * 2) * 0.032, -0.31 + Math.cos((i / 12) * Math.PI * 2) * 0.032] as [number, number, number]), 0.003, 4, 48, true));
+    // four lattice sails round a hub; the group turns them about z
+    const sail: BufferGeometry[] = [place(lathe([[0, -0.018], [0.024, -0.018], [0.024, 0.018], [0, 0.018]], 12), [0, 0, 0], [Math.PI / 2, 0, 0])];
+    for (let k = 0; k < 4; k++) {
+      const arm: BufferGeometry[] = [];
+      arm.push(place(block(0.016, 0.46, 0.012), [0, 0.24, 0]));
+      arm.push(place(block(0.018, 0.33, 0.003), [-0.018, 0.29, 0.002])); // leading board
+      for (const x of [0.024, 0.08]) arm.push(place(block(0.005, 0.37, 0.005), [x, 0.285, -0.003]));
+      for (let i = 0; i < 12; i++) arm.push(place(block(0.074, 0.0045, 0.0045), [0.045, 0.105 + (i / 11) * 0.36, -0.003]));
+      sail.push(place(merge(arm), [0, 0, 0], [0, 0, (k * Math.PI) / 2]));
+    }
+    return { mound, body, brick: merge(brick), trim: merge(trim), sails: merge(sail) };
+  });
+  const s = slug ?? '';
+  return (
+    <group position={position}>
+      <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.38} />
+      <group>
+        <mesh geometry={g.mound}>
+          <LiveGlassMat slug={s} tint="deep" />
+        </mesh>
+        <mesh geometry={g.brick}>
+          <LiveGlassMat slug={s} tint="deep" />
+          <LiveEdges slug={s} threshold={20} />
+        </mesh>
+        <mesh geometry={g.body}>
+          <LiveGlassMat slug={s} />
+          <LiveEdges slug={s} threshold={20} />
+        </mesh>
+        <mesh geometry={g.trim}>
+          <LiveGlassMat slug={s} tint="pale" />
+        </mesh>
+        <group ref={sails} position={[0, 0.62, 0.19]}>
+          <mesh geometry={g.sails}>
+            <LiveGlassMat slug={s} tint="pale" />
+            <LiveEdges slug={s} threshold={30} rest={0.35} />
+          </mesh>
+        </group>
+      </group>
+      <MillWind />
+    </group>
+  );
+}
+
 /** A stylised pine — three stacked faceted cones over a short trunk stub (the
  *  stub ends below the lowest tier's skirt, so nothing shows through the
  *  leaves). Neutral glass at rest, like the rest of the furniture; visiting
@@ -630,6 +772,22 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug, lit }: { position: V3; h?
     return m;
   }, [lit]);
   const body = useLitBody([mat]);
+  // REMODEL (proposal): each tier a skirted, faceted lathe — a concave top
+  // that droops to its rim and a shallow underside, so it has a thickness —
+  // and each one a little different in size, turn and tilt, seeded by where
+  // the tree stands, so the grove stops being five copies of one tree.
+  const tiers = useGeometry(() => {
+    if (!REMODEL.has('pines')) return {} as Record<string, BufferGeometry>;
+    const rnd = makeRand(Math.round(Math.abs(position[0] * 9173 + position[2] * 7919)) + 3);
+    const out: Record<string, BufferGeometry> = {};
+    PINE_TIERS.forEach(([y, r, th], i) => {
+      const R = h * r * (0.93 + rnd() * 0.14);
+      const T = h * th * (0.93 + rnd() * 0.14);
+      const prof: [number, number][] = [[0, 0.16 * T], [0.86 * R, 0.03 * T], [R, 0], [0.97 * R, 0.06 * T], [0.6 * R, 0.31 * T], [0.28 * R, 0.63 * T], [0, T]];
+      out[i] = place(faceted(lathe(prof, 7)), [0, h * y - T / 2, 0], [(rnd() - 0.5) * 0.09, rnd() * Math.PI * 2, (rnd() - 0.5) * 0.09]);
+    });
+    return out;
+  }, [h, position[0], position[2]]);
   useFrame(() => {
     if (!slug) return;
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
@@ -643,7 +801,13 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug, lit }: { position: V3; h?
         <cylinderGeometry args={[h * 0.022, h * 0.03, h * 0.1, 6]} />
         <GlassMat tint="deep" lit={lit} />
       </mesh>
-      {PINE_TIERS.map(([y, r, th], i) => (
+      {REMODEL.has('pines') &&
+        PINE_TIERS.map((_t, i) => (
+          <mesh key={`n${i}`} geometry={tiers[i]} material={mat}>
+            <LiveEdges slug={slug ?? ''} threshold={30} rest={0.42} />
+          </mesh>
+        ))}
+      {!REMODEL.has('pines') && PINE_TIERS.map(([y, r, th], i) => (
         <mesh key={i} position={[0, h * y, 0]} material={mat}>
           <coneGeometry args={[h * r, h * th, 6]} />
           {/* The wireframe every other object on this layer has at rest — but
@@ -2220,7 +2384,7 @@ export function CityRig() {
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}
       <LifeGroup slug="dtt-amsterdam">
-        <Windmill position={mill.position} slug="dtt-amsterdam" />
+        {REMODEL.has('windmill') ? <WindmillNew position={mill.position} slug="dtt-amsterdam" /> : <Windmill position={mill.position} slug="dtt-amsterdam" />}
       </LifeGroup>
       {/* the Big Dipper rises behind the windmill while it's selected */}
       <Constellation anchor={mill.position} />
