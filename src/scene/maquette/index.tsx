@@ -121,7 +121,11 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
         // rigs stay mounted, so crossing a layer boundary while scrolling costs
         // a boolean flip instead of allocating/disposing 140 meshes mid-scroll —
         // that churn was making the scroll stutter and "catch up".
-        const near = Math.abs(LAYER_STEP[id] - journeyStep) <= 1;
+        //
+        // The open node's layer always draws: a deep link to a Chip case lands
+        // with the page at the top, and HeroStage's scroll loop then holds
+        // journeyStep at 0 (City), which would otherwise cull the Chip layer.
+        const near = Math.abs(LAYER_STEP[id] - journeyStep) <= 1 || id === presenceLayer;
         const spots = HOTSPOTS.filter((h) => h.layer === id);
         // how alive this layer is — the fraction of its projects you've woken —
         // feeds the ambient field's presence (see PointCloud)
