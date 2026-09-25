@@ -5,17 +5,16 @@
 // everything.
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Edges, RoundedBox } from '@react-three/drei';
+import { RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type BufferGeometry, type Group, type Mesh, type Texture } from 'three';
 import { useTweak } from '../devTweak';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { FIRE, GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
-import { GlassMat, GroundMat, LiveGlassMat, SoftBox } from './materials';
+import { GlassMat, GroundMat, LiveGlassMat } from './materials';
 import { BlobShadow } from './backdrop';
 import { litMat, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
-import { REMODEL } from './remodel';
-import { lathe, leaf, merge, place, softBox, softSeam, tube, useGeometry, type Soft } from './shapes';
+import { hang, lathe, leaf, merge, place, softBox, softSeam, tube, useGeometry, type Soft } from './shapes';
 
 const PHONE_BALLS = 6;
 const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
@@ -498,10 +497,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     <group position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.4} />
       <group>
-        {REMODEL.has('table') ? (
-          <RaceTableTop />
-        ) : (
-          <>
         {/* The top is filleted rather than a hard-edged disc, so it catches the
             light the way the desk's SoftBox does instead of showing one bright
             cut line around the rim. A slightly inset core plus a torus round the
@@ -530,8 +525,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
             <LiveGlassMat slug="lightship-drive" tint="pale" />
           </mesh>
         ))}
-          </>
-        )}
         {/* the AR race loop — a circle */}
         <Line points={circlePts(R)} position={[0, 0.2, 0]} color={accent} lineWidth={1.5} transparent opacity={0.7} />
         {/* Two cars racing the loop, each facing its direction of travel — one
@@ -701,93 +694,89 @@ function Mouse({ position, rotation }: { position: V3; rotation?: V3 }) {
   );
 }
 
-/** A coffee cup: tapered body, a half-torus handle, and a dark disc of coffee
- *  set just below the rim so it reads as full rather than as an empty tube. */
-function CoffeeCup({ position, rotation }: { position: V3; rotation?: V3 }) {
+/** A coffee cup, turned from a profile: a foot, a belly, a rolled lip and a D
+ *  handle, with a dark disc of coffee just under the lip so it reads as full
+ *  rather than as an empty tube. */
+function CoffeeCup({ position, rotation, lit }: { position: V3; rotation?: V3; lit: LitLink }) {
+  const cup = useGeometry(() =>
+    merge([
+      lathe([[0, 0], [0.021, 0], [0.0245, 0.003], [0.0285, 0.035], [0.0305, 0.066], [0.0311, 0.0703], [0.0301, 0.0724], [0.0287, 0.0708], [0.0279, 0.062], [0.018, 0.06], [0, 0.06]], 28),
+      tube([[0.028, 0.059, 0], [0.043, 0.058, 0], [0.051, 0.045, 0], [0.047, 0.026, 0], [0.027, 0.02, 0]], 0.0042, 6, 24),
+    ]),
+  );
   return (
     <group position={position} rotation={rotation}>
-      <mesh position={[0, 0.036, 0]}>
-        <cylinderGeometry args={[0.031, 0.024, 0.072, 20, 1, true]} />
+      <mesh geometry={cup}>
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
       </mesh>
-      {/* the coffee — sits 0.006 under the rim, so the cup has a wall above it */}
       <mesh position={[0, 0.066, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.029, 20]} />
-        <meshStandardMaterial color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.22} roughness={0.35} side={DoubleSide} />
+        <circleGeometry args={[0.0285, 24]} />
+        <meshStandardMaterial {...litMat(lit)} color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.22} roughness={0.35} side={DoubleSide} />
       </mesh>
-      {/* base disc, so it doesn't read as an open-ended tube from a low angle */}
-      <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.024, 20]} />
-        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
-      </mesh>
-      <mesh position={[0.032, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.019, 0.0045, 8, 16, Math.PI]} />
-        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
-      </mesh>
-      <Line points={circlePts(0.031, 20)} position={[0, 0.072, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.5} />
     </group>
   );
 }
 
-/** A floor lamp with a glowing shade. */
+/** A tripod floor lamp: three splayed, tapered legs meeting at a turned hub,
+ *  a stem on up to a drum shade with a real wall (outside and in), and a
+ *  finial on top. */
 function FloorLamp({ position }: { position: V3 }) {
+  const g = useGeometry(() => {
+    const frame: BufferGeometry[] = [];
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + 0.5;
+      // from the hub at 0.42 out and down to the floor at r 0.15
+      const len = Math.hypot(0.15, 0.42);
+      const tilt = Math.atan2(0.15, 0.42);
+      frame.push(place(hang(softBox(0.012, len, 0.012, 0.004, { taper: 1.7 }), len, [0, 0, 0], [tilt, 0, 0]), [0, 0.42, 0], [0, a, 0]));
+    }
+    frame.push(place(lathe([[0, -0.03], [0.014, -0.03], [0.018, -0.012], [0.018, 0.012], [0.012, 0.03], [0, 0.03]], 16), [0, 0.42, 0]));
+    frame.push(place(lathe([[0, 0], [0.006, 0], [0.006, 0.3], [0, 0.3]], 10), [0, 0.43, 0]));
+    frame.push(place(lathe([[0, 0], [0.008, 0], [0.012, 0.012], [0.006, 0.024], [0, 0.028]], 12), [0, 0.81, 0])); // finial
+    const shade = lathe([[0.132, 0.63], [0.136, 0.633], [0.12, 0.806], [0.116, 0.81], [0.113, 0.806], [0.129, 0.633], [0.126, 0.63]], 40);
+    return { frame: merge(frame), shade };
+  });
   return (
     <group position={position}>
       <BlobShadow position={[0, 0.003, 0]} radius={0.2} opacity={0.34} />
-      <mesh position={[0, 0.006, 0]}>
-        <cylinderGeometry args={[0.12, 0.13, 0.012, 24]} />
-        <GlassMat tint="pale" />
-      </mesh>
-      <mesh position={[0, 0.34, 0]}>
-        <cylinderGeometry args={[0.01, 0.01, 0.66, 8]} />
+      <mesh geometry={g.frame}>
         <GlassMat tint="glass" />
       </mesh>
-      <mesh position={[0, 0.72, 0]}>
-        <coneGeometry args={[0.14, 0.18, 22, 1, true]} />
+      <mesh geometry={g.shade}>
         <GlassMat tint="pale" />
-        <Edges threshold={30} color={NEUTRAL} />
       </mesh>
     </group>
   );
 }
 
-/** A leafy potted houseplant — upright arching blades fanning out of a pot.
- *  With a `liveSlug` it solidifies alongside that hotspot (the workstation). */
+/** A leafy potted houseplant: a turned pot — foot, belly, a rolled rim — and
+ *  fourteen arching strap leaves, each folded along its midrib and set on the
+ *  golden angle so no two line up. It used to be nine squashed cones, which
+ *  read as a bundle of spikes. With a `liveSlug` it solidifies alongside that
+ *  hotspot (the workstation). */
 function PottedPlant({ position, liveSlug }: { position: V3; liveSlug?: string }) {
-  const blades = useMemo(
-    () =>
-      Array.from({ length: 9 }, (_, i) => ({
-        a: (i / 9) * Math.PI * 2 + (i % 2) * 0.4,
-        tilt: 0.13 + (i % 3) * 0.08,
-        len: 0.34 + ((i * 7) % 3) * 0.07,
-      })),
-    [],
-  );
+  const g = useGeometry(() => {
+    const pot = merge([
+      lathe([[0, 0], [0.084, 0], [0.094, 0.006], [0.113, 0.06], [0.126, 0.128], [0.13, 0.152], [0.1335, 0.161], [0.128, 0.1665], [0.1215, 0.159], [0, 0.156]], 36),
+      lathe([[0, 0.149], [0.121, 0.146], [0, 0.146]], 36), // the soil, a hair domed
+    ]);
+    const leaves: BufferGeometry[] = [];
+    for (let i = 0; i < 14; i++) {
+      const a = i * 2.39996;
+      const k = ((i * 9) % 14) / 13; // 0..1, scrambled
+      const H = 0.3 + k * 0.2; // height the leaf reaches
+      const R = 0.12 + (1 - k) * 0.11; // how far it arches out
+      const dir = [Math.cos(a), 0, Math.sin(a)];
+      const at = (r: number, y: number): [number, number, number] => [dir[0] * r, 0.15 + y, dir[2] * r];
+      leaves.push(leaf([at(0, 0), at(R * 0.22, H * 0.55), at(R * 0.55, H * 0.92), at(R, H * 0.8)], 0.066 + (1 - k) * 0.016, [-dir[2], 0, dir[0]], { fold: 0.3, widest: 0.42 }));
+    }
+    return { pot, leaves: merge(leaves) };
+  });
   return (
     <group position={position}>
       <BlobShadow position={[0, 0.003, 0]} radius={0.2} opacity={0.34} />
-      {/* pot — kept to the scene's neutral glass, no terracotta */}
-      <mesh position={[0, 0.08, 0]}>
-        <cylinderGeometry args={[0.13, 0.1, 0.16, 22]} />
-        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} tint="deep" /> : <GlassMat tint="deep" />}
-        <Edges threshold={24} color={NEUTRAL} />
-      </mesh>
-      {/* soil, as understated glass rather than dark earth */}
-      <mesh position={[0, 0.165, 0]}>
-        <cylinderGeometry args={[0.12, 0.12, 0.012, 20]} />
-        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} tint="glass" /> : <GlassMat tint="glass" />}
-      </mesh>
-      {/* leaf blades — same neutral glass, no green, barely there at rest */}
-      {blades.map((b, i) => (
-        <group key={i} position={[0, 0.17, 0]} rotation={[0, b.a, 0]}>
-          <group rotation={[b.tilt, 0, 0]}>
-            <mesh position={[0, b.len / 2, 0]} scale={[1, 1, 0.18]}>
-              <coneGeometry args={[0.045, b.len, 5]} />
-              {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} tint="pale" solid={0.5} /> : <GlassMat tint="pale" />}
-            </mesh>
-          </group>
-        </group>
-      ))}
+      <mesh geometry={g.pot}>{liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} tint="deep" /> : <GlassMat tint="deep" />}</mesh>
+      <mesh geometry={g.leaves}>{liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} tint="pale" solid={0.5} /> : <GlassMat tint="pale" />}</mesh>
     </group>
   );
 }
@@ -1096,185 +1085,25 @@ function BookcaseMouse({ gap }: { gap: V3 }) {
 }
 
 /** The bookcase. Engaging the Zwijsen book "turns it on": the book spines glow,
- *  alongside the open spread lifting out to face the player. */
+ *  alongside the open spread lifting out to face the player.
+ *
+ *  Built like furniture: sides with a softened front edge, a top that
+ *  overhangs as a cornice, a plinth set back as a toe kick, a thin back let
+ *  into the frame, and shelves with a front lip. The books are rounded, sit
+ *  ON their shelves (they used to float a few millimetres over them), run to
+ *  different depths with their spines lined up at the front, and carry two
+ *  bands near each end of the spine — the detail that makes a box read as a
+ *  book. The stack lies a little askew, and the plant on top is a succulent
+ *  in a turned pot. Each tone is one mesh: the case, three book values and
+ *  the two band values, instead of a mesh per book. */
+const SHELF_TOPS = [0.171, 0.431, 0.691];
+const SPINE_Z = 0.13; // where the spines line up, a little behind the lip
 function Bookcase({ position, rotation }: { position: V3; rotation: [number, number, number] }) {
   const { hovered, selected, visited } = useActive('zwijsen-ar-books');
   const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
   const lit = useRef(0);
   // the hover light (lit.tsx) for the shelved books and the plant; the books
   // are the body — the frame's glass brings its own
-  const link = useLitLink('zwijsen-ar-books');
-  const shelved = useRef<Group>(null);
-  const body = useLitBody(shelved);
-  useFrame((_s) => {
-    const t = hovered || selected ? 1 : visited ? 0.3 : 0;
-    lit.current += (t - lit.current) * 0.1;
-    const e = 0.1 + lit.current * 0.7;
-    for (const m of bookMats.current) if (m) m.emissiveIntensity = e;
-    body(link.litU.value, selected || visited);
-  });
-  return (
-    <group position={position} rotation={rotation}>
-      <BlobShadow position={[0, 0.004, 0.04]} radius={0.52} aspect={0.55} opacity={0.4} />
-      <group>
-      {/* case frame: back, sides, top, base — solidifies once the book is opened */}
-      <SoftBox position={[0, 0.46, -0.09]} args={[0.74, 0.92, 0.06]} radius={0.02} liveSlug="zwijsen-ar-books" liveGhost={false} />
-      <SoftBox position={[-0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
-      <SoftBox position={[0.355, 0.46, 0.04]} args={[0.03, 0.92, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
-      <SoftBox position={[0, 0.915, 0.04]} args={[0.74, 0.03, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
-      <SoftBox position={[0, 0.02, 0.04]} args={[0.74, 0.04, 0.26]} radius={0.01} liveSlug="zwijsen-ar-books" liveGhost={false} />
-      {/* shelves */}
-      {[0.16, 0.42, 0.68].map((sy, s) => (
-        <SoftBox key={s} position={[0, sy, 0.04]} args={[0.7, 0.02, 0.24]} radius={0.006} opacity={0.3} liveSlug="zwijsen-ar-books" liveGhost={false} />
-      ))}
-      <group ref={shelved}>
-      {/* books — their spines glow when the bookcase is on */}
-      {BOOKS.map((bk, i) => (
-        <mesh key={i} position={bk.p} rotation={bk.r}>
-          <boxGeometry args={bk.s} />
-          <meshStandardMaterial ref={(m) => (bookMats.current[i] = m)} {...litMat(link)} color={SURFACE[bk.c].color} emissive={SURFACE[bk.c].color} emissiveIntensity={0.1} roughness={0.6} />
-        </mesh>
-      ))}
-      {/* a horizontal stack on the bottom-right shelf */}
-      <group position={[0.19, 0.19, 0.02]}>
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[0.2, 0.03, 0.16]} />
-          <meshStandardMaterial {...litMat(link)} color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.12} roughness={0.6} />
-        </mesh>
-        <mesh position={[0.01, 0.032, 0.006]}>
-          <boxGeometry args={[0.19, 0.028, 0.155]} />
-          <meshStandardMaterial {...litMat(link)} color={SURFACE.glass.color} emissive={SURFACE.glass.color} emissiveIntensity={0.12} roughness={0.6} />
-        </mesh>
-        <mesh position={[-0.008, 0.062, -0.004]}>
-          <boxGeometry args={[0.18, 0.026, 0.15]} />
-          <meshStandardMaterial {...litMat(link)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.12} roughness={0.6} />
-        </mesh>
-      </group>
-      </group>
-      {/* a little potted plant on top for detail — neutral glass, no green/brown */}
-      <group position={[0.25, 0.93, 0.05]}>
-        <mesh position={[0, 0.018, 0]}>
-          <cylinderGeometry args={[0.03, 0.024, 0.04, 16]} />
-          <GlassMat tint="deep" lit={link} />
-        </mesh>
-        <mesh position={[0, 0.07, 0]}>
-          <icosahedronGeometry args={[0.045, 0]} />
-          <GlassMat tint="pale" lit={link} />
-        </mesh>
-      </group>
-      <LifeGroup slug="zwijsen-ar-books">
-        <OpenBook slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} />
-      </LifeGroup>
-      </group>
-      {/* a mouse hiding behind the book — hops out of the gap and scurries around */}
-      <BookcaseMouse gap={[0.12, 0.52, 0.04]} />
-    </group>
-  );
-}
-
-/* ---------- REMODEL (proposal): the plant, the lamp, the race table ---------- */
-
-// A houseplant with leaves instead of spikes: a turned pot (foot, belly, a
-// rolled rim) and fourteen arching strap leaves, each folded along its midrib,
-// laid out on the golden angle so no two line up.
-function PottedPlantNew({ position, liveSlug }: { position: V3; liveSlug?: string }) {
-  const g = useGeometry(() => {
-    const pot = merge([
-      lathe([[0, 0], [0.084, 0], [0.094, 0.006], [0.113, 0.06], [0.126, 0.128], [0.13, 0.152], [0.1335, 0.161], [0.128, 0.1665], [0.1215, 0.159], [0, 0.156]], 36),
-      lathe([[0, 0.149], [0.121, 0.146], [0, 0.146]], 36), // the soil, a hair domed
-    ]);
-    const leaves: BufferGeometry[] = [];
-    for (let i = 0; i < 14; i++) {
-      const a = i * 2.39996;
-      const k = ((i * 9) % 14) / 13; // 0..1, scrambled
-      const H = 0.3 + k * 0.2; // height the leaf reaches
-      const R = 0.12 + (1 - k) * 0.11; // how far it arches out
-      const dir = [Math.cos(a), 0, Math.sin(a)];
-      const at = (r: number, y: number): [number, number, number] => [dir[0] * r, 0.15 + y, dir[2] * r];
-      leaves.push(leaf([at(0, 0), at(R * 0.22, H * 0.55), at(R * 0.55, H * 0.92), at(R, H * 0.8)], 0.066 + (1 - k) * 0.016, [-dir[2], 0, dir[0]], { fold: 0.3, widest: 0.42 }));
-    }
-    return { pot, leaves: merge(leaves) };
-  });
-  return (
-    <group position={position}>
-      <BlobShadow position={[0, 0.003, 0]} radius={0.2} opacity={0.34} />
-      <mesh geometry={g.pot}>{liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} tint="deep" /> : <GlassMat tint="deep" />}</mesh>
-      <mesh geometry={g.leaves}>{liveSlug ? <LiveGlassMat slug={liveSlug} ghost={false} tint="pale" solid={0.5} /> : <GlassMat tint="pale" />}</mesh>
-    </group>
-  );
-}
-
-// A tripod floor lamp: three splayed, tapered legs meeting at a turned hub,
-// a stem on up to a drum shade with a real wall (outside and in), and a
-// finial on top. Same height and footprint as the old lamp.
-function FloorLampNew({ position }: { position: V3 }) {
-  const g = useGeometry(() => {
-    const frame: BufferGeometry[] = [];
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2 + 0.5;
-      // from the hub at 0.42 out and down to the floor at r 0.15
-      const len = Math.hypot(0.15, 0.42);
-      const tilt = Math.atan2(0.15, 0.42);
-      frame.push(place(hang(softBox(0.012, len, 0.012, 0.004, { taper: 1.7 }), len, [0, 0, 0], [tilt, 0, 0]), [0, 0.42, 0], [0, a, 0]));
-    }
-    frame.push(place(lathe([[0, -0.03], [0.014, -0.03], [0.018, -0.012], [0.018, 0.012], [0.012, 0.03], [0, 0.03]], 16), [0, 0.42, 0]));
-    frame.push(place(lathe([[0, 0], [0.006, 0], [0.006, 0.3], [0, 0.3]], 10), [0, 0.43, 0]));
-    frame.push(place(lathe([[0, 0], [0.008, 0], [0.012, 0.012], [0.006, 0.024], [0, 0.028]], 12), [0, 0.81, 0])); // finial
-    const shade = lathe([[0.132, 0.63], [0.136, 0.633], [0.12, 0.806], [0.116, 0.81], [0.113, 0.806], [0.129, 0.633], [0.126, 0.63]], 40);
-    return { frame: merge(frame), shade };
-  });
-  return (
-    <group position={position}>
-      <BlobShadow position={[0, 0.003, 0]} radius={0.2} opacity={0.34} />
-      <mesh geometry={g.frame}>
-        <GlassMat tint="glass" />
-      </mesh>
-      <mesh geometry={g.shade}>
-        <GlassMat tint="pale" />
-      </mesh>
-    </group>
-  );
-}
-
-// The race table as a mid-century coffee table: a top with a bullnose edge —
-// the round-table version of every other remodel's softened edge — on three
-// tapered legs that splay out from under it, each with a ferrule at the foot.
-// The top stays under the cars.
-function RaceTableTop() {
-  const g = useGeometry(() => {
-    const parts = [lathe([[0, 0.166], [0.298, 0.166], [0.311, 0.168], [0.318, 0.174], [0.3205, 0.181], [0.318, 0.187], [0.31, 0.1915], [0.296, 0.193], [0, 0.193]], 64)];
-    const len = 0.172;
-    const leg = [[0, -len], [0.0085, -len], [0.0085, -len + 0.012], [0.0078, -len + 0.013], [0.0145, 0], [0, 0]] as [number, number][];
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
-      // hung from under the top at r 0.19, splayed out along its own radius
-      parts.push(place(place(lathe(leg, 12), [0, 0, 0], [-0.2, 0, 0]), [Math.sin(a) * 0.19, 0.168, Math.cos(a) * 0.19], [0, a, 0]));
-    }
-    return merge(parts);
-  });
-  return (
-    <mesh geometry={g}>
-      <LiveGlassMat slug="lightship-drive" tint="pale" />
-    </mesh>
-  );
-}
-
-/* ---------- REMODEL (proposal): the bookcase ---------- */
-
-// The same case, built like furniture: sides with a softened front edge, a
-// top that overhangs as a cornice, a plinth set back as a toe kick, a thin
-// back let into the frame, and shelves with a front lip. The books are
-// rounded, sit ON their shelves, run to different depths with their spines
-// lined up at the front, and carry two bands near each end of the spine —
-// the detail that makes a box read as a book. The stack lies a little
-// askew, and the plant on top is a succulent in a turned pot. The Zwijsen
-// book, its gap and the mouse stay exactly where they were.
-const SHELF_TOPS = [0.171, 0.431, 0.691];
-const SPINE_Z = 0.13; // where the spines line up, a little behind the lip
-function BookcaseNew({ position, rotation }: { position: V3; rotation: [number, number, number] }) {
-  const { hovered, selected, visited } = useActive('zwijsen-ar-books');
-  const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
-  const lit = useRef(0);
   const link = useLitLink('zwijsen-ar-books');
   const shelved = useRef<Group>(null);
   const body = useLitBody(shelved);
@@ -1306,7 +1135,7 @@ function BookcaseNew({ position, rotation }: { position: V3; rotation: [number, 
       const [w, h] = bk.s;
       const d = 0.15 + ((i * 37) % 5) * 0.01; // 15–19 cm deep, spines flush
       const top = SHELF_TOPS.reduce((a, b) => (Math.abs(b - (bk.p[1] - h / 2)) < Math.abs(a - (bk.p[1] - h / 2)) ? b : a));
-      // a leaning book keeps its old place; an upright one stands on the shelf
+      // a leaning book keeps its place; an upright one stands on the shelf
       const at: V3 = bk.r ? bk.p : [bk.p[0], top + h / 2, SPINE_Z - d / 2];
       const rot = bk.r ?? [0, 0, 0];
       tone[bk.c].push(place(softBox(w, h, d, 0.0035, { band: 1, mid: 1 }), at, rot)); // a 3.5 mm round needs one step
@@ -1379,23 +1208,19 @@ function BookcaseNew({ position, rotation }: { position: V3; rotation: [number, 
   );
 }
 
-/* ---------- REMODEL (proposal): the desk, monitor and mug ---------- */
+/* ---------- the workstation ---------- */
 
-type P3 = [number, number, number];
-/** A leg hung from its top: built pointing down from the origin, so a splay
- *  rotates it about the joint rather than its middle. */
-function hang(g: BufferGeometry, len: number, at: P3, splay: P3 = [0, 0, 0]) {
-  return place(place(g, [0, -len / 2, 0]), at, splay);
-}
-
-// A Scandinavian writing desk on the old desk's footprint and top height
-// (0.395), so the keyboard, mouse, cup and monitor stay put: a thin top with
-// an eased edge, an apron with one drawer, and square legs that taper to the
-// floor and splay a little. The monitor loses its 3 cm slab for a thin panel
-// with a rounded housing behind it, on a real stand — an oval foot, a flat
-// neck and a hinge — and the cup is turned from a profile: a foot, a belly,
-// a rolled lip and a D handle.
-function DeskNew({ brigade }: { brigade: LitLink }) {
+/** The Virtuele Brigade desk and everything on it, in the desk's own frame.
+ *
+ *  A Scandinavian writing desk: a thin top with an eased edge, an apron with
+ *  one drawer, and square legs that taper to the floor and splay a little.
+ *  The top's surface is at 0.395, which the keyboard, mouse and cup sit on.
+ *  The monitor is a thin panel with a rounded housing behind it, on a real
+ *  stand — an oval foot, a flat neck and a hinge — where it used to be a 3 cm
+ *  slab on a dowel; engaging it solidifies the desk, chair and plant with it
+ *  (the life spreads). Everything structural stays behind the screen's plane
+ *  (z -0.125), so nothing crosses the picture. */
+function Desk({ brigade }: { brigade: LitLink }) {
   const g = useGeometry(() => {
     const wood: BufferGeometry[] = [];
     const trim: BufferGeometry[] = [];
@@ -1423,12 +1248,6 @@ function DeskNew({ brigade }: { brigade: LitLink }) {
     body.push(place(softBox(0.36, 0.22, 0.02, 0.01, { bulgeBack: 0.008, mid: 4 }), [0, 0.612, -0.152]));
     return merge(body);
   });
-  const cup = useGeometry(() =>
-    merge([
-      lathe([[0, 0], [0.021, 0], [0.0245, 0.003], [0.0285, 0.035], [0.0305, 0.066], [0.0311, 0.0703], [0.0301, 0.0724], [0.0287, 0.0708], [0.0279, 0.062], [0.018, 0.06], [0, 0.06]], 28),
-      tube([[0.028, 0.059, 0], [0.043, 0.058, 0], [0.051, 0.045, 0], [0.047, 0.026, 0], [0.027, 0.02, 0]], 0.0042, 6, 24),
-    ]),
-  );
   return (
     <>
       <mesh geometry={g.wood}>
@@ -1443,30 +1262,23 @@ function DeskNew({ brigade }: { brigade: LitLink }) {
         </mesh>
         <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
       </LifeGroup>
+      {/* keyboard square in front of the monitor, mouse to its right, the cup
+          off to the left where an elbow won't knock it */}
       <Keyboard position={[-0.02, 0.403, 0.06]} rotation={[0, 0.04, 0]} />
       <Mouse position={[0.235, 0.408, 0.055]} rotation={[0, -0.12, 0]} />
-      <group position={[-0.34, 0.395, 0.075]} rotation={[0, -0.5, 0]}>
-        <mesh geometry={cup}>
-          <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
-        </mesh>
-        {/* the coffee, just under the lip */}
-        <mesh position={[0, 0.066, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <circleGeometry args={[0.0285, 24]} />
-          <meshStandardMaterial {...litMat(brigade)} color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.22} roughness={0.35} side={DoubleSide} />
-        </mesh>
-      </group>
+      <CoffeeCup position={[-0.34, 0.395, 0.075]} rotation={[0, -0.5, 0]} lit={brigade} />
+      {/* the antenna deploying out of the monitor, hailing for a link */}
       <BrigadeAntenna />
     </>
   );
 }
 
-/* ---------- REMODEL (proposal): the office chair ---------- */
-
-// A task chair to the old one's size and seat height: a five-star base whose
-// spokes taper out to twin-wheel castors, a sleeved gas lift and a mechanism
-// under the seat, a seat with a crowned top and a waterfall front, a back
-// shell curved round the sitter and carried on a single spine, and T arms.
-function ChairNew() {
+/** The office chair, facing the desk: a five-star base whose spokes taper out
+ *  to twin-wheel castors, a sleeved gas lift and a mechanism under the seat, a
+ *  seat with a crowned top and a waterfall front, a back shell curved round
+ *  the sitter and carried on a single spine, so daylight shows between seat
+ *  and back, and T arms. */
+function OfficeChair() {
   const g = useGeometry(() => {
     const soft: BufferGeometry[] = [];
     const frame: BufferGeometry[] = [];
@@ -1513,20 +1325,22 @@ function ChairNew() {
   );
 }
 
-/* ---------- REMODEL (proposal): the couch ---------- */
+/* ---------- the couch ---------- */
 
-// A mid-century two-seater, built to the old couch's footprint (0.92 × 0.44)
-// and seat height, so the phone, its balls and the popcore hotspot all land
-// where they did. What changed is the construction: arms that rise from the
-// floor line as their own padded pieces, a base between them on splayed,
-// tapered legs, seat cushions with a crowned top and a rounded front, back
-// cushions reclined against a full-width back, a welt of piping round every
-// cushion — the detail that says "upholstered" at a glance — and a throw
-// pillow in the free corner. One corner radius is gone: tight on the frame,
+// A mid-century two-seater, 0.92 × 0.44, its seat cushions' flat top at
+// 0.197 — the phone, its balls (COUCH_SEAT_Y) and the popcore hotspot are
+// all placed against that. The arms rise from the floor line as their own
+// padded pieces, the base sits between them on splayed, tapered legs, the
+// seat cushions have a crowned top and a rounded front, the back cushions
+// recline against a full-width back, a welt of piping runs round every
+// cushion — the detail that says "upholstered" at a glance, and at rest it
+// draws the seams into the ghost sketch — and a throw pillow sits in the free
+// corner. It used to be built with one corner radius on every part, which is
+// what made it read as inflated blocks: here it is tight on the frame and
 // soft on everything you would sit on.
 const COUCH_SEAT: { w: number; h: number; d: number; r: number; o: Soft } = { w: 0.369, h: 0.066, d: 0.4, r: 0.026, o: { crown: 0.007, bulge: 0.006, mid: 5 } };
 const COUCH_BACK: { w: number; h: number; d: number; r: number; o: Soft } = { w: 0.366, h: 0.2, d: 0.085, r: 0.04, o: { crown: 0.004, bulge: 0.013, mid: 4 } };
-function CouchNew() {
+function Couch() {
   const g = useGeometry(() => {
     const body: BufferGeometry[] = [];
     const welt: BufferGeometry[] = [];
@@ -1577,7 +1391,7 @@ function CouchNew() {
 
 export function RoomRig() {
   const { accent } = useAccent();
-  const brigade = useLitLink('virtuele-brigade'); // the monitor neck's light (lit.tsx)
+  const brigade = useLitLink('virtuele-brigade'); // the coffee's light (lit.tsx)
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const desk = useTweak('Room.Desk', { position: [-1.2, 0, 0.18], rotationY: 1.76 });
   const couch = useTweak('Room.Couch', { position: [0.12, 0, -0.22], rotationY: -0.16 });
@@ -1604,180 +1418,30 @@ export function RoomRig() {
           solidifies the desk, chair + plant with it (the life spreads). */}
       <group position={desk.position} rotation={[0, desk.rotationY, 0]}>
         <BlobShadow position={[0, 0.004, -0.16]} radius={0.6} aspect={0.72} opacity={0.38} />
-        {REMODEL.has('desk') ? (
-          <group position={[0, 0, -0.3]}>
-            <DeskNew brigade={brigade} />
-          </group>
-        ) : (
         <group position={[0, 0, -0.3]}>
-          <SoftBox position={[0, 0.37, 0]} args={[0.95, 0.05, 0.45]} radius={0.03} outline liveSlug="virtuele-brigade" liveGhost={false} />
-          {([[-0.42, -0.18], [0.42, -0.18], [-0.42, 0.18], [0.42, 0.18]] as [number, number][]).map(([lx, lz], i) => (
-            <mesh key={i} position={[lx, 0.18, lz]}>
-              <cylinderGeometry args={[0.02, 0.02, 0.36, 12]} />
-              <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="pale" />
-            </mesh>
-          ))}
-          <LifeGroup slug="virtuele-brigade">
-            {/* Stand: foot on the desk, then a neck that rises BEHIND the panel.
-                The neck used to sit at z -0.05 while the panel is at -0.14, so
-                it stood 90mm proud of the screen on the viewer's side and cut
-                straight down the display. Everything structural now lives at
-                z -0.16 or further back, so nothing crosses the picture. */}
-            <SoftBox position={[0, 0.404, -0.15]} args={[0.17, 0.012, 0.11]} radius={0.006} liveSlug="virtuele-brigade" />
-            <mesh position={[0, 0.5, -0.163]}>
-              <cylinderGeometry args={[0.013, 0.017, 0.19, 12]} />
-              <GlassMat tint="pale" lit={brigade} />
-            </mesh>
-            {/* the hinge block where the neck meets the panel's back */}
-            <SoftBox position={[0, 0.6, -0.157]} args={[0.07, 0.05, 0.022]} radius={0.008} liveSlug="virtuele-brigade" />
-            <SoftBox position={[0, 0.62, -0.14]} args={[0.54, 0.34, 0.03]} radius={0.02} liveSlug="virtuele-brigade" />
-            <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
-          </LifeGroup>
-          {/* The desk set — keyboard square in front of the monitor, mouse to its
-              right, cup off to the left where an elbow won't knock it. Desk top is
-              y 0.395 (slab centre 0.37, 0.05 thick), so each sits on that. */}
-          <Keyboard position={[-0.02, 0.403, 0.06]} rotation={[0, 0.04, 0]} />
-          <Mouse position={[0.235, 0.408, 0.055]} rotation={[0, -0.12, 0]} />
-          <CoffeeCup position={[-0.34, 0.395, 0.075]} rotation={[0, -0.5, 0]} />
-          {/* the antenna deploying out of the monitor, hailing for a link */}
-          <BrigadeAntenna />
+          <Desk brigade={brigade} />
         </group>
-        )}
-        {/* Chair in front of the desk, facing the monitor. An office chair, so
-            it is built as one: five arms on castors, a gas cylinder, a seat that
-            overhangs it, and a backrest carried on posts rather than growing
-            straight out of the seat. It used to be two slabs on a single pole
-            with nothing on the floor, which read as a stool floating over its
-            own shadow. */}
-        {REMODEL.has('chair') ? (
-          <group position={[0, 0, 0.05]} rotation={[0, Math.PI, 0]}>
-            <ChairNew />
-          </group>
-        ) : (
+        {/* the chair in front of the desk, facing the monitor */}
         <group position={[0, 0, 0.05]} rotation={[0, Math.PI, 0]}>
-          {/* base: five arms at 72°, each ending in a castor */}
-          {Array.from({ length: 5 }, (_, i) => {
-            const a = (i / 5) * Math.PI * 2 + 0.3;
-            const r = 0.115;
-            return (
-              <group key={i} rotation={[0, -a, 0]}>
-                <SoftBox position={[0, 0.028, r * 0.55]} args={[0.028, 0.016, r]} radius={0.007} liveSlug="virtuele-brigade" liveGhost={false} />
-                <mesh position={[0, 0.016, r]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.016, 0.016, 0.012, 10]} />
-                  <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="glass" />
-                </mesh>
-              </group>
-            );
-          })}
-          {/* gas cylinder, tapered so it reads as a column not a dowel */}
-          <mesh position={[0, 0.135, 0]}>
-            <cylinderGeometry args={[0.019, 0.026, 0.19, 12]} />
-            <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="pale" />
-          </mesh>
-          <SoftBox position={[0, 0.238, 0]} args={[0.32, 0.055, 0.31]} radius={0.055} outline liveSlug="virtuele-brigade" liveGhost={false} />
-          {/* two posts carrying the back, so daylight shows between seat and rest */}
-          {([-0.1, 0.1] as const).map((lx, i) => (
-            <mesh key={i} position={[lx, 0.3, -0.135]}>
-              <cylinderGeometry args={[0.011, 0.011, 0.1, 8]} />
-              <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="glass" />
-            </mesh>
-          ))}
-          <SoftBox position={[0, 0.44, -0.142]} args={[0.3, 0.3, 0.045]} radius={0.05} outline liveSlug="virtuele-brigade" liveGhost={false} />
-          {/* lumbar band — one horizontal break so the back is not a plain slab */}
-          <SoftBox position={[0, 0.355, -0.118]} args={[0.26, 0.055, 0.022]} radius={0.02} opacity={0.22} liveSlug="virtuele-brigade" liveGhost={false} />
-          {/* armrests */}
-          {([-0.17, 0.17] as const).map((lx, i) => (
-            <group key={i}>
-              <mesh position={[lx, 0.29, -0.05]}>
-                <cylinderGeometry args={[0.009, 0.009, 0.085, 8]} />
-                <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="pale" />
-              </mesh>
-              <SoftBox position={[lx, 0.335, -0.03]} args={[0.035, 0.016, 0.15]} radius={0.008} liveSlug="virtuele-brigade" liveGhost={false} />
-            </group>
-          ))}
+          <OfficeChair />
         </group>
-        )}
       </group>
 
       {/* bookcase (back-right) — engaging the Zwijsen book lights its spine +
           lifts the open book out of its gap */}
-      {REMODEL.has('bookcase') ? (
-        <BookcaseNew position={shelf.position} rotation={[0, shelf.rotationY, 0]} />
-      ) : (
-        <Bookcase position={shelf.position} rotation={[0, shelf.rotationY, 0]} />
-      )}
+      <Bookcase position={shelf.position} rotation={[0, shelf.rotationY, 0]} />
 
       {/* couch + phone — faces the coffee table / room front (+z). Opening the
           phone solidifies the couch it sits on. */}
       <group position={couch.position} rotation={[0, couch.rotationY, 0]}>
         <BlobShadow position={[0, 0.004, -0.02]} radius={0.6} aspect={0.58} opacity={0.4} />
 
-        {REMODEL.has('couch') ? (
-          <CouchNew />
-        ) : (
-          <>
-        {/* The couch reads as furniture rather than stacked slabs by separating
-            the three things a real one has: a frame that sits on legs, loose
-            cushions that sit in the frame, and arms that stop short of the back.
-            Before, the seat was one 0.92-wide block whose underside nearly met
-            the floor, so the whole piece had no visible ground line and no gap
-            anywhere to catch a shadow. */}
-
-        {/* legs — the frame is lifted off the floor, which is most of the fix */}
-        {([[-0.4, 0.16], [0.4, 0.16], [-0.4, -0.16], [0.4, -0.16]] as [number, number][]).map(([lx, lz], i) => (
-          <mesh key={i} position={[lx, 0.032, lz]}>
-            <cylinderGeometry args={[0.019, 0.014, 0.064, 8]} />
-            <LiveGlassMat slug="popcore-games" ghost={false} tint="glass" />
-          </mesh>
-        ))}
-
-        {/* the frame: a plinth the cushions drop into */}
-        <SoftBox position={[0, 0.098, 0]} args={[0.92, 0.075, 0.44]} radius={0.022} liveSlug="popcore-games" liveGhost={false} />
-
-        {/* Two seat cushions, with a seam between them — and a crease at each
-            end. They used to be 0.42 wide and ran 0.019 INTO the arms, so the
-            cushion and the arm shared a face and read as one milled block. */}
-        {([-0.1905, 0.1905] as const).map((cx, i) => (
-          <SoftBox key={i} position={[cx, 0.163, 0.012]} args={[0.35, 0.075, 0.4]} radius={0.032} liveSlug="popcore-games" liveGhost={false} />
-        ))}
-
-        {/* back: a low rail, then two cushions leaning on it */}
-        <SoftBox position={[0, 0.235, -0.196]} args={[0.92, 0.2, 0.055]} radius={0.02} liveSlug="popcore-games" liveGhost={false} />
-        {/* The back cushions run wider than the seat ones, right up against the
-            arms. The crease belongs at the seat, where a real couch has a gap
-            you lose things down; up the back the cushion is pressed into the
-            arm, and leaving the same gap there opened a slot straight through
-            the corner of the frame. */}
-        {([-0.1985, 0.1985] as const).map((cx, i) => (
-          <SoftBox key={i} position={[cx, 0.272, -0.163]} args={[0.375, 0.185, 0.07]} radius={0.032} rotation={[0.11, 0, 0]} liveSlug="popcore-games" liveGhost={false} />
-        ))}
-
-        {/* Arms, in two parts. One rounded slab was the artificial bit: a couch
-            arm is a padded roll over a frame, and a single box gives it a flat
-            top and four equal chamfers, which is a plinth. So the base carries
-            the height and a near-circular roll sits on it — a RoundedBox whose
-            radius is capped at half its smallest side comes out as a bar, which
-            is exactly the profile wanted, and its flat front cap reads as the
-            arm's end panel.
-            The roll is a touch wider than its base (0.082 vs 0.078) because
-            padding overhangs the frame it is wrapped around; that sliver of
-            overhang is what stops it reading as machined.
-            They also moved in from ±0.452 to sit flush with the 0.92 frame
-            rather than floating 0.031 proud of it with nothing underneath. */}
-        {([-0.419, 0.419] as const).map((ax, i) => (
-          <group key={i}>
-            <SoftBox position={[ax, 0.1525, 0.022]} args={[0.078, 0.095, 0.4]} radius={0.018} liveSlug="popcore-games" liveGhost={false} />
-            <SoftBox position={[ax, 0.222, 0.022]} args={[0.082, 0.078, 0.4]} radius={0.039} liveSlug="popcore-games" liveGhost={false} />
-          </group>
-        ))}
-
-          </>
-        )}
+        <Couch />
 
         {/* The phone. This is what the couch is here FOR — the popcore hotspot
             anchors to it, and a couch with nothing on it gives the marker
             nothing to point at. It lands on the right-hand cushion, whose top
-            is at 0.2005 in couch-local space. */}
+            is at about 0.203 there, crown included. */}
         <LifeGroup slug="popcore-games">
           <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor={accent} />
         </LifeGroup>
@@ -1790,8 +1454,8 @@ export function RoomRig() {
 
       {/* fill the diorama out, balanced around the centre; the plant belongs to
           the workstation corner, so it wakes with the monitor */}
-      {REMODEL.has('plant') ? <PottedPlantNew position={plant.position} liveSlug="virtuele-brigade" /> : <PottedPlant position={plant.position} liveSlug="virtuele-brigade" />}
-      {REMODEL.has('lamp') ? <FloorLampNew position={lamp.position} /> : <FloorLamp position={lamp.position} />}
+      <PottedPlant position={plant.position} liveSlug="virtuele-brigade" />
+      <FloorLamp position={lamp.position} />
     </group>
   );
 }

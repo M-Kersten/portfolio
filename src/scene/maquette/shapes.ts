@@ -261,6 +261,13 @@ export function place(g: BufferGeometry, p: V3 = [0, 0, 0], r: V3 = [0, 0, 0], s
   return g.applyMatrix4(new Matrix4().compose(new Vector3(...p), new Quaternion().setFromEuler(new Euler(...r)), sc));
 }
 
+/** A leg hung from its top: built pointing down from the origin, so a splay
+ *  rotates it about the joint rather than about its middle. `len` is the
+ *  part's height as built (centred on its origin). */
+export function hang(g: BufferGeometry, len: number, at: V3, splay: V3 = [0, 0, 0]): BufferGeometry {
+  return place(place(g, [0, -len / 2, 0]), at, splay);
+}
+
 /** One geometry from many: every part keeps its own normals, and nothing but
  *  position and normal survives (these models are untextured). */
 export function merge(parts: BufferGeometry[]): BufferGeometry {
