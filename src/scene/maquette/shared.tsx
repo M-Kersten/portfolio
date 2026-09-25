@@ -2,7 +2,7 @@
 // accent context, small geometry/math helpers, and the hover/selection hooks
 // every object leans on. If you're adding a new 3D object, start here to see
 // what's already available.
-import { createContext, useContext, useEffect, useState, type ComponentProps } from 'react';
+import { createContext, forwardRef, useContext, useEffect, useState, type ComponentPropsWithoutRef, type ElementRef } from 'react';
 import { Line as DreiLine } from '@react-three/drei';
 import { CatmullRomCurve3, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Texture } from 'three';
 import { type LayerId } from '../framing';
@@ -208,10 +208,13 @@ export function makeRand(seed: number) {
  *  always NEUTRAL (GHOST_LINE on unbuilt/ghost things); drei Line widths stay
  *  on a three-step scale — 1 structure · 1.2 detail · 1.5 signature accents
  *  (the constellation, drawn far away in the sky, is the one licensed
- *  exception). Accent-coloured lines belong to interactive objects only. */
-export function Line(props: ComponentProps<typeof DreiLine>) {
-  return <DreiLine fog {...props} />;
-}
+ *  exception). Accent-coloured lines belong to interactive objects only.
+ *
+ *  Forwards its ref to drei's Line (React 18 drops `ref` on plain function
+ *  components), so callers can reach the Line2 and animate its material. */
+export const Line = forwardRef<ElementRef<typeof DreiLine>, ComponentPropsWithoutRef<typeof DreiLine>>(function Line(props, ref) {
+  return <DreiLine ref={ref} fog {...props} />;
+});
 
 /* ---------- Hover behaviours ----------
    Hovering a project's dot animates the object in a way that fits what it is:
