@@ -12,6 +12,7 @@ import { useSceneSelector, bootAt, MAQUETTE_BOOT } from '../store';
 import { AccentCtx, PALETTE } from './shared';
 import { DotFloor, SurveyMarks, PointCloud, DepthVeil, HoloFloor } from './backdrop';
 import { PresenceGroup } from './presence';
+import { ShadowDots } from './lit';
 import { CityRig } from './city';
 import { RoomRig } from './room';
 import { ChipRig } from './chip';
@@ -132,6 +133,9 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
                 {/* Holo-table sheen — outside the presence dimmer (it only shows
                     on the active layer, which is never the dimmed one). */}
                 <HoloFloor active={presenceLayer === id} tint={PALETTE[id].accent} />
+                {/* the lit objects' shadows, printed as halftone on the floor
+                    (lit.tsx) — only the layer in focus can hold a lit object */}
+                <ShadowDots active={presenceLayer === id} />
                 {/* Presence: the layer in focus keeps full brightness, the
                     others rest dimmed (see presence.tsx). Only the dressing —
                     the life system's objects are exempt inside. */}

@@ -27,6 +27,11 @@ export default function CanvasScene({
     <Canvas
       dpr={dpr}
       frameloop={frameloop}
+      // Shadows exist only for the hover light (scene/maquette/lit.tsx): one
+      // intensity-0 light that casts while something is lit and skips its
+      // shadow pass entirely the rest of the time. PCF, so its radius softens
+      // the edge into a dot gradient.
+      shadows="percentage"
       // No `antialias`: the EffectComposer resolves its own MSAA (see its
       // `multisampling` prop in Stage), so a multisampled default framebuffer is
       // pure wasted memory + a redundant resolve every frame.

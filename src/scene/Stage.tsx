@@ -10,6 +10,7 @@ import { CameraRig } from './CameraRig';
 import { Maquette } from './maquette';
 import { GHOST_FILL, GHOST_LINE } from './maquette/life';
 import { RIM, DOT_TUNE } from './maquette/materials';
+import { ShadeLight } from './maquette/lit';
 import { useFxConfig } from './fxTweak';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
@@ -116,6 +117,9 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
       <directionalLight ref={dir1} position={[6, 11, 4]} intensity={1.1} color="#eaf2ff" />
       <directionalLight ref={dir2} position={[-7, 4, -6]} intensity={0.5} color="#27e8f2" />
       <SelectDim hemi={hemi} dir1={dir1} dir2={dir2} />
+      {/* The hover light: adds no light of its own, only the shadows and the
+          direction the lit halftone reads (maquette/lit.tsx). */}
+      <ShadeLight />
 
       {/* Reflections come almost entirely from this procedural environment; kept
           gentle so glossy surfaces catch a soft sheen rather than a hot mirror

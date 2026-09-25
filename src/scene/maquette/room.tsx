@@ -13,6 +13,7 @@ import { FIRE, GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts,
 import { GHOST_FILL, LifeGroup } from './life';
 import { GlassMat, GroundMat, LiveGlassMat, SoftBox } from './materials';
 import { BlobShadow } from './backdrop';
+import { litMat, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
 
 const PHONE_BALLS = 6;
 const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
@@ -22,6 +23,9 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
   const reduced = useReducedMotion();
   const rigRef = useRef<Group>(null);
   const mat = useRef<MeshStandardMaterial>(null);
+  // lit on hover (lit.tsx): the handset, not its screen
+  const lit = useLitLink(slug);
+  const body = useLitBody(rigRef);
   const k = useRef(0); // emissive hover/select level
   const glow = useRef(0); // 0 → 1 shift toward the lifelike colour
   const turn = useRef(0); // 0 = lying flat, 1 = lifted + facing the user
@@ -71,6 +75,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
     const t = s.clock.elapsedTime;
+    body(lit.litU.value, selected || visited);
 
     // --- lift, scale, and rotate toward the user on select; buzz on hover while resting ---
     const rig = rigRef.current;
@@ -177,7 +182,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
       <group ref={rigRef} position={position} rotation={[-Math.PI / 2, 0, 0.3]}>
         {/* body / bezel — rounded corners + a soft bevelled edge */}
         <mesh geometry={bodyGeo}>
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.28} roughness={0.4} toneMapped={false} />
+          <meshStandardMaterial {...litMat(lit)} color={accent} emissive={accent} emissiveIntensity={0.28} roughness={0.4} toneMapped={false} />
         </mesh>
         {/* screen face — a ghost glow until opened, then the screenshot. Sits
             clear of the body's bevelled front cap (extrude depth d/2 + bevel
@@ -198,7 +203,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
           <mesh key={i} position={[side * (args[0] / 2 + args[2] * 0.28), y, 0]}>
             <boxGeometry args={[args[2] * 0.7, len, args[2] * 1.5]} />
             <meshStandardMaterial
-              userData={{ lifeSkip: true }}
+              {...litMat(lit, { lifeSkip: true })}
               color={accent}
               emissive={accent}
               emissiveIntensity={0.16}
@@ -211,7 +216,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
         {/* camera bump — the other thing that dates a phone, on the back */}
         <mesh position={[args[0] * 0.26, args[1] * 0.3, -args[2] * 1.1]}>
           <boxGeometry args={[args[0] * 0.34, args[1] * 0.17, args[2] * 0.5]} />
-          <meshStandardMaterial userData={{ lifeSkip: true }} color={SURFACE.deep.color} roughness={0.35} metalness={0.3} toneMapped={false} />
+          <meshStandardMaterial {...litMat(lit, { lifeSkip: true })} color={SURFACE.deep.color} roughness={0.35} metalness={0.3} toneMapped={false} />
         </mesh>
       </group>
       {balls.map((b, i) => (
@@ -825,7 +830,7 @@ const BOOK_H = 0.19; // page depth (spine length)
 const BOOK_T = 0.011; // cover board thickness
 const BOOK_PT = 0.009; // page block thickness per half
 const BOOK_ANG = 0.22; // resting V of the halves once open
-function BookHalf({ side, tex }: { side: -1 | 1; tex: Texture | null }) {
+function BookHalf({ side, tex, lit }: { side: -1 | 1; tex: Texture | null; lit: LitLink }) {
   const { accentDeep } = useAccent();
   const x = (side * BOOK_W) / 4;
   return (
@@ -833,12 +838,12 @@ function BookHalf({ side, tex }: { side: -1 | 1; tex: Texture | null }) {
       {/* cover board */}
       <mesh position={[x, 0, 0]}>
         <boxGeometry args={[BOOK_W / 2, BOOK_T, BOOK_H]} />
-        <meshStandardMaterial color={accentDeep} emissive={accentDeep} emissiveIntensity={0.16} roughness={0.5} />
+        <meshStandardMaterial {...litMat(lit)} color={accentDeep} emissive={accentDeep} emissiveIntensity={0.16} roughness={0.5} />
       </mesh>
       {/* page block */}
       <mesh position={[x, BOOK_T / 2 + BOOK_PT / 2, 0]}>
         <boxGeometry args={[BOOK_W / 2 - 0.012, BOOK_PT, BOOK_H - 0.014]} />
-        <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.1} roughness={0.85} />
+        <meshStandardMaterial {...litMat(lit)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.1} roughness={0.85} />
       </mesh>
       {/* the printed page on top of the block */}
       <mesh position={[x, BOOK_T / 2 + BOOK_PT + 0.0008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -901,9 +906,13 @@ function BookAR({ slug }: { slug: string }) {
 
 function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const { accent } = useAccent();
-  const { selected } = useActive(slug);
+  const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const grp = useRef<Group>(null);
+  // lit on hover (lit.tsx): the boards, the page blocks and the spine — the
+  // printed spread keeps its picture
+  const lit = useLitLink(slug);
+  const body = useLitBody(grp);
   const frontHinge = useRef<Group>(null); // the half that swings open
   const backHinge = useRef<Group>(null);
   const sel = useRef(0); // 0 = closed in the gap, 1 = lifted + open + facing you
@@ -928,6 +937,7 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
     [texL, texR],
   );
   useFrame(() => {
+    body(lit.litU.value, selected || visited);
     sel.current += ((selected ? 1 : 0) - sel.current) * 0.09;
     const s = reduced ? (selected ? 1 : 0) : sel.current;
     const g = grp.current;
@@ -952,16 +962,16 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
     <group ref={grp} position={position}>
       {/* back half — stays put, tilting into its side of the V */}
       <group ref={backHinge}>
-        <BookHalf side={1} tex={texR} />
+        <BookHalf side={1} tex={texR} lit={lit} />
       </group>
       {/* front half — folded over when closed, swings open on select */}
       <group ref={frontHinge}>
-        <BookHalf side={-1} tex={texL} />
+        <BookHalf side={-1} tex={texL} lit={lit} />
       </group>
       {/* spine */}
       <mesh position={[0, -0.001, 0]}>
         <boxGeometry args={[0.015, BOOK_T + 0.003, BOOK_H]} />
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.14} roughness={0.5} />
+        <meshStandardMaterial {...litMat(lit)} color={accent} emissive={accent} emissiveIntensity={0.14} roughness={0.5} />
       </mesh>
       {/* holographic content lifting off the open spread */}
       <BookAR slug={slug} />
@@ -1083,11 +1093,17 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
   const { hovered, selected, visited } = useActive('zwijsen-ar-books');
   const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
   const lit = useRef(0);
+  // the hover light (lit.tsx) for the shelved books and the plant; the books
+  // are the body — the frame's glass brings its own
+  const link = useLitLink('zwijsen-ar-books');
+  const shelved = useRef<Group>(null);
+  const body = useLitBody(shelved);
   useFrame((_s) => {
     const t = hovered || selected ? 1 : visited ? 0.3 : 0;
     lit.current += (t - lit.current) * 0.1;
     const e = 0.1 + lit.current * 0.7;
     for (const m of bookMats.current) if (m) m.emissiveIntensity = e;
+    body(link.litU.value, selected || visited);
   });
   return (
     <group position={position} rotation={rotation}>
@@ -1103,37 +1119,39 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
       {[0.16, 0.42, 0.68].map((sy, s) => (
         <SoftBox key={s} position={[0, sy, 0.04]} args={[0.7, 0.02, 0.24]} radius={0.006} opacity={0.3} liveSlug="zwijsen-ar-books" liveGhost={false} />
       ))}
+      <group ref={shelved}>
       {/* books — their spines glow when the bookcase is on */}
       {BOOKS.map((bk, i) => (
         <mesh key={i} position={bk.p} rotation={bk.r}>
           <boxGeometry args={bk.s} />
-          <meshStandardMaterial ref={(m) => (bookMats.current[i] = m)} color={SURFACE[bk.c].color} emissive={SURFACE[bk.c].color} emissiveIntensity={0.1} roughness={0.6} />
+          <meshStandardMaterial ref={(m) => (bookMats.current[i] = m)} {...litMat(link)} color={SURFACE[bk.c].color} emissive={SURFACE[bk.c].color} emissiveIntensity={0.1} roughness={0.6} />
         </mesh>
       ))}
       {/* a horizontal stack on the bottom-right shelf */}
       <group position={[0.19, 0.19, 0.02]}>
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[0.2, 0.03, 0.16]} />
-          <meshStandardMaterial color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.12} roughness={0.6} />
+          <meshStandardMaterial {...litMat(link)} color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.12} roughness={0.6} />
         </mesh>
         <mesh position={[0.01, 0.032, 0.006]}>
           <boxGeometry args={[0.19, 0.028, 0.155]} />
-          <meshStandardMaterial color={SURFACE.glass.color} emissive={SURFACE.glass.color} emissiveIntensity={0.12} roughness={0.6} />
+          <meshStandardMaterial {...litMat(link)} color={SURFACE.glass.color} emissive={SURFACE.glass.color} emissiveIntensity={0.12} roughness={0.6} />
         </mesh>
         <mesh position={[-0.008, 0.062, -0.004]}>
           <boxGeometry args={[0.18, 0.026, 0.15]} />
-          <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.12} roughness={0.6} />
+          <meshStandardMaterial {...litMat(link)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.12} roughness={0.6} />
         </mesh>
+      </group>
       </group>
       {/* a little potted plant on top for detail — neutral glass, no green/brown */}
       <group position={[0.25, 0.93, 0.05]}>
         <mesh position={[0, 0.018, 0]}>
           <cylinderGeometry args={[0.03, 0.024, 0.04, 16]} />
-          <GlassMat tint="deep" />
+          <GlassMat tint="deep" lit={link} />
         </mesh>
         <mesh position={[0, 0.07, 0]}>
           <icosahedronGeometry args={[0.045, 0]} />
-          <GlassMat tint="pale" />
+          <GlassMat tint="pale" lit={link} />
         </mesh>
       </group>
       <LifeGroup slug="zwijsen-ar-books">
@@ -1148,6 +1166,7 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
 
 export function RoomRig() {
   const { accent } = useAccent();
+  const brigade = useLitLink('virtuele-brigade'); // the monitor neck's light (lit.tsx)
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const desk = useTweak('Room.Desk', { position: [-1.2, 0, 0.18], rotationY: 1.76 });
   const couch = useTweak('Room.Couch', { position: [0.12, 0, -0.22], rotationY: -0.16 });
@@ -1163,6 +1182,8 @@ export function RoomRig() {
       <mesh position={[0, 0.012, 0]}>
         <cylinderGeometry args={[1.05, 1.05, 0.02, 56]} />
         <GroundMat />
+        {/* the hover light's shadows, printed on the rug (lit.tsx) */}
+        <ShadowPrint />
       </mesh>
       <Line points={circlePts(1.05)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.2} />
       <Line points={circlePts(0.78)} position={[0, 0.026, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.1} />
@@ -1189,7 +1210,7 @@ export function RoomRig() {
             <SoftBox position={[0, 0.404, -0.15]} args={[0.17, 0.012, 0.11]} radius={0.006} liveSlug="virtuele-brigade" />
             <mesh position={[0, 0.5, -0.163]}>
               <cylinderGeometry args={[0.013, 0.017, 0.19, 12]} />
-              <GlassMat tint="pale" />
+              <GlassMat tint="pale" lit={brigade} />
             </mesh>
             {/* the hinge block where the neck meets the panel's back */}
             <SoftBox position={[0, 0.6, -0.157]} args={[0.07, 0.05, 0.022]} radius={0.008} liveSlug="virtuele-brigade" />

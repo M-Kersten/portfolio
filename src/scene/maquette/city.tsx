@@ -16,6 +16,7 @@ import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, FIRE, u
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
 import { PresenceCtx } from './presence';
+import { LIT_SOLID_OPACITY, litMat, litShade, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
 import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { Rise, RocketBody } from './rocket';
@@ -606,7 +607,7 @@ const PINE_TIERS: [number, number, number][] = [
   [0.55, 0.27, 0.36],
   [0.78, 0.18, 0.3],
 ];
-function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: number; yaw?: number; slug?: string }) {
+function ParkTree({ position, h = 0.45, yaw = 0, slug, lit }: { position: V3; h?: number; yaw?: number; slug?: string; lit: LitLink }) {
   const { selected, visited } = useActive(slug ?? '');
   const live = useRef(0);
   // At rest a pine has to read as the same drawing as everything else on this
@@ -623,19 +624,24 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug }: { position: V3; h?: num
   const mat = useMemo(() => {
     const m = new MeshStandardMaterial({ color: SURFACE.deep.color, roughness: 0.7, metalness: 0, transparent: true, opacity: TREE_REST });
     m.userData.lifeSkip = true; // greens up itself once visited
+    // …and lights with the park while its hotspot is hovered (lit.tsx)
+    Object.assign(m.userData, lit);
+    m.onBeforeCompile = litShade;
     return m;
-  }, []);
+  }, [lit]);
+  const body = useLitBody([mat]);
   useFrame(() => {
     if (!slug) return;
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
     mat.color.copy(restCol).lerp(vivid, live.current);
     mat.opacity = TREE_REST + live.current * 0.55; // the green + the body arrive together
+    body(lit.litU.value, mat.opacity >= LIT_SOLID_OPACITY);
   });
   return (
     <group position={position} rotation={[0, yaw, 0]}>
       <mesh position={[0, h * 0.05, 0]}>
         <cylinderGeometry args={[h * 0.022, h * 0.03, h * 0.1, 6]} />
-        <GlassMat tint="deep" />
+        <GlassMat tint="deep" lit={lit} />
       </mesh>
       {PINE_TIERS.map(([y, r, th], i) => (
         <mesh key={i} position={[0, h * y, 0]} material={mat}>
@@ -719,7 +725,7 @@ function Fireflies({ slug }: { slug?: string }) {
 
 /** Two little ducks drifting lazy loops on the lake (lake-local coordinates).
  *  They ghost and solidify with the rest of the park. */
-function LakeDucks() {
+function LakeDucks({ lit }: { lit: LitLink }) {
   const reduced = useReducedMotion();
   const ducks = useRef<(Group | null)[]>([]);
   useFrame((st) => {
@@ -749,15 +755,15 @@ function LakeDucks() {
         >
           <mesh scale={[1.3, 0.75, 1]}>
             <sphereGeometry args={[0.014, 10, 8]} />
-            <GlassMat tint="pale" />
+            <GlassMat tint="pale" lit={lit} />
           </mesh>
           <mesh position={[0.014, 0.012, 0]}>
             <sphereGeometry args={[0.008, 8, 6]} />
-            <GlassMat tint="pale" />
+            <GlassMat tint="pale" lit={lit} />
           </mesh>
           <mesh position={[0.024, 0.012, 0]} rotation={[0, 0, -Math.PI / 2]}>
             <coneGeometry args={[0.003, 0.008, 6]} />
-            <GlassMat tint="glass" />
+            <GlassMat tint="glass" lit={lit} />
           </mesh>
         </group>
       ))}
@@ -802,7 +808,7 @@ const BINOS_SCREEN_SIZE: [number, number] = [0.07, 0.075];
 // A simple post the viewer stands on — raise BINOS_STAND_H to lift it higher.
 const BINOS_STAND_H = 0.14;
 const BINOS_STAND_R = 0.02;
-function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY?: number; slug?: string }) {
+function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rotationY?: number; slug?: string; lit: LitLink }) {
   const { accent } = useAccent();
   const { selected, visited } = useActive(slug ?? '');
   const reduced = useReducedMotion();
@@ -835,10 +841,12 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
       depthWrite: false,
     });
     m.userData.lifeSkip = true;
+    Object.assign(m.userData, lit); // lights with the park (lit.tsx)
     m.onBeforeCompile = glassRim;
     return m;
-  }, []);
+  }, [lit]);
   useEffect(() => () => glass.dispose(), [glass]);
+  const body = useLitBody([glass]);
 
   useEffect(() => {
     let cancelled = false;
@@ -910,6 +918,7 @@ function Binoculars({ position, rotationY = 0, slug }: { position: V3; rotationY
     glass.opacity = (0.5 + (0.94 - 0.5) * wk) * presence.current;
     glass.roughness = cfg.roughnessBase - cfg.roughnessWakeDelta * wk;
     glass.depthWrite = wk > 0.5;
+    body(lit.litU.value, wk > 0.5);
     flash.current = Math.max(0, flash.current - dt * 3.4);
     // the viewfinder is a transparent glass panel at rest, flaring bright on a shot
     if (screenMat.current) {
@@ -957,6 +966,9 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
   const { accent, accentPale } = useAccent();
   const { selected, visited } = useActive(slug ?? '');
   const live = selected || visited;
+  // the park's light (lit.tsx), shared by every part of it that doesn't wear
+  // its own LiveGlassMat
+  const lit = useLitLink(slug ?? '');
   // an irregular lake outline + its filled water shape
   const lake = useMemo(() => {
     const pts = blobPts(0.2, 0.5, 56, 13);
@@ -978,6 +990,8 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
       <mesh position={[0, 0.012, 0]}>
         <cylinderGeometry args={[0.5, 0.5, 0.02, 44]} />
         <GroundMat />
+        {/* the hover light's shadows, printed on the plot (lit.tsx) */}
+        <ShadowPrint />
       </mesh>
       <Line points={circlePts(0.5)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
       {/* lake — an irregular water body with shore, ripples, a jetty + reeds */}
@@ -999,13 +1013,13 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
         <group position={[0.13, 0, -0.07]} rotation={[0, -0.5, 0]}>
           <mesh position={[0, 0.045, 0]}>
             <boxGeometry args={[0.13, 0.012, 0.035]} />
-            <GlassMat tint="pale" />
+            <GlassMat tint="pale" lit={lit} />
             <Edges threshold={30} color={NEUTRAL} />
           </mesh>
           {[-0.05, 0.04].map((px, i) => (
             <mesh key={i} position={[px, 0.022, 0.013]}>
               <cylinderGeometry args={[0.005, 0.005, 0.05, 6]} />
-              <GlassMat tint="pale" />
+              <GlassMat tint="pale" lit={lit} />
             </mesh>
           ))}
         </group>
@@ -1013,30 +1027,30 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
         {([[-0.16, 0.03], [-0.185, -0.02], [-0.15, -0.06]] as [number, number][]).map(([rx, rz], i) => (
           <mesh key={`r${i}`} position={[rx, 0.06, rz]} rotation={[0.12 * (i - 1), 0, 0.13]}>
             <cylinderGeometry args={[0.003, 0.005, 0.11, 5]} />
-            <GlassMat tint="deep" />
+            <GlassMat tint="deep" lit={lit} />
           </mesh>
         ))}
         {/* lily pads */}
         {([[0.07, 0.06], [-0.02, -0.08]] as [number, number][]).map(([lx, lz], i) => (
           <mesh key={`l${i}`} position={[lx, 0.028, lz]} rotation={[-Math.PI / 2, 0, 0]}>
             <circleGeometry args={[0.022, 12]} />
-            <GlassMat tint="pale" />
+            <GlassMat tint="pale" lit={lit} />
           </mesh>
         ))}
         {/* two ducks drifting their lazy loops */}
-        <LakeDucks />
+        <LakeDucks lit={lit} />
       </group>
       {/* a small varied grove — each pine at its own height and turn */}
-      <ParkTree position={[0.2, 0, -0.18]} h={0.46} yaw={0.4} slug={slug} />
-      <ParkTree position={[0.24, 0, 0.22]} h={0.34} yaw={2.1} slug={slug} />
-      <ParkTree position={[-0.22, 0, -0.24]} h={0.4} yaw={1.2} slug={slug} />
-      <ParkTree position={[0.4, 0, 0.04]} h={0.3} yaw={3.6} slug={slug} />
-      <ParkTree position={[-0.04, 0, -0.42]} h={0.36} yaw={5.1} slug={slug} />
+      <ParkTree position={[0.2, 0, -0.18]} h={0.46} yaw={0.4} slug={slug} lit={lit} />
+      <ParkTree position={[0.24, 0, 0.22]} h={0.34} yaw={2.1} slug={slug} lit={lit} />
+      <ParkTree position={[-0.22, 0, -0.24]} h={0.4} yaw={1.2} slug={slug} lit={lit} />
+      <ParkTree position={[0.4, 0, 0.04]} h={0.3} yaw={3.6} slug={slug} lit={lit} />
+      <ParkTree position={[-0.04, 0, -0.42]} h={0.36} yaw={5.1} slug={slug} lit={lit} />
       {/* fireflies wandering between the trees */}
       <Fireflies slug={slug} />
       {/* the ARCam tower viewer — pops in and scans when the hotspot is selected;
           stands on its post (raise BINOS_STAND_H to lift it higher) */}
-      <Binoculars position={[-0.1, 0, 0.34]} rotationY={-0.35} slug={slug} />
+      <Binoculars position={[-0.1, 0, 0.34]} rotationY={-0.35} slug={slug} lit={lit} />
       </group>
     </group>
   );
@@ -1079,6 +1093,7 @@ const HUB_LOW = 0.22; // the lowest a cable will attach
 function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardMaterial }) {
   const { accent } = useAccent();
   const { selected, visited } = useActive('alliander-hololens');
+  const lit = useLitLink('alliander-hololens'); // the fins and the mast light with the glass (lit.tsx)
   const beacon = useRef<MeshStandardMaterial>(null);
   const reduced = useReducedMotion();
   const surge = useRef<Group>(null); // a light-band that rises up the shaft
@@ -1132,7 +1147,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
           <group key={i} rotation={[0, (i / TOWER_SIDES) * Math.PI * 2, 0]}>
             <mesh position={[finR, TOWER_H / 2, 0]} rotation={[0, 0, finTilt]}>
               <boxGeometry args={[0.016, finL, 0.02]} />
-              <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.18} roughness={0.4} metalness={0.3} />
+              <meshStandardMaterial {...litMat(lit)} color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.18} roughness={0.4} metalness={0.3} />
             </mesh>
           </group>
         ))}
@@ -1172,7 +1187,7 @@ function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardM
         </mesh>
         <mesh position={[0, TOWER_H + 0.15, 0]}>
           <cylinderGeometry args={[0.004, 0.004, 0.1, 8]} />
-          <meshStandardMaterial color={NEUTRAL} metalness={0.6} roughness={0.4} />
+          <meshStandardMaterial {...litMat(lit)} color={NEUTRAL} metalness={0.6} roughness={0.4} />
         </mesh>
         <mesh position={[0, TOWER_H + 0.21, 0]}>
           <sphereGeometry args={[0.014, 12, 12]} />
@@ -1197,6 +1212,7 @@ const TRAFO_H = 0.11;
 function TransformerHouse({ position }: { position: V3 }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive('alliander-hololens');
+  const lit = useLitLink('alliander-hololens'); // for the parts that don't wake (lit.tsx)
   const complete = useSceneSelector((s) => s.completedAt !== null);
   const reduced = useReducedMotion();
   const accentC = useMemo(() => new Color(accent), [accent]);
@@ -1246,7 +1262,7 @@ function TransformerHouse({ position }: { position: V3 }) {
           it just carries a touch more opacity to stay a cap, not a pane. */}
       <mesh position={[0, TRAFO_H + 0.007, 0]}>
         <boxGeometry args={[TRAFO_W + 0.03, 0.014, TRAFO_D + 0.03]} />
-        <GlassMat tint="deep" />
+        <GlassMat tint="deep" lit={lit} />
         {/* the slab itself is already near-solid metal, but its outline has to
             retire with the body's or the roof keeps a wireframe the walls lost */}
         <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
@@ -1254,13 +1270,13 @@ function TransformerHouse({ position }: { position: V3 }) {
       {/* door on the camera-facing (+z) face */}
       <mesh position={[-TRAFO_W * 0.2, TRAFO_H * 0.44, TRAFO_D / 2 + 0.002]}>
         <planeGeometry args={[TRAFO_W * 0.26, TRAFO_H * 0.72]} />
-        <GlassMat tint="deep" />
+        <GlassMat tint="deep" lit={lit} />
       </mesh>
       {/* louvre vents on the +x side */}
       {[0.32, 0.52, 0.72].map((f, i) => (
         <mesh key={i} position={[TRAFO_W / 2 + 0.001, TRAFO_H * f, 0]}>
           <boxGeometry args={[0.003, 0.006, TRAFO_D * 0.5]} />
-          <GlassMat tint="pale" />
+          <GlassMat tint="pale" lit={lit} />
         </mesh>
       ))}
       {/* ceramic bushings on the roof — the electrical bit; the caps carry power */}
@@ -1268,7 +1284,7 @@ function TransformerHouse({ position }: { position: V3 }) {
         <group key={i} position={[bx, TRAFO_H + 0.014, -TRAFO_D * 0.14]}>
           <mesh position={[0, 0.02, 0]}>
             <cylinderGeometry args={[0.009, 0.012, 0.04, 10]} />
-            <GlassMat tint="pale" />
+            <GlassMat tint="pale" lit={lit} />
           </mesh>
           <mesh position={[0, 0.045, 0]} material={capMat}>
             <sphereGeometry args={[0.0075, 10, 10]} />
@@ -1438,6 +1454,8 @@ function RoadNetwork({ roads }: { roads: Road[] }) {
             double-blend anywhere, because the tessellation covers the paved
             region exactly once. */}
         <GroundMat side={DoubleSide} />
+        {/* the hover light's shadows, printed on the road (lit.tsx) */}
+        <ShadowPrint twoSided />
       </mesh>
       <lineSegments>
         <bufferGeometry>

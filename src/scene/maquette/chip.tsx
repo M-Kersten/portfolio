@@ -12,6 +12,7 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 import { SURFACE, NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
 import { GlassMat, LiveEdges, LiveGlassMat, SoftBox } from './materials';
+import { litMat, ShadowPrint, useLitLink } from './lit';
 import { BlobShadow } from './backdrop';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
@@ -517,6 +518,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const { accent, accentPale } = useAccent();
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
+  const lit = useLitLink(slug); // the metal parts light with the glass (lit.tsx)
   const headRef = useRef<Group>(null);
   const lensMat = useRef<MeshStandardMaterial>(null);
   const coneMat = useRef<MeshBasicMaterial>(null);
@@ -691,7 +693,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
               <mesh position={[0, 0.008, 0]}>
                 <cylinderGeometry args={[0.012, 0.012, 0.045, 10]} />
                 {/* plain metal — see the connector pins; nothing dormant self-lights */}
-                <meshStandardMaterial color={NEUTRAL} roughness={0.4} metalness={0.5} />
+                <meshStandardMaterial {...litMat(lit)} color={NEUTRAL} roughness={0.4} metalness={0.5} />
               </mesh>
               <mesh position={[0, -0.015, 0]}>
                 <boxGeometry args={[0.034, 0.014, 0.034]} />
@@ -722,7 +724,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                 {/* dark lens recess + the glass element that lights up */}
                 <mesh position={[0, 0, 0.104]} rotation={[Math.PI / 2, FACET, 0]}>
                   <cylinderGeometry args={[0.048, 0.048, 0.012, 8]} />
-                  <meshStandardMaterial color={SURFACE.deep.color} roughness={0.5} metalness={0.2} />
+                  <meshStandardMaterial {...litMat(lit)} color={SURFACE.deep.color} roughness={0.5} metalness={0.2} />
                 </mesh>
                 <mesh position={[0, 0, 0.114]} scale={[1, 1, 0.5]}>
                   <sphereGeometry args={[0.04, 24, 18]} />
@@ -833,6 +835,8 @@ export function ChipRig() {
       <BlobShadow position={[0, 0.002, 0]} radius={1.4} opacity={0.34} />
       <RoundedBox args={[2.05, 0.02, 2.05]} radius={0.04} smoothness={2} position={[0, 0.01, 0]}>
         <GlassMat tint="deep" />
+        {/* the hover light's shadows, printed on the board (lit.tsx) */}
+        <ShadowPrint />
       </RoundedBox>
       {/* board outline. The inner keepout ring that used to double it up was there
           to stop the substrate reading as a plain slab — the glass and its

@@ -8,6 +8,7 @@ import { Color, FrontSide, MeshStandardMaterial, type Material, type Side } from
 import { useActive, GROUND, NEUTRAL, SURFACE, SURFACE_AWAKE, SURFACE_GLOW, Line, roundedRectPts, type Tint, type V3 } from './shared';
 import { GHOST_FILL } from './life';
 import { PresenceCtx } from './presence';
+import { LIT_GLASS, LIT_PARS, LIT_SOLID_OPACITY, litUniforms, useLitBody, useLitLink, type LitLink } from './lit';
 import { useFxConfig } from '../fxTweak';
 
 /* ---------- materials ---------- */
@@ -36,21 +37,26 @@ export const DOT_TUNE = {
   freq: { value: 1.7 }, // higher = smaller, denser cells
   strength: { value: 0.3 }, // 0 = pattern invisible; scales both the rgb darkening and the alpha lift below, keeping their original ratio (~0.53)
 };
-export function glassRim(shader: any) {
+// `this` is the material: three calls onBeforeCompile as a method, which is how
+// a material hands in its own lit level (userData.litU — see lit.tsx).
+export function glassRim(this: unknown, shader: any) {
   shader.uniforms.uRim = { value: RIM };
   shader.uniforms.uDotFreq = DOT_TUNE.freq;
   shader.uniforms.uDotStrength = DOT_TUNE.strength;
+  litUniforms(shader, this as Material | undefined);
   shader.fragmentShader = shader.fragmentShader
-    .replace('void main() {', 'uniform vec3 uRim;\nuniform float uDotFreq;\nuniform float uDotStrength;\nvoid main() {')
+    .replace('void main() {', `uniform vec3 uRim;\nuniform float uDotFreq;\nuniform float uDotStrength;\n${LIT_PARS}\nvoid main() {`)
     .replace('#include <aomap_fragment>', `reflectedLight.directSpecular *= ${SPEC};\n#include <aomap_fragment>`)
     .replace(
       '#include <opaque_fragment>',
       [
         '#include <opaque_fragment>',
+        'vec4 _base = gl_FragColor;',
+        'vec3 _n = normalize(normal);',
         // Fresnel rim — tight and bright so the silhouette reads as a crisp
         // holographic edge while the interior stays quiet (the exponent keeps
         // the glow pinned to the outline; the alpha lift firms the edge up).
-        'float _rim = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.8);',
+        'float _rim = pow(1.0 - clamp(dot(_n, normalize(vViewPosition)), 0.0, 1.0), 2.8);',
         'gl_FragColor.rgb += uRim * _rim * 0.68;',
         'gl_FragColor.a = clamp(gl_FragColor.a + _rim * 0.42, 0.0, 1.0);',
         // A fine screen-space pattern printed across every glass surface, so the
@@ -61,6 +67,9 @@ export function glassRim(shader: any) {
         'float _pat = smoothstep(-0.2, 0.6, _dg);',
         'gl_FragColor.rgb *= 0.85 + uDotStrength * _pat;',
         'gl_FragColor.a = clamp(gl_FragColor.a * (0.9 + uDotStrength * 0.533 * _pat), 0.0, 1.0);',
+        // …and while its hotspot is hovered or its project open, the lit look
+        // mixes in over all of the above (a no-op at rest — see lit.tsx).
+        LIT_GLASS,
       ].join('\n'),
     );
 }
@@ -73,11 +82,15 @@ export function glassRim(shader: any) {
  *  LiveGlassMat's resting state, which is the whole point of the system: a
  *  study model is cut from one sheet, and the only reason a part looks different
  *  is that it's a different VALUE of that sheet (see SURFACE) or that something
- *  has woken it up. */
-export function GlassMat({ tint = 'glass', color, opacity }: { tint?: Tint; color?: string; opacity?: number }) {
+ *  has woken it up.
+ *
+ *  A part of a hotspot's object that doesn't wake with it (a trunk, a jetty, a
+ *  roof slab) still lights with it: pass the object's `lit` link (lit.tsx). */
+export function GlassMat({ tint = 'glass', color, opacity, lit }: { tint?: Tint; color?: string; opacity?: number; lit?: LitLink }) {
   const cut = SURFACE[tint];
   return (
     <meshStandardMaterial
+      {...(lit && { userData: { ...lit } })}
       color={color ?? cut.color}
       transparent
       opacity={opacity ?? cut.rest}
@@ -111,6 +124,10 @@ export function LiveGlassMat({ slug, tint = 'glass', color, opacity, ghost = tru
   const baseC = useMemo(() => new Color(fill), [fill]);
   const presence = useContext(PresenceCtx); // a layer that isn't the subject recedes
   const cfg = useFxConfig();
+  // Lit on hover (lit.tsx): the level rides into the shader through userData,
+  // and a solid object gets its one-volume twin and its shadow while lit.
+  const lit = useLitLink(slug);
+  const body = useLitBody(() => (mat.current ? [mat.current] : []));
   useFrame(() => {
     const m = mat.current;
     if (!m) return;
@@ -120,17 +137,19 @@ export function LiveGlassMat({ slug, tint = 'glass', color, opacity, ghost = tru
     else k.current += ((selected || visited ? 1 : 0) - k.current) * cfg.wakeSpeed;
     m.color.copy(GHOST_FILL).lerp(baseC, ghost ? 0.3 + 0.7 * k.current : 1);
     const rest = ghost ? restOpacity * 0.3 : restOpacity;
-    m.opacity = (rest + (solid - rest) * k.current) * presence.current;
+    const own = rest + (solid - rest) * k.current;
+    m.opacity = own * presence.current;
     // Waking an object still makes it glossier, but gently — the shine now comes
     // off the environment rather than the key light (see SPEC above), so the
     // floor only needs to stop the lobe tightening back into a hotspot.
     m.roughness = cfg.roughnessBase - cfg.roughnessWakeDelta * k.current;
     m.depthWrite = k.current > 0.5;
+    body(lit.litU.value, own >= LIT_SOLID_OPACITY);
   });
   return (
     <meshStandardMaterial
       ref={mat}
-      userData={{ lifeSkip: true }}
+      userData={{ lifeSkip: true, ...lit }}
       color={fill}
       transparent
       opacity={restOpacity}
