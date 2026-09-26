@@ -11,14 +11,20 @@ export function useWebGLSupport(): boolean | null {
   return supported;
 }
 
+// WebGL2 specifically: it's all three.js renders with, so a browser offering
+// only WebGL1 gets the poster rather than a renderer that fails to start.
 function detect(): boolean {
   try {
     if (new URLSearchParams(window.location.search).has('nogl')) return false;
     const canvas = document.createElement('canvas');
-    const gl =
-      canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl');
+    // Why a context was refused, when the browser says (e.g. it blocked this
+    // site after a GPU reset) — dispatched during getContext.
+    let reason = '';
+    canvas.addEventListener('webglcontextcreationerror', (e) => {
+      reason = (e as WebGLContextEvent).statusMessage || reason;
+    });
+    const gl = canvas.getContext('webgl2');
+    if (!gl) console.warn(`WebGL2 is unavailable${reason ? ` (${reason})` : ''}; showing the static poster.`);
     return !!gl;
   } catch {
     return false;

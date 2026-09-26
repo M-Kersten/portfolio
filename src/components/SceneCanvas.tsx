@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Component, Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Poster } from './Poster';
 import { sceneStore, useSceneSelector } from '../scene/store';
@@ -16,6 +16,23 @@ const CanvasScene = lazy(() => import('./CanvasScene'));
 const WORK_RE = /^\/work\/([^/]+)\/?$/;
 // Scroll-journey step per layer: City top (0) → Room (1) → Chip bottom (2).
 const JOURNEY_STEP: Record<Layer, number> = { city: 0, room: 1, chip: 2 };
+
+/** Anything the WebGL stack throws — no context for the renderer, a chunk that
+ *  won't load, an error inside the scene, the effect composer choking on a lost
+ *  context — lands on the poster. Uncaught, a render error unmounts the whole
+ *  app and leaves a blank page. */
+class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.warn('The 3D scene hit an error; showing the static poster.', error);
+  }
+  render() {
+    return this.state.failed ? <Poster /> : this.props.children;
+  }
+}
 
 export function SceneCanvas() {
   const location = useLocation();
@@ -60,12 +77,19 @@ export function SceneCanvas() {
   const gameUp = useSceneSelector((s) => s.launch) === 'game';
   const frameloop = gameUp ? 'never' : reduced ? 'demand' : heroInView ? 'always' : 'never';
 
+  // The GPU took the context away and didn't give it back (see CanvasScene):
+  // there's nothing left to draw with, so the poster takes over.
+  const [lost, setLost] = useState(false);
+  const onLost = useCallback(() => setLost(true), []);
+
   return (
     <div className="scene-canvas">
-      {webgl ? (
-        <Suspense fallback={<Poster />}>
-          <CanvasScene frameloop={frameloop} onActivate={onActivate} />
-        </Suspense>
+      {webgl && !lost ? (
+        <SceneBoundary>
+          <Suspense fallback={<Poster />}>
+            <CanvasScene frameloop={frameloop} onActivate={onActivate} onLost={onLost} />
+          </Suspense>
+        </SceneBoundary>
       ) : (
         <Poster />
       )}
