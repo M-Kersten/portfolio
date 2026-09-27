@@ -61,11 +61,72 @@
         }
       })();
     </script>
+
+    <!-- The boot loader (in #root below) — inline, so it needs nothing else to
+         load. It's held invisible for half a second, so a fast connection
+         never sees it; on a slow one the page is never just blank. React
+         replaces it on its first render. -->
+    <style>
+      html { background: #0a0d10; }
+      .boot-loader {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 22px;
+        color: #eaeaea;
+        opacity: 0;
+        animation: boot-loader-in 0.6s ease 0.5s forwards;
+      }
+      .boot-loader__mark { display: block; height: 30px; width: auto; }
+      .boot-loader__bar {
+        position: relative;
+        width: 104px;
+        height: 1px;
+        overflow: hidden;
+        background: rgba(234, 234, 234, 0.16);
+      }
+      .boot-loader__bar::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        width: 40%;
+        background: #27e8f2;
+        animation: boot-loader-scan 1.4s ease-in-out infinite;
+      }
+      .boot-loader__label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      @keyframes boot-loader-in { to { opacity: 1; } }
+      @keyframes boot-loader-scan {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(250%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-loader__bar::after { animation: none; transform: translateX(75%); }
+      }
+    </style>
+    <noscript><style>.boot-loader { display: none; }</style></noscript>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-loader" role="status">
+        <svg class="boot-loader__mark" viewBox="0 0 1073 518" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M899.87 0H757.06L533.58 258.97V0H531.29H424.07H380.35L265.63 188.7L151.69 0H0V517.98H107.28V137.63L202.01 292.28L244.19 359.63H287.85L329.28 292.28L424.01 137.63V517.98H424.07H531.29H533.58V260.48L603.89 343.34L755.58 517.98H898.39L676.39 260.48L899.87 0Z" />
+          <path fill="currentColor" d="M1016.33 245.03C985.412 245.03 960.362 219.97 960.362 189.06C960.362 168.18 972.292 150.68 989.242 141.06C975.812 136.18 961.522 133.08 946.412 133.08C876.882 133.08 820.512 189.45 820.512 258.98C820.512 328.51 876.882 384.88 946.412 384.88C1015.94 384.88 1072.31 328.51 1072.31 258.98C1072.31 243.87 1069.21 229.57 1064.33 216.14C1054.71 233.08 1037.22 245.02 1016.34 245.02L1016.33 245.03Z" />
+        </svg>
+        <span class="boot-loader__bar" aria-hidden="true"></span>
+        <span class="boot-loader__label">Loading Merijn Kersten's portfolio</span>
+      </div>
+    </div>
     <noscript>
-      <div style="max-width: 40rem; margin: 4rem auto; padding: 0 1.5rem; font-family: system-ui, sans-serif; color: #1B2A2E;">
+      <div style="max-width: 40rem; margin: 4rem auto; padding: 0 1.5rem; font-family: system-ui, sans-serif; color: #eaeaea;">
         <h1>Merijn Kersten</h1>
         <p>I make things with AR, VR and code. This site leans on JavaScript for
         the interactive 3D, but every project is readable as plain text too and

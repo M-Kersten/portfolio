@@ -1,6 +1,6 @@
 import { Component, Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Poster } from './Poster';
+import { Poster, SceneLoading } from './Poster';
 import { sceneStore, useSceneSelector } from '../scene/store';
 import { type Hotspot } from '../scene/framing';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -11,7 +11,8 @@ const CanvasScene = lazy(() => import('./CanvasScene'));
 
 // The single persistent <Canvas> at the app root (§6). It outlives route
 // changes; routing only nudges the scene store, which the in-canvas components
-// react to. WebGL detection swaps in the static poster with no empty state.
+// react to. WebGL detection swaps in the static poster where there's no 3D to
+// be had (see the render below for the states in between).
 
 const WORK_RE = /^\/work\/([^/]+)\/?$/;
 // Scroll-journey step per layer: City top (0) → Room (1) → Chip bottom (2).
@@ -82,11 +83,17 @@ export function SceneCanvas() {
   const [lost, setLost] = useState(false);
   const onLost = useCallback(() => setLost(true), []);
 
+  // Three states, and only one of them is the poster. `null` is the single
+  // frame before detection has run — nothing, rather than flashing the
+  // "unavailable" poster at every visitor. While the 3D stack downloads (it's
+  // kept off the path to first paint, so on a slow line that takes a while) the
+  // stage says the model is loading. The poster is for no WebGL, or a GPU that
+  // went away.
   return (
     <div className="scene-canvas">
-      {webgl && !lost ? (
+      {webgl === null ? null : webgl && !lost ? (
         <SceneBoundary>
-          <Suspense fallback={<Poster />}>
+          <Suspense fallback={<SceneLoading />}>
             <CanvasScene frameloop={frameloop} onActivate={onActivate} onLost={onLost} />
           </Suspense>
         </SceneBoundary>

@@ -1,5 +1,4 @@
 import { useSyncExternalStore } from 'react';
-import { Vector3 } from 'three';
 import { HOTSPOTS } from './framing';
 
 /** Wall-clock moment the app first loaded. The boot sequence sequences off this
@@ -15,11 +14,6 @@ export const MAQUETTE_BOOT = 1450;
  *  'countdown' = T-minus running; 'ascend' = rocket flying, camera chasing;
  *  'game' = the asteroids overlay is up. */
 export type LaunchStage = 'idle' | 'pad' | 'countdown' | 'ascend' | 'game';
-
-/** Where the rocket is RIGHT NOW, in world space — written by the rocket every
- *  frame, read by the CameraRig to aim at the pad and chase the ascent. Plain
- *  mutable vector (per-frame data, deliberately not reactive state). */
-export const launchTrack = new Vector3(0, 0, 0);
 
 // One renderer, one scene. DOM components (hotspots, routes, overlay) and the
 // in-Canvas components (CameraRig, scene) live in different React reconcilers,

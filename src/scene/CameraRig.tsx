@@ -2,8 +2,9 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { launchTrack, sceneStore, useSceneSelector } from './store';
-import { HOTSPOTS, anchorWorld, journeyView, introView, nodeView, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
+import { sceneStore, useSceneSelector } from './store';
+import { HOTSPOTS, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
+import { anchorWorld, journeyView, introView, nodeView, launchTrack } from './views';
 import { tweakedView } from './nodeTweak';
 import { isMobileViewport } from '../lib/isMobile';
 

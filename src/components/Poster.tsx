@@ -8,7 +8,7 @@ const SLATE_LITE = '#566c8e';
 const HAIRLINE = '#7088a8';
 const ACCENT = '#2ee6e6';
 
-function MaquettePoster() {
+function MaquettePoster({ decorative = false }: { decorative?: boolean }) {
   // three stacked isometric slabs with hairline edges and accent hotspots
   const slab = (yc: number, fill: string) => {
     const hh = 58;
@@ -25,7 +25,10 @@ function MaquettePoster() {
     );
   };
   return (
-    <svg viewBox="0 0 400 320" role="img" aria-label="Three-layer capability maquette: city, room and chip.">
+    <svg
+      viewBox="0 0 400 320"
+      {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': 'Three-layer capability maquette: city, room and chip.' })}
+    >
       {slab(232, SLATE_LITE)}
       {slab(150, SLATE_MID)}
       {slab(68, SLATE_LITE)}
@@ -42,6 +45,20 @@ export function Poster() {
     <div className="poster">
       <MaquettePoster />
       <p className="poster__note">Static preview — interactive 3D unavailable on this device.</p>
+    </div>
+  );
+}
+
+/** While the 3D stack is still downloading: the same slabs, faint and
+ *  breathing, where the maquette will stand. The page and its text are already
+ *  up by then (three.js stays off the path to first paint), so this only has
+ *  to say the model is on its way — and it holds back for the first moment
+ *  (see .scene-loading), so a fast connection never sees it at all. */
+export function SceneLoading() {
+  return (
+    <div className="scene-loading" role="status">
+      <MaquettePoster decorative />
+      <p className="scene-loading__note">Loading the maquette</p>
     </div>
   );
 }

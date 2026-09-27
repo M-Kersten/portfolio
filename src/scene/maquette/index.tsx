@@ -29,12 +29,15 @@ const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };
 // scaling from a hair small up to full with a touch of overshoot (easeOutBack)
 // so the world "clicks" into the frame. (A bloom ignition surge used to fire on
 // the same clock; the bloom pass is gone.) One-shot; instant under reduced motion.
+// three.js loads after first paint, so on a slow line the scene can arrive after
+// its beat — then it settles from its first frame instead of appearing done.
 const REVEAL_FROM = 0.92;
 const REVEAL_DUR = 1400; // ms — the settle
 function Reveal({ children }: { children: ReactNode }) {
   const grp = useRef<Group>(null);
   const reduced = useReducedMotion();
   const done = useRef(false);
+  const start = useRef(0); // when the settle begins: the beat, or the first frame if later
   useFrame(() => {
     const g = grp.current;
     if (!g || done.current) return;
@@ -43,7 +46,8 @@ function Reveal({ children }: { children: ReactNode }) {
       done.current = true;
       return;
     }
-    const t = (performance.now() - bootAt - MAQUETTE_BOOT) / REVEAL_DUR;
+    if (!start.current) start.current = Math.max(bootAt + MAQUETTE_BOOT, performance.now());
+    const t = (performance.now() - start.current) / REVEAL_DUR;
     if (t <= 0) {
       g.scale.setScalar(REVEAL_FROM); // hold a hair small until the maquette's beat
       return;

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { PerformanceMonitor } from '@react-three/drei';
 import { Stage } from '../scene/Stage';
-import { MAQUETTE_HOME, type Hotspot } from '../scene/framing';
+import { type Hotspot } from '../scene/framing';
+import { MAQUETTE_HOME } from '../scene/views';
 
 /** How long a lost context gets to come back. A driver reset or a restarted GPU
  *  process usually restores it within a second; one that stays gone means the

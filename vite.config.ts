@@ -38,12 +38,21 @@ export default defineConfig({
     target: 'es2020',
     // Keep three/R3F out of the home-route entry chunk so the 30-second text
     // path and first paint never wait on the WebGL stack (perf budget, §10).
+    // React gets a chunk of its own for that to hold: R3F depends on it, and a
+    // manual chunk takes its unassigned dependencies along, so without this
+    // React rode into `three` and the entry loaded all of three to get it.
+    // (The other half is keeping three out of the shell's own imports — see
+    // scene/layout.ts.)
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Vite's preload helper, which every lazy import calls, is shared the
+          // same way: pin it to a chunk the shell loads anyway.
+          if (id.includes('vite/preload-helper')) return 'react';
           if (id.includes('node_modules')) {
             if (/three|@react-three/.test(id)) return 'three';
             if (/react-router/.test(id)) return 'router';
+            if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'react';
           }
         },
       },

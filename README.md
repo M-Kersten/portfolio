@@ -64,7 +64,9 @@ src/
       shared.tsx       palette, math helpers, useActive, fog-aware Line
     CameraRig.tsx      journey scroll + node fly-to
     Stage.tsx          lighting, fog, bloom, scene root
-    framing.ts         layer stack + hotspot positions + camera framings (data)
+    framing.ts         layer stack + hotspot positions + camera tuning (plain data,
+                       no three.js — the page shell reads it on first paint)
+    views.ts           the camera framings built from it, as three.js vectors
     store.ts           tiny cross-reconciler store (selected/hovered/visited)
     devTweak.tsx       dev-only 3D position scrubbers (tree-shaken from prod)
   content/             cases.json · capabilities.json · site.json · cv.json (+ types)
