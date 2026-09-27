@@ -276,9 +276,17 @@
     gap: 0;
     border-radius: var(--radius-s);
   }
-  .find__label,
   .find__key {
     display: none;
+  }
+  /* hidden from view only: it's still the button's accessible name */
+  .find__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
 }
 

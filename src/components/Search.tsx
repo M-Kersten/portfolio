@@ -142,14 +142,19 @@ export function Search() {
         type="button"
         className="find"
         onClick={() => setOpen(true)}
-        aria-label="Find a project"
         aria-keyshortcuts="f"
       >
         <svg className="find__glass" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <circle cx="11" cy="11" r="7" />
           <line x1="16.5" y1="16.5" x2="21" y2="21" />
         </svg>
-        <span className="find__label">Find</span>
+        {/* The button's name is its own text — "Find", plus a hidden "a
+            project" — so what's spoken matches what's shown. The phone bar
+            hides the label visually but keeps it in the accessibility tree
+            (search.css), where it still names the bare glass. */}
+        <span className="find__label">
+          Find<span className="visually-hidden"> a project</span>
+        </span>
         <kbd className="find__key" aria-hidden="true">F</kbd>
       </button>
 

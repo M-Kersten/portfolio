@@ -150,9 +150,13 @@
   white-space: pre;
 }
 /* The not-yet-decoded tail whispers instead of shouting: faint glyph static
-   the real text writes itself over, rather than a full-ink glyph storm. */
+   the real text writes itself over, rather than a full-ink glyph storm. Drawn
+   as generated content (Scramble.tsx), so it's decoration rather than text. */
 .scramble__rest {
   opacity: 0.22;
+}
+.scramble__rest::after {
+  content: attr(data-noise);
 }
 /* Text that has to wrap (section titles on a phone, the About fact values)
    opts into wrapping: spaces survive the noise at the same indices, so the

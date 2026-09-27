@@ -35,7 +35,9 @@ export function CaseCard({
       data-layer={study.layer}
       style={{ ...style, '--card-ang': `${120 + (seed % 90)}deg` } as CSSProperties}
       onClick={onOpen}
-      aria-label={`${study.title}, ${yearLabel} — open`}
+      // No aria-label: the card's own text (year, company, title, sector) is
+      // its name. A shorter label left out words the card shows, and speech
+      // input users say what they see.
     >
       <div className="worktile__media">
         <div className="worktile__ph" aria-hidden="true" />

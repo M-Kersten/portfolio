@@ -81,14 +81,21 @@ export function Scramble({ text, delay = 0, wrap = false }: { text: string; dela
     };
   }, [text, delay, reduced]);
 
+  // Assistive tech reads the plain text from a visually-hidden copy; both visual
+  // layers are hidden from it. (An aria-label on this span did the same job,
+  // but ARIA doesn't allow a label on an element with no role.)
   return (
-    <span ref={ref} className={`scramble${wrap ? ' scramble--wrap' : ''}`} aria-label={text}>
+    <span ref={ref} className={`scramble${wrap ? ' scramble--wrap' : ''}`}>
+      <span className="visually-hidden">{text}</span>
       <span className="scramble__ghost" aria-hidden="true">
         {text}
       </span>
       <span className="scramble__live" aria-hidden="true">
         {text.slice(0, state.solved)}
-        {state.rest && <span className="scramble__rest">{state.rest}</span>}
+        {/* The noise tail is drawn by CSS from data-noise (see .scramble__rest):
+            it's decoration, not text, and as a text node every contrast audit
+            read the faint static on a not-yet-decoded title as unreadable copy. */}
+        {state.rest && <span className="scramble__rest" data-noise={state.rest} />}
       </span>
     </span>
   );

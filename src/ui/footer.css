@@ -18,11 +18,10 @@
   justify-content: space-between;
 }
 
-/* The CMS link. Almost invisible until you go looking for it — it's a private
-   tool sitting on a public page, so it should read as furniture rather than as
-   something a visitor is being invited to click. */
+/* The CMS link — only in the owner's browser (see Footer.tsx), so it no longer
+   has to hide: quiet, but at the metadata tier's legible contrast. */
 .footer__admin {
-  color: var(--ink-20);
+  color: var(--ink-40);
   text-decoration: none;
   letter-spacing: 0.08em;
   text-transform: uppercase;

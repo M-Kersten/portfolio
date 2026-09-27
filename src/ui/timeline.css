@@ -96,7 +96,7 @@
 }
 .tl-seg--free {
   top: calc(50% + 5px);
-  height: 21px;
+  height: 24px; /* the minimum touch target (WCAG 2.5.8); it was 21 */
 }
 /* When the stint links to the company site, the whole band is a link. */
 .tl-seg--link {

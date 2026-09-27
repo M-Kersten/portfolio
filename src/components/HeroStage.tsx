@@ -286,10 +286,12 @@ export function HeroStage() {
           type="button"
           className="hero__signals-btn"
           aria-expanded={manifestOpen}
-          aria-label={`Projects live in the model: ${found} of ${TOTAL}${found === TOTAL ? '. The next launch is ready' : ''}. Toggle the manifest.`}
           onClick={() => setManifestOpen((v) => !v)}
         >
-          <span className="hero__signals-pips">
+          {/* Named by its visible text plus a hidden hint, rather than an
+              aria-label that said something else ("Projects live in the model:
+              0 of 10…") — speech input users say what they see. */}
+          <span className="hero__signals-pips" aria-hidden="true">
             {HOTSPOTS.map((h, i) => (
               <i key={h.slug} data-on={i < revealed || undefined} />
             ))}
@@ -300,6 +302,7 @@ export function HeroStage() {
           >
             {complete ? `${TOTAL}/${TOTAL} · ready to launch` : `${revealed}/${TOTAL} projects live`}
           </span>
+          <span className="visually-hidden"> — the manifest of projects</span>
         </button>
       </div>
 
