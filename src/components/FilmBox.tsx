@@ -50,7 +50,9 @@ export function FilmBox({ embed, title, onClose }: { embed: string; title: strin
             // autoplay is honest here: the visitor pressed play to get this far.
             src={`${embed}&autoplay=1`}
             title={`${title} — film`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            // no `web-share`: Chrome doesn't know it as an iframe permission
+            // and logs a warning for it on every embed
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
         </div>

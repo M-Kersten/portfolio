@@ -266,6 +266,63 @@
 }
 .node-hud__media--video { position: relative; overflow: hidden; height: auto; }
 .node-hud__media--video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+/* The poster and its play mark, standing in for the player until it's pressed
+   (NodeHud.tsx) — the case sheet's film gesture (.focus__play), in the panel. */
+.node-hud__play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--card-accent);
+}
+.node-hud__play img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.9) brightness(0.8);
+  transition: filter 0.25s var(--ease), transform 0.45s var(--ease);
+}
+.node-hud__play:hover img,
+.node-hud__play:focus-visible img {
+  filter: none;
+  transform: scale(1.03);
+}
+.node-hud__play span {
+  position: relative; /* over the poster */
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  padding-left: 0.15em; /* optical centring: a triangle's mass sits left */
+  border: 1px solid var(--card-accent);
+  background: color-mix(in srgb, #05070a 60%, transparent);
+  font-size: 1rem;
+  line-height: 1;
+  backdrop-filter: blur(3px);
+  transition: background 0.2s var(--ease), color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+.node-hud__play:hover span,
+.node-hud__play:focus-visible span {
+  background: color-mix(in srgb, var(--card-accent) 88%, transparent);
+  color: #06080a;
+  transform: scale(1.06);
+}
+.node-hud__play:focus-visible {
+  outline: 2px solid var(--card-accent);
+  outline-offset: -2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-hud__play img,
+  .node-hud__play span {
+    transition: none;
+  }
+}
 
 .node-hud__story { margin-bottom: var(--space-m); }
 .node-hud__tech {

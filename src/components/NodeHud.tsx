@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { caseBySlug, LAYER_LABEL, site, type CaseStudy } from '../content';
+import { asset } from '../lib/asset';
 import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { sceneStore } from '../scene/store';
@@ -19,22 +20,40 @@ const CLOSE_FADE = 280; // ms the dossier fades before the route (and the zoom-o
 // holds the case content in a column to the right of the ring. Route-driven so
 // deep links + the back button keep working.
 
+// The video's poster until it's asked for, then the player. Embedding YouTube
+// on open cost every visitor its whole player for a film most never start —
+// the case sheet already works this way (FocusCard → FilmBox); this is the
+// same gesture, played in place. Keyed per case by the caller, so moving to
+// another project never carries a playing film across.
 function Media({ study }: { study: CaseStudy }) {
   const embed = youtubeEmbed(study.video);
-  if (embed) {
-    return (
-      <div className="node-hud__media node-hud__media--video">
+  const [playing, setPlaying] = useState(false);
+  const [imgOk, setImgOk] = useState(true);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  // the button the keyboard was on is gone: hand focus to the player
+  useEffect(() => {
+    if (playing) frameRef.current?.focus();
+  }, [playing]);
+  if (!embed) return null; // no video — the live object framed in the ring is the visual
+  return (
+    <div className="node-hud__media node-hud__media--video">
+      {playing ? (
         <iframe
-          src={embed}
+          ref={frameRef}
+          // autoplay is honest here: the visitor pressed play to get this far
+          src={`${embed}&autoplay=1`}
           title={`${study.title} — video`}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
-          loading="lazy"
         />
-      </div>
-    );
-  }
-  return null; // no video — the live object framed in the ring is the visual
+      ) : (
+        <button type="button" className="node-hud__play" onClick={() => setPlaying(true)} aria-label={`Play the ${study.title} video`}>
+          {imgOk && <img src={asset(`/posters/${study.slug}.jpg`)} alt="" onError={() => setImgOk(false)} />}
+          <span aria-hidden="true">&#9654;</span>
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function NodeHud() {
@@ -127,7 +146,7 @@ export function NodeHud() {
         </h2>
         <p className="node-hud__outcome">{study.outcome}</p>
 
-        <Media study={study} />
+        <Media key={study.slug} study={study} />
 
         {/* The story — the three beats visitors come for. */}
         <div className="story node-hud__story">
