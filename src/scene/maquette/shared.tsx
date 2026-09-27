@@ -206,9 +206,8 @@ export function makeRand(seed: number) {
  *
  *  Line discipline (so the drawing reads as ONE hand): mesh `<Edges>` are
  *  always NEUTRAL (GHOST_LINE on unbuilt/ghost things); drei Line widths stay
- *  on a three-step scale — 1 structure · 1.2 detail · 1.5 signature accents
- *  (the constellation, drawn far away in the sky, is the one licensed
- *  exception). Accent-coloured lines belong to interactive objects only.
+ *  on a three-step scale — 1 structure · 1.2 detail · 1.5 signature accents.
+ *  Accent-coloured lines belong to interactive objects only.
  *
  *  Forwards its ref to drei's Line (React 18 drops `ref` on plain function
  *  components), so callers can reach the Line2 and animate its material. */

@@ -1531,14 +1531,16 @@ function Constellation({ anchor }: { anchor: V3 }) {
     const lm = lineRef.current?.material;
     if (lm) {
       lm.userData.lifeSkip = true; // self-animated — presence stays out
-      const op = kk * 0.95;
+      // A star chart's lines: faint, so the stars are what you see and the
+      // links between them are read, not looked at.
+      const op = kk * 0.55;
       lm.opacity = op;
       if (lm.uniforms?.opacity) lm.uniforms.opacity.value = op;
     }
   });
   return (
     <group ref={grp} position={[anchor[0] + 0.1, anchor[1] + 1.0, anchor[2] - 0.7]} rotation={[0.05, 0.4, 0]} visible={false}>
-      <Line ref={lineRef} segments points={segs} color={NEUTRAL} lineWidth={3.0} transparent opacity={0} />
+      <Line ref={lineRef} segments points={segs} color={NEUTRAL} lineWidth={1.5} transparent opacity={0} />
       {stars.map((p, i) => (
         <mesh key={i} position={p}>
           <sphereGeometry args={[0.0033 + DIPPER_MAG[i] * 0.0028, 10, 10]} />
