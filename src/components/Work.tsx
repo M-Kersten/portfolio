@@ -230,6 +230,21 @@ export function Work() {
     return () => mq.removeEventListener('change', on);
   }, []);
 
+  // Manual pan: open the strip where the projects start. From its origin, a
+  // phone opened on the spawn marker and three screens of lead-in years, with
+  // the first project a long swipe away and nothing to say there was anything
+  // to swipe to. Only when not one project would be in view, only once, and
+  // only if the visitor hasn't moved the strip — the lead-in is still there to
+  // swipe back to. Declared before the effects that read the scroll position
+  // (the company bar, the scroll wave), so they start from here.
+  useEffect(() => {
+    if (!manualPan) return;
+    const pin = pinRef.current;
+    const first = planeRef.current?.querySelector<HTMLElement>('.worktile');
+    if (!pin || !first || pin.scrollLeft !== 0 || first.offsetLeft < pin.clientWidth) return;
+    pin.scrollLeft = first.offsetLeft - Math.min(48, pin.clientWidth * 0.08);
+  }, [manualPan]);
+
   // Mobile: drive the sticky company bar from the horizontal scroll position —
   // touch has no hover, so the per-band tooltip is otherwise unreachable. The
   // band under the viewport's centre is the "current" employer; an
@@ -464,6 +479,14 @@ export function Work() {
       <div className="container">
         {workIntro.title && <SectionTitle>{workIntro.title}</SectionTitle>}
         <p className="section__lead">{workIntro.lead}</p>
+        {/* Phones pan the strip by hand, and the desktop cue can't come along:
+            it sits in the strip, which scrolls it away, and the company bar
+            owns the bottom edge. So the cue goes here, right above it. */}
+        {isNarrow && (
+          <p className="wall__swipe" aria-hidden="true">
+            swipe through time <span className="wall__swipe-arrow">→</span>
+          </p>
+        )}
       </div>
 
       <div

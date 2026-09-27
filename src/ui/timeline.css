@@ -364,6 +364,27 @@
 }
 /* On phones the sticky company bar owns the bottom, so drop the scroll cue. */
 .wall[data-static] .wall__cue { display: none; }
+/* …and say it above the strip instead (Work.tsx), in the same voice, with the
+   arrow nudging the way the strip goes. */
+.wall__swipe {
+  margin: var(--space-s) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.wall__swipe-arrow {
+  display: inline-block;
+  animation: wall-swipe-nudge 1.8s ease-in-out infinite;
+}
+@keyframes wall-swipe-nudge {
+  0%, 60%, 100% { transform: none; }
+  30% { transform: translateX(5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wall__swipe-arrow { animation: none; }
+}
 
 /* ---- Mobile sticky company bar ----
    The timeline can't be hovered on touch, so this fixed bar reads out the
