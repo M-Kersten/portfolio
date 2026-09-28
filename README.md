@@ -52,10 +52,10 @@ src/
   scene/
     maquette/          the three-layer 3D world, one file per concern:
       index.tsx        composition root — stacks the layers, culls the far one
-      city.tsx         City rig: skyline, windmill, park + ARCam, skyscraper
+      city.tsx         City rig: skyline, windmill, park + ARCam, the Alliander tower
       room.tsx         Room rig: desk/monitor, couch + phone, AR table, bookcase
       chip.tsx         Chip rig: board, accelerator, camera, monitor, traces, LEDs
-      kit.ts           loads the chip layer's Blender parts (public/models/chip.glb)
+      kit.ts           loads the Blender models (public/models/chip.glb, tower.glb)
       hotspots.tsx     the floating crosshair markers
       signals.tsx      cross-layer relation cables (edit RELATIONS here)
       life.tsx         the ghost→alive life system (LifeGroup, EmissiveHover)
@@ -79,7 +79,8 @@ public/
   textures/            optional real screenshots (room-screen / room-phone /
                        zwijsen-book) — objects fall back to procedural looks
   models/              binoculars.gltf (the park's AR viewer) · chip.glb (the
-                       chip layer's parts, built in Blender from scripts/models)
+                       chip layer's parts) · tower.glb (the city's tower); the
+                       last two are built in Blender from scripts/models
   logos/               employer marks for the timeline tooltips
   profile/1..5.png     the About portrait frames
 ```
@@ -127,9 +128,10 @@ feel* (dolly zoom/tilt + response — set to 0 to disable); the **scene** panel
 the values to copy back into code, and both are stripped from production
 builds.
 
-**The chip layer's models** are built in Blender from a script:
-`scripts/models/README.md` covers rebuilding `public/models/chip.glb` and the
-rules the parts follow. The parts are looked up by name in `kit.ts`.
+**The Blender models** (the chip layer's parts and the city's tower) are built
+from scripts: `scripts/models/README.md` covers rebuilding
+`public/models/chip.glb` and `tower.glb` and the rules the parts follow. The
+parts are looked up by name in `kit.ts`.
 
 **Look & feel**: start at `src/ui/tokens.css` (colours, type scale, spacing,
 container width — the whole grid derives from `--container`). Section styling

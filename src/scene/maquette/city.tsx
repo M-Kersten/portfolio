@@ -5,7 +5,7 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, Html } from '@react-three/drei';
-import { AdditiveBlending, Box3, BufferAttribute, type BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
 import { sceneStore, useSceneSelector } from '../store';
@@ -13,7 +13,7 @@ import { launchTrack } from '../views';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useLaunchCount } from '../../lib/launches';
 import { asset } from '../../lib/asset';
-import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, FIRE, useAccent, circlePts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
+import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, FIRE, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
 import { glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
 import { PresenceCtx } from './presence';
@@ -22,6 +22,7 @@ import { faceted, lathe, place, useGeometry } from './shapes';
 import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { Rise, RocketBody } from './rocket';
+import { loadTowerKit, useTowerKit, type TowerKit } from './kit';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
  *  Building for both its windows and its body. A module-level box rather than
@@ -1069,144 +1070,171 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
   );
 }
 
-// The city's centrepiece — a slender, continuously tapering octagonal glass
-// tower (one frustum shaft, not stacked blocks) with full-height mullion fins
-// running the edges, a few floor bands that glow when engaged (the shared
-// winMat, ramped by WindowDriver) and a tapered crown with a slow-pulsing
-// beacon. Carries the Alliander hotspot; same GlassMat language as the rest of
-// the scene, via LiveGlassMat so the shaft solidifies once visited.
-const TOWER_H = 0.78;
-const TOWER_R_BOT = 0.145;
-const TOWER_R_TOP = 0.115; // only a gentle taper — reads as a vertical tower, not a cone
-const TOWER_SIDES = 8;
-// How far the rising light-band sits outside the shaft. Has to clear the mullion
-// fins, which are 0.016 wide and centred on the taper — so half of that plus a
-// margin, held constant at every height.
-const SURGE_CLEAR = 0.022;
-/** The shaft's radius at height `y` — shared by the tower itself and by the cables
- *  that have to attach to its outside. */
-const towerR = (y: number) => TOWER_R_BOT + (TOWER_R_TOP - TOWER_R_BOT) * Math.min(1, Math.max(0, y / TOWER_H));
-// Where a cable meets the shaft: hard against the mullion fins' outer face, so the
-// tube overlaps the surface instead of hovering off it.
-const HUB_CLEAR = 0.008;
-// The highest a cable attaches — on the SHAFT, just under the crown. It used to
-// attach at the hub's own height (0.8), which is up in the crown cone, and the
-// radius was taken from the shaft's taper: 0.145 against a crown that's only 0.103
-// wide there, so every cable started floating in clear air beside the tower.
-// Keeping the attachment on the shaft means one taper describes it and the cable
-// always lands on something.
-const HUB_HIGH = TOWER_H - 0.04;
+// The city's centrepiece: a setback tower in the manner of the 1920s high-rises,
+// modelled in Blender (scripts/models/build_tower.py, shipped as
+// public/models/tower.glb). A podium with a recessed entrance, three tiers
+// stepping in, two crown steps, a slotted lantern and a spire, with five ribs up
+// each face and window strips between them. Carries the Alliander hotspot: the
+// glass solidifies once visited (LiveGlassMat), the strips light with the rest
+// of the city's windows (the shared winMat, ramped by WindowDriver), the lantern
+// powers on with the beacon, and a light-band climbs the tiers while it's alive.
+
+// Fetch the model as soon as the scene's code arrives, not when the city first
+// renders: the city is the layer the page opens on, and this is its centrepiece.
+// A failure here is retried and reported by useTowerKit.
+loadTowerKit().catch(() => {});
+
+/** The three tiers the ribs run up, as [width, y0, y1, corner radius]: a copy
+ *  of TIERS[1:4] in scripts/models/build_tower.py. The cables land on these and
+ *  the light-band steps in with them, so change both together. */
+const TOWER_TIERS: [number, number, number, number][] = [
+  [0.27, 0.06, 0.46, 0.075],
+  [0.23, 0.46, 0.66, 0.065],
+  [0.19, 0.66, 0.8, 0.055],
+];
+/** The tier standing at height `y` (the top one above it). */
+const towerTier = (y: number) => TOWER_TIERS.find((t) => y < t[2]) ?? TOWER_TIERS[TOWER_TIERS.length - 1];
+// How far outside a tier's glass the light-band runs: clear of the ribs, which
+// stand 0.0095 proud of it, at every setback.
+const SURGE_CLEAR = 0.016;
+// Where a cable meets the tower: this far out from the glass, so the tube
+// overlaps the ribs' outer faces instead of hovering off them.
+const CABLE_CLEAR = 0.012;
+const BEACON_Y = 1.012; // sitting on the spire's tip at 1.0
+// The highest a cable attaches: on the top tier, a little under its setback at
+// 0.80, so every cable lands on the tower's face rather than on the crown steps.
+const HUB_HIGH = 0.74;
 // Beyond this horizontal distance a cable attaches high; nearer than it, the
-// attachment slides down the shaft. A span to something standing at the tower's
+// attachment slides down the tower. A span to something standing at the tower's
 // own foot otherwise dropped almost vertically down the building's face, which
 // read as a cable stuck to it rather than a line running to it.
 const HUB_FAR = 0.9;
 const HUB_LOW = 0.22; // the lowest a cable will attach
 
-function Skyscraper({ position, winMat }: { position: V3; winMat?: MeshStandardMaterial }) {
+/** Distance from the centre to a rounded square's edge along a unit direction
+ *  (dx, dz): where a cable heading that way leaves a tier. */
+function rrectReach(hx: number, hz: number, r: number, dx: number, dz: number): number {
+  const ax = Math.abs(dx);
+  const az = Math.abs(dz);
+  let t = Math.min(ax > 1e-6 ? hx / ax : Infinity, az > 1e-6 ? hz / az : Infinity);
+  const cx = hx - r;
+  const cz = hz - r;
+  // past the flat sides, the ray leaves through the corner's arc
+  if (ax * t > cx && az * t > cz) {
+    const b = ax * cx + az * cz;
+    const c = cx * cx + cz * cz - r * r;
+    t = b + Math.sqrt(Math.max(0, b * b - c));
+  }
+  return t;
+}
+
+/** Where a cable meets the tower at height y, heading out along (dx, dz). */
+function towerReach(y: number, dx: number, dz: number): number {
+  const [w, , , r] = towerTier(y);
+  return rrectReach(w / 2, w / 2, r, dx, dz) + CABLE_CLEAR;
+}
+
+/** An open band round a closed outline: the light-band, round a tier. */
+function bandGeometry(pts: V3[], h: number): BufferGeometry {
+  const pos: number[] = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, , z0] = pts[i];
+    const [x1, , z1] = pts[i + 1];
+    pos.push(x0, -h / 2, z0, x1, -h / 2, z1, x1, h / 2, z1, x0, -h / 2, z0, x1, h / 2, z1, x0, h / 2, z0);
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+function Skyscraper({ position, kit, winMat }: { position: V3; kit: TowerKit; winMat?: MeshStandardMaterial }) {
   const { accent } = useAccent();
-  const { selected, visited } = useActive('alliander-hololens');
-  const lit = useLitLink('alliander-hololens'); // the fins and the mast light with the glass (lit.tsx)
+  const { selected, visited } = useActive(TOWER);
+  const lit = useLitLink(TOWER); // the ribs and the spire light with the glass (lit.tsx)
   const beacon = useRef<MeshStandardMaterial>(null);
+  const lamp = useRef<MeshStandardMaterial>(null);
   const reduced = useReducedMotion();
-  const surge = useRef<Group>(null); // a light-band that rises up the shaft
+  const surge = useRef<Group>(null); // a light-band that climbs the tiers
   const surgeMat = useRef<MeshStandardMaterial>(null);
   const lifeK = useRef(0);
   const accentC = useMemo(() => new Color(accent), [accent]);
-  // mullion fins hug the taper: each runs base-radius → top-radius up one edge
-  const finL = Math.hypot(TOWER_R_BOT - TOWER_R_TOP, TOWER_H);
-  const finTilt = Math.atan2(TOWER_R_BOT - TOWER_R_TOP, TOWER_H);
-  const finR = (TOWER_R_BOT + TOWER_R_TOP) / 2;
-  const rAt = towerR; // the shared taper — the cables attach off the same curve
+  // The band is drawn round the lowest tier and scaled in to each one above it.
+  const [w0, y0, , r0] = TOWER_TIERS[0];
+  const y1 = TOWER_TIERS[TOWER_TIERS.length - 1][2];
+  const band = useMemo(() => bandGeometry(roundedRectPts(w0 + 2 * SURGE_CLEAR, w0 + 2 * SURGE_CLEAR, r0 + SURGE_CLEAR), 0.03), [w0, r0]);
   useFrame((s) => {
-    if (!beacon.current) return;
     const t = reduced ? 0 : s.clock.elapsedTime;
     // the beacon barely smoulders on the ghost tower; it starts pulsing in
-    // colour once the visitor has brought the tower to life
+    // colour once the visitor has brought the tower to life, and the lantern
+    // powers on with it
     lifeK.current += ((selected || visited ? 1 : 0) - lifeK.current) * 0.08;
-    beacon.current.color.copy(GHOST_FILL).lerp(accentC, lifeK.current);
-    beacon.current.emissive.copy(GHOST_FILL).lerp(accentC, lifeK.current);
-    beacon.current.emissiveIntensity = (0.45 + 0.55 * Math.abs(Math.sin(t * 2.1))) * (0.14 + 0.86 * lifeK.current);
-    // a light-band surges up the shaft while the tower is alive — energy rising
-    // to the crown; it hugs the taper as it climbs
+    const k = lifeK.current;
+    const b = beacon.current;
+    if (b) {
+      b.color.copy(GHOST_FILL).lerp(accentC, k);
+      b.emissive.copy(GHOST_FILL).lerp(accentC, k);
+      b.emissiveIntensity = (0.45 + 0.55 * Math.abs(Math.sin(t * 2.1))) * (0.14 + 0.86 * k);
+    }
+    const l = lamp.current;
+    if (l) {
+      l.color.copy(GHOST_FILL).lerp(accentC, k);
+      l.emissive.copy(GHOST_FILL).lerp(accentC, k);
+      l.emissiveIntensity = 0.05 + k * (0.85 + 0.12 * Math.sin(t * 2.2));
+    }
+    // a light-band climbs the tiers while the tower is alive, energy rising to
+    // the crown; it steps in at each setback, the same distance off every tier
     if (surge.current && surgeMat.current) {
       const p = reduced ? 0.5 : (t * FX.loopSpeed) % 1;
-      const y = p * TOWER_H;
+      const y = y0 + p * (y1 - y0);
+      const sc = (towerTier(y)[0] / 2 + SURGE_CLEAR) / (w0 / 2 + SURGE_CLEAR);
       surge.current.position.y = y;
-      // CONSTANT clearance, not a proportional one. Scaling by rAt(y)/TOWER_R_BOT
-      // scaled the standoff along with the radius, so the band started level with
-      // the mullion fins at the base and sank progressively inside them as it
-      // climbed — it disappeared into the shaft around half way up. The fins stand
-      // off by a fixed amount, so the band has to as well.
-      const r = (rAt(y) + SURGE_CLEAR) / (TOWER_R_BOT + SURGE_CLEAR);
-      surge.current.scale.set(r, 1, r);
-      surgeMat.current.opacity = fxEnv(p) * FX.peak * lifeK.current;
+      surge.current.scale.set(sc, 1, sc);
+      surgeMat.current.opacity = fxEnv(p) * FX.peak * k;
     }
   });
   return (
     <group position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.34} opacity={0.45} />
-      <group>
-        {/* one continuous tapered octagonal shaft — the same frosted glass as
-            the rest of the scene, set apart by its shape; ghost grey until the
-            hotspot is visited, then it solidifies */}
-        <mesh position={[0, TOWER_H / 2, 0]}>
-          <cylinderGeometry args={[TOWER_R_TOP, TOWER_R_BOT, TOWER_H, TOWER_SIDES]} />
-          <LiveGlassMat slug="alliander-hololens" />
-          <Edges threshold={15} color={NEUTRAL} />
-        </mesh>
-        {/* full-height mullion fins along the eight edges */}
-        {Array.from({ length: TOWER_SIDES }).map((_, i) => (
-          <group key={i} rotation={[0, (i / TOWER_SIDES) * Math.PI * 2, 0]}>
-            <mesh position={[finR, TOWER_H / 2, 0]} rotation={[0, 0, finTilt]}>
-              <boxGeometry args={[0.016, finL, 0.02]} />
-              <meshStandardMaterial {...litMat(lit)} color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.18} roughness={0.4} metalness={0.3} />
-            </mesh>
-          </group>
-        ))}
-        {/* floor bands wrap the shaft — faint at rest, glow when engaged */}
-        {winMat &&
-          [0.24, 0.42, 0.58].map((f, i) => {
-            const y = TOWER_H * f;
-            const r = rAt(y) + 0.004;
-            return (
-              <mesh key={i} position={[0, y, 0]} material={winMat}>
-                <cylinderGeometry args={[r, r, 0.02, TOWER_SIDES, 1, true]} />
-              </mesh>
-            );
-          })}
-        {/* A light-band that rises up the shaft while engaged (driven above).
-            `renderOrder` is the fix for it flicking between in-front-of and
-            behind the tower as the camera moved: the band and the shaft are both
-            transparent, and both their centroids sit on the tower's own axis, so
-            their distances to the camera are near enough identical that three's
-            back-to-front sort flipped the pair depending on the viewing angle —
-            whichever drew second won. Forcing the band to draw after the shaft
-            settles it, and because the shaft writes depth once it's alive the
-            band's far arc is then correctly rejected: you see the near side wrap
-            the tower, the same way from every angle. */}
-        <group ref={surge}>
-          <mesh renderOrder={2}>
-            <cylinderGeometry args={[TOWER_R_BOT + SURGE_CLEAR, TOWER_R_BOT + SURGE_CLEAR, 0.03, TOWER_SIDES, 1, true]} />
-            <meshStandardMaterial ref={surgeMat} color={accent} emissive={accent} emissiveIntensity={1.4} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} userData={{ lifeSkip: true }} />
-          </mesh>
-        </group>
-        {/* crown: a short tapered mechanical cap (flat top), then a thin antenna
-            mast + a slow-pulsing beacon — a tower crown, not a spike */}
-        <mesh position={[0, TOWER_H + 0.05, 0]}>
-          <cylinderGeometry args={[0.055, TOWER_R_TOP, 0.1, TOWER_SIDES]} />
-          <LiveGlassMat slug="alliander-hololens" />
-          <Edges threshold={15} color={NEUTRAL} />
-        </mesh>
-        <mesh position={[0, TOWER_H + 0.15, 0]}>
-          <cylinderGeometry args={[0.004, 0.004, 0.1, 8]} />
-          <meshStandardMaterial {...litMat(lit)} color={NEUTRAL} metalness={0.6} roughness={0.4} />
-        </mesh>
-        <mesh position={[0, TOWER_H + 0.21, 0]}>
-          <sphereGeometry args={[0.014, 12, 12]} />
-          <meshStandardMaterial ref={beacon} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
+      {/* the tiers, the canopy and the lantern: one shell of the scene's frosted
+          glass, ghost grey until the hotspot is visited, then it solidifies */}
+      <mesh geometry={kit.tower_body}>
+        <LiveGlassMat slug={TOWER} />
+        <Edges threshold={35} color={NEUTRAL} />
+      </mesh>
+      {/* the ribs and the spire */}
+      <mesh geometry={kit.tower_ribs}>
+        <meshStandardMaterial {...litMat(lit)} color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.18} roughness={0.4} metalness={0.3} />
+      </mesh>
+      <mesh geometry={kit.tower_spire}>
+        <meshStandardMaterial {...litMat(lit)} color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.18} roughness={0.4} metalness={0.3} />
+      </mesh>
+      {/* the window strips between the ribs light with the rest of the city */}
+      {winMat && <mesh geometry={kit.tower_windows} material={winMat} />}
+      {/* the lantern's lamp, driven above */}
+      <mesh geometry={kit.tower_lamp}>
+        <meshStandardMaterial ref={lamp} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.05} roughness={0.35} toneMapped={false} />
+      </mesh>
+      {/* A light-band that climbs the tower while engaged (driven above).
+          `renderOrder` is the fix for it flicking between in-front-of and
+          behind the tower as the camera moved: the band and the glass are both
+          transparent, and both their centroids sit on the tower's own axis, so
+          their distances to the camera are near enough identical that three's
+          back-to-front sort flipped the pair depending on the viewing angle —
+          whichever drew second won. Forcing the band to draw after the glass
+          settles it, and because the glass writes depth once it's alive the
+          band's far side is then correctly rejected: you see the near side wrap
+          the tower, the same way from every angle. */}
+      <group ref={surge}>
+        <mesh renderOrder={2} geometry={band}>
+          <meshStandardMaterial ref={surgeMat} color={accent} emissive={accent} emissiveIntensity={1.4} transparent opacity={0} blending={AdditiveBlending} side={DoubleSide} depthWrite={false} toneMapped={false} userData={{ lifeSkip: true }} />
         </mesh>
       </group>
+      {/* the slow-pulsing beacon on the spire's tip */}
+      <mesh position={[0, BEACON_Y, 0]}>
+        <sphereGeometry args={[0.014, 12, 12]} />
+        <meshStandardMaterial ref={beacon} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
+      </mesh>
     </group>
   );
 }
@@ -1574,17 +1602,17 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
   const tubes = useMemo(
     () =>
       targets.map((t) => {
-        // Attach on the shaft's OUTSIDE facing this target, not on its centre axis.
+        // Attach on the tower's OUTSIDE facing this target, not on its centre axis.
         // Every span used to start at the same point on the centreline, so they all
         // converged inside the tower and you could see the knot of them through the
         // glass. On the outside they read as cables leaving the building, and the
-        // attachment slides down the shaft for anything standing close to its foot.
+        // attachment slides down the tiers for anything standing close to its foot.
         const dx = t[0] - from[0];
         const dz = t[2] - from[2];
         const horiz = Math.hypot(dx, dz) || 1;
         const near = Math.min(1, horiz / HUB_FAR);
         const ay = HUB_LOW + (HUB_HIGH - HUB_LOW) * near;
-        const r = towerR(ay) + HUB_CLEAR;
+        const r = towerReach(ay, dx / horiz, dz / horiz);
         const ax = from[0] + (dx / horiz) * r;
         const az = from[2] + (dz / horiz) * r;
         const span = Math.hypot(t[0] - ax, t[2] - az);
@@ -2188,6 +2216,8 @@ export function CityRig() {
     m.userData.lifeSkip = true; // WindowDriver animates it; shared with prop buildings
     return m;
   }, [accent]);
+  // the tower's Blender model (kit.ts); null until it has arrived
+  const towerKit = useTowerKit();
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const mill = useTweak('City.Windmill', { position: MILL_POS });
   const park = useTweak('City.Park', { position: PARK_POS });
@@ -2222,15 +2252,20 @@ export function CityRig() {
       <Outskirts clear={keepClear} blocks={cluster} />
       {/* a few homes left lit in the sleeping city (independent of the hover glow) */}
       <OccupiedWindows buildings={cluster} />
-      <LifeGroup slug="alliander-hololens">
-        <Skyscraper position={[0, 0, 0]} winMat={winMat} />
-      </LifeGroup>
+      {/* The tower and its power lines arrive together, with the tower's model.
+          Its LifeGroup mounts with it too, so it takes the tower to the right
+          level on its first frame rather than on a later sweep. */}
+      {towerKit && (
+        <LifeGroup slug="alliander-hololens">
+          <Skyscraper position={[0, 0, 0]} kit={towerKit} winMat={winMat} />
+        </LifeGroup>
+      )}
       {/* the neighbourhood transformer house — the substation that powers the
           city, on the front-centre plot facing the camera */}
       <TransformerHouse position={trafo.position} />
       {/* power lines from the central tower to every building + the transformer —
           glow blue on select */}
-      <PowerWires from={[0, 0.8, 0]} targets={wireTargets} />
+      {towerKit && <PowerWires from={[0, 0.8, 0]} targets={wireTargets} />}
 
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}

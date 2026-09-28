@@ -1,7 +1,7 @@
 # The chip layer's models, built in Blender and exported as one glb of named
 # parts for the site (src/scene/maquette/chip.tsx). See README.md to rebuild.
 #
-# Coordinates are the site's (see chipkit.py): chip-local, Y up, the board's
+# Coordinates are the site's (see modelkit.py): chip-local, Y up, the board's
 # top face at y = 0.02. Each part is authored around the origin its JSX group
 # already uses, so it drops onto the existing slot unchanged:
 #   board_*  the PCB and its silkscreen ...... ChipRig origin (board centre)
@@ -20,8 +20,8 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import chipkit as K  # noqa: E402  (imports bpy first)
-from chipkit import BEV_M, BEV_S, TAU  # noqa: E402
+import modelkit as K  # noqa: E402  (imports bpy first)
+from modelkit import BEV_M, BEV_S, TAU  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
 Y0 = 0.02  # the board's top face

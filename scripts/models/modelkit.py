@@ -1,10 +1,11 @@
-# chipkit — shared bpy helpers for the chip layer's models (see README.md).
+# modelkit — shared bpy helpers for the maquette's models (see README.md).
 #
 # Everything is authored in the SITE's space: three.js axes (Y up, +Z toward
-# the viewer), chip-local units (the board is 2.05 across), y = 0.02 is the
-# board's top face. Exported with export_yup=False, so coordinates land in the
-# site unchanged. Transforms are baked into mesh data as parts are made, so
-# every object sits at identity and its vertices are already where they belong.
+# the viewer), in the local units of the layer a model belongs to (the chip's
+# board is 2.05 across, the city's tower 1.0 tall). Exported with
+# export_yup=False, so coordinates land in the site unchanged. Transforms are
+# baked into mesh data as parts are made, so every object sits at identity and
+# its vertices are already where they belong.
 #
 # One bevel rule for the whole kit, which is most of what makes the parts read
 # as one set: every hard edge gets a round, 2-segment bevel. On a 90° corner
@@ -23,8 +24,8 @@ from mathutils import Euler, Matrix, Vector
 TAU = math.tau
 
 # The bevel scale, by size class (chip units; the board is 2.05 ≈ 100 mm).
-BEV_S = 0.0025  # pins, passives, lands, the smaller bodies
-BEV_M = 0.005  # housings, the package substrate, the monitor
+BEV_S = 0.0025  # pins, passives, lands, the smaller bodies, the tower's lantern
+BEV_M = 0.005  # housings, the package substrate, the monitor, the tower's tiers
 
 
 def reset():
