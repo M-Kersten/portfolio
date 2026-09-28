@@ -34,7 +34,6 @@ const LAYERS = [
   { key: 'room', index: '02', name: 'room' },
   { key: 'chip', index: '03', name: 'chip' },
 ] as const;
-const HINT_KEY = 'mk-model-hint';
 // How long the ambient tally waits, after a hotspot's HUD closes, before it
 // steps to the new count. Roughly how long CameraRig's exponential zoom-out
 // takes to visually settle (it eases at k=3.4/s — ~95% of the way there by
@@ -42,6 +41,9 @@ const HINT_KEY = 'mk-model-hint';
 // model again, rather than jumping the instant they open a project, while
 // they're still looking at the close-up and never see the model fill in.
 const TALLY_SETTLE_MS = 900;
+// What the finger does on a touch screen, what the pointer does elsewhere —
+// the same words the crosshair's cue uses.
+const PRESS = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches ? 'tap' : 'click';
 
 export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
@@ -67,16 +69,10 @@ export function HeroStage() {
   // maquette has powered on, so the boot reads as one thing at a time. Instant
   // under reduced motion.
   const [booted, setBooted] = useState(reduced);
-  // First-visit whisper: one line that states the premise, once, then never
-  // again (dismissed forever the moment a first project is opened).
-  const [hintDone, setHintDone] = useState(() => {
-    try {
-      return localStorage.getItem(HINT_KEY) === '1';
-    } catch {
-      return true;
-    }
-  });
-  const [hintShown, setHintShown] = useState(false);
+  // First-visit cue (scene store): with the instrument line, one line that
+  // states the premise, while a crosshair in the model asks to be clicked;
+  // both retire for good the moment a first project is opened.
+  const cue = useSceneSelector((s) => s.cue);
 
   // The scroll journey and the "is the hero on screen?" flag are both derived
   // from the hero's own scroll progress on one cheap rAF loop (no scroll events,
@@ -153,14 +149,6 @@ export function HeroStage() {
 
   const complete = revealed === TOTAL;
 
-  // the whisper waits a beat, then appears — and retires for good on the
-  // first opened project
-  useEffect(() => {
-    if (hintDone) return;
-    const t = window.setTimeout(() => setHintShown(true), 2600);
-    return () => clearTimeout(t);
-  }, [hintDone]);
-
   // reveal the bottom instrument line last — a beat after the hero title itself
   // decodes in, which only happens once the load intro card has cleared
   // (introOver). Keeps the reveal to one thing at a time.
@@ -169,16 +157,10 @@ export function HeroStage() {
     const t = window.setTimeout(() => setBooted(true), 1200);
     return () => clearTimeout(t);
   }, [reduced, introOver]);
+  // …and the boot is over: the cue in the model can come in now
   useEffect(() => {
-    if (!hintDone && (selectedSlug !== null || found > 0)) {
-      setHintDone(true);
-      try {
-        localStorage.setItem(HINT_KEY, '1');
-      } catch {
-        /* fine — shows again next visit */
-      }
-    }
-  }, [selectedSlug, found, hintDone]);
+    if (booted) sceneStore.setBooted();
+  }, [booted]);
 
   // Esc closes the manifest
   useEffect(() => {
@@ -234,9 +216,9 @@ export function HeroStage() {
         style={{ opacity: overlayOpacity * (booted ? 1 : 0), pointerEvents: overlayOpacity && booted ? undefined : 'none' }}
         data-complete={complete || undefined}
       >
-        {hintShown && !hintDone && (
+        {cue && (
           <p className="hero__hint" aria-hidden="true">
-            ten projects built this miniature — click one awake
+            ten projects built this miniature — {PRESS} one awake
           </p>
         )}
         {manifestOpen && (
@@ -278,7 +260,7 @@ export function HeroStage() {
             <p className="manifest__foot">
               {found === TOTAL
                 ? 'every project is live — the next one is a rocket, ready to launch'
-                : 'every object in the model is a project — click one to wake it'}
+                : `every object in the model is a project — ${PRESS} one to wake it`}
             </p>
           </div>
         )}

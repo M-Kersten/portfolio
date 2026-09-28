@@ -31,35 +31,34 @@
   padding: calc(var(--header-h) + var(--space-xl) + 4.5rem) var(--space-m) 0;
   max-width: 32rem;
   pointer-events: none;
-  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+  transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 }
 .hero__title[data-visible='false'] {
   opacity: 0;
   transform: translateY(-10px);
 }
 .hero__name {
-  font-size: var(--step-5);
-  font-weight: 700; /* Space Grotesk's heaviest weight */
-  letter-spacing: -0.045em;
-  line-height: 0.94;
+  /* the display voice (base.css), drawn a touch tighter at this size */
+  font-size: calc(var(--step-6) * var(--display-scale));
+  letter-spacing: calc(var(--display-tracking) - 0.01em);
   margin: 0 0 0.4em;
   color: var(--ink);
   /* Load boot — beat 2: the name fades + rises in as it decodes (Scramble, same
      delay), after the header. Held hidden until then so the decode isn't on
      screen during the header's beat. */
-  animation: hero-name-in 0.34s var(--ease) 0.38s both;
+  animation: hero-name-in var(--t-base) var(--ease) 0.38s both;
 }
 .hero__sub {
-  /* Fluid with the viewport width: keeps the desktop size but shrinks further
-     than --step-2's floor on a phone, so it no longer eats the hero and crowds
-     the maquette. */
-  font-size: clamp(1.05rem, 0.7rem + 1.8vw, 2.25rem);
+  /* A step down from the name; on a phone it drops to body size (below), so
+     it doesn't eat the hero and crowd the maquette. */
+  font-size: var(--step-2);
+  line-height: 1.25;
   color: var(--ink-60);
   max-width: 26ch;
   margin: 0;
   text-wrap: balance;
   /* Load boot — beat 3: rises in after the name has finished decoding (~0.93s). */
-  animation: hero-sub-in 0.34s var(--ease) 1.05s both;
+  animation: hero-sub-in var(--t-base) var(--ease) 1.05s both;
 }
 @keyframes hero-name-in {
   from {
@@ -95,8 +94,8 @@
   text-transform: uppercase;
   color: var(--ink-60);
   pointer-events: none;
-  transition: opacity 0.4s var(--ease);
-  animation: caption-in 0.5s var(--ease);
+  transition: opacity var(--t-base) var(--ease);
+  animation: caption-in var(--t-slow) var(--ease);
 }
 .hero__caption b {
   font-weight: 700;
@@ -130,7 +129,7 @@
   /* the hero section is pointer-through (page-shell.css) so the 3D hotspots
      stay clickable — the tally is its one interactive instrument, so opt back in */
   pointer-events: auto;
-  transition: opacity 0.4s var(--ease);
+  transition: opacity var(--t-base) var(--ease);
 }
 .hero__signals-btn {
   display: inline-flex;
@@ -184,13 +183,13 @@
   border-radius: var(--radius);
   backdrop-filter: blur(10px);
   font-family: var(--font-mono);
-  animation: hero-hint-in 0.25s var(--ease);
+  animation: hero-hint-in var(--t-base) var(--ease);
 }
 .manifest__head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 0.68rem;
+  font-size: var(--step--2);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--accent-ink);
@@ -209,7 +208,7 @@
 }
 .manifest__index {
   display: block;
-  font-size: 0.62rem;
+  font-size: var(--step--2);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--ink-40);
@@ -231,7 +230,7 @@
   padding: 0.18em 0.3em;
   margin-inline: -0.3em;
   font: inherit;
-  font-size: 0.74rem;
+  font-size: var(--step--2);
   letter-spacing: 0.04em;
   text-align: left;
   background: none;
@@ -262,7 +261,7 @@
 }
 .manifest__foot {
   margin: 0.65rem 0 0;
-  font-size: 0.62rem;
+  font-size: var(--step--2);
   letter-spacing: 0.05em;
   color: var(--ink-40);
 }
@@ -274,7 +273,7 @@
   width: 5px;
   height: 5px;
   background: color-mix(in srgb, var(--ink) 22%, transparent);
-  transition: background 0.4s var(--ease), box-shadow 0.4s var(--ease);
+  transition: background var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
 }
 .hero__signals-pips i[data-on] {
   background: var(--accent);
@@ -293,7 +292,7 @@
   text-transform: uppercase;
   color: var(--ink-40);
   font-variant-numeric: tabular-nums;
-  transition: color 0.4s var(--ease);
+  transition: color var(--t-base) var(--ease);
 }
 .hero__signals[data-complete] .hero__signals-label {
   color: var(--accent-ink);
@@ -313,7 +312,10 @@
 
 @media (max-width: 760px) {
   .hero__name {
-    font-size: var(--step-4);
+    font-size: calc(var(--step-5) * var(--display-scale));
+  }
+  .hero__sub {
+    font-size: var(--step-0);
   }
   .hero__title {
     max-width: 86vw;

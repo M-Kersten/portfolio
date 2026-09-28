@@ -4,17 +4,34 @@
 /* ---------- Capabilities — the three scales as one slanted band ---------- */
 
 /* Shared written content — used by the band columns and the mobile cards. */
+/* The scale's number, as a big outlined numeral in the display voice, with
+   the scale it's drawn at beside it in mono. */
 .capc__index {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.8em;
+  margin: 0 0 0.35em;
+}
+.capc__index b {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-stretch: var(--display-stretch);
+  font-variation-settings: var(--display-axes);
+  font-size: calc(var(--step-5) * var(--display-scale));
+  line-height: 0.78;
+  letter-spacing: var(--display-tracking);
+  color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--card-accent) 75%, transparent);
+}
+.capc__index span {
   font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.1em;
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
   color: var(--card-accent);
-  margin-top: 0.3em;
 }
 .capc__title {
-  font-family: var(--font-display);
-  font-size: var(--step-1);
-  line-height: 1.1;
+  font-size: var(--step-2);
+  line-height: 1.05;
   margin: 0;
 }
 .capc__text {
@@ -33,7 +50,7 @@
 }
 .capc__tags li {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--step--2);
   letter-spacing: 0.04em;
   color: var(--ink-60);
   border: 1px solid color-mix(in srgb, var(--card-accent) 26%, var(--hairline));
@@ -49,7 +66,7 @@
   position: relative;
   margin-top: var(--space-l);
   overflow: hidden;
-  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+  transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 
   /* The band's three measurements, named because the outer columns' indent is
      derived from them rather than guessed alongside them. */
@@ -69,7 +86,7 @@
      here, so this tracks the real cell rather than a guess at it. */
   --cap-indent: max(var(--space-m), min(var(--cap-gutter), calc(100% - var(--cap-measure) - var(--cap-pad))));
 }
-.cap-band:not([data-shown]) { opacity: 0; transform: translateY(24px); }
+.cap-band:not([data-shown]) { opacity: 0; transform: translateY(var(--rise-in)); }
 .cap-band__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .cap-band__content {
   position: relative;
@@ -81,14 +98,18 @@
   --card-accent: var(--accent);
   display: flex;
   flex-direction: column;
-  /* top-aligned to one shared line — centring three unequal columns left their
-     index/title rows at three different heights, which read as wobble */
   justify-content: flex-start;
   min-height: clamp(250px, 22vw, 330px);
-  padding-block: clamp(2rem, 4vw, 3rem) clamp(1.75rem, 3vw, 2.5rem);
+  /* The columns step down the band, a clear drop each (--i is the column), the
+     way the maquette stacks city over room over chip: with the seams they read
+     as one diagonal from the top left to the bottom right, where centring or a
+     shared top line read as three even boxes. The drop is a whole step, not a
+     few pixels, so it reads as intended rather than as a wobble. */
+  --cap-drop: clamp(2.5rem, 5vw, 5rem);
+  padding-block: calc(clamp(2rem, 4vw, 3rem) + var(--i, 0) * var(--cap-drop)) clamp(1.75rem, 3vw, 2.5rem);
   /* inline padding + a capped inner width keep the copy clear of the seams */
   padding-inline: var(--cap-pad);
-  transition: opacity 0.4s var(--ease);
+  transition: opacity var(--t-base) var(--ease);
 }
 .capc[data-layer='city'] { --card-accent: var(--cyan); align-items: flex-start; }
 .capc[data-layer='room'] { --card-accent: var(--coral); align-items: center; }
@@ -111,20 +132,22 @@
 }
 .cap-band[data-active] .capc:not([data-on]) { opacity: 0.42; }
 
-/* The written content rises in piece by piece once its band/card is shown —
-   the column index (--i, set on .capc/.cap) offsets each column's turn. */
+/* The written content rises in piece by piece once its band/card is shown: a
+   beat between the pieces of one column, two between columns (the column
+   index --i is set on .capc/.cap). */
 .capc__inner > *,
 .cap__body > * {
-  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
+  transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 }
-.capc__inner > *:nth-child(1), .cap__body > *:nth-child(1) { transition-delay: calc(var(--i, 0) * 0.14s + 0.05s); }
-.capc__inner > *:nth-child(2), .cap__body > *:nth-child(2) { transition-delay: calc(var(--i, 0) * 0.14s + 0.13s); }
-.capc__inner > *:nth-child(3), .cap__body > *:nth-child(3) { transition-delay: calc(var(--i, 0) * 0.14s + 0.21s); }
-.capc__inner > *:nth-child(4), .cap__body > *:nth-child(4) { transition-delay: calc(var(--i, 0) * 0.14s + 0.29s); }
+.capc__inner > *:nth-child(1), .cap__body > *:nth-child(1) { transition-delay: calc(var(--stagger) * (2 * var(--i, 0) + 1)); }
+.capc__inner > *:nth-child(2), .cap__body > *:nth-child(2) { transition-delay: calc(var(--stagger) * (2 * var(--i, 0) + 2)); }
+.capc__inner > *:nth-child(3), .cap__body > *:nth-child(3) { transition-delay: calc(var(--stagger) * (2 * var(--i, 0) + 3)); }
+.capc__inner > *:nth-child(4), .cap__body > *:nth-child(4) { transition-delay: calc(var(--stagger) * (2 * var(--i, 0) + 4)); }
+.capc__inner > *:nth-child(5), .cap__body > *:nth-child(5) { transition-delay: calc(var(--stagger) * (2 * var(--i, 0) + 5)); }
 .cap-band:not([data-shown]) .capc__inner > *,
 .cap-ladder:not([data-shown]) .cap__body > * {
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateY(var(--rise-in));
 }
 
 /* Decode-in titles — the invisible ghost copy reserves the final layout; the
@@ -173,13 +196,13 @@
   --card-accent: var(--accent);
   position: relative;
   overflow: hidden;
-  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
-  transition-delay: calc(var(--i) * 0.09s);
+  transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
+  transition-delay: calc(var(--i) * var(--stagger));
 }
 .cap[data-layer='city'] { --card-accent: var(--cyan); }
 .cap[data-layer='room'] { --card-accent: var(--coral); }
 .cap[data-layer='chip'] { --card-accent: var(--lime); }
-.cap-ladder:not([data-shown]) .cap { opacity: 0; transform: translateY(26px); }
+.cap-ladder:not([data-shown]) .cap { opacity: 0; transform: translateY(var(--rise-in)); }
 /* the motif fills the whole row, behind the copy */
 .cap__motif {
   position: absolute;
@@ -194,7 +217,7 @@
   display: block;
   /* faint, like the desktop band, so the copy stays readable over it */
   opacity: 0.6;
-  transition: opacity 0.4s var(--ease);
+  transition: opacity var(--t-base) var(--ease);
 }
 .cap[data-on] .cap__canvas { opacity: 0.9; }
 /* a soft scrim on the copy side (left) so the text is always legible */

@@ -14,7 +14,7 @@
   backdrop-filter: saturate(1.2) blur(12px);
   border-bottom: 1px solid var(--hairline);
   /* Load boot — beat 1: the chrome settles in first, before the hero name. */
-  animation: header-in 0.3s var(--ease) 0.08s both;
+  animation: header-in var(--t-base) var(--ease) 0.08s both;
 }
 @keyframes header-in {
   from {
@@ -86,8 +86,11 @@
   letter-spacing: 0.04em;
   color: var(--ink-60);
   text-decoration: none;
+  transition: color var(--t-fast) var(--ease);
 }
-.nav__link:hover {
+/* brightens, and draws its hairline in (.ui-link in base.css) */
+.nav__link:hover,
+.nav__link:focus-visible {
   color: var(--ink);
 }
 /* Brand-icon links (YouTube · GitHub · Instagram · LinkedIn). */
@@ -110,10 +113,11 @@
   color: var(--ink-60);
   border-radius: var(--radius-s);
   transition:
-    color 0.2s var(--ease),
-    background 0.2s var(--ease);
+    color var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease);
 }
-.social__link:hover {
+.social__link:hover,
+.social__link:focus-visible {
   color: var(--ink);
   background: var(--surface-2);
 }
@@ -137,7 +141,7 @@
     border-bottom: 1px solid var(--line);
     padding: var(--space-xs) var(--space-m) var(--space-m);
     transform: translateY(-130%);
-    transition: transform 0.3s var(--ease);
+    transition: transform var(--t-base) var(--ease);
     box-shadow: 0 20px 40px var(--shadow);
   }
   .nav[data-open='true'] {
@@ -147,6 +151,10 @@
     padding: 0.85rem 0;
     border-bottom: 1px solid var(--hairline);
     font-size: var(--step-0);
+  }
+  /* each drawer row already has its own rule under it */
+  .nav__link::after {
+    display: none;
   }
   /* In the drawer the icons become a centered row, no divider. */
   .nav__social {

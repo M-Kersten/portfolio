@@ -12,7 +12,7 @@
   position: relative;
   /* the marker colour: the layer accent from the very first frame */
   --hotc: var(--hot, var(--accent));
-  transition: opacity 0.28s var(--ease);
+  transition: opacity var(--t-base) var(--ease);
 }
 /* When any node is selected every marker fades out — the HUD owns the frame. */
 .hotspot[data-hidden] {
@@ -113,6 +113,84 @@
   0%, 100% { box-shadow: 0 0 7px color-mix(in srgb, var(--hot, var(--accent)) 55%, transparent); }
   50% { box-shadow: 0 0 16px color-mix(in srgb, var(--hot, var(--accent)) 95%, transparent); }
 }
+/* A layer's markers take turns (--phase, 0–1, set per marker) rather than
+   pinging in unison, which read as the whole scene blinking at once. */
+.hotspot:not([data-alive]) .hotspot__mark::before,
+.hotspot:not([data-alive]) .hotspot__mark::after {
+  animation-delay: calc(var(--phase, 0) * -2.6s);
+}
+
+/* ---- The first-visit cue (Maquette's CUE_LEAD) ----
+   Until a first project is opened, one crosshair per layer is the invitation:
+   its brackets lock on, its name sits on a chip, a stronger ping runs out
+   from it on a quicker beat, and a "click to wake" tag decodes in under the
+   name. The layer's other markers hold their pulse for it, so it is the one
+   thing in the model that moves. It arrives after the boot and retires, for
+   good, on the first open (see the store's `cue`). */
+.hotspot[data-cue='hold'] .hotspot__mark::before {
+  animation: none;
+  opacity: 0;
+}
+.hotspot[data-cue='lead'] .hotspot__mark::before {
+  animation: hotspot-ping-lead 1.8s var(--ease) infinite;
+}
+.hotspot[data-cue='lead'] .hotspot__mark::after {
+  animation: hotspot-core 1.8s var(--ease) infinite;
+}
+@keyframes hotspot-ping-lead {
+  0% { transform: scale(0.35); opacity: 0; }
+  12% { opacity: 0.95; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+.hotspot[data-cue='lead'] .hotspot__mark i {
+  opacity: 1;
+  transform: none;
+}
+.hotspot[data-cue='lead'] .hotspot__label {
+  opacity: 1;
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  border-color: color-mix(in srgb, var(--hotc) 45%, var(--line));
+}
+.hotspot__cue {
+  position: absolute;
+  left: calc(100% + 0.55em);
+  top: calc(50% + 1.3em);
+  padding-inline: 0.7em;
+  white-space: nowrap;
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hotc);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  animation: hotspot-cue-in var(--t-slow) var(--ease) both;
+}
+@keyframes hotspot-cue-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--rise-in) / -2));
+  }
+}
+/* Phones drop the names (below), so the tag takes the name's place. */
+@media (max-width: 760px) {
+  .hotspot__cue {
+    top: 50%;
+    transform: translateY(-50%);
+    animation: none;
+  }
+}
+/* Reduced motion: no pings anywhere. The lead keeps its locked brackets, its
+   chip and its tag, which say the same thing without moving. (Selectors as
+   specific as the rules that start the pings, so these win.) */
+@media (prefers-reduced-motion: reduce) {
+  .hotspot:not([data-alive]) .hotspot__mark::before,
+  .hotspot:not([data-alive]) .hotspot__mark::after,
+  .hotspot[data-cue] .hotspot__mark::before,
+  .hotspot[data-cue] .hotspot__mark::after,
+  .hotspot__cue {
+    animation: none;
+  }
+}
 /* scanner brackets — a whisper once alive (already "found"), locking fully
    into place on hover */
 .hotspot__mark i {
@@ -122,7 +200,7 @@
   border: 1.5px solid var(--hotc);
   opacity: 0;
   transform: scale(1.6);
-  transition: opacity 0.16s var(--ease), transform 0.22s var(--ease);
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-base) var(--ease);
 }
 .hotspot__mark i:nth-of-type(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
 .hotspot__mark i:nth-of-type(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
@@ -159,7 +237,7 @@
   opacity: 0.62;
   pointer-events: none;
   transform: translate(0, -50%);
-  transition: opacity 0.2s var(--ease), background 0.2s var(--ease), border-color 0.2s var(--ease);
+  transition: opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .hotspot__dot:hover .hotspot__label,
 .hotspot__dot:focus-visible .hotspot__label {
@@ -209,8 +287,8 @@
 .hotspot__dot:focus-visible .hotspot__label-fill {
   text-shadow: none;
   animation:
-    hotspot-fill 0.5s linear both,
-    hotspot-glitch 0.5s linear both;
+    hotspot-fill var(--t-slow) linear both,
+    hotspot-glitch var(--t-slow) linear both;
 }
 @keyframes hotspot-fill {
   0% { --fill: 0%; }
@@ -247,7 +325,7 @@
   display: inline-block;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: calc(var(--step--1) * 0.82);
+  font-size: var(--step--2);
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--sig, var(--accent));
@@ -275,7 +353,7 @@
   cursor: pointer;
   white-space: nowrap;
   animation: nextsite-in 1.2s var(--ease) 0.9s both;
-  transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
 .nextsite b {
   font-weight: 700;
@@ -288,7 +366,7 @@
 .nextsite__tally {
   display: block;
   margin-top: 0.2em;
-  font-size: 0.85em;
+  font-size: var(--step--2);
   letter-spacing: 0.08em;
   color: var(--ink-60);
   font-variant-numeric: tabular-nums;

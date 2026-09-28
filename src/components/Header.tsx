@@ -19,7 +19,7 @@ export function Header() {
 
           <nav id="primary-nav" className="nav" data-open={open} aria-label="Primary">
             {site.nav.map((item) => (
-              <Link key={item.href} to={{ pathname: '/', hash: item.href }} className="nav__link" onClick={close}>
+              <Link key={item.href} to={{ pathname: '/', hash: item.href }} className="nav__link ui-link" onClick={close}>
                 {item.label}
               </Link>
             ))}

@@ -48,6 +48,7 @@ src/
     CaseCard.tsx       a waypoint card on the timeline
     NodeHud.tsx        the /work/:slug dossier drawer
     CvPage.tsx         the /cv sheet (A4, print-styled) that npm run cv prints
+    SectionHead.tsx    how every section opens: kicker + rule, title, lead
     About / Contact / Header / Footer / Poster / ScanFrame / SectionTitle
   scene/
     maquette/          the three-layer 3D world, one file per concern:
@@ -68,10 +69,12 @@ src/
     framing.ts         layer stack + hotspot positions + camera tuning (plain data,
                        no three.js — the page shell reads it on first paint)
     views.ts           the camera framings built from it, as three.js vectors
-    store.ts           tiny cross-reconciler store (selected/hovered/visited)
+    store.ts           tiny cross-reconciler store (selected/hovered/visited,
+                       the first-visit cue)
     devTweak.tsx       dev-only 3D position scrubbers (tree-shaken from prod)
   content/             cases.json · capabilities.json · site.json · cv.json (+ types)
-  lib/                 asset base-path, reduced-motion, WebGL support, youtube
+  lib/                 asset base-path, reduced-motion, WebGL support, youtube,
+                       the motion numbers for code (motion.ts) + useReveal
   ui/                  tokens.css (design tokens) + one stylesheet per page
                        section (global.css just imports them in order)
 public/
@@ -137,9 +140,12 @@ rules the parts follow. The parts are looked up by name in `kit.ts`. The blocks 
 the sizes CityRig's seeded plan gives them, so changing that plan means
 rebuilding `blocks.glb`.
 
-**Look & feel**: start at `src/ui/tokens.css` (colours, type scale, spacing,
-container width — the whole grid derives from `--container`). Section styling
-lives in the `src/ui/*.css` file named after the section.
+**Look & feel**: start at `src/ui/tokens.css` (colours, the nine-step type
+scale, the display-voice tokens, the motion tokens, spacing, container width —
+the whole grid derives from `--container`). A new headline face is a change to
+`--font-display` and its `--display-*` settings there, and nowhere else.
+Section styling lives in the `src/ui/*.css` file named after the section;
+`DESIGN.md` has the rules they follow.
 
 **Camera & layout of the 3D stack**: `src/scene/framing.ts` — layer heights,
 scales, and the three camera framings (home, journey, node close-up).

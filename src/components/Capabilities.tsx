@@ -1,20 +1,27 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { capabilities, site, type Capability, type Layer } from '../content';
-import { useReducedMotion } from '../lib/useReducedMotion';
+import { MOTION } from '../lib/motion';
+import { useReveal } from '../lib/useReveal';
 import { ScaleMotif } from './ScaleMotif';
 import { CapBandMotif } from './CapBandMotif';
 import { ScanFrame } from './ScanFrame';
 import { Scramble } from './Scramble';
-import { SectionTitle } from './SectionTitle';
+import { SectionHead } from './SectionHead';
 
 const COLOR: Record<Layer, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
+// Each scale as a model maker would mark it: a street plan shrunk to fit a
+// table, a room's things at a twentieth, a chip blown up twenty times.
+const SCALE: Record<Layer, string> = { city: '1:5000', room: '1:20', chip: '20:1' };
 
 // The written content, shared by the desktop band columns and the mobile
 // cards. The title decodes in (scrambled → clear) when it scrolls into view.
 function CapText({ c, delay = 0 }: { c: Capability; delay?: number }) {
   return (
     <>
-      <span className="capc__index">{c.index}</span>
+      <p className="capc__index">
+        <b aria-hidden="true">{c.index}</b>
+        <span>{SCALE[c.layer]}</span>
+      </p>
       <h3 className="capc__title">
         {/* Wrapping, not clipping. These titles are authored in the CMS and run
             to a full sentence ("City: maps & the real world"), so at any width
@@ -38,30 +45,11 @@ function CapText({ c, delay = 0 }: { c: Capability; delay?: number }) {
 // the rest. Narrow screens fall back to three stacked cards.
 export function Capabilities() {
   const { capabilitiesIntro } = site;
-  const reduced = useReducedMotion();
   const [active, setActive] = useState<Layer | null>(null);
-  const [shown, setShown] = useState(false);
-  const headRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (reduced) {
-      setShown(true);
-      return;
-    }
-    const el = headRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (es) => {
-        if (es[0].isIntersecting) {
-          setShown(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.6 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [reduced]);
+  // the band and the stacked cards each arrive when they themselves come into
+  // view, not when the heading above does (which left them playing off screen)
+  const [bandRef, bandShown] = useReveal<HTMLDivElement>();
+  const [ladderRef, ladderShown] = useReveal<HTMLDivElement>();
 
   const enter = (l: Layer) => setActive(l);
   const leave = (l: Layer) => setActive((a) => (a === l ? null : a));
@@ -69,13 +57,14 @@ export function Capabilities() {
   return (
     <section id="capabilities" className="section capabilities">
       <ScanFrame variant="section" />
-      <div className="container" ref={headRef}>
-        <SectionTitle>{capabilitiesIntro.title}</SectionTitle>
-        <p className="section__lead">{capabilitiesIntro.lead}</p>
+      <div className="container">
+        {/* the note is the three scales the work happens at, as a model
+            maker would mark them: the city small, the chip blown up */}
+        <SectionHead id="capabilities" title={capabilitiesIntro.title} lead={capabilitiesIntro.lead} note="1:5000 · 1:20 · 20:1" />
       </div>
 
       {/* Desktop — one full-bleed slanted band, edge to edge. */}
-      <div className="cap-band" data-shown={shown || undefined} data-active={active || undefined}>
+      <div className="cap-band" ref={bandRef} data-shown={bandShown || undefined} data-active={active || undefined}>
         <CapBandMotif active={active} />
         <div className="cap-band__content">
           {capabilities.map((c, i) => (
@@ -89,7 +78,7 @@ export function Capabilities() {
               onMouseLeave={() => leave(c.layer)}
             >
               <div className="capc__inner">
-                <CapText c={c} delay={i * 140} />
+                <CapText c={c} delay={i * 2 * MOTION.stagger} />
               </div>
             </article>
           ))}
@@ -98,7 +87,7 @@ export function Capabilities() {
 
       {/* Mobile — the desktop band's look, stacked: the copy sits over each
           scale's own animated motif, full-bleed, one scale per row. */}
-      <div className="cap-ladder" data-shown={shown || undefined} data-active={active || undefined}>
+      <div className="cap-ladder" ref={ladderRef} data-shown={ladderShown || undefined} data-active={active || undefined}>
         {capabilities.map((c, i) => (
           <article
             key={c.layer}
@@ -113,7 +102,7 @@ export function Capabilities() {
               <ScaleMotif layer={c.layer} color={COLOR[c.layer]} active={active === c.layer} />
             </div>
             <div className="cap__body">
-              <CapText c={c} delay={i * 140} />
+              <CapText c={c} delay={i * 2 * MOTION.stagger} />
             </div>
           </article>
         ))}

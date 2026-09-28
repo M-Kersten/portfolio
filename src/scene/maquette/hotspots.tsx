@@ -6,10 +6,32 @@ import { type CSSProperties } from 'react';
 import { Html } from '@react-three/drei';
 import { sceneStore } from '../store';
 import { caseBySlug } from '../../content';
+import { Scramble } from '../../components/Scramble';
 import { type Hotspot } from '../framing';
 import { Line, useActive, type V3 } from './shared';
 
-export function HotspotMarker({ hotspot, color, onActivate, hidden }: { hotspot: Hotspot; color: string; onActivate: (h: Hotspot) => void; hidden: boolean }) {
+// Touch has no hover and no click, so the cue says what the finger does.
+const CUE_TEXT =
+  typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches ? 'tap to wake' : 'click to wake';
+
+export function HotspotMarker({
+  hotspot,
+  color,
+  onActivate,
+  hidden,
+  cue,
+  phase = 0,
+}: {
+  hotspot: Hotspot;
+  color: string;
+  onActivate: (h: Hotspot) => void;
+  hidden: boolean;
+  /** the first-visit cue: 'lead' asks to be clicked, 'hold' keeps still for it */
+  cue?: 'lead' | 'hold';
+  /** 0–1: where in the shared pulse this marker pings, so a layer's markers
+   *  take turns rather than flashing in unison */
+  phase?: number;
+}) {
   const study = caseBySlug(hotspot.slug);
   const label = study?.title ?? hotspot.slug;
   const { selected, visited } = useActive(hotspot.slug);
@@ -34,7 +56,8 @@ export function HotspotMarker({ hotspot, color, onActivate, hidden }: { hotspot:
           data-open={selected || undefined}
           data-alive={alive || undefined}
           data-hidden={hidden || undefined}
-          style={{ '--hot': color } as CSSProperties}
+          data-cue={cue}
+          style={{ '--hot': color, '--phase': phase } as CSSProperties}
         >
           <button
             type="button"
@@ -60,6 +83,13 @@ export function HotspotMarker({ hotspot, color, onActivate, hidden }: { hotspot:
             <span className="hotspot__label">
               <span className="hotspot__label-fill">{label}</span>
             </span>
+            {/* The first-visit cue's tag, decoding in under the name. Decoration:
+                the button already says what it does ("… — open node"). */}
+            {cue === 'lead' && (
+              <span className="hotspot__cue" aria-hidden="true">
+                <Scramble text={CUE_TEXT} delay={240} />
+              </span>
+            )}
           </button>
         </span>
       </Html>

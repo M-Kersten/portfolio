@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { REVEAL } from '../lib/motion';
 import { useReducedMotion } from '../lib/useReducedMotion';
 
 // Decode-in text — the site's "signal locking on" idea applied to type:
@@ -64,16 +65,15 @@ export function Scramble({ text, delay = 0, wrap = false }: { text: string; dela
       }
       setState({ solved, rest: cached.slice(solved - noiseFrom) });
     };
-    const io = new IntersectionObserver(
-      (es) => {
-        if (es[0].isIntersecting && !started.current) {
-          started.current = true;
-          raf = requestAnimationFrame(step);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.15 },
-    );
+    // the same arrival point as every section reveal (lib/motion.ts), so a
+    // title starts decoding in step with the rest of its section
+    const io = new IntersectionObserver((es) => {
+      if (es[0].isIntersecting && !started.current) {
+        started.current = true;
+        raf = requestAnimationFrame(step);
+        io.disconnect();
+      }
+    }, REVEAL);
     io.observe(el);
     return () => {
       io.disconnect();

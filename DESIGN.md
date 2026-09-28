@@ -24,21 +24,26 @@ colors:
 typography:
   display:
     fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(2.4rem, 1.85rem + 2.7vw, 4.8rem)"
+    fontSize: "clamp(2.986rem, 1.875rem + 4.937vw, 6.319rem)"
     fontWeight: 700
-    lineHeight: 1.02
-    letterSpacing: "-0.03em"
+    lineHeight: 0.92
+    letterSpacing: "-0.035em"
   body:
     fontFamily: "Space Grotesk, ui-sans-serif, system-ui, -apple-system, sans-serif"
-    fontSize: "clamp(1rem, 0.95rem + 0.24vw, 1.13rem)"
+    fontSize: "clamp(1rem, 0.958rem + 0.185vw, 1.125rem)"
     fontWeight: 400
     lineHeight: 1.6
     letterSpacing: "-0.006em"
   label:
     fontFamily: "Space Mono, ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
-    fontSize: "clamp(0.78rem, 0.74rem + 0.18vw, 0.88rem)"
+    fontSize: "clamp(0.8rem, 0.777rem + 0.111vw, 0.875rem)"
     fontWeight: 500
     letterSpacing: "0.08em"
+  micro:
+    fontFamily: "Space Mono, ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
+    fontSize: "0.6875rem"
+    fontWeight: 400
+    letterSpacing: "0.12em"
 rounded:
   sm: "2px"
   md: "4px"
@@ -126,23 +131,53 @@ The palette is deliberately small and locked: one hue per job, so the whole syst
 **Body Font:** Space Grotesk (same family as display — one typeface, weight and scale do the differentiating work)
 **Label/Mono Font:** Space Mono (with ui-monospace, SF Mono, Menlo, Consolas fallback)
 
-**Character:** One geometric sans (Space Grotesk) carries every editorial voice from hero display down to body copy, so the system leans on weight and the fluid clamp scale for hierarchy rather than font-pairing contrast; Space Mono is reserved entirely for metadata, labels, and UI chrome, giving it an unmistakable "instrument readout" register whenever it appears.
+**Character:** Three voices. The **display** voice (the section titles, the hero name, the big numerals) is one set of tokens in `tokens.css` (`--font-display`, `--display-weight`, `--display-stretch`, `--display-axes`, `--display-tracking`, `--display-leading`, `--display-scale`), so a new headline face is a change in one place: a face that runs wider or narrower than Space Grotesk sets `--display-scale` to keep line lengths. Small headings (card and column titles) take `--font-heading`, which follows the display face unless that face only works large. Body copy stays Space Grotesk; Space Mono is reserved entirely for metadata, labels and UI chrome, giving it an unmistakable "instrument readout" register whenever it appears.
+
+### The scale
+Every size on the site is one of nine steps: a fluid modular scale from a 16px base on a 360px screen (ratio 1.2) to 18px on a 1440px screen (ratio 1.333, a fourth), so the display end opens up where there's room. The two smallest are fixed, because they're mono labels.
+
+| Step | Size | Used for |
+|---|---|---|
+| −2 | 11px | micro labels: tags, route labels, readout meta |
+| −1 | 12.8 → 14px | labels, nav, buttons, captions |
+| 0 | 16 → 18px | body |
+| 1 | 19 → 24px | leads, card titles |
+| 2 | 23 → 32px | panel titles, the hero line, the About opening |
+| 3 | 28 → 43px | the contact email, the timeline card years |
+| 4 | 33 → 57px | the intro card |
+| 5 | 40 → 76px | section titles on a phone, the capability numerals |
+| 6 | 48 → 101px | section titles, the hero name |
 
 ### Hierarchy
-- **Display** (700, `clamp(2.4rem, 1.85rem + 2.7vw, 4.8rem)` / step-4, line-height 0.95–1.02, letter-spacing −0.03em to −0.015em): section titles and hero name; `text-wrap: balance`.
-- **Headline** (700, `clamp(1.9rem, 1.55rem + 1.7vw, 3.4rem)` / step-3): sub-section and card-lifted titles (e.g. the focus dialog title).
-- **Title** (700, `clamp(1.5rem, 1.3rem + .95vw, 2.25rem)` / step-2): dialog outcomes, prominent inline emphasis.
-- **Body** (400, `clamp(1rem, .95rem + .24vw, 1.13rem)` / step-0, line-height 1.6, max 58–65ch measure): case-story prose and running copy; case-study text carries paragraph breaks via literal blank lines in the JSON source (`white-space: pre-line`).
-- **Label** (500, `clamp(.78rem, .74rem + .18vw, .88rem)` / step−1, letter-spacing 0.04–0.14em, uppercase): nav links, buttons, tags, timeline metadata, story kickers — always Space Mono, always uppercase, always letter-spaced.
+- **Display** (step 6, `--display-*` tokens, line-height 0.92): section titles and the hero name; `text-wrap: balance`. Also the big numerals: the capability index (step 5, outlined), the timeline card years (step 3) and the year under the timeline's playhead.
+- **Title** (step 2): panel and dialog titles, the About opening paragraph (at full ink, so the bio opens on a line).
+- **Lead** (step 1, ink-60): a section's lead, set small and off to the right of its title.
+- **Body** (400, step 0, line-height 1.6, max 58–65ch measure): case-story prose and running copy; case-study text carries paragraph breaks via literal blank lines in the JSON source (`white-space: pre-line`).
+- **Label** (500, step −1 or −2, letter-spacing 0.04–0.16em, uppercase): nav links, buttons, tags, timeline metadata, story kickers, section kickers — always Space Mono, always uppercase, always letter-spaced.
 
 ### Named Rules
-**The Mono Meta Rule.** Anything that is metadata rather than content — labels, tags, timestamps, nav, button text, story-beat kickers — is Space Mono, uppercase, letter-spaced. Anything that is content — headings, body copy, dialog titles — is Space Grotesk. The two never swap roles.
+**The Mono Meta Rule.** Anything that is metadata rather than content — labels, tags, timestamps, nav, button text, story-beat kickers — is Space Mono, uppercase, letter-spaced. Anything that is content — headings, body copy, dialog titles — is the display or text face. The two never swap roles.
+
+**The One Scale Rule.** No size outside the nine steps. A new element picks the step whose job it shares; if none fits, the element is the thing to reconsider, not the scale. (Icon glyphs inside fixed-size buttons are drawings, not text, and are exempt; so are the printed CV sheet and the asteroids game, which are a page and a screen of their own.)
 
 ## Layout
 
 Content sits in a `--container` of 87.5rem (`max-width`), centred, with `--space-m` inline gutters — deliberately slim so the fixed hero title stays clear of the 3D maquette and every section can breathe at full width on large screens. Section rhythm runs on a small spacing scale (`--space-2xs` 0.5rem through `--space-2xl` 7.5rem); vertical section padding is `--space-xl + --space-s`, tuned down from a taller `--space-2xl` that read as too cavernous between sections. Adjacent sections get a 1px hairline seam (`.section + .section`), except About and Contact, which read as one continuous open editorial spread with no seam boxing them off.
 
+Every section opens the same way (`SectionHead.tsx`): a mono **kicker** with the section's number and name (the header nav's order and words), a measuring rule with a tick every step running out to a short **note** at its end (the three scales the work happens at, the career's date range, Utrecht's position), then the **title** across the full width at step 6, then the **lead** small and off to the right under it. One big thing and one quiet one, off-axis, instead of a left-aligned stack at two similar sizes. Contact, the finale, sets the same parts on the centre line without the rule. Below the openings the sections keep that asymmetry: the capability columns step down the band one after another (city over room over chip, as the maquette stacks them) with a big outlined numeral and the scale it's drawn at over each; the timeline cards lead with the year; About opens its bio with a step-2 line at full ink.
+
 The projects timeline is the one major departure from static document flow: a pinned, scroll-driven horizontal "wall" (`position: sticky` region with `perspective`) that pans through career history as the user scrolls vertically, falling back to a plain horizontally-scrollable strip under `prefers-reduced-motion` or on narrow/static contexts (`[data-static]`). Below ~760–899px, multi-column layouts (About's grid, the annotated portrait stage) collapse to a single stacked column with the portrait promoted above the bio via explicit order.
+
+## Motion
+
+One system for every transition and animation (`tokens.css`, mirrored for code in `src/lib/motion.ts`): three durations (`--t-fast` 0.2s for feedback, `--t-base` 0.35s for a change of state, `--t-slow` 0.6s for an arrival), one beat between siblings (`--stagger`, 80ms), and one curve for everything that responds or arrives (`--ease`, a quick start and a long settle), with `--ease-in-out` for what has to feel even at both ends. Ambient loops (the crosshair ping, the logo's blink, the portrait's scan) keep their own periods; they're rhythms, not responses.
+
+- **Arrivals.** Content arrives when it reaches one shared point in the scroll (`REVEAL`: a quarter of it on screen, clear of the bottom edge), through `useReveal`: a section's rule draws across, its title decodes, its lead rises a few beats later; the capability columns and the About pins follow in stagger order.
+- **Hover and focus.** One grammar, and keyboard focus gets the same answer as the pointer: a link in running text firms up its underline; a mono UI link (nav, footer) brightens and draws a hairline in under it; a button lifts `--lift`; a ghost button takes the accent on its edge; a card lifts and its scanner brackets lock on; the contact email, the page's one call to action, sweeps a solid rule in.
+- **The first-visit cue.** Until a first project is opened, the boot's last beat is an invitation: one crosshair per layer (the tower, the phone on the couch, the die) locks its brackets, puts its name on a chip, pings on a quicker beat and decodes a "click to wake" tag ("tap" on touch), while the layer's other markers hold their pulse so it's the one thing moving. It retires for good on the first open.
+
+### Named Rules
+**The Token Timing Rule.** No literal durations: a transition takes `--t-fast`, `--t-base` or `--t-slow`, and a sequence counts in `--stagger` beats. Choreography that rides the camera (the reticle's acquire, the boot fade) is the only exception, and says so where it's written.
 
 ## Elevation & Depth
 
@@ -165,8 +200,8 @@ Corners are deliberately small and crisp — `--radius` (4px) for cards, dialogs
 
 ### Buttons
 - **Shape:** small radius (2px), 1px border (transparent on primary, `--line` on ghost).
-- **Primary:** `--btn-bg: var(--accent)` (cyan) fill, `--accent-contrast` text, Space Mono uppercase label, `0.85em 1.2em` padding; lifts 1px on hover (`translateY(-1px)`).
-- **Ghost:** transparent fill, `--ink` text, `--line` border; hover shifts border and text to the accent colour, no added shadow.
+- **Primary:** `--btn-bg: var(--accent)` (cyan) fill, `--accent-contrast` text, Space Mono uppercase label, `0.85em 1.2em` padding; on hover or focus lifts `--lift` (2px) over a soft shadow in its own colour, and settles back on press.
+- **Ghost:** transparent fill, `--ink` text, `--line` border; hover and focus shift border and text to the accent colour and lift it the same 2px, no added shadow.
 
 ### Chips (project tech tags)
 - **Style:** "engraved/OLED-plate" chips — small radius (2px), solid near-black ground (`color-mix(#05070a, transparent)`), a hairline border tinted toward the active card's layer accent, an inset 1px shadow for a stamped/engraved feel, Space Mono label.
@@ -180,7 +215,7 @@ Corners are deliberately small and crisp — `--radius` (4px) for cards, dialogs
 - **Internal Padding:** `--space-l` for dialogs, `--space-s` for waypoint-tile bodies.
 
 ### Navigation
-- Space Mono uppercase links at `--ink-60`, brightening to `--ink` on hover, no underline. Social icon links get a `--surface-2` hover fill. Below 720px, nav becomes a full-width slide-down drawer (`translateY`) with hairline row dividers, sharing the chrome-lift shadow vocabulary.
+- Space Mono links at `--ink-60`, brightening to `--ink` on hover or focus while a 1px accent hairline draws in under them from the left (`.ui-link`). Social icon links get a `--surface-2` hover fill. Below 720px, nav becomes a full-width slide-down drawer (`translateY`) with hairline row dividers, sharing the chrome-lift shadow vocabulary.
 
 ### Signature Component: the Life System
 Every hotspot-bound 3D object and its paired UI ships a "ghost" (desaturated wireframe) and an "alive" (fully authored colour/material) state, lerped by a shared visited/hovered store. This is the literal expression of The Ghost Circuit north star — UI chrome (tags, tooltips, card accents) inherits the same logic by only fully committing to its layer colour once that layer/case has been visited.
@@ -193,6 +228,8 @@ Every hotspot-bound 3D object and its paired UI ships a "ghost" (desaturated wir
 - **Do** scale shadow/blur weight to how "forward" an element is meant to feel, with the focus dialog as the ceiling — see The Proximity Rule.
 - **Do** keep quiet-but-informational text at or above `--ink-40`'s measured 4.5:1 contrast floor.
 - **Do** honour `prefers-reduced-motion` for every animation, camera move, and scroll-driven effect already in the system.
+- **Do** take every size from the nine-step scale and every timing from the motion tokens — see The One Scale Rule and The Token Timing Rule.
+- **Do** change the headline face through the display tokens alone (`--font-display` and its `--display-*` settings), never per component.
 
 ### Don't:
 - **Don't** soften corners back toward the discarded 14px "acrylic" radius — 2–4px crisp corners are a confirmed, deliberate rejection of that look.

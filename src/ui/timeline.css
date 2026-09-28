@@ -67,7 +67,7 @@
   top: calc(50% - 11px);
   transform: translate(-50%, -100%);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--step--2);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--band) 70%, var(--ink));
@@ -77,7 +77,7 @@
 .tl-band__label--free {
   top: calc(50% + 13px);
   transform: translate(-50%, 0);
-  font-size: 10px;
+  font-size: var(--step--2);
 }
 /* Hover target that spans a stint's line + label; opens a tooltip about it. */
 /* Hover targets are split at the route line, because concurrent work is drawn
@@ -129,7 +129,7 @@
   opacity: 0;
   visibility: hidden;
   transform: translate(-50%, 4px);
-  transition: opacity 0.16s var(--ease), transform 0.16s var(--ease);
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
   pointer-events: none;
   z-index: 20;
 }
@@ -158,34 +158,34 @@
   padding: 1px;
 }
 .tl-tip__top b {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: var(--step-0);
   color: var(--ink);
 }
 .tl-tip__period {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--step--2);
   letter-spacing: 0.06em;
   color: color-mix(in srgb, var(--band) 78%, var(--ink));
   white-space: nowrap;
 }
 .tl-tip__role {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--step--2);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-60);
 }
 .tl-tip__body {
-  font-size: 0.82rem;
+  font-size: var(--step--1);
   line-height: 1.45;
   color: var(--ink-60);
 }
 .tl-tip__link {
   margin-top: 2px;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--step--2);
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--band) 82%, var(--ink));
@@ -197,7 +197,7 @@
   position: absolute;
   top: calc(50% + 12px);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--step--2);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-40);
@@ -244,13 +244,13 @@
 }
 .tl-spawn__label b {
   font-weight: 500;
-  font-size: 11px;
+  font-size: var(--step--2);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--accent-ink);
 }
 .tl-spawn__label span {
-  font-size: 9px;
+  font-size: var(--step--2);
   letter-spacing: 0.1em;
   color: var(--ink-40);
 }
@@ -350,6 +350,28 @@
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
 }
+/* The year under the playhead: a big outlined numeral in the display voice at
+   the foot of the pinned view, counting up as the wall pans (Work.tsx writes
+   it). It sits behind the plane, so the cards travel over it. Only while the
+   wall is pinned; the hand-panned strip keeps its company bar instead. */
+.wall__year {
+  position: absolute;
+  right: max(var(--space-m), calc((100% - var(--container)) / 2 + var(--space-m)));
+  bottom: var(--space-m);
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-stretch: var(--display-stretch);
+  font-variation-settings: var(--display-axes);
+  font-size: calc(var(--step-6) * 1.7 * var(--display-scale));
+  line-height: 0.8;
+  letter-spacing: var(--display-tracking);
+  font-variant-numeric: tabular-nums;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--ink) 20%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+.wall[data-static] .wall__year { display: none; }
 .wall__cue {
   position: absolute;
   /* same left grid line as the section titles (container gutter + inset) */
@@ -403,7 +425,7 @@
   box-shadow: 0 -14px 32px rgba(0, 0, 0, 0.5);
   transform: translateY(110%);
   opacity: 0;
-  transition: transform 0.32s var(--ease), opacity 0.32s var(--ease), border-color 0.3s var(--ease);
+  transition: transform var(--t-base) var(--ease), opacity var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
   pointer-events: none;
 }
 .tl-now[data-in] {
@@ -438,20 +460,20 @@
   gap: 0.6em;
 }
 .tl-now__head b {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: var(--step-0);
   color: var(--ink);
 }
 .tl-now__period {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--step--2);
   letter-spacing: 0.06em;
   color: color-mix(in srgb, var(--band) 82%, var(--ink));
   white-space: nowrap;
 }
 .tl-now__role {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--step--2);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-60);
@@ -461,7 +483,7 @@
 }
 .tl-now__free {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--step--2);
   letter-spacing: 0.04em;
   color: color-mix(in srgb, var(--band) 85%, var(--ink));
 }
@@ -495,7 +517,7 @@
   padding: 0;
   backdrop-filter: blur(8px) saturate(1.1);
   box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
-  transition: transform 0.3s var(--ease), border-color 0.28s var(--ease), box-shadow 0.28s var(--ease);
+  transition: transform var(--t-base) var(--ease), border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
 }
 .worktile[data-layer='city'] { --card-accent: var(--cyan); }
 .worktile[data-layer='room'] { --card-accent: var(--coral); }
@@ -516,7 +538,7 @@
   inset: 8px;
   pointer-events: none;
   z-index: 4;
-  transition: inset 0.22s var(--ease);
+  transition: inset var(--t-base) var(--ease);
 }
 .worktile:hover .worktile__reticle,
 .worktile:focus-visible .worktile__reticle {
@@ -527,7 +549,7 @@
   width: 14px;
   height: 14px;
   border: 1.5px solid color-mix(in srgb, var(--card-accent) 30%, transparent);
-  transition: border-color 0.22s var(--ease);
+  transition: border-color var(--t-base) var(--ease);
 }
 .worktile:hover .worktile__reticle i,
 .worktile:focus-visible .worktile__reticle i {
@@ -546,11 +568,16 @@
   justify-content: space-between;
   gap: 0.5em;
 }
+/* the year is the card's biggest thing: a numeral in the display voice, so
+   the wall reads as a run of dates first and titles second */
 .worktile__yr {
-  font-family: var(--font-mono);
-  font-size: var(--step-1);
-  line-height: 1;
-  letter-spacing: 0.02em;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-stretch: var(--display-stretch);
+  font-variation-settings: var(--display-axes);
+  font-size: calc(var(--step-3) * var(--display-scale));
+  line-height: 0.85;
+  letter-spacing: var(--display-tracking);
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
@@ -560,7 +587,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--step--2);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-60);
@@ -621,7 +648,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.4s var(--ease);
+  transition: transform var(--t-base) var(--ease);
 }
 .worktile:hover .worktile__img { transform: scale(1.06); }
 .worktile__scrim {
@@ -645,7 +672,7 @@
   color: var(--ink-60);
 }
 .worktile__title {
-  font-family: var(--font-display);
+  font-family: var(--font-heading);
   font-size: var(--step-0);
   line-height: 1.12;
   margin: 0.15em 0 0;

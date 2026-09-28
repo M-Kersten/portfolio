@@ -62,6 +62,25 @@ interface SceneState {
    *  the bespoke per-object wake-ups — waits for the zoom rather than firing
    *  mid-swoop. Written by CameraRig every frame; read via useActive. */
   zoomSettled: boolean;
+  /** The first-visit cue: until the visitor opens a first project, the hero
+   *  states the premise and one crosshair per layer asks to be clicked. Starts
+   *  false for a returning visitor who has already opened one (CUE_KEY), and
+   *  retires for good on the first open. */
+  cue: boolean;
+  /** True once the hero's load sequence has played (the title decoded, the
+   *  bottom instrument line up). The cue waits for it, so it arrives as the
+   *  last beat of the boot rather than on top of the others. Set by HeroStage. */
+  booted: boolean;
+}
+
+/** localStorage flag: this browser has opened a project, so the cue is done. */
+const CUE_KEY = 'mk-model-hint';
+function cueDone(): boolean {
+  try {
+    return localStorage.getItem(CUE_KEY) === '1';
+  } catch {
+    return true; // storage blocked: skip the cue rather than risk nagging on every visit
+  }
 }
 
 let state: SceneState = {
@@ -76,6 +95,8 @@ let state: SceneState = {
   introOver: false,
   reticleStart: null,
   zoomSettled: true,
+  cue: typeof window !== 'undefined' && !cueDone(),
+  booted: false,
 };
 
 const listeners = new Set<() => void>();
@@ -103,7 +124,17 @@ export const sceneStore = {
     // still left true by the overview, so every wake animation fired at once,
     // got yanked back when the rig caught up, then fired AGAIN after the delay.
     // The rig now only ever releases it (see ZOOM_SETTLE there).
-    set({ selectedSlug, zoomSettled: selectedSlug === null });
+    const patch: Partial<SceneState> = { selectedSlug, zoomSettled: selectedSlug === null };
+    // the first open is the moment the cue has done its job
+    if (selectedSlug && state.cue) {
+      patch.cue = false;
+      try {
+        localStorage.setItem(CUE_KEY, '1');
+      } catch {
+        /* fine: it shows again next visit */
+      }
+    }
+    set(patch);
   },
   setHovered(hoveredSlug: string | null) {
     if (hoveredSlug !== state.hoveredSlug) set({ hoveredSlug });
@@ -124,6 +155,10 @@ export const sceneStore = {
   /** Mark the load intro finished — releases the hero chrome (idempotent). */
   endIntro() {
     if (!state.introOver) set({ introOver: true });
+  },
+  /** Mark the hero's load sequence played out (idempotent). */
+  setBooted() {
+    if (!state.booted) set({ booted: true });
   },
   /** Record where the reticle should acquire the target (see reticleStart). */
   setReticleStart(reticleStart: SceneState['reticleStart']) {

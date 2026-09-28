@@ -32,7 +32,7 @@ export function Footer() {
         {/* nofollow so crawlers don't chase a sign-in wall */}
         {edit && (
           <a
-            className="footer__admin"
+            className="footer__admin ui-link"
             href="https://merijn-cms.azurewebsites.net/"
             target="_blank"
             rel="noreferrer nofollow"

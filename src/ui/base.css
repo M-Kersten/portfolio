@@ -49,12 +49,27 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  line-height: 1.02;
-  letter-spacing: -0.03em;
+  font-family: var(--font-heading);
+  font-weight: var(--heading-weight);
+  font-stretch: var(--heading-stretch);
+  font-variation-settings: var(--heading-axes);
+  line-height: 1.05;
+  letter-spacing: var(--heading-tracking);
   margin: 0 0 0.5em;
   text-wrap: balance;
+}
+/* The display voice (see tokens.css): the section titles, the hero name and
+   the contact line, plus anything else that wants to be said at that size. */
+.display,
+.section__title,
+.hero__name,
+.intro-card__title {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-stretch: var(--display-stretch);
+  font-variation-settings: var(--display-axes);
+  letter-spacing: var(--display-tracking);
+  line-height: var(--display-leading);
 }
 
 p {
@@ -62,9 +77,49 @@ p {
   max-width: var(--measure);
 }
 
+/* ---------- Interaction states ----------
+   One hover grammar for the whole site, on the motion tokens, and the same
+   answer for keyboard focus as for the pointer:
+     - a link in running text firms up its underline
+     - a mono UI link (nav, footer) brightens and draws a hairline in under it
+     - a button lifts a touch; a ghost button takes the accent on its edge
+     - a card lifts, and its scanner brackets lock on (see .worktile)
+     - the one call to action (the contact email) draws a solid rule in */
 a {
   color: var(--accent-ink);
   text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  transition:
+    color var(--t-fast) var(--ease),
+    text-decoration-color var(--t-fast) var(--ease);
+}
+a:hover,
+a:focus-visible {
+  text-decoration-color: currentColor;
+}
+/* The hairline under a mono UI link: drawn in from the left on hover/focus,
+   and left drawn on the link for the page you're on (aria-current). */
+.ui-link {
+  position: relative;
+  text-decoration: none;
+}
+.ui-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.35em;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--t-base) var(--ease);
+}
+.ui-link:hover::after,
+.ui-link:focus-visible::after,
+.ui-link[aria-current]::after {
+  transform: scaleX(1);
 }
 
 img {
@@ -110,23 +165,122 @@ img {
   border-top: 0;
 }
 
+/* ---------- Section openings (SectionHead.tsx) ----------
+   Kicker, title, lead on a 12-column grid: the title takes the full width at
+   the top of the type scale, the lead sits small in the right half under it.
+   One big thing and one quiet one, off-axis, instead of a left-aligned stack
+   at two similar sizes. */
+.section__head {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--space-m);
+  align-items: start;
+}
+.section__head > * {
+  grid-column: 1 / -1;
+}
+/* The kicker: the section's number and name in mono, then a measuring rule
+   with a tick every step, out to a note at its end (a scale, a date range, a
+   position) — the maquette's instrument language at the top of each page. */
+.section__kicker {
+  display: flex;
+  flex-wrap: wrap; /* on the narrowest screens the note drops to its own line */
+  align-items: center;
+  gap: 0.4em 0.9em;
+  max-width: none;
+  margin: 0 0 var(--space-l);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+.section__kicker b {
+  font-weight: 400;
+  color: var(--accent-ink);
+}
+.section__kicker > span {
+  white-space: nowrap;
+}
+.section__rule {
+  flex: 1;
+  min-width: 0.75rem;
+  height: 7px;
+  border-bottom: 1px solid var(--line);
+  background: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 48px) left bottom / 100% 5px no-repeat;
+  transform-origin: left;
+  transition: transform var(--t-slow) var(--ease);
+}
+.section__note {
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: var(--ink-40);
+  white-space: nowrap;
+}
 .section__title {
-  font-size: var(--step-4);
-  line-height: 0.95;
-  letter-spacing: -0.015em;
-  max-width: 20ch;
+  margin: 0;
+  font-size: calc(var(--step-6) * var(--display-scale));
   text-wrap: balance;
 }
 /* Each line of a stepped heading indents a little further than the last. */
 .section__title-ln {
   display: block;
-  margin-left: calc(var(--ln, 0) * clamp(0.6rem, 3.5vw, 2.6rem));
+  margin-left: calc(var(--ln, 0) * 0.55em);
 }
-
 .section__lead {
+  grid-column: 7 / -1;
+  margin: var(--space-l) 0 0;
   font-size: var(--step-1);
+  line-height: 1.45;
   color: var(--ink-60);
-  max-width: 48ch;
+  max-width: 34ch;
+  transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
+  transition-delay: calc(var(--stagger) * 4);
+}
+/* the finale's opening (Contact): the same parts, on the centre line */
+.section__head[data-align='center'] {
+  justify-items: center;
+  text-align: center;
+}
+.section__head[data-align='center'] .section__lead {
+  grid-column: 1 / -1;
+  max-width: 40ch;
+}
+.section__head[data-align='center'] .section__kicker {
+  justify-content: center;
+}
+/* a rule running off to one side would pull the centre line askew */
+.section__head[data-align='center'] .section__rule {
+  display: none;
+}
+/* Arriving: the rule draws across, the title decodes (Scramble, on the same
+   reveal point), the lead rises a few beats later. */
+.section__head:not([data-shown]) .section__rule {
+  transform: scaleX(0);
+}
+.section__head:not([data-shown]) .section__lead {
+  opacity: 0;
+  transform: translateY(var(--rise-in));
+}
+@media (max-width: 900px) {
+  .section__lead {
+    grid-column: 1 / -1;
+    margin-top: var(--space-m);
+  }
+}
+@media (max-width: 760px) {
+  .section__title {
+    font-size: calc(var(--step-5) * var(--display-scale));
+  }
+  .section__kicker {
+    margin-bottom: var(--space-m);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .section__rule,
+  .section__lead {
+    transition: none;
+  }
 }
 
 /* Skip link */
@@ -140,7 +294,7 @@ img {
   padding: 0.6rem 1rem;
   border-radius: var(--radius-s);
   font-family: var(--font-mono);
-  transition: top 0.2s var(--ease);
+  transition: top var(--t-fast) var(--ease);
 }
 .skip-link:focus {
   top: var(--space-s);
@@ -167,18 +321,25 @@ img {
   color: var(--btn-fg);
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease),
-    background 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease);
+  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
-.btn:hover {
-  transform: translateY(-1px);
+.btn:hover,
+.btn:focus-visible {
+  transform: translateY(var(--lift));
+  box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--btn-bg) 70%, transparent);
+}
+.btn:active {
+  transform: none;
+  transition-duration: 0.06s;
 }
 .btn--ghost {
   --btn-bg: transparent;
   --btn-fg: var(--ink);
   border-color: var(--line);
 }
-.btn--ghost:hover {
+.btn--ghost:hover,
+.btn--ghost:focus-visible {
   border-color: var(--accent);
   color: var(--accent-ink);
   box-shadow: none;
@@ -206,7 +367,7 @@ img {
 .story__h {
   margin: 0 0 0.5em;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: var(--step--2);
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -258,7 +419,7 @@ img {
   text-decoration: underline;
   text-underline-offset: 0.22em;
   text-decoration-color: color-mix(in srgb, var(--card-accent, var(--accent)) 45%, transparent);
-  transition: color 0.2s var(--ease);
+  transition: color var(--t-fast) var(--ease);
 }
 .story-links__jump:hover b {
   color: var(--card-accent, var(--accent));

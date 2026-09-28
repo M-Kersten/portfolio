@@ -5,7 +5,7 @@ import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard } from './CaseCard';
 import { FocusCard } from './FocusCard';
-import { SectionTitle } from './SectionTitle';
+import { SectionHead } from './SectionHead';
 import { useWallConfig, type WallConfig } from './wallTweak';
 
 const SPAWN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -217,6 +217,9 @@ export function Work() {
   const farRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
+  // the big year at the foot of the pinned view: whichever year is under the
+  // middle of the screen, written straight to the DOM from the pan loop
+  const yearRef = useRef<HTMLSpanElement>(null);
   // The dot field's current parallax offset + the last cursor position, so the
   // hover glow stays aligned to the dots as you scroll, not only as you move.
   const farOffset = useRef({ x: 0, y: 0 });
@@ -320,6 +323,10 @@ export function Work() {
       const maxX = Math.max(0, timeline.width - window.innerWidth);
       const maxY = Math.max(0, plane.offsetHeight - window.innerHeight);
       const x = p * maxX;
+      // xAt() run backwards for the middle of the screen, held to the route
+      const yr = Math.floor(timeline.minYear + (x + window.innerWidth / 2 - cfg.startX) / cfg.yearGap);
+      const label = String(Math.min(Math.floor(timeline.maxYear), Math.max(timeline.minYear, yr)));
+      if (yearRef.current && yearRef.current.textContent !== label) yearRef.current.textContent = label;
 
       // Smoothed velocity (px/frame). dv is 0 on settle frames, so it eases
       // back to rest through the same lerp that ramps it up.
@@ -389,7 +396,7 @@ export function Work() {
       window.removeEventListener('mousemove', onMove);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [manualPan, timeline.width, cfg]);
+  }, [manualPan, timeline.width, timeline.minYear, timeline.maxYear, cfg]);
 
   // Mobile: touch has no hover, so the dot field lights up along your *scroll*
   // instead of the cursor — a soft wave that travels with you through the
@@ -477,8 +484,7 @@ export function Work() {
   return (
     <section id="work" className="section wall" data-reduced={reduced || undefined} data-static={manualPan || undefined}>
       <div className="container">
-        {workIntro.title && <SectionTitle>{workIntro.title}</SectionTitle>}
-        <p className="section__lead">{workIntro.lead}</p>
+        {workIntro.title && <SectionHead id="work" title={workIntro.title} lead={workIntro.lead} note={`${timeline.minYear} → now`} />}
         {/* Phones pan the strip by hand, and the desktop cue can't come along:
             it sits in the strip, which scrolls it away, and the company bar
             owns the bottom edge. So the cue goes here, right above it. */}
@@ -505,6 +511,10 @@ export function Work() {
               around the cursor so the dots nearest it light up. Sits between the
               base dots and the plane so the waypoints occlude it. */}
           <div className="wall__glow" ref={glowRef} aria-hidden="true" />
+          {/* behind the plane, so the cards pass over it */}
+          <span className="wall__year" ref={yearRef} aria-hidden="true">
+            {timeline.minYear}
+          </span>
           <div
             className="wall__plane"
             ref={planeRef}

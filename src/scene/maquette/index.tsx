@@ -23,6 +23,10 @@ const RIGS: Record<LayerId, () => JSX.Element | null> = { city: CityRig, room: R
 const SEED: Record<LayerId, number> = { city: 11, room: 29, chip: 53 };
 // journeyStep index per layer (0 = City at top … 2 = Chip at bottom).
 const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };
+// Which crosshair carries the first-visit cue on each layer: the one at the
+// middle of the frame, on the object the layer is built around — the tower,
+// the phone on the couch, the die.
+const CUE_LEAD: Record<LayerId, string> = { city: 'alliander-hololens', room: 'popcore-games', chip: 'amsterdam-ai' };
 
 // The establishing reveal: the maquette powers on as its beat in the load
 // sequence (after the hero name + subhead resolve — see the shared boot clock),
@@ -101,6 +105,10 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const visited = useSceneSelector((s) => s.visited);
   const launching = useSceneSelector((s) => s.launch) !== 'idle';
+  // The first-visit cue, once the boot has played: the layer's lead crosshair
+  // asks to be clicked and the others hold their pulse, so exactly one thing
+  // in the model is moving (see CUE_LEAD).
+  const cue = useSceneSelector((s) => s.cue && s.booted);
   const activeLayer = (['city', 'room', 'chip'] as LayerId[])[journeyStep] ?? 'city';
   // The layer that holds the light: the selected node's home while one is open
   // (a deep link can select a node the scroll hasn't reached), else the scroll's.
@@ -155,8 +163,16 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
                 </PresenceGroup>
               </group>
               {activeLayer === id &&
-                spots.map((h) => (
-                  <HotspotMarker key={h.slug} hotspot={h} color={PALETTE[id].accent} onActivate={onActivate} hidden={!!selectedSlug || launching} />
+                spots.map((h, i) => (
+                  <HotspotMarker
+                    key={h.slug}
+                    hotspot={h}
+                    color={PALETTE[id].accent}
+                    onActivate={onActivate}
+                    hidden={!!selectedSlug || launching}
+                    cue={cue ? (h.slug === CUE_LEAD[id] ? 'lead' : 'hold') : undefined}
+                    phase={i / spots.length}
+                  />
                 ))}
             </group>
           </AccentCtx.Provider>

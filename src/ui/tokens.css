@@ -86,19 +86,54 @@
 
   --shadow: rgba(0, 0, 0, 0.5);
 
-  /* ---- Type — Space Grotesk (display + text), Space Mono (meta) ---- */
+  /* ---- Type — three voices ----
+     Display: the headlines, the hero name and the big numerals — the voice.
+     Text: body copy, leads and small headings. Mono: every label, tag and
+     readout (the Mono Meta Rule). The display voice is one set of tokens, so a
+     new headline face is a change here and nowhere else: its family, the
+     weight and axes it's drawn at, its tracking and leading, and a size trim
+     (--display-scale) for a face that runs wider or narrower than this one. */
   --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   --font-body: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'Space Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --display-weight: 700;
+  --display-stretch: normal; /* font-stretch, for a face with a width axis */
+  --display-axes: normal; /* font-variation-settings, for any other axis */
+  --display-tracking: -0.035em;
+  --display-leading: 0.92;
+  --display-scale: 1;
+  /* small headings (card and column titles) — the display face by default;
+     a face that only works large hands these to the text face */
+  --font-heading: var(--font-display);
+  --heading-weight: var(--display-weight);
+  --heading-stretch: var(--display-stretch);
+  --heading-axes: var(--display-axes);
+  --heading-tracking: -0.02em;
 
-  /* Fluid type scale — large, bold editorial display end. */
-  --step--1: clamp(0.78rem, 0.74rem + 0.18vw, 0.88rem);
-  --step-0: clamp(1rem, 0.95rem + 0.24vw, 1.13rem);
-  --step-1: clamp(1.2rem, 1.1rem + 0.5vw, 1.55rem);
-  --step-2: clamp(1.5rem, 1.3rem + 0.95vw, 2.25rem);
-  --step-3: clamp(1.9rem, 1.55rem + 1.7vw, 3.4rem);
-  --step-4: clamp(2.4rem, 1.85rem + 2.7vw, 4.8rem);
-  --step-5: clamp(3rem, 1.95rem + 5vw, 7.5rem);
+  /* ---- The type scale ----
+     Every size on the site is one of these. A fluid modular scale: from a
+     16px base at a 360px screen to 18px at 1440px, stepping by 1.2 on a phone
+     and 1.333 (a fourth) on a desktop, so the display end opens up where
+     there's room for it. The two smallest are fixed: they're mono labels,
+     which shouldn't shrink below reading size.
+       -2 11px             micro labels: tags, route labels, readout meta
+       -1 12.8 → 14px      labels, nav, buttons, captions, small UI text
+        0 16 → 18px        body
+        1 19 → 24px        leads, card titles
+        2 23 → 32px        panel titles, the hero line
+        3 28 → 43px        the call to action, the big card numerals
+        4 33 → 57px        the intro card
+        5 40 → 76px        section titles on a phone
+        6 48 → 101px       section titles, the hero name */
+  --step--2: 0.6875rem;
+  --step--1: clamp(0.8rem, 0.777rem + 0.111vw, 0.875rem);
+  --step-0: clamp(1rem, 0.958rem + 0.185vw, 1.125rem);
+  --step-1: clamp(1.2rem, 1.1rem + 0.444vw, 1.5rem);
+  --step-2: clamp(1.44rem, 1.253rem + 0.83vw, 2rem);
+  --step-3: clamp(1.728rem, 1.416rem + 1.39vw, 2.666rem);
+  --step-4: clamp(2.074rem, 1.58rem + 2.193vw, 3.554rem);
+  --step-5: clamp(2.488rem, 1.738rem + 3.335vw, 4.739rem);
+  --step-6: clamp(2.986rem, 1.875rem + 4.937vw, 6.319rem);
 
   /* ---- Spacing — generous whitespace ---- */
   --space-2xs: 0.5rem;
@@ -120,7 +155,29 @@
 
   --header-h: 4.25rem;
 
-  /* ---- Motion ---- */
+  /* ---- Motion — one system ----
+     Every transition and animation takes its timing from these, so a hover, a
+     reveal and a panel read as parts of one instrument rather than a dozen
+     components each with their own idea of "quick":
+
+       --t-fast   feedback: a colour, an edge, a lift under the pointer
+       --t-base   a change of state: a label or tip showing, a column dimming
+       --t-slow   an arrival: content rising in as its section scrolls into view
+       --stagger  the beat between siblings arriving one after another
+
+     One curve for everything that responds or arrives (--ease: a quick start
+     and a long settle), and --ease-in-out for what has to feel even at both
+     ends: fades that ride a camera move, loops, states that swap back and
+     forth. Ambient loops (the crosshair ping, the logo's blink) keep their own
+     periods; they are rhythms, not responses. src/lib/motion.ts mirrors these
+     numbers for the few things timed in code. */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur: 0.5s;
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --t-fast: 0.2s;
+  --t-base: 0.35s;
+  --t-slow: 0.6s;
+  --stagger: 0.08s;
+  /* how far things travel: a hover lifts by --lift, an arrival rises --rise-in */
+  --lift: -2px;
+  --rise-in: 14px;
 }

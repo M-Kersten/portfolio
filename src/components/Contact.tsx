@@ -1,6 +1,7 @@
 import { site } from '../content';
 import { asset } from '../lib/asset';
 import { ContactMotif } from './ContactMotif';
+import { SectionHead } from './SectionHead';
 
 export function Contact() {
   const c = site.contact;
@@ -9,8 +10,7 @@ export function Contact() {
       <div className="container">
         <div className="contact">
           <ContactMotif />
-          <h2>{c.title}</h2>
-          <p>{c.lead}</p>
+          <SectionHead id="contact" title={c.title} lead={c.lead} align="center" />
           <a className="contact__email" href={`mailto:${c.email}`}>
             {c.email}
           </a>

@@ -2,9 +2,10 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { site } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
+import { useReveal } from '../lib/useReveal';
 import { ScanFrame } from './ScanFrame';
 import { Scramble } from './Scramble';
-import { SectionTitle } from './SectionTitle';
+import { SectionHead } from './SectionHead';
 
 const PORTRAITS = 5;
 
@@ -81,29 +82,8 @@ const PINS: PinGeo[] = [
 
 function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
   const reduced = useReducedMotion();
-  const ref = useRef<HTMLDivElement>(null);
-  const [shown, setShown] = useState(false);
+  const [ref, shown] = useReveal<HTMLDivElement>();
   const [hot, setHot] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (reduced) {
-      setShown(true);
-      return;
-    }
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (es) => {
-        if (es[0].isIntersecting) {
-          setShown(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.3 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [reduced]);
 
   // Cursor-driven holographic tilt: the whole specimen panel leans toward the
   // pointer (everything tilts as one plane, so the leaders stay locked to the
@@ -153,7 +133,15 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
           {list.map((f, i) => {
             const s = PINS[i];
             return (
-              <g key={f.label} className="about__lead-g" data-on={hot === i || undefined} stroke={s.c} fill="none" strokeWidth="1">
+              <g
+                key={f.label}
+                className="about__lead-g"
+                data-on={hot === i || undefined}
+                stroke={s.c}
+                fill="none"
+                strokeWidth="1"
+                style={{ '--i': i } as CSSProperties}
+              >
                 <line
                   className="about__lead-line"
                   pathLength={1}
@@ -161,9 +149,8 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
                   y1={s.line[1]}
                   x2={s.line[2]}
                   y2={s.line[3]}
-                  style={{ transitionDelay: `${0.12 + i * 0.16}s` }}
                 />
-                <g className="about__lead-mark" style={{ transitionDelay: `${0.3 + i * 0.16}s` }}>
+                <g className="about__lead-mark">
                   <circle cx={s.mark[0]} cy={s.mark[1]} r="3.4" />
                   <line x1={s.mark[0]} y1={s.mark[1] - 9} x2={s.mark[0]} y2={s.mark[1] - 4.5} />
                   <line x1={s.mark[0]} y1={s.mark[1] + 4.5} x2={s.mark[0]} y2={s.mark[1] + 9} />
@@ -180,7 +167,7 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
               key={f.label}
               className="about__callout"
               data-on={hot === i || undefined}
-              style={{ ...PINS[i].box, '--c': PINS[i].c, transitionDelay: `${0.08 + i * 0.16}s` } as CSSProperties}
+              style={{ ...PINS[i].box, '--c': PINS[i].c, '--i': i } as CSSProperties}
               onMouseEnter={() => setHot(i)}
               onMouseLeave={() => setHot((h) => (h === i ? null : h))}
             >
@@ -201,9 +188,10 @@ export function About() {
   return (
     <section id="about" className="section section--instrument">
       <div className="container">
+        {/* the note is where "based in" puts him on a map */}
+        <SectionHead id="about" title={a.title} note="52.09° N · 5.12° E" />
         <div className="about__grid">
           <div>
-            <SectionTitle>{a.title}</SectionTitle>
             <p className="about__lead">{a.lead}</p>
             {a.body.map((p, i) => (
               <p key={i}>{p}</p>
