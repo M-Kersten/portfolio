@@ -185,6 +185,24 @@ def prism_ax(name, pts, lo, hi, axis='y'):
     return mk(name, bm)
 
 
+def loft(name, sections, cap_bottom=True, cap_top=True):
+    """Skin a stack of closed XZ outlines [(pts, y), ...] (same point count each)
+    into one solid — a tapering, twisting or bulging shaft."""
+    bm = bmesh.new()
+    rings = [[bm.verts.new((x, y, z)) for x, z in pts] for pts, y in sections]
+    n = len(rings[0])
+    for a, b in zip(rings, rings[1:]):
+        for i in range(n):
+            j = (i + 1) % n
+            bm.faces.new((a[i], a[j], b[j], b[i]))
+    if cap_bottom:
+        bm.faces.new(list(reversed(rings[0])))
+    if cap_top:
+        bm.faces.new(rings[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return mk(name, bm)
+
+
 def knurl(name, r, depth, lo, hi, n=36, axis='z', flat=0.5):
     """A knurled / ribbed ring: n flat-topped teeth round an axis."""
     pts = []

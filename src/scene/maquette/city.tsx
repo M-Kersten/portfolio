@@ -22,7 +22,7 @@ import { faceted, lathe, place, useGeometry } from './shapes';
 import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { Rise, RocketBody } from './rocket';
-import { loadBlocksKit, loadTowerKit, useBlocksKit, useTowerKit, type BlocksKit, type TowerKit } from './kit';
+import { loadBlocksKit, loadMillKit, loadTowerKit, useBlocksKit, useMillKit, useTowerKit, type BlocksKit, type MillKit, type TowerKit } from './kit';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
  *  Building for both its windows and its body. A module-level box rather than
@@ -345,6 +345,17 @@ function Outskirts({ clear, blocks }: { clear: V3[][]; blocks: { x: number; z: n
   );
 }
 
+/* ---------- the windmill ---------- */
+/** Where the mill's sails turn, mill-local, as HUB in
+ *  scripts/models/build_mill.py has it: the hub's height and how far in front
+ *  of the smock it stands, and the windshaft's tilt (up at the front, as a
+ *  real one's is). */
+const MILL_HUB = { y: 0.7, z: 0.265, tilt: 0.12 };
+
+// Fetch the model with the tower's, as soon as the scene's code arrives.
+// A failure here is retried and reported by useMillKit.
+loadMillKit().catch(() => {});
+
 // The breeze that drives the mill, made visible — faint holographic wind streaks
 // flowing across the sails while it's turning. Thin accent-tinted dashes drift
 // past the front face, brightening mid-pass and fading at the ends, each on its
@@ -359,8 +370,8 @@ function MillWind() {
   const streaks = useMemo(() => {
     const rnd = makeRand(915);
     return Array.from({ length: 7 }, () => ({
-      y: 0.42 + rnd() * 0.4, // spread over the sail span
-      z: 0.12 + rnd() * 0.16, // around the front face
+      y: MILL_HUB.y - 0.2 + rnd() * 0.4, // spread over the sail span
+      z: MILL_HUB.z + 0.06 + rnd() * 0.1, // just in front of the sails
       ph: rnd(),
       spd: 0.2 + rnd() * 0.16, // a gentle drift, each its own pace
       slope: (rnd() - 0.5) * 0.14, // a slight rise/fall across the pass
@@ -391,64 +402,87 @@ function MillWind() {
   );
 }
 
-/** A Dutch windmill (smock mill). The sails are still at idle; hovering its
- *  hotspot (DTT Amsterdam) turns them slowly, selecting spins them up fast, and
- *  once it's been opened they keep turning. The body solidifies once visited. */
-function Windmill({ position, slug }: { position: V3; slug?: string }) {
+/** A Dutch stage mill (stellingmolen), from its Blender model
+ *  (scripts/models/build_mill.py, shipped as public/models/mill.glb): an
+ *  eight-sided thatched smock on a brick base, a stage round the base's top,
+ *  and a boat-shaped cap carrying the sails. At rest the sails stand bare,
+ *  their cloth furled along the whips, as a mill does when it isn't working.
+ *  Hovering its hotspot (DTT Amsterdam) sets the cloth across the ladders
+ *  first, and the sails turn slowly as it fills; once it's been opened they
+ *  keep turning. The body solidifies once visited, and its windows light. */
+function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: MillKit }) {
   const sails = useRef<Group>(null);
+  const cloths = useRef<(Mesh | null)[]>([]);
+  const windows = useRef<MeshStandardMaterial>(null);
   const reduced = useReducedMotion();
-  const { hovered, selected, visited } = useActive(slug ?? '');
+  const { accent } = useAccent();
+  const accentC = useMemo(() => new Color(accent), [accent]);
+  const { hovered, selected, visited } = useActive(slug);
+  const set = useRef(0); // the cloth: 0 furled along the whips → 1 set across the ladders
   const spin = useRef(0);
+  const life = useRef(0);
   useFrame((_s, delta) => {
-    // still at idle; turns slowly once engaged (hover or select) and keeps turning
-    // once opened — no fast spin-up on select
-    const target = hovered || selected || visited ? 0.9 : 0;
-    spin.current += (target - spin.current) * 0.04;
+    const engaged = hovered || selected || visited;
+    set.current += ((engaged ? 1 : 0) - set.current) * (reduced ? 1 : 0.05);
+    // the sails only take the wind as their cloth fills
+    const filled = Math.min(1, Math.max(0, (set.current - 0.45) / 0.45));
+    spin.current += ((engaged ? 0.9 * filled : 0) - spin.current) * 0.04;
     if (sails.current && !reduced) sails.current.rotation.z += delta * spin.current;
+    for (const c of cloths.current) if (c) c.scale.x = 0.07 + 0.93 * set.current;
+    // the windows light with the mill's life, from the ghost's grey
+    life.current += ((selected || visited ? 1 : 0) - life.current) * 0.06;
+    const m = windows.current;
+    if (m) {
+      m.color.copy(GHOST_FILL).lerp(accentC, life.current);
+      m.emissive.copy(GHOST_FILL).lerp(accentC, life.current);
+      m.emissiveIntensity = 0.05 + life.current * 0.8;
+    }
   });
   return (
     <group position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.38} />
-      <group>
-      {/* Grassy mound. Every part of the mill uses LiveGlassMat, not GlassMat:
-          only the body did before, so waking the windmill solidified the tower
-          and left the cap, sails and mound as faint glass — the silhouette still
-          read as a wireframe while every other hotspot came alive properly. */}
-      <mesh position={[0, 0.03, 0]}>
-        <cylinderGeometry args={[0.24, 0.3, 0.06, 20]} />
-        <LiveGlassMat slug={slug ?? ''} tint="deep" />
+      {/* Every part of the mill uses LiveGlassMat, not GlassMat: waking the
+          windmill has to solidify all of it, or the silhouette still reads as a
+          wireframe while every other hotspot comes alive properly. The outlines
+          are the body's, the cap's and each sail's; the stage, its railing and
+          the sails' ladders are the pale cut with none, so at rest the mill is
+          as sparse a drawing as the blocks round it. */}
+      <mesh geometry={kit.mill_ground}>
+        <LiveGlassMat slug={slug} tint="deep" />
       </mesh>
-      {/* Tapered body. A smooth cylinder, not the 8-sided smock it used to be:
-          once the edge outlines retire on activation, facets that coarse read as
-          hard empty panels with nothing to draw them. Round has nothing to leave
-          behind. */}
-      <mesh position={[0, 0.34, 0]}>
-        <cylinderGeometry args={[0.12, 0.19, 0.56, 28]} />
-        <LiveGlassMat slug={slug ?? ''} />
-        <LiveEdges slug={slug ?? ''} threshold={20} />
+      <mesh geometry={kit.mill_body}>
+        <LiveGlassMat slug={slug} />
+        <LiveEdges slug={slug} threshold={35} />
       </mesh>
-      {/* cap */}
-      <mesh position={[0, 0.67, 0]}>
-        <coneGeometry args={[0.15, 0.16, 28]} />
-        <LiveGlassMat slug={slug ?? ''} tint="pale" />
-        <LiveEdges slug={slug ?? ''} threshold={20} />
+      <mesh geometry={kit.mill_cap}>
+        <LiveGlassMat slug={slug} tint="pale" />
+        <LiveEdges slug={slug} threshold={35} />
       </mesh>
-      {/* sails — a turning cross on the front face; they spin up when engaged.
-          Their outline gets a dimmer idle cap than the tower/cap: four long
-          thin planes standing alone against open sky read as a bold cross of
-          lines at full brightness, much more attention-grabbing than the same
-          outline wrapping a bulky building shape. */}
-      <group ref={sails} position={[0, 0.62, 0.19]}>
-        {[0, 1, 2, 3].map((i) => (
-          <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
-            <mesh position={[0, 0.24, 0]}>
-              <boxGeometry args={[0.05, 0.46, 0.01]} />
-              <LiveGlassMat slug={slug ?? ''} tint="pale" />
-              <LiveEdges slug={slug ?? ''} threshold={30} rest={0.4} />
-            </mesh>
-          </group>
-        ))}
-      </group>
+      <mesh geometry={kit.mill_trim}>
+        <LiveGlassMat slug={slug} tint="pale" />
+      </mesh>
+      <mesh geometry={kit.mill_windows}>
+        <meshStandardMaterial ref={windows} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.05} roughness={0.4} toneMapped={false} />
+      </mesh>
+      <group position={[0, MILL_HUB.y, MILL_HUB.z]} rotation={[-MILL_HUB.tilt, 0, 0]}>
+        <group ref={sails}>
+          <mesh geometry={kit.mill_sails}>
+            <LiveGlassMat slug={slug} tint="pale" />
+          </mesh>
+          {[0, 1, 2, 3].map((k) => (
+            <group key={k} rotation={[0, 0, (k * Math.PI) / 2]}>
+              {/* Each sail's one outline is its cloth's, with a dimmer idle cap
+                  than the body's: four long thin shapes standing alone against
+                  open sky read as a bold cross of lines at full brightness,
+                  much more attention-grabbing than the same outline wrapping a
+                  bulky building. Translucent once set, so the ladder shows. */}
+              <mesh ref={(r) => (cloths.current[k] = r)} geometry={kit.mill_cloth} scale={[0.07, 1, 1]}>
+                <LiveGlassMat slug={slug} tint="pale" solid={0.55} />
+                <LiveEdges slug={slug} threshold={35} rest={0.4} />
+              </mesh>
+            </group>
+          ))}
+        </group>
       </group>
       <MillWind />
     </group>
@@ -2071,6 +2105,7 @@ export function CityRig() {
   // the tower's and the blocks' Blender models (kit.ts); null until they arrive
   const towerKit = useTowerKit();
   const blocksKit = useBlocksKit();
+  const millKit = useMillKit();
   // The blocks' model is built for this plan (build_blocks.py replays it); say
   // so in dev if the two have drifted apart, rather than draw blocks that no
   // longer fit their plots.
@@ -2131,9 +2166,11 @@ export function CityRig() {
 
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}
-      <LifeGroup slug="dtt-amsterdam">
-        <Windmill position={mill.position} slug="dtt-amsterdam" />
-      </LifeGroup>
+      {millKit && (
+        <LifeGroup slug="dtt-amsterdam">
+          <Windmill position={mill.position} slug="dtt-amsterdam" kit={millKit} />
+        </LifeGroup>
+      )}
       {/* the Big Dipper rises behind the windmill while it's selected */}
       <Constellation anchor={mill.position} />
 

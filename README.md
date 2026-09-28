@@ -55,7 +55,7 @@ src/
       city.tsx         City rig: skyline, windmill, park + ARCam, the Alliander tower
       room.tsx         Room rig: desk/monitor, couch + phone, AR table, bookcase
       chip.tsx         Chip rig: board, accelerator, camera, monitor, traces, LEDs
-      kit.ts           loads the Blender models (public/models: chip, tower, blocks)
+      kit.ts           loads the Blender models (public/models: chip, tower, blocks, mill)
       hotspots.tsx     the floating crosshair markers
       signals.tsx      cross-layer relation cables (edit RELATIONS here)
       life.tsx         the ghost→alive life system (LifeGroup, EmissiveHover)
@@ -80,8 +80,9 @@ public/
                        zwijsen-book) — objects fall back to procedural looks
   models/              binoculars.gltf (the park's AR viewer) · chip.glb (the
                        chip layer's parts) · tower.glb (the city's tower) ·
-                       blocks.glb (the six blocks round it); the last three are
-                       built in Blender from scripts/models
+                       blocks.glb (the six blocks round it) · mill.glb (the
+                       windmill); the last four are built in Blender from
+                       scripts/models
   logos/               employer marks for the timeline tooltips
   profile/1..5.png     the About portrait frames
 ```
@@ -129,10 +130,10 @@ feel* (dolly zoom/tilt + response — set to 0 to disable); the **scene** panel
 the values to copy back into code, and both are stripped from production
 builds.
 
-**The Blender models** (the chip layer's parts, the city's tower and its six
-blocks) are built from scripts: `scripts/models/README.md` covers rebuilding
-`public/models/chip.glb`, `tower.glb` and `blocks.glb` and the rules the parts
-follow. The parts are looked up by name in `kit.ts`. The blocks are modelled at
+**The Blender models** (the chip layer's parts, and the city's tower, its six
+blocks and the windmill) are built from scripts: `scripts/models/README.md`
+covers rebuilding everything in `public/models` except the binoculars, and the
+rules the parts follow. The parts are looked up by name in `kit.ts`. The blocks are modelled at
 the sizes CityRig's seeded plan gives them, so changing that plan means
 rebuilding `blocks.glb`.
 
