@@ -22,7 +22,7 @@ import { faceted, lathe, place, useGeometry } from './shapes';
 import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { Rise, RocketBody } from './rocket';
-import { loadTowerKit, useTowerKit, type TowerKit } from './kit';
+import { loadBlocksKit, loadTowerKit, useBlocksKit, useTowerKit, type BlocksKit, type TowerKit } from './kit';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
  *  Building for both its windows and its body. A module-level box rather than
@@ -116,90 +116,7 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   return null;
 }
 
-/* ---------- shape helpers ---------- */
-/** How each block finishes at the top. Six identical extruded boxes read as one
- *  object repeated, so the roofline is where the variety has to come from — it's
- *  the only part of a tall thin slab you actually see against the sky. Two kinds,
- *  not three: a slim aerial mast was the third, and a scatter of thin spikes over
- *  the skyline read as noise next to the tower's own — which should be the only
- *  spire on the layer. */
-const ROOFS = ['plant', 'setback'] as const;
-type Roof = (typeof ROOFS)[number];
-
-/** The podium's height. There was a parapet band above the shaft too, and it had
- *  to go: untraced (see the podium) it was a wider, brighter slab with no edge
- *  tying it to anything, so it read as a shelf floating above the shaft's top
- *  wireframe with a gap beneath — and tracing it was what made the silhouette
- *  unreadable in the first place. Its job was to give the block a crisp top line,
- *  which the top face of the shaft's own outline already does. */
-const PLINTH_H = 0.045;
-/** How tall the setback's crown is, and how much of the shaft's width it keeps.
- *  Both came down: at 0.075 tall and 62% wide, sitting on a block that is now
- *  shorter than it used to be, the crown stopped reading as a storey stepped
- *  back and started reading as a lid balanced on a box. A setback has to be
- *  clearly smaller than the thing it steps back from. */
-const CROWN_H = 0.05;
-const CROWN_W = 0.54;
-/** The shaft's height: the setback roof gives its top slice to a narrower crown. */
-const shaftOf = (h: number, roof: Roof) => (roof === 'setback' ? h - CROWN_H : h);
-
-/** The facade module — the pane, and how four of them divide a wall.
- *
- *  FOUR BAYS ON EVERY BLOCK. The old rule fitted as many fixed-pitch bays as a
- *  block was wide, which on a 0.13–0.18 footprint came out at two almost every
- *  time — and a facade two windows across doesn't read as a building, it reads
- *  as the core of one. Paired with a 3:1 slab that is most of why the skyline
- *  looked like a shelf of columns. A count, not a pitch, is what fixes it: the
- *  grid is now wider than it is tall on every face, which is what makes a box
- *  read as architecture.
- *
- *  The pane stays FIXED, though, and that part of the old rule was right — the
- *  first pass sized panes from each block's own width and neighbouring towers
- *  wore visibly different windows, which reads as sloppy rather than as variety.
- *  So the pane is constant and the WALL absorbs the difference: the leftover
- *  width is split into three mullion gaps and two corner piers.
- *
- *  Piers are deliberately wider than the mullions (PIER). Equal splits put the
- *  outer panes as close to the corner as they are to their neighbour, which
- *  reads as a facade that has been cut off rather than one that ends. */
-const BAYS = 4;
-const PANE: [number, number] = [0.03, 0.036];
-const WIN_ROW = 0.056; // vertical pitch — a 0.02 spandrel, matching the mullion gap
-const PIER = 1.6; // corner pier : mullion gap
-/** Where the four panes sit across a wall of this width, centred. */
-function bayOffsets(width: number) {
-  // width = 4 panes + 3 gaps + 2 piers, with pier = PIER * gap
-  const gap = (width - BAYS * PANE[0]) / (BAYS - 1 + 2 * PIER);
-  const pitch = PANE[0] + gap;
-  return Array.from({ length: BAYS }, (_, i) => (i - (BAYS - 1) / 2) * pitch);
-}
-
-/** Every window position on a block of this size: the y of each row and the
- *  offset of each bay along both axes.
- *
- *  The rows are centred in the band between podium and parapet rather than
- *  started at a fixed height and cut off by whatever the shaft had left. That was
- *  the other half of the unevenness: at a fixed y0 the leftover gap under the
- *  parapet came out anywhere from 0.08 to 0.16 depending on the block, so some
- *  towers had windows crowding their brow and others a blank storey below it.
- *  Centring makes the top and bottom margins equal on every one, and the pitch
- *  stays a flat 0.11 so neighbouring blocks line up floor for floor.
- *
- *  Shared with OccupiedWindows, which lights a few panes at rest and has to land
- *  exactly on a slot — a lit pane that misses by a millimetre reads as a smear on
- *  the glass rather than as somebody's light being on. */
-function facade(w: number, d: number, h: number, roof: Roof) {
-  const bot = PLINTH_H + 0.03;
-  const avail = PLINTH_H + shaftOf(h, roof) - 0.03 - bot;
-  const rows = Math.max(1, Math.floor(avail / WIN_ROW));
-  const y0 = bot + (avail - rows * WIN_ROW) / 2 + WIN_ROW / 2;
-  return {
-    ys: Array.from({ length: rows }, (_, r) => y0 + r * WIN_ROW),
-    xs: bayOffsets(w),
-    zs: bayOffsets(d),
-  };
-}
-
+/* ---------- the blocks ---------- */
 /** A block's own slice of the city-wide ramp — its beat in the wave that travels
  *  outward from the tower (`delay` is its distance from it). */
 function staggered(level: number, delay: number) {
@@ -207,129 +124,68 @@ function staggered(level: number, delay: number) {
   return raw <= 0 ? 0 : raw >= 1 ? 1 : raw;
 }
 
-/** A square diorama building (glass fill, neutral edges): a podium at the
- *  pavement, the shaft, a parapet cap and one of two rooflines. When given a
- *  shared `winMat`, it grows a grid of windows on all four sides that light up
- *  when the town hall is hovered. */
-function Building({ x, z, w, d, h, winMat, delay = 0, roof = 'plant' }: { x: number; z: number; w: number; d: number; h: number; winMat?: MeshStandardMaterial; delay?: number; roof?: Roof }) {
-  // A podium at street level and a parapet at the top, both a hair wider than
-  // the shaft, so the building has a foot and a brow instead of being a slab
-  // pushed through the ground — which is what read as "unfinished" at this
-  // scale far more than any amount of facade detail would.
-  const shaftH = shaftOf(h, roof);
-  // Every window shares one material and one plane geometry — and now one SIZE,
-  // so the pane is baked into the geometry and each instance's matrix carries
-  // only where it sits and which way it faces. The whole grid is a single
-  // instanced draw call rather than one mesh per pane (a tall block is ~30).
-  const windows = useMemo(() => {
-    if (!winMat) return [] as { p: V3; ry: number }[];
-    const out: { p: V3; ry: number }[] = [];
-    const { ys, xs, zs } = facade(w, d, h, roof);
-    for (const yy of ys) {
-      // All four faces, not just the two facing front-right. The city is seen
-      // from both sides of the hero (the rig parallaxes with the cursor) and
-      // from the far left every block turned its blank back to the camera.
-      for (const cx of xs) {
-        out.push({ p: [cx, yy, d / 2 + 0.004], ry: 0 });
-        out.push({ p: [cx, yy, -d / 2 - 0.004], ry: Math.PI });
-      }
-      for (const cz of zs) {
-        out.push({ p: [w / 2 + 0.004, yy, cz], ry: Math.PI / 2 });
-        out.push({ p: [-w / 2 - 0.004, yy, cz], ry: -Math.PI / 2 });
-      }
-    }
-    return out;
-  }, [w, d, h, roof, winMat]);
-  const winRef = useRef<InstancedMesh>(null);
-  useLayoutEffect(() => {
-    const im = winRef.current;
-    if (!im || windows.length === 0) return;
-    const mtx = new Matrix4();
-    const q = new Quaternion();
-    const e = new Euler();
-    const p = new Vector3();
-    const one = new Vector3(1, 1, 1);
-    windows.forEach((win, i) => {
-      p.set(win.p[0], win.p[1], win.p[2]);
-      q.setFromEuler(e.set(0, win.ry, 0));
-      im.setMatrixAt(i, mtx.compose(p, q, one));
-    });
-    im.instanceMatrix.needsUpdate = true;
-    im.computeBoundingSphere(); // so building-level frustum culling stays correct
-  }, [windows]);
+// Fetch the model with the tower's, as soon as the scene's code arrives.
+// A failure here is retried and reported by useBlocksKit.
+loadBlocksKit().catch(() => {});
+
+/** One of the six blocks round the tower, from its Blender model
+ *  (scripts/models/build_blocks.py, shipped as public/models/blocks.glb): a
+ *  podium with a door on the street side, the shaft with its punched four-bay
+ *  grid and a sill under every pane, a cornice, and a setback crown or a plant
+ *  room on the roof. The massing is glass and carries the outline; cornices,
+ *  sills, canopy and plant room are a pale cut with none, since at this scale
+ *  more linework stops describing a silhouette and starts obscuring it. */
+function Building({ i, kit, x, z, w, d, winMat, delay = 0 }: { i: number; kit: BlocksKit; x: number; z: number; w: number; d: number; winMat: MeshStandardMaterial; delay?: number }) {
+  const parts = useMemo(() => {
+    const body = kit[`block${i}_body`]!;
+    // The panes lie UNDER the glass. Once woken the glass is 94% opaque, and the
+    // city's lit windows have always been the glow coming through it rather
+    // than a sticker on its face — three sorts transparent meshes back to front
+    // by the centres of their bounds, and the old window grid's fell just behind
+    // its shaft's. Here that's certain rather than lucky: the panes take the
+    // body's own bounds, so the two tie, and a tie goes to the mesh made first,
+    // which is the panes (first in the JSX below).
+    const windows = kit[`block${i}_windows`]!.clone();
+    windows.boundingSphere = body.boundingSphere!.clone();
+    return { body, trim: kit[`block${i}_trim`]!, windows };
+  }, [kit, i]);
+  useEffect(() => () => parts.windows.dispose(), [parts]);
   /* Each building lights on its OWN slice of the city's ramp, via its own clone of
      the window material. That's what makes the lights come up gradually instead of
      the whole skyline switching at once.
      Not per pane: every window in a building shares one material, so the only
      per-pane handle is its size — and easing that made the panes visibly grow,
-     which is not what a light does. Per building costs seven materials and leaves
+     which is not what a light does. Per building costs six materials and leaves
      the panes exactly as they are, dark grid and all, at rest. */
-  const mat = useMemo(() => winMat?.clone(), [winMat]);
+  const mat = useMemo(() => winMat.clone(), [winMat]);
   const reduced = useReducedMotion();
-  useEffect(() => () => mat?.dispose(), [mat]);
-  // The body + edges ride the same staggered ramp as this building's windows, so
-  // a block turns solid on the beat its own lights come up rather than the whole
-  // skyline hardening at once. Written every frame, read by LiveGlassMat/LiveEdges.
+  useEffect(() => () => mat.dispose(), [mat]);
+  // The body, its outline and its trim ride the same staggered ramp as this
+  // building's windows, so a block turns solid on the beat its own lights come
+  // up rather than the whole skyline hardening at once. Written every frame,
+  // read by LiveGlassMat/LiveEdges.
   const wake = useRef(0);
   useFrame((s) => {
-    wake.current = staggered(cityLevel.k, delay); // body + edges
-    const g = wake.current; // …and the windows, on the same beat
-    if (!mat) return; // a building with no window grid still solidifies
-    const t = s.clock.elapsedTime;
-    const flick = flicker(g, t, delay * 9, reduced);
+    wake.current = staggered(cityLevel.k, delay);
+    const g = wake.current;
+    const flick = flicker(g, s.clock.elapsedTime, delay * 9, reduced);
     mat.emissiveIntensity = g * 1.1 * flick;
     mat.opacity = 0.08 + g * 0.6;
   });
   return (
     <group position={[x, 0, z]}>
       <BlobShadow position={[0, 0.004, 0]} radius={Math.max(w, d) * 0.95} opacity={0.4} />
-      {/* Podium — the ground floor, stepped out to meet the pavement. The step is
-          small on purpose: these shafts are only ~0.15 across, so an overhang
-          that looked modest in the numbers read as a tabletop in the frame.
-
-          No outline, and neither has the parapet below. The shaft's wireframe IS
-          the building's drawing; wrapping a second and third box in their own
-          full set of edges took a block from 12 lines to nearly 40, and at this
-          scale that much linework stops describing a silhouette and starts
-          obscuring it. A band a millimetre or two proud of the shaft reads as a
-          step from its fill and its own edge-on silhouette alone — it doesn't
-          need to be traced. */}
-      <mesh position={[0, PLINTH_H / 2, 0]}>
-        <boxGeometry args={[w + 0.009, PLINTH_H, d + 0.009]} />
-        <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
-      </mesh>
-      <mesh position={[0, PLINTH_H + shaftH / 2, 0]}>
-        <boxGeometry args={[w, shaftH, d]} />
+      <mesh geometry={parts.windows} material={mat} />
+      <mesh geometry={parts.body}>
         {/* ghost={false}: a building is dressing, not a hotspot ghost, so it rests
             as its own quiet glass and only hardens as the city comes live — then
             it reads solid, like the windmill does once woken. */}
         <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
-        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
+        <LiveEdges slug="alliander-hololens" threshold={35} wake={wake} />
       </mesh>
-      {/* What sits on the roof, straight onto the shaft, so the blocks stop
-          reading as one object placed six times. Centred and squared up rather
-          than nudged off-axis: an off-centre roof unit adds a second silhouette
-          to read at a scale where there isn't room for one. */}
-      {roof === 'plant' && (
-        // rooftop plant: the lift overrun / air handler every flat roof carries
-        <mesh position={[0, PLINTH_H + shaftH + 0.019, 0]}>
-          <boxGeometry args={[w * 0.44, 0.038, d * 0.44]} />
-          <LiveGlassMat slug="alliander-hololens" ghost={false} tint="pale" wake={wake} />
-        </mesh>
-      )}
-      {roof === 'setback' && (
-        // a narrower crown stepped back from the roofline — a stepped tower
-        <mesh position={[0, PLINTH_H + shaftH + CROWN_H / 2, 0]}>
-          <boxGeometry args={[w * CROWN_W, CROWN_H, d * CROWN_W]} />
-          <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
-          <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
-        </mesh>
-      )}
-      {windows.length > 0 && mat && (
-        <instancedMesh ref={winRef} args={[undefined, undefined, windows.length]} material={mat}>
-          <planeGeometry args={PANE} />
-        </instancedMesh>
-      )}
+      <mesh geometry={parts.trim}>
+        <LiveGlassMat slug="alliander-hololens" ghost={false} tint="pale" wake={wake} />
+      </mesh>
     </group>
   );
 }
@@ -2011,27 +1867,22 @@ function CelebrationBurst() {
 // otherwise-sleeping city. Kept in the skyline's own calm blue (never warm, per
 // the window rule above), most just glowing, one or two slowly winking off and
 // on. Independent of the interactive winMat, so waking the whole city (full
-// bright) is still the reward. Placed on real building faces from the cluster.
-function OccupiedWindows({ buildings }: { buildings: { x: number; z: number; w: number; d: number; h: number; roof: Roof }[] }) {
+// bright) is still the reward. The panes come with the blocks' model: each
+// occupied block carries one, `block<i>_lit`, a hair proud of its window grid.
+function OccupiedWindows({ kit, buildings }: { kit: BlocksKit; buildings: { x: number; z: number }[] }) {
   const reduced = useReducedMotion();
   const { accent } = useAccent();
   const mats = useRef<(MeshStandardMaterial | null)[]>([]);
   const wins = useMemo(() => {
     const rnd = makeRand(4231);
-    const out: { p: V3; ry: number; lvl: number; spd: number; ph: number; wink: boolean }[] = [];
+    const out: { x: number; z: number; g: BufferGeometry; lvl: number; spd: number; ph: number; wink: boolean }[] = [];
     buildings.forEach((b, i) => {
-      if (i % 3 === 1) return; // only some buildings are occupied
-      // Snapped to a real slot on the shared facade grid, not floated near one.
-      const { ys, xs, zs } = facade(b.w, b.d, b.h, b.roof);
-      const yy = ys[Math.floor(rnd() * ys.length)];
-      const front = rnd() > 0.4; // camera-facing +Z (front) or +X (side) face
-      const cols = front ? xs : zs;
-      const c = cols[Math.floor(rnd() * cols.length)];
-      const p: V3 = front ? [b.x + c, yy, b.z + b.d / 2 + 0.006] : [b.x + b.w / 2 + 0.006, yy, b.z + c];
-      out.push({ p, ry: front ? 0 : Math.PI / 2, lvl: 0.5 + rnd() * 0.5, spd: 0.3 + rnd() * 0.4, ph: rnd() * 6.28, wink: rnd() < 0.4 });
+      const g = kit[`block${i}_lit`];
+      if (!g) return; // nobody home
+      out.push({ x: b.x, z: b.z, g, lvl: 0.5 + rnd() * 0.5, spd: 0.3 + rnd() * 0.4, ph: rnd() * 6.28, wink: rnd() < 0.4 });
     });
     return out;
-  }, [buildings]);
+  }, [kit, buildings]);
   useFrame((s) => {
     const t = s.clock.elapsedTime;
     for (let i = 0; i < wins.length; i++) {
@@ -2046,8 +1897,7 @@ function OccupiedWindows({ buildings }: { buildings: { x: number; z: number; w: 
   return (
     <group>
       {wins.map((w, i) => (
-        <mesh key={i} position={w.p} rotation={[0, w.ry, 0]}>
-          <planeGeometry args={PANE} />
+        <mesh key={i} position={[w.x, 0, w.z]} geometry={w.g}>
           <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={accent} emissive={accent} emissiveIntensity={w.lvl * 0.5} transparent opacity={0.92} roughness={0.4} toneMapped={false} depthWrite={false} />
         </mesh>
       ))}
@@ -2146,13 +1996,15 @@ export function CityRig() {
   // Every centre-line the fringe has to stay off, so no shed lands in a road.
   const keepClear = useMemo(() => roads.map((r) => r.points), [roads]);
   // Sparse blocks of square buildings around a central plaza; taller toward
-  // the middle so the cluster still reads as a skyline. Each block takes one of
-  // three rooflines off the shared list, cycled by index rather than drawn from
-  // `rnd` — the RNG sequence here sets every position and height in the city,
-  // so pulling an extra number would move the whole skyline.
+  // the middle so the cluster still reads as a skyline. Everything about how a
+  // block looks — its facade, and a roofline alternating by index between a
+  // plant room and a setback — is in its Blender model, which
+  // scripts/models/build_blocks.py builds by replaying this plan draw for draw.
+  // Change the plan and the model has to be rebuilt; dev warns below if the
+  // two disagree.
   const cluster = useMemo(() => {
     const rnd = makeRand(1872);
-    const out: { x: number; z: number; w: number; d: number; h: number; roof: Roof }[] = [];
+    const out: { x: number; z: number; w: number; d: number; h: number }[] = [];
     const cells = [-0.55, 0, 0.55];
     for (const cx of cells)
       for (const cz of cells) {
@@ -2169,16 +2021,16 @@ export function CityRig() {
           // into blocks that read as chunky, so these sit at 0.175–0.215 —
           // roughly 2:1 to 3:1 against the same heights.
           //
-          // The floor is set by the facade, not by taste. `bayOffsets` splits
-          // (w - 4 panes) between three mullion gaps and two corner piers, so at
-          // 0.175 the gap is still ~0.009 against a 0.03 pane. Much under that
-          // and the mullions vanish, and a punched facade turns into an
-          // unbroken curtain wall.
+          // The floor is set by the facade, not by taste. `bay_offsets` (in
+          // build_blocks.py) splits (w - 4 panes) between three mullion gaps and
+          // two corner piers, so at 0.175 the gap is still ~0.009 against a 0.03
+          // pane. Much under that and the mullions vanish, and a punched facade
+          // turns into an unbroken curtain wall.
           //
           // Same five rnd() draws in the same order, deliberately: this generator
           // seeds every position in the city, so taking one more or one fewer
           // number here would shuffle the whole skyline instead of resizing it.
-          const bld = { x, z, w: 0.175 + rnd() * 0.04, d: 0.175 + rnd() * 0.04, h: 0.24 + fall * 0.3 + rnd() * 0.1, roof: ROOFS[out.length % ROOFS.length] };
+          const bld = { x, z, w: 0.175 + rnd() * 0.04, d: 0.175 + rnd() * 0.04, h: 0.24 + fall * 0.3 + rnd() * 0.1 };
           // front-centre plot goes to the transformer house — build the RNG for it
           // (so the rest of the skyline is unchanged), then drop the building.
           if (cx === 0 && cz === 0.55) continue;
@@ -2216,8 +2068,20 @@ export function CityRig() {
     m.userData.lifeSkip = true; // WindowDriver animates it; shared with prop buildings
     return m;
   }, [accent]);
-  // the tower's Blender model (kit.ts); null until it has arrived
+  // the tower's and the blocks' Blender models (kit.ts); null until they arrive
   const towerKit = useTowerKit();
+  const blocksKit = useBlocksKit();
+  // The blocks' model is built for this plan (build_blocks.py replays it); say
+  // so in dev if the two have drifted apart, rather than draw blocks that no
+  // longer fit their plots.
+  useEffect(() => {
+    if (!import.meta.env.DEV || !blocksKit) return;
+    cluster.forEach((b, i) => {
+      const box = blocksKit[`block${i}_body`]?.boundingBox;
+      const fits = box && Math.abs(box.max.x - box.min.x - 0.012 - b.w) < 0.002 && Math.abs(box.max.y - b.h) < 0.002; // the podium steps out 0.006 a side
+      if (!fits) console.warn(`public/models/blocks.glb doesn't match block ${i} of the city's plan. Rebuild it: see scripts/models/README.md.`);
+    });
+  }, [blocksKit, cluster]);
   // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
   const mill = useTweak('City.Windmill', { position: MILL_POS });
   const park = useTweak('City.Park', { position: PARK_POS });
@@ -2245,13 +2109,11 @@ export function CityRig() {
           come-on. This was a radial wave — delay by distance from the tower —
           which reads as a mechanism sweeping outward rather than as a city
           waking up. Lights going on in a real skyline have no order to them. */}
-      {cluster.map((b, i) => (
-        <Building key={i} {...b} winMat={winMat} delay={lightOrder[i]} />
-      ))}
+      {blocksKit && cluster.map((b, i) => <Building key={i} i={i} kit={blocksKit} x={b.x} z={b.z} w={b.w} d={b.d} winMat={winMat} delay={lightOrder[i]} />)}
       {/* the low fringe that carries the density out to the neighbours */}
       <Outskirts clear={keepClear} blocks={cluster} />
       {/* a few homes left lit in the sleeping city (independent of the hover glow) */}
-      <OccupiedWindows buildings={cluster} />
+      {blocksKit && <OccupiedWindows kit={blocksKit} buildings={cluster} />}
       {/* The tower and its power lines arrive together, with the tower's model.
           Its LifeGroup mounts with it too, so it takes the tower to the right
           level on its first frame rather than on a later sweep. */}
@@ -2265,7 +2127,7 @@ export function CityRig() {
       <TransformerHouse position={trafo.position} />
       {/* power lines from the central tower to every building + the transformer —
           glow blue on select */}
-      {towerKit && <PowerWires from={[0, 0.8, 0]} targets={wireTargets} />}
+      {towerKit && blocksKit && <PowerWires from={[0, 0.8, 0]} targets={wireTargets} />}
 
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}

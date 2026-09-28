@@ -3,8 +3,9 @@
 // layer looks each piece up by name, places it, and dresses it in the
 // maquette's own materials, so the parts wake, light and outline exactly like
 // everything else.
-//   chip.glb   the chip layer's parts (chip.tsx)
-//   tower.glb  the city's Alliander tower (city.tsx)
+//   chip.glb    the chip layer's parts (chip.tsx)
+//   tower.glb   the city's Alliander tower (city.tsx)
+//   blocks.glb  the six blocks round the tower (city.tsx)
 import { useEffect, useState } from 'react';
 import { BufferAttribute, BufferGeometry, type InterleavedBufferAttribute, type Mesh, type Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -25,8 +26,13 @@ const CHIP_PARTS = [
   'pas_body', 'pas_ends',
 ] as const;
 const TOWER_PARTS = ['tower_body', 'tower_ribs', 'tower_windows', 'tower_lamp', 'tower_spire'] as const;
+/** Three parts to each of the six blocks, in the order of city.tsx's plan. The
+ *  blocks someone is home in carry a fourth, `block<i>_lit`, which is optional
+ *  here. */
+const BLOCK_PARTS = [0, 1, 2, 3, 4, 5].flatMap((i) => [`block${i}_body`, `block${i}_trim`, `block${i}_windows`]);
 export type ChipKit = Record<(typeof CHIP_PARTS)[number], BufferGeometry>;
 export type TowerKit = Record<(typeof TOWER_PARTS)[number], BufferGeometry>;
+export type BlocksKit = Record<string, BufferGeometry | undefined>;
 
 /** gltfpack stores positions and normals as quantized integers and parks the
  *  scale that undoes it on the piece's node. Bake that back into plain floats
@@ -130,8 +136,11 @@ function modelFile<P extends string>(file: string, parts: readonly P[], what: st
 
 const chip = modelFile('chip.glb', CHIP_PARTS, 'chip layer');
 const tower = modelFile('tower.glb', TOWER_PARTS, "city's tower");
+const blocks = modelFile('blocks.glb', BLOCK_PARTS, "city's blocks");
 
 export const loadChipKit = chip.get;
 export const useChipKit = chip.useKit;
 export const loadTowerKit = tower.get;
 export const useTowerKit = tower.useKit;
+export const loadBlocksKit = blocks.get;
+export const useBlocksKit: () => BlocksKit | null = blocks.useKit;

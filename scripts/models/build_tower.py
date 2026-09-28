@@ -106,4 +106,5 @@ def main():
         print(f'preview {s:.1f}s')
 
 
-main()
+if __name__ == '__main__':
+    main()
