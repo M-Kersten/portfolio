@@ -1,25 +1,33 @@
-// The CHIP layer (bottom) — tools, CV & data. A PCB with the pulsing die
-// (Amsterdam AI), a security/CV camera projecting a tracked hologram cube
-// (custom AR framework) and the Philips bedside heart-rate monitor, wired
-// together with animated traces and LEDs that surge while a chip project is
-// engaged. ChipRig composes and places everything.
-import { useEffect, useMemo, useRef } from 'react';
+// The CHIP layer (bottom) — tools, CV & data. A circuit board carrying an AI
+// accelerator package (Amsterdam AI), a security/CV camera projecting a tracked
+// hologram cube (custom AR framework) and the Philips bedside patient monitor,
+// wired together with animated traces and LEDs that surge while a chip project
+// is engaged. The board and most of its parts are Blender models, loaded from
+// public/models/chip.glb (kit.ts; the source is in scripts/models) and dressed
+// here in the maquette's own materials. ChipRig composes and places everything.
+import { useContext, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges, RoundedBox } from '@react-three/drei';
+import { Edges } from '@react-three/drei';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { SURFACE, NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
-import { GHOST_FILL, LifeGroup, EmissiveHover } from './life';
-import { GlassMat, LiveEdges, LiveGlassMat, SoftBox } from './materials';
+import { GHOST_FILL, LifeGroup } from './life';
+import { GlassMat, LiveEdges, LiveGlassMat } from './materials';
 import { litMat, ShadowPrint, useLitLink } from './lit';
 import { BlobShadow } from './backdrop';
+import { PresenceCtx } from './presence';
+import { useChipKit, type ChipKit } from './kit';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
 
-/* ---- Philips medical XR & AI — a bedside vital-signs monitor ----
-   A dark, ghosted screen at rest; once engaged it powers on to just two clean
-   traces: a green ECG swept by a bright blip, and a cyan SpO₂ pleth below. */
+/* ---- Philips medical XR & AI — a bedside patient monitor ----
+   A slim bezel round the screen, a carry handle through the top, the alarm lamp
+   over the screen, three keys and a knob on the chin, standing on a tilting neck
+   over an IC-style foot whose gull-wing legs solder it to the board. A dark,
+   ghosted screen at rest; once engaged it powers on to just two clean traces: a
+   green ECG swept by a bright blip, and a cyan SpO₂ pleth below — and the alarm
+   lamp flashes on every beat. */
 
 // One PQRST heartbeat, laid out left→right from x0 (screen-local units).
 const ecgBeat = (x0: number): V3[] => [
@@ -47,11 +55,12 @@ function traceObject(points: V3[], hex: string) {
   return { line: new ThreeLine(g, m), mat: m };
 }
 
-function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
+function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit: ChipKit }) {
   const { accent, accentPale } = useAccent();
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const screenMat = useRef<MeshStandardMaterial>(null);
+  const alarmMat = useRef<MeshStandardMaterial>(null); // the lamp strip over the screen
   const blip = useRef<Mesh>(null);
   const trailRefs = useRef<(Mesh | null)[]>([]); // phosphor beads lagging the sweep
   const live = useRef(0); // 0 dormant → 1 alive
@@ -109,6 +118,13 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
     const x = -0.15 + sweep * 0.28;
     const spike = Math.min(1, Math.max(0, (yAtX(x) - 0.03) / 0.025)); // ~1 on the R peak
     if (screenMat.current) screenMat.current.emissiveIntensity += spike * 0.22 * on; // the beep flash
+    // the alarm lamp: a dark strip at rest; alive, it flashes on every R-peak
+    const am = alarmMat.current;
+    if (am) {
+      am.color.copy(grey).lerp(green, on);
+      am.emissive.copy(grey).lerp(green, on);
+      am.emissiveIntensity = 0.03 + on * (0.18 + spike * 1.5);
+    }
     if (blip.current) {
       blip.current.visible = on > 0.05;
       blip.current.position.set(x, 0.035 + yAtX(x), 0.004);
@@ -134,43 +150,43 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
 
   return (
     <group position={position}>
-      <group>
-        {/* base pad on the board */}
-        <SoftBox position={[0, 0.035, 0.02]} args={[0.36, 0.05, 0.16]} radius={0.02} opacity={0.34} liveSlug={slug} />
-        {/* the monitor unit, tilted to face up-and-forward */}
-        <group position={[0, 0.21, 0]} rotation={[-0.34, 0, 0]}>
-          {/* casing — solidifies once visited, like every hotspot body */}
-          <RoundedBox args={[0.42, 0.3, 0.05]} radius={0.02} smoothness={3}>
-            <LiveGlassMat slug={slug} tint="deep" />
-          </RoundedBox>
-          {/* (the bezel outline is gone — same reason as the die's: a Line in a
-              LifeGroup brightens as the casing solidifies, so it survived as a
-              hard rectangle across a screen that had just powered on) */}
-          {/* dark screen (drives its own glow) */}
-          <mesh position={[0, 0.012, 0.027]}>
-            <planeGeometry args={[0.35, 0.22]} />
-            <meshStandardMaterial ref={screenMat} userData={{ lifeSkip: true }} color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.06} roughness={0.5} toneMapped={false} />
+      {/* the stand, whose legs are part of the object: it wakes with the monitor */}
+      <mesh geometry={kit.mon_stand}>
+        <LiveGlassMat slug={slug} tint="glass" />
+      </mesh>
+      <mesh geometry={kit.mon_legs}>
+        <LiveGlassMat slug={slug} tint="pale" />
+      </mesh>
+      {/* the monitor, tilted to face up-and-forward. Its outline draws the ghost:
+          the bezel, the handle loop, the screen's recess. */}
+      <group position={[0, 0.21, 0]} rotation={[-0.34, 0, 0]}>
+        <mesh geometry={kit.mon_body}>
+          <LiveGlassMat slug={slug} tint="deep" />
+          <LiveEdges slug={slug} threshold={35} />
+        </mesh>
+        <mesh geometry={kit.mon_controls}>
+          <LiveGlassMat slug={slug} tint="pale" />
+        </mesh>
+        <mesh geometry={kit.mon_alarm}>
+          <meshStandardMaterial ref={alarmMat} userData={{ lifeSkip: true }} color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.03} roughness={0.3} toneMapped={false} />
+        </mesh>
+        {/* dark screen (drives its own glow), lying in the bezel's recess */}
+        <mesh position={[0, 0.012, 0.027]}>
+          <planeGeometry args={[0.35, 0.22]} />
+          <meshStandardMaterial ref={screenMat} userData={{ lifeSkip: true }} color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.06} roughness={0.5} toneMapped={false} />
+        </mesh>
+        {/* screen contents — just the two traces, sitting proud of the panel */}
+        <group position={[0, 0.012, 0.03]}>
+          <primitive object={ecgObj.line} position={[0, 0.035, 0.001]} />
+          <primitive object={plethObj.line} position={[0, -0.045, 0.001]} />
+          <mesh ref={blip} visible={false}>
+            <sphereGeometry args={[0.009, 12, 12]} />
+            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.8} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
           </mesh>
-          {/* screen contents — just the two traces, sitting proud of the panel */}
-          <group position={[0, 0.012, 0.03]}>
-            <primitive object={ecgObj.line} position={[0, 0.035, 0.001]} />
-            <primitive object={plethObj.line} position={[0, -0.045, 0.001]} />
-            <mesh ref={blip} visible={false}>
-              <sphereGeometry args={[0.009, 12, 12]} />
-              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.8} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
-            </mesh>
-            {[0, 1, 2].map((i) => (
-              <mesh key={i} ref={(r) => (trailRefs.current[i] = r)} visible={false}>
-                <sphereGeometry args={[0.009, 10, 10]} />
-                <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.5} transparent opacity={0} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
-              </mesh>
-            ))}
-          </group>
-          {/* control buttons along the chin */}
-          {[-0.15, -0.11, -0.07].map((bx, i) => (
-            <mesh key={i} position={[bx, -0.12, 0.028]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.013, 0.013, 0.01, 16]} />
-              <LiveGlassMat slug={slug} tint="deep" />
+          {[0, 1, 2].map((i) => (
+            <mesh key={i} ref={(r) => (trailRefs.current[i] = r)} visible={false}>
+              <sphereGeometry args={[0.009, 10, 10]} />
+              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.5} transparent opacity={0} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
             </mesh>
           ))}
         </group>
@@ -179,8 +195,8 @@ function HeartMonitor({ position, slug }: { position: V3; slug: string }) {
   );
 }
 
-/** Decorative extra board parts — decoupling passives and spare solder pads. */
-function MiscComponents() {
+/** Decorative extra board parts — an SMD passive beside each package edge. */
+function MiscComponents({ kit }: { kit: ChipKit }) {
   // One passive per package edge, in the lateral band outboard of every trace, so
   // each sits on bare substrate beside the die. These used to be scattered at
   // radius ~0.5, which put them on TOP of the die package — no board does that,
@@ -188,58 +204,77 @@ function MiscComponents() {
   return (
     <group>
       {PASSIVES.map((p) => (
-        <mesh key={p.edge} position={[p.x, 0.035, p.z]} rotation={[0, p.edge === 0 || p.edge === 2 ? 0 : Math.PI / 2, 0]}>
-          <boxGeometry args={[0.09, 0.03, 0.04]} />
-          <GlassMat tint="glass" />
-          <Edges threshold={30} color={NEUTRAL} />
-        </mesh>
-      ))}
-      {/* The spare solder pads that used to ring the board are gone. Once their
-          runs went they were eight unexplained circles scattered across the
-          substrate — the kind of detail that only reads as detail to someone who
-          already knows it's a PCB. */}
-    </group>
-  );
-}
-
-/** A secondary IC with a finned heatsink. */
-/* Heights below are all measured off the board's top face at y 0.02. This part and
-   the pin header used to sit at y 0.135 because they were originally mounted on TOP
-   of the die package (whose top face is y 0.14); moving them out to the ring slots
-   left them hanging a tenth of a unit above the substrate with nothing under them,
-   which is what read as floating. */
-function Heatsink({ position }: { position: V3 }) {
-  return (
-    <group position={position}>
-      <SoftBox position={[0, 0.04, 0]} args={[0.24, 0.04, 0.24]} radius={0.01} opacity={0.34} />
-      {[-0.08, -0.04, 0, 0.04, 0.08].map((x, i) => (
-        <mesh key={i} position={[x, 0.115, 0]}>
-          <boxGeometry args={[0.014, 0.11, 0.2]} />
-          <GlassMat tint="glass" />
-          <Edges threshold={30} color={NEUTRAL} />
-        </mesh>
+        <group key={p.edge} position={[p.x, 0.033, p.z]} rotation={[0, p.edge === 0 || p.edge === 2 ? 0 : Math.PI / 2, 0]}>
+          <mesh geometry={kit.pas_body}>
+            <GlassMat tint="glass" />
+            <Edges threshold={35} color={NEUTRAL} />
+          </mesh>
+          {/* the plated ends, in the light cut rather than metal: flat metal this
+              close to the board caught the light and read as more lamps */}
+          <mesh geometry={kit.pas_ends}>
+            <GlassMat tint="pale" />
+          </mesh>
+        </group>
       ))}
     </group>
   );
 }
 
-/** A pin-header connector at the board edge. */
-function PinHeader({ position, n = 6 }: { position: V3; n?: number }) {
-  const span = (n - 1) * 0.045;
+/** A QFN under a nine-fin heatsink, with a small fan on top. The fan idles over
+ *  slowly on a sleeping board and spools up when the chip powers on — spun
+ *  about its own axis, which the model puts at the slot's centre. */
+const FAN_IDLE = 0.35; // rad/s
+const FAN_RUN = 7.5;
+function Heatsink({ position, kit, energy }: { position: V3; kit: ChipKit; energy: number }) {
+  const reduced = useReducedMotion();
+  const rotor = useRef<Group>(null);
+  const w = useRef(FAN_IDLE);
+  useFrame((_s, delta) => {
+    const dt = Math.min(delta, 1 / 30);
+    // spools up and winds down rather than switching
+    w.current += ((energy ? FAN_RUN : FAN_IDLE) - w.current) * (1 - Math.exp(-dt * 0.9));
+    if (rotor.current && !reduced) rotor.current.rotation.y -= w.current * dt;
+  });
   return (
     <group position={position}>
-      {/* A taller, more solid body than the old 0.04 sliver: at board level that
-          barely registered against the substrate and the pins read as six little
-          cylinders floating on their own. A connector needs a block under it. */}
-      <SoftBox position={[0, 0.05, 0]} args={[span + 0.05, 0.06, 0.085]} radius={0.01} opacity={0.5} />
-      {Array.from({ length: n }).map((_, i) => (
-        <mesh key={i} position={[-span / 2 + i * 0.045, 0.105, 0]}>
-          <cylinderGeometry args={[0.008, 0.008, 0.06, 8]} />
-          {/* plain metal, not self-lit — the same idiom as the city tower's mast.
-              Emissive on a dormant detail made the pins glow on a dead board. */}
-          <meshStandardMaterial color={NEUTRAL} roughness={0.4} metalness={0.5} />
+      <mesh geometry={kit.hs_chip}>
+        <GlassMat tint="glass" />
+        <Edges threshold={35} color={NEUTRAL} />
+      </mesh>
+      <mesh geometry={kit.hs_pads}>
+        <GlassMat tint="pale" />
+      </mesh>
+      <mesh geometry={kit.hs_sink}>
+        <GlassMat tint="glass" />
+        <Edges threshold={35} color={NEUTRAL} />
+      </mesh>
+      <mesh geometry={kit.hs_fan}>
+        <GlassMat tint="glass" />
+        <Edges threshold={35} color={NEUTRAL} />
+      </mesh>
+      <group ref={rotor}>
+        <mesh geometry={kit.hs_rotor}>
+          <GlassMat tint="pale" />
         </mesh>
-      ))}
+      </group>
+    </group>
+  );
+}
+
+/** A shrouded 2×6 box header at the board edge: the key slot in its wall, square
+ *  posts with pointed tips standing in the well. */
+function PinHeader({ position, kit }: { position: V3; kit: ChipKit }) {
+  return (
+    <group position={position}>
+      <mesh geometry={kit.hdr_body}>
+        <GlassMat tint="glass" />
+        <Edges threshold={35} color={NEUTRAL} />
+      </mesh>
+      <mesh geometry={kit.hdr_pins}>
+        {/* plain metal, not self-lit — the same idiom as the city tower's mast.
+            Emissive on a dormant detail made the pins glow on a dead board. */}
+        <meshStandardMaterial color={NEUTRAL} roughness={0.4} metalness={0.5} />
+      </mesh>
     </group>
   );
 }
@@ -302,7 +337,9 @@ function onEdge(e: number, d: number, t: number): [number, number] {
 // Each slot gets a trace from the die and a coloured status LED that flashes on
 // its own rhythm when live. `ly` sits each LED on top of its own part rather
 // than floating above the board, so it stays tied to whatever occupies the slot;
-// `fp` is its silkscreen footprint. `edge`/`pin` say which land it wires to —
+// where a part has no top to sit on (the monitor, the header), `lx`/`lz` move it
+// onto the board beside the part, the way a real status lamp is fitted. `fp` is
+// its silkscreen footprint. `edge`/`pin` say which land it wires to —
 // the corner units take the outermost land (8), the edge parts the centre one (4).
 // The LEDs used to be four unrelated hues — cyan, coral, lime, amber — sitting
 // on a lime board, which is a lot of the reason this layer read as assembled
@@ -310,16 +347,16 @@ function onEdge(e: number, d: number, t: number): [number, number] {
 // still reads as busy because eight lamps blink out of phase, which is what was
 // actually doing the work.
 type Lamp = 'accent' | 'pale' | 'deep';
-interface ChipNode { x: number; z: number; ly: number; led: Lamp; phase: number; speed: number; edge: number; pin: number; fp?: [number, number] }
+interface ChipNode { x: number; z: number; ly: number; lx?: number; lz?: number; led: Lamp; phase: number; speed: number; edge: number; pin: number; fp?: [number, number] }
 const CHIP_NODES: ChipNode[] = [
   // corners — the units, each leaving the edge it sits counter-clockwise from
   { x: CORNER, z: -CORNER, ly: 0.2, led: 'accent', phase: 0.0, speed: 6.5, edge: 3, pin: 8, fp: [0.3, 0.3] }, // custom-ar camera (back-right)
-  { x: -CORNER, z: -CORNER, ly: 0.175, led: 'deep', phase: 1.1, speed: 5.0, edge: 2, pin: 8, fp: [0.44, 0.22] }, // philips monitor (back-left)
+  { x: -CORNER, z: -CORNER, ly: 0.03, lx: -0.21, lz: 0.07, led: 'deep', phase: 1.1, speed: 5.0, edge: 2, pin: 8, fp: [0.34, 0.24] }, // philips monitor (back-left): beside its foot
   { x: CORNER, z: CORNER, ly: 0.225, led: 'accent', phase: 2.0, speed: 7.5, edge: 0, pin: 8, fp: [0.3, 0.3] }, // database stack (front-right)
-  { x: -CORNER, z: CORNER, ly: 0.185, led: 'pale', phase: 0.7, speed: 5.8, edge: 1, pin: 8, fp: [0.3, 0.3] }, // heatsink (front-left)
+  { x: -CORNER, z: CORNER, ly: 0.172, led: 'pale', phase: 0.7, speed: 5.8, edge: 1, pin: 8, fp: [0.3, 0.3] }, // heatsink (front-left): on the fan hub
   // edge midpoints — the small parts, straight out of the centre land
-  { x: EDGE, z: 0, ly: 0.045, led: 'pale', phase: 2.6, speed: 6.0, edge: 0, pin: 4 }, // computer-vision footprint (right)
-  { x: 0, z: EDGE, ly: 0.15, led: 'accent', phase: 1.6, speed: 8.0, edge: 1, pin: 4, fp: [0.3, 0.13] }, // pin header (front)
+  { x: EDGE, z: 0, ly: 0.045, led: 'pale', phase: 2.6, speed: 6.0, edge: 0, pin: 4, fp: [0.21, 0.21] }, // small QFN (right)
+  { x: 0, z: EDGE, ly: 0.03, lx: 0.19, led: 'accent', phase: 1.6, speed: 8.0, edge: 1, pin: 4, fp: [0.32, 0.13] }, // box header (front): beside it
   { x: -EDGE, z: 0, ly: 0.155, led: 'deep', phase: 3.1, speed: 6.8, edge: 2, pin: 4, fp: [0.14, 0.14] }, // cap (left)
   { x: 0, z: -EDGE, ly: 0.155, led: 'pale', phase: 0.4, speed: 7.0, edge: 3, pin: 4, fp: [0.14, 0.14] }, // cap (back)
 ];
@@ -810,6 +847,136 @@ function DiePulse() {
   );
 }
 
+/* ---- the package (Amsterdam AI) — an AI accelerator ----
+   The compute die between four stacked memory chips (HBM) on a dark silicon
+   interposer, a stiffener frame and rows of decoupling capacitors on the
+   substrate, the whole package riding on its ring of solder balls. It used to be
+   a raised slab with a lit square on it; this is what an accelerator is. */
+
+/** A kit part that glows on its own: the same power-on as EmissiveHover (a grey
+ *  whisper at rest, the accent once woken, breathing), on a loaded shape. */
+function KitGlow({ geometry, slug, rest, peak, color }: { geometry: BufferGeometry; slug: string; rest: number; peak: number; color: string }) {
+  const { selected, visited } = useActive(slug);
+  const reduced = useReducedMotion();
+  const presence = useContext(PresenceCtx);
+  const mat = useRef<MeshStandardMaterial>(null);
+  const k = useRef(0);
+  const base = useMemo(() => new Color(color), [color]);
+  useFrame((s) => {
+    const m = mat.current;
+    if (!m) return;
+    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
+    const breathe = reduced ? 0 : Math.sin(s.clock.elapsedTime * 2.2) * 0.07;
+    m.emissiveIntensity = (rest * (0.25 + 0.75 * k.current) + k.current * (peak + breathe)) * presence.current;
+    m.color.copy(GHOST_FILL).lerp(base, k.current);
+    m.emissive.copy(GHOST_FILL).lerp(base, k.current);
+  });
+  return (
+    <mesh geometry={geometry}>
+      <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={color} emissive={color} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
+    </mesh>
+  );
+}
+
+/** The die's sixteen compute tiles. Once the chip is woken they run waves of
+ *  activity diagonally across the array — work stepping through a systolic
+ *  array, which is what an accelerator's core grid actually does. Lit per
+ *  vertex on a basic material, past 1.0 where the wave is, so the bloom takes
+ *  the front; at rest they're the ghost's pale grid. */
+const TILE_N = 4;
+const WAVE_RATE = 0.62; // passes a second
+function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: string; color: string }) {
+  const { selected, visited } = useActive(slug);
+  const reduced = useReducedMotion();
+  const presence = useContext(PresenceCtx);
+  const k = useRef(0);
+  // which tile each vertex belongs to, read off its position on the die
+  const { geo, tile, colors } = useMemo(() => {
+    const g = geometry.clone();
+    const pos = g.attributes.position;
+    g.computeBoundingBox();
+    const bb = g.boundingBox!;
+    const tile = new Uint8Array(pos.count);
+    for (let i = 0; i < pos.count; i++) {
+      const u = (pos.getX(i) - bb.min.x) / (bb.max.x - bb.min.x);
+      const v = (pos.getZ(i) - bb.min.z) / (bb.max.z - bb.min.z);
+      tile[i] = Math.min(TILE_N - 1, Math.floor(v * TILE_N)) * TILE_N + Math.min(TILE_N - 1, Math.floor(u * TILE_N));
+    }
+    const colors = new Float32Array(pos.count * 3);
+    g.setAttribute('color', new BufferAttribute(colors, 3));
+    return { geo: g, tile, colors };
+  }, [geometry]);
+  useEffect(() => () => geo.dispose(), [geo]);
+  const base = useMemo(() => new Color(color), [color]);
+  const tint = useMemo(() => new Color(), []);
+  const level = useMemo(() => new Float32Array(TILE_N * TILE_N), []);
+  useFrame((s) => {
+    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
+    const on = k.current;
+    const t = s.clock.elapsedTime;
+    for (let i = 0; i < level.length; i++) {
+      const diag = ((i % TILE_N) + Math.floor(i / TILE_N)) / (2 * TILE_N - 1);
+      let ph = (t * WAVE_RATE - diag) % 1;
+      if (ph < 0) ph += 1;
+      const wave = reduced ? 0.4 : Math.exp(-ph * 6); // bright at the front, trailing off
+      level[i] = 0.34 * (1 - on) + on * (0.62 + 1.1 * wave);
+    }
+    tint.copy(GHOST_FILL).lerp(base, on);
+    const pf = presence.current;
+    for (let v = 0; v < tile.length; v++) {
+      const L = level[tile[v]] * pf;
+      colors[v * 3] = tint.r * L;
+      colors[v * 3 + 1] = tint.g * L;
+      colors[v * 3 + 2] = tint.b * L;
+    }
+    geo.attributes.color.needsUpdate = true;
+  });
+  return (
+    <mesh geometry={geo}>
+      <meshBasicMaterial vertexColors toneMapped={false} userData={{ lifeSkip: true }} />
+    </mesh>
+  );
+}
+
+function Package({ kit }: { kit: ChipKit }) {
+  const { accent, accentDeep } = useAccent();
+  const slug = 'amsterdam-ai';
+  const lit = useLitLink(slug); // the solder balls light with the glass (lit.tsx)
+  return (
+    <group>
+      {/* Values do the separating, as everywhere in the maquette: the substrate
+          and frame in the middle cut, the interposer dark so the die and the
+          memory read against it, the memory and the capacitors in the light cut.
+          Outlines only on the substrate and the memory stacks — the frame would
+          double the substrate's silhouette, and a hundred capacitors outlined
+          are a hundred small rectangles of noise. */}
+      <mesh geometry={kit.pkg_sub}>
+        <LiveGlassMat slug={slug} tint="glass" />
+        <LiveEdges slug={slug} threshold={35} />
+      </mesh>
+      <mesh geometry={kit.pkg_frame}>
+        <LiveGlassMat slug={slug} tint="glass" />
+      </mesh>
+      <mesh geometry={kit.pkg_ip}>
+        <LiveGlassMat slug={slug} tint="deep" />
+      </mesh>
+      <mesh geometry={kit.pkg_hbm}>
+        <LiveGlassMat slug={slug} tint="pale" />
+        <LiveEdges slug={slug} threshold={35} />
+      </mesh>
+      <mesh geometry={kit.pkg_caps}>
+        <LiveGlassMat slug={slug} tint="pale" />
+      </mesh>
+      <mesh geometry={kit.pkg_balls}>
+        <meshStandardMaterial {...litMat(lit)} color={NEUTRAL} roughness={0.4} metalness={0.5} />
+      </mesh>
+      {/* the silicon under the tiles glows low, the tiles themselves carry the light */}
+      <KitGlow geometry={kit.pkg_die} slug={slug} rest={0.12} peak={0.35} color={accentDeep} />
+      <KitTiles geometry={kit.pkg_tiles} slug={slug} color={accent} />
+    </group>
+  );
+}
+
 export function ChipRig() {
   const { accent, accentPale, accentDeep } = useAccent();
   const LAMP: Record<Lamp, string> = { accent, pale: accentPale, deep: accentDeep };
@@ -824,20 +991,32 @@ export function ChipRig() {
   // that every project on this layer is wired into the chip, and twenty lines
   // said that far less clearly than eight do.
   const traces = useMemo(() => CHIP_NODES.map((nd) => landTrace(nd.edge, nd.pin, nd.x, nd.z, TY)), []);
+  // The layer arrives whole: until its parts have loaded there's nothing to put
+  // the traces and lamps on. The file is small and starts loading as soon as the
+  // scene mounts, well before the scroll reaches the chip.
+  const kit = useChipKit();
+  if (!kit) return null;
   return (
     <group>
-      {/* The PCB substrate — every part mounts on it, so it reads as one board.
-          Wears the same frosted glass as every other dormant body in the maquette,
-          just tinted to board-green: as a plain standard material it was the one
-          large surface in the scene with no fresnel rim, no screen-space halftone
-          and depth-writing on, so it read as an opaque slab dropped under a city
-          and a room made of glass. */}
+      {/* The PCB — every part mounts on it, so it reads as one board. Wears the
+          same frosted glass as every other dormant body in the maquette, in the
+          dark cut: as a plain standard material it was the one large surface in
+          the scene with no fresnel rim, no screen-space halftone and depth-writing
+          on, so it read as an opaque slab dropped under a city and a room made of
+          glass. Four plated mounting holes go through it. */}
       <BlobShadow position={[0, 0.002, 0]} radius={1.4} opacity={0.34} />
-      <RoundedBox args={[2.05, 0.02, 2.05]} radius={0.04} smoothness={2} position={[0, 0.01, 0]}>
+      <mesh geometry={kit.board}>
         <GlassMat tint="deep" />
         {/* the hover light's shadows, printed on the board (lit.tsx) */}
         <ShadowPrint />
-      </RoundedBox>
+      </mesh>
+      <mesh geometry={kit.board_rings}>
+        <GlassMat tint="pale" />
+      </mesh>
+      {/* the maker's mark, in silkscreen by the front edge */}
+      <mesh geometry={kit.board_silk}>
+        <meshBasicMaterial color={NEUTRAL} transparent opacity={0.34} depthWrite={false} />
+      </mesh>
       {/* board outline. The inner keepout ring that used to double it up was there
           to stop the substrate reading as a plain slab — the glass and its
           halftone do that now, so the second concentric rule was just another
@@ -877,18 +1056,9 @@ export function ChipRig() {
       {/* data pulses radiating from the die while it's the active spot */}
       <DiePulse />
 
-      {/* package + die (carries amsterdam-ai — the chip powers on). The body's
-          corner radius is small: at 0.08 it clamped to nearly half the 0.12 height
-          and the package read as a cushion rather than a moulded slab. */}
+      {/* the accelerator package (carries amsterdam-ai — the chip powers on) */}
       <LifeGroup slug="amsterdam-ai">
-        {/* No `outline`: it's a plain Line, so inside a LifeGroup it gets the
-            ghost-wireframe treatment (opacity * (0.5 + 0.5 * life)) and BRIGHTENS
-            as the package solidifies — the die ended up a solid slab wearing a
-            hard white rectangle, which is most of why it didn't read as opaque.
-            The glass rim already draws the silhouette. */}
-        <SoftBox position={[0, 0.08, 0]} args={[1.05, 0.12, 1.05]} radius={0.03} liveSlug="amsterdam-ai" />
-        <EmissiveHover slug="amsterdam-ai" position={[0, 0.15, 0]} args={[0.4, 0.04, 0.4]} rest={0.25} peak={1.2} liveColor={accent} />
-        <Line points={roundedRectPts(0.42, 0.42, 0.05)} position={[0, 0.175, 0]} color={accent} lineWidth={1.2} transparent opacity={0.6} />
+        <Package kit={kit} />
       </LifeGroup>
 
       {/* motherboard traces fill with current; a solder pad + flashing LED per part */}
@@ -903,7 +1073,7 @@ export function ChipRig() {
             {/* the landing pad. Quieter than it was: at 0.65 eight of these were
                 as loud as the parts they belong to. */}
             <Line points={circlePts(0.03, 16)} position={[px, TY + 0.003, pz]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-            <ChipLED position={[nd.x, nd.ly, nd.z]} color={LAMP[nd.led]} target={energy} phase={nd.phase} speed={nd.speed} idle={i === 0 || i === 5} />
+            <ChipLED position={[nd.x + (nd.lx ?? 0), nd.ly, nd.z + (nd.lz ?? 0)]} color={LAMP[nd.led]} target={energy} phase={nd.phase} speed={nd.speed} idle={i === 0 || i === 5} />
           </group>
         );
       })}
@@ -914,13 +1084,21 @@ export function ChipRig() {
         <SecurityCamera slug="custom-ar-framework" position={[CORNER, 0.02, -CORNER]} />
       </LifeGroup>
 
-      {/* decorative round caps — the left and back edge slots */}
+      {/* radial electrolytics — the left and back edge slots. The polarity
+          stripe faces the front of the board on both. */}
       {([[-EDGE, 0], [0, -EDGE]] as [number, number][]).map(([cx, cz], i) => (
-        <mesh key={i} position={[cx, 0.08, cz]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.12, 20]} />
-          <GlassMat tint="glass" />
-          <Edges threshold={30} color={NEUTRAL} />
-        </mesh>
+        <group key={i} position={[cx, 0, cz]}>
+          <mesh geometry={kit.cap_can}>
+            <GlassMat tint="glass" />
+            <Edges threshold={35} color={NEUTRAL} />
+          </mesh>
+          <mesh geometry={kit.cap_stripe}>
+            <GlassMat tint="pale" />
+          </mesh>
+          <mesh geometry={kit.cap_bung}>
+            <GlassMat tint="deep" />
+          </mesh>
+        </group>
       ))}
 
       {/* round database stack — front-right corner slot. All three platters are
@@ -937,20 +1115,26 @@ export function ChipRig() {
         ))}
       </group>
 
-      {/* computer-vision footprint (neutral — not a hotspot) — right edge slot.
-          Printed on the board rather than hovering at y 0.16, where it was a wire
-          rectangle floating in mid-air with nothing beneath it. */}
-      <Line points={roundedRectPts(0.34, 0.34, 0.05)} position={[EDGE, TY + 0.002, 0]} color={NEUTRAL} lineWidth={1.2} transparent opacity={0.5} />
+      {/* a small QFN on the right-hand slot, pin 1 dimpled */}
+      <group position={[EDGE, 0, 0]}>
+        <mesh geometry={kit.ic_body}>
+          <GlassMat tint="glass" />
+          <Edges threshold={35} color={NEUTRAL} />
+        </mesh>
+        <mesh geometry={kit.ic_lands}>
+          <GlassMat tint="pale" />
+        </mesh>
+      </group>
 
-      {/* secondary IC + heatsink and a pin-header connector fill the board out */}
-      <Heatsink position={[-CORNER, 0, CORNER]} />
-      <PinHeader position={[0, 0, EDGE]} n={6} />
+      {/* the cooler (secondary IC, heatsink, fan) and the box header fill the board out */}
+      <Heatsink position={[-CORNER, 0, CORNER]} kit={kit} energy={energy} />
+      <PinHeader position={[0, 0, EDGE]} kit={kit} />
 
-      {/* Philips medical XR & AI — a bedside heart-rate monitor (back-left corner slot) */}
+      {/* Philips medical XR & AI — a bedside patient monitor (back-left corner slot) */}
       <LifeGroup slug="philips-medical-xr">
-        <HeartMonitor slug="philips-medical-xr" position={[-CORNER, 0, -CORNER]} />
+        <HeartMonitor slug="philips-medical-xr" position={[-CORNER, 0, -CORNER]} kit={kit} />
       </LifeGroup>
-      <MiscComponents />
+      <MiscComponents kit={kit} />
     </group>
   );
 }

@@ -19,7 +19,7 @@ import { ChipRig } from './chip';
 import { HotspotMarker } from './hotspots';
 import { SignalLine, RELATIONS } from './signals';
 
-const RIGS: Record<LayerId, () => JSX.Element> = { city: CityRig, room: RoomRig, chip: ChipRig };
+const RIGS: Record<LayerId, () => JSX.Element | null> = { city: CityRig, room: RoomRig, chip: ChipRig };
 const SEED: Record<LayerId, number> = { city: 11, room: 29, chip: 53 };
 // journeyStep index per layer (0 = City at top … 2 = Chip at bottom).
 const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };

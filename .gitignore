@@ -13,3 +13,8 @@ npm-debug.log*
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Blender model builds (scripts/models)
+scripts/models/out/
+__pycache__/
+.venv-bpy/
