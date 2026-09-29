@@ -93,22 +93,22 @@
      new headline face is a change here and nowhere else: its family, the
      weight and axes it's drawn at, its tracking and leading, and a size trim
      (--display-scale) for a face that runs wider or narrower than this one. */
-  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Oxanium Variable', 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   --font-body: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'Space Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --display-weight: 700;
   --display-stretch: normal; /* font-stretch, for a face with a width axis */
   --display-axes: normal; /* font-variation-settings, for any other axis */
-  --display-tracking: -0.035em;
-  --display-leading: 0.92;
-  --display-scale: 1;
+  --display-tracking: -0.01em;
+  --display-leading: 0.95;
+  --display-scale: 0.94; /* Oxanium runs ~6% wider than Space Grotesk */
   /* small headings (card and column titles) — the display face by default;
      a face that only works large hands these to the text face */
   --font-heading: var(--font-display);
   --heading-weight: var(--display-weight);
   --heading-stretch: var(--display-stretch);
   --heading-axes: var(--display-axes);
-  --heading-tracking: -0.02em;
+  --heading-tracking: 0em;
 
   /* ---- The type scale ----
      Every size on the site is one of these. A fluid modular scale: from a

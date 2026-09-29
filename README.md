@@ -14,7 +14,7 @@ world in.
 ## Stack
 
 React 18 + Vite + TypeScript (strict) · React Three Fiber + drei + bloom
-(one renderer) · react-router · Space Grotesk / Space Mono via `@fontsource`.
+(one renderer) · react-router · Oxanium (headlines) / Space Grotesk / Space Mono via `@fontsource`.
 All assets self-hosted; no API keys, no external tiles.
 
 ## Run

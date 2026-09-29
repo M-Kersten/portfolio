@@ -23,11 +23,11 @@ colors:
   model-deep: "#1a212a"
 typography:
   display:
-    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(2.986rem, 1.875rem + 4.937vw, 6.319rem)"
+    fontFamily: "Oxanium Variable, Space Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "calc(clamp(2.986rem, 1.875rem + 4.937vw, 6.319rem) * 0.94)"
     fontWeight: 700
-    lineHeight: 0.92
-    letterSpacing: "-0.035em"
+    lineHeight: 0.95
+    letterSpacing: "-0.01em"
   body:
     fontFamily: "Space Grotesk, ui-sans-serif, system-ui, -apple-system, sans-serif"
     fontSize: "clamp(1rem, 0.958rem + 0.185vw, 1.125rem)"
@@ -127,11 +127,11 @@ The palette is deliberately small and locked: one hue per job, so the whole syst
 
 ## Typography
 
-**Display Font:** Space Grotesk (with ui-sans-serif, system-ui fallback)
-**Body Font:** Space Grotesk (same family as display — one typeface, weight and scale do the differentiating work)
+**Display Font:** Oxanium (variable, 200–800; Space Grotesk as fallback). A squared, modular grotesk whose straight-sided bowls and cut corners echo the maquette's grid and the square-dot language.
+**Body Font:** Space Grotesk
 **Label/Mono Font:** Space Mono (with ui-monospace, SF Mono, Menlo, Consolas fallback)
 
-**Character:** Three voices. The **display** voice (the section titles, the hero name, the big numerals) is one set of tokens in `tokens.css` (`--font-display`, `--display-weight`, `--display-stretch`, `--display-axes`, `--display-tracking`, `--display-leading`, `--display-scale`), so a new headline face is a change in one place: a face that runs wider or narrower than Space Grotesk sets `--display-scale` to keep line lengths. Small headings (card and column titles) take `--font-heading`, which follows the display face unless that face only works large. Body copy stays Space Grotesk; Space Mono is reserved entirely for metadata, labels and UI chrome, giving it an unmistakable "instrument readout" register whenever it appears.
+**Character:** Three voices. The **display** voice (the section titles, the hero name, the big numerals) is one set of tokens in `tokens.css` (`--font-display`, `--display-weight`, `--display-stretch`, `--display-axes`, `--display-tracking`, `--display-leading`, `--display-scale`), so a new headline face is a change in one place: a face that runs wider or narrower than Space Grotesk sets `--display-scale` to keep line lengths (Oxanium runs about 6% wider, so it's set at 0.94). Small headings (card and column titles) take `--font-heading`, which follows the display face unless that face only works large. Body copy stays Space Grotesk; Space Mono is reserved entirely for metadata, labels and UI chrome, giving it an unmistakable "instrument readout" register whenever it appears.
 
 ### The scale
 Every size on the site is one of nine steps: a fluid modular scale from a 16px base on a 360px screen (ratio 1.2) to 18px on a 1440px screen (ratio 1.333, a fourth), so the display end opens up where there's room. The two smallest are fixed, because they're mono labels.
