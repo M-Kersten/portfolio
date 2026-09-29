@@ -145,11 +145,11 @@ Every size on the site is one of nine steps: a fluid modular scale from a 16px b
 | 2 | 23 → 32px | panel titles, the hero line, the About opening |
 | 3 | 28 → 43px | the contact email, the timeline card years |
 | 4 | 33 → 57px | the intro card |
-| 5 | 40 → 76px | section titles on a phone, the capability numerals |
+| 5 | 40 → 76px | section titles on a phone |
 | 6 | 48 → 101px | section titles, the hero name |
 
 ### Hierarchy
-- **Display** (step 6, `--display-*` tokens, line-height 0.92): section titles and the hero name; `text-wrap: balance`. Also the big numerals: the capability index (step 5, outlined), the timeline card years (step 3) and the year under the timeline's playhead.
+- **Display** (step 6, `--display-*` tokens, line-height 0.92): section titles and the hero name; `text-wrap: balance`. Also the big numerals: the timeline card years (step 3) and the year under the timeline's playhead.
 - **Title** (step 2): panel and dialog titles, the About opening paragraph (at full ink, so the bio opens on a line).
 - **Lead** (step 1, ink-60): a section's lead, set small and off to the right of its title.
 - **Body** (400, step 0, line-height 1.6, max 58–65ch measure): case-story prose and running copy; case-study text carries paragraph breaks via literal blank lines in the JSON source (`white-space: pre-line`).
@@ -164,7 +164,7 @@ Every size on the site is one of nine steps: a fluid modular scale from a 16px b
 
 Content sits in a `--container` of 87.5rem (`max-width`), centred, with `--space-m` inline gutters — deliberately slim so the fixed hero title stays clear of the 3D maquette and every section can breathe at full width on large screens. Section rhythm runs on a small spacing scale (`--space-2xs` 0.5rem through `--space-2xl` 7.5rem); vertical section padding is `--space-xl + --space-s`, tuned down from a taller `--space-2xl` that read as too cavernous between sections. Adjacent sections get a 1px hairline seam (`.section + .section`), except About and Contact, which read as one continuous open editorial spread with no seam boxing them off.
 
-Every section opens the same way (`SectionHead.tsx`): a mono **kicker** with the section's number and name (the header nav's order and words), a measuring rule with a tick every step running out to a short **note** at its end (the three scales the work happens at, the career's date range, Utrecht's position), then the **title** across the full width at step 6, then the **lead** small and off to the right under it. One big thing and one quiet one, off-axis, instead of a left-aligned stack at two similar sizes. Contact, the finale, sets the same parts on the centre line without the rule. Below the openings the sections keep that asymmetry: the capability columns step down the band one after another (city over room over chip, as the maquette stacks them) with a big outlined numeral and the scale it's drawn at over each; the timeline cards lead with the year; About opens its bio with a step-2 line at full ink.
+Every section opens the same way (`SectionHead.tsx`): a mono **kicker** with the section's number and name (the header nav's order and words), a measuring rule with a tick every step running out to a short **note** at its end (the three scales the work happens at, the career's date range, Utrecht's position), then the **title** across the full width at step 6, then the **lead** small and off to the right under it. One big thing and one quiet one, off-axis, instead of a left-aligned stack at two similar sizes. Contact, the finale, sets the same parts on the centre line without the rule. Below the openings the sections keep that asymmetry: the capability columns step down the band one after another (city over room over chip, as the maquette stacks them) each led by its title alone; the timeline cards lead with the year; About opens its bio with a step-2 line at full ink.
 
 The projects timeline is the one major departure from static document flow: a pinned, scroll-driven horizontal "wall" (`position: sticky` region with `perspective`) that pans through career history as the user scrolls vertically, falling back to a plain horizontally-scrollable strip under `prefers-reduced-motion` or on narrow/static contexts (`[data-static]`). Below ~760–899px, multi-column layouts (About's grid, the annotated portrait stage) collapse to a single stacked column with the portrait promoted above the bio via explicit order.
 

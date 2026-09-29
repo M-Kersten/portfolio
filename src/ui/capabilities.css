@@ -4,31 +4,6 @@
 /* ---------- Capabilities — the three scales as one slanted band ---------- */
 
 /* Shared written content — used by the band columns and the mobile cards. */
-/* The scale's number, as a big outlined numeral in the display voice, with
-   the scale it's drawn at beside it in mono. */
-.capc__index {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.8em;
-  margin: 0 0 0.35em;
-}
-.capc__index b {
-  font-family: var(--font-display);
-  font-weight: var(--display-weight);
-  font-stretch: var(--display-stretch);
-  font-variation-settings: var(--display-axes);
-  font-size: calc(var(--step-5) * var(--display-scale));
-  line-height: 0.78;
-  letter-spacing: var(--display-tracking);
-  color: transparent;
-  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--card-accent) 75%, transparent);
-}
-.capc__index span {
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.16em;
-  color: var(--card-accent);
-}
 .capc__title {
   font-size: var(--step-2);
   line-height: 1.05;

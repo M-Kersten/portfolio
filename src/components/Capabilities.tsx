@@ -9,19 +9,12 @@ import { Scramble } from './Scramble';
 import { SectionHead } from './SectionHead';
 
 const COLOR: Record<Layer, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
-// Each scale as a model maker would mark it: a street plan shrunk to fit a
-// table, a room's things at a twentieth, a chip blown up twenty times.
-const SCALE: Record<Layer, string> = { city: '1:5000', room: '1:20', chip: '20:1' };
 
 // The written content, shared by the desktop band columns and the mobile
 // cards. The title decodes in (scrambled → clear) when it scrolls into view.
 function CapText({ c, delay = 0 }: { c: Capability; delay?: number }) {
   return (
     <>
-      <p className="capc__index">
-        <b aria-hidden="true">{c.index}</b>
-        <span>{SCALE[c.layer]}</span>
-      </p>
       <h3 className="capc__title">
         {/* Wrapping, not clipping. These titles are authored in the CMS and run
             to a full sentence ("City: maps & the real world"), so at any width
