@@ -66,6 +66,10 @@ def body():
     # a vent in each flank, under the eaves
     for s in (-1, 1):
         K.cut(b, K.box('vent', (2 * 0.004, VENT[1], VENT[0]), pos=(s * W / 2, H - 0.026, 0)))
+    # the plinth's top edge and the ledge the walls stand on are a band, not a
+    # silhouette: a soft round the site's outline passes over (the blocks'
+    # podiums have the same)
+    K.soften(b, lambda x, y, z: abs(y - PLINTH_H) < 0.0006, 0.002)
     K.bevel(b, BEV_S, now=True)
     b.name = b.data.name = 'trafo_body'
     K.finish(b, 50)

@@ -4,7 +4,7 @@
 // constellation. CityRig at the bottom composes and places everything.
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges, Html } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
@@ -15,7 +15,7 @@ import { useLaunchCount } from '../../lib/launches';
 import { asset } from '../../lib/asset';
 import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, FIRE, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE, LifeGroup } from './life';
-import { glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
+import { Crease, glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
 import { PresenceCtx } from './presence';
 import { LIT_SOLID_OPACITY, litMat, litShade, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
 import { faceted, lathe, place, useGeometry } from './shapes';
@@ -447,8 +447,12 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
           are the body's, the cap's and each sail's; the stage, its railing and
           the sails' ladders are the pale cut with none, so at rest the mill is
           as sparse a drawing as the blocks round it. */}
+      {/* the paved yard is GROUND, like the park's plot: the same unlit film as
+          the roads that reach it. As a deep glass disc it caught the fresnel
+          rim all the way round and drew a bright ellipse at the mill's foot. */}
       <mesh geometry={kit.mill_ground}>
-        <LiveGlassMat slug={slug} tint="deep" />
+        <GroundMat />
+        <ShadowPrint />
       </mesh>
       <mesh geometry={kit.mill_body}>
         <LiveGlassMat slug={slug} />
@@ -918,7 +922,7 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
           <mesh position={[0, 0.045, 0]}>
             <boxGeometry args={[0.13, 0.012, 0.035]} />
             <GlassMat tint="pale" lit={lit} />
-            <Edges threshold={30} color={NEUTRAL} />
+            <Crease threshold={30} color={NEUTRAL} />
           </mesh>
           {[-0.05, 0.04].map((px, i) => (
             <mesh key={i} position={[px, 0.022, 0.013]}>
@@ -1090,7 +1094,7 @@ function Skyscraper({ position, kit, winMat }: { position: V3; kit: TowerKit; wi
           glass, ghost grey until the hotspot is visited, then it solidifies */}
       <mesh geometry={kit.tower_body}>
         <LiveGlassMat slug={TOWER} />
-        <Edges threshold={35} color={NEUTRAL} />
+        <Crease threshold={35} color={NEUTRAL} />
       </mesh>
       {/* the ribs and the spire */}
       <mesh geometry={kit.tower_ribs}>

@@ -9,10 +9,10 @@
 // with `assemble`, a piece that mounts rises in with a little overshoot.
 import { useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges } from '@react-three/drei';
 import type { Group } from 'three';
 import { NEUTRAL, SURFACE } from './shared';
 import { GHOST_FILL, GHOST_LINE } from './life';
+import { Crease } from './materials';
 
 const FINS: [number, number][] = [[-0.042, 0], [0.042, 0], [0, -0.042], [0, 0.042]];
 const LEGS: [number, number][] = [[-0.03, 0.03], [0.03, 0.03], [-0.03, -0.03], [0.03, -0.03]];
@@ -101,7 +101,7 @@ export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?:
           <mesh position={[0, 0.09 + 0.21, 0]}>
             <cylinderGeometry args={[0.034, 0.036, 0.42, 14]} />
             <Hull opacity={0.32} />
-            <Edges threshold={30} color={line} />
+            <Crease threshold={30} color={line} />
           </mesh>
         </Rise>
       )}
@@ -111,7 +111,7 @@ export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?:
           <mesh position={[0, 0.09 + 0.42 + 0.055, 0]}>
             <cylinderGeometry args={[0.03, 0.034, 0.11, 14]} />
             <Band opacity={0.36} />
-            <Edges threshold={30} color={line} />
+            <Crease threshold={30} color={line} />
           </mesh>
         </Rise>
       )}
@@ -121,7 +121,7 @@ export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?:
           <mesh position={[0, 0.09 + 0.53 + 0.05, 0]}>
             <coneGeometry args={[0.03, 0.1, 14]} />
             <Hull opacity={0.4} />
-            <Edges threshold={30} color={line} />
+            <Crease threshold={30} color={line} />
           </mesh>
         </Rise>
       )}

@@ -7,13 +7,12 @@
 // here in the maquette's own materials. ChipRig composes and places everything.
 import { useContext, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges } from '@react-three/drei';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { SURFACE, NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
-import { GlassMat, LiveEdges, LiveGlassMat } from './materials';
+import { Crease, GlassMat, LiveEdges, LiveGlassMat } from './materials';
 import { litMat, ShadowPrint, useLitLink } from './lit';
 import { BlobShadow } from './backdrop';
 import { PresenceCtx } from './presence';
@@ -207,7 +206,7 @@ function MiscComponents({ kit }: { kit: ChipKit }) {
         <group key={p.edge} position={[p.x, 0.033, p.z]} rotation={[0, p.edge === 0 || p.edge === 2 ? 0 : Math.PI / 2, 0]}>
           <mesh geometry={kit.pas_body}>
             <GlassMat tint="glass" />
-            <Edges threshold={35} color={NEUTRAL} />
+            <Crease threshold={35} color={NEUTRAL} />
           </mesh>
           {/* the plated ends, in the light cut rather than metal: flat metal this
               close to the board caught the light and read as more lamps */}
@@ -239,18 +238,18 @@ function Heatsink({ position, kit, energy }: { position: V3; kit: ChipKit; energ
     <group position={position}>
       <mesh geometry={kit.hs_chip}>
         <GlassMat tint="glass" />
-        <Edges threshold={35} color={NEUTRAL} />
+        <Crease threshold={35} color={NEUTRAL} />
       </mesh>
       <mesh geometry={kit.hs_pads}>
         <GlassMat tint="pale" />
       </mesh>
       <mesh geometry={kit.hs_sink}>
         <GlassMat tint="glass" />
-        <Edges threshold={35} color={NEUTRAL} />
+        <Crease threshold={35} color={NEUTRAL} />
       </mesh>
       <mesh geometry={kit.hs_fan}>
         <GlassMat tint="glass" />
-        <Edges threshold={35} color={NEUTRAL} />
+        <Crease threshold={35} color={NEUTRAL} />
       </mesh>
       <group ref={rotor}>
         <mesh geometry={kit.hs_rotor}>
@@ -268,7 +267,7 @@ function PinHeader({ position, kit }: { position: V3; kit: ChipKit }) {
     <group position={position}>
       <mesh geometry={kit.hdr_body}>
         <GlassMat tint="glass" />
-        <Edges threshold={35} color={NEUTRAL} />
+        <Crease threshold={35} color={NEUTRAL} />
       </mesh>
       <mesh geometry={kit.hdr_pins}>
         {/* plain metal, not self-lit — the same idiom as the city tower's mast.
@@ -1090,7 +1089,7 @@ export function ChipRig() {
         <group key={i} position={[cx, 0, cz]}>
           <mesh geometry={kit.cap_can}>
             <GlassMat tint="glass" />
-            <Edges threshold={35} color={NEUTRAL} />
+            <Crease threshold={35} color={NEUTRAL} />
           </mesh>
           <mesh geometry={kit.cap_stripe}>
             <GlassMat tint="pale" />
@@ -1110,7 +1109,7 @@ export function ChipRig() {
           <mesh key={i} position={[0, 0.05 + i * 0.07, 0]}>
             <cylinderGeometry args={[0.13, 0.13, 0.06, 28]} />
             <GlassMat tint={i === 2 ? 'deep' : 'pale'} />
-            <Edges threshold={30} color={NEUTRAL} />
+            <Crease threshold={30} color={NEUTRAL} />
           </mesh>
         ))}
       </group>
@@ -1119,7 +1118,7 @@ export function ChipRig() {
       <group position={[EDGE, 0, 0]}>
         <mesh geometry={kit.ic_body}>
           <GlassMat tint="glass" />
-          <Edges threshold={35} color={NEUTRAL} />
+          <Crease threshold={35} color={NEUTRAL} />
         </mesh>
         <mesh geometry={kit.ic_lands}>
           <GlassMat tint="pale" />

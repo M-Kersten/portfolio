@@ -127,8 +127,9 @@ def on_wall(r, a, y, out=0.0):
     return ((r + out) * math.sin(a), y, (r + out) * math.cos(a))
 
 
-def railing(r, y0, h, n_posts, n=8, post=0.006, rail=0.005):
-    """Posts round a regular n-gon of radius r at y0, a top rail and a mid rail."""
+def railing(r, y0, h, n_posts, n=8, post=0.006, rail=0.005, mid=True):
+    """Posts round a regular n-gon of radius r at y0, a top rail and (with
+    `mid`) a mid rail."""
     parts = []
     corners = ngon(r, n)
     per_side = n_posts // n
@@ -140,7 +141,8 @@ def railing(r, y0, h, n_posts, n=8, post=0.006, rail=0.005):
     for i in range(n):
         (x0, z0), (x1, z1) = corners[i], corners[(i + 1) % n]
         parts.append(beam('rail', (x0, y0 + h, z0), (x1, y0 + h, z1), rail))
-        parts.append(beam('rail', (x0, y0 + h * 0.5, z0), (x1, y0 + h * 0.5, z1), rail * 0.7))
+        if mid:
+            parts.append(beam('rail', (x0, y0 + h * 0.5, z0), (x1, y0 + h * 0.5, z1), rail * 0.7))
     return parts
 
 
@@ -161,6 +163,9 @@ def mill():
     for a in (-math.pi / 4, math.pi / 4):
         x, y, z = on_wall(0.19, a, 0.11)
         K.cut(body, opening('win', 0.03, 0.05, 0.06, (x, y, z), a))
+    # the ledge where the smock stands on the base hides behind the stage: a
+    # soft round the outline passes over, so it isn't drawn through the deck
+    K.soften(body, lambda x, y, z: abs(y - STAGE_Y) < 0.0035, 0.003)
     # every edge rounded, the octagon's corners too: they soften past the 35°
     # outline, so at rest the mill draws its rims the way the blocks do rather
     # than eight corner lines
@@ -183,7 +188,10 @@ def mill():
     for i in range(8):
         a = TAU * i / 8 + math.pi / 8
         trim.append(beam('strut', on_wall(0.193, a, 0.1), on_wall(0.238, a, STAGE_Y), 0.007))
-    trim += railing(deck_out - 0.006, STAGE_Y + 0.012, 0.042, 16)
+    # a post at each corner and one rail: drawn bar for bar (two posts a side
+    # and a mid rail) the railing was a dotted double ring, the busiest line
+    # on the layer
+    trim += railing(deck_out - 0.006, STAGE_Y + 0.012, 0.042, 8, mid=False)
     # the beard board under the cap's nose
     trim.append(K.rbox('beard', (0.2, 0.032, 0.008), 0.01, pos=(0, TOP + 0.012, 0.176), axis='z', seg=4, bev=0.0015))
     tr = K.join('mill_trim', trim)

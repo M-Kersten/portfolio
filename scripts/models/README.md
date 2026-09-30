@@ -53,7 +53,13 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   a part drops onto its slot with no offsets in code.
 - **One bevel.** Every hard edge gets the same round two-segment bevel. That
   splits a 90° corner into 22.5° + 45° + 22.5°, so the site's 35° outline
-  (`<Edges threshold={35}>`) draws exactly one line per corner, on its ridge.
+  (`<Crease threshold={35}>`, materials.tsx) draws exactly one line per corner,
+  on its ridge. The outline only draws folds that turn outward: an inward
+  crease (a wall meeting the ledge it stands on) can't be on a silhouette.
+- **Bands aren't drawn.** An edge that only traces a band (a podium's or a
+  plinth's top, the ledge under the mill's stage) gets `soften()` instead:
+  a four-step round the outline passes over, so a ground floor is shaded by
+  the glass rather than drawn as a line.
 - **Names, not materials.** Each piece is named for what it is
   (`pkg_hbm`, `tower_ribs`, `block3_trim`); the site decides how it's drawn.
   Rename a piece and `kit.ts` and its layer have to follow.

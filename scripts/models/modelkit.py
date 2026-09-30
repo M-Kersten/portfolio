@@ -92,6 +92,25 @@ def bevel(ob, width, seg=2, angle=30, harden=True, now=False):
     return ob
 
 
+def soften(ob, pred, width, seg=4):
+    """Round the creases whose ends both pass pred(x, y, z) (three space) into
+    a soft fillet the site's 35° outline passes over: four steps of 22.5°, where
+    the kit bevel's two leave a 45° ridge on purpose so an edge draws one line.
+    For the edges that aren't a silhouette (a plinth's top, a ledge), where a
+    drawn line would only trace a band. Run it before the kit bevel, which then
+    leaves these alone (its angle limit is 30°)."""
+    bake(ob)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    edges = [e for e in bm.edges if len(e.link_faces) == 2 and e.calc_face_angle(0) > math.radians(30) and all(pred(v.co.x, v.co.y, v.co.z) for v in e.verts)]
+    if edges:
+        bmesh.ops.bevel(bm, geom=edges, offset=width, offset_type='OFFSET', segments=seg, profile=0.5, affect='EDGES', clamp_overlap=True)
+    bm.to_mesh(ob.data)
+    bm.free()
+    ob.data.update()
+    return len(edges)
+
+
 def remove(ob):
     me = ob.data
     bpy.data.objects.remove(ob)

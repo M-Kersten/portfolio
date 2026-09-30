@@ -182,6 +182,10 @@ def block(i, b):
     front = d / 2 + PODIUM_OUT
     K.cut(body, K.box('door', (0.066 * 0.72, 0.03, 0.03), pos=(0, 0.015, front)))
     trim.append(K.rbox('canopy', (0.066, 0.005, 0.02), 0.004, pos=(0, 0.034, front + 0.004), axis='y', seg=3, bev=0.0012))
+    # The podium's top edge, and the ledge where the shaft stands on it, are a
+    # band rather than a silhouette: a soft round the site's outline passes
+    # over, so the ground floor is shaded by the glass instead of drawn twice.
+    K.soften(body, lambda x, y, z: abs(y - PODIUM_H) < 0.0008, BEV_S)
     K.bevel(body, BEV_S, now=True)
     # a cornice where the shaft ends, and a smaller one on the crown
     trim.append(ring('cornice', w, d, CORNER, 0.005, top - 0.008, 0.008))
