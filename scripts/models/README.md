@@ -18,6 +18,10 @@ model, with the shared helpers in `modelkit.py`:
   railed stage and a boat-shaped cap. It holds one sail's cloth, which the
   site draws four times and sets across the sails when the mill is engaged.
   It ships as `public/models/mill.glb`.
+- `build_trafo.py`: the transformer house in front of the tower, a Dutch
+  compact substation with the blocks' rounded corners and plinth, an
+  overhanging roof, a louvred double door and three insulators on the roof,
+  where the tower's power line lands. It ships as `public/models/trafo.glb`.
 
 `src/scene/maquette/kit.ts` loads the files, and the layers give every part
 the site's own materials.
@@ -43,9 +47,10 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
 - **Site coordinates.** Everything is authored in its layer's own space (Y up):
   the chip's parts with the board's top face at y 0.02, the tower on its plaza
   at the origin with the spire's tip at y 1.0, each block on its own plot's
-  origin, the mill on its own with its sails in the hub's space. Each is
-  authored around the origin its JSX group already uses, and exported without
-  axis conversion, so a part drops onto its slot with no offsets in code.
+  origin, the mill on its own with its sails in the hub's space, the
+  transformer house on its own plot's origin. Each is authored around the
+  origin its JSX group already uses, and exported without axis conversion, so
+  a part drops onto its slot with no offsets in code.
 - **One bevel.** Every hard edge gets the same round two-segment bevel. That
   splits a 90° corner into 22.5° + 45° + 22.5°, so the site's 35° outline
   (`<Edges threshold={35}>`) draws exactly one line per corner, on its ridge.

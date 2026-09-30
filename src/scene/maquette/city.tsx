@@ -22,7 +22,7 @@ import { faceted, lathe, place, useGeometry } from './shapes';
 import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { Rise, RocketBody } from './rocket';
-import { loadBlocksKit, loadMillKit, loadTowerKit, useBlocksKit, useMillKit, useTowerKit, type BlocksKit, type MillKit, type TowerKit } from './kit';
+import { loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
  *  Building for both its windows and its body. A module-level box rather than
@@ -1130,25 +1130,34 @@ function Skyscraper({ position, kit, winMat }: { position: V3; kit: TowerKit; wi
 }
 
 /* ---------- The transformer house — powers the city ---------- */
-// A Dutch "transformatorhuisje": the little neighbourhood substation that steps
-// the grid down for the surrounding blocks. A squat frosted-glass box in the same
-// language as the rest of the city, set apart by its overhanging roof, a door and
-// the ceramic bushings on the roof. A prop (not a hotspot), like the buildings —
-// but its bushing caps carry the city's power: a faint hum at rest, brightening
-// with the Alliander grid when the tower is engaged or the whole city goes live.
-const TRAFO_W = 0.18;
-const TRAFO_D = 0.14;
-const TRAFO_H = 0.11;
+/** Where the tower's power line lands: the middle insulator's cap, house-local,
+ *  as CAP in scripts/models/build_trafo.py has it. */
+const TRAFO_CAP = { y: 0.147, z: -0.028 };
+/** Its footprint's longer side, roof overhang included, for the contact shadow. */
+const TRAFO_SPAN = 0.21;
 
-function TransformerHouse({ position }: { position: V3 }) {
+// Fetch the model with the tower's, as soon as the scene's code arrives.
+// A failure here is retried and reported by useTrafoKit.
+loadTrafoKit().catch(() => {});
+
+/** A Dutch compact substation, the "transformatorhuisje" that steps the grid
+ *  down for the surrounding blocks, from its Blender model
+ *  (scripts/models/build_trafo.py, shipped as public/models/trafo.glb): the
+ *  blocks' rounded corners and plinth, an overhanging flat roof, a louvred
+ *  double door on the street side with the high-voltage sign, a vent in each
+ *  flank, and three ribbed insulators on the roof where the tower's power line
+ *  comes in. A prop (not a hotspot), like the buildings, but it carries the
+ *  city's power: the insulators' caps and the sign's bolt hum faintly at rest
+ *  and brighten with the Alliander grid when the tower is engaged or the whole
+ *  city goes live. */
+function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive('alliander-hololens');
-  const lit = useLitLink('alliander-hololens'); // for the parts that don't wake (lit.tsx)
   const complete = useSceneSelector((s) => s.completedAt !== null);
   const reduced = useReducedMotion();
   const accentC = useMemo(() => new Color(accent), [accent]);
-  // one shared emissive material for the bushing caps — the live "power". It opts
-  // out of the life system and drives its own ghost→accent glow, like the windows.
+  // one shared emissive material for the caps and the bolt — the live "power". It
+  // opts out of the life system and drives its own ghost→accent glow, like the windows.
   const capMat = useMemo(() => {
     const m = new MeshStandardMaterial({ color: GHOST_FILL, emissive: GHOST_FILL, emissiveIntensity: 0.3, roughness: 0.35, metalness: 0.2, toneMapped: false });
     m.userData.lifeSkip = true;
@@ -1157,11 +1166,9 @@ function TransformerHouse({ position }: { position: V3 }) {
   useEffect(() => () => capMat.dispose(), [capMat]);
   const k = useRef(0.12);
   // The house solidifies with the city, on its own beat in the wave out from the
-  // tower, exactly as the blocks do. It didn't before — it wore plain GlassMat
-  // and plain Edges, so once the skyline (and now the outskirts) had hardened it
-  // was the one thing left standing as a wireframe, which read as a piece that
-  // had been forgotten rather than as a prop. Its distance from the tower is the
-  // same `delay` the blocks derive theirs from.
+  // tower, exactly as the blocks do (its distance from the tower is the same
+  // `delay` the blocks derive theirs from). As a prop it rests as its own quiet
+  // glass rather than a hotspot ghost waiting to be found.
   const wake = useRef(0);
   const delay = Math.min(1, Math.hypot(position[0], position[2]) / 0.85);
   useFrame((s) => {
@@ -1177,51 +1184,22 @@ function TransformerHouse({ position }: { position: V3 }) {
   });
   return (
     <group position={position}>
-      <BlobShadow position={[0, 0.004, 0]} radius={Math.max(TRAFO_W, TRAFO_D) * 0.85} opacity={0.42} />
-      {/* body — the same quiet frosted glass as the buildings, and it hardens
-          with them (ghost={false}: a prop rests as its own glass, it isn't a
-          hotspot ghost waiting to be found) */}
-      <mesh position={[0, TRAFO_H / 2, 0]}>
-        <boxGeometry args={[TRAFO_W, TRAFO_H, TRAFO_D]} />
+      <BlobShadow position={[0, 0.004, 0]} radius={TRAFO_SPAN * 0.75} opacity={0.42} />
+      {/* The shell (plinth, walls and roof slab) is the glass that carries the
+          outline, as the blocks' bodies do; the door leaves are the deep cut and
+          the louvres, vents, sign plate and insulators the pale one, neither
+          outlined, so at rest it's as sparse a drawing as the blocks round it. */}
+      <mesh geometry={kit.trafo_body}>
         <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
-        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
+        <LiveEdges slug="alliander-hololens" threshold={35} wake={wake} />
       </mesh>
-      {/* overhanging flat roof — the trafohuisje signature. Wears the body's own
-          glass: a lighter grey at higher opacity made the slab the brightest thing
-          on a prop that should sit quietly behind the tower. The overhang and its
-          edges already read as a separate plane, so the material needn't shout —
-          it just carries a touch more opacity to stay a cap, not a pane. */}
-      <mesh position={[0, TRAFO_H + 0.007, 0]}>
-        <boxGeometry args={[TRAFO_W + 0.03, 0.014, TRAFO_D + 0.03]} />
-        <GlassMat tint="deep" lit={lit} />
-        {/* the slab itself is already near-solid metal, but its outline has to
-            retire with the body's or the roof keeps a wireframe the walls lost */}
-        <LiveEdges slug="alliander-hololens" threshold={20} wake={wake} />
+      <mesh geometry={kit.trafo_doors}>
+        <LiveGlassMat slug="alliander-hololens" ghost={false} tint="deep" wake={wake} />
       </mesh>
-      {/* door on the camera-facing (+z) face */}
-      <mesh position={[-TRAFO_W * 0.2, TRAFO_H * 0.44, TRAFO_D / 2 + 0.002]}>
-        <planeGeometry args={[TRAFO_W * 0.26, TRAFO_H * 0.72]} />
-        <GlassMat tint="deep" lit={lit} />
+      <mesh geometry={kit.trafo_trim}>
+        <LiveGlassMat slug="alliander-hololens" ghost={false} tint="pale" wake={wake} />
       </mesh>
-      {/* louvre vents on the +x side */}
-      {[0.32, 0.52, 0.72].map((f, i) => (
-        <mesh key={i} position={[TRAFO_W / 2 + 0.001, TRAFO_H * f, 0]}>
-          <boxGeometry args={[0.003, 0.006, TRAFO_D * 0.5]} />
-          <GlassMat tint="pale" lit={lit} />
-        </mesh>
-      ))}
-      {/* ceramic bushings on the roof — the electrical bit; the caps carry power */}
-      {[-TRAFO_W * 0.28, 0, TRAFO_W * 0.28].map((bx, i) => (
-        <group key={i} position={[bx, TRAFO_H + 0.014, -TRAFO_D * 0.14]}>
-          <mesh position={[0, 0.02, 0]}>
-            <cylinderGeometry args={[0.009, 0.012, 0.04, 10]} />
-            <GlassMat tint="pale" lit={lit} />
-          </mesh>
-          <mesh position={[0, 0.045, 0]} material={capMat}>
-            <sphereGeometry args={[0.0075, 10, 10]} />
-          </mesh>
-        </group>
-      ))}
+      <mesh geometry={kit.trafo_power} material={capMat} />
     </group>
   );
 }
@@ -2102,10 +2080,11 @@ export function CityRig() {
     m.userData.lifeSkip = true; // WindowDriver animates it; shared with prop buildings
     return m;
   }, [accent]);
-  // the tower's and the blocks' Blender models (kit.ts); null until they arrive
+  // the city's Blender models (kit.ts); null until they arrive
   const towerKit = useTowerKit();
   const blocksKit = useBlocksKit();
   const millKit = useMillKit();
+  const trafoKit = useTrafoKit();
   // The blocks' model is built for this plan (build_blocks.py replays it); say
   // so in dev if the two have drifted apart, rather than draw blocks that no
   // longer fit their plots.
@@ -2128,7 +2107,7 @@ export function CityRig() {
   // Power lines fan from the tower to every building AND to the transformer house,
   // so it reads as part of the grid that powers the city.
   const wireTargets = useMemo(
-    () => [...cluster.map((b) => [b.x, b.h, b.z] as V3), [trafo.position[0], TRAFO_H + 0.03, trafo.position[2]] as V3],
+    () => [...cluster.map((b) => [b.x, b.h, b.z] as V3), [trafo.position[0], trafo.position[1] + TRAFO_CAP.y, trafo.position[2] + TRAFO_CAP.z] as V3],
     [cluster, trafo.position],
   );
   return (
@@ -2159,7 +2138,7 @@ export function CityRig() {
       )}
       {/* the neighbourhood transformer house — the substation that powers the
           city, on the front-centre plot facing the camera */}
-      <TransformerHouse position={trafo.position} />
+      {trafoKit && <TransformerHouse position={trafo.position} kit={trafoKit} />}
       {/* power lines from the central tower to every building + the transformer —
           glow blue on select */}
       {towerKit && blocksKit && <PowerWires from={[0, 0.8, 0]} targets={wireTargets} />}
