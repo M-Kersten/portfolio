@@ -166,7 +166,7 @@ img {
 }
 
 /* ---------- Section openings (SectionHead.tsx) ----------
-   Title and lead on a 12-column grid: the title takes the full width at
+   Kicker, title, lead on a 12-column grid: the title takes the full width at
    the top of the type scale, the lead sits small in the right half under it.
    One big thing and one quiet one, off-axis, instead of a left-aligned stack
    at two similar sizes. */
@@ -178,6 +178,40 @@ img {
 }
 .section__head > * {
   grid-column: 1 / -1;
+}
+/* The kicker: the section's name in mono, then a measuring rule
+   with a tick every step, out to a note at its end (a scale, a date range, a
+   position) — the maquette's instrument language at the top of each page. */
+.section__kicker {
+  display: flex;
+  flex-wrap: wrap; /* on the narrowest screens the note drops to its own line */
+  align-items: center;
+  gap: 0.4em 0.9em;
+  max-width: none;
+  margin: 0 0 var(--space-l);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+.section__kicker > span {
+  white-space: nowrap;
+}
+.section__rule {
+  flex: 1;
+  min-width: 0.75rem;
+  height: 7px;
+  border-bottom: 1px solid var(--line);
+  background: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 48px) left bottom / 100% 5px no-repeat;
+  transform-origin: left;
+  transition: transform var(--t-slow) var(--ease);
+}
+.section__note {
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: var(--ink-40);
+  white-space: nowrap;
 }
 .section__title {
   margin: 0;
@@ -208,8 +242,18 @@ img {
   grid-column: 1 / -1;
   max-width: 40ch;
 }
-/* Arriving: the title decodes (Scramble, on the same reveal point), the lead
-   rises a few beats later. */
+.section__head[data-align='center'] .section__kicker {
+  justify-content: center;
+}
+/* a rule running off to one side would pull the centre line askew */
+.section__head[data-align='center'] .section__rule {
+  display: none;
+}
+/* Arriving: the rule draws across, the title decodes (Scramble, on the same
+   reveal point), the lead rises a few beats later. */
+.section__head:not([data-shown]) .section__rule {
+  transform: scaleX(0);
+}
 .section__head:not([data-shown]) .section__lead {
   opacity: 0;
   transform: translateY(var(--rise-in));
@@ -224,8 +268,12 @@ img {
   .section__title {
     font-size: calc(var(--step-5) * var(--display-scale));
   }
+  .section__kicker {
+    margin-bottom: var(--space-m);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
+  .section__rule,
   .section__lead {
     transition: none;
   }

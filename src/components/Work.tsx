@@ -484,7 +484,7 @@ export function Work() {
   return (
     <section id="work" className="section wall" data-reduced={reduced || undefined} data-static={manualPan || undefined}>
       <div className="container">
-        {workIntro.title && <SectionHead title={workIntro.title} lead={workIntro.lead} />}
+        {workIntro.title && <SectionHead id="work" title={workIntro.title} lead={workIntro.lead} note={`${timeline.minYear} → now`} />}
         {/* Phones pan the strip by hand, and the desktop cue can't come along:
             it sits in the strip, which scrolls it away, and the company bar
             owns the bottom edge. So the cue goes here, right above it. */}

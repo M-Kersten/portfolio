@@ -48,7 +48,7 @@ src/
     CaseCard.tsx       a waypoint card on the timeline
     NodeHud.tsx        the /work/:slug dossier drawer
     CvPage.tsx         the /cv sheet (A4, print-styled) that npm run cv prints
-    SectionHead.tsx    how every section opens: title, lead
+    SectionHead.tsx    how every section opens: kicker + rule, title, lead
     About / Contact / Header / Footer / Poster / ScanFrame / SectionTitle
   scene/
     maquette/          the three-layer 3D world, one file per concern:
