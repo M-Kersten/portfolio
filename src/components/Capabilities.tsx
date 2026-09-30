@@ -53,7 +53,7 @@ export function Capabilities() {
       <div className="container">
         {/* the note is the three scales the work happens at, as a model
             maker would mark them: the city small, the chip blown up */}
-        <SectionHead id="capabilities" title={capabilitiesIntro.title} lead={capabilitiesIntro.lead} note="1:5000 · 1:20 · 20:1" />
+        <SectionHead title={capabilitiesIntro.title} lead={capabilitiesIntro.lead} />
       </div>
 
       {/* Desktop — one full-bleed slanted band, edge to edge. */}

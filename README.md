@@ -48,14 +48,14 @@ src/
     CaseCard.tsx       a waypoint card on the timeline
     NodeHud.tsx        the /work/:slug dossier drawer
     CvPage.tsx         the /cv sheet (A4, print-styled) that npm run cv prints
-    SectionHead.tsx    how every section opens: kicker + rule, title, lead
+    SectionHead.tsx    how every section opens: title, lead
     About / Contact / Header / Footer / Poster / ScanFrame / SectionTitle
   scene/
     maquette/          the three-layer 3D world, one file per concern:
       index.tsx        composition root — stacks the layers, culls the far one
       city.tsx         City rig: skyline, windmill, park + ARCam, the Alliander tower
       room.tsx         Room rig: desk/monitor, couch + phone, AR table, bookcase
-      chip.tsx         Chip rig: board, accelerator, camera, monitor, traces, LEDs
+      chip.tsx         Chip rig: board, accelerator, camera, monitor, traces
       kit.ts           loads the Blender models (public/models: chip, tower, blocks, mill)
       hotspots.tsx     the floating crosshair markers
       signals.tsx      cross-layer relation cables (edit RELATIONS here)

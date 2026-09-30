@@ -1,8 +1,8 @@
 // The CHIP layer (bottom) — tools, CV & data. A circuit board carrying an AI
 // accelerator package (Amsterdam AI), a security/CV camera projecting a tracked
 // hologram cube (custom AR framework) and the Philips bedside patient monitor,
-// wired together with animated traces and LEDs that surge while a chip project
-// is engaged. The board and most of its parts are Blender models, loaded from
+// wired together with animated traces that surge while a chip project is
+// engaged. The board and most of its parts are Blender models, loaded from
 // public/models/chip.glb (kit.ts; the source is in scripts/models) and dressed
 // here in the maquette's own materials. ChipRig composes and places everything.
 import { useContext, useEffect, useMemo, useRef } from 'react';
@@ -279,8 +279,8 @@ function PinHeader({ position, kit }: { position: V3; kit: ChipKit }) {
 }
 
 /* The chip "powers on" when the die itself (Amsterdam AI guides) is engaged —
-   current fills the traces out to every component and their LEDs flash, as if
-   the processor were driving the rest of the board. The camera and heart
+   current fills the traces out to every component, as if the processor were
+   driving the rest of the board. The camera and heart
    monitor already have their own dedicated wake-up animations, so they no
    longer also trigger a board-wide power surge when opened on their own. */
 function useChipEnergyTarget() {
@@ -291,8 +291,7 @@ function useChipEnergyTarget() {
 }
 
 /* ---- board placement ----
-   Every part that carries a status LED sits on one of eight slots around the
-   die: the four DIAGONAL corners hold a unit (a project, or a major part), the
+   Every part sits on one of eight slots around the die: the four DIAGONAL corners hold a unit (a project, or a major part), the
    four ORTHOGONAL edge midpoints hold a small one. The positions used to be
    hand-placed one at a time, which left parts crowding each other (the
    computer-vision frame sat 0.3 from the database stack) and nothing lining up
@@ -333,31 +332,23 @@ function onEdge(e: number, d: number, t: number): [number, number] {
   return [nx * d - nz * t, nz * d + nx * t];
 }
 
-// Each slot gets a trace from the die and a coloured status LED that flashes on
-// its own rhythm when live. `ly` sits each LED on top of its own part rather
-// than floating above the board, so it stays tied to whatever occupies the slot;
-// where a part has no top to sit on (the monitor, the header), `lx`/`lz` move it
-// onto the board beside the part, the way a real status lamp is fitted. `fp` is
-// its silkscreen footprint. `edge`/`pin` say which land it wires to —
-// the corner units take the outermost land (8), the edge parts the centre one (4).
-// The LEDs used to be four unrelated hues — cyan, coral, lime, amber — sitting
-// on a lime board, which is a lot of the reason this layer read as assembled
-// rather than made. They're one hue at three values now (`Lamp`): the board
-// still reads as busy because eight lamps blink out of phase, which is what was
-// actually doing the work.
-type Lamp = 'accent' | 'pale' | 'deep';
-interface ChipNode { x: number; z: number; ly: number; lx?: number; lz?: number; led: Lamp; phase: number; speed: number; edge: number; pin: number; fp?: [number, number] }
+// Each slot gets a trace from the die. `fp` is its part's silkscreen footprint,
+// and `edge`/`pin` say which land it wires to — the corner units take the
+// outermost land (8), the edge parts the centre one (4). (Each slot used to
+// carry a blinking status LED as well; eight of them flashing out of phase was
+// more noise than the traces needed, and they're gone.)
+interface ChipNode { x: number; z: number; edge: number; pin: number; fp?: [number, number] }
 const CHIP_NODES: ChipNode[] = [
   // corners — the units, each leaving the edge it sits counter-clockwise from
-  { x: CORNER, z: -CORNER, ly: 0.2, led: 'accent', phase: 0.0, speed: 6.5, edge: 3, pin: 8, fp: [0.3, 0.3] }, // custom-ar camera (back-right)
-  { x: -CORNER, z: -CORNER, ly: 0.03, lx: -0.21, lz: 0.07, led: 'deep', phase: 1.1, speed: 5.0, edge: 2, pin: 8, fp: [0.34, 0.24] }, // philips monitor (back-left): beside its foot
-  { x: CORNER, z: CORNER, ly: 0.225, led: 'accent', phase: 2.0, speed: 7.5, edge: 0, pin: 8, fp: [0.3, 0.3] }, // database stack (front-right)
-  { x: -CORNER, z: CORNER, ly: 0.172, led: 'pale', phase: 0.7, speed: 5.8, edge: 1, pin: 8, fp: [0.3, 0.3] }, // heatsink (front-left): on the fan hub
+  { x: CORNER, z: -CORNER, edge: 3, pin: 8, fp: [0.3, 0.3] }, // custom-ar camera (back-right)
+  { x: -CORNER, z: -CORNER, edge: 2, pin: 8, fp: [0.34, 0.24] }, // philips monitor (back-left)
+  { x: CORNER, z: CORNER, edge: 0, pin: 8, fp: [0.3, 0.3] }, // database stack (front-right)
+  { x: -CORNER, z: CORNER, edge: 1, pin: 8, fp: [0.3, 0.3] }, // heatsink (front-left)
   // edge midpoints — the small parts, straight out of the centre land
-  { x: EDGE, z: 0, ly: 0.045, led: 'pale', phase: 2.6, speed: 6.0, edge: 0, pin: 4, fp: [0.21, 0.21] }, // small QFN (right)
-  { x: 0, z: EDGE, ly: 0.03, lx: 0.19, led: 'accent', phase: 1.6, speed: 8.0, edge: 1, pin: 4, fp: [0.32, 0.13] }, // box header (front): beside it
-  { x: -EDGE, z: 0, ly: 0.155, led: 'deep', phase: 3.1, speed: 6.8, edge: 2, pin: 4, fp: [0.14, 0.14] }, // cap (left)
-  { x: 0, z: -EDGE, ly: 0.155, led: 'pale', phase: 0.4, speed: 7.0, edge: 3, pin: 4, fp: [0.14, 0.14] }, // cap (back)
+  { x: EDGE, z: 0, edge: 0, pin: 4, fp: [0.21, 0.21] }, // small QFN (right)
+  { x: 0, z: EDGE, edge: 1, pin: 4, fp: [0.32, 0.13] }, // box header (front)
+  { x: -EDGE, z: 0, edge: 2, pin: 4, fp: [0.14, 0.14] }, // cap (left)
+  { x: 0, z: -EDGE, edge: 3, pin: 4, fp: [0.14, 0.14] }, // cap (back)
 ];
 
 // The decorative passives sit on the substrate beside the package, in the lateral
@@ -425,28 +416,6 @@ function ChipTrace({ points, target, color }: { points: V3[]; target: number; co
     colorAttr.needsUpdate = true;
   });
   return <primitive object={obj} />;
-}
-
-/** A small status LED that flashes on its own rhythm while the chip is live. */
-function ChipLED({ position, color, target, phase, speed, idle = false }: { position: V3; color: string; target: number; phase: number; speed: number; idle?: boolean }) {
-  const reduced = useReducedMotion();
-  const mat = useRef<MeshStandardMaterial>(null);
-  const k = useRef(0);
-  useFrame((s) => {
-    k.current += (target - k.current) * 0.1;
-    const t = s.clock.elapsedTime;
-    const blink = reduced ? 1 : Math.sin(t * speed + phase) > 0.45 ? 1 : 0.1;
-    // idle heartbeat: a faint, slow blip even with no board energy, so the chip
-    // reads as powered-but-asleep at rest. Fades out as the board actually wakes.
-    const idleBlip = idle && !reduced ? Math.max(0, Math.sin(t * 1.15 + phase)) ** 10 * 0.3 * (1 - k.current) : 0;
-    if (mat.current) mat.current.emissiveIntensity = 0.08 + k.current * 1.9 * blink + idleBlip;
-  });
-  return (
-    <mesh position={position}>
-      <sphereGeometry args={[0.017, 12, 12]} />
-      <meshStandardMaterial ref={mat} color={color} emissive={color} emissiveIntensity={0.08} roughness={0.3} toneMapped={false} />
-    </mesh>
-  );
 }
 
 /* ---- motherboard trace routing: straight runs joined by 90° / 45° corners ---- */
@@ -977,8 +946,7 @@ function Package({ kit }: { kit: ChipKit }) {
 }
 
 export function ChipRig() {
-  const { accent, accentPale, accentDeep } = useAccent();
-  const LAMP: Record<Lamp, string> = { accent, pale: accentPale, deep: accentDeep };
+  const { accent } = useAccent();
   const energy = useChipEnergyTarget();
   // Every run on the board starts at a package land (see landTrace) — the eight
   // parts plus the eight spare pads, four runs per edge, the same pattern turned
@@ -991,7 +959,7 @@ export function ChipRig() {
   // said that far less clearly than eight do.
   const traces = useMemo(() => CHIP_NODES.map((nd) => landTrace(nd.edge, nd.pin, nd.x, nd.z, TY)), []);
   // The layer arrives whole: until its parts have loaded there's nothing to put
-  // the traces and lamps on. The file is small and starts loading as soon as the
+  // the traces on. The file is small and starts loading as soon as the
   // scene mounts, well before the scroll reaches the chip.
   const kit = useChipKit();
   if (!kit) return null;
@@ -1060,7 +1028,7 @@ export function ChipRig() {
         <Package kit={kit} />
       </LifeGroup>
 
-      {/* motherboard traces fill with current; a solder pad + flashing LED per part */}
+      {/* motherboard traces fill with current, out to a solder pad per part */}
       {traces.map((t, i) => (
         <ChipTrace key={i} points={t} target={energy} color={accent} />
       ))}
@@ -1072,7 +1040,6 @@ export function ChipRig() {
             {/* the landing pad. Quieter than it was: at 0.65 eight of these were
                 as loud as the parts they belong to. */}
             <Line points={circlePts(0.03, 16)} position={[px, TY + 0.003, pz]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-            <ChipLED position={[nd.x + (nd.lx ?? 0), nd.ly, nd.z + (nd.lz ?? 0)]} color={LAMP[nd.led]} target={energy} phase={nd.phase} speed={nd.speed} idle={i === 0 || i === 5} />
           </group>
         );
       })}

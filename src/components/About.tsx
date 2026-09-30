@@ -189,7 +189,7 @@ export function About() {
     <section id="about" className="section section--instrument">
       <div className="container">
         {/* the note is where "based in" puts him on a map */}
-        <SectionHead id="about" title={a.title} note="52.09° N · 5.12° E" />
+        <SectionHead title={a.title} />
         <div className="about__grid">
           <div>
             <p className="about__lead">{a.lead}</p>

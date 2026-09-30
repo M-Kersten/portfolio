@@ -116,14 +116,6 @@
   from { opacity: 0; transform: scale(1.35); }
   30% { opacity: 1; }
 }
-.launch__telemetry {
-  font-family: var(--font-mono);
-  font-size: 0.84rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-60);
-  animation: launch-rise var(--t-base) var(--ease);
-}
 @keyframes launch-rise {
   from { opacity: 0; transform: translateY(10px); }
 }

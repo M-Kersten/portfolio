@@ -10,7 +10,7 @@ export function Contact() {
       <div className="container">
         <div className="contact">
           <ContactMotif />
-          <SectionHead id="contact" title={c.title} lead={c.lead} align="center" />
+          <SectionHead title={c.title} lead={c.lead} align="center" />
           <a className="contact__email" href={`mailto:${c.email}`}>
             {c.email}
           </a>
