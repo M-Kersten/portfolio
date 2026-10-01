@@ -61,8 +61,8 @@
 }
 
 /* The bio, laid out to be skimmed: the lead said out loud, a row of numbers,
-   and the paragraphs as four short chapters led by their own first sentence —
-   on the left; the annotated portrait held in view beside them on the right. */
+   and the paragraphs side by side in pairs on the left; the annotated
+   portrait held in view beside them on the right. */
 .about__grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
@@ -145,7 +145,7 @@
   color: var(--ink-40);
 }
 
-/* the chapters: ruled fields like the case beats, each led by its hook */
+/* the paragraphs: ruled fields like the case beats, in pairs */
 .about__chapters {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -153,8 +153,12 @@
 }
 .about__chapter {
   position: relative;
+  margin: 0;
   border-top: 1px solid var(--line);
   padding-top: var(--space-s);
+  line-height: 1.62;
+  color: color-mix(in srgb, var(--ink) 74%, transparent);
+  text-wrap: pretty;
 }
 /* a short accent stroke draws in over each chapter's rule as it arrives */
 .about__chapter::before {
@@ -173,20 +177,6 @@
 }
 .about__chapter[data-shown]::before {
   transform: scaleX(1);
-}
-.about__hook {
-  font-family: var(--font-heading);
-  font-size: var(--step-1);
-  line-height: 1.18;
-  margin: 0 0 0.6em;
-  color: var(--ink);
-  text-wrap: balance;
-}
-.about__chapter p {
-  margin: 0;
-  line-height: 1.62;
-  color: color-mix(in srgb, var(--ink) 74%, transparent);
-  text-wrap: pretty;
 }
 @media (prefers-reduced-motion: no-preference) {
   .about__stat,

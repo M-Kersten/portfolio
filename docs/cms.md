@@ -27,14 +27,11 @@ between edits and a publish.
 About lays its copy out to be skimmed, so a few conventions in those fields
 matter:
 
-- **Each body paragraph is a chapter**, and its **first sentence is the
-  chapter's headline** (set large, above the rest). Write it as a hook that
-  makes sense on its own — "The demo always lies." — and keep the paragraphs
-  to four, which is what the 2×2 layout is drawn for.
+- **Keep the body to four paragraphs.** They're set side by side in pairs,
+  with no headings over them, so each one should stand on its own.
 - **`*words*` are a highlight.** In the lead and the body, text between
-  single asterisks gets a highlighter stroke when it scrolls in. One per
-  paragraph is plenty; don't let one cross a sentence boundary in a body
-  paragraph, or the headline split cuts it in two.
+  single asterisks gets a highlighter stroke when it scrolls in. They're what
+  a skimming reader catches, so one per paragraph is plenty.
 - The row of numbers under the lead isn't edited anywhere: it's counted from
   the content (years since the first career entry, the number of cases, the
   number of companies in the career list).
