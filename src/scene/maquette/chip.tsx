@@ -10,7 +10,7 @@ import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { SURFACE, NEUTRAL, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
+import { SURFACE, NEUTRAL, LINE_REST, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, GlassMat, LiveEdges, LiveGlassMat } from './materials';
 import { litMat, ShadowPrint, useLitLink } from './lit';
@@ -194,29 +194,13 @@ function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit
   );
 }
 
-/** Decorative extra board parts — an SMD passive beside each package edge. */
-function MiscComponents({ kit }: { kit: ChipKit }) {
-  // One passive per package edge, in the lateral band outboard of every trace, so
-  // each sits on bare substrate beside the die. These used to be scattered at
-  // radius ~0.5, which put them on TOP of the die package — no board does that,
-  // and a chip wearing four resistors as a hat was most of why it read as messy.
-  return (
-    <group>
-      {PASSIVES.map((p) => (
-        <group key={p.edge} position={[p.x, 0.033, p.z]} rotation={[0, p.edge === 0 || p.edge === 2 ? 0 : Math.PI / 2, 0]}>
-          <mesh geometry={kit.pas_body}>
-            <GlassMat tint="glass" />
-            <Crease threshold={35} color={NEUTRAL} />
-          </mesh>
-          {/* the plated ends, in the light cut rather than metal: flat metal this
-              close to the board caught the light and read as more lamps */}
-          <mesh geometry={kit.pas_ends}>
-            <GlassMat tint="pale" />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
+/** The dressing's outline: a plain part on the board (no project behind it),
+ *  drawn at the line's resting strength like every other outline in the
+ *  maquette. These used to take Crease's default, full strength — nearly twice
+ *  the weight of the city and the room, which is why the board's small parts
+ *  read as a heavier, whiter drawing than the layers above it. */
+function DressEdges({ threshold = 35 }: { threshold?: number }) {
+  return <Crease threshold={threshold} color={NEUTRAL} transparent opacity={LINE_REST} />;
 }
 
 /** A QFN under a nine-fin heatsink, with a small fan on top. The fan idles over
@@ -234,22 +218,23 @@ function Heatsink({ position, kit, energy }: { position: V3; kit: ChipKit; energ
     w.current += ((energy ? FAN_RUN : FAN_IDLE) - w.current) * (1 - Math.exp(-dt * 0.9));
     if (rotor.current && !reduced) rotor.current.rotation.y -= w.current * dt;
   });
+  // Only the fan's housing is outlined. Outlining the fins drew eighteen
+  // parallel rules in a 0.2 square — the single busiest patch on the board —
+  // and the glass's own shading already separates them.
   return (
     <group position={position}>
       <mesh geometry={kit.hs_chip}>
         <GlassMat tint="glass" />
-        <Crease threshold={35} color={NEUTRAL} />
       </mesh>
       <mesh geometry={kit.hs_pads}>
         <GlassMat tint="pale" />
       </mesh>
       <mesh geometry={kit.hs_sink}>
         <GlassMat tint="glass" />
-        <Crease threshold={35} color={NEUTRAL} />
       </mesh>
       <mesh geometry={kit.hs_fan}>
         <GlassMat tint="glass" />
-        <Crease threshold={35} color={NEUTRAL} />
+        <DressEdges />
       </mesh>
       <group ref={rotor}>
         <mesh geometry={kit.hs_rotor}>
@@ -267,7 +252,7 @@ function PinHeader({ position, kit }: { position: V3; kit: ChipKit }) {
     <group position={position}>
       <mesh geometry={kit.hdr_body}>
         <GlassMat tint="glass" />
-        <Crease threshold={35} color={NEUTRAL} />
+        <DressEdges />
       </mesh>
       <mesh geometry={kit.hdr_pins}>
         {/* plain metal, not self-lit — the same idiom as the city tower's mast.
@@ -332,36 +317,27 @@ function onEdge(e: number, d: number, t: number): [number, number] {
   return [nx * d - nz * t, nz * d + nx * t];
 }
 
-// Each slot gets a trace from the die. `fp` is its part's silkscreen footprint,
-// and `edge`/`pin` say which land it wires to — the corner units take the
-// outermost land (8), the edge parts the centre one (4). (Each slot used to
-// carry a blinking status LED as well; eight of them flashing out of phase was
-// more noise than the traces needed, and they're gone.)
-interface ChipNode { x: number; z: number; edge: number; pin: number; fp?: [number, number] }
+// Each slot gets a trace from the die; `edge`/`pin` say which land it wires to —
+// the corner units take the outermost land (8), the edge parts the centre one
+// (4). (Each slot used to carry a blinking status LED, a silkscreen footprint
+// printed under its part and a pad ring where its run arrived. Three marks per
+// part, twenty-four on the board, all saying "this is a PCB" to a visitor who
+// had already got that from the board — they're gone, and the run now simply
+// ends under the part it feeds. The four loose passives beside the package went
+// the same way.)
+interface ChipNode { x: number; z: number; edge: number; pin: number }
 const CHIP_NODES: ChipNode[] = [
   // corners — the units, each leaving the edge it sits counter-clockwise from
-  { x: CORNER, z: -CORNER, edge: 3, pin: 8, fp: [0.3, 0.3] }, // custom-ar camera (back-right)
-  { x: -CORNER, z: -CORNER, edge: 2, pin: 8, fp: [0.34, 0.24] }, // philips monitor (back-left)
-  { x: CORNER, z: CORNER, edge: 0, pin: 8, fp: [0.3, 0.3] }, // database stack (front-right)
-  { x: -CORNER, z: CORNER, edge: 1, pin: 8, fp: [0.3, 0.3] }, // heatsink (front-left)
+  { x: CORNER, z: -CORNER, edge: 3, pin: 8 }, // custom-ar camera (back-right)
+  { x: -CORNER, z: -CORNER, edge: 2, pin: 8 }, // philips monitor (back-left)
+  { x: CORNER, z: CORNER, edge: 0, pin: 8 }, // database stack (front-right)
+  { x: -CORNER, z: CORNER, edge: 1, pin: 8 }, // heatsink (front-left)
   // edge midpoints — the small parts, straight out of the centre land
-  { x: EDGE, z: 0, edge: 0, pin: 4, fp: [0.21, 0.21] }, // small QFN (right)
-  { x: 0, z: EDGE, edge: 1, pin: 4, fp: [0.32, 0.13] }, // box header (front)
-  { x: -EDGE, z: 0, edge: 2, pin: 4, fp: [0.14, 0.14] }, // cap (left)
-  { x: 0, z: -EDGE, edge: 3, pin: 4, fp: [0.14, 0.14] }, // cap (back)
+  { x: EDGE, z: 0, edge: 0, pin: 4 }, // small QFN (right)
+  { x: 0, z: EDGE, edge: 1, pin: 4 }, // box header (front)
+  { x: -EDGE, z: 0, edge: 2, pin: 4 }, // cap (left)
+  { x: 0, z: -EDGE, edge: 3, pin: 4 }, // cap (back)
 ];
-
-// The decorative passives sit on the substrate beside the package, in the lateral
-// band outboard of every trace — they used to be dropped on TOP of the die
-// package, which no board does.
-const PASSIVE_D = 0.68;
-const PASSIVE_T = -0.5;
-/** Each passive is fed too, off the outermost unused land on its edge — they were
- *  the last things on the board just sitting there with nothing running to them. */
-const PASSIVES: { x: number; z: number; edge: number; pin: number }[] = [0, 1, 2, 3].map((e) => {
-  const [x, z] = onEdge(e, PASSIVE_D, PASSIVE_T);
-  return { x, z, edge: e, pin: 0 };
-});
 
 /** A board trace that "fills" with current — a bright front sweeps from the die
  *  out to its component as the chip energises, then a pulse keeps flowing. Built
@@ -454,28 +430,6 @@ function landTrace(e: number, pin: number, bx: number, bz: number, y: number): V
   const [lx, lz] = onEdge(e, EXIT + LEAD_OUT, t);
   // ±x edges break out along x, so turn x-first; ±z edges the other way
   return densify([[ax, y, az], ...pcbRoute(lx, lz, bx, bz, y, e === 0 || e === 2)]);
-}
-
-/** Where a run visibly ARRIVES: walking the route back from the part, the last
- *  point still clear of its footprint.
- *
- *  Runs end at the part's centre, which is correct — a real trace carries on under
- *  the body to pads you can't see — but it meant both the trace's end AND its solder
- *  pad sat hidden beneath the part, so from outside every run looked like it stopped
- *  short of whatever it was feeding. Putting the pad ring here instead, on bare
- *  substrate at the footprint edge, is what makes the connection land visibly.
- *
- *  Read off the real polyline rather than assumed, so it's right for a straight run
- *  and a chamfered corner alike, whichever axis the final straight ends up on. */
-function landingPoint(route: V3[], nd: ChipNode): [number, number] {
-  if (!nd.fp) return [nd.x, nd.z];
-  const hw = nd.fp[0] / 2 + 0.014;
-  const hd = nd.fp[1] / 2 + 0.014;
-  for (let i = route.length - 1; i >= 0; i--) {
-    const [x, , z] = route[i];
-    if (Math.abs(x - nd.x) > hw || Math.abs(z - nd.z) > hd) return [x, z];
-  }
-  return [nd.x, nd.z];
 }
 
 /** custom-ar-framework as a fixed security / computer-vision camera. A faceted
@@ -914,10 +868,11 @@ function Package({ kit }: { kit: ChipKit }) {
     <group>
       {/* Values do the separating, as everywhere in the maquette: the substrate
           and frame in the middle cut, the interposer dark so the die and the
-          memory read against it, the memory and the capacitors in the light cut.
-          Outlines only on the substrate and the memory stacks — the frame would
-          double the substrate's silhouette, and a hundred capacitors outlined
-          are a hundred small rectangles of noise. */}
+          memory read against it, the memory in the light cut. Only the substrate
+          is outlined — the frame would double its silhouette, and outlined memory
+          stacks put four more boxes round the die. (The rows of decoupling
+          capacitors that ringed the frame are left off for the same reason: a
+          hundred tiny parts read as a dashed border, not as capacitors.) */}
       <mesh geometry={kit.pkg_sub}>
         <LiveGlassMat slug={slug} tint="glass" />
         <LiveEdges slug={slug} threshold={35} />
@@ -929,10 +884,6 @@ function Package({ kit }: { kit: ChipKit }) {
         <LiveGlassMat slug={slug} tint="deep" />
       </mesh>
       <mesh geometry={kit.pkg_hbm}>
-        <LiveGlassMat slug={slug} tint="pale" />
-        <LiveEdges slug={slug} threshold={35} />
-      </mesh>
-      <mesh geometry={kit.pkg_caps}>
         <LiveGlassMat slug={slug} tint="pale" />
       </mesh>
       <mesh geometry={kit.pkg_balls}>
@@ -977,8 +928,10 @@ export function ChipRig() {
         {/* the hover light's shadows, printed on the board (lit.tsx) */}
         <ShadowPrint />
       </mesh>
+      {/* the plated holes, in the middle cut: in the light one the four corners
+          were the brightest marks on a dormant board */}
       <mesh geometry={kit.board_rings}>
-        <GlassMat tint="pale" />
+        <GlassMat tint="glass" />
       </mesh>
       {/* the maker's mark, in silkscreen by the front edge */}
       <mesh geometry={kit.board_silk}>
@@ -990,23 +943,6 @@ export function ChipRig() {
           rounded rectangle to parse. */}
       <Line points={roundedRectPts(2.0, 2.0, 0.06)} position={[0, 0.022, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
 
-      {/* silkscreen: a footprint printed under each part, staying put whether or
-          not the part above it is awake — that's what makes the board read as a
-          designed thing rather than parts dropped on a sheet. Printed quietly
-          though: at 0.28 six of these were competing with the parts themselves. */}
-      {CHIP_NODES.map((nd, i) =>
-        nd.fp ? (
-          <Line
-            key={`fp${i}`}
-            points={roundedRectPts(nd.fp[0], nd.fp[1], 0.02)}
-            position={[nd.x, TY + 0.001, nd.z]}
-            color={NEUTRAL}
-            lineWidth={1}
-            transparent
-            opacity={0.18}
-          />
-        ) : null,
-      )}
       {/* (the pin-1 dot that sat off the package's back-left corner is gone — a
           26mm circle of authenticity that cost a line and read as a stray mark) */}
 
@@ -1028,21 +964,10 @@ export function ChipRig() {
         <Package kit={kit} />
       </LifeGroup>
 
-      {/* motherboard traces fill with current, out to a solder pad per part */}
+      {/* motherboard traces fill with current, out to every part */}
       {traces.map((t, i) => (
         <ChipTrace key={i} points={t} target={energy} color={accent} />
       ))}
-      {CHIP_NODES.map((nd, i) => {
-        // the pad sits where the run arrives, beside the part, not under it
-        const [px, pz] = landingPoint(traces[i], nd);
-        return (
-          <group key={i}>
-            {/* the landing pad. Quieter than it was: at 0.65 eight of these were
-                as loud as the parts they belong to. */}
-            <Line points={circlePts(0.03, 16)} position={[px, TY + 0.003, pz]} color={NEUTRAL} lineWidth={1} transparent opacity={0.4} />
-          </group>
-        );
-      })}
 
       {/* custom-ar-framework — a security / CV camera projecting a tracked
           hologram cube (back-right corner slot) */}
@@ -1056,7 +981,7 @@ export function ChipRig() {
         <group key={i} position={[cx, 0, cz]}>
           <mesh geometry={kit.cap_can}>
             <GlassMat tint="glass" />
-            <Crease threshold={35} color={NEUTRAL} />
+            <DressEdges />
           </mesh>
           <mesh geometry={kit.cap_stripe}>
             <GlassMat tint="pale" />
@@ -1076,7 +1001,7 @@ export function ChipRig() {
           <mesh key={i} position={[0, 0.05 + i * 0.07, 0]}>
             <cylinderGeometry args={[0.13, 0.13, 0.06, 28]} />
             <GlassMat tint={i === 2 ? 'deep' : 'pale'} />
-            <Crease threshold={30} color={NEUTRAL} />
+            <DressEdges threshold={30} />
           </mesh>
         ))}
       </group>
@@ -1085,7 +1010,7 @@ export function ChipRig() {
       <group position={[EDGE, 0, 0]}>
         <mesh geometry={kit.ic_body}>
           <GlassMat tint="glass" />
-          <Crease threshold={35} color={NEUTRAL} />
+          <DressEdges />
         </mesh>
         <mesh geometry={kit.ic_lands}>
           <GlassMat tint="pale" />
@@ -1100,7 +1025,6 @@ export function ChipRig() {
       <LifeGroup slug="philips-medical-xr">
         <HeartMonitor slug="philips-medical-xr" position={[-CORNER, 0, -CORNER]} kit={kit} />
       </LifeGroup>
-      <MiscComponents kit={kit} />
     </group>
   );
 }

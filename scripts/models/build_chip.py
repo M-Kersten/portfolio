@@ -11,7 +11,6 @@
 #   cap_*    radial electrolytic ............. its slot centre (placed twice)
 #   hdr_*    shrouded box header ............. its slot centre
 #   ic_*     the small QFN ................... its slot centre
-#   pas_*    SMD passive ..................... its own centre (placed four times)
 # The site looks each part up by name and gives it its material; a name says
 # what the piece is, never how it's drawn.
 import math
@@ -119,8 +118,10 @@ def silk():
 
 def package():
     """An AI accelerator: the compute die flanked by four HBM stacks on a
-    silicon interposer, on an organic substrate with a stiffener frame and a
-    field of decoupling caps, standing on its ball grid."""
+    silicon interposer, on an organic substrate with a stiffener frame,
+    standing on its ball grid. (The field of decoupling caps that ringed the
+    frame is gone: at the size the board is seen, a hundred and fifty tiny
+    boxes drew a dashed border round the package, not capacitors.)"""
     parts = []
     # --- ball grid: the outer ring shows as a dotted seam under the substrate
     balls = []
@@ -170,30 +171,6 @@ def package():
     hb = K.join('pkg_hbm', hbm)
     parts.append((hb, 'pale'))
 
-    # --- decoupling caps: a row down each side, between interposer and frame
-    caps = []
-    for e in range(4):
-        for d, n in ((0.375, 15), (0.412, 17)):
-            for k in range(n):
-                t = (k - (n - 1) / 2) * 0.042
-                if e == 0:
-                    x, z, ry = d, t, 0
-                elif e == 1:
-                    x, z, ry = t, d, math.pi / 2
-                elif e == 2:
-                    x, z, ry = -d, t, 0
-                else:
-                    x, z, ry = t, -d, math.pi / 2
-                caps.append(K.box('c', (0.013, 0.012, 0.025), pos=(x, top + 0.006, z), rot=(0, ry, 0)))
-    # bulk caps in the corners
-    for sx in (-1, 1):
-        for sz in (-1, 1):
-            for k in range(2):
-                caps.append(K.box('cb', (0.026, 0.02, 0.048), pos=(sx * (0.428 - k * 0.034), top + 0.01, sz * 0.425), rot=(0, 0, 0)))
-    cg = K.join('pkg_caps', caps)
-    K.finish(cg, 80)
-    parts.append((cg, 'pale'))
-
     # --- the die: a silicon slab (its base glows low) and the compute tiles
     die = K.rbox('pkg_die', (0.4, die_h, 0.4), 0.008, pos=(0, ip_top + die_h / 2, 0), seg=4, bev=BEV_S)
     parts.append((K.bake(die), 'mark'))
@@ -236,18 +213,6 @@ def cap():
     bung = K.lathe('cap_bung', K.rounded_profile([(0.0, 0.0262), (0.046, 0.0262), (0.046, Y0), (0.0, Y0)], [0, 0.0015, 0, 0]), seg=40)
     K.finish(bung, 35)
     return [(body, 'glass'), (stripe, 'pale'), (bung, 'deep')]
-
-
-# ============================================================== passives
-
-
-def passive():
-    """An 0805-ish chip part: a body between two plated end caps."""
-    body = K.box('pas_body', (0.058, 0.022, 0.034), pos=(0, 0, 0), bev=0.002)
-    K.bake(body)
-    ends = [K.box(f'e{s}', (0.013, 0.025, 0.037), pos=(s * 0.031, 0.0005, 0), bev=0.0022) for s in (-1, 1)]
-    e = K.join('pas_ends', ends)
-    return [(body, 'glass'), (e, 'metal')]
 
 
 # ============================================================== patient monitor
@@ -431,7 +396,7 @@ PREVIEW_OFFSETS = {
     'mon_alarm': ('mon', MON_Y, MON_TILT),
 }
 
-BUILDERS = {'board': board, 'silk': silk, 'pkg': package, 'cap': cap, 'pas': passive, 'mon': monitor, 'hs': heatsink, 'hdr': header, 'ic': small_ic}
+BUILDERS = {'board': board, 'silk': silk, 'pkg': package, 'cap': cap, 'mon': monitor, 'hs': heatsink, 'hdr': header, 'ic': small_ic}
 
 
 CORNER, EDGE = 0.75, 0.85
@@ -458,17 +423,6 @@ def assemble(parts):
                 d = ob.copy()
                 bpy.context.scene.collection.objects.link(d)
                 d.location = (x, 0, z)
-                out.append((d, tint))
-            continue
-        if n.startswith('pas_'):
-            for e in range(4):
-                nx, nz = [(1, 0), (0, 1), (-1, 0), (0, -1)][e]
-                d_, t_ = 0.68, -0.5
-                x, z = nx * d_ - nz * t_, nz * d_ + nx * t_
-                d = ob.copy()
-                bpy.context.scene.collection.objects.link(d)
-                d.location = (x, 0.033, z)
-                d.rotation_euler = (0, 0 if e % 2 == 0 else math.pi / 2, 0)
                 out.append((d, tint))
             continue
         for pre, sl in SLOTS.items():

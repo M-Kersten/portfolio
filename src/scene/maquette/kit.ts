@@ -19,13 +19,12 @@ import { asset } from '../../lib/asset';
  *  drawing an empty mesh. */
 const CHIP_PARTS = [
   'board', 'board_rings', 'board_silk',
-  'pkg_sub', 'pkg_frame', 'pkg_ip', 'pkg_hbm', 'pkg_caps', 'pkg_balls', 'pkg_die', 'pkg_tiles',
+  'pkg_sub', 'pkg_frame', 'pkg_ip', 'pkg_hbm', 'pkg_balls', 'pkg_die', 'pkg_tiles',
   'mon_stand', 'mon_legs', 'mon_body', 'mon_controls', 'mon_alarm',
   'hs_chip', 'hs_pads', 'hs_sink', 'hs_fan', 'hs_rotor',
   'cap_can', 'cap_stripe', 'cap_bung',
   'hdr_body', 'hdr_pins',
   'ic_body', 'ic_lands',
-  'pas_body', 'pas_ends',
 ] as const;
 const TOWER_PARTS = ['tower_body', 'tower_ribs', 'tower_windows', 'tower_lamp', 'tower_spire'] as const;
 /** Three parts to each of the six blocks, in the order of city.tsx's plan. The
