@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { site } from '../content';
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { cases, site } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useReveal } from '../lib/useReveal';
@@ -183,6 +183,133 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
   );
 }
 
+/* ---- The bio, made skimmable ----------------------------------------------
+   The bio was one long column, and a long column is the part of a portfolio
+   people scroll past. It's the same words, laid out so a skim still gets the
+   gist: the lead said out loud, a row of numbers, and the paragraphs as four
+   short chapters, each led by its own first sentence — written as a hook — so
+   reading the bold lines alone tells the story. All of it comes from the same
+   site.json fields as before (the CMS round-trips that file against a fixed
+   model), and the numbers are counted from the content, so they can't drift
+   out of date. */
+
+/** `*words*` in the About copy are the line's highlight (a marker sweeps in
+ *  under them as the section arrives); everything else is plain text. */
+function Marked({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/\*([^*]+)\*/g).map((part, i) =>
+        i % 2 ? (
+          <mark key={i} className="about__mark">
+            {part}
+          </mark>
+        ) : (
+          <Fragment key={i}>{part}</Fragment>
+        ),
+      )}
+    </>
+  );
+}
+
+/** A paragraph's first sentence (its hook) and the rest. */
+function splitHook(p: string): [string, string] {
+  const m = p.match(/^(.+?[.!?])(\s+)([\s\S]*)$/);
+  return m ? [m[1], m[3]] : [p, ''];
+}
+
+/** The numbers, counted from the content itself. */
+function aboutStats() {
+  const career = site.career ?? [];
+  const first = Math.min(...career.map((c) => Number(c.from.slice(0, 4))).filter(Boolean));
+  const teams = new Set(career.map((c) => c.company)).size;
+  return [
+    { n: new Date().getFullYear() - (Number.isFinite(first) ? first : 2016), label: 'years of making it work' },
+    { n: cases.length, label: 'projects, shipped or shelved' },
+    { n: teams, label: 'teams, from start-ups to the military police' },
+    // the launch pad in the city builds its rocket as projects wake (city.tsx)
+    { n: 1, label: 'rocket on a pad in the city. Wake all ten projects to fly it' },
+  ];
+}
+
+/** Counts up from zero once it's on screen; reduced motion shows the number. */
+function CountUp({ to, run }: { to: number; run: boolean }) {
+  const reduced = useReducedMotion();
+  const [v, setV] = useState(reduced ? to : 0);
+  useEffect(() => {
+    if (reduced || !run) {
+      if (reduced) setV(to);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const dur = 700 + Math.min(to, 20) * 40;
+    const tick = () => {
+      const p = Math.min(1, (performance.now() - t0) / dur);
+      setV(Math.round(to * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [to, run, reduced]);
+  return <>{v}</>;
+}
+
+function AboutStats() {
+  const [ref, shown] = useReveal<HTMLDListElement>();
+  const stats = aboutStats();
+  return (
+    <dl className="about__stats" ref={ref} data-shown={shown || undefined}>
+      {stats.map((st, i) => (
+        <div key={st.label} className="about__stat" style={{ '--i': i } as CSSProperties}>
+          <dt>{st.label}</dt>
+          <dd>
+            <CountUp to={st.n} run={shown} />
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** One chapter: its hook over the rest of the paragraph. Each reveals on its
+ *  own as it scrolls in — watching the four as one block left a phone looking
+ *  at a blank gap until a quarter of a 2000px column was on screen. */
+function AboutChapter({ text, i }: { text: string; i: number }) {
+  const [ref, shown] = useReveal<HTMLElement>();
+  const [hook, rest] = splitHook(text);
+  return (
+    <section ref={ref} className="about__chapter" data-shown={shown || undefined} style={{ '--i': i } as CSSProperties}>
+      <h3 className="about__hook">
+        <Marked text={hook} />
+      </h3>
+      {rest && (
+        <p>
+          <Marked text={rest} />
+        </p>
+      )}
+    </section>
+  );
+}
+
+function AboutChapters({ body }: { body: string[] }) {
+  return (
+    <div className="about__chapters">
+      {body.map((p, i) => (
+        <AboutChapter key={i} text={p} i={i} />
+      ))}
+    </div>
+  );
+}
+
+function AboutLead({ text }: { text: string }) {
+  const [ref, shown] = useReveal<HTMLParagraphElement>();
+  return (
+    <p className="about__lead" ref={ref} data-shown={shown || undefined}>
+      <Marked text={text} />
+    </p>
+  );
+}
+
 export function About() {
   const a = site.about;
   return (
@@ -191,11 +318,10 @@ export function About() {
         {/* the note is where "based in" puts him on a map */}
         <SectionHead id="about" title={a.title} note="52.09° N · 5.12° E" />
         <div className="about__grid">
-          <div>
-            <p className="about__lead">{a.lead}</p>
-            {a.body.map((p, i) => (
-              <p key={i}>{p}</p>
-            ))}
+          <div className="about__main">
+            <AboutLead text={a.lead} />
+            <AboutStats />
+            <AboutChapters body={a.body} />
           </div>
           <div className="about__side">
             <AboutStage facts={a.facts} />

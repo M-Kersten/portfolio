@@ -22,6 +22,23 @@ deleted, `portfolio.merijnkersten.nl` is unaffected, and hand-editing the JSON
 directly still works exactly as before. The database only holds the draft
 between edits and a publish.
 
+## Writing the About section
+
+About lays its copy out to be skimmed, so a few conventions in those fields
+matter:
+
+- **Each body paragraph is a chapter**, and its **first sentence is the
+  chapter's headline** (set large, above the rest). Write it as a hook that
+  makes sense on its own — "The demo always lies." — and keep the paragraphs
+  to four, which is what the 2×2 layout is drawn for.
+- **`*words*` are a highlight.** In the lead and the body, text between
+  single asterisks gets a highlighter stroke when it scrolls in. One per
+  paragraph is plenty; don't let one cross a sentence boundary in a body
+  paragraph, or the headline split cuts it in two.
+- The row of numbers under the lead isn't edited anywhere: it's counted from
+  the content (years since the first career entry, the number of cases, the
+  number of companies in the career list).
+
 ## What it can't edit
 
 The 3D maquette is code, not content. Each hotspot in `src/scene/framing.ts` is

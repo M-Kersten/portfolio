@@ -37,18 +37,18 @@
   ],
   "about": {
     "title": "making computers do unusual things since 2016",
-    "lead": "I’m a creative technologist from Utrecht. For almost a decade I’ve been chasing the same little moment, when a piece of technology stops feeling like technology and starts feeling like a small magic trick.",
+    "lead": "I’m a creative technologist from Utrecht. For almost a decade I’ve been chasing one moment: when a piece of technology stops feeling like technology and starts feeling like *a magic trick*. Arthur C. Clarke saw it coming. I just keep trying to prove him right.",
     "body": [
-      "Most of my work is somewhere between the screen and the real world. I’ve built things that put virtual objects in public spaces, turned books into interactive worlds, connected strangers through AR. I like being close to the machine, diving into the pixels, the code, the hardware, the people using it and what happens when it all has to connect.",
-      "A lot of what i know came from breaking things, sometimes on purpose. I like finding technology when documentation is still incomplete and everyone is still figuring out what it can do. Like ARKit before it had a dev-friendly abstraction layer or Multiplayer AR before the tools were ready. The unfinished parts are usually where the interesting questions are.",
-      "I have a theory i keep coming back to: the demo lies to you. A prototype on my desk can look like the future, but the real world always gets the final word. Networks disappear, hardware behaves strangely and someone will always use my carefully designed interface in a way i never imagined.",
-      "Right now I’m connecting VR players for the department of defense (working as consultant with Rebels), with all the security constraints you can imagine come with that, i'm experimenting with an art installation using projection mapping and keeping up to date with the latest AI frameworks. If you like thinking about what technology can do, we’ll probably have something to talk about!"
+      "I work where the screen meets the street. I’ve put virtual objects in public spaces, turned children’s books into worlds you can step into and connected strangers through AR. I like being close to the machine: the pixels, the code, the hardware, the people holding it, and *the moment it all has to work together*.",
+      "I learn by breaking things. Sometimes even on purpose. I like tech best before the docs are finished, while everyone is still figuring out what it can do: ARKit before it had a friendly layer on top, multiplayer AR before the tools were ready. The unfinished parts are where *the interesting questions* live.",
+      "The demo always lies. A prototype on my desk can look like the future, but the real world gets the final word: the network vanishes, the hardware develops opinions, and someone will use my carefully designed interface in a way I never imagined. “Works on my machine” is where the job starts, *not where it ends*.",
+      "These days I’m in VR with the military police. As a consultant through Rebels I’m connecting VR players for the Royal Netherlands Marechaussee, with every security constraint you can imagine. On the side I’m building an art installation with projection mapping and keeping up with AI frameworks that seem to ship weekly. If you like thinking about what technology can do, *we’ll get along*."
     ],
     "facts": [
       { "label": "Based in", "value": "Utrecht, Netherlands" },
-      { "label": "Currently into", "value": "Music production, Multiplayer, UX design, AI experiments" },
+      { "label": "Currently into", "value": "Music production, multiplayer, UX design, AI experiments" },
       { "label": "Studied", "value": "Creative media & game technology at Saxion" },
-      { "label": "Off the clock", "value": "Baking, Cooking, History, Church, Fitness" }
+      { "label": "Off the clock", "value": "Baking, cooking, history, church, fitness" }
     ]
   },
   "contact": {
