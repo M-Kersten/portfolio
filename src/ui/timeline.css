@@ -385,7 +385,7 @@
 .wall__glow .wall__net { transform: translate3d(var(--ox, 0px), var(--oy, 0px), 0); }
 .wall__glow .wall__net-l {
   stroke: var(--cyan);
-  stroke-opacity: 0.85;
+  stroke-opacity: 0.7;
 }
 .wall__glow .wall__net-d {
   fill: var(--cyan);
