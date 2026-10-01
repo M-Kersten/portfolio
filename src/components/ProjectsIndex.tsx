@@ -12,14 +12,20 @@ import { asset } from '../lib/asset';
 // Discipline is the facet rather than tech because tech is the wrong grain to
 // navigate by: most tags are used once, and Unity covers nearly every case.
 // Tech is still fully searchable — the Find overlay indexes it.
+//
+// Everything here speaks the home page's language: chips are tags framed by
+// the scanner brackets that lock on when one is picked, the sort is a row of
+// mono links with the nav's drawn rule under the current one, and the cards are
+// the timeline's waypoint cards — frosted, tinted by their layer, brackets
+// tightening round them under the pointer.
 
 const LAYER_COLOR: Record<Layer, string> = { city: 'var(--cyan)', room: 'var(--coral)', chip: 'var(--lime)' };
 
 type Sort = 'new' | 'old' | 'curated';
 const SORTS: { value: Sort; label: string }[] = [
-  { value: 'new', label: 'Newest first' },
-  { value: 'old', label: 'Oldest first' },
-  { value: 'curated', label: 'Curated order' },
+  { value: 'new', label: 'Newest' },
+  { value: 'old', label: 'Oldest' },
+  { value: 'curated', label: 'Hand-picked' },
 ];
 
 /** Toggle one value of a Set held in state, without mutating the old set. */
@@ -36,10 +42,11 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
   // Chips follow the canonical order, but only for disciplines actually in use
   // — so an empty category never offers a filter that leads nowhere. Derived
   // from the whole index, not the filtered view, so chips never disappear out
-  // from under the pointer as you narrow.
+  // from under the pointer as you narrow; each carries its own count.
   const options = useMemo(() => {
-    const used = new Set(items.flatMap((c) => c.discipline));
-    return DISCIPLINES.filter((d) => used.has(d));
+    const count = new Map<Discipline, number>();
+    for (const c of items) for (const d of c.discipline) count.set(d, (count.get(d) ?? 0) + 1);
+    return DISCIPLINES.filter((d) => count.has(d)).map((d) => ({ d, n: count.get(d) ?? 0 }));
   }, [items]);
 
   const shown = useMemo(() => {
@@ -59,51 +66,41 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
   }, [items, picked, sort]);
 
   const filtered = picked.size > 0;
-  const clear = () => setPicked(new Set());
 
   return (
-    <>
+    <div className="pi">
       <div className="pi-bar">
-        <div className="pi-facets">
-          <div className="pi-facet">
-            <span className="pi-facet__name" id="pi-facet-discipline">
-              Work
-            </span>
-            <div className="pi-chips" role="group" aria-labelledby="pi-facet-discipline">
-              {options.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  className="pi-chip"
-                  aria-pressed={picked.has(d)}
-                  onClick={() => setPicked(toggled(picked, d))}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* "All" leads the row as the cleared state, so clearing is the same
+            gesture as filtering rather than a separate link off to one side. */}
+        <div className="pi-chips" role="group" aria-label="Filter by discipline">
+          <button type="button" className="pi-chip" aria-pressed={!filtered} onClick={() => setPicked(new Set())}>
+            All <b>{items.length}</b>
+          </button>
+          {options.map(({ d, n }) => (
+            <button key={d} type="button" className="pi-chip" aria-pressed={picked.has(d)} onClick={() => setPicked(toggled(picked, d))}>
+              {d} <b>{n}</b>
+            </button>
+          ))}
         </div>
 
-        <div className="pi-controls">
+        <div className="pi-tools">
           <p className="pi-count" role="status">
             {filtered ? `${shown.length} of ${items.length}` : `${items.length} projects`}
           </p>
-          {filtered && (
-            <button type="button" className="pi-clear" onClick={clear}>
-              Clear filters
-            </button>
-          )}
-          <label className="pi-sort">
-            <span className="pi-sort__name">Sort</span>
-            <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-              {SORTS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="pi-sort" role="radiogroup" aria-label="Sort">
+            {SORTS.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                role="radio"
+                aria-checked={sort === s.value}
+                className="pi-sort__opt"
+                onClick={() => setSort(s.value)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -133,26 +130,29 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
                 />
               </span>
               <span className="pi-card__body">
-                {/* An eyebrow, not a headline. The year used to be the loudest
-                    thing on the card at twice the title's size, so the grid
-                    scanned as a list of dates with project names underneath.
-                    Both are metadata now and the title carries the card. */}
+                {/* An eyebrow, not a headline: the layer in its own colour,
+                    the year opposite. The title carries the card. */}
                 <span className="pi-card__stamp">
                   <span className="pi-card__layer">{LAYER_LABEL[c.layer]}</span>
                   {/* `year` may carry a month for timeline placement; the card
-                      only ever stamps the year itself. Right-aligned and
-                      tabular so years line up down the column under the
-                      default newest-first sort. */}
+                      only ever stamps the year itself. */}
                   <span className="pi-card__yr">{c.year?.slice(0, 4) ?? '—'}</span>
                 </span>
                 <span className="pi-card__title">{c.title}</span>
                 <span className="pi-card__meta">{c.client}</span>
                 <span className="pi-card__sector">{c.sector}</span>
               </span>
+              {/* the waypoint cards' scanner brackets, locking on under the pointer */}
+              <span className="pi-card__reticle" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
             </button>
           </li>
         ))}
       </ul>
-    </>
+    </div>
   );
 }

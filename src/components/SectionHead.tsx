@@ -16,6 +16,7 @@ export function SectionHead({
   lead,
   note,
   align = 'split',
+  level = 2,
 }: {
   /** the section's anchor, as the nav links it (e.g. "capabilities") */
   id: string;
@@ -25,6 +26,8 @@ export function SectionHead({
   note?: string;
   /** split: lead to the right under the title · center: the contact finale */
   align?: 'split' | 'center';
+  /** the heading level — 1 where the opening is the page's own title */
+  level?: 1 | 2;
 }) {
   const [ref, shown] = useReveal<HTMLElement>();
   const label = site.nav.find((n) => n.href === `#${id}`)?.label ?? null;
@@ -37,7 +40,7 @@ export function SectionHead({
           {note && <span className="section__note">{note}</span>}
         </p>
       )}
-      <SectionTitle>{title}</SectionTitle>
+      <SectionTitle level={level}>{title}</SectionTitle>
       {lead && <p className="section__lead">{lead}</p>}
     </header>
   );

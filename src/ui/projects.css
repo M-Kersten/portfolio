@@ -1,7 +1,12 @@
 /* The /projects view — a filterable index of every project (highlights + the
    long tail) over the site's square-dot field. The homepage maquette carries
    the atmosphere; this page carries the answers, so every card wears its year,
-   client, sector and layer, and the facet bar narrows the set. */
+   client, sector and layer, and the chip row narrows the set.
+
+   It is built from the home page's own parts rather than a look of its own:
+   the site header, an opening like every section's (SectionHead), tags framed
+   by scanner brackets, a sort set like the nav, and the timeline's waypoint
+   cards. */
 
 .pc-stage {
   min-height: 100svh;
@@ -12,218 +17,166 @@
     var(--dots-ink) 0 0 / 30px 30px,
     var(--paper);
 }
-
-/* top bar — back home, the title, the search trigger. Wraps rather than
-   letting the title collide with its neighbours on a narrow screen. */
-.pc-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-xs) var(--space-m);
-  padding: var(--space-m) var(--space-l);
-  border-bottom: 1px solid var(--hairline);
+.pc-stage > .footer {
+  margin-top: auto;
 }
-/* The way off this page, and it used to be bare text — the quietest thing in
-   a bar that also holds the search trigger. Built as a pill to match that
-   trigger on the opposite side, so the top bar reads as two controls with the
-   title between them. */
-.pc-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  height: 2rem;
-  padding: 0 0.75rem;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.02em;
-  color: var(--ink-60);
-  text-decoration: none;
-  white-space: nowrap;
-  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+/* the opening clears the fixed header the way the home sections' scroll
+   margin does */
+.pc.section {
+  padding-top: calc(var(--header-h) + var(--space-xl));
+  background: transparent;
 }
-.pc-back:hover,
-.pc-back:focus-visible {
-  color: var(--ink);
-  background: var(--surface-2);
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong));
-}
-/* the arrow slides back toward the edge it points at */
-.pc-back span[aria-hidden] {
-  transition: transform var(--t-fast) var(--ease);
-}
-.pc-back:hover span[aria-hidden] {
-  transform: translateX(-2px);
-}
-.pc-title {
-  font-size: var(--step-1);
-  margin: 0;
-  min-width: 0;
-  letter-spacing: -0.01em;
-}
-.pc-top-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-m);
+.pc .section__head {
+  margin-bottom: var(--space-xl);
 }
 
-/* ---- the facet bar ---------------------------------------------------- */
+/* ---- the bar: chips on the left, count + sort on the right ------------- */
 
 .pi-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-s) var(--space-l);
-  padding: var(--space-m) var(--space-l);
-  border-bottom: 1px solid var(--hairline);
-}
-.pi-facets {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-  min-width: 0;
-}
-.pi-facet {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-s);
-  min-width: 0;
-}
-.pi-facet__name {
-  flex: none;
-  width: 3.4rem;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-40);
+  padding-block: var(--space-s);
+  border-block: 1px solid var(--hairline);
+  margin-bottom: var(--space-l);
 }
 .pi-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.5rem;
   min-width: 0;
 }
 
-/* One facet option, built as a key rather than an outline. The search
-   trigger's "F" keycap already sets the vocabulary for this — a raised face,
-   a heavier bottom edge standing in for the side of the key — so the chips
-   borrow it: raised and unlit when off, driven into the surface when on.
-   Transparent with a --line outline, they measured 1.48:1 against the page
-   and read as ghosts. */
+/* A chip is a tag framed by the scanner brackets — the same four corner marks
+   that frame the waypoint cards, the sections and the portrait. At rest they're
+   faint ticks round a mono label; under the pointer they tighten and take the
+   accent; picked, the tag lights up between them like a locked-on target. The
+   corners are drawn as background, so the hit area is the whole chip. */
 .pi-chip {
+  /* at rest the corners are a whisper — the label is what says "press me";
+     the brackets are what say "picked" */
+  --bc: color-mix(in srgb, var(--ink) 26%, transparent);
+  --bl: 5px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.55em;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-60);
-  background: var(--surface-2);
-  border: 1px solid var(--line-strong);
-  /* the key's depth — the lit top face plus a thicker edge underneath */
-  border-bottom-width: 2px;
+  border: 0;
   border-radius: var(--radius-s);
-  box-shadow: inset 0 1px 0 rgba(234, 234, 234, 0.07);
-  /* 32px tall at this size — a real pointer/touch target, where the old
-     0.35em padding gave 24px. */
-  padding: 0.5em 0.8em;
+  padding: 0.62em 0.95em;
+  min-height: 2.5rem; /* a real touch target */
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease),
-    transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  background:
+    linear-gradient(var(--bc), var(--bc)) top left / var(--bl) 1px,
+    linear-gradient(var(--bc), var(--bc)) top left / 1px var(--bl),
+    linear-gradient(var(--bc), var(--bc)) top right / var(--bl) 1px,
+    linear-gradient(var(--bc), var(--bc)) top right / 1px var(--bl),
+    linear-gradient(var(--bc), var(--bc)) bottom left / var(--bl) 1px,
+    linear-gradient(var(--bc), var(--bc)) bottom left / 1px var(--bl),
+    linear-gradient(var(--bc), var(--bc)) bottom right / var(--bl) 1px,
+    linear-gradient(var(--bc), var(--bc)) bottom right / 1px var(--bl),
+    var(--chip-fill, transparent);
+  background-repeat: no-repeat;
+  transition: color var(--t-fast) var(--ease), background-size var(--t-base) var(--ease), --bc var(--t-fast) var(--ease);
 }
-.pi-chip:hover {
+.pi-chip b {
+  font-weight: 400;
+  font-size: var(--step--2);
+  letter-spacing: 0.04em;
+  color: var(--ink-40);
+  font-variant-numeric: tabular-nums;
+  transition: color var(--t-fast) var(--ease);
+}
+.pi-chip:hover,
+.pi-chip:focus-visible {
+  --bc: var(--accent);
+  --bl: 10px;
   color: var(--ink);
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong));
-}
-/* travelling 1px down while the bottom edge collapses is the whole trick —
-   the face moves and the key's side disappears under it */
-.pi-chip:active {
-  transform: translateY(1px);
-  border-bottom-width: 1px;
-  margin-bottom: 1px;
-  box-shadow: none;
 }
 .pi-chip[aria-pressed='true'] {
-  color: var(--accent-contrast);
-  background: var(--c, var(--accent));
-  border-color: var(--c, var(--accent));
-  /* held down: no bottom edge left to see, and the surface shades it */
-  border-bottom-width: 1px;
-  margin-bottom: 1px;
-  transform: translateY(1px);
-  box-shadow: inset 0 2px 4px -1px rgba(0, 0, 0, 0.45);
+  --bc: var(--accent);
+  --bl: 10px;
+  --chip-fill: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--accent-ink);
 }
-.pi-chip[aria-pressed='true']:hover {
-  color: var(--accent-contrast);
-  background: color-mix(in srgb, var(--c, var(--accent)) 88%, #fff);
+.pi-chip[aria-pressed='true'] b {
+  color: color-mix(in srgb, var(--accent-ink) 75%, transparent);
+}
+.pi-chip:active {
+  transform: translateY(1px);
+}
+@property --bc {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
 }
 
-/* count · clear · sort, right-aligned opposite the facets */
-.pi-controls {
+.pi-tools {
   display: flex;
   align-items: center;
-  gap: var(--space-s);
+  gap: var(--space-m);
   margin-left: auto;
 }
 .pi-count {
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--step--1);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-40);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.pi-clear {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--accent-ink);
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 0.25em;
-  white-space: nowrap;
-}
-.pi-clear:hover {
-  color: var(--ink);
-}
+/* the sort, set like the header nav: mono words, the current one at full ink
+   with the nav's accent rule drawn under it */
 .pi-sort {
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.2rem;
+  padding-left: var(--space-m);
+  border-left: 1px solid var(--line);
 }
-.pi-sort__name {
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-40);
-}
-/* same raised face as the chips, so the bar reads as one set of controls */
-.pi-sort select {
+.pi-sort__opt {
+  position: relative;
   font-family: var(--font-mono);
   font-size: var(--step--1);
-  color: var(--ink);
-  background: var(--surface-2);
-  border: 1px solid var(--line-strong);
-  border-bottom-width: 2px;
-  border-radius: var(--radius-s);
-  box-shadow: inset 0 1px 0 rgba(234, 234, 234, 0.07);
-  padding: 0.4em 0.6em;
+  letter-spacing: 0.04em;
+  color: var(--ink-40);
+  background: none;
+  border: 0;
+  padding: 0.6em 0.55em;
   cursor: pointer;
-  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+  white-space: nowrap;
+  transition: color var(--t-fast) var(--ease);
 }
-.pi-sort select:hover {
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong));
+.pi-sort__opt::after {
+  content: '';
+  position: absolute;
+  left: 0.55em;
+  right: 0.55em;
+  bottom: 0.25em;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--t-base) var(--ease);
+}
+.pi-sort__opt:hover,
+.pi-sort__opt:focus-visible {
+  color: var(--ink);
+}
+.pi-sort__opt[aria-checked='true'] {
+  color: var(--ink);
+}
+.pi-sort__opt[aria-checked='true']::after {
+  transform: scaleX(1);
 }
 
 /* ---- the grid --------------------------------------------------------- */
@@ -231,51 +184,48 @@
 .pi-grid {
   list-style: none;
   margin: 0;
-  padding: var(--space-m) var(--space-l) var(--space-xl);
+  padding: 0;
   display: grid;
-  /* 15rem rather than 14 — the title runs at --step-1 now and needs the extra
-     column width to stay on one or two lines instead of three. */
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
   gap: var(--space-m);
 }
 .pi-grid > li {
   min-width: 0;
 }
 
+/* The timeline's waypoint card, at index size: frosted, its edge tinted by its
+   layer, the scanner brackets tightening and taking the layer's colour under
+   the pointer while the card lifts and the poster comes up to full colour. */
 .pi-card {
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   text-align: left;
   padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--paper-2);
+  font: inherit;
   color: var(--ink);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012));
+  border: 1px solid color-mix(in srgb, var(--c) 18%, var(--line));
+  border-radius: var(--radius);
+  backdrop-filter: blur(8px) saturate(1.1);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
   cursor: pointer;
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   transition: transform var(--t-base) var(--ease), border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
 }
-/* the layer's colour as a hairline along the top edge — the only decoration */
-.pi-card::before {
-  content: '';
-  display: block;
-  height: 2px;
-  background: var(--c);
-  opacity: 0.55;
-  transition: opacity var(--t-base) var(--ease);
-}
 .pi-card:hover,
 .pi-card:focus-visible {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
   border-color: color-mix(in srgb, var(--c) 55%, var(--line));
-  box-shadow: 0 14px 30px -18px #000, 0 0 22px -8px color-mix(in srgb, var(--c) 40%, transparent);
+  box-shadow: 0 30px 60px -26px rgba(0, 0, 0, 0.9), 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent);
+  outline: none;
 }
-.pi-card:hover::before,
-.pi-card:focus-visible::before {
-  opacity: 1;
+.pi-card:focus-visible {
+  outline: 2px solid var(--c);
+  outline-offset: 3px;
 }
 
 .pi-card__media {
@@ -294,13 +244,21 @@
   /* Posters range from near-black stills to flat white app screens. Holding
      them a little under full brightness keeps one row from reading as a
      lightbox next to its neighbours. */
-  opacity: 0.9;
-  transition: opacity var(--t-base) var(--ease), transform var(--t-base) var(--ease);
+  filter: saturate(0.85) brightness(0.86);
+  transition: filter var(--t-base) var(--ease), transform var(--t-slow) var(--ease);
 }
 .pi-card:hover .pi-card__media img,
 .pi-card:focus-visible .pi-card__media img {
-  opacity: 1;
-  transform: scale(1.04);
+  filter: none;
+  transform: scale(1.05);
+}
+/* a scrim at the foot of the picture so the body's top edge doesn't hard-cut it */
+.pi-card__media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, rgba(6, 8, 10, 0.45));
+  pointer-events: none;
 }
 /* poster missing → a quiet layer-tinted marker rather than a broken frame */
 .pi-card__media[data-empty] {
@@ -308,7 +266,7 @@
   place-items: center;
   background: radial-gradient(120% 100% at 50% 40%, color-mix(in srgb, var(--c) 16%, transparent), transparent 70%), #06080a;
 }
-.pi-card__media[data-empty]::after {
+.pi-card__media[data-empty]::before {
   content: '';
   width: 14px;
   height: 14px;
@@ -318,36 +276,39 @@
 }
 
 /* The body reads top-to-bottom as eyebrow → title → client → sector, in
-   descending weight. Content stays top-aligned and any leftover height
-   collects at the bottom edge of the card. Pushing the sector line down with
-   `margin-top: auto` instead looked tidier in theory — sector lines level
-   across the row — but the row is as tall as its longest title, so every
-   one-line card got a void punched between its client and its sector. */
+   descending weight. Content stays top-aligned; any leftover height collects
+   at the card's foot. */
 .pi-card__body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: var(--space-s);
+  padding: var(--space-s) var(--space-s) calc(var(--space-s) + 0.35rem);
 }
-
-/* eyebrow — layer on the left in its own colour, year on the right */
 .pi-card__stamp {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75em;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.55rem;
 }
 .pi-card__layer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
   font-family: var(--font-mono);
   font-size: var(--step--2);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  /* The bordered pill this replaces read as a second button on a card that is
-     already one big button. Colour alone carries the layer, and the top-edge
-     hairline says the same thing again. */
   color: var(--c);
   white-space: nowrap;
+}
+/* the layer's colour as a small lit square — the maquette's pip */
+.pi-card__layer::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: var(--c);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--c) 70%, transparent);
 }
 .pi-card__yr {
   font-family: var(--font-mono);
@@ -357,31 +318,56 @@
   color: var(--ink-40);
   font-variant-numeric: tabular-nums;
 }
-
 .pi-card__title {
   font-family: var(--font-heading);
   font-size: var(--step-1);
-  font-weight: 600;
-  line-height: 1.18;
-  letter-spacing: -0.015em;
+  font-weight: var(--heading-weight);
+  line-height: 1.12;
+  letter-spacing: var(--heading-tracking);
   text-wrap: balance;
-  /* Most titles are one or two lines, so reserving two evens out the bulk of
-     the row without truncating the handful that need a third. */
-  min-height: calc(2 * 1.18em);
 }
 .pi-card__meta {
   font-size: var(--step--1);
   color: var(--ink-60);
   line-height: 1.35;
-  margin-top: 0.3rem;
+  margin-top: 0.4rem;
 }
 .pi-card__sector {
   font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.02em;
+  font-size: var(--step--2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--ink-40);
-  line-height: 1.35;
-  padding-top: 0.55rem;
+  line-height: 1.4;
+  padding-top: 0.6rem;
+  margin-top: auto;
+}
+
+/* the brackets: faint, set in a little; tighten and take the layer's colour */
+.pi-card__reticle {
+  position: absolute;
+  inset: 8px;
+  pointer-events: none;
+  transition: inset var(--t-base) var(--ease);
+}
+.pi-card__reticle i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--c) 30%, transparent);
+  transition: border-color var(--t-base) var(--ease);
+}
+.pi-card__reticle i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.pi-card__reticle i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.pi-card__reticle i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.pi-card__reticle i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.pi-card:hover .pi-card__reticle,
+.pi-card:focus-visible .pi-card__reticle {
+  inset: 5px;
+}
+.pi-card:hover .pi-card__reticle i,
+.pi-card:focus-visible .pi-card__reticle i {
+  border-color: var(--c);
 }
 
 /* Cards fade up once on mount. Keyed by slug, so re-filtering reorders the
@@ -389,80 +375,70 @@
 @media (prefers-reduced-motion: no-preference) {
   .pi-grid > li {
     animation: pi-in var(--t-slow) var(--ease) backwards;
-    animation-delay: calc(min(var(--i), 12) * 35ms);
+    animation-delay: calc(min(var(--i), 12) * 35ms + 0.2s);
   }
   @keyframes pi-in {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(var(--rise-in));
     }
   }
 }
 
-@media (max-width: 640px) {
-  /* back link and search share the first row; the title gets its own, so it
-     can never be clipped between them */
-  .pc-top {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      'back  right'
-      'title title';
-    align-items: center;
-    gap: var(--space-xs) var(--space-s);
-    padding: var(--space-s) var(--space-m);
+@media (max-width: 760px) {
+  .pc.section {
+    padding-top: calc(var(--header-h) + var(--space-l));
   }
-  .pc-back {
-    grid-area: back;
-    /* it's a pill now, and a grid item stretches to its column by default —
-       without this it spans the whole row */
-    justify-self: start;
+  .pc .section__head {
+    margin-bottom: var(--space-l);
   }
-  .pc-title {
-    grid-area: title;
-  }
-  .pc-top-right {
-    grid-area: right;
-  }
-
-  .pi-bar {
-    padding: var(--space-s) var(--space-m);
-    gap: var(--space-s);
-  }
-  .pi-facet {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.35rem;
-  }
-  .pi-facet__name {
-    width: auto;
-  }
-  /* count · clear · sort don't fit on one phone-width line once "Clear
-     filters" appears, so let the sort control drop to its own row */
-  .pi-controls {
+  .pi-tools {
     width: 100%;
     margin-left: 0;
-    flex-wrap: wrap;
     justify-content: space-between;
-    row-gap: var(--space-2xs);
+    gap: var(--space-s);
   }
-  /* two columns rather than one — a single column of 16:9 posters turns 16
+  .pi-count {
+    font-size: var(--step--2);
+    letter-spacing: 0.08em;
+  }
+  .pi-sort {
+    padding-left: 0;
+    border-left: 0;
+    gap: 0;
+  }
+  .pi-sort__opt {
+    padding-inline: 0.42em;
+  }
+  .pi-sort__opt::after {
+    left: 0.42em;
+    right: 0.42em;
+  }
+}
+@media (max-width: 640px) {
+  /* two columns rather than one — a single column of 16:9 posters turns 17
      projects into a very long scroll for no extra legibility */
   .pi-grid {
-    padding: var(--space-s) var(--space-m) var(--space-xl);
     grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
     gap: var(--space-s);
   }
   .pi-card__body {
-    padding: var(--space-xs);
+    padding: var(--space-xs) var(--space-xs) calc(var(--space-xs) + 0.3rem);
   }
   /* Two columns at phone width leave ~9.5rem per card, so the title steps back
      down; --step-1 wrapped most of them onto three lines. */
   .pi-card__title {
     font-size: var(--step-0);
   }
-  .pi-card__sector {
-    padding-top: 0.4rem;
+  .pi-card__reticle {
+    inset: 5px;
+  }
+  .pi-card__reticle i {
+    width: 10px;
+    height: 10px;
+  }
+  .pi-chip {
+    padding: 0.55em 0.75em;
   }
 }
 

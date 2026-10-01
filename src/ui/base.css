@@ -298,47 +298,72 @@ img {
 
 /* ---------- Buttons ---------- */
 
+/* One button, two strengths. Both are an outline with the label in mono caps;
+   on hover a solid fill sweeps in from the left — the same drawn-in gesture as
+   the contact email's rule and the nav's underline — and the button lifts a
+   touch. The primary is drawn in its colour (--btn-bg: the accent, or a card's
+   layer colour) over a faint wash of it; the ghost is a plain hairline that
+   takes the accent as it fills. It used to be a flat block of solid colour,
+   the heaviest thing on any panel it sat on. */
 .btn {
   --btn-bg: var(--accent);
   --btn-fg: var(--accent-contrast);
+  --btn-ink: color-mix(in srgb, var(--btn-bg) 72%, white);
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.55em;
   font-family: var(--font-mono);
   font-size: var(--step--1);
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   line-height: 1;
-  padding: 0.85em 1.2em;
+  padding: 0.9em 1.25em;
   border-radius: var(--radius-s);
-  border: 1px solid transparent;
-  background: var(--btn-bg);
-  color: var(--btn-fg);
+  border: 1px solid color-mix(in srgb, var(--btn-bg) 70%, transparent);
+  background:
+    linear-gradient(var(--btn-bg), var(--btn-bg)) left / 0% 100% no-repeat,
+    color-mix(in srgb, var(--btn-bg) 12%, transparent);
+  color: var(--btn-ink);
   text-decoration: none;
   cursor: pointer;
-  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease),
-    background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  transition: transform var(--t-fast) var(--ease), background-size var(--t-base) var(--ease),
+    border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-base) var(--ease);
 }
 .btn:hover,
 .btn:focus-visible {
   transform: translateY(var(--lift));
-  box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--btn-bg) 70%, transparent);
+  background-size: 100% 100%, auto;
+  border-color: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--btn-bg) 80%, transparent);
 }
 .btn:active {
   transform: none;
   transition-duration: 0.06s;
 }
-.btn--ghost {
-  --btn-bg: transparent;
-  --btn-fg: var(--ink);
-  border-color: var(--line);
+/* a trailing arrow nudges the way it points */
+.btn > span[aria-hidden] {
+  transition: transform var(--t-fast) var(--ease);
 }
-.btn--ghost:hover,
-.btn--ghost:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent-ink);
-  box-shadow: none;
+.btn:hover > span[aria-hidden],
+.btn:focus-visible > span[aria-hidden] {
+  transform: translate(2px, -2px);
+}
+.btn--ghost {
+  --btn-bg: var(--accent);
+  border-color: var(--line-strong);
+  background:
+    linear-gradient(var(--btn-bg), var(--btn-bg)) left / 0% 100% no-repeat,
+    transparent;
+  color: var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn > span[aria-hidden] {
+    transition: none;
+  }
 }
 
 /* ---------- Case story ---------- */

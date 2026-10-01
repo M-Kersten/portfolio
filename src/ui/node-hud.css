@@ -333,7 +333,7 @@
   border: 1px solid color-mix(in srgb, var(--card-accent) 30%, var(--line)); border-radius: var(--radius-s); padding: 0.15em 0.5em;
 }
 .node-hud__actions { display: flex; flex-wrap: wrap; gap: var(--space-s); align-items: center; margin-top: 0.2em; }
-.node-hud__discuss { display: inline-flex; }
+.node-hud__discuss { display: inline-flex; --btn-bg: var(--card-accent); }
 .node-hud .story-links { margin-top: var(--space-m); padding-bottom: var(--space-s); }
 
 /* narrow desktops: don't let the column get too tight against a big ring */

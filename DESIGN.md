@@ -57,11 +57,11 @@ spacing:
   2xl: "7.5rem"
 components:
   button-primary:
-    backgroundColor: "{colors.cyan}"
-    textColor: "{colors.accent-contrast}"
+    backgroundColor: "color-mix(in srgb, {colors.cyan} 12%, transparent)"
+    textColor: "color-mix(in srgb, {colors.cyan} 72%, white)"
     typography: "{typography.label}"
     rounded: "{rounded.sm}"
-    padding: "0.85em 1.2em"
+    padding: "0.9em 1.25em"
   button-primary-hover:
     backgroundColor: "{colors.cyan}"
     textColor: "{colors.accent-contrast}"
@@ -70,10 +70,10 @@ components:
     textColor: "{colors.ink}"
     typography: "{typography.label}"
     rounded: "{rounded.sm}"
-    padding: "0.85em 1.2em"
+    padding: "0.9em 1.25em"
   button-ghost-hover:
-    backgroundColor: "transparent"
-    textColor: "{colors.cyan}"
+    backgroundColor: "{colors.cyan}"
+    textColor: "{colors.accent-contrast}"
 ---
 
 # Design System: Merijn Kersten — Portfolio
@@ -199,13 +199,14 @@ Corners are deliberately small and crisp — `--radius` (4px) for cards, dialogs
 ## Components
 
 ### Buttons
-- **Shape:** small radius (2px), 1px border (transparent on primary, `--line` on ghost).
-- **Primary:** `--btn-bg: var(--accent)` (cyan) fill, `--accent-contrast` text, Space Mono uppercase label, `0.85em 1.2em` padding; on hover or focus lifts `--lift` (2px) over a soft shadow in its own colour, and settles back on press.
-- **Ghost:** transparent fill, `--ink` text, `--line` border; hover and focus shift border and text to the accent colour and lift it the same 2px, no added shadow.
+- **Shape:** small radius (2px), 1px border, Space Mono uppercase label, `0.9em 1.25em` padding.
+- **Primary:** drawn in its colour (`--btn-bg`: the accent, or a card's layer colour) — a 70% outline over a 12% wash, the label in a lightened tint of it.
+- **Ghost:** a `--line-strong` hairline, `--ink` label, no fill.
+- **Hover / focus:** both fill the same way — a solid fill in `--btn-bg` sweeps in from the left (the contact email's drawn-in rule, at button size), the label turns `--accent-contrast`, the button lifts `--lift` over a soft shadow in its colour, and a trailing arrow nudges the way it points. Settles back on press. (The primary used to be a flat block of solid colour at rest, the heaviest thing on any panel it sat on.)
 
-### Chips (project tech tags)
-- **Style:** "engraved/OLED-plate" chips — small radius (2px), solid near-black ground (`color-mix(#05070a, transparent)`), a hairline border tinted toward the active card's layer accent, an inset 1px shadow for a stamped/engraved feel, Space Mono label.
-- **State:** tag-kind variants (`data-kind="freelance"` / `"passion"`) swap to Freelance Lavender / Passion Pink for both text and border — the only places those two hues appear.
+### Chips
+- **Tech tags** (cards, the focus sheet): mono uppercase, `--step--2`, a hairline `--line` frame at 2px radius, `--ink-60` label. Tag-kind variants (`data-kind="freelance"` / `"passion"`) swap to Freelance Lavender / Passion Pink for both text and border — the only places those two hues appear.
+- **Filter chips** (/projects): a mono label with its count, framed by scanner brackets drawn as background. At rest the corners are a whisper; under the pointer they tighten and take the accent; picked, the tag lights up between them. "All" leads the row as the cleared state.
 
 ### Cards / Containers
 - **Corner Style:** 4px radius (`--radius`).

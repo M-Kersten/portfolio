@@ -9,15 +9,18 @@ import { Scramble } from './Scramble';
 // break like its ghost: on narrow screens a long line ("From the scale of a
 // city") must wrap, and the no-wrap overlay used to paint one clipped line
 // straight off the right edge of the phone.
-export function SectionTitle({ children }: { children: string }) {
+// `level` is for a page whose opening IS its title (/projects): the same look,
+// as the page's h1.
+export function SectionTitle({ children, level = 2 }: { children: string; level?: 1 | 2 }) {
   const lines = children.split('\n');
+  const H = level === 1 ? 'h1' : 'h2';
   return (
-    <h2 className="section__title">
+    <H className="section__title">
       {lines.map((line, i) => (
         <span className="section__title-ln" style={{ '--ln': i } as CSSProperties} key={i}>
           <Scramble text={line} delay={i * 150} wrap />
         </span>
       ))}
-    </h2>
+    </H>
   );
 }

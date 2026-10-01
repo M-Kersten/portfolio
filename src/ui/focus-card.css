@@ -29,12 +29,47 @@
   backdrop-filter: blur(10px);
   animation: focus-fade var(--t-base) var(--ease);
 }
-.focus__card {
+/* The shell: the sheet plus the scanner brackets round it. It carries the
+   entrance (the sheet rises, the brackets lock on) and the layer colour. */
+.focus__shell {
   --card-accent: var(--accent);
+  position: relative;
+  width: min(1280px, 100%);
+  animation: focus-pop var(--t-base) var(--ease);
+}
+.focus__shell[data-layer='city'] { --card-accent: var(--cyan); }
+.focus__shell[data-layer='room'] { --card-accent: var(--coral); }
+.focus__shell[data-layer='chip'] { --card-accent: var(--lime); }
+/* the four corners, just outside the sheet's edge, closing in from wide as it
+   arrives — the waypoint card's lock-on at the size of the sheet */
+.focus__frame {
+  position: absolute;
+  inset: -7px;
+  z-index: 1;
+  pointer-events: none;
+  animation: focus-lock var(--t-slow) var(--ease) both;
+}
+.focus__frame i {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--card-accent);
+}
+.focus__frame i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.focus__frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.focus__frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.focus__frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+@keyframes focus-lock {
+  from {
+    inset: -26px;
+    opacity: 0;
+  }
+}
+.focus__card {
   position: relative;
   /* Wide enough for three beats side by side at full size, and to give the
      writing room to breathe — the whole point of the shape. */
-  width: min(1280px, 100%);
+  width: 100%;
   max-height: calc(100svh - var(--header-h) - var(--space-l));
   overflow: hidden auto;
   /* a flick past the end of the gallery shouldn't rubber-band the page behind */
@@ -47,49 +82,69 @@
     'gal  gal';
   align-content: start;
   /* the same square-dot field the rest of the site uses, flat — no lift
-     gradient and no glass, because a sheet is not a raised object */
+     gradient and no glass, because a sheet is not a raised object. The edge is
+     a hairline; the brackets outside it carry the colour. */
   background: var(--dots-faint), var(--paper-2);
   background-size: 30px 30px, auto;
-  border: 1px solid color-mix(in srgb, var(--card-accent) 40%, var(--line));
-  animation: focus-pop var(--t-base) var(--ease);
+  border: 1px solid var(--line);
 }
 .focus__card[data-layer='city'] { --card-accent: var(--cyan); }
 .focus__card[data-layer='room'] { --card-accent: var(--coral); }
 .focus__card[data-layer='chip'] { --card-accent: var(--lime); }
 
-/* The sheet's header rule: the stack, and the way out. Spans both columns so
-   the ✕ has a home that isn't on top of the video. */
+/* The sheet's header rule: the layer, the stack, and the way out. Spans both
+   columns so the ✕ has a home that isn't on top of the video. */
 .focus__bar {
   grid-area: bar;
   display: flex;
   align-items: center;
   gap: var(--space-s);
   padding: var(--space-2xs) var(--space-2xs) var(--space-2xs) var(--space-m);
-  border-bottom: 1px solid color-mix(in srgb, var(--card-accent) 28%, var(--line));
-  min-height: 3.05rem; /* holds the rule's height when a case lists no stack */
+  border-bottom: 1px solid var(--line);
+  min-height: 3.4rem; /* holds the rule's height when a case lists no stack */
 }
-/* Engraved plate chips: sharp corners, solid ground, hairline mechanical
-   border, mono — each tag reads as a component label stamped on the sheet.
-   They wrap rather than scroll, so a long stack takes a second line instead of
-   hiding its tail. */
+/* the layer, as the index card's eyebrow: a lit pip in the layer colour */
+.focus__layer {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--card-accent);
+}
+.focus__layer::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--card-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--card-accent) 70%, transparent);
+}
+/* The stack as tags — the same mono, hairline-framed tags the timeline cards
+   carry. They wrap rather than scroll, so a long stack takes a second line
+   instead of hiding its tail. */
 .focus__chips {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
   gap: 0.4em;
   margin: 0;
-  padding: 0;
+  padding: 0 0 0 var(--space-s);
+  border-left: 1px solid var(--line);
   min-width: 0;
 }
 .focus__chips li {
   font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.04em;
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   line-height: 1.4;
-  color: color-mix(in srgb, var(--card-accent) 70%, var(--ink));
-  background: color-mix(in srgb, #05070a 55%, transparent);
-  border: 1px solid color-mix(in srgb, var(--card-accent) 26%, var(--line));
-  padding: 0.14em 0.5em;
+  color: var(--ink-60);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  padding: 0.25em 0.6em;
 }
 
 .focus__body {
@@ -118,20 +173,26 @@
   padding-top: var(--space-2xs);
 }
 
+/* the title in the display voice, at the size of a section's lead-in rather
+   than a dialog's caption */
 .focus__title {
-  font-family: var(--font-heading);
-  font-size: var(--step-2);
-  line-height: 1.05;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-stretch: var(--display-stretch);
+  font-variation-settings: var(--display-axes);
+  font-size: calc(var(--step-4) * var(--display-scale));
+  line-height: var(--display-leading);
+  letter-spacing: var(--display-tracking);
   margin: 0;
   text-wrap: balance;
 }
 .focus__outcome {
-  font-family: var(--font-heading);
   font-size: var(--step-1);
-  line-height: 1.2;
+  line-height: 1.3;
   color: var(--card-accent);
-  margin: 0.2em 0 0;
-  max-width: 40ch;
+  margin: 0.5em 0 0;
+  max-width: 44ch;
+  text-wrap: pretty;
 }
 .focus__actions {
   display: flex;
@@ -182,6 +243,7 @@
   cursor: pointer;
   color: var(--card-accent);
 }
+/* round, like the porthole it opens onto */
 .focus__play span {
   display: grid;
   place-items: center;
@@ -189,6 +251,8 @@
   height: 3.75rem;
   padding-left: 0.15em; /* optical centring: a triangle's mass sits left */
   border: 1px solid var(--card-accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--card-accent) 14%, transparent);
   background: color-mix(in srgb, #05070a 60%, transparent);
   font-size: 1.05rem;
   line-height: 1;
@@ -262,21 +326,29 @@
 .focus__block dd { color: var(--ink); }
 .focus__block > :nth-last-child(-n + 2) { border-bottom: 0; }
 
+/* the same round close as the node dossier's */
 .focus__close {
   flex: none;
   margin-left: auto;
   display: grid;
   place-items: center;
-  width: 2.3rem;
-  height: 2.3rem;
-  border: 1px solid var(--line);
-  background: transparent;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
   color: var(--ink);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1;
+  transition: border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
-.focus__close:hover { border-color: var(--card-accent); color: var(--card-accent); }
+.focus__close span {
+  transition: transform var(--t-base) var(--ease);
+}
+.focus__close:hover,
+.focus__close:focus-visible { border-color: var(--card-accent); color: var(--card-accent); }
+.focus__close:hover span { transform: rotate(90deg); }
 
 /* Below the two-column threshold the side column stops being a column and the
    sheet stacks. It keeps source order rather than hoisting the media back to
@@ -317,7 +389,9 @@
 }
 
 @media (max-width: 40rem) {
-  .focus { padding: calc(var(--header-h) + var(--space-2xs)) var(--space-2xs) var(--space-2xs); }
+  .focus { padding: calc(var(--header-h) + var(--space-xs)) var(--space-xs) var(--space-xs); }
+  .focus__frame { inset: -5px; }
+  .focus__frame i { width: 14px; height: 14px; }
   .focus__body { padding: var(--space-s) var(--space-s) var(--space-m); }
   .focus__side { padding: var(--space-s); }
   .focus__bar { padding-left: var(--space-s); }
@@ -508,7 +582,9 @@
   /* The sheet's own entrance was missing from this list: it faded the backdrop
      and slid the sheet up regardless of the setting. */
   .focus,
-  .focus__card { animation: none; }
+  .focus__shell,
+  .focus__frame { animation: none; }
+  .focus__close span { transition: none; }
   .focus__media img,
   .focus__play span { transition: none; }
   .focus__media[data-playable]:hover img,
