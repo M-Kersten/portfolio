@@ -3,21 +3,21 @@
     "layer": "city",
     "index": "01",
     "title": "City: maps & the real world",
-    "body": "The big scale. I love playing with real-world data like maps, point clouds and GPS, and turning it into something you can actually walk through, be it a digital twin or location-based AR. That this works at all still feels a bit like magic.",
+    "body": "The big scale, i love playing with real-world data like maps, point clouds, GPS. Turning it into something you can actually move through, be it digital twins or location based AR. The fact that this is possible is still magical to me",
     "tags": ["VPS", "RTK", "Point clouds", "GIS"]
   },
   {
     "layer": "room",
     "index": "02",
     "title": "Room: games, apps & toys",
-    "body": "The human scale: the things people pick up and play with. Games, apps, websites, buttons and sliders. This is where I get to prototype fast, from a tiny mobile game to a training sim to a whole UX overhaul. If it makes someone smile or learn something, I did my job.",
+    "body": "The human scale, what people pick up and play with. Games, apps, websites, buttons and sliders. This is where I get to be rapidly prototype, from a tiny mobile game, training sim to whole UX overhaul. If it makes someone smile or learn something i did my job.",
     "tags": ["Unity", "VR", "Mobile", "Web", "UX"]
   },
   {
     "layer": "chip",
     "index": "03",
     "title": "Chip: tools & the nerdy bits",
-    "body": "The smallest scale, and the one that makes everything else easier: tools, computer vision, AI and the work nobody sees. SDKs, synthetic training data, NPCs you can talk to, a simple but solid backend. The plumbing, basically. Nobody frames a photo of the plumbing, but try living without it.",
+    "body": "The smallest scale is the one that make my work easier: tools, computer vision, AI and work nobody sees. From SDK's, synthetic data generation, npc's you can talk to, to a simple but solid backend. The stuff needed to run everything.",
     "tags": ["Computer vision", "AI · LLMs", "Backends", "Databases"]
   }
 ]

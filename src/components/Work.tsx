@@ -659,7 +659,7 @@ export function Work() {
             owns the bottom edge. So the cue goes here, right above it. */}
         {isNarrow && (
           <p className="wall__swipe" aria-hidden="true">
-            swipe to time-travel <span className="wall__swipe-arrow">→</span>
+            swipe through time <span className="wall__swipe-arrow">→</span>
           </p>
         )}
       </div>
@@ -829,7 +829,7 @@ export function Work() {
             <i />
             <b />
           </div>
-          <span className="wall__cue" aria-hidden="true">scroll to time-travel →</span>
+          <span className="wall__cue" aria-hidden="true">scroll through time →</span>
           {/* Razor-thin scanner-frame corners around the viewport. */}
           <div className="wall__frame" aria-hidden="true">
             <i />
