@@ -1,8 +1,8 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { Link } from 'react-router-dom';
 import { cases, caseBySlug, site, type CareerEntry, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
-import { contourCss, contourTile } from '../lib/contours';
+import { dotNetworkSteps, type DotNet } from '../lib/contours';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard } from './CaseCard';
 import { FocusCard } from './FocusCard';
@@ -192,17 +192,36 @@ function bandsAt(bands: CareerBand[], x: number): { main: CareerBand; concurrent
 }
 
 // ---- Travelling the route --------------------------------------------------
-// The middle of the screen is "now" on the map: a playhead sits there on the
-// route, and everything is measured from it each frame. The route behind it is
-// lit in its employers' colours and dim ahead; each waypoint pings as the head
-// crosses it, and its card powers on — the poster comes up from grey, the
-// brackets lock — the maquette's ghost → alive, at timeline scale. And the
-// cards swing as they travel: square-on in the middle, turned toward it and set
-// back toward the edges, so the wall reads as a curved gallery you're riding
-// past rather than a flat strip sliding by.
+// The middle of the screen is "now" on the map, and everything is measured
+// from it each frame. The route behind it is lit in its employers' colours and
+// dim ahead; each waypoint pings as the middle crosses it, and its card powers
+// on — the poster comes up from grey, the brackets lock — the maquette's ghost
+// → alive, at timeline scale. Under it all, the ground's dots get connected as
+// you pass (lib/contours): the past joined up into a contour map, the future
+// still loose dots. And the cards swing as they travel: square-on in the
+// middle, turned toward it and set back toward the edges, so the wall reads as
+// a curved gallery you're riding past rather than a flat strip sliding by.
 const SWING = 16; // degrees a card turns at the screen's edge
 const SWING_DEPTH = 70; // px it sets back there
 const DIGITS = '0123456789';
+const NET_STRIP = 90; // px per strip of the dot network
+const NET_FRONT = 0.3; // how wide the drawing front is, as a share of the screen
+
+/** The dot network as SVG: one group per strip, each drawn as far as its --p
+ *  (written by Work.tsx). Rendered twice: the ground, and the cursor's bright
+ *  copy of it. */
+const NetSvg = memo(function NetSvg({ net, refs }: { net: DotNet; refs: MutableRefObject<(SVGGElement | null)[]> }) {
+  return (
+    <svg className="wall__net" width={net.width} height={net.height} viewBox={`0 0 ${net.width} ${net.height}`}>
+      {net.chunks.map((c, i) => (
+        <g key={i} ref={(el) => (refs.current[i] = el)} style={{ '--reach': `${c.reach}px` } as CSSProperties}>
+          <path className="wall__net-l" d={c.lines} />
+          <path className="wall__net-d" d={c.dots} />
+        </g>
+      ))}
+    </svg>
+  );
+});
 
 /** The year as an odometer: four windows, each a strip of 0–9 rolled to its digit. */
 function Odometer({ year, refs }: { year: number; refs: MutableRefObject<(HTMLSpanElement | null)[]> }) {
@@ -257,18 +276,22 @@ export function Work() {
   const farOffset = useRef({ x: 0, y: 0 });
   const lastCursor = useRef<{ x: number; y: number; r: number } | null>(null);
   // Per-frame handles for travelling the route (applyHead): each card's slot,
-  // each waypoint's node, each employer band, the playhead and the year's
-  // digit strips — written straight to the DOM, never through React state.
+  // each waypoint's node, each employer band and the year's digit strips —
+  // written straight to the DOM, never through React state.
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
   const nodeRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const bandRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const headRef = useRef<HTMLDivElement>(null);
   const digitRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const lastHead = useRef<number | null>(null);
-  const headBand = useRef<string | null>(null);
-  // The contour sheet behind the route (lib/contours), built for the pin's
-  // height once it's on the page; the dot grid stands in until then.
-  const [topo, setTopo] = useState<{ base: string; glow: string; w: number; h: number } | null>(null);
+  // The dot network on the ground (lib/contours), built for the ground's size
+  // as the section comes near; until then the ground is the plain dot grid.
+  // Its strips (in the ground and in the glow's bright copy) are drawn in as
+  // you travel (applyNet); netP is how far each one is drawn so far.
+  const [net, setNet] = useState<DotNet | null>(null);
+  const netRefs = useRef<(SVGGElement | null)[]>([]);
+  const netGlowRefs = useRef<(SVGGElement | null)[]>([]);
+  const netP = useRef<number[]>([]);
+  const netHead = useRef<{ head: number; vw: number } | null>(null);
 
   // Track the narrow breakpoint so orientation / resize flips the mode live.
   useEffect(() => {
@@ -375,19 +398,43 @@ export function Work() {
         const v = `${(f * 100).toFixed(2)}%`;
         if (el.style.getPropertyValue('--fill') !== v) el.style.setProperty('--fill', v);
       }
-      // the playhead takes the colour of the stint it's on
-      const on = bandsAt(bands, head)?.main;
-      if (headRef.current && on && headBand.current !== on.color) {
-        headBand.current = on.color;
-        headRef.current.style.setProperty('--band', on.color);
-      }
       lastHead.current = head;
     },
     [timeline, reduced],
   );
 
+  // Connect the ground's dots up to `head` (a ground x — the one under the
+  // middle of the screen, which on the parallaxed desktop ground isn't the
+  // plane's). The drawing runs with the scroll: strips well behind the head
+  // are drawn, strips well ahead are loose dots, and across a soft front
+  // (NET_FRONT of the screen, centred on the head) each strip is drawn part
+  // of the way, so the lines grow and shrink as you travel either way.
+  // Reduced motion gets the whole map, drawn, at once.
+  const applyNet = useCallback(
+    (head: number, vw: number, all = false) => {
+      netHead.current = { head, vw };
+      const chunks = net?.chunks;
+      if (!chunks) return;
+      const front = NET_FRONT * vw;
+      for (let i = 0; i < chunks.length; i++) {
+        const f = reduced ? 1 : (head - (chunks[i].x0 + NET_STRIP / 2)) / front + 0.5;
+        const p = Math.round(Math.max(0, Math.min(1, f)) * 50) / 50;
+        if (!all && netP.current[i] === p) continue;
+        netP.current[i] = p;
+        netRefs.current[i]?.style.setProperty('--p', `${p}`);
+        netGlowRefs.current[i]?.style.setProperty('--p', `${p}`);
+      }
+    },
+    [net, reduced],
+  );
+  // A new network (or a change of motion setting) catches up to where we are
+  // before it paints, so it arrives already drawn rather than drawing in.
+  useLayoutEffect(() => {
+    if (netHead.current) applyNet(netHead.current.head, netHead.current.vw, true);
+  }, [applyNet]);
+
   // The hand-panned strip (phones, reduced motion) drives the same travel off
-  // its own scroll; the playhead rides along at the strip's middle.
+  // its own scroll; its ground scrolls with it, so both heads are its middle.
   useEffect(() => {
     if (!manualPan) return;
     const pin = pinRef.current;
@@ -395,9 +442,9 @@ export function Work() {
     let raf = 0;
     const frame = () => {
       raf = 0;
-      const left = pin.scrollLeft;
-      if (headRef.current) headRef.current.style.transform = `translateX(${left}px)`;
-      applyHead(left + pin.clientWidth / 2, pin.clientWidth);
+      const mid = pin.scrollLeft + pin.clientWidth / 2;
+      applyHead(mid, pin.clientWidth);
+      applyNet(mid, pin.clientWidth);
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(frame);
@@ -409,41 +456,63 @@ export function Work() {
       pin.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
       if (raf) cancelAnimationFrame(raf);
-      if (headRef.current) headRef.current.style.transform = '';
     };
-  }, [manualPan, applyHead]);
+  }, [manualPan, applyHead, applyNet]);
 
-  // Build the contour sheet for the pin's height — after first paint (it's a
-  // tenth of a second of maths and nothing on screen needs it yet), and again
-  // only if a resize changes the height enough to matter.
+  // Build the dot network for the ground's size once the section is within a
+  // screen of view, and again only if a resize changes the size enough to
+  // matter. It's most of a tenth of a second of maths the first time round,
+  // so it runs a few milliseconds at a time in idle moments rather than
+  // stalling a frame while you scroll toward it.
   useEffect(() => {
-    const pin = pinRef.current;
-    if (!pin) return;
-    let built = 0;
+    const far = farRef.current;
+    if (!far) return;
+    let built = { w: 0, h: 0 };
+    let near = false;
     let t = 0;
+    let job = 0;
+    const idle = (fn: () => void) =>
+      typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 300 }) : window.setTimeout(fn, 16);
+    const unidle = (h: number) => (typeof cancelIdleCallback === 'function' ? cancelIdleCallback(h) : clearTimeout(h));
     const build = () => {
-      const h = Math.round(pin.clientHeight);
-      if (!h || Math.abs(h - built) < 60) return;
-      built = h;
-      const tile = contourTile(1600, h, { cell: 8, levels: 18 });
-      setTopo({
-        base: contourCss(tile, '#eaeaea', 0.075, 0.14),
-        glow: contourCss(tile, '#27e8f2', 0.85, 1, 1.5),
-        w: tile.width,
-        h: tile.height,
-      });
+      const w = Math.round(far.offsetWidth);
+      const h = Math.round(far.offsetHeight);
+      if (!near || !w || !h || (Math.abs(h - built.h) < 60 && w === built.w)) return;
+      built = { w, h };
+      unidle(job);
+      const steps = dotNetworkSteps(w, h, { chunk: NET_STRIP });
+      const run = () => {
+        const t0 = performance.now();
+        for (;;) {
+          const r = steps.next();
+          if (r.done) return setNet(r.value);
+          if (performance.now() - t0 > 6) break;
+        }
+        job = idle(run);
+      };
+      job = idle(run);
     };
-    t = window.setTimeout(build, 60);
+    const io = new IntersectionObserver(
+      (es) => {
+        if (!es[0].isIntersecting || near) return;
+        near = true;
+        t = window.setTimeout(build, 30);
+      },
+      { rootMargin: '100% 0px' },
+    );
+    io.observe(far.parentElement ?? far);
     const onResize = () => {
       clearTimeout(t);
       t = window.setTimeout(build, 250);
     };
     window.addEventListener('resize', onResize);
     return () => {
+      io.disconnect();
       clearTimeout(t);
+      unidle(job);
       window.removeEventListener('resize', onResize);
     };
-  }, []);
+  }, [timeline.width, cfg.planeVh]);
 
   useEffect(() => {
     if (manualPan) return;
@@ -514,6 +583,7 @@ export function Work() {
       if (farRef.current) farRef.current.style.transform = `translate3d(${-farOffset.current.x}px, ${-farOffset.current.y}px, 0)`;
       syncGlow();
       applyHead(x + window.innerWidth / 2, window.innerWidth);
+      applyNet(farOffset.current.x + window.innerWidth / 2, window.innerWidth);
       // Keep animating (even without scroll events) until the motion settles.
       if (Math.abs(vel) >= 0.05 && !raf) raf = requestAnimationFrame(update);
     };
@@ -539,16 +609,14 @@ export function Work() {
       // Over a waypoint card, grow the pool and centre it on the card so the
       // dots around the whole tile light up (the card occludes the middle).
       const tile = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('.worktile');
-      // (the pools are wide: contour lines are sparser than the dots were,
-      // and a small pool lit one line or none)
       let cx = x;
       let cy = y;
-      let rad = 190;
+      let rad = 150;
       if (tile) {
         const t = tile.getBoundingClientRect();
         cx = t.left + t.width / 2 - r.left;
         cy = t.top + t.height / 2 - r.top;
-        rad = Math.max(t.width, t.height) / 2 + 170;
+        rad = Math.max(t.width, t.height) / 2 + 120;
       }
       lastCursor.current = { x: cx, y: cy, r: rad };
       glow.style.setProperty('--mx', `${cx}px`);
@@ -565,7 +633,7 @@ export function Work() {
       window.removeEventListener('mousemove', onMove);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [manualPan, timeline.width, timeline.minYear, timeline.maxYear, cfg, applyHead]);
+  }, [manualPan, timeline.width, timeline.minYear, timeline.maxYear, cfg, applyHead, applyNet]);
 
   // Mobile: touch has no hover, so the dot field lights up along your *scroll*
   // instead of the cursor — a soft wave that travels with you through the
@@ -674,22 +742,17 @@ export function Work() {
             className="wall__far"
             ref={farRef}
             aria-hidden="true"
-            data-topo={topo ? '' : undefined}
-            style={{
-              width: `${timeline.width}px`,
-              height: `${cfg.planeVh * 100}svh`,
-              ...(topo ? { backgroundImage: topo.base, backgroundSize: `${topo.w}px ${topo.h}px` } : null),
-            }}
-          />
-          {/* Hover glow — a bright copy of the contour sheet, masked to a soft
-              pool around the cursor so the lines nearest it light up. Sits
-              between the sheet and the plane so the waypoints occlude it. */}
-          <div
-            className="wall__glow"
-            ref={glowRef}
-            aria-hidden="true"
-            style={topo ? { backgroundImage: topo.glow, backgroundSize: `${topo.w}px ${topo.h}px` } : undefined}
-          />
+            style={{ width: `${timeline.width}px`, height: `${cfg.planeVh * 100}svh` }}
+          >
+            {net && <NetSvg net={net} refs={netRefs} />}
+          </div>
+          {/* Hover glow — a bright copy of the ground (dots and the network
+              drawn so far), masked to a soft pool around the cursor so what's
+              nearest it lights up. Sits between the ground and the plane so
+              the waypoints occlude it. */}
+          <div className="wall__glow" ref={glowRef} aria-hidden="true">
+            {net && <NetSvg net={net} refs={netGlowRefs} />}
+          </div>
           {/* behind the plane, so the cards pass over it */}
           <span className="wall__year" ref={yearRef} aria-hidden="true">
             <Odometer year={timeline.minYear} refs={digitRefs} />
@@ -823,11 +886,6 @@ export function Work() {
                 />
               </Fragment>
             ))}
-          </div>
-          {/* the playhead: "now", on the route at the middle of the screen */}
-          <div className="wall__head" ref={headRef} aria-hidden="true">
-            <i />
-            <b />
           </div>
           <span className="wall__cue" aria-hidden="true">scroll through time →</span>
           {/* Razor-thin scanner-frame corners around the viewport. */}
