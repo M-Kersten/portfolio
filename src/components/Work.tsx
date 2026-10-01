@@ -462,8 +462,9 @@ export function Work() {
   // Build the dot network for the ground's size once the section is within a
   // screen of view, and again only if a resize changes the size enough to
   // matter. It's most of a tenth of a second of maths the first time round,
-  // so it runs a few milliseconds at a time in idle moments rather than
-  // stalling a frame while you scroll toward it.
+  // so it runs in slices between frames rather than stalling one while you
+  // scroll toward it: as much as fits while the browser is idle, a few
+  // milliseconds at a time while it's busy.
   useEffect(() => {
     const far = farRef.current;
     if (!far) return;
@@ -471,8 +472,8 @@ export function Work() {
     let near = false;
     let t = 0;
     let job = 0;
-    const idle = (fn: () => void) =>
-      typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 300 }) : window.setTimeout(fn, 16);
+    const idle = (fn: (d?: IdleDeadline) => void) =>
+      typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 50 }) : window.setTimeout(fn, 0);
     const unidle = (h: number) => (typeof cancelIdleCallback === 'function' ? cancelIdleCallback(h) : clearTimeout(h));
     const build = () => {
       const w = Math.round(far.offsetWidth);
@@ -481,12 +482,13 @@ export function Work() {
       built = { w, h };
       unidle(job);
       const steps = dotNetworkSteps(w, h, { chunk: NET_STRIP });
-      const run = () => {
+      const run = (deadline?: IdleDeadline) => {
         const t0 = performance.now();
         for (;;) {
           const r = steps.next();
           if (r.done) return setNet(r.value);
-          if (performance.now() - t0 > 6) break;
+          const left = deadline && !deadline.didTimeout ? deadline.timeRemaining() : 6 - (performance.now() - t0);
+          if (left < 2) break;
         }
         job = idle(run);
       };
