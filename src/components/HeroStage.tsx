@@ -16,8 +16,8 @@ const STEPS = [0, 1, 2];
 // instead of a silent slideshow. The index carries the layer's accent.
 const CAPTIONS = [
   { index: '01', name: 'city', blurb: 'at the scale of streets', accent: 'var(--cyan)' },
-  { index: '02', name: 'room', blurb: 'the things you pick up and use', accent: 'var(--coral)' },
-  { index: '03', name: 'chip', blurb: 'the tools supporting it all', accent: 'var(--lime)' },
+  { index: '02', name: 'room', blurb: 'the stuff you pick up and play with', accent: 'var(--coral)' },
+  { index: '03', name: 'chip', blurb: 'the nerdy bits holding it all up', accent: 'var(--lime)' },
 ];
 
 // The exploration game: every object in the maquette IS a project — click one
@@ -218,7 +218,7 @@ export function HeroStage() {
       >
         {cue && (
           <p className="hero__hint" aria-hidden="true">
-            ten projects built this miniature — {PRESS} one awake
+            ten projects built this tiny world — {PRESS} one awake
           </p>
         )}
         {manifestOpen && (

@@ -197,7 +197,7 @@ export function Search() {
             <div id="search-results" className="search__results" role="listbox" aria-label="Matching projects" ref={listRef}>
               {results.length === 0 ? (
                 <p className="search__empty">
-                  No projects match “{q.trim()}”. Try a place, a tool, or a client.
+                  404: no project matches “{q.trim()}”. Try a place, a tool or a client.
                 </p>
               ) : (
                 results.map((c, i) => (
