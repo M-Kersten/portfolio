@@ -64,8 +64,12 @@ function floorTint(out: Color, d: number, neutral: Color, accent: Color, bg: Col
   return out.copy(bg).lerp(neutral, 0.06 + 0.5 * fade).lerp(accent, 0.5 * fade);
 }
 
-/** The layer's floor as a lattice of dots. */
-export function DotFloor({ step = 0.26 }: { step?: number }) {
+/** The layer's floor as a lattice of dots — about a hundred of them. The pitch
+ *  was 0.26 (220 dots a floor, three floors deep), which with the drifting field
+ *  above it read as a snowstorm rather than a floor. The lattice is centred on
+ *  the origin, so it sits square under the layer instead of starting at one
+ *  edge and running out short of the other. */
+export function DotFloor({ step = 0.368 }: { step?: number }) {
   const R = FLOOR_R;
   const { accent } = useAccent();
   const { positions, colors } = useMemo(() => {
@@ -75,8 +79,11 @@ export function DotFloor({ step = 0.26 }: { step?: number }) {
     const acc = new Color(accent);
     const bg = new Color(BG);
     const tmp = new Color();
-    for (let x = -R; x <= R + 1e-6; x += step)
-      for (let z = -R; z <= R + 1e-6; z += step) {
+    const K = Math.floor(R / step);
+    for (let i = -K; i <= K; i++)
+      for (let j = -K; j <= K; j++) {
+        const x = i * step;
+        const z = j * step;
         const d = Math.hypot(x, z);
         if (d > R) continue;
         pos.push(x, 0, z);
@@ -119,11 +126,13 @@ export function SurveyMarks() {
     const pos: number[] = [];
     const seg = (x1: number, z1: number, x2: number, z2: number) => pos.push(x1, 0, z1, x2, 0, z2);
 
-    // Bearing graduations round the rim, long every 30°.
+    // Bearing graduations round the rim, every 10°, long every 30°. (Every 5°
+    // was 72 ticks a floor; seen edge-on they scattered round the stack like
+    // so many more particles.)
     const R = FLOOR_R - 0.12;
-    for (let i = 0; i < 72; i++) {
-      const a = (i / 72) * Math.PI * 2;
-      const len = i % 6 === 0 ? 0.11 : 0.045;
+    for (let i = 0; i < 36; i++) {
+      const a = (i / 36) * Math.PI * 2;
+      const len = i % 3 === 0 ? 0.11 : 0.045;
       seg(Math.cos(a) * R, Math.sin(a) * R, Math.cos(a) * (R + len), Math.sin(a) * (R + len));
     }
     return new Float32Array(pos);
@@ -154,7 +163,7 @@ export function PointCloud({ seed, life = 0 }: { seed: number; life?: number }) 
   const reduced = useReducedMotion();
   const positions = useMemo(() => {
     const rnd = makeRand(seed);
-    const n = 32;
+    const n = 16; // was 32 — half the specks, the same drift
     const a = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
       const ang = rnd() * Math.PI * 2;
