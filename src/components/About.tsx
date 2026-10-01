@@ -217,11 +217,11 @@ function aboutStats() {
   const first = Math.min(...career.map((c) => Number(c.from.slice(0, 4))).filter(Boolean));
   const teams = new Set(career.map((c) => c.company)).size;
   return [
-    { n: new Date().getFullYear() - (Number.isFinite(first) ? first : 2016), label: 'years of making it work' },
-    { n: cases.length, label: 'projects, shipped or shelved' },
-    { n: teams, label: 'teams, from start-ups to the military police' },
+    { n: new Date().getFullYear() - (Number.isFinite(first) ? first : 2016), label: 'years since my first internship' },
+    { n: cases.length, label: 'projects on this site, some of them failures' },
+    { n: teams, label: 'companies I’ve worked for' },
     // the launch pad in the city builds its rocket as projects wake (city.tsx)
-    { n: 1, label: 'rocket on a pad in the city. Wake all ten projects to fly it' },
+    { n: 1, label: 'rocket in the city, one piece for every project you wake' },
   ];
 }
 
