@@ -5,15 +5,20 @@ import { asset } from '../lib/asset';
 // A waypoint on the timeline map: a compact card pinned above or below the
 // route, with a small thumbnail, the year as a milestone and a company tag.
 // `style` carries its absolute placement (left = its year, top/bottom = its
-// side). Clicking it lifts the project into the focus view.
+// side) and lands on the slot round the card: the slot is what the timeline
+// swings as the card travels across the screen (--ry/--tz, written per frame by
+// Work.tsx), so the card itself keeps its own hover transform and transition.
+// Clicking it lifts the project into the focus view.
 export function CaseCard({
   study,
   onOpen,
   style,
+  slotRef,
 }: {
   study: CaseStudy;
   onOpen: () => void;
   style?: CSSProperties;
+  slotRef?: (el: HTMLDivElement | null) => void;
 }) {
   const [imgOk, setImgOk] = useState(true);
   const src = asset(`/posters/${study.slug}.jpg`);
@@ -29,38 +34,40 @@ export function CaseCard({
   const yearLabel = study.year?.slice(0, 4);
 
   return (
-    <button
-      type="button"
-      className="worktile"
-      data-layer={study.layer}
-      style={{ ...style, '--card-ang': `${120 + (seed % 90)}deg` } as CSSProperties}
-      onClick={onOpen}
-      // No aria-label: the card's own text (year, company, title, sector) is
-      // its name. A shorter label left out words the card shows, and speech
-      // input users say what they see.
-    >
-      <div className="worktile__media">
-        <div className="worktile__ph" aria-hidden="true" />
-        {imgOk && (
-          <img className="worktile__img" src={src} alt="" loading="lazy" decoding="async" onError={() => setImgOk(false)} />
-        )}
-        <div className="worktile__scrim" aria-hidden="true" />
-      </div>
-      <div className="worktile__body">
-        <div className="worktile__stamp">
-          <span className="worktile__yr">{yearLabel}</span>
-          <span className="worktile__tag" data-kind={study.kind}>{tagText}</span>
+    <div className="worktile-slot" style={style} ref={slotRef}>
+      <button
+        type="button"
+        className="worktile"
+        data-layer={study.layer}
+        style={{ '--card-ang': `${120 + (seed % 90)}deg` } as CSSProperties}
+        onClick={onOpen}
+        // No aria-label: the card's own text (year, company, title, sector) is
+        // its name. A shorter label left out words the card shows, and speech
+        // input users say what they see.
+      >
+        <div className="worktile__media">
+          <div className="worktile__ph" aria-hidden="true" />
+          {imgOk && (
+            <img className="worktile__img" src={src} alt="" loading="lazy" decoding="async" onError={() => setImgOk(false)} />
+          )}
+          <div className="worktile__scrim" aria-hidden="true" />
         </div>
-        <h3 className="worktile__title">{study.title}</h3>
-        <span className="worktile__meta">{metaText}</span>
-      </div>
-      {/* AR-style tracking overlay — corner brackets that "lock on" on hover. */}
-      <span className="worktile__reticle" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-        <i />
-      </span>
-    </button>
+        <div className="worktile__body">
+          <div className="worktile__stamp">
+            <span className="worktile__yr">{yearLabel}</span>
+            <span className="worktile__tag" data-kind={study.kind}>{tagText}</span>
+          </div>
+          <h3 className="worktile__title">{study.title}</h3>
+          <span className="worktile__meta">{metaText}</span>
+        </div>
+        {/* AR-style tracking overlay — corner brackets that "lock on" on hover. */}
+        <span className="worktile__reticle" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+      </button>
+    </div>
   );
 }

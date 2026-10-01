@@ -15,8 +15,10 @@
   /* Gives the motion system's dolly tilt (rotateX at pan speed) its depth. */
   perspective: 1400px;
 }
-/* The dot field, on its own layer so it can drift slower than the cards for a
-   parallax depth cue (transform set per frame in JS). */
+/* The ground the route is drawn on, on its own layer so it can drift slower
+   than the cards for a parallax depth cue (transform set per frame in JS). A
+   topographic sheet once Work.tsx has built it (lib/contours — the image and
+   its size arrive inline); the site's square dots stand in until then. */
 .wall__far {
   position: absolute;
   top: 0;
@@ -41,25 +43,39 @@
   border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
   pointer-events: none;
 }
-/* Employer band — a coloured segment of the route for one stint. */
+/* Employer band — a coloured segment of the route for one stint. Lit behind
+   the playhead and dim ahead of it: the band itself is the dim route, and its
+   ::before is the lit length, --fill of the way along (written per frame by
+   Work.tsx; 100% when nothing drives it, so a static route is fully lit). */
 .tl-band {
   position: absolute;
   top: 50%;
   height: 4px;
   transform: translateY(-50%);
   border-radius: 2px;
-  background: color-mix(in srgb, var(--band) 62%, transparent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--band) 32%, transparent);
+  background: color-mix(in srgb, var(--band) 30%, transparent);
   pointer-events: none;
+}
+.tl-band::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--fill, 100%);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--band) 88%, white);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--band) 55%, transparent);
 }
 /* Concurrent freelance / side work — a slimmer dashed overlay just below. */
 .tl-band--free {
   top: calc(50% + 7px);
-  height: 0;
+  height: 2px;
   border-radius: 0;
-  background: none;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--band) 34%, transparent) 0 6px, transparent 6px 11px);
+}
+.tl-band--free::before {
+  border-radius: 0;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--band) 85%, white) 0 6px, transparent 6px 11px);
   box-shadow: none;
-  border-top: 2px dashed color-mix(in srgb, var(--band) 72%, transparent);
 }
 /* Company name set on top of its band. */
 .tl-band__label {
@@ -254,7 +270,9 @@
   letter-spacing: 0.1em;
   color: var(--ink-40);
 }
-/* Node — the waypoint's mark on the route: a neutral station dot on the band. */
+/* Node — the waypoint's mark on the route: a station dot, dark until the
+   playhead reaches it, then lit in its stint's colour (--band). The head
+   crossing it fires a ping (is-hit): a ring thrown out off the station. */
 .tl-node {
   position: absolute;
   top: 50%;
@@ -263,18 +281,48 @@
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: var(--paper);
-  border: 2px solid color-mix(in srgb, var(--ink) 55%, transparent);
+  border: 2px solid color-mix(in srgb, var(--ink) 40%, transparent);
   z-index: 2;
   pointer-events: none;
+  transition: border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
 }
 .tl-node::after {
   content: '';
   position: absolute;
-  inset: 3px;
+  inset: 2px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--ink) 45%, transparent);
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+  transition: background var(--t-base) var(--ease);
 }
-/* Leader — the thin stem from the route up/down to a card's near edge. */
+.tl-node[data-lit] {
+  border-color: color-mix(in srgb, var(--band, var(--ink)) 85%, white);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--band, var(--accent)) 60%, transparent);
+}
+.tl-node[data-lit]::after {
+  background: var(--ink);
+}
+.tl-node::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--band, var(--accent)) 85%, white);
+  opacity: 0;
+  pointer-events: none;
+}
+.tl-node.is-hit::before {
+  animation: tl-ping 0.9s var(--ease);
+}
+@keyframes tl-ping {
+  0% { transform: scale(0.2); opacity: 0.95; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+/* Leader — the thin stem from the route up/down to a card's near edge; it
+   brightens once its waypoint is lit. */
 .tl-leader {
   position: absolute;
   width: 1px;
@@ -288,10 +336,58 @@
   background: linear-gradient(transparent, var(--line));
 }
 .tl-leader--below { top: 50%; }
+.tl-node[data-lit] + .tl-leader--above { background: linear-gradient(transparent, color-mix(in srgb, var(--ink) 55%, transparent)); }
+.tl-node[data-lit] + .tl-leader--below { background: linear-gradient(color-mix(in srgb, var(--ink) 55%, transparent), transparent); }
 
-/* Hover glow — a bright copy of the dot field, revealed only in a soft pool
-   around the cursor (mask centre = --mx/--my). Its dots are kept aligned to the
-   parallaxed base field via --ox/--oy (set to the field's current drift). */
+/* The playhead: "now", on the route at the middle of the screen — a lit bead
+   in the colour of the stint it's on (--band, from Work.tsx) on a short cursor
+   line across the route. It's what the route's lit length grows from. The line
+   stops short of the cards above and below: the head rides over the plane, and
+   a full-height rule drew across every card that passed the middle. */
+.wall__head {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.wall__head i {
+  position: absolute;
+  left: -0.5px;
+  top: calc(50% - 30px);
+  height: 60px;
+  width: 1px;
+  background: linear-gradient(
+    transparent,
+    color-mix(in srgb, var(--band, var(--accent)) 75%, transparent) 50%,
+    transparent
+  );
+}
+.wall__head b {
+  position: absolute;
+  left: -7px;
+  top: calc(50% - 7px);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--band, var(--accent)) 70%, white);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--band, var(--accent)) 22%, transparent),
+    0 0 22px color-mix(in srgb, var(--band, var(--accent)) 80%, transparent);
+  transition: background var(--t-slow) var(--ease), box-shadow var(--t-slow) var(--ease);
+  animation: head-beat 2.4s var(--ease-in-out) infinite;
+}
+@keyframes head-beat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.82); }
+}
+
+/* Hover glow — a bright copy of the ground (the contour sheet, or the dots
+   before it arrives), revealed only in a soft pool around the cursor (mask
+   centre = --mx/--my) and kept aligned to the parallaxed base via --ox/--oy
+   (set to its current drift). */
 .wall__glow {
   position: absolute;
   inset: 0;
@@ -299,8 +395,8 @@
   background-image: var(--dots-cyan);
   background-size: 30px 30px;
   background-position: var(--ox, 0px) var(--oy, 0px);
-  -webkit-mask-image: radial-gradient(circle var(--r, 130px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.4) 42%, transparent 72%);
-          mask-image: radial-gradient(circle var(--r, 130px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.4) 42%, transparent 72%);
+  -webkit-mask-image: radial-gradient(circle var(--r, 190px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.55) 48%, transparent 78%);
+          mask-image: radial-gradient(circle var(--r, 190px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.55) 48%, transparent 78%);
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--cyan) 50%, transparent));
 }
 /* Mobile (data-static, non-reduced): the glow follows your scroll instead of
@@ -351,25 +447,44 @@
   -webkit-overflow-scrolling: touch;
 }
 /* The year under the playhead: a big outlined numeral in the display voice at
-   the foot of the pinned view, counting up as the wall pans (Work.tsx writes
-   it). It sits behind the plane, so the cards travel over it. Only while the
-   wall is pinned; the hand-panned strip keeps its company bar instead. */
+   the foot of the pinned view, rolling like an odometer as the wall pans — each
+   digit a window onto a strip of 0–9 that Work.tsx slides to its place. It sits
+   behind the plane, so the cards travel over it. Only while the wall is pinned;
+   the hand-panned strip keeps its company bar instead. */
 .wall__year {
   position: absolute;
   right: max(var(--space-m), calc((100% - var(--container)) / 2 + var(--space-m)));
   bottom: var(--space-m);
+  display: flex;
   font-family: var(--font-display);
   font-weight: var(--display-weight);
   font-stretch: var(--display-stretch);
   font-variation-settings: var(--display-axes);
   font-size: calc(var(--step-6) * 1.7 * var(--display-scale));
-  line-height: 0.8;
+  line-height: 1;
   letter-spacing: var(--display-tracking);
   font-variant-numeric: tabular-nums;
   color: transparent;
   -webkit-text-stroke: 1px color-mix(in srgb, var(--ink) 20%, transparent);
   pointer-events: none;
   user-select: none;
+}
+.wall__digit {
+  display: block;
+  height: 1em;
+  overflow: hidden;
+  /* the outline's stroke sits half outside the glyph box — keep it */
+  padding-inline: 0.02em;
+}
+.wall__strip {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.7s cubic-bezier(0.3, 1.25, 0.4, 1);
+}
+.wall__strip > span {
+  display: block;
+  height: 1em;
+  line-height: 1;
 }
 .wall[data-static] .wall__year { display: none; }
 .wall__cue {
@@ -494,16 +609,26 @@
   color: color-mix(in srgb, var(--band) 82%, var(--ink));
 }
 
-/* Poster tile — absolutely placed on the wall, tilted a touch; straightens and
-   lifts on hover. */
-/* Waypoint card — absolutely placed, centred on its year (margin-left pulls it
-   back half its width); lifts on hover. Vertical anchor (top/bottom) is set
-   inline so it hangs above or below the route. */
-.worktile {
-  --card-accent: var(--accent);
+/* Waypoint card — its slot is absolutely placed, centred on its year (the
+   margin pulls it back half its width), hanging above or below the route by
+   top/bottom set inline. The slot carries the swing: Work.tsx writes --ry and
+   --tz each frame from where the card sits on screen, untransitioned, so it
+   tracks the scroll exactly; the card inside keeps its own hover lift. */
+.worktile-slot {
   position: absolute;
   width: var(--card-w, 250px);
   margin-left: calc(var(--card-w, 250px) / -2);
+  transform: perspective(1100px) translateZ(var(--tz, 0px)) rotateY(var(--ry, 0deg));
+  will-change: transform;
+}
+.worktile-slot:hover,
+.worktile-slot:focus-within {
+  z-index: 5;
+}
+.worktile {
+  --card-accent: var(--accent);
+  position: relative;
+  width: 100%;
   display: flex;
   flex-direction: column;
   text-align: left;
@@ -528,7 +653,27 @@
   border-color: color-mix(in srgb, var(--card-accent) 55%, var(--line));
   box-shadow: 0 30px 60px -26px rgba(0, 0, 0, 0.9), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent);
   outline: none;
-  z-index: 5;
+}
+
+/* Not reached yet: the poster rests grey and dim, like the maquette's ghosts.
+   When the playhead passes the card powers on — the picture comes up to colour
+   and the brackets flash locked for a beat. (A static, unpanned wall never
+   sets data-lit off, and reduced motion lights everything at once.) */
+.worktile-slot:not([data-lit]) .worktile__img {
+  filter: grayscale(0.85) brightness(0.62);
+}
+.worktile-slot:not([data-lit]) .worktile__reticle i {
+  border-color: color-mix(in srgb, var(--ink) 16%, transparent);
+}
+.worktile__img {
+  transition: transform var(--t-base) var(--ease), filter 0.8s var(--ease);
+}
+.worktile-slot[data-lit] .worktile__reticle i {
+  animation: tile-lock 0.9s var(--ease);
+}
+@keyframes tile-lock {
+  0% { border-color: var(--card-accent); }
+  100% { border-color: color-mix(in srgb, var(--card-accent) 30%, transparent); }
 }
 
 /* Survey-plate registration frame — faint corner brackets that mark each tile
@@ -648,7 +793,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--t-base) var(--ease);
 }
 .worktile:hover .worktile__img { transform: scale(1.06); }
 .worktile__scrim {
@@ -684,3 +828,13 @@
   --btn-bg: var(--card-accent);
 }
 
+/* Reduced motion: the route arrives finished — nothing swings, pings, beats or
+   rolls (Work.tsx also lights every stop and the whole route up front). */
+@media (prefers-reduced-motion: reduce) {
+  .worktile-slot { transform: none; }
+  .tl-node.is-hit::before,
+  .wall__head b,
+  .worktile-slot[data-lit] .worktile__reticle i { animation: none; }
+  .wall__strip,
+  .worktile__img { transition: none; }
+}

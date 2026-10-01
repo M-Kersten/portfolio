@@ -1,7 +1,8 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { Link } from 'react-router-dom';
 import { cases, caseBySlug, site, type CareerEntry, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
+import { contourCss, contourTile } from '../lib/contours';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard } from './CaseCard';
 import { FocusCard } from './FocusCard';
@@ -190,6 +191,37 @@ function bandsAt(bands: CareerBand[], x: number): { main: CareerBand; concurrent
   return { main, concurrent };
 }
 
+// ---- Travelling the route --------------------------------------------------
+// The middle of the screen is "now" on the map: a playhead sits there on the
+// route, and everything is measured from it each frame. The route behind it is
+// lit in its employers' colours and dim ahead; each waypoint pings as the head
+// crosses it, and its card powers on — the poster comes up from grey, the
+// brackets lock — the maquette's ghost → alive, at timeline scale. And the
+// cards swing as they travel: square-on in the middle, turned toward it and set
+// back toward the edges, so the wall reads as a curved gallery you're riding
+// past rather than a flat strip sliding by.
+const SWING = 16; // degrees a card turns at the screen's edge
+const SWING_DEPTH = 70; // px it sets back there
+const DIGITS = '0123456789';
+
+/** The year as an odometer: four windows, each a strip of 0–9 rolled to its digit. */
+function Odometer({ year, refs }: { year: number; refs: MutableRefObject<(HTMLSpanElement | null)[]> }) {
+  const digits = String(year).padStart(4, '0').split('');
+  return (
+    <>
+      {digits.map((d, i) => (
+        <span className="wall__digit" key={i}>
+          <span className="wall__strip" ref={(el) => (refs.current[i] = el)} style={{ transform: `translateY(${-Number(d)}em)` }}>
+            {DIGITS.split('').map((c) => (
+              <span key={c}>{c}</span>
+            ))}
+          </span>
+        </span>
+      ))}
+    </>
+  );
+}
+
 // The projects map: a timeline you pan through. While the section is pinned,
 // page scroll drives the wall sideways — you travel from the first project to
 // the most recent, each pinned to the route at the year it happened. Clicking a
@@ -224,6 +256,19 @@ export function Work() {
   // hover glow stays aligned to the dots as you scroll, not only as you move.
   const farOffset = useRef({ x: 0, y: 0 });
   const lastCursor = useRef<{ x: number; y: number; r: number } | null>(null);
+  // Per-frame handles for travelling the route (applyHead): each card's slot,
+  // each waypoint's node, each employer band, the playhead and the year's
+  // digit strips — written straight to the DOM, never through React state.
+  const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const nodeRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const bandRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const headRef = useRef<HTMLDivElement>(null);
+  const digitRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const lastHead = useRef<number | null>(null);
+  const headBand = useRef<string | null>(null);
+  // The contour sheet behind the route (lib/contours), built for the pin's
+  // height once it's on the page; the dot grid stands in until then.
+  const [topo, setTopo] = useState<{ base: string; glow: string; w: number; h: number } | null>(null);
 
   // Track the narrow breakpoint so orientation / resize flips the mode live.
   useEffect(() => {
@@ -243,7 +288,7 @@ export function Work() {
   useEffect(() => {
     if (!manualPan) return;
     const pin = pinRef.current;
-    const first = planeRef.current?.querySelector<HTMLElement>('.worktile');
+    const first = planeRef.current?.querySelector<HTMLElement>('.worktile-slot');
     if (!pin || !first || pin.scrollLeft !== 0 || first.offsetLeft < pin.clientWidth) return;
     pin.scrollLeft = first.offsetLeft - Math.min(48, pin.clientWidth * 0.08);
   }, [manualPan]);
@@ -287,6 +332,119 @@ export function Work() {
     };
   }, [isNarrow, timeline.bands]);
 
+  // Travel the route to `head` (a plane x — the one under the middle of the
+  // screen): light what's behind it, dim what's ahead, ping the waypoints it
+  // just crossed, swing the cards by where they sit on screen. Called per frame
+  // by whichever pan is driving (the scroll-jack or the hand-panned strip).
+  // Reduced motion gets the finished state: everything lit, nothing swinging.
+  const applyHead = useCallback(
+    (head: number, vw: number) => {
+      const { stops, bands } = timeline;
+      const prev = lastHead.current;
+      for (let i = 0; i < stops.length; i++) {
+        const x = stops[i].x;
+        const lit = reduced || x <= head;
+        const slot = slotRefs.current[i];
+        if (slot) {
+          if (slot.hasAttribute('data-lit') !== lit) slot.toggleAttribute('data-lit', lit);
+          if (!reduced) {
+            const c = Math.max(-1, Math.min(1, ((x - head) / vw) * 2)); // −1 … 1, edge to edge
+            // a phone's screen is barely wider than a card, so it swings less
+            const k = 0.6 + 0.4 * Math.min(1, vw / 1200);
+            slot.style.setProperty('--ry', `${(-c * SWING * k).toFixed(2)}deg`);
+            slot.style.setProperty('--tz', `${(-Math.abs(c) * SWING_DEPTH * k).toFixed(1)}px`);
+          }
+        }
+        const node = nodeRefs.current[i];
+        if (node) {
+          if (node.hasAttribute('data-lit') !== lit) node.toggleAttribute('data-lit', lit);
+          // crossed since the last frame, either way: ping (restarting the
+          // animation if it's still running from the last pass)
+          if (!reduced && prev !== null && (prev - x) * (head - x) < 0) {
+            node.classList.remove('is-hit');
+            void node.offsetWidth;
+            node.classList.add('is-hit');
+          }
+        }
+      }
+      for (let i = 0; i < bands.length; i++) {
+        const el = bandRefs.current[i];
+        if (!el) continue;
+        const b = bands[i];
+        const f = reduced ? 1 : Math.max(0, Math.min(1, (head - b.x1) / (b.x2 - b.x1)));
+        const v = `${(f * 100).toFixed(2)}%`;
+        if (el.style.getPropertyValue('--fill') !== v) el.style.setProperty('--fill', v);
+      }
+      // the playhead takes the colour of the stint it's on
+      const on = bandsAt(bands, head)?.main;
+      if (headRef.current && on && headBand.current !== on.color) {
+        headBand.current = on.color;
+        headRef.current.style.setProperty('--band', on.color);
+      }
+      lastHead.current = head;
+    },
+    [timeline, reduced],
+  );
+
+  // The hand-panned strip (phones, reduced motion) drives the same travel off
+  // its own scroll; the playhead rides along at the strip's middle.
+  useEffect(() => {
+    if (!manualPan) return;
+    const pin = pinRef.current;
+    if (!pin) return;
+    let raf = 0;
+    const frame = () => {
+      raf = 0;
+      const left = pin.scrollLeft;
+      if (headRef.current) headRef.current.style.transform = `translateX(${left}px)`;
+      applyHead(left + pin.clientWidth / 2, pin.clientWidth);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(frame);
+    };
+    pin.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    frame();
+    return () => {
+      pin.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+      if (headRef.current) headRef.current.style.transform = '';
+    };
+  }, [manualPan, applyHead]);
+
+  // Build the contour sheet for the pin's height — after first paint (it's a
+  // tenth of a second of maths and nothing on screen needs it yet), and again
+  // only if a resize changes the height enough to matter.
+  useEffect(() => {
+    const pin = pinRef.current;
+    if (!pin) return;
+    let built = 0;
+    let t = 0;
+    const build = () => {
+      const h = Math.round(pin.clientHeight);
+      if (!h || Math.abs(h - built) < 60) return;
+      built = h;
+      const tile = contourTile(1600, h, { cell: 8, levels: 18 });
+      setTopo({
+        base: contourCss(tile, '#eaeaea', 0.075, 0.14),
+        glow: contourCss(tile, '#27e8f2', 0.85, 1, 1.5),
+        w: tile.width,
+        h: tile.height,
+      });
+    };
+    t = window.setTimeout(build, 60);
+    const onResize = () => {
+      clearTimeout(t);
+      t = window.setTimeout(build, 250);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
+
   useEffect(() => {
     if (manualPan) return;
     let raf = 0;
@@ -325,8 +483,16 @@ export function Work() {
       const x = p * maxX;
       // xAt() run backwards for the middle of the screen, held to the route
       const yr = Math.floor(timeline.minYear + (x + window.innerWidth / 2 - cfg.startX) / cfg.yearGap);
-      const label = String(Math.min(Math.floor(timeline.maxYear), Math.max(timeline.minYear, yr)));
-      if (yearRef.current && yearRef.current.textContent !== label) yearRef.current.textContent = label;
+      const year = String(Math.min(Math.floor(timeline.maxYear), Math.max(timeline.minYear, yr)));
+      const yEl = yearRef.current;
+      if (yEl && yEl.dataset.year !== year) {
+        // roll each digit's strip to its new place (the odometer)
+        yEl.dataset.year = year;
+        year.padStart(4, '0').split('').forEach((d, i) => {
+          const strip = digitRefs.current[i];
+          if (strip) strip.style.transform = `translateY(${-Number(d)}em)`;
+        });
+      }
 
       // Smoothed velocity (px/frame). dv is 0 on settle frames, so it eases
       // back to rest through the same lerp that ramps it up.
@@ -347,6 +513,7 @@ export function Work() {
       farOffset.current = { x: p * maxX * cfg.parallax, y: p * maxY * cfg.parallax };
       if (farRef.current) farRef.current.style.transform = `translate3d(${-farOffset.current.x}px, ${-farOffset.current.y}px, 0)`;
       syncGlow();
+      applyHead(x + window.innerWidth / 2, window.innerWidth);
       // Keep animating (even without scroll events) until the motion settles.
       if (Math.abs(vel) >= 0.05 && !raf) raf = requestAnimationFrame(update);
     };
@@ -372,14 +539,16 @@ export function Work() {
       // Over a waypoint card, grow the pool and centre it on the card so the
       // dots around the whole tile light up (the card occludes the middle).
       const tile = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('.worktile');
+      // (the pools are wide: contour lines are sparser than the dots were,
+      // and a small pool lit one line or none)
       let cx = x;
       let cy = y;
-      let rad = 130;
+      let rad = 190;
       if (tile) {
         const t = tile.getBoundingClientRect();
         cx = t.left + t.width / 2 - r.left;
         cy = t.top + t.height / 2 - r.top;
-        rad = Math.max(t.width, t.height) / 2 + 110;
+        rad = Math.max(t.width, t.height) / 2 + 170;
       }
       lastCursor.current = { x: cx, y: cy, r: rad };
       glow.style.setProperty('--mx', `${cx}px`);
@@ -396,7 +565,7 @@ export function Work() {
       window.removeEventListener('mousemove', onMove);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [manualPan, timeline.width, timeline.minYear, timeline.maxYear, cfg]);
+  }, [manualPan, timeline.width, timeline.minYear, timeline.maxYear, cfg, applyHead]);
 
   // Mobile: touch has no hover, so the dot field lights up along your *scroll*
   // instead of the cursor — a soft wave that travels with you through the
@@ -505,15 +674,25 @@ export function Work() {
             className="wall__far"
             ref={farRef}
             aria-hidden="true"
-            style={{ width: `${timeline.width}px`, height: `${cfg.planeVh * 100}svh` }}
+            data-topo={topo ? '' : undefined}
+            style={{
+              width: `${timeline.width}px`,
+              height: `${cfg.planeVh * 100}svh`,
+              ...(topo ? { backgroundImage: topo.base, backgroundSize: `${topo.w}px ${topo.h}px` } : null),
+            }}
           />
-          {/* Hover glow — a bright copy of the dot field, masked to a soft pool
-              around the cursor so the dots nearest it light up. Sits between the
-              base dots and the plane so the waypoints occlude it. */}
-          <div className="wall__glow" ref={glowRef} aria-hidden="true" />
+          {/* Hover glow — a bright copy of the contour sheet, masked to a soft
+              pool around the cursor so the lines nearest it light up. Sits
+              between the sheet and the plane so the waypoints occlude it. */}
+          <div
+            className="wall__glow"
+            ref={glowRef}
+            aria-hidden="true"
+            style={topo ? { backgroundImage: topo.glow, backgroundSize: `${topo.w}px ${topo.h}px` } : undefined}
+          />
           {/* behind the plane, so the cards pass over it */}
           <span className="wall__year" ref={yearRef} aria-hidden="true">
-            {timeline.minYear}
+            <Odometer year={timeline.minYear} refs={digitRefs} />
           </span>
           <div
             className="wall__plane"
@@ -533,6 +712,7 @@ export function Work() {
             {timeline.bands.map((b, i) => (
               <Fragment key={`${b.company}-${i}`}>
                 <span
+                  ref={(el) => (bandRefs.current[i] = el)}
                   className={b.freelance ? 'tl-band tl-band--free' : 'tl-band'}
                   aria-hidden="true"
                   style={{ left: `${b.x1}px`, width: `${b.x2 - b.x1}px`, '--band': b.color } as CSSProperties}
@@ -622,12 +802,18 @@ export function Work() {
               now →
             </span>
 
-            {timeline.stops.map((s) => (
+            {timeline.stops.map((s, i) => (
               <Fragment key={s.study.slug}>
-                <span className="tl-node" aria-hidden="true" style={{ left: `${s.x}px` }} />
+                <span
+                  className="tl-node"
+                  ref={(el) => (nodeRefs.current[i] = el)}
+                  aria-hidden="true"
+                  style={{ left: `${s.x}px`, '--band': bandsAt(timeline.bands, s.x)?.main.color } as CSSProperties}
+                />
                 <span className={`tl-leader tl-leader--${s.side}`} aria-hidden="true" style={{ left: `${s.x}px` }} />
                 <CaseCard
                   study={s.study}
+                  slotRef={(el) => (slotRefs.current[i] = el)}
                   onOpen={() => setOpen(s.study.slug)}
                   style={
                     s.side === 'above'
@@ -637,6 +823,11 @@ export function Work() {
                 />
               </Fragment>
             ))}
+          </div>
+          {/* the playhead: "now", on the route at the middle of the screen */}
+          <div className="wall__head" ref={headRef} aria-hidden="true">
+            <i />
+            <b />
           </div>
           <span className="wall__cue" aria-hidden="true">scroll through time →</span>
           {/* Razor-thin scanner-frame corners around the viewport. */}
