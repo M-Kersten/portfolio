@@ -186,12 +186,12 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
 /* ---- The bio, made skimmable ----------------------------------------------
    The bio was one long column, and a long column is the part of a portfolio
    people scroll past. It's the same words, laid out so a skim still gets the
-   gist: the lead said out loud, a row of numbers, and the paragraphs side by
-   side in pairs, each with a phrase of its own highlighted as it arrives. No
-   headings over them: it's a person talking, not a brochure. All of it comes
-   from the same site.json fields as before (the CMS round-trips that file
-   against a fixed model), and the numbers are counted from the content, so
-   they can't drift out of date. */
+   gist: the lead said out loud, a row of numbers, and the paragraphs as four
+   short chapters, each led by its own first sentence — written as a hook — so
+   reading the bold lines alone tells the story. All of it comes from the same
+   site.json fields as before (the CMS round-trips that file against a fixed
+   model), and the numbers are counted from the content, so they can't drift
+   out of date. */
 
 /** `*words*` in the About copy are the line's highlight (a marker sweeps in
  *  under them as the section arrives); everything else is plain text. */
@@ -209,6 +209,12 @@ function Marked({ text }: { text: string }) {
       )}
     </>
   );
+}
+
+/** A paragraph's first sentence (its hook) and the rest. */
+function splitHook(p: string): [string, string] {
+  const m = p.match(/^(.+?[.!?])(\s+)([\s\S]*)$/);
+  return m ? [m[1], m[3]] : [p, ''];
 }
 
 /** The numbers, counted from the content itself. */
@@ -265,15 +271,23 @@ function AboutStats() {
   );
 }
 
-/** One paragraph of the bio. Each reveals on its own as it scrolls in —
- *  watching the four as one block left a phone looking at a blank gap until
- *  a quarter of a 2000px column was on screen. */
+/** One chapter: its hook over the rest of the paragraph. Each reveals on its
+ *  own as it scrolls in — watching the four as one block left a phone looking
+ *  at a blank gap until a quarter of a 2000px column was on screen. */
 function AboutChapter({ text, i }: { text: string; i: number }) {
-  const [ref, shown] = useReveal<HTMLParagraphElement>();
+  const [ref, shown] = useReveal<HTMLElement>();
+  const [hook, rest] = splitHook(text);
   return (
-    <p ref={ref} className="about__chapter" data-shown={shown || undefined} style={{ '--i': i } as CSSProperties}>
-      <Marked text={text} />
-    </p>
+    <section ref={ref} className="about__chapter" data-shown={shown || undefined} style={{ '--i': i } as CSSProperties}>
+      <h3 className="about__hook">
+        <Marked text={hook} />
+      </h3>
+      {rest && (
+        <p>
+          <Marked text={rest} />
+        </p>
+      )}
+    </section>
   );
 }
 
