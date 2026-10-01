@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { CAMERA, LAYER_SCALE, LAYER_Y, hotspotView, type Hotspot, type HotspotView } from './framing';
+import { CAMERA, LAYER_SCALE, LAYER_Y, hotspotView, portraitMix, type Hotspot, type HotspotView } from './framing';
 
 // The camera's framings of the maquette as three.js vectors, built from the
 // plain layout and tuning in framing.ts. Kept apart from it so that file stays
@@ -32,31 +32,28 @@ export const MAQUETTE_HOME: Framing = {
 // frame means the per-layer scale difference actually reads on screen.
 const JOURNEY_Y = [1.32, 0, -1.32];
 
-// The overview aims a little LEFT of the maquette's centre, which pushes the
-// maquette itself right on screen — clear of the hero title, whose left column
-// was sitting on top of the windmill's hotspot. Overview only: node close-ups
-// aim at their own anchor and are unaffected.
-const OVERVIEW_AIM_X = -0.34;
+// The overview's aim and offset (CAMERA.overviewAim / overviewOffset — see
+// framing.ts for why it looks a little left of and above the layer), blended
+// toward the portrait framing as the screen turns tall (portraitMix). Both are
+// read per call, so the dev tooling can tune them live.
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-// …and a little ABOVE it, which drops the maquette down the screen. The camera
-// pivots on the layer it's framing but looks over its head, so the layer in focus
-// settles near the middle of the frame instead of riding high in it, and the
-// layers below fall away toward the bottom edge rather than filling it. That's
-// what makes the City read as the thing you're looking at on arrival: it isn't
-// competing with a Room-worth of furniture stacked underneath it.
-const OVERVIEW_AIM_Y = 0.34;
-
-/** The point the overview orbits: on the layer, offset left (see OVERVIEW_AIM_X). */
-function overviewPivot(step: number, gap: number): Vector3 {
+/** The point the overview orbits: on the layer, offset sideways by the aim. */
+function overviewPivot(step: number, gap: number, mix: number): Vector3 {
   const y = (JOURNEY_Y[Math.max(0, Math.min(2, step))] ?? 0) * gap;
-  return new Vector3(OVERVIEW_AIM_X, y, 0);
+  return new Vector3(lerp(CAMERA.overviewAim[0], CAMERA.portraitAim[0], mix), y, 0);
 }
 
-export function journeyView(step: number, gap = 1): Framing {
-  const pivot = overviewPivot(step, gap);
+/** The overview of journey step `step` (0 City · 1 Room · 2 Chip) for a viewport
+ *  of the given aspect; the default is the desktop framing. */
+export function journeyView(step: number, gap = 1, aspect = CAMERA.baseAspect): Framing {
+  const mix = portraitMix(aspect);
+  const pivot = overviewPivot(step, gap, mix);
+  const o = CAMERA.overviewOffset;
+  const po = CAMERA.portraitOffset;
   return {
-    pos: pivot.clone().add(new Vector3(...CAMERA.overviewOffset)),
-    target: pivot.clone().add(new Vector3(0, OVERVIEW_AIM_Y, 0)),
+    pos: pivot.clone().add(new Vector3(lerp(o[0], po[0], mix), lerp(o[1], po[1], mix), lerp(o[2], po[2], mix))),
+    target: pivot.clone().add(new Vector3(0, lerp(CAMERA.overviewAim[1], CAMERA.portraitAim[1], mix), 0)),
   };
 }
 
@@ -67,11 +64,12 @@ export function journeyView(step: number, gap = 1): Framing {
  *  skyline sits high as it settles. */
 export function introView(gap = 1): Framing {
   const home = journeyView(0, gap);
-  // Off the PIVOT, not off the aim point — the aim now sits above the layer
-  // (OVERVIEW_AIM_Y), and measuring the dolly direction from there would tilt the
-  // establishing shot as a side effect of a framing change.
+  // Off the PIVOT, not off the aim point — the aim sits above the layer
+  // (overviewAim), and measuring the dolly direction from there would tilt the
+  // establishing shot as a side effect of a framing change. (Desktop framing:
+  // the intro never plays on a phone.)
   const dir = new Vector3(...CAMERA.overviewOffset);
-  const pos = overviewPivot(0, gap)
+  const pos = overviewPivot(0, gap, 0)
     .clone()
     .add(dir.multiplyScalar(1.95)) // ~2x further out — a wide establishing shot…
     .add(new Vector3(0.4, -1.35, 0.5)); // …dropped low + a hair right, to rise past the park

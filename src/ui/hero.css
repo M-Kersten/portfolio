@@ -37,6 +37,15 @@
   opacity: 0;
   transform: translateY(-10px);
 }
+/* Held upright (a phone, a tablet, a tall window), the model sits under the
+   title rather than beside it — the camera's portrait framing (framing.ts,
+   portraitOffset) — so the drop that cleared the windmill is no longer needed:
+   the title tucks up under the header and the model gets the height. */
+@media (orientation: portrait) {
+  .hero__title {
+    padding-top: calc(var(--header-h) + var(--space-m));
+  }
+}
 .hero__name {
   /* the display voice (base.css), drawn a touch tighter at this size */
   font-size: calc(var(--step-6) * var(--display-scale));

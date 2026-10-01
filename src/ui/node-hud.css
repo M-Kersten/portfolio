@@ -337,13 +337,15 @@
 .node-hud .story-links { margin-top: var(--space-m); padding-bottom: var(--space-s); }
 
 /* narrow desktops: don't let the column get too tight against a big ring */
-@media (max-width: 1120px) and (min-width: 761px) {
+@media (max-width: 1120px) and (min-width: 761px) and (orientation: landscape) {
   :root { --fr-cx: 24%; --fr-r: 46vh; }
   .node-hud { left: calc(var(--fr-cx) + var(--fr-r) + var(--space-m)); }
 }
 
-/* ---------- Mobile: a round window up top, content sheet rising beneath ---------- */
-@media (max-width: 760px) {
+/* ---------- Mobile: a round window up top, content sheet rising beneath ----------
+   Phones, and tablets held upright: beside a ring sized off the viewport's
+   height, a portrait tablet left the dossier a column one word wide. */
+@media (max-width: 760px), (max-width: 1120px) and (orientation: portrait) {
   /* A big ring centred horizontally that spills off BOTH sides (radius > 50vw),
      dropped into the upper area so the object reads THROUGH it while the sheet
      rises underneath — the same porthole idea as desktop, portrait-shaped. */

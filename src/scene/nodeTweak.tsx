@@ -7,7 +7,7 @@ type Full = Required<HotspotView>;
 // ---------------------------------------------------------------------------
 // DEV-ONLY per-hotspot camera-view tuner. Open a node in `npm run dev` and this
 // panel (bottom-left) shows sliders for THAT hotspot's close-up framing —
-// offset, aim, FOV push, mobile lift. Dragging drives the live camera; `copy`
+// offset, aim, FOV push and the phone zoom. Dragging drives the live camera; `copy`
 // emits a `view: { … }` literal to paste onto the hotspot in framing.ts.
 //
 // Same hand-rolled, zero-dependency store pattern as devTweak.tsx. Everything
@@ -32,7 +32,7 @@ function ensure(slug: string): Full {
   let o = overrides.get(slug);
   if (!o) {
     const h = HOTSPOTS.find((x) => x.slug === slug);
-    o = h ? { ...hotspotView(h) } : { offset: [...CAMERA.nodeOffset], aimDown: CAMERA.nodeAimDown, fovZoom: CAMERA.fovZoom, mobileLift: CAMERA.mobileNodeLift };
+    o = h ? { ...hotspotView(h) } : { offset: [...CAMERA.nodeOffset], aimDown: CAMERA.nodeAimDown, fovZoom: CAMERA.fovZoom, mobileZoom: 1 };
     overrides.set(slug, o);
   }
   return o;
@@ -51,7 +51,7 @@ function setOffset(slug: string, i: 0 | 1 | 2, v: number) {
   overrides.set(slug, { ...cur, offset });
   emit();
 }
-function setScalar(slug: string, key: 'aimDown' | 'fovZoom' | 'mobileLift', v: number) {
+function setScalar(slug: string, key: 'aimDown' | 'fovZoom' | 'mobileZoom', v: number) {
   overrides.set(slug, { ...ensure(slug), [key]: v });
   emit();
 }
@@ -153,7 +153,7 @@ export function NodeTweakPanel() {
 
   const v = overrides.get(h.slug) ?? hotspotView(h);
   const dirty = overrides.has(h.slug);
-  const literal = `view: { offset: [${r2(v.offset[0])}, ${r2(v.offset[1])}, ${r2(v.offset[2])}], aimDown: ${r2(v.aimDown)}, fovZoom: ${r2(v.fovZoom)}, mobileLift: ${r2(v.mobileLift)} },`;
+  const literal = `view: { offset: [${r2(v.offset[0])}, ${r2(v.offset[1])}, ${r2(v.offset[2])}], aimDown: ${r2(v.aimDown)}, fovZoom: ${r2(v.fovZoom)}${v.mobileZoom !== 1 ? `, mobileZoom: ${r2(v.mobileZoom)}` : ''} },`;
 
   return (
     <div style={panelStyle}>
@@ -177,7 +177,7 @@ export function NodeTweakPanel() {
       <Row label="offset z" value={v.offset[2]} min={0.3} max={7} onChange={(n) => setOffset(h.slug, 2, n)} />
       <Row label="aimDown" value={v.aimDown} min={-1} max={3} onChange={(n) => setScalar(h.slug, 'aimDown', n)} />
       <Row label="fovZoom" value={v.fovZoom} min={-10} max={30} step={0.5} onChange={(n) => setScalar(h.slug, 'fovZoom', n)} />
-      <Row label="mobileLift" value={v.mobileLift} min={0} max={4} onChange={(n) => setScalar(h.slug, 'mobileLift', n)} />
+      <Row label="mobileZoom" value={v.mobileZoom} min={0.5} max={2.5} onChange={(n) => setScalar(h.slug, 'mobileZoom', n)} />
 
       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
         <button

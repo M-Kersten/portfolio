@@ -26,7 +26,7 @@ between edits and a publish.
 
 The 3D maquette is code, not content. Each hotspot in `src/scene/framing.ts` is
 a hand-placed position with its own camera framing (`offset`, `aimDown`,
-`fovZoom`, `mobileLift`), attached to an object modelled in `city.tsx`,
+`fovZoom`, `mobileZoom`), attached to an object modelled in `city.tsx`,
 `room.tsx` or `chip.tsx`. The relation cables in `signals.tsx` are similarly
 hand-drawn between named slugs.
 

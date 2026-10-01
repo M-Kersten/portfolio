@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { sceneStore, useSceneSelector } from './store';
-import { HOTSPOTS, hotspotView, fitScale, fitFov, layerGap, CAMERA, LAUNCH } from './framing';
+import { HOTSPOTS, hotspotView, fitScale, fitFov, layerGap, portraitMix, CAMERA, LAUNCH } from './framing';
 import { anchorWorld, journeyView, introView, nodeView, launchTrack } from './views';
 import { tweakedView } from './nodeTweak';
 import { isMobileViewport } from '../lib/isMobile';
@@ -26,13 +26,24 @@ import { isMobileViewport } from '../lib/isMobile';
 // from a standstill and settles to one.
 const INTRO_DUR = 4.65;
 
-// Porthole focus: on desktop the woken object is framed inside the reticle ring,
-// which sits left of centre so the dossier clears on the right. LIFT raises the
-// AIM to the object (centring it vertically); OFFSET pans the projection left via
-// setViewOffset (moving the object across the frame without changing the camera,
-// so the framing angle is preserved). Both animate in with the zoom.
+// Porthole focus: the woken object is framed inside the reticle ring — left of
+// centre on a desktop so the dossier clears on the right, high on a phone so the
+// sheet can rise beneath it. The camera aims straight at the object (LIFT
+// undoes the hotspot's authored aimDown) and setViewOffset then slides the
+// whole image so that point lands on the ring's centre, moving the object
+// across the frame without moving the camera, so the framing angle is kept.
+// The ring's centre is read from the same custom properties the reticle is
+// drawn with (--fr-cx / --fr-cy, node-hud.css), so the two can't disagree at
+// any screen size. The slide animates in with the zoom.
 const PORTHOLE_LIFT = 1.0;
-const PORTHOLE_OFFSET = 0.2;
+function readPorthole(): { x: number; y: number } {
+  const cs = typeof window !== 'undefined' ? getComputedStyle(document.documentElement) : null;
+  const pct = (name: string, fallback: number) => {
+    const n = parseFloat(cs?.getPropertyValue(name) ?? '');
+    return Number.isFinite(n) ? n / 100 : fallback;
+  };
+  return { x: pct('--fr-cx', 0.3), y: pct('--fr-cy', 0.5) };
+}
 // Seconds the camera holds still after a selection while the reticle materialises
 // over the object and locks onto it. Mirrors the hold in the fr-acquire keyframes
 // (node-hud.css) — the two are one movement and have to agree.
@@ -53,6 +64,10 @@ export function CameraRig() {
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const launch = useSceneSelector((s) => s.launch);
+
+  // the porthole's centre as viewport fractions; the breakpoints move it, so
+  // it's re-read whenever the canvas resizes
+  const porthole = useMemo(readPorthole, [size.width, size.height]);
 
   const sway = useRef(0);
   const nodeAge = useRef(0); // seconds since the current node was selected
@@ -125,22 +140,23 @@ export function CameraRig() {
     camera.position.sub(shakeOff.current);
     shakeOff.current.set(0, 0, 0);
 
-    // ---- Porthole focus offset: pan the projection left so the woken node sits
-    // in the reticle (dossier clear on the right). setViewOffset moves the image
-    // without moving the camera; the per-frame FOV updates below preserve it.
-    // Desktop only; eases in and out with the zoom.
+    // ---- Porthole focus offset: slide the projection so the woken node sits
+    // in the reticle (see readPorthole). setViewOffset moves the image without
+    // moving the camera; the per-frame FOV updates below preserve it. Eases in
+    // and out with the zoom.
     // …and it waits out the acquire hold too. This pan slides the WHOLE image
     // sideways, so if it ran while the reticle was still locking on, the object
     // would crawl out from under a ring that hasn't moved yet. `justSwitched`
     // covers the first frame, where nodeAge is still the outgoing node's.
     const justSwitched = selectedSlug !== prevSel.current;
     const holdFocus = !!selectedSlug && !reduced && (justSwitched || nodeAge.current < ACQUIRE_HOLD);
-    const wantFocus = !!selectedSlug && launch === 'idle' && size.width >= size.height && !holdFocus;
+    const wantFocus = !!selectedSlug && launch === 'idle' && !holdFocus;
     focusAmt.current += ((wantFocus ? 1 : 0) - focusAmt.current) * (reduced ? 1 : 1 - Math.exp(-6 * dt));
     const pcam = camera as PerspectiveCamera;
     if (pcam.isPerspectiveCamera) {
       if (focusAmt.current > 0.001) {
-        pcam.setViewOffset(size.width, size.height, PORTHOLE_OFFSET * size.width * focusAmt.current, 0, size.width, size.height);
+        const f = focusAmt.current;
+        pcam.setViewOffset(size.width, size.height, (0.5 - porthole.x) * size.width * f, (0.5 - porthole.y) * size.height * f, size.width, size.height);
       } else if (pcam.view?.enabled) {
         pcam.clearViewOffset();
       }
@@ -170,7 +186,7 @@ export function CameraRig() {
       } else {
         const g = layerGap(aspect);
         const s = introView(g);
-        const e = journeyView(0, g);
+        const e = journeyView(0, g, aspect);
         // Land exactly where the scroll-journey logic below rests, which is NOT
         // journeyView's raw pos: that logic pushes the camera back by fitScale on
         // a narrow viewport. Ending at the raw pos meant the dolly eased to a
@@ -298,29 +314,29 @@ export function CameraRig() {
     const acquiring = !!hotspot && !reduced && nodeAge.current < ACQUIRE_HOLD;
     const framed = hotspot && !acquiring ? hotspot : undefined;
 
-    const base = framed ? nodeView(framed, gap, view!) : journeyView(journeyStep, gap);
+    const base = framed ? nodeView(framed, gap, view!) : journeyView(journeyStep, gap, aspect);
     desiredTarget.current.copy(base.target);
-
-    // On a phone the focus view is a porthole up top with a content sheet below,
-    // so lift the selected node up into the ring by aiming lower. Portrait only —
-    // no effect on desktop. The 1.5 boost seats it in the (higher, larger) ring.
-    if (framed && aspect < 1) desiredTarget.current.y -= view!.mobileLift * (1 - aspect) * 1.5;
 
     // Ease the camera back on narrow/tall viewports so the whole active layer
     // stays in frame (see fitScale). The offset keeps its direction — the same
     // three-quarter angle — just longer, so the maquette reads smaller but whole.
+    // A close-up takes only part of that (CAMERA.nodeFit): it has one object to
+    // fit in the porthole, not a layer to fit across the screen.
     const baseFov = fitFov(aspect);
     const wantFov = baseFov + (framed ? view!.fovZoom : 0);
-    const off = base.pos.clone().sub(base.target).multiplyScalar(fitScale(aspect));
+    const fit = framed
+      ? (1 + (fitScale(aspect) - 1) * CAMERA.nodeFit) * (1 + (view!.mobileZoom - 1) * portraitMix(aspect))
+      : fitScale(aspect);
+    const off = base.pos.clone().sub(base.target).multiplyScalar(fit);
     // Zooming into a node widens the lens (wantFov); pull the camera in by the
     // matching amount so the node keeps its framing — the wider FOV then only
     // warps perspective, it doesn't throw the subject around the frame.
     if (framed) off.multiplyScalar(Math.tan((baseFov / 2) * DEG) / Math.tan((wantFov / 2) * DEG));
 
-    // Porthole focus (desktop): raise the AIM to the object so it sits centred
-    // (vertically) in the reticle; the horizontal slide is done with the camera
-    // view-offset up top. The camera position is untouched, so the angle holds.
-    if (framed && aspect >= 1) desiredTarget.current.y += view!.aimDown * PORTHOLE_LIFT;
+    // Porthole focus: aim at the object itself (undoing the authored aimDown) —
+    // the view-offset slide up top then carries it onto the ring's centre. The
+    // camera position is untouched, so the angle holds.
+    if (framed) desiredTarget.current.y += view!.aimDown * PORTHOLE_LIFT;
 
     if (!reduced) {
       // Once a node has settled (nodeOrbitDelay), a slow pan eases in over
