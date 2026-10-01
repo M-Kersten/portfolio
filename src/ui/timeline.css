@@ -17,8 +17,8 @@
 }
 /* The ground the route is drawn on, on its own layer so it can drift slower
    than the cards for a parallax depth cue (transform set per frame in JS): the
-   site's square dots, the same grid as every other page, with the dot network
-   drawn over them as you travel (below). */
+   canyon map once Work.tsx has built it (lib/contours), the site's square dots
+   standing in until then. */
 .wall__far {
   position: absolute;
   top: 0;
@@ -27,33 +27,27 @@
   background-image: var(--dots-ink);
   background-size: 30px 30px;
   pointer-events: none;
+  /* how soft the edge is between the joined-up map and the loose dots */
+  --soft: clamp(50px, 9vw, 140px);
 }
-/* The dot network (lib/contours, via Work.tsx): the contour lines of a
-   landscape traced across the grid through its own dots, so the ground is a
-   map made by connecting them. It's drawn as you travel: each strip of it as
-   far as its --p (0–1, from the scroll), every stretch of line growing out of
-   its left dot (a dash as long as the strip's longest stretch, sliding in) and
-   the dots it joins coming up a size as it goes. Behind you the dots are
-   connected; ahead of you they're still loose. */
-.wall__net {
+.wall__far[data-topo] { background-image: none; }
+/* The canyon map in its two inks (the tiles arrive inline). Joined up into
+   lines behind the focus — --front, its x on the ground, written per frame
+   by Work.tsx — and a trail of square dots ahead of it. The dots stay on a
+   little way behind the front, so right behind it you see them strung on the
+   freshly drawn lines before they settle into the plain map. */
+.wall__map {
   position: absolute;
-  top: 0;
-  left: 0;
-  overflow: visible;
-  pointer-events: none;
+  inset: 0;
+  background-repeat: repeat-x;
 }
-.wall__net-l {
-  fill: none;
-  stroke: var(--ink);
-  stroke-opacity: 0.12;
-  stroke-width: 1;
-  stroke-dasharray: var(--reach);
-  stroke-dashoffset: calc(var(--reach) * (1 - var(--p, 0)));
+.wall__map--lines {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(var(--front, 0px) - var(--soft)), transparent calc(var(--front, 0px) + var(--soft)));
+          mask-image: linear-gradient(90deg, #000 calc(var(--front, 0px) - var(--soft)), transparent calc(var(--front, 0px) + var(--soft)));
 }
-.wall__net-d {
-  fill: var(--ink);
-  fill-opacity: 0.3;
-  opacity: min(1, calc(var(--p, 0) * 1.5));
+.wall__map--dots {
+  -webkit-mask-image: linear-gradient(90deg, transparent calc(var(--front, 0px) - 3 * var(--soft)), #000 calc(var(--front, 0px) - var(--soft)));
+          mask-image: linear-gradient(90deg, transparent calc(var(--front, 0px) - 3 * var(--soft)), #000 calc(var(--front, 0px) - var(--soft)));
 }
 /* Taller + wider than the viewport (height set inline in svh); page scroll pans
    it diagonally, down and across — the near layer in front of the dot field. */
@@ -71,10 +65,9 @@
   pointer-events: none;
 }
 /* Employer band — a coloured segment of the route for one stint. Lit behind
-   the middle of the screen and dim ahead of it: the band itself is the dim
-   route, and its ::before is the lit length, --fill of the way along (written
-   per frame by Work.tsx; 100% when nothing drives it, so a static route is
-   fully lit). */
+   the focus and dim ahead of it: the band itself is the dim route, and its
+   ::before is the lit length, --fill of the way along (written per frame by
+   Work.tsx; 100% when nothing drives it, so a static route is fully lit). */
 .tl-band {
   position: absolute;
   top: 50%;
@@ -299,8 +292,8 @@
   color: var(--ink-40);
 }
 /* Node — the waypoint's mark on the route: a station dot, dark until the
-   middle of the screen reaches it, then lit in its stint's colour (--band).
-   Crossing it fires a ping (is-hit): a ring thrown out off the station. */
+   focus reaches it, then lit in its stint's colour (--band). Crossing it
+   fires a ping (is-hit): a ring thrown out off the station. */
 .tl-node {
   position: absolute;
   top: 50%;
@@ -367,10 +360,11 @@
 .tl-node[data-lit] + .tl-leader--above { background: linear-gradient(transparent, color-mix(in srgb, var(--ink) 55%, transparent)); }
 .tl-node[data-lit] + .tl-leader--below { background: linear-gradient(color-mix(in srgb, var(--ink) 55%, transparent), transparent); }
 
-/* Hover glow — a bright copy of the ground (the dots, and the network as far
-   as it's drawn), revealed only in a soft pool around the cursor (mask centre
-   = --mx/--my) and kept aligned to the parallaxed ground via --ox/--oy (set
-   to its current drift). */
+/* Hover glow — a bright copy of the ground (the map's lines, or the dots
+   before the map arrives), revealed only in a soft pool around the cursor
+   (mask centre = --mx/--my) and kept aligned to the parallaxed ground via
+   --ox/--oy (set to its current drift). It lights the lines ahead of the
+   focus too: the cursor joins up the dots it's over. */
 .wall__glow {
   position: absolute;
   inset: 0;
@@ -378,18 +372,9 @@
   background-image: var(--dots-cyan);
   background-size: 30px 30px;
   background-position: var(--ox, 0px) var(--oy, 0px);
-  -webkit-mask-image: radial-gradient(circle var(--r, 150px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.45) 45%, transparent 75%);
-          mask-image: radial-gradient(circle var(--r, 150px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.45) 45%, transparent 75%);
+  -webkit-mask-image: radial-gradient(circle var(--r, 190px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.55) 48%, transparent 78%);
+          mask-image: radial-gradient(circle var(--r, 190px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.55) 48%, transparent 78%);
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--cyan) 50%, transparent));
-}
-.wall__glow .wall__net { transform: translate3d(var(--ox, 0px), var(--oy, 0px), 0); }
-.wall__glow .wall__net-l {
-  stroke: var(--cyan);
-  stroke-opacity: 0.7;
-}
-.wall__glow .wall__net-d {
-  fill: var(--cyan);
-  fill-opacity: 1;
 }
 /* Mobile (data-static, non-reduced): the glow follows your scroll instead of
    the cursor — a wave that lights the dots as you travel and fades when you stop
@@ -438,11 +423,11 @@
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
 }
-/* The year at the middle of the screen: a big outlined numeral in the display
-   voice at the foot of the pinned view, rolling like an odometer as the wall
-   pans — each digit a window onto a strip of 0–9 that Work.tsx slides to its
-   place. It sits behind the plane, so the cards travel over it. Only while the
-   wall is pinned; the hand-panned strip keeps its company bar instead. */
+/* The year at the focus: a big outlined numeral in the display voice at the
+   foot of the pinned view, rolling like an odometer as the wall pans — each
+   digit a window onto a strip of 0–9 that Work.tsx slides to its place. It
+   sits behind the plane, so the cards travel over it. Only while the wall is
+   pinned; the hand-panned strip keeps its company bar instead. */
 .wall__year {
   position: absolute;
   right: max(var(--space-m), calc((100% - var(--container)) / 2 + var(--space-m)));
@@ -648,10 +633,9 @@
 }
 
 /* Not reached yet: the poster rests grey and dim, like the maquette's ghosts.
-   When the middle of the screen passes it, the card powers on — the picture
-   comes up to colour and the brackets flash locked for a beat. (A static,
-   unpanned wall never sets data-lit off, and reduced motion lights everything
-   at once.) */
+   When the focus passes it, the card powers on — the picture comes up to
+   colour and the brackets flash locked for a beat. (A static, unpanned wall
+   never sets data-lit off, and reduced motion lights everything at once.) */
 .worktile-slot:not([data-lit]) .worktile__img {
   filter: grayscale(0.85) brightness(0.62);
 }
