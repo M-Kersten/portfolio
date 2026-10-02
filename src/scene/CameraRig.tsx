@@ -4,7 +4,7 @@ import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { sceneStore, useSceneSelector } from './store';
 import { HOTSPOTS, hotspotView, fitScale, fitFov, layerGap, portraitMix, CAMERA, LAUNCH } from './framing';
-import { anchorWorld, journeyView, introView, nodeView, launchTrack } from './views';
+import { anchorWorld, journeyView, introView, nodeView, launchShot, launchTrack } from './views';
 import { tweakedView } from './nodeTweak';
 import { isMobileViewport } from '../lib/isMobile';
 
@@ -72,11 +72,10 @@ export function CameraRig() {
   const sway = useRef(0);
   const nodeAge = useRef(0); // seconds since the current node was selected
   const prevSel = useRef<string | null>(null);
-  const prevLaunch = useRef(launch);
-  const shake = useRef(0); // launch camera-shake impulse, 1 → 0
   const shakeOff = useRef(new Vector3()); // last frame's positional jitter
   const shakeRight = useRef(new Vector3());
   const shakeUp = useRef(new Vector3());
+  const flightCut = useRef(-1); // the cinematic camera last flown (-1 = not flying yet)
   const target = useRef(new Vector3().copy(journeyView(0).target));
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
@@ -212,58 +211,72 @@ export function CameraRig() {
     const gap = layerGap(aspect); // layers spread apart on tall screens
 
     // ---- Launch mode: the camera belongs to the rocket -------------------
-    // On the pad it frames the vehicle three-quarter; during the ascent it
-    // chases the live position (launchTrack, written by the rocket each frame)
-    // from slightly below, looking up at the climb. Overrides journey + node.
+    // On the pad (and through the count) it frames the vehicle three-quarter.
+    // In flight it flies the cinematic's shots (launchShot, choreographed in
+    // maquette/launch.ts and written by the rocket each frame): on the ground
+    // for lift-off, riding the stack for the climb, alongside for staging,
+    // then watching the ship fly on — cutting from one camera to the next.
+    // Overrides journey + node.
     if (launch !== 'idle') {
-      const ascending = launch === 'ascend' || launch === 'game';
-      const offRaw = ascending ? LAUNCH.ascendOffset : LAUNCH.padOffset;
-      desiredTarget.current.set(launchTrack.x, launchTrack.y - (ascending ? 0 : LAUNCH.padAim), launchTrack.z);
-      desiredPos.current.set(
-        launchTrack.x + offRaw[0] * fitScale(aspect),
-        launchTrack.y + offRaw[1],
-        launchTrack.z + offRaw[2] * fitScale(aspect),
-      );
+      const flying = (launch === 'ascend' || launch === 'game') && launchShot.active;
+      const fit = fitScale(aspect);
+      if (flying) {
+        // the shot pulls back on narrow screens as far as it asks to (a camera
+        // riding on the rocket stays where it is: on a tall screen the column
+        // fits better, not worse)
+        const pull = 1 + (fit - 1) * launchShot.pull;
+        desiredTarget.current.copy(launchShot.target);
+        desiredPos.current.copy(launchShot.pos).sub(launchShot.target).multiplyScalar(pull).add(launchShot.target);
+      } else {
+        const offRaw = LAUNCH.padOffset;
+        desiredTarget.current.set(launchTrack.x, launchTrack.y - LAUNCH.padAim, launchTrack.z);
+        desiredPos.current.set(launchTrack.x + offRaw[0] * fit, launchTrack.y + offRaw[1], launchTrack.z + offRaw[2] * fit);
+      }
+      // a new camera in the cinematic is a cut, not a flight to it (the first
+      // still glides down off the pad framing)
+      const cut = flying && flightCut.current >= 0 && launchShot.cut !== flightCut.current;
+      flightCut.current = flying ? launchShot.cut : -1;
       const cam = camera as PerspectiveCamera;
-      const wantFov = fitFov(aspect) + LAUNCH.fovZoom;
+      const wantFov = fitFov(aspect) + (flying ? launchShot.fov : LAUNCH.fovZoom);
       if (cam.isPerspectiveCamera) {
-        const nextFov = reduced ? wantFov : cam.fov + (wantFov - cam.fov) * (1 - Math.exp(-CAMERA.fovLerp * dt));
+        const nextFov = reduced || cut ? wantFov : cam.fov + (wantFov - cam.fov) * (1 - Math.exp(-CAMERA.fovLerp * dt));
         if (Math.abs(nextFov - cam.fov) > 0.002) {
           cam.fov = nextFov;
           cam.updateProjectionMatrix();
         }
       }
       let amp = 0;
-      if (reduced) {
+      if (reduced || cut) {
         camera.position.copy(desiredPos.current);
         target.current.copy(desiredTarget.current);
+        if (cut) amp = launchShot.shake;
       } else {
-        // the chase lags a little harder than the normal glide — the rocket
-        // visibly pulls ahead, then the camera catches up
-        const k = 1 - Math.exp(-(ascending ? 2.6 : 3.4) * dt);
+        // In flight the shots are already smooth, so the camera holds them
+        // exactly — after a soft first second and a half that carries it down
+        // off the pad framing into the first shot (a chasing ease would trail
+        // a stack doing several of its own lengths a second). On the pad it
+        // glides as usual.
+        const since = (performance.now() - launchShot.startedAt) / 1000;
+        const settle = Math.min(1, Math.max(0, (since - 0.3) / 1.4));
+        const k = flying ? Math.max(1 - Math.exp(-2.4 * dt), settle * settle * (3 - 2 * settle)) : 1 - Math.exp(-3.4 * dt);
         camera.position.lerp(desiredPos.current, k);
         target.current.lerp(desiredTarget.current, k);
-        if (launch !== prevLaunch.current) {
-          if (launch === 'ascend') shake.current = 1; // the ignition kick
-          prevLaunch.current = launch;
-        }
-        shake.current = Math.max(0, shake.current - dt * 0.55);
-        // hold-down rumble through the count; a big kick at lift-off settling
-        // into the ascent's sustained rattle
-        amp = launch === 'countdown' ? 0.014 : launch === 'ascend' ? 0.035 + 0.15 * shake.current : 0;
+        // a hum through the count; in flight, whatever the shot asks for
+        amp = launch === 'countdown' ? 0.0011 : flying ? launchShot.shake : 0;
       }
       camera.lookAt(target.current);
-      // ---- camera shake: position only ----
-      // Applied AFTER lookAt, across the view plane (camera-local right/up),
-      // so the whole frame translates. Jittering before lookAt re-aimed the
-      // camera at the pinned target every frame, which read as the rotation
-      // wobbling instead of the camera rattling.
+      // ---- camera rumble: position only ----
+      // Applied AFTER lookAt, across the view plane (camera-local right/up), so
+      // the whole frame moves rather than the aim wobbling. Smooth, layered
+      // sines rather than a fresh random offset every frame: that read as a
+      // jittery handheld, this as the ground shaking under a tripod.
       if (amp > 0) {
+        const tt = performance.now() / 1000;
+        const nx = Math.sin(tt * 37.1) * 0.55 + Math.sin(tt * 23.3 + 1.7) * 0.45;
+        const ny = Math.sin(tt * 31.7 + 0.6) * 0.55 + Math.sin(tt * 19.9 + 2.9) * 0.45;
         shakeRight.current.set(1, 0, 0).applyQuaternion(camera.quaternion);
         shakeUp.current.set(0, 1, 0).applyQuaternion(camera.quaternion);
-        shakeOff.current
-          .addScaledVector(shakeRight.current, (Math.random() - 0.5) * amp)
-          .addScaledVector(shakeUp.current, (Math.random() - 0.5) * amp);
+        shakeOff.current.addScaledVector(shakeRight.current, nx * amp).addScaledVector(shakeUp.current, ny * amp);
         camera.position.add(shakeOff.current);
       }
       return;

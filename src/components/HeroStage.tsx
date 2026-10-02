@@ -49,6 +49,8 @@ export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const visited = useSceneSelector((s) => s.visited);
+  // the launch takes the whole frame, from the pad to the game
+  const launching = useSceneSelector((s) => s.launch !== 'idle');
   // Gates the whole hero chrome: held false through the load intro (the centred
   // premise card), flipped true once that card clears — so the title/subtitle
   // are the beat *after* the intro, not underneath it. See IntroCard.
@@ -174,10 +176,10 @@ export function HeroStage() {
 
   // Title lives only on the City layer (and only while the hero is on screen);
   // it clears the moment you scroll to Room or leave the hero entirely.
-  const opacity = selectedSlug ? 0 : heroInView && journeyStep === 0 ? 1 : 0;
+  const opacity = selectedSlug || launching ? 0 : heroInView && journeyStep === 0 ? 1 : 0;
   // The caption + model tally ride the whole journey, clearing with the HUD
   // and the moment the next section takes over the bottom of the screen.
-  const overlayOpacity = selectedSlug || !heroOwnsBottom ? 0 : 1;
+  const overlayOpacity = selectedSlug || launching || !heroOwnsBottom ? 0 : 1;
   const caption = CAPTIONS[journeyStep] ?? CAPTIONS[0];
 
   const openFromManifest = (slug: string) => {

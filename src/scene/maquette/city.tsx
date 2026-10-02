@@ -5,11 +5,11 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, ShaderMaterial, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
 import { sceneStore, useSceneSelector } from '../store';
-import { launchTrack } from '../views';
+import { launchShot, launchTrack } from '../views';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { useLaunchCount } from '../../lib/launches';
 import { asset } from '../../lib/asset';
@@ -21,7 +21,9 @@ import { LIT_SOLID_OPACITY, litMat, litShade, ShadowPrint, useLitBody, useLitLin
 import { faceted, lathe, place, useGeometry } from './shapes';
 import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
-import { Rise, RocketBody } from './rocket';
+import { BoosterBody, Rise, ROCKET_MID, ShipBody, STACK_BASE, STAGING_Y } from './rocket';
+import { BOOSTER_MID, T as FLIGHT, engines as flightEngines, shake as flightShake, shot as flightShot, smoke as flightSmoke, stages as flightStages } from './launch';
+import { LaunchSmoke, type SmokeApi } from './smoke';
 import { loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
@@ -1537,16 +1539,116 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
    "Let's build it together" — literally. The quiet lot between the city
    blocks and the park starts as a bare surveyed apron, and every project the
    visitor wakes adds a piece: launch mount, tower (lower, then upper), then
-   the vehicle itself — legs, booster, grid fins, interstage, access arm,
-   nose cone last. The 10th project powers the site on: the beacon starts
-   blinking, the celebration fires (NodeHud pulls the journey home so it
-   plays in view) and the invitation appears. The vehicle stays deliberately
-   the only ghost in a fully coloured world, because it hasn't flown yet.
-   Clicking it then moves the camera to the pad and offers a LAUNCH button
-   (components/LaunchOverlay); lift-off carries the visitor up into the
-   asteroids easter egg. */
+   the vehicle itself, stacked the way Starship is — the booster's engines,
+   the booster, its grid fins, the hot-staging ring, the access arm, and the
+   ship itself last, in one piece. The 10th project powers the site on: the
+   beacon starts blinking, the celebration fires (NodeHud pulls the journey
+   home so it plays in view) and the invitation appears. The vehicle stays
+   deliberately the only ghost in a fully coloured world, because it hasn't
+   flown yet. Clicking it then moves the camera to the pad and offers a LAUNCH
+   button (components/LaunchOverlay); the flight (maquette/launch.ts) climbs
+   out of the smoke, stages, and carries the ship on into the asteroids
+   easter egg. */
 /* Assembly order: how many woken projects each piece needs (visited.length ≥ n). */
-const BUILD = { mount: 1, towerLo: 2, towerHi: 3, legs: 4, booster: 5, fins: 6, interstage: 7, arm: 8, nose: 9 };
+const BUILD = { mount: 1, towerLo: 2, towerHi: 3, engines: 4, booster: 5, fins: 6, ring: 7, arm: 8, ship: 9 };
+
+// The flight's frame (launch.ts) on the pad's axes: x across the camera's view
+// (screen right, the way the climb leans), z toward the camera. The pad camera
+// sits off +x/+z in world (LAUNCH.padOffset) and the site is turned 0.25 rad,
+// so both are turned back by that much.
+const FLIGHT_X = new Vector3(0.856, 0, -0.518).applyAxisAngle(new Vector3(0, 1, 0), -0.25);
+const FLIGHT_Z = new Vector3(0.518, 0, 0.856).applyAxisAngle(new Vector3(0, 1, 0), -0.25);
+const UP = new Vector3(0, 1, 0);
+// The stack turned on the mount so its heat shield faces away from the
+// cameras (the pad's and the flight's, all on that side), a little off
+// square: they see the steel, the tiles' edge down one side, and the flaps
+// standing out at both edges.
+const SHIELD_DIR = FLIGHT_Z.clone().multiplyScalar(-Math.cos(0.6)).addScaledVector(FLIGHT_X, Math.sin(0.6));
+const STACK_YAW = Math.atan2(SHIELD_DIR.x, SHIELD_DIR.z);
+const flightTmp = { v: new Vector3(), w: new Vector3(), q: new Quaternion(), mid: new Vector3() };
+/** A point of the flight's frame, on the pad's axes. */
+function onPad(out: Vector3, x: number, y: number, z: number): Vector3 {
+  return out.set(0, 0, 0).addScaledVector(FLIGHT_X, x).addScaledVector(UP, y).addScaledVector(FLIGHT_Z, z);
+}
+/** Pose a stage group from the flight: lean it over about its base, then turn
+ *  it about its own middle (the booster's flip). */
+function poseStage(g: Group, p: { x: number; y: number; z: number; tilt: number; turn: number }, pivot: number) {
+  const { v, w, q, mid } = flightTmp;
+  onPad(v, p.x, p.y, p.z);
+  // the middle, where it would be leaning on its path…
+  q.setFromAxisAngle(FLIGHT_Z, -p.tilt);
+  mid.set(0, pivot, 0).applyQuaternion(q).add(v);
+  // …and the whole turn about it
+  g.quaternion.setFromAxisAngle(FLIGHT_Z, -(p.tilt + p.turn));
+  w.set(0, pivot, 0).applyQuaternion(g.quaternion);
+  g.position.copy(mid).sub(w);
+}
+/** A plume's flicker: never the same length two frames running. */
+const lick = () => 0.86 + Math.random() * 0.28;
+
+/** Fire, drawn additive: an engine plume's cones fade out toward the tip
+ *  (uv.y runs 1 → 0 down a cylinder) and toward their own silhouette, so the
+ *  flame has a body rather than a hard edge; a glow is a ball that's bright
+ *  where you look into it and gone at its rim. */
+const FIRE_VERT = /* glsl */ `
+varying float vY;
+varying float vFace;
+void main() {
+  vY = uv.y;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vFace = abs(dot(normalize(normalMatrix * normal), normalize(-mv.xyz)));
+  gl_Position = projectionMatrix * mv;
+}`;
+const PLUME_FRAG = /* glsl */ `
+uniform vec3 uColor;
+uniform float uOpacity;
+varying float vY;
+varying float vFace;
+void main() {
+  gl_FragColor = vec4(uColor, uOpacity * pow(vY, 1.7) * (0.2 + 0.8 * vFace));
+}`;
+const GLOW_FRAG = /* glsl */ `
+uniform vec3 uColor;
+uniform float uOpacity;
+varying float vFace;
+void main() {
+  gl_FragColor = vec4(uColor, uOpacity * vFace * vFace * vFace);
+}`;
+function fireMat(frag: string, color: string, opacity: number) {
+  return new ShaderMaterial({
+    vertexShader: FIRE_VERT,
+    fragmentShader: frag,
+    uniforms: { uColor: { value: new Color(color) }, uOpacity: { value: opacity } },
+    transparent: true,
+    blending: AdditiveBlending,
+    depthWrite: false,
+    side: DoubleSide,
+    toneMapped: false,
+  });
+}
+/** An engine plume hanging down from its group's origin: a long flame round a
+ *  hotter, shorter core, and a glow at the nozzles. The flight scales it per
+ *  frame. */
+function Plume({ radius, length }: { radius: number; length: number }) {
+  const mats = useMemo(
+    () => ({ flame: fireMat(PLUME_FRAG, FIRE, 0.8), core: fireMat(PLUME_FRAG, '#fff0d2', 0.95), glow: fireMat(GLOW_FRAG, '#ffb27a', 0.55) }),
+    [],
+  );
+  return (
+    <group>
+      {/* open cones, wide at the nozzles */}
+      <mesh position={[0, -length / 2, 0]} material={mats.flame} renderOrder={3}>
+        <cylinderGeometry args={[radius * 1.1, radius * 0.25, length, 18, 1, true]} />
+      </mesh>
+      <mesh position={[0, -length * 0.22, 0]} material={mats.core} renderOrder={3}>
+        <cylinderGeometry args={[radius * 0.82, radius * 0.18, length * 0.44, 16, 1, true]} />
+      </mesh>
+      <mesh position={[0, -radius * 0.4, 0]} scale={[1, 0.8, 1]} material={mats.glow} renderOrder={3}>
+        <sphereGeometry args={[radius * 1.35, 16, 12]} />
+      </mesh>
+    </group>
+  );
+}
 
 function NextProjectSite() {
   const { accent } = useAccent();
@@ -1555,12 +1657,23 @@ function NextProjectSite() {
   const launch = useSceneSelector((s) => s.launch);
   const flights = useLaunchCount(); // global odometer, null until known
   const reduced = useReducedMotion();
-  const rocket = useRef<Group>(null);
-  const exhaust = useRef<Group>(null);
+  const pad = useRef<Group>(null); // the stack's own frame: its base at the origin
+  const rocket = useRef<Group>(null); // the clickable stack (hums through the count)
+  const booster = useRef<Group>(null);
+  const ship = useRef<Group>(null);
+  const boosterFire = useRef<Group>(null);
+  const shipFire = useRef<Group>(null);
+  const flash = useRef<Mesh>(null);
+  const ventGlow = useRef<Mesh>(null);
+  const smokeApi = useRef<SmokeApi>(null);
   const beaconMat = useRef<MeshStandardMaterial>(null);
-  const vel = useRef(0);
-  const alt = useRef(0);
-  const ascendT0 = useRef(0); // wall-clock ignition time (staging fallback)
+  const ascendT0 = useRef(0); // wall clock at ignition (0 = not flying)
+  const flown = useRef(false); // something to put back once the pad is idle again
+  // puffs owed between frames (rates are per second; frames are not), and
+  // where the booster's tail was last frame, so the trail has no gaps
+  const owed = useRef({ pad: 0, trail: 0, vent: 0 });
+  const lastTail = useRef(new Vector3());
+  const flashMat = useMemo(() => fireMat(GLOW_FRAG, '#ffe2bd', 0), []);
 
   // Lattice service tower: rung rings + alternating face diagonals (the same
   // construction the old crane mast used — the site kept its scaffolding).
@@ -1596,49 +1709,160 @@ function NextProjectSite() {
     }
 
     const r = rocket.current;
-    if (!r) return;
-    // ---- launch dynamics ----
-    if (launch === 'idle' && alt.current !== 0) {
-      // back from the game: the booster is quietly back on the mount (it landed)
-      alt.current = 0;
-      vel.current = 0;
+    const bo = booster.current;
+    const sh = ship.current;
+    const padG = pad.current;
+    if (!r || !bo || !sh || !padG) return;
+    const puffs = smokeApi.current;
+    const { v } = flightTmp;
+
+    // ---- back on the pad ----
+    if ((launch === 'idle' || launch === 'pad') && flown.current) {
+      // back from the game: the stack is quietly on the mount again (the
+      // booster was caught, the ship came home) and the sky is clear
+      flown.current = false;
       ascendT0.current = 0;
-      r.position.set(0, 0, 0);
-      r.rotation.z = 0;
+      for (const g of [r, bo, sh]) {
+        g.position.set(0, 0, 0);
+        g.quaternion.identity();
+      }
+      for (const g of [boosterFire.current, shipFire.current, flash.current, ventGlow.current]) if (g) g.visible = false;
+      puffs?.clear();
+      launchShot.active = false;
     }
-    if (launch === 'countdown' && !reduced) {
-      // hold-down rumble while the count runs
-      r.position.x = (Math.random() - 0.5) * 0.004;
-      r.position.z = (Math.random() - 0.5) * 0.004;
+
+    // ---- the count: the hold-down hum, and vapour venting off the stack ----
+    if (launch === 'countdown') {
+      flown.current = true;
+      if (!reduced) {
+        const tt = s.clock.elapsedTime;
+        r.position.x = Math.sin(tt * 41) * 0.0006;
+        r.position.z = Math.cos(tt * 37) * 0.0006;
+        owed.current.vent += dt * 10;
+        while (puffs && owed.current.vent >= 1) {
+          owed.current.vent -= 1;
+          const a = Math.random() * Math.PI * 2;
+          const high = Math.random() < 0.45; // off the ship's tanks, or the booster's skirt
+          const y = high ? STAGING_Y + (Math.random() - 0.3) * 0.06 : STACK_BASE + 0.015 + Math.random() * 0.05;
+          puffs.puff(Math.sin(a) * 0.033, y, Math.cos(a) * 0.033, Math.sin(a) * 0.045, -0.025, Math.cos(a) * 0.045, {
+            size0: 0.012, size1: 0.07, life: 1.3 + Math.random(), alpha: 0.3, warm: 0, drag: 1.6,
+          });
+        }
+      }
     }
+
+    // ---- the flight ----
     if (launch === 'ascend') {
       if (reduced) {
-        sceneStore.setLaunch('game'); // no ascent animation — cut to the game
+        sceneStore.setLaunch('game'); // nothing to watch — straight to the game
       } else {
-        if (ascendT0.current === 0) ascendT0.current = performance.now();
-        vel.current += 1.7 * dt; // throttle up
-        alt.current += vel.current * dt;
-        r.position.y = alt.current;
-        r.rotation.z = -Math.min(alt.current * 0.05, 0.16); // a hint of gravity turn
-        // staging → the game takes over. The wall-clock fallback matters: the
-        // sim's dt is clamped (1/30), so on a slow device the integration runs
-        // below real time and altitude alone could keep the visitor waiting.
-        if (alt.current > 3.2 || performance.now() - ascendT0.current > 4500) sceneStore.setLaunch('game');
+        flown.current = true;
+        if (ascendT0.current === 0) {
+          ascendT0.current = performance.now();
+          launchShot.startedAt = ascendT0.current;
+          r.position.set(0, 0, 0);
+          lastTail.current.set(0, STACK_BASE, 0);
+        }
+        // wall clock, not the frame sum: dt is clamped, and the flight is a
+        // film with a set running time
+        const t = (performance.now() - ascendT0.current) / 1000;
+        const st = flightStages(t);
+        poseStage(bo, st.booster, BOOSTER_MID);
+        poseStage(sh, st.ship, 0);
+
+        // engines: the plumes lengthen and spread as the air thins
+        const e = flightEngines(t);
+        const alt = st.booster.y;
+        const wide = 1 + Math.min(1.3, alt * 0.12);
+        const long = 1 + Math.min(2.4, alt * 0.24);
+        const bf = boosterFire.current;
+        if (bf) {
+          bf.visible = e.booster > 0.01;
+          bf.scale.set(e.booster * wide * lick(), e.booster * long * lick(), e.booster * wide * lick());
+        }
+        const sf = shipFire.current;
+        if (sf) {
+          sf.visible = e.ship > 0.01;
+          const since = Math.max(0, t - FLIGHT.sep);
+          const spread = 1 + Math.min(0.6, since * 0.3);
+          const grow = 1 + Math.min(1.6, since * 0.7);
+          sf.scale.set(e.ship * spread * lick(), e.ship * grow * lick(), e.ship * spread * lick());
+        }
+        const fl = flash.current;
+        if (fl) {
+          fl.visible = e.flash > 0.01;
+          fl.scale.setScalar(0.05 + (1 - e.flash) * 0.14);
+          flashMat.uniforms.uOpacity.value = e.flash;
+        }
+        const vg = ventGlow.current;
+        if (vg) {
+          vg.visible = e.vents > 0.01;
+          (vg.material as MeshBasicMaterial).opacity = e.vents;
+        }
+
+        // smoke: the pad's cloud rolling out off the mount, and the trail
+        if (puffs) {
+          const sm = flightSmoke(t);
+          const o = owed.current;
+          o.pad += sm.pad * dt;
+          while (o.pad >= 1) {
+            o.pad -= 1;
+            // out to both sides of the mount, across the cameras' view, and
+            // less of it toward them than away (no flame trench, but the
+            // picture still wants the stack in it)
+            const a = (Math.random() < 0.5 ? 0 : Math.PI) + (Math.random() - 0.5) * 1.5;
+            const toward = Math.sin(a);
+            v.set(0, 0, 0).addScaledVector(FLIGHT_X, Math.cos(a)).addScaledVector(FLIGHT_Z, toward > 0 ? toward * 0.45 : toward);
+            const ca = v.x;
+            const sa = v.z;
+            if (Math.random() < 0.22) {
+              // some of it billows up round the stack as it clears the mount
+              puffs.puff(ca * 0.05, 0.05 + Math.random() * 0.12, sa * 0.05, ca * 0.07, 0.12 + Math.random() * 0.2, sa * 0.07, {
+                size0: 0.06, size1: 0.26 + Math.random() * 0.1, life: 3.2 + Math.random() * 2, alpha: 0.38, warm: 0.85, drag: 0.9,
+              });
+            } else {
+              // most of it is thrown out sideways and rolls across the city
+              const sp = 0.28 + Math.random() * 0.5;
+              puffs.puff(ca * 0.06, 0.025 + Math.random() * 0.03, sa * 0.06, ca * sp, 0.02 + Math.random() * 0.07, sa * sp, {
+                size0: 0.05, size1: 0.3 + Math.random() * 0.16, life: 4 + Math.random() * 2.6, alpha: 0.44, warm: 0.9, drag: 1.05,
+              });
+            }
+          }
+          o.trail += sm.trail * dt;
+          if (o.trail >= 1) {
+            // where the flame burns out into smoke, in the pad's frame
+            v.set(0, STACK_BASE - 0.26 * e.booster * long, 0).applyQuaternion(bo.quaternion).add(bo.position);
+            const n = Math.floor(o.trail);
+            o.trail -= n;
+            for (let i = 0; i < n; i++) {
+              const k = (i + Math.random()) / n;
+              puffs.puff(
+                lastTail.current.x + (v.x - lastTail.current.x) * k + (Math.random() - 0.5) * 0.02,
+                lastTail.current.y + (v.y - lastTail.current.y) * k,
+                lastTail.current.z + (v.z - lastTail.current.z) * k + (Math.random() - 0.5) * 0.02,
+                (Math.random() - 0.5) * 0.08, -0.06 - Math.random() * 0.1, (Math.random() - 0.5) * 0.08,
+                { size0: 0.05, size1: 0.2 + Math.min(0.2, alt * 0.02), life: 2.4 + Math.random() * 1.2, alpha: 0.34, warm: 0.45, drag: 0.7 },
+              );
+            }
+            lastTail.current.copy(v);
+          }
+        }
+
+        // the camera's shot, from the flight's frame into world space
+        const sht = flightShot(t);
+        padG.localToWorld(onPad(launchShot.pos, sht.pos[0], sht.pos[1], sht.pos[2]));
+        padG.localToWorld(onPad(launchShot.target, sht.target[0], sht.target[1], sht.target[2]));
+        launchShot.fov = sht.fov;
+        launchShot.pull = sht.pull;
+        launchShot.cut = sht.cut;
+        launchShot.shake = flightShake(t);
+        launchShot.active = true;
+        // the ship flies on into the game
+        if (t > FLIGHT.end) sceneStore.setLaunch('game');
       }
     }
-    // exhaust: builds through the count, roars during ascent
-    const ex = exhaust.current;
-    if (ex) {
-      const on = launch === 'ascend' ? 1 : launch === 'countdown' ? 0.25 : 0;
-      ex.visible = on > 0 && !reduced;
-      if (ex.visible) {
-        const flick = 0.85 + Math.random() * 0.3;
-        ex.scale.set(on * flick, on * (0.9 + Math.random() * 0.35), on * flick);
-      }
-    }
-    // the camera reads the vehicle's live world position from here
-    r.getWorldPosition(launchTrack);
-    launchTrack.y += 0.35 * 1.15; // aim at the stack's middle, not its tail
+    // the pad camera aims at the stack's middle
+    r.localToWorld(launchTrack.set(0, ROCKET_MID, 0));
   });
 
   const post = MAST_W / 2;
@@ -1675,7 +1899,7 @@ function NextProjectSite() {
           ))}
         </group>
       )}
-      <group position={[-0.02, 0, 0.03]}>
+      <group ref={pad} position={[-0.02, 0, 0.03]}>
         {/* ---- piece 1: the four-legged launch mount ---- */}
         {built >= BUILD.mount && (
           <Rise animate={anim}>
@@ -1704,33 +1928,48 @@ function NextProjectSite() {
           }}
           onPointerOut={() => (document.body.style.cursor = '')}
         >
-          <RocketBody
-            // ghost while it's still being assembled piece by piece; the moment
-            // the site is complete (10/10, homecoming) the vehicle powers on to a
-            // lit teal solid with glowing edges — the finished rocket, ready to fly,
-            // no longer a faint sketch
-            mode={complete ? 'lit' : 'ghost'}
-            assemble={anim}
-            parts={{
-              legs: built >= BUILD.legs,
-              booster: built >= BUILD.booster,
-              fins: built >= BUILD.fins,
-              interstage: built >= BUILD.interstage,
-              nose: built >= BUILD.nose,
-            }}
-          />
-          {/* exhaust — hidden until the count */}
-          <group ref={exhaust} position={[0, 0.075, 0]} visible={false}>
-            <mesh position={[0, -0.1, 0]}>
-              <coneGeometry args={[0.03, 0.22, 12, 1, true]} />
-              <meshBasicMaterial color={FIRE} transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+          {/* Ghost while it's still being stacked piece by piece; the moment
+              the site is complete (10/10, homecoming) the vehicle powers on to
+              steel and heat shield — the finished rocket, ready to fly, no
+              longer a faint sketch. Booster and ship in their own groups: the
+              flight separates them at staging. */}
+          <group ref={booster}>
+            <group rotation={[0, STACK_YAW, 0]}>
+              <BoosterBody
+                mode={complete ? 'lit' : 'ghost'}
+                assemble={anim}
+                parts={{
+                  engines: built >= BUILD.engines,
+                  booster: built >= BUILD.booster,
+                  fins: built >= BUILD.fins,
+                  ring: built >= BUILD.ring,
+                }}
+              />
+            </group>
+            <group ref={boosterFire} position={[0, STACK_BASE + 0.004, 0]} visible={false}>
+              <Plume radius={0.029} length={0.34} />
+            </group>
+            {/* the ring's vents, lit from inside as the ship's engines light at staging */}
+            <mesh ref={ventGlow} position={[0, (STAGING_Y + 0.49) / 2, 0]} visible={false} renderOrder={3}>
+              <cylinderGeometry args={[0.0268, 0.0268, 0.012, 24, 1, true]} />
+              <meshBasicMaterial color={FIRE} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
             </mesh>
-            <mesh position={[0, -0.02, 0]}>
-              <sphereGeometry args={[0.05, 12, 12]} />
-              <meshBasicMaterial color={FIRE} transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+          </group>
+          <group ref={ship}>
+            <group rotation={[0, STACK_YAW, 0]}>
+              {built >= BUILD.ship && <ShipBody mode={complete ? 'lit' : 'ghost'} assemble={anim} />}
+            </group>
+            <group ref={shipFire} position={[0, STAGING_Y + 0.004, 0]} visible={false}>
+              <Plume radius={0.021} length={0.24} />
+            </group>
+            {/* the hot-staging bloom, between the stages as they part */}
+            <mesh ref={flash} position={[0, STAGING_Y, 0]} visible={false} material={flashMat} renderOrder={3}>
+              <sphereGeometry args={[1, 20, 14]} />
             </mesh>
           </group>
         </group>
+        {/* the launch's smoke, in the stack's frame */}
+        <LaunchSmoke ref={smokeApi} />
       </group>
 
       {/* ---- the service tower (the crane's lattice, repurposed) — raised in

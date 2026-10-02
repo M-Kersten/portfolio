@@ -94,6 +94,17 @@
 .launch__abort:hover {
   color: var(--ink);
 }
+/* the flight: the frame is the film's, so the way past it keeps to a corner
+   and only turns up once the stack is off the mount */
+.launch--flight {
+  justify-content: flex-end;
+  padding-right: clamp(1rem, 4vw, 2.5rem);
+}
+.launch__skip {
+  pointer-events: auto;
+  padding: 0.6em 0.2em;
+  animation: launch-rise var(--t-base) var(--ease) 1.6s both;
+}
 .launch__abort kbd,
 .ast__exit kbd {
   font-family: var(--font-mono);

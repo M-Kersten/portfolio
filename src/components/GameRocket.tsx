@@ -11,10 +11,11 @@ import {
   type PerspectiveCamera,
   type PointLight,
 } from 'three';
-import { RocketBody, ROCKET_MID } from '../scene/maquette/rocket';
+import { SHIP_MID, ShipBody, STACK_TIP, STAGING_Y } from '../scene/maquette/rocket';
 
-// The asteroids playfield's 3D layer: the ship is the actual launch vehicle and
-// the hazards are real tumbling rocks, both in a transparent canvas over the 2D
+// The asteroids playfield's 3D layer: the ship is the one that flew off the pad
+// (the booster stayed behind at staging) and the hazards are real tumbling
+// rocks, both in a transparent canvas over the 2D
 // game. The engine writes live poses into refs each frame; this reads them and
 // drives the models. Pointer-events are off (see .ast__ship3d) so the 2D canvas
 // underneath keeps the touch controls.
@@ -55,7 +56,13 @@ export interface Burst {
   tier: number;
 }
 
-const SHIP_SCALE = 190; // world→px: model is ~0.63 tall → ~120px, so it owns the frame
+// world→px: the ship is 0.29 tall → ~113px, so it owns the frame, and its nose
+// tip lands 56px out from its middle, where the engine fires from (NOSE)
+const SHIP_SCALE = 390;
+// The heat shield turned away from the camera, a little off square: the steel
+// faces you with the tiles' edge down one side, and both pairs of flaps stand
+// out against the field.
+const SHIP_YAW = Math.PI - 0.3;
 const FOV = 30;
 // A steady tilt on the whole playfield, applied OUTSIDE the heading rotation, so
 // the vehicle is always seen a little from above whatever way it's pointing —
@@ -364,7 +371,7 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
     if (muzzle.current) {
       const mz = Math.max(0, Math.min(1, v.muzzle));
       muzzle.current.visible = mz > 0.02;
-      muzzle.current.scale.setScalar(0.02 + mz * 0.055);
+      muzzle.current.scale.setScalar(0.01 + mz * 0.027);
     }
     // The shield: a faceted shell around the vehicle. It eases in when held, and
     // on the hit it flares bright and blows outward as it goes — so losing it is
@@ -378,7 +385,7 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
       shell.current.visible = on;
       if (on) {
         // held: sits just off the hull, breathing. bursting: punches outward.
-        shell.current.scale.setScalar(0.42 * (0.94 + 0.06 * Math.sin(s.clock.elapsedTime * 2.4) + brk * 0.55));
+        shell.current.scale.setScalar(0.205 * (0.94 + 0.06 * Math.sin(s.clock.elapsedTime * 2.4) + brk * 0.55));
         shell.current.rotation.y = s.clock.elapsedTime * 0.35;
         shell.current.rotation.x = s.clock.elapsedTime * 0.22;
         const fill = shellFill.current.material as MeshBasicMaterial;
@@ -405,8 +412,8 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
       <group ref={scaler}>
         {/* The shield shell, outside the heading group so it doesn't spin with the
             vehicle: a faint faceted bubble in the site's own wireframe language,
-            sitting just off the hull. Centred on the model's middle (the pivot
-            offsets the body by -ROCKET_MID), so a plain sphere encloses it. */}
+            sitting just off the hull. Centred on the ship's middle (the pivot
+            offsets the body by -SHIP_MID), so a plain sphere encloses it. */}
         <group ref={shell} visible={false}>
           <mesh ref={shellFill}>
             <icosahedronGeometry args={[1, 2]} />
@@ -422,37 +429,31 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
         {/* the playfield tilt — outside the heading, so the view angle is steady */}
         <group rotation={[TILT, 0, 0]}>
           <group ref={head}>
-            {/* pivot about the model's middle so it rotates in place */}
-            <group ref={pivot} position={[0, -ROCKET_MID, 0]}>
-              {/* The pad's vehicle is a slender 1:9 needle — right in the maquette,
-                  but at game size the hull is too thin to show any shading. Fatten
-                  the barrel (not the length) just for the game: a stubbier stack
-                  reads as a solid object, and the fins and legs actually register.
-                  Wraps the plume too, so the exhaust still matches the nozzle (the
-                  animated scale lives on the inner group, untouched by this). */}
-              <group scale={[1.75, 1, 1.75]}>
-                <RocketBody mode="lit" />
-                {/* exhaust plume out of the tail (tail ≈ y 0.09), pointing −Y */}
-                <group ref={flame} position={[0, 0.06, 0]} visible={false}>
-                  <mesh position={[0, -0.11, 0]} rotation={[Math.PI, 0, 0]}>
-                    <coneGeometry args={[0.03, 0.2, 12, 1, true]} />
-                    <meshBasicMaterial color="#ffd9a0" transparent opacity={0.85} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
-                  </mesh>
-                  {/* hot inner core */}
-                  <mesh position={[0, -0.075, 0]} rotation={[Math.PI, 0, 0]}>
-                    <coneGeometry args={[0.015, 0.12, 10, 1, true]} />
-                    <meshBasicMaterial color="#fff3da" transparent opacity={0.95} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
-                  </mesh>
-                  <mesh position={[0, -0.02, 0]}>
-                    <sphereGeometry args={[0.045, 12, 12]} />
-                    <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
-                  </mesh>
-                  {/* the burn's glow on the hull (intensity driven in useFrame) */}
-                  <pointLight ref={flameLight} position={[0, -0.04, 0.05]} color="#ffb46a" intensity={0} decay={2} />
-                </group>
+            {/* pivot about the ship's middle so it rotates in place */}
+            <group ref={pivot} position={[0, -SHIP_MID, 0]}>
+              <group rotation={[0, SHIP_YAW, 0]}>
+                <ShipBody mode="lit" />
               </group>
-              {/* muzzle flash at the nose tip (nose ≈ y 0.72 in model space) */}
-              <mesh ref={muzzle} position={[0, 0.74, 0]} visible={false}>
+              {/* exhaust out of the six engines in the skirt, pointing −Y */}
+              <group ref={flame} position={[0, STAGING_Y, 0]} visible={false}>
+                <mesh position={[0, -0.05, 0]} rotation={[Math.PI, 0, 0]}>
+                  <coneGeometry args={[0.024, 0.1, 14, 1, true]} />
+                  <meshBasicMaterial color="#ffa968" transparent opacity={0.8} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+                </mesh>
+                {/* hot inner core */}
+                <mesh position={[0, -0.031, 0]} rotation={[Math.PI, 0, 0]}>
+                  <coneGeometry args={[0.012, 0.06, 10, 1, true]} />
+                  <meshBasicMaterial color="#fff3da" transparent opacity={0.95} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
+                </mesh>
+                <mesh position={[0, -0.006, 0]} scale={[1, 0.6, 1]}>
+                  <sphereGeometry args={[0.032, 12, 12]} />
+                  <meshBasicMaterial color="#ffb46a" transparent opacity={0.5} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+                </mesh>
+                {/* the burn's glow on the hull (intensity driven in useFrame) */}
+                <pointLight ref={flameLight} position={[0, -0.02, 0.04]} color="#ffb46a" intensity={0} decay={2} />
+              </group>
+              {/* muzzle flash at the nose tip */}
+              <mesh ref={muzzle} position={[0, STACK_TIP + 0.006, 0]} visible={false}>
                 <sphereGeometry args={[1, 10, 10]} />
                 <meshBasicMaterial color="#d8fbff" transparent opacity={0.8} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
               </mesh>

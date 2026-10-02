@@ -1,34 +1,52 @@
-// The launch vehicle, shared by the pad (city.tsx NextProjectSite, ghost until
-// it flies) and the asteroids easter egg (components/GameRocket, lit — it IS
-// the player's ship in 3D). Body local space: tail at y≈0.09, nose tip at
-// y≈0.72, so its visual centre is ≈0.4 (the game offsets by that to spin it
-// about the middle). Just the vehicle — the pad keeps its own exhaust + click.
+// The launch vehicle: a Starship stack, modelled in Blender
+// (scripts/models/build_rocket.py, loaded by kit.ts). The pad draws the whole
+// stack (city.tsx NextProjectSite: a ghost until it flies, stacked part by part
+// as projects wake, and split in two at staging); the asteroids easter egg
+// (components/GameRocket) flies the ship alone, since the booster stays behind.
 //
-// `parts` lets the pad assemble the vehicle piece by piece as projects come
-// alive (all pieces default on — the game always flies a complete rocket);
-// with `assemble`, a piece that mounts rises in with a little overshoot.
+// Body local space: Super Heavy's skirt on the launch mount at y 0.09, the
+// hot-staging ring 0.49–0.505, Starship from there to its nose at 0.795. The
+// heat shield faces +Z; the flaps stand on ±X.
+//
+// `parts` lets the pad assemble the vehicle as projects come alive (all pieces
+// default on — the game always flies a complete ship); with `assemble`, a piece
+// that mounts rises in with a little overshoot.
 import { useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
-import type { Group } from 'three';
-import { NEUTRAL, SURFACE } from './shared';
+import type { BufferGeometry, Group } from 'three';
+import { NEUTRAL } from './shared';
 import { GHOST_FILL, GHOST_LINE } from './life';
 import { Crease } from './materials';
+import { loadRocketKit, useRocketKit } from './kit';
 
-const FINS: [number, number][] = [[-0.042, 0], [0.042, 0], [0, -0.042], [0, 0.042]];
-const LEGS: [number, number][] = [[-0.03, 0.03], [0.03, 0.03], [-0.03, -0.03], [0.03, -0.03]];
+// fetch the model with the scene, not when the first piece is stacked
+loadRocketKit().catch(() => {});
 
-/** The rocket's visual centre in local Y — wrap it in `position={[0,-ROCKET_MID,0]}`
- *  to pivot about the middle (the game spins it there). */
-export const ROCKET_MID = 0.4;
+/** Where the stack starts (the skirt, on the mount), where the ship sits on
+ *  the booster, and the nose tip — in the body's local Y. */
+export const STACK_BASE = 0.09;
+export const STAGING_Y = 0.505;
+export const STACK_TIP = 0.795;
+/** The stack's middle: the pad camera aims here. */
+export const ROCKET_MID = (STACK_BASE + STACK_TIP) / 2;
+/** The ship's middle. Wrap ShipBody in `position={[0, -SHIP_MID, 0]}` to turn
+ *  it about its centre (the game spins it there). */
+export const SHIP_MID = (STAGING_Y + STACK_TIP) / 2;
 
 /** Which components of the stack exist (pad assembly). Omitted = present. */
 export interface RocketParts {
-  legs?: boolean;
+  /** the booster's 33 engines, set on the mount first */
+  engines?: boolean;
   booster?: boolean;
   fins?: boolean;
-  interstage?: boolean;
-  nose?: boolean;
+  /** the hot-staging ring on the booster's top */
+  ring?: boolean;
+  /** Starship itself, lifted on in one piece */
+  ship?: boolean;
 }
+
+type Mode = 'ghost' | 'lit';
+type Role = 'steel' | 'tiles' | 'engines' | 'dark';
 
 /** Scales its children in with a touch of ease-out-back overshoot on mount —
  *  the assembly animation for pieces arriving at the pad. With `animate`
@@ -56,101 +74,92 @@ export function Rise({ animate, children }: { animate: boolean; children: ReactN
   );
 }
 
-export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?: 'ghost' | 'lit'; parts?: RocketParts; assemble?: boolean }) {
+/** One piece of the model, dressed for the pad's ghost or for flight.
+ *
+ *  Lit, it's a real vehicle: stainless steel that takes the key light and the
+ *  engines' warm bounce, the heat shield and flaps a dark slate rather than
+ *  black (against a near-black field, anything darker stops reading as
+ *  hardware and starts reading as a hole), the engines darker metal.
+ *
+ *  NOTE on metalness: the game canvas has no environment map, so metalness
+ *  has nothing to reflect and only eats the diffuse term; anything above ~0.3
+ *  renders near-black whatever colour it's given. Keep it low and let the key
+ *  light do the work. */
+function Part({ geo, mode, role, opacity }: { geo: BufferGeometry; mode: Mode; role: Role; opacity: number }) {
   const lit = mode === 'lit';
-  // lit: faint panel seams, not neon piping — the shading carries the form
-  const line = lit ? NEUTRAL : GHOST_LINE;
-  const p = { legs: true, booster: true, fins: true, interstage: true, nose: true, ...parts };
-  // hull: ghost = faint frosted glass; lit = a REAL vehicle — painted white
-  // aluminium that takes the key light and the engine's warm bounce, so the
-  // cylinder reads round instead of glowing teal
-  const Hull = ({ opacity }: { opacity: number }) =>
-    lit ? (
-      <meshStandardMaterial color={SURFACE.pale.color} metalness={0.45} roughness={0.42} />
-    ) : (
-      <meshStandardMaterial color={GHOST_FILL} transparent opacity={opacity} />
-    );
-  // The interstage band — it breaks the white stack into stages, which is most of
-  // what makes a rocket read as one. Kept a mid slate rather than charcoal: against
-  // a near-black field, anything darker stops reading as hardware and starts
-  // reading as a gap punched through the vehicle.
-  const Band = ({ opacity }: { opacity: number }) =>
-    lit ? (
-      <meshStandardMaterial color={SURFACE.glass.color} metalness={0.12} roughness={0.62} />
-    ) : (
-      <meshStandardMaterial color={GHOST_FILL} transparent opacity={opacity} />
-    );
-  // struts (fins + legs) — machined metal, light enough to catch the key light.
-  // The camera-facing fin overlaps the hull, so in graphite it read as a black
-  // sticker stuck to the side rather than a fin standing off it.
-  //
-  // NOTE on metalness for both of these: the game canvas has no environment map,
-  // so metalness has nothing to reflect and only eats the diffuse term — anything
-  // above ~0.2 renders these near-black whatever colour you give them. Keep them
-  // low and let the key light do the work.
-  const Strut = ({ opacity }: { opacity: number }) =>
-    lit ? (
-      <meshStandardMaterial color={SURFACE.pale.color} metalness={0.18} roughness={0.42} />
-    ) : (
-      <meshStandardMaterial color={GHOST_LINE} transparent opacity={opacity} />
-    );
+  return (
+    <mesh geometry={geo}>
+      {!lit ? (
+        <meshStandardMaterial color={GHOST_FILL} transparent opacity={opacity} />
+      ) : role === 'steel' ? (
+        <meshStandardMaterial color="#c4ced8" metalness={0.28} roughness={0.38} />
+      ) : role === 'tiles' ? (
+        <meshStandardMaterial color="#2e353d" metalness={0.04} roughness={0.82} />
+      ) : role === 'engines' ? (
+        <meshStandardMaterial color="#59636e" metalness={0.22} roughness={0.5} />
+      ) : (
+        <meshStandardMaterial color="#20262c" metalness={0.05} roughness={0.7} />
+      )}
+      {/* lit: faint panel seams, not neon piping — the shading carries the form */}
+      <Crease threshold={30} color={lit ? NEUTRAL : GHOST_LINE} transparent opacity={lit ? 0.35 : 1} />
+    </mesh>
+  );
+}
+
+/** Super Heavy: its engines, hull, grid fins and hot-staging ring. */
+export function BoosterBody({ mode = 'ghost', parts, assemble = false }: { mode?: Mode; parts?: RocketParts; assemble?: boolean }) {
+  const kit = useRocketKit();
+  if (!kit) return null;
+  const p = { engines: true, booster: true, fins: true, ring: true, ...parts };
   return (
     <group>
+      {p.engines && (
+        <Rise animate={assemble}>
+          <Part geo={kit.sh_engines} mode={mode} role="engines" opacity={0.45} />
+        </Rise>
+      )}
       {p.booster && (
         <Rise animate={assemble}>
-          <mesh position={[0, 0.09 + 0.21, 0]}>
-            <cylinderGeometry args={[0.034, 0.036, 0.42, 14]} />
-            <Hull opacity={0.32} />
-            <Crease threshold={30} color={line} />
-          </mesh>
-        </Rise>
-      )}
-      {p.interstage && (
-        <Rise animate={assemble}>
-          {/* interstage / upper stage — the dark band between the stages */}
-          <mesh position={[0, 0.09 + 0.42 + 0.055, 0]}>
-            <cylinderGeometry args={[0.03, 0.034, 0.11, 14]} />
-            <Band opacity={0.36} />
-            <Crease threshold={30} color={line} />
-          </mesh>
-        </Rise>
-      )}
-      {p.nose && (
-        <Rise animate={assemble}>
-          {/* nose cone — the crowning piece */}
-          <mesh position={[0, 0.09 + 0.53 + 0.05, 0]}>
-            <coneGeometry args={[0.03, 0.1, 14]} />
-            <Hull opacity={0.4} />
-            <Crease threshold={30} color={line} />
-          </mesh>
+          <Part geo={kit.sh_body} mode={mode} role="steel" opacity={0.3} />
         </Rise>
       )}
       {p.fins && (
         <Rise animate={assemble}>
-          {/* grid fins, folded. The cluster is turned 45 degrees so none of them
-              faces the camera dead-on — square to the lens, the near one reads as
-              a rectangle drawn on the hull instead of hardware beside it. */}
-          <group rotation={[0, Math.PI / 4, 0]}>
-          {FINS.map(([x, z], i) => (
-            <mesh key={`f${i}`} position={[x, 0.475, z]} rotation={[0, i < 2 ? 0 : Math.PI / 2, 0]}>
-              <boxGeometry args={[0.008, 0.034, 0.026]} />
-              <Strut opacity={0.55} />
-            </mesh>
-          ))}
-          </group>
+          <Part geo={kit.sh_fins} mode={mode} role="steel" opacity={0.5} />
         </Rise>
       )}
-      {p.legs && (
+      {p.ring && (
         <Rise animate={assemble}>
-          {/* landing legs against the tail */}
-          {LEGS.map(([x, z], i) => (
-            <mesh key={`l${i}`} position={[x * 1.15, 0.15, z * 1.15]} rotation={[z === 0 ? 0 : z > 0 ? -0.12 : 0.12, 0, x === 0 ? 0 : x > 0 ? 0.12 : -0.12]}>
-              <boxGeometry args={[0.008, 0.13, 0.008]} />
-              <Strut opacity={0.5} />
-            </mesh>
-          ))}
+          <Part geo={kit.sh_ring} mode={mode} role="steel" opacity={0.42} />
+          <Part geo={kit.sh_ring_core} mode={mode} role="dark" opacity={0.3} />
         </Rise>
       )}
+    </group>
+  );
+}
+
+/** Starship: its hull, heat shield, flaps and engines, all in one piece. */
+export function ShipBody({ mode = 'ghost', assemble = false }: { mode?: Mode; assemble?: boolean }) {
+  const kit = useRocketKit();
+  if (!kit) return null;
+  return (
+    <Rise animate={assemble}>
+      <Part geo={kit.ss_body} mode={mode} role="steel" opacity={0.3} />
+      <Part geo={kit.ss_tiles} mode={mode} role="tiles" opacity={0.4} />
+      <Part geo={kit.ss_flaps} mode={mode} role="steel" opacity={0.5} />
+      <Part geo={kit.ss_flaps_tiles} mode={mode} role="tiles" opacity={0.5} />
+      <Part geo={kit.ss_engines} mode={mode} role="engines" opacity={0.45} />
+    </Rise>
+  );
+}
+
+/** The whole stack, booster under ship. */
+export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?: Mode; parts?: RocketParts; assemble?: boolean }) {
+  const ship = parts?.ship ?? true;
+  return (
+    <group>
+      <BoosterBody mode={mode} parts={parts} assemble={assemble} />
+      {ship && <ShipBody mode={mode} assemble={assemble} />}
     </group>
   );
 }

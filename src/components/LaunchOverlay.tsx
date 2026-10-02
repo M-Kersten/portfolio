@@ -13,8 +13,9 @@ const AsteroidsGame = lazy(() => import('./AsteroidsGame').then((m) => ({ defaul
 // The DOM half of the launch easter egg (the rocket itself lives in the city
 // scene — see maquette/city.tsx NextProjectSite). Stage-driven off the scene
 // store: 'pad' shows the mission panel + LAUNCH, 'countdown' runs T-minus,
-// 'ascend' is the scene's show (nothing on top of it), 'game' mounts the
-// asteroids overlay. Esc aborts back to the overview at any point.
+// 'ascend' is the scene's show (nothing on top of it but a quiet skip, for the
+// second flight onwards), 'game' mounts the asteroids overlay. Esc aborts back
+// to the overview at any point.
 
 export function LaunchOverlay() {
   const launch = useSceneSelector((s) => s.launch);
@@ -66,9 +67,18 @@ export function LaunchOverlay() {
   // Portal to <body>: the home page's <main> is its own stacking context below
   // the fixed header, so anything rendered inside it — whatever its z-index —
   // paints under the header. Mission control outranks navigation.
-  // The ascent is the scene's show: nothing on top of it (Esc and the scroll
-  // lock above still hold).
-  if (launch === 'idle' || launch === 'ascend') return null;
+  if (launch === 'idle') return null;
+  // The ascent is the scene's show: nothing on top of it but a way past it
+  // (Esc and the scroll lock above still hold)
+  if (launch === 'ascend')
+    return createPortal(
+      <div className="launch launch--flight">
+        <button type="button" className="launch__abort launch__skip" onClick={() => sceneStore.setLaunch('game')}>
+          skip to the game ›
+        </button>
+      </div>,
+      document.body,
+    );
   if (launch === 'game')
     return createPortal(
       <Suspense fallback={<div className="ast" />}>

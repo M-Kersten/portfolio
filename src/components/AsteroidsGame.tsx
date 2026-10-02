@@ -367,7 +367,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let usedFire = false;
     let hintDone = false;
     let muzzle = 0; // 1 on the shot, decays — drives the 3D nose flash
-    // The 3D vehicle is ~150px long, so its nose tip sits about this far out
+    // The 3D ship is ~113px long, so its nose tip sits about this far out
     // from centre: shots and their sparks leave from THERE, not from mid-hull.
     const NOSE = 56;
     // The star-rush that plays on arrival is "stage separation" by name in the
@@ -890,7 +890,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           const dx = rk.x - ship.x;
           const dy = rk.y - ship.y;
           const rr = rk.r + 13; // the 3D vehicle is bigger in frame — meet it partway
-          // (still forgiving: the hull is ~120px long, so only its core collides)
+          // (still forgiving: the hull is ~113px long, so only its core collides)
           if (dx * dx + dy * dy < rr * rr) impact(rk.label);
         }
       }

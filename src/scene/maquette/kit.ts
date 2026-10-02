@@ -8,6 +8,7 @@
 //   blocks.glb  the six blocks round the tower (city.tsx)
 //   mill.glb    the windmill at the city's edge (city.tsx)
 //   trafo.glb   the transformer house in front of the tower (city.tsx)
+//   rocket.glb  the Starship stack on the launch pad (rocket.tsx)
 import { useEffect, useState } from 'react';
 import { BufferAttribute, BufferGeometry, type InterleavedBufferAttribute, type Mesh, type Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -33,11 +34,17 @@ const TOWER_PARTS = ['tower_body', 'tower_ribs', 'tower_windows', 'tower_lamp', 
 const BLOCK_PARTS = [0, 1, 2, 3, 4, 5].flatMap((i) => [`block${i}_body`, `block${i}_trim`, `block${i}_windows`]);
 const MILL_PARTS = ['mill_ground', 'mill_body', 'mill_cap', 'mill_trim', 'mill_windows', 'mill_sails', 'mill_cloth'] as const;
 const TRAFO_PARTS = ['trafo_body', 'trafo_doors', 'trafo_trim', 'trafo_power'] as const;
+/** The booster's parts (sh_) and the ship's (ss_): the launch separates them. */
+const ROCKET_PARTS = [
+  'sh_engines', 'sh_body', 'sh_fins', 'sh_ring', 'sh_ring_core',
+  'ss_engines', 'ss_body', 'ss_tiles', 'ss_flaps', 'ss_flaps_tiles',
+] as const;
 export type ChipKit = Record<(typeof CHIP_PARTS)[number], BufferGeometry>;
 export type TowerKit = Record<(typeof TOWER_PARTS)[number], BufferGeometry>;
 export type BlocksKit = Record<string, BufferGeometry | undefined>;
 export type MillKit = Record<(typeof MILL_PARTS)[number], BufferGeometry>;
 export type TrafoKit = Record<(typeof TRAFO_PARTS)[number], BufferGeometry>;
+export type RocketKit = Record<(typeof ROCKET_PARTS)[number], BufferGeometry>;
 
 /** gltfpack stores positions and normals as quantized integers and parks the
  *  scale that undoes it on the piece's node. Bake that back into plain floats
@@ -144,6 +151,7 @@ const tower = modelFile('tower.glb', TOWER_PARTS, "city's tower");
 const blocks = modelFile('blocks.glb', BLOCK_PARTS, "city's blocks");
 const mill = modelFile('mill.glb', MILL_PARTS, "city's windmill");
 const trafo = modelFile('trafo.glb', TRAFO_PARTS, "city's transformer house");
+const rocket = modelFile('rocket.glb', ROCKET_PARTS, 'launch vehicle');
 
 export const loadChipKit = chip.get;
 export const useChipKit = chip.useKit;
@@ -155,3 +163,5 @@ export const loadMillKit = mill.get;
 export const useMillKit = mill.useKit;
 export const loadTrafoKit = trafo.get;
 export const useTrafoKit = trafo.useKit;
+export const loadRocketKit = rocket.get;
+export const useRocketKit = rocket.useKit;

@@ -89,7 +89,24 @@ export function nodeView(hotspot: Hotspot, gap = 1, view: Required<HotspotView> 
 }
 
 /** Where the rocket is RIGHT NOW, in world space — written by the rocket every
- *  frame, read by the CameraRig to aim at the pad and chase the ascent (framed
- *  by LAUNCH). Plain mutable vector (per-frame data, deliberately not reactive
- *  state). */
+ *  frame, read by the CameraRig to aim at the pad (framed by LAUNCH). Plain
+ *  mutable vector (per-frame data, deliberately not reactive state). */
 export const launchTrack = new Vector3(0, 0, 0);
+
+/** The launch cinematic's camera, in world space — written by the rocket every
+ *  frame of the flight (maquette/launch.ts choreographs it), flown by the
+ *  CameraRig while `active`: where the camera is, what it looks at, how much
+ *  wider than the scene's lens it shoots (degrees), how much of the narrow-
+ *  screen pull-back it takes (0–1), which camera it is (a change is a cut),
+ *  how hard it rumbles (world units) and when the flight began
+ *  (performance.now()). */
+export const launchShot = {
+  active: false,
+  pos: new Vector3(),
+  target: new Vector3(),
+  fov: 0,
+  pull: 1,
+  cut: 0,
+  shake: 0,
+  startedAt: 0,
+};

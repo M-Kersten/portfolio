@@ -160,14 +160,14 @@ export const CAMERA = {
   fovLerp: 2.2,
 };
 
-// The launch easter egg's camera (see CameraRig's launch branch). The rig aims
-// at the rocket's live world position (launchTrack, in views.ts); these set how it
-// stands off from it on the pad and while chasing the ascent.
+// The launch easter egg's camera on the pad (see CameraRig's launch branch).
+// The rig aims at the rocket's world position (launchTrack, in views.ts) and
+// stands off from it by this much; from ignition on, the flight's own shots
+// take over (maquette/launch.ts).
 export const LAUNCH = {
   padOffset: [1.15, 0.55, 1.9] as Vec3, // three-quarter view of the pad
   padAim: 0.1, // aim this far below the rocket's centre (frames it high)
-  ascendOffset: [1.5, -0.4, 2.4] as Vec3, // slightly below → looking UP at the climb
-  fovZoom: 10, // the lens widens a touch for the pad/ascent drama
+  fovZoom: 10, // the lens widens a touch for the pad/countdown drama
 };
 
 /** How far into the portrait framing a viewport is: 0 at portraitFrom and
