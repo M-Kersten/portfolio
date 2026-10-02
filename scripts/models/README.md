@@ -22,6 +22,14 @@ model, with the shared helpers in `modelkit.py`:
   compact substation with the blocks' rounded corners and plinth, an
   overhanging roof, a louvred double door and three insulators on the roof,
   where the tower's power line lands. It ships as `public/models/trafo.glb`.
+- `build_rocket.py`: the launch vehicle on the city's pad, a Starship stack:
+  Super Heavy (33 engines in its skirt, chines, grid fins, the vented
+  hot-staging ring) under Starship (its heat-shield half, forward and aft
+  flaps tiled on the same side, six engines). The pad stacks its parts in
+  order as projects wake,
+  the launch separates the booster's `sh_` parts from the ship's `ss_` parts,
+  and the asteroids game flies the ship alone. It ships as
+  `public/models/rocket.glb`, and `rocket.tsx` dresses it.
 
 `src/scene/maquette/kit.ts` loads the files, and the layers give every part
 the site's own materials.
@@ -48,7 +56,8 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   the chip's parts with the board's top face at y 0.02, the tower on its plaza
   at the origin with the spire's tip at y 1.0, each block on its own plot's
   origin, the mill on its own with its sails in the hub's space, the
-  transformer house on its own plot's origin. Each is authored around the
+  transformer house on its own plot's origin, the rocket on its axis with its
+  skirt on the launch mount at y 0.09. Each is authored around the
   origin its JSX group already uses, and exported without axis conversion, so
   a part drops onto its slot with no offsets in code.
 - **One bevel.** Every hard edge gets the same round two-segment bevel. That
