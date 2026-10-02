@@ -77,9 +77,10 @@ export function Rise({ animate, children }: { animate: boolean; children: ReactN
 /** One piece of the model, dressed for the pad's ghost or for flight.
  *
  *  Lit, it's a real vehicle: stainless steel that takes the key light and the
- *  engines' warm bounce, the heat shield and flaps a dark slate rather than
- *  black (against a near-black field, anything darker stops reading as
- *  hardware and starts reading as a hole), the engines darker metal.
+ *  engines' warm bounce, the heat shield (and the flaps' windward faces) a
+ *  dark slate rather than black (against a near-black field, anything darker
+ *  stops reading as hardware and starts reading as a hole), the engines
+ *  darker metal.
  *
  *  NOTE on metalness: the game canvas has no environment map, so metalness
  *  has nothing to reflect and only eats the diffuse term; anything above ~0.3
