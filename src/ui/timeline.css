@@ -1,24 +1,22 @@
 /* The projects timeline ("wall"): the pinned pan-through-time region, the
-   employer-coloured route + tooltips, waypoint cards and hover glow. */
+   canyon map woven from its points, the employer-coloured route + tooltips
+   and the waypoint cards. */
 
 /* ---------- Work grid ---------- */
 
 /* A tall scroll region; while it's pinned the page scroll pans the wall
-   sideways, and because the cards descend left→right it feels like riding an
-   escalator down a wall of pictures. */
+   sideways, one to one, like sliding a map past a fixed frame. */
 .wall__scroll { position: relative; }
 .wall__pin {
   position: sticky;
   top: 0;
   height: 100svh;
   overflow: hidden;
-  /* Gives the motion system's dolly tilt (rotateX at pan speed) its depth. */
-  perspective: 1400px;
 }
-/* The ground the route is drawn on, on its own layer so it can drift slower
-   than the cards for a parallax depth cue (transform set per frame in JS): the
-   canyon map once Work.tsx has built it (lib/contours), the site's square dots
-   standing in until then. */
+/* The ground the route is drawn on, on its own layer under the year (it pans
+   with the route, transform set per frame in JS): the canyon map once
+   Work.tsx has built it (lib/contours), the site's square dots standing in
+   until then. */
 .wall__far {
   position: absolute;
   top: 0;
@@ -27,30 +25,44 @@
   background-image: var(--dots-ink);
   background-size: 30px 30px;
   pointer-events: none;
-  /* how soft the edge is between the joined-up map and the loose dots */
+  /* the unit the map's weave is measured in, ahead of and behind the focus */
   --soft: clamp(50px, 9vw, 140px);
 }
 .wall__far[data-topo] { background-image: none; }
-/* The canyon map in its two inks (the tiles arrive inline). Joined up into
-   lines behind the focus — --front, its x on the ground, written per frame
-   by Work.tsx — and a trail of square dots ahead of it. The dots stay on a
-   little way behind the front, so right behind it you see them strung on the
-   freshly drawn lines before they settle into the plain map. */
+/* The canyon map, woven from its points as the focus passes (--front, its x
+   on the ground, written per frame by Work.tsx). Far ahead it's a sparse
+   scatter: a dot every 40px along the contours. Coming up to the focus a
+   second trail fills in between them, then a third, until the dots run every
+   10px; around the focus they're strung on the lines as those draw in, and
+   behind it the lines are all that's left, clearer the further back. Each
+   trail's dots fall between the last's (contourCss), so the map gains points
+   rather than swapping one pattern for another. */
 .wall__map {
   position: absolute;
   inset: 0;
   background-repeat: repeat-x;
 }
 .wall__map--lines {
-  -webkit-mask-image: linear-gradient(90deg, #000 calc(var(--front, 0px) - var(--soft)), transparent calc(var(--front, 0px) + var(--soft)));
-          mask-image: linear-gradient(90deg, #000 calc(var(--front, 0px) - var(--soft)), transparent calc(var(--front, 0px) + var(--soft)));
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(var(--front, 0px) - 2 * var(--soft)), transparent calc(var(--front, 0px) + 0.25 * var(--soft)));
+          mask-image: linear-gradient(90deg, #000 calc(var(--front, 0px) - 2 * var(--soft)), transparent calc(var(--front, 0px) + 0.25 * var(--soft)));
 }
-.wall__map--dots {
-  -webkit-mask-image: linear-gradient(90deg, transparent calc(var(--front, 0px) - 3 * var(--soft)), #000 calc(var(--front, 0px) - var(--soft)));
-          mask-image: linear-gradient(90deg, transparent calc(var(--front, 0px) - 3 * var(--soft)), #000 calc(var(--front, 0px) - var(--soft)));
+/* the scatter: everywhere still to come */
+.wall__map--sparse {
+  -webkit-mask-image: linear-gradient(90deg, transparent calc(var(--front, 0px) - 2 * var(--soft)), #000 calc(var(--front, 0px) - 0.5 * var(--soft)));
+          mask-image: linear-gradient(90deg, transparent calc(var(--front, 0px) - 2 * var(--soft)), #000 calc(var(--front, 0px) - 0.5 * var(--soft)));
 }
-/* Taller + wider than the viewport (height set inline in svh); page scroll pans
-   it diagonally, down and across — the near layer in front of the dot field. */
+/* every 20px: filling in over the stretch ahead of the focus */
+.wall__map--mid {
+  -webkit-mask-image: linear-gradient(90deg, transparent calc(var(--front, 0px) - 2 * var(--soft)), #000 calc(var(--front, 0px) - 0.5 * var(--soft)), #000 calc(var(--front, 0px) + 3.5 * var(--soft)), transparent calc(var(--front, 0px) + 6 * var(--soft)));
+          mask-image: linear-gradient(90deg, transparent calc(var(--front, 0px) - 2 * var(--soft)), #000 calc(var(--front, 0px) - 0.5 * var(--soft)), #000 calc(var(--front, 0px) + 3.5 * var(--soft)), transparent calc(var(--front, 0px) + 6 * var(--soft)));
+}
+/* every 10px: just ahead of the focus, about to be joined */
+.wall__map--fine {
+  -webkit-mask-image: linear-gradient(90deg, transparent calc(var(--front, 0px) - 2 * var(--soft)), #000 calc(var(--front, 0px) - 0.5 * var(--soft)), #000 calc(var(--front, 0px) + 1.5 * var(--soft)), transparent calc(var(--front, 0px) + 3.5 * var(--soft)));
+          mask-image: linear-gradient(90deg, transparent calc(var(--front, 0px) - 2 * var(--soft)), #000 calc(var(--front, 0px) - 0.5 * var(--soft)), #000 calc(var(--front, 0px) + 1.5 * var(--soft)), transparent calc(var(--front, 0px) + 3.5 * var(--soft)));
+}
+/* Wider than the viewport (height set inline in svh); page scroll pans it
+   across, the map underneath panning with it. */
 .wall__plane {
   position: relative;
   will-change: transform;
@@ -67,13 +79,13 @@
 /* Employer band — a coloured segment of the route for one stint. Lit behind
    the focus and dim ahead of it: the band itself is the dim route, and its
    ::before is the lit length, --fill of the way along (written per frame by
-   Work.tsx; 100% when nothing drives it, so a static route is fully lit). */
+   Work.tsx; 100% when nothing drives it, so a static route is fully lit).
+   Flat ink, no halo: the route is drawn on the map, it doesn't shine. */
 .tl-band {
   position: absolute;
   top: 50%;
-  height: 4px;
+  height: 2px;
   transform: translateY(-50%);
-  border-radius: 2px;
   background: color-mix(in srgb, var(--band) 30%, transparent);
   pointer-events: none;
 }
@@ -82,9 +94,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: var(--fill, 100%);
-  border-radius: inherit;
   background: color-mix(in srgb, var(--band) 88%, white);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--band) 55%, transparent);
 }
 /* Concurrent freelance / side work — a slimmer dashed overlay just below. */
 .tl-band--free {
@@ -94,9 +104,7 @@
   background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--band) 34%, transparent) 0 6px, transparent 6px 11px);
 }
 .tl-band--free::before {
-  border-radius: 0;
   background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--band) 85%, white) 0 6px, transparent 6px 11px);
-  box-shadow: none;
 }
 /* Company name set on top of its band. */
 .tl-band__label {
@@ -262,7 +270,6 @@
   transform: translate(-50%, -50%) rotate(45deg);
   background: var(--paper);
   border: 2px solid var(--accent-ink);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 45%, transparent);
   z-index: 2;
   pointer-events: none;
 }
@@ -291,56 +298,24 @@
   letter-spacing: 0.1em;
   color: var(--ink-40);
 }
-/* Node — the waypoint's mark on the route: a station dot, dark until the
-   focus reaches it, then lit in its stint's colour (--band). Crossing it
-   fires a ping (is-hit): a ring thrown out off the station. */
+/* Station — the waypoint's mark on the route, one of the site's square dots
+   at a size you can see: hollow until the focus reaches it, then filled in
+   its stint's colour (--band). */
 .tl-node {
   position: absolute;
   top: 50%;
-  width: 11px;
-  height: 11px;
+  width: 9px;
+  height: 9px;
   transform: translate(-50%, -50%);
-  border-radius: 50%;
   background: var(--paper);
-  border: 2px solid color-mix(in srgb, var(--ink) 40%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--ink) 40%, transparent);
   z-index: 2;
   pointer-events: none;
-  transition: border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
-}
-.tl-node::after {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--ink) 35%, transparent);
-  transition: background var(--t-base) var(--ease);
+  transition: background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
 }
 .tl-node[data-lit] {
-  border-color: color-mix(in srgb, var(--band, var(--ink)) 85%, white);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--band, var(--accent)) 60%, transparent);
-}
-.tl-node[data-lit]::after {
-  background: var(--ink);
-}
-.tl-node::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 44px;
-  height: 44px;
-  margin: -22px 0 0 -22px;
-  border-radius: 50%;
-  border: 1.5px solid color-mix(in srgb, var(--band, var(--accent)) 85%, white);
-  opacity: 0;
-  pointer-events: none;
-}
-.tl-node.is-hit::before {
-  animation: tl-ping 0.9s var(--ease);
-}
-@keyframes tl-ping {
-  0% { transform: scale(0.2); opacity: 0.95; }
-  100% { transform: scale(1.6); opacity: 0; }
+  background: color-mix(in srgb, var(--band, var(--ink)) 88%, white);
+  border-color: color-mix(in srgb, var(--band, var(--ink)) 88%, white);
 }
 /* Leader — the thin stem from the route up/down to a card's near edge; it
    brightens once its waypoint is lit. */
@@ -359,37 +334,6 @@
 .tl-leader--below { top: 50%; }
 .tl-node[data-lit] + .tl-leader--above { background: linear-gradient(transparent, color-mix(in srgb, var(--ink) 55%, transparent)); }
 .tl-node[data-lit] + .tl-leader--below { background: linear-gradient(color-mix(in srgb, var(--ink) 55%, transparent), transparent); }
-
-/* Hover glow — a bright copy of the ground (the map's lines, or the dots
-   before the map arrives), revealed only in a soft pool around the cursor
-   (mask centre = --mx/--my) and kept aligned to the parallaxed ground via
-   --ox/--oy (set to its current drift). It lights the lines ahead of the
-   focus too: the cursor joins up the dots it's over. */
-.wall__glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: var(--dots-cyan);
-  background-size: 30px 30px;
-  background-position: var(--ox, 0px) var(--oy, 0px);
-  -webkit-mask-image: radial-gradient(circle var(--r, 190px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.55) 48%, transparent 78%);
-          mask-image: radial-gradient(circle var(--r, 190px) at var(--mx, -9999px) var(--my, -9999px), #000 0%, rgba(0, 0, 0, 0.55) 48%, transparent 78%);
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--cyan) 50%, transparent));
-}
-/* Mobile (data-static, non-reduced): the glow follows your scroll instead of
-   the cursor — a wave that lights the dots as you travel and fades when you stop
-   (driven in Work.tsx). Here it's pinned to the viewport via a JS transform and
-   sized to it; a horizontally-stretched crest reads as a wave, not a spotlight. */
-.wall[data-static] .wall__glow {
-  inset: 0 auto auto 0;
-  width: 100vw;
-  height: 100%;
-  opacity: 0;
-  -webkit-mask-image: radial-gradient(ellipse var(--r, 160px) calc(var(--r, 160px) * 0.62) at var(--mx, 50%) var(--my, 50%), #000 0%, rgba(0, 0, 0, 0.45) 46%, transparent 74%);
-          mask-image: radial-gradient(ellipse var(--r, 160px) calc(var(--r, 160px) * 0.62) at var(--mx, 50%) var(--my, 50%), #000 0%, rgba(0, 0, 0, 0.45) 46%, transparent 74%);
-}
-/* Reduced motion: no wave at all. */
-.wall[data-reduced] .wall__glow { display: none; }
 
 /* (The BASEMAP instrument HUD, scattered map labels and land features were
    removed — the timeline route is the map's single organising device now.) */
@@ -456,7 +400,7 @@
 .wall__strip {
   display: flex;
   flex-direction: column;
-  transition: transform 0.7s cubic-bezier(0.3, 1.25, 0.4, 1);
+  transition: transform var(--t-base) var(--ease);
 }
 .wall__strip > span {
   display: block;
@@ -588,15 +532,13 @@
 
 /* Waypoint card — its slot is absolutely placed, centred on its year (the
    margin pulls it back half its width), hanging above or below the route by
-   top/bottom set inline. The slot carries the swing: Work.tsx writes --ry and
-   --tz each frame from where the card sits on screen, untransitioned, so it
-   tracks the scroll exactly; the card inside keeps its own hover lift. */
+   top/bottom set inline. The card rests flat on the map, a matte panel like
+   every other card on the site; under the pointer it lifts by --lift and its
+   brackets lock on. */
 .worktile-slot {
   position: absolute;
   width: var(--card-w, 250px);
   margin-left: calc(var(--card-w, 250px) / -2);
-  transform: perspective(1100px) translateZ(var(--tz, 0px)) rotateY(var(--ry, 0deg));
-  will-change: transform;
 }
 .worktile-slot:hover,
 .worktile-slot:focus-within {
@@ -609,7 +551,7 @@
   display: flex;
   flex-direction: column;
   text-align: left;
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012));
+  background: var(--paper-2);
   border: 1px solid color-mix(in srgb, var(--card-accent) 16%, var(--line));
   border-radius: var(--radius);
   overflow: hidden;
@@ -617,19 +559,21 @@
   color: inherit;
   font: inherit;
   padding: 0;
-  backdrop-filter: blur(8px) saturate(1.1);
-  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
-  transition: transform var(--t-base) var(--ease), border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
+  transition: transform var(--t-fast) var(--ease), border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
 }
 .worktile[data-layer='city'] { --card-accent: var(--cyan); }
 .worktile[data-layer='room'] { --card-accent: var(--coral); }
 .worktile[data-layer='chip'] { --card-accent: var(--lime); }
 .worktile:hover,
 .worktile:focus-visible {
-  transform: translateY(-6px) scale(1.035);
+  transform: translateY(var(--lift));
   border-color: color-mix(in srgb, var(--card-accent) 55%, var(--line));
-  box-shadow: 0 30px 60px -26px rgba(0, 0, 0, 0.9), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent);
-  outline: none;
+  /* lifted off the map, so it earns a shadow (the Proximity Rule) */
+  box-shadow: 0 12px 24px -16px rgba(0, 0, 0, 0.85);
+}
+.worktile:focus-visible {
+  outline: 2px solid var(--card-accent);
+  outline-offset: 3px;
 }
 
 /* Not reached yet: the poster rests grey and dim, like the maquette's ghosts.
@@ -643,10 +587,10 @@
   border-color: color-mix(in srgb, var(--ink) 16%, transparent);
 }
 .worktile__img {
-  transition: transform var(--t-base) var(--ease), filter 0.8s var(--ease);
+  transition: filter var(--t-slow) var(--ease);
 }
 .worktile-slot[data-lit] .worktile__reticle i {
-  animation: tile-lock 0.9s var(--ease);
+  animation: tile-lock var(--t-slow) var(--ease);
 }
 @keyframes tile-lock {
   0% { border-color: var(--card-accent); }
@@ -736,13 +680,15 @@
   background: var(--paper-2);
 }
 
-/* placeholder poster art — shown until a real image is dropped in */
+/* placeholder poster — shown until a real image is dropped in: a quiet
+   layer-tinted panel on the site's dot ground, marked with a hollow ring (the
+   same empty state as the /projects index) */
 .worktile__ph {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(120% 90% at 18% 0%, color-mix(in srgb, var(--card-accent) 40%, transparent), transparent 62%),
-    linear-gradient(var(--card-ang, 150deg), color-mix(in srgb, var(--card-accent) 26%, var(--paper-2)), var(--paper));
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--card-accent) 9%, var(--paper-2));
 }
 .worktile__ph::before {
   content: '';
@@ -750,19 +696,15 @@
   inset: 0;
   background: var(--dotfield);
   background-size: var(--dotfield-size);
-  opacity: 0.5;
-  mix-blend-mode: screen;
+  opacity: 0.35;
 }
 .worktile__ph::after {
   content: '';
-  position: absolute;
-  right: -16%;
-  bottom: -24%;
-  width: 66%;
-  aspect-ratio: 1;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--card-accent) 70%, transparent);
   border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--card-accent) 45%, transparent);
-  box-shadow: inset 0 0 40px color-mix(in srgb, var(--card-accent) 28%, transparent);
+  opacity: 0.7;
 }
 .worktile__img {
   position: absolute;
@@ -771,7 +713,6 @@
   height: 100%;
   object-fit: cover;
 }
-.worktile:hover .worktile__img { transform: scale(1.06); }
 .worktile__scrim {
   position: absolute;
   inset: 0;
@@ -805,12 +746,10 @@
   --btn-bg: var(--card-accent);
 }
 
-/* Reduced motion: the route arrives finished — nothing swings, pings or rolls
-   (Work.tsx also lights every stop and the whole route, and draws the whole
-   dot network, up front). */
+/* Reduced motion: the route arrives finished — no flash, no rolling year
+   (Work.tsx also lights every stop and the whole route, and weaves the whole
+   map, up front). */
 @media (prefers-reduced-motion: reduce) {
-  .worktile-slot { transform: none; }
-  .tl-node.is-hit::before,
   .worktile-slot[data-lit] .worktile__reticle i { animation: none; }
   .wall__strip,
   .worktile__img { transition: none; }

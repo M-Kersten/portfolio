@@ -5,9 +5,8 @@ import { asset } from '../lib/asset';
 // A waypoint on the timeline map: a compact card pinned above or below the
 // route, with a small thumbnail, the year as a milestone and a company tag.
 // `style` carries its absolute placement (left = its year, top/bottom = its
-// side) and lands on the slot round the card: the slot is what the timeline
-// swings as the card travels across the screen (--ry/--tz, written per frame by
-// Work.tsx), so the card itself keeps its own hover transform and transition.
+// side) and lands on the slot round the card; the timeline marks the slot lit
+// (data-lit) once the focus has reached it, which powers the card on.
 // Clicking it lifts the project into the focus view.
 export function CaseCard({
   study,
@@ -22,7 +21,6 @@ export function CaseCard({
 }) {
   const [imgOk, setImgOk] = useState(true);
   const src = asset(`/posters/${study.slug}.jpg`);
-  const seed = Array.from(study.slug).reduce((a, c) => a + c.charCodeAt(0), 0);
   // The tag reads as the company by default; independent work overrides it with
   // a "Freelance" / "Passion" label (and then the client moves into the meta
   // line so it stays visible).
@@ -39,7 +37,6 @@ export function CaseCard({
         type="button"
         className="worktile"
         data-layer={study.layer}
-        style={{ '--card-ang': `${120 + (seed % 90)}deg` } as CSSProperties}
         onClick={onOpen}
         // No aria-label: the card's own text (year, company, title, sector) is
         // its name. A shorter label left out words the card shows, and speech

@@ -196,16 +196,14 @@ function bandsAt(bands: CareerBand[], x: number): { main: CareerBand; concurrent
 // starts at the left edge when the wall pins and reaches the right edge as the
 // route runs out, so the journey begins with nothing reached and ends with
 // all of it. Everything is measured from it each frame. The route behind it is
-// lit in its employers' colours and dim ahead; each waypoint pings as the
-// focus crosses it, and its card powers on — the poster comes up from grey,
-// the brackets lock — the maquette's ghost → alive, at timeline scale. Under it
-// all, the canyon map is joined up as the focus passes (lib/contours): ahead
-// of it the contours are still a trail of loose dots, behind it they're
-// connected into lines. And the cards swing as they travel: square-on in the
-// middle of the screen, turned toward it and set back toward the edges, so the
-// wall reads as a curved gallery you're riding past rather than a flat strip.
-const SWING = 16; // degrees a card turns at the screen's edge
-const SWING_DEPTH = 70; // px it sets back there
+// lit in its employers' colours and dim ahead; each waypoint's station fills
+// in as the focus reaches it, and its card powers on — the poster comes up
+// from grey, the brackets lock — the maquette's ghost → alive, at timeline
+// scale. Under it all, the canyon map is woven together from its points as the
+// focus passes (lib/contours): far ahead it's a sparse scatter of dots, the
+// trails fill in as you come up to them, and behind you they're joined into
+// lines. The wall itself is flat and moves exactly with the scroll, a map
+// sliding past a fixed frame.
 const DIGITS = '0123456789';
 
 /** Where the focus is on a hand-panned strip: as far across the visible width
@@ -258,28 +256,22 @@ export function Work() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const planeRef = useRef<HTMLDivElement>(null);
   const farRef = useRef<HTMLDivElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
   // the big year at the foot of the pinned view: whichever year is under the
-  // middle of the screen, written straight to the DOM from the pan loop
+  // focus, written straight to the DOM from the pan loop
   const yearRef = useRef<HTMLSpanElement>(null);
-  // The dot field's current parallax offset + the last cursor position, so the
-  // hover glow stays aligned to the dots as you scroll, not only as you move.
-  const farOffset = useRef({ x: 0, y: 0 });
-  const lastCursor = useRef<{ x: number; y: number; r: number } | null>(null);
   // Per-frame handles for travelling the route (applyHead): each card's slot,
-  // each waypoint's node, each employer band and the year's digit strips —
+  // each waypoint's station, each employer band and the year's digit strips —
   // written straight to the DOM, never through React state.
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
   const nodeRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const bandRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const digitRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const lastHead = useRef<number | null>(null);
   // The canyon map under the route (lib/contours), built for the ground's
-  // height as the section comes near: its lines, the same lines as a trail of
-  // dots, and the cursor's bright copy. The plain dot grid stands in until it
-  // arrives.
-  const [topo, setTopo] = useState<{ lines: string; dots: string; glow: string; w: number; h: number } | null>(null);
+  // height as the section comes near: its lines, and the same lines as trails
+  // of dots at three densities, each filling in between the dots of the last.
+  // The plain dot grid stands in until it arrives.
+  const [topo, setTopo] = useState<{ lines: string; sparse: string; mid: string; fine: string; w: number; h: number } | null>(null);
 
   // Track the narrow breakpoint so orientation / resize flips the mode live.
   useEffect(() => {
@@ -343,39 +335,16 @@ export function Work() {
   }, [isNarrow, timeline.bands]);
 
   // Travel the route to `head` (the plane x under the focus): light what's
-  // behind it, dim what's ahead, ping the waypoints it just crossed. And swing
-  // the cards by where they sit on screen, around `mid` (the plane x under the
-  // middle of the screen). Called per frame by whichever pan is driving (the
-  // scroll-jack or the hand-panned strip). Reduced motion gets the finished
-  // state: everything lit, nothing swinging.
+  // behind it and dim what's ahead. Called per frame by whichever pan is
+  // driving (the scroll-jack or the hand-panned strip). Reduced motion gets
+  // the finished state: everything lit.
   const applyHead = useCallback(
-    (head: number, vw: number, mid: number) => {
+    (head: number) => {
       const { stops, bands } = timeline;
-      const prev = lastHead.current;
       for (let i = 0; i < stops.length; i++) {
-        const x = stops[i].x;
-        const lit = reduced || x <= head;
-        const slot = slotRefs.current[i];
-        if (slot) {
-          if (slot.hasAttribute('data-lit') !== lit) slot.toggleAttribute('data-lit', lit);
-          if (!reduced) {
-            const c = Math.max(-1, Math.min(1, ((x - mid) / vw) * 2)); // −1 … 1, edge to edge
-            // a phone's screen is barely wider than a card, so it swings less
-            const k = 0.6 + 0.4 * Math.min(1, vw / 1200);
-            slot.style.setProperty('--ry', `${(-c * SWING * k).toFixed(2)}deg`);
-            slot.style.setProperty('--tz', `${(-Math.abs(c) * SWING_DEPTH * k).toFixed(1)}px`);
-          }
-        }
-        const node = nodeRefs.current[i];
-        if (node) {
-          if (node.hasAttribute('data-lit') !== lit) node.toggleAttribute('data-lit', lit);
-          // crossed since the last frame, either way: ping (restarting the
-          // animation if it's still running from the last pass)
-          if (!reduced && prev !== null && (prev - x) * (head - x) < 0) {
-            node.classList.remove('is-hit');
-            void node.offsetWidth;
-            node.classList.add('is-hit');
-          }
+        const lit = reduced || stops[i].x <= head;
+        for (const el of [slotRefs.current[i], nodeRefs.current[i]]) {
+          if (el && el.hasAttribute('data-lit') !== lit) el.toggleAttribute('data-lit', lit);
         }
       }
       for (let i = 0; i < bands.length; i++) {
@@ -386,14 +355,13 @@ export function Work() {
         const v = `${(f * 100).toFixed(2)}%`;
         if (el.style.getPropertyValue('--fill') !== v) el.style.setProperty('--fill', v);
       }
-      lastHead.current = head;
     },
     [timeline, reduced],
   );
 
-  // Join the canyon map up to the focus: write where it is on the ground
-  // (`front`, a ground x) for the map's masks, lines behind and dots ahead.
-  // Reduced motion gets the whole map joined up.
+  // Weave the canyon map up to the focus: write where it is on the ground
+  // (`front`, a ground x) for the map's masks — lines behind, the trails
+  // thinning out ahead. Reduced motion gets the whole map woven.
   const applyFront = useCallback(
     (front: number) => {
       const far = farRef.current;
@@ -412,7 +380,7 @@ export function Work() {
     const frame = () => {
       raf = 0;
       const focus = stripFocus(pin);
-      applyHead(focus, pin.clientWidth, pin.scrollLeft + pin.clientWidth / 2);
+      applyHead(focus);
       applyFront(focus);
     };
     const onScroll = () => {
@@ -456,11 +424,18 @@ export function Work() {
           const r = steps.next();
           if (r.done) {
             const tile = r.value;
+            // The dots: a scatter every 40px along each line, a second trail
+            // filling in halfway between, a third halving that again — a dot
+            // every 10px where all three show. All in the site's 2px squares,
+            // and one ink, so a point that arrives early is no different from
+            // one that arrives late.
+            const dots = (pitch: number, phase: number) =>
+              contourCss(tile, { color: '#eaeaea', minor: 0.2, major: 0.32, dots: { size: 2, pitch, phase } });
             return setTopo({
-              lines: contourCss(tile, { color: '#eaeaea', minor: 0.075, major: 0.14 }),
-              // the same lines as a trail of the site's 2px squares
-              dots: contourCss(tile, { color: '#eaeaea', minor: 0.16, major: 0.27, dots: { size: 2, pitch: 11 } }),
-              glow: contourCss(tile, { color: '#27e8f2', minor: 0.85, major: 1, weight: 1.5 }),
+              lines: contourCss(tile, { color: '#eaeaea', minor: 0.12, major: 0.22 }),
+              sparse: dots(40, 0),
+              mid: dots(40, 20),
+              fine: dots(20, 10),
               w: tile.width,
               h: tile.height,
             });
@@ -494,32 +469,12 @@ export function Work() {
     };
   }, []);
 
+  // The scroll-jack: while the section is pinned, page scroll pans the wall
+  // sideways, one to one — the map and its route slide past the frame together,
+  // and nothing about them tilts, drifts or swings.
   useEffect(() => {
     if (manualPan) return;
     let raf = 0;
-    // Keep the bright dot layer sitting exactly over the (parallaxed) base dots,
-    // and the glow pool under the last-known cursor.
-    const syncGlow = () => {
-      const glow = glowRef.current;
-      if (!glow) return;
-      glow.style.setProperty('--ox', `${-farOffset.current.x}px`);
-      glow.style.setProperty('--oy', `${-farOffset.current.y}px`);
-      if (lastCursor.current) {
-        glow.style.setProperty('--mx', `${lastCursor.current.x}px`);
-        glow.style.setProperty('--my', `${lastCursor.current.y}px`);
-        glow.style.setProperty('--r', `${lastCursor.current.r}px`);
-      }
-    };
-    // ---- Motion feel: the dolly -------------------------------------------
-    // The wall reacts to how fast you pan: at speed the whole plane eases back
-    // and tilts away a touch — a camera pulling out to travel — then settles
-    // back in when you stop. Intensity lives in the wall tweak panel
-    // (dollyZoom / dollyTilt / motionEase); set to 0 to disable. At rest the
-    // values decay to exactly zero, so the resting wall is pixel-identical to
-    // a wall without this code.
-    const SPEED_REF = 35; // px/frame that counts as "full speed"
-    let lastX = -1; // pan position on the previous frame (-1 = not measured yet)
-    let vel = 0; // smoothed pan velocity
     const update = () => {
       raf = 0;
       const el = scrollRef.current;
@@ -545,161 +500,24 @@ export function Work() {
           if (strip) strip.style.transform = `translateY(${-Number(d)}em)`;
         });
       }
-
-      // Smoothed velocity (px/frame). dv is 0 on settle frames, so it eases
-      // back to rest through the same lerp that ramps it up.
-      const dv = lastX < 0 ? 0 : x - lastX;
-      lastX = x;
-      vel += (dv - vel) * cfg.motionEase;
-      const speed = Math.min(1, vel / SPEED_REF); // 0..1 of full speed
-      const absoluteSpeed = Math.min(1, Math.abs(vel) / SPEED_REF); // 0..1 of full speed
-      const scale = 1 - cfg.dollyZoom * absoluteSpeed;
-      const tilt = cfg.dollyTilt * speed;
-
-      // Scale/tilt around the point currently at the viewport's centre.
-      plane.style.transformOrigin = `${x + window.innerWidth / 2}px 50%`;
-      plane.style.transform =
-        `translate3d(${-x}px, ${-(p * maxY)}px, 0) scale(${scale}) rotateY(${tilt}deg)`;
-      // Parallax: the dot field drifts slower, so the timeline reads as the near
-      // layer floating in front of a receding space.
-      farOffset.current = { x: p * maxX * cfg.parallax, y: p * maxY * cfg.parallax };
-      if (farRef.current) farRef.current.style.transform = `translate3d(${-farOffset.current.x}px, ${-farOffset.current.y}px, 0)`;
-      syncGlow();
-      applyHead(x + focus, window.innerWidth, x + window.innerWidth / 2);
-      // the ground drifts slower, so the focus sits elsewhere on it
-      applyFront(farOffset.current.x + focus);
-      // Keep animating (even without scroll events) until the motion settles.
-      if (Math.abs(vel) >= 0.05 && !raf) raf = requestAnimationFrame(update);
+      const pan = `translate3d(${-x}px, ${-(p * maxY)}px, 0)`;
+      plane.style.transform = pan;
+      if (farRef.current) farRef.current.style.transform = pan;
+      applyHead(x + focus);
+      applyFront(x + focus);
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
     };
-    // Hover glow: a soft pool that lights up the map nearest the cursor, its
-    // lines drawn bright even where the dots aren't joined up yet. We move the
-    // mask centre to the cursor; syncGlow keeps the bright copy aligned to the
-    // ground underneath.
-    const onMove = (e: MouseEvent) => {
-      const pin = pinRef.current;
-      const glow = glowRef.current;
-      if (!pin || !glow) return;
-      const r = pin.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-      if (x < 0 || y < 0 || x > r.width || y > r.height) {
-        lastCursor.current = null;
-        glow.style.setProperty('--mx', '-9999px');
-        glow.style.setProperty('--my', '-9999px');
-        return;
-      }
-      // Over a waypoint card, grow the pool and centre it on the card so the
-      // map around the whole tile lights up (the card occludes the middle).
-      const tile = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('.worktile');
-      // (the pools are wide: contour lines are sparser than the dots were,
-      // and a small pool lit one line or none)
-      let cx = x;
-      let cy = y;
-      let rad = 190;
-      if (tile) {
-        const t = tile.getBoundingClientRect();
-        cx = t.left + t.width / 2 - r.left;
-        cy = t.top + t.height / 2 - r.top;
-        rad = Math.max(t.width, t.height) / 2 + 170;
-      }
-      lastCursor.current = { x: cx, y: cy, r: rad };
-      glow.style.setProperty('--mx', `${cx}px`);
-      glow.style.setProperty('--my', `${cy}px`);
-      glow.style.setProperty('--r', `${rad}px`);
-    };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
-    window.addEventListener('mousemove', onMove, { passive: true });
     update();
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
-      window.removeEventListener('mousemove', onMove);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [manualPan, timeline.width, timeline.minYear, timeline.maxYear, cfg, applyHead, applyFront]);
-
-  // Mobile: touch has no hover, so the dot field lights up along your *scroll*
-  // instead of the cursor — a soft wave that travels with you through the
-  // timeline and recedes when you stop. Reuses the .wall__glow layer, but here
-  // it's pinned to the viewport (a transform counters the native scroll) with
-  // its bright dots kept aligned to the base field (--ox), while a velocity-
-  // driven crest sweeps across it. Skipped under reduced motion.
-  useEffect(() => {
-    if (!isNarrow || reduced) return;
-    const pin = pinRef.current;
-    const glow = glowRef.current;
-    if (!pin || !glow) return;
-
-    // ---- Wave feel — all tweakable. Speeds are px per ~60fps frame. ----
-    const SPEED_REF = 26; // scroll px/frame that reads as "full speed"
-    const VEL_EASE = 0.22; // how quickly the smoothed velocity tracks the scroll
-    const RISE = 0.3; // how fast the wave lights up while you're moving
-    const FALL = 0.05; // how slowly it recedes once you stop (the fade-out)
-    const LEAD = 0.16; // how far ahead of you the crest rides (fraction of width)
-    const WAVE_AMP = 26; // vertical undulation of the crest (px)
-    const WAVE_SPEED = 0.07; // undulation speed
-    const R_BASE = 150; // crest radius at rest
-    const R_GROW = 120; // extra crest radius at full speed
-
-    let raf = 0;
-    let lastLeft = pin.scrollLeft;
-    let vel = 0; // smoothed scroll velocity (px/frame)
-    let intensity = 0; // 0..1 → glow opacity
-    let phase = 0; // undulation phase
-
-    const frame = () => {
-      raf = 0;
-      const left = pin.scrollLeft;
-      const dv = left - lastLeft;
-      lastLeft = left;
-      vel += (dv - vel) * VEL_EASE;
-      const speed = Math.min(1, Math.abs(vel) / SPEED_REF);
-      // rise fast on movement, fall slowly on stop → a wave that lingers then fades
-      intensity += (speed - intensity) * (speed > intensity ? RISE : FALL);
-      phase += WAVE_SPEED;
-
-      const vw = pin.clientWidth;
-      const vh = pin.clientHeight;
-      // Pin the layer to the viewport and keep its bright dots over the base
-      // field as the content scrolls beneath.
-      glow.style.transform = `translateX(${left}px)`;
-      glow.style.setProperty('--ox', `${-left}px`);
-      glow.style.setProperty('--oy', '0px');
-      // The crest: centred on the viewport, riding a little ahead in the scroll
-      // direction and undulating vertically so it reads as a wave, not a spotlight.
-      const cx = vw / 2 + Math.sign(vel) * speed * LEAD * vw;
-      const cy = vh / 2 + Math.sin(phase) * WAVE_AMP;
-      glow.style.setProperty('--mx', `${cx}px`);
-      glow.style.setProperty('--my', `${cy}px`);
-      glow.style.setProperty('--r', `${R_BASE + speed * R_GROW + Math.sin(phase * 1.3) * 10}px`);
-      glow.style.opacity = `${intensity}`;
-
-      // Keep animating until the wave has fully receded, even after scroll stops.
-      if (intensity > 0.01 || Math.abs(vel) > 0.05) {
-        raf = requestAnimationFrame(frame);
-      } else {
-        vel = 0;
-        intensity = 0;
-        glow.style.opacity = '0';
-      }
-    };
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(frame);
-    };
-    pin.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      pin.removeEventListener('scroll', onScroll);
-      if (raf) cancelAnimationFrame(raf);
-      glow.style.opacity = '';
-      glow.style.transform = '';
-      glow.style.removeProperty('--ox');
-      glow.style.removeProperty('--oy');
-    };
-  }, [isNarrow, reduced]);
 
   const openStudy = open ? caseBySlug(open) : undefined;
   // The spawn point sits a short lead-in left of where the route proper starts.
@@ -732,24 +550,18 @@ export function Work() {
             data-topo={topo ? '' : undefined}
             style={{ width: `${timeline.width}px`, height: `${cfg.planeVh * 100}svh` }}
           >
-            {/* the canyon map twice over: joined up behind the focus, a trail
-                of dots ahead of it (the masks in timeline.css) */}
+            {/* the canyon map, woven from its points as the focus passes: the
+                lines behind it, and ahead of it three trails of dots that
+                thin out the further off they are (the masks in timeline.css) */}
             {topo && (
               <>
                 <div className="wall__map wall__map--lines" style={{ backgroundImage: topo.lines, backgroundSize: `${topo.w}px ${topo.h}px` }} />
-                <div className="wall__map wall__map--dots" style={{ backgroundImage: topo.dots, backgroundSize: `${topo.w}px ${topo.h}px` }} />
+                <div className="wall__map wall__map--sparse" style={{ backgroundImage: topo.sparse, backgroundSize: `${topo.w}px ${topo.h}px` }} />
+                <div className="wall__map wall__map--mid" style={{ backgroundImage: topo.mid, backgroundSize: `${topo.w}px ${topo.h}px` }} />
+                <div className="wall__map wall__map--fine" style={{ backgroundImage: topo.fine, backgroundSize: `${topo.w}px ${topo.h}px` }} />
               </>
             )}
           </div>
-          {/* Hover glow — a bright copy of the map's lines, masked to a soft
-              pool around the cursor so the lines nearest it light up. Sits
-              between the ground and the plane so the waypoints occlude it. */}
-          <div
-            className="wall__glow"
-            ref={glowRef}
-            aria-hidden="true"
-            style={topo ? { backgroundImage: topo.glow, backgroundSize: `${topo.w}px ${topo.h}px` } : undefined}
-          />
           {/* behind the plane, so the cards pass over it */}
           <span className="wall__year" ref={yearRef} aria-hidden="true">
             <Odometer year={timeline.minYear} refs={digitRefs} />

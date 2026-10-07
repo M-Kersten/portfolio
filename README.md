@@ -127,8 +127,8 @@ the layer), and give it an object in that layer's rig
 `scene/maquette/signals.tsx` (`RELATIONS`).
 
 **Moving things in 3D**: run `npm run dev` — two tweak panels appear. The
-top-left **wall layout** panel scrubs the timeline's spacing *and its motion
-feel* (dolly zoom/tilt + response — set to 0 to disable); the **scene** panel
+top-left **wall layout** panel scrubs the timeline's spacing (card width,
+year spacing, how far the cards sit off the route); the **scene** panel
 (from `useTweak` calls in the rigs) scrubs object positions live. Both print
 the values to copy back into code, and both are stripped from production
 builds.

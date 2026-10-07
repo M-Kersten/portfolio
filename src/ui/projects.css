@@ -193,9 +193,10 @@
   min-width: 0;
 }
 
-/* The timeline's waypoint card, at index size: frosted, its edge tinted by its
-   layer, the scanner brackets tightening and taking the layer's colour under
-   the pointer while the card lifts and the poster comes up to full colour. */
+/* The timeline's waypoint card, at index size: a matte panel resting flat,
+   its edge tinted by its layer, the scanner brackets tightening and taking
+   the layer's colour under the pointer while the card lifts by --lift and the
+   poster comes up to full colour. */
 .pi-card {
   position: relative;
   width: 100%;
@@ -206,21 +207,20 @@
   padding: 0;
   font: inherit;
   color: var(--ink);
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012));
+  background: var(--paper-2);
   border: 1px solid color-mix(in srgb, var(--c) 18%, var(--line));
   border-radius: var(--radius);
-  backdrop-filter: blur(8px) saturate(1.1);
-  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
   cursor: pointer;
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
-  transition: transform var(--t-base) var(--ease), border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
+  transition: transform var(--t-fast) var(--ease), border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
 }
 .pi-card:hover,
 .pi-card:focus-visible {
-  transform: translateY(-4px);
+  transform: translateY(var(--lift));
   border-color: color-mix(in srgb, var(--c) 55%, var(--line));
-  box-shadow: 0 30px 60px -26px rgba(0, 0, 0, 0.9), 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent);
+  /* lifted off the page, so it earns a shadow (the Proximity Rule) */
+  box-shadow: 0 12px 24px -16px rgba(0, 0, 0, 0.85);
   outline: none;
 }
 .pi-card:focus-visible {
@@ -245,12 +245,11 @@
      them a little under full brightness keeps one row from reading as a
      lightbox next to its neighbours. */
   filter: saturate(0.85) brightness(0.86);
-  transition: filter var(--t-base) var(--ease), transform var(--t-slow) var(--ease);
+  transition: filter var(--t-base) var(--ease);
 }
 .pi-card:hover .pi-card__media img,
 .pi-card:focus-visible .pi-card__media img {
   filter: none;
-  transform: scale(1.05);
 }
 /* a scrim at the foot of the picture so the body's top edge doesn't hard-cut it */
 .pi-card__media::after {

@@ -7,10 +7,11 @@
 // the minor lines, and every fourth one stronger, as index contours are on a
 // real sheet.
 //
-// The same tile is drawn in two inks (contourCss): as lines, and as a trail of
-// the site's square dots along the very same lines. The timeline shows the
-// dots ahead of you and the lines behind (Work.tsx), so travelling it is what
-// connects them.
+// The same tile is drawn in several inks (contourCss): as lines, and as trails
+// of the site's square dots along the very same lines, from a sparse scatter to
+// a dot every few pixels. The timeline shows the scatter far ahead of you, the
+// trail filling in as you come up to it and the lines behind (Work.tsx), so
+// travelling it is what weaves the map together from its points.
 //
 // Pure and deterministic (seeded): the same size always draws the same
 // terrain, and nothing here touches the DOM.
@@ -224,16 +225,22 @@ export interface ContourInk {
   major: number;
   /** stroke width (the index lines are drawn a fifth heavier) */
   weight?: number;
-  /** draw the lines as a trail of square dots, `size` px every `pitch` px */
-  dots?: { size: number; pitch: number };
+  /** draw the lines as a trail of square dots, `size` px every `pitch` px,
+   *  the first `phase` px along each line. Trails whose pitches divide one
+   *  another and whose phases interleave never land a dot on the same spot:
+   *  every 40 px, then every 40 from 20, then every 20 from 10 add up to a
+   *  dot every 10. */
+  dots?: { size: number; pitch: number; phase?: number };
 }
 
 /** The tile as a CSS url(), in the given ink. */
 export function contourCss(tile: ContourTile, { color, minor, major, weight = 1, dots }: ContourInk): string {
-  // Square dots: dashes as long as the stroke is wide, with butt ends.
+  // Square dots: dashes as long as the stroke is wide, with butt ends. The
+  // dash pattern starts over at every line, so a phase places the first dot
+  // the same way on all of them.
   const stroke = (w: number) =>
     dots
-      ? `stroke-width='${dots.size * w}' stroke-dasharray='${dots.size * w} ${dots.pitch - dots.size * w}'`
+      ? `stroke-width='${dots.size * w}' stroke-dasharray='${dots.size * w} ${dots.pitch - dots.size * w}' stroke-dashoffset='${(dots.pitch - (dots.phase ?? 0)) % dots.pitch}'`
       : `stroke-width='${weight * w}'`;
   const svg =
     `<svg xmlns='http://www.w3.org/2000/svg' width='${tile.width}' height='${tile.height}' viewBox='0 0 ${tile.width} ${tile.height}'>` +
