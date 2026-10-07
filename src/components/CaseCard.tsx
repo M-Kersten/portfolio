@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
+import { noteCaseOrigin } from '../lib/caseOrigin';
 
 // A waypoint on the timeline map: a compact card pinned above or below the
 // route, with a small thumbnail, the year as a milestone and a company tag.
@@ -37,7 +38,11 @@ export function CaseCard({
         type="button"
         className="worktile"
         data-layer={study.layer}
-        onClick={onOpen}
+        onClick={(e) => {
+          // the case sheet grows out of this card's picture
+          noteCaseOrigin(study.slug, e.currentTarget.querySelector('.worktile__media'));
+          onOpen();
+        }}
         // No aria-label: the card's own text (year, company, title, sector) is
         // its name. A shorter label left out words the card shows, and speech
         // input users say what they see.

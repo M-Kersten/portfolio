@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { DISCIPLINES, LAYER_LABEL, type CaseStudy, type Discipline, type Layer } from '../content';
 import { asset } from '../lib/asset';
+import { noteCaseOrigin } from '../lib/caseOrigin';
 
 // The /projects index — every project (highlights + the long tail) as a
 // scannable card grid. This is the one page a visitor arrives at with a
@@ -114,7 +115,11 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
               className="pi-card"
               data-layer={c.layer}
               style={{ '--c': LAYER_COLOR[c.layer] } as CSSProperties}
-              onClick={() => onOpen(c.slug)}
+              onClick={(e) => {
+                // the case sheet grows out of this card's picture
+                noteCaseOrigin(c.slug, e.currentTarget.querySelector('.pi-card__media'));
+                onOpen(c.slug);
+              }}
               aria-label={`${c.title} — ${c.client}, ${LAYER_LABEL[c.layer]}${c.year ? `, ${c.year.slice(0, 4)}` : ''}`}
             >
               <span className="pi-card__media">

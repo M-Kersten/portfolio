@@ -46,6 +46,9 @@ src/
     Capabilities.tsx   the three scales as one full-bleed slanted band
     Work.tsx           the projects map: a pinned, scroll-driven timeline
     CaseCard.tsx       a waypoint card on the timeline
+    FocusCard.tsx      the case sheet a project opens into (timeline, /projects,
+                       search): the work on a stage, the facts, the story, and
+                       earlier / later steps through the rest
     NodeHud.tsx        the /work/:slug dossier drawer
     CvPage.tsx         the /cv sheet (A4, print-styled) that npm run cv prints
     SectionHead.tsx    how every section opens: kicker + rule, title, lead

@@ -22,9 +22,8 @@ const CLOSE_FADE = 280; // ms the dossier fades before the route (and the zoom-o
 
 // The video's poster until it's asked for, then the player. Embedding YouTube
 // on open cost every visitor its whole player for a film most never start —
-// the case sheet already works this way (FocusCard → FilmBox); this is the
-// same gesture, played in place. Keyed per case by the caller, so moving to
-// another project never carries a playing film across.
+// the case sheet's stage works the same way (FocusCard). Keyed per case by the
+// caller, so moving to another project never carries a playing film across.
 function Media({ study }: { study: CaseStudy }) {
   const embed = youtubeEmbed(study.video);
   const [playing, setPlaying] = useState(false);

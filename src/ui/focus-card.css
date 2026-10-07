@@ -1,25 +1,28 @@
-/* The focus sheet — a project lifted off the timeline and laid out as a
-   drawing sheet: hairline rules, a wide two-column body, and a title block in
-   the corner carrying client / sector / year.
+/* The case sheet — a project opened up (FocusCard.tsx): the work on a stage
+   at the top left, the title block beside it, the facts ruled off in one row
+   the way a drawing's title block is, the story in its three beats, and the
+   way on to the next project at the foot.
 
-   It is deliberately a *sheet*, not a card. The old version was a 760px modal
-   with a 16:9 media header, which put 57% of the visible box under a video and
-   pushed 41% of the write-up into a nested scrollbar. A 400-word case with a
-   gallery is not modal-sized content, so the geometry — not the styling — was
-   the defect. Two things fix it: the media moves out of the header into a
-   full-height poster panel down the side, and the story runs in columns
-   instead of one long ribbon.
+   The shape is the argument, so its history: the first version was a 760px
+   modal with a 16:9 film header, which put 57% of the box under a video and
+   pushed the write-up into a nested scrollbar. The second was a wide sheet
+   with the story in columns and the poster cropped into a narrow side column:
+   readable, but it opened on a wall of prose, scattered the facts round its
+   edges and left the work itself (nearly every case has a film) at the back.
+   This one lets the eye land in order: picture, title, outcome, facts, story.
 
-   The chrome is gone for the same reason the node dossier has none: this is a
-   readout laid over the page you came from, so no rounded corners, no drop
-   shadow, no glass. Just a ruled edge. */
+   Flat like the rest of the page: no glow, no round controls, no resting
+   shadow. A hairline edge, and the scanner brackets carry the layer colour. */
 
-/* ---------- Focus sheet — a project lifted off the wall ---------- */
+/* ---------- The overlay and the shell ---------- */
 .focus {
   position: fixed;
   inset: 0;
   z-index: 90;
   display: grid;
+  /* one track that can't grow past the screen: a long unbreakable line in the
+     sheet (the phone bar's project name) would otherwise widen it off the edge */
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   /* `main` is its own stacking context (z-index 1), so this overlay sits *below*
      the fixed header — reserve the header's height at the top so the centred
@@ -29,8 +32,9 @@
   backdrop-filter: blur(10px);
   animation: focus-fade var(--t-base) var(--ease);
 }
-/* The shell: the sheet plus the scanner brackets round it. It carries the
-   entrance (the sheet rises, the brackets lock on) and the layer colour. */
+/* The shell is the dialog: the sheet, the ✕ and the brackets round them. It
+   carries the layer colour, and the entrance when there is no card to grow
+   out of: the sheet rises in. */
 .focus__shell {
   --card-accent: var(--accent);
   position: relative;
@@ -40,8 +44,15 @@
 .focus__shell[data-layer='city'] { --card-accent: var(--cyan); }
 .focus__shell[data-layer='room'] { --card-accent: var(--coral); }
 .focus__shell[data-layer='chip'] { --card-accent: var(--lime); }
-/* the four corners, just outside the sheet's edge, closing in from wide as it
-   arrives — the waypoint card's lock-on at the size of the sheet */
+/* Grown out of a card instead: the picture flies (.focus__ghost) and the
+   sheet fades up round the place it lands. */
+.focus[data-flight] .focus__shell { animation: none; }
+.focus[data-flight] .focus__card { animation: focus-fade var(--t-base) var(--ease) both; }
+
+/* The four corners, just outside the sheet's edge, closing in from wide as it
+   arrives — the waypoint card's lock-on at the size of the sheet. Re-keyed
+   per project, so they lock on again at every step; after a flight they wait
+   a beat and close in as the picture lands. */
 .focus__frame {
   position: absolute;
   inset: -7px;
@@ -49,6 +60,7 @@
   pointer-events: none;
   animation: focus-lock var(--t-slow) var(--ease) both;
 }
+.focus[data-flight] .focus__frame { animation-delay: var(--t-fast); }
 .focus__frame i {
   position: absolute;
   width: 22px;
@@ -59,60 +71,107 @@
 .focus__frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
 .focus__frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
 .focus__frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-@keyframes focus-lock {
-  from {
-    inset: -26px;
-    opacity: 0;
-  }
+
+/* The way out, on the shell rather than in the sheet, so it stays put while
+   the sheet scrolls under it. Square, like every other control. */
+.focus__close {
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--space-s) + 1px);
+  right: calc(var(--space-s) + 1px);
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--paper-2) 86%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
+.focus__close:hover,
+.focus__close:focus-visible {
+  border-color: var(--card-accent);
+  color: var(--card-accent);
+}
+
+/* The flight: the clicked picture, grey, travelling from its card to the
+   stage (FocusCard animates its box, so the picture is never stretched). It
+   ends exactly where the stage's own poster is, in the same grey that poster
+   starts from, so the hand-over can't be seen. */
+.focus__ghost {
+  position: fixed;
+  z-index: 2;
+  background: #06080a center / cover no-repeat;
+  filter: grayscale(1) brightness(0.72);
+  pointer-events: none;
+}
+
+/* ---------- The sheet ---------- */
+/* The scroller. A hairline edge on the site's faint square-dot ground; the
+   scrollbar is hidden, since the story running off the foot says there's more. */
 .focus__card {
   position: relative;
-  /* Wide enough for three beats side by side at full size, and to give the
-     writing room to breathe — the whole point of the shape. */
   width: 100%;
   max-height: calc(100svh - var(--header-h) - var(--space-l));
   overflow: hidden auto;
-  /* a flick past the end of the gallery shouldn't rubber-band the page behind */
+  /* a flick past the end of the sheet shouldn't scroll the page behind */
   overscroll-behavior: contain;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 21rem;
-  grid-template-areas:
-    'bar  bar'
-    'body side'
-    'gal  gal';
-  align-content: start;
-  /* the same square-dot field the rest of the site uses, flat — no lift
-     gradient and no glass, because a sheet is not a raised object. The edge is
-     a hairline; the brackets outside it carry the colour. */
+  scrollbar-width: none;
   background: var(--dots-faint), var(--paper-2);
   background-size: 30px 30px, auto;
   border: 1px solid var(--line);
 }
-.focus__card[data-layer='city'] { --card-accent: var(--cyan); }
-.focus__card[data-layer='room'] { --card-accent: var(--coral); }
-.focus__card[data-layer='chip'] { --card-accent: var(--lime); }
+.focus__card::-webkit-scrollbar { width: 0; height: 0; }
 
-/* The sheet's header rule: the layer, the stack, and the way out. Spans both
-   columns so the ✕ has a home that isn't on top of the video. */
-.focus__bar {
-  grid-area: bar;
+/* Two columns over full-width rows: the stage beside the eyebrow and the title
+   block, then the facts, the story, any gallery and the foot right across. The
+   stage spans the first two rows at the film's own 16:9, so a film playing in
+   place fills it exactly; when a long title runs the block taller, the stage
+   stretches to meet it. */
+.focus__sheet {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'stage top'
+    'stage head'
+    'facts facts'
+    'story story'
+    'gal   gal'
+    'foot  foot';
+}
+/* stepping from project to project: the next one slides in from the side it
+   lies on in time; a storyline jump rises in */
+.focus__sheet[data-enter='earlier'] { animation: focus-from-left var(--t-base) var(--ease) both; }
+.focus__sheet[data-enter='later'] { animation: focus-from-right var(--t-base) var(--ease) both; }
+.focus__sheet[data-enter='jump'] { animation: focus-pop var(--t-base) var(--ease) both; }
+
+/* The eyebrow: the layer in its colour behind a square pip, then the layer's
+   remit. It keeps clear of the ✕, which floats over this corner. */
+.focus__top {
+  grid-area: top;
   display: flex;
   align-items: center;
-  gap: var(--space-s);
-  padding: var(--space-2xs) var(--space-2xs) var(--space-2xs) var(--space-m);
-  border-bottom: 1px solid var(--line);
-  min-height: 3.4rem; /* holds the rule's height when a case lists no stack */
+  gap: 0.75em;
+  min-width: 0;
+  min-height: calc(2.4rem + 2 * var(--space-s));
+  padding: 0 calc(2.4rem + 2 * var(--space-s)) 0 var(--space-m);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
-/* the layer, as the index card's eyebrow: a lit pip in the layer colour */
 .focus__layer {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 0.55em;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
   color: var(--card-accent);
 }
 .focus__layer::before {
@@ -120,62 +179,131 @@
   width: 6px;
   height: 6px;
   background: var(--card-accent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--card-accent) 70%, transparent);
 }
-/* The stack as tags — the same mono, hairline-framed tags the timeline cards
-   carry. They wrap rather than scroll, so a long stack takes a second line
-   instead of hiding its tail. */
-.focus__chips {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4em;
-  margin: 0;
-  padding: 0 0 0 var(--space-s);
-  border-left: 1px solid var(--line);
+.focus__remit,
+.focus__name {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-40);
 }
-.focus__chips li {
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  line-height: 1.4;
-  color: var(--ink-60);
-  border: 1px solid var(--line);
+.focus__remit::before,
+.focus__name::before {
+  content: '·';
+  margin-right: 0.75em;
+}
+/* the project's name: only in the phone's sticky bar (below) */
+.focus__name { display: none; }
+
+/* The stage. The poster and the film both fill it edge to edge and neither
+   sets its size, so the frame holds still when the film takes over. */
+.focus__stage {
+  grid-area: stage;
+  position: relative;
+  align-self: stretch;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #06080a;
+  border-right: 1px solid var(--line);
+}
+.focus__stage img,
+.focus__stage iframe,
+.focus__ph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.focus__stage iframe { border: 0; }
+/* Ghost to alive: the poster arrives grey and colours in, the maquette's life
+   system at the scale of one picture. After a flight it waits for the landing. */
+.focus__stage img {
+  object-fit: cover;
+  animation: focus-alive var(--t-slow) var(--ease) var(--alive-delay, var(--t-fast)) both;
+}
+.focus__sheet[data-enter='fly'] { --alive-delay: var(--t-slow); }
+/* in the air, the ghost stands in for the poster and the play mark waits */
+.focus[data-flying] .focus__stage img,
+.focus[data-flying] .focus__play { opacity: 0; }
+/* no poster yet: the timeline's empty state, a layer-tinted panel on the dot
+   ground marked with a hollow ring */
+.focus__ph {
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--card-accent) 9%, var(--paper-2));
+}
+.focus__ph::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--dotfield);
+  background-size: var(--dotfield-size);
+  opacity: 0.35;
+}
+.focus__ph::after {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--card-accent) 70%, transparent);
+  border-radius: 50%;
+  opacity: 0.7;
+}
+/* The whole picture plays the film; the square mark in its corner says so,
+   and fills with the layer colour under the pointer. */
+.focus__play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: var(--space-m);
+  border: 0;
+  background: transparent;
+  color: var(--card-accent);
+  cursor: pointer;
+  transition: opacity var(--t-base) var(--ease);
+}
+.focus__play-icon {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border: 1px solid var(--card-accent);
   border-radius: var(--radius-s);
-  padding: 0.25em 0.6em;
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
+  backdrop-filter: blur(4px);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
+}
+.focus__play-icon svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-left: 0.12rem; /* optical centring: a triangle's mass sits left */
+  fill: currentColor;
+}
+.focus__play:hover .focus__play-icon,
+.focus__play:focus-visible .focus__play-icon {
+  background: var(--card-accent);
+  color: var(--accent-contrast);
+  transform: translateY(var(--lift));
+}
+.focus__play:focus-visible {
+  outline: 2px solid var(--card-accent);
+  outline-offset: -2px;
 }
 
-.focus__body {
-  grid-area: body;
+/* The title block, beside the stage: the title in the display voice, the
+   outcome under it, and the two ways to act on it straight after, so the eye
+   runs down it in one go. */
+.focus__head {
+  grid-area: head;
   display: flex;
   flex-direction: column;
-  gap: var(--space-m);
-  padding: var(--space-m) var(--space-m) var(--space-l);
+  gap: var(--space-s);
   min-width: 0;
+  padding: var(--space-2xs) var(--space-m) var(--space-m);
 }
-.focus__side {
-  grid-area: side;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid var(--line);
-  min-width: 0;
-}
-/* Each beat becomes a ruled field, the way a drawing sheet divides its notes.
-   With the three columns sharing one line across the top, the kickers read as
-   column headings rather than as three loose labels floating over the prose —
-   and it gives the ragged bottoms of unequal beats something to hang from.
-   Scoped to the sheet: in the dossier's single column a rule per beat would be
-   three stacked lines down a narrow strip, which is fussier than it is useful. */
-.focus__body .story > section {
-  border-top: 1px solid var(--line);
-  padding-top: var(--space-2xs);
-}
-
-/* the title in the display voice, at the size of a section's lead-in rather
-   than a dialog's caption */
 .focus__title {
+  margin: 0;
   font-family: var(--font-display);
   font-weight: var(--display-weight);
   font-stretch: var(--display-stretch);
@@ -183,222 +311,284 @@
   font-size: calc(var(--step-4) * var(--display-scale));
   line-height: var(--display-leading);
   letter-spacing: var(--display-tracking);
-  margin: 0;
   text-wrap: balance;
 }
 .focus__outcome {
+  margin: 0;
+  max-width: 34ch;
   font-size: var(--step-1);
   line-height: 1.3;
-  color: var(--card-accent);
-  margin: 0.5em 0 0;
-  max-width: 44ch;
+  color: var(--ink);
   text-wrap: pretty;
 }
 .focus__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-s);
   align-items: center;
-  margin-top: auto; /* actions settle at the foot of the column */
+  gap: var(--space-s);
   padding-top: var(--space-2xs);
 }
 
-/* The poster panel. A 16:9 preview in a 21rem column came out 287px wide and
-   left 313px of nothing under it; widening the column only moved the problem,
-   because every rem it took came off the writing and made the body taller. So
-   the picture takes the whole column instead and dead space becomes impossible
-   — the film is one press away rather than sitting there at thumbnail size.
-
-   The crop is deliberate: `cover` fills the panel and clips the poster's sides.
-   That costs the two posters that are collages a little of their wordmark, and
-   it is the same crop the timeline tiles already make. */
-.focus__media {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 14rem;
-  overflow: hidden;
-  background: #06080a;
+/* The facts in one ruled row, a drawing's title block: each label small above
+   its value, a hairline between them, the stack in the widest cell, on a plain
+   band rather than the dot ground so it reads as one strip. On a phone the row
+   becomes a list (below). */
+.focus__facts {
+  grid-area: facts;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  background: var(--paper-2);
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
 }
-.focus__media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  /* resting slightly cool so the writing keeps the eye; it comes up to full
-     colour under the pointer, the same manners as the gallery frames */
-  filter: saturate(0.9) brightness(0.8);
-  transition: filter var(--t-base) var(--ease), transform var(--t-base) var(--ease);
+.focus__fact {
+  flex: 1 1 9rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+  padding: var(--space-xs) var(--space-m) var(--space-s);
+  border-left: 1px solid var(--line);
 }
-.focus__media[data-playable]:hover img,
-.focus__media:has(.focus__play:focus-visible) img {
-  filter: none;
-  transform: scale(1.03);
+.focus__fact:first-child { border-left: 0; }
+.focus__fact--stack { flex: 2.4 1 18rem; }
+.focus__fact dt {
+  font-size: var(--step--2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-40);
 }
-.focus__play {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  color: var(--card-accent);
+.focus__fact dd {
+  margin: 0;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  overflow-wrap: break-word;
 }
-/* round, like the porthole it opens onto */
-.focus__play span {
-  display: grid;
-  place-items: center;
-  width: 3.75rem;
-  height: 3.75rem;
-  padding-left: 0.15em; /* optical centring: a triangle's mass sits left */
-  border: 1px solid var(--card-accent);
-  border-radius: 50%;
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--card-accent) 14%, transparent);
-  background: color-mix(in srgb, #05070a 60%, transparent);
-  font-size: 1.05rem;
-  line-height: 1;
-  backdrop-filter: blur(3px);
-  transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+/* the stack as tags — the same hairline-framed mono tags the cards carry */
+.focus__chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  margin: 0;
+  padding: 0;
 }
-.focus__play:hover span {
-  background: color-mix(in srgb, var(--card-accent) 88%, transparent);
-  color: #06080a;
-  transform: scale(1.06);
+.focus__chips li {
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: var(--ink-60);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  padding: 0.2em 0.55em;
 }
 
-/* The contact sheet spans the full width in a row of its own. In the 21rem
-   side column a nine-frame set resolved to a single column and stacked to
-   2461px — nine times taller than the sheet it was in. Down here it runs seven
-   across, and because it is its own grid row it does not stretch the side
-   column beside the story either. A gallery is deliberate extra content, so it
-   is also the one thing allowed to sit below the fold: the write-up above it
-   is still complete without scrolling. */
+/* The story: the three beats side by side, each led by its first sentence as
+   a headline in the heading face at full ink, the rest at a quieter body ink
+   (About's chapters, in a case). No rules over the beats; the headlines carry
+   the structure, and read alone they tell the story. */
+.focus__story {
+  grid-area: story;
+  gap: var(--space-m) var(--space-l);
+  padding: var(--space-m) var(--space-m) var(--space-l);
+  border-top: 1px solid var(--line);
+}
+.focus__story .story__h { margin-bottom: 0.9em; }
+.focus__story .focus__hook {
+  margin: 0 0 0.6em;
+  max-width: none;
+  font-family: var(--font-heading);
+  font-size: var(--step-1);
+  line-height: 1.2;
+  color: var(--ink);
+  white-space: normal;
+  text-wrap: balance;
+}
+.focus__story p:not(.focus__hook) {
+  color: color-mix(in srgb, var(--ink) 74%, transparent);
+}
+
+/* The contact sheet spans the full width in a row of its own. In a narrow
+   side column a nine-frame set once stacked into a single 2461px ribbon. A
+   gallery is deliberate extra content, so it is also the one thing allowed to
+   sit well below the fold. */
 .focus__gal {
   grid-area: gal;
   padding: var(--space-m);
   border-top: 1px solid var(--line);
 }
-/* In the sheet's full-width row a frame earns more than the 9.5rem contact-
-   sheet minimum: the real sets are 16:9 presentation boards whose detail is
-   illegible at the 167px seven-across gave. Five across at ~228px reads. Still
-   auto-fill, so a short set stays frame-sized and runs short rather than
-   stretching into a few huge panes. Below the stacking breakpoint the narrower
-   default applies, where two across is the most a phone can hold. */
+/* In the full-width row a frame earns more than the 9.5rem contact-sheet
+   minimum: the real sets are 16:9 presentation boards whose detail is
+   illegible at the 167px seven-across gave. Five across at ~228px reads.
+   Below the stacking breakpoint the narrower default applies. */
 @media (min-width: 60.0625rem) {
   .focus__gal .gal__grid {
     grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
   }
 }
 /* 16:9 frames rather than the 4:3 default, because these sets are composed
-   presentation boards, not photographs. Centre-cropping a photograph costs it
-   some edge; centre-cropping a board cuts words off its layout — the 4:3 frame
-   was slicing ~24% of the width off titles. The lightbox is still the place
-   the frame is read whole. */
+   presentation boards, not photographs: centre-cropping a board cuts words
+   off its layout. The lightbox is still the place the frame is read whole. */
 .focus__gal .gal__thumb {
   aspect-ratio: 16 / 9;
 }
 
-/* The title block — the one thing every technical drawing has. It closes the
-   thought the survey lines on the maquette floor start. */
-.focus__block {
+/* The foot: the storyline this belongs to (what it builds on and led to),
+   then the projects either side of it in time — the way on, without closing
+   anything. */
+.focus__foot {
+  grid-area: foot;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  /* flush to the sheet's foot under the panel — the picture runs to the edges,
-     so a boxed block floating inside padding would read as a separate object */
+  gap: var(--space-s);
+  padding: var(--space-s) var(--space-m) var(--space-m);
   border-top: 1px solid var(--line);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
 }
-.focus__block dt,
-.focus__block dd {
-  margin: 0;
-  padding: 0.4em 0.7em;
-  border-bottom: 1px solid var(--line);
-  letter-spacing: 0.04em;
-  min-width: 0;
-  overflow-wrap: break-word;
+.focus__foot .story-links {
+  padding-top: 0;
+  border-top: 0;
 }
-.focus__block dt {
-  color: var(--ink-40);
-  text-transform: uppercase;
-  border-right: 1px solid var(--line);
-  white-space: nowrap;
-}
-.focus__block dd { color: var(--ink); }
-.focus__block > :nth-last-child(-n + 2) { border-bottom: 0; }
-
-/* the same round close as the node dossier's */
-.focus__close {
-  flex: none;
-  margin-left: auto;
+.focus__pager {
   display: grid;
-  place-items: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 50%;
-  border: 1px solid var(--line-strong);
-  background: color-mix(in srgb, var(--paper) 62%, transparent);
-  color: var(--ink);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-m);
+}
+.focus__step {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: 0.45em;
+  padding: var(--space-2xs) 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
-  font-size: 0.95rem;
-  line-height: 1;
-  transition: border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
-.focus__close span {
-  transition: transform var(--t-base) var(--ease);
+.focus__step[data-step='later'] {
+  grid-column: 2;
+  justify-items: end;
+  text-align: right;
 }
-.focus__close:hover,
-.focus__close:focus-visible { border-color: var(--card-accent); color: var(--card-accent); }
-.focus__close:hover span { transform: rotate(90deg); }
+.focus__step-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  transition: color var(--t-fast) var(--ease);
+}
+.focus__step-year::before {
+  content: '·';
+  margin-right: 0.6em;
+}
+.focus__step-arrow {
+  transition: transform var(--t-fast) var(--ease);
+}
+/* the title takes the colour of the layer the step lands on */
+.focus__step-title {
+  font-family: var(--font-heading);
+  font-size: var(--step-1);
+  line-height: 1.15;
+  color: var(--ink);
+  text-wrap: balance;
+  transition: color var(--t-fast) var(--ease);
+}
+.focus__step:hover .focus__step-title,
+.focus__step:focus-visible .focus__step-title { color: var(--c); }
+.focus__step:hover .focus__step-meta,
+.focus__step:focus-visible .focus__step-meta { color: var(--ink-60); }
+.focus__step[data-step='earlier']:hover .focus__step-arrow,
+.focus__step[data-step='earlier']:focus-visible .focus__step-arrow { transform: translateX(-3px); }
+.focus__step[data-step='later']:hover .focus__step-arrow,
+.focus__step[data-step='later']:focus-visible .focus__step-arrow { transform: translateX(3px); }
+.focus__step:focus-visible {
+  outline: 2px solid var(--card-accent);
+  outline-offset: 4px;
+}
 
-/* Below the two-column threshold the side column stops being a column and the
-   sheet stacks. It keeps source order rather than hoisting the media back to
-   the top: leading with a 16:9 block is the very thing that pushed the writing
-   off the fold, and a visual order that matched would also put the tab stops
-   out of step with the reading order. */
+/* ---------- Narrower screens ---------- */
+/* Below the two-column threshold the sheet is one column in reading order:
+   the bar, the picture, the title block, the facts, the story. A flex column
+   rather than the grid, so the bar can stick to the top of the sheet while it
+   scrolls (a sticky grid item can't leave its own grid area), with the
+   project's name in it and the ✕ at its end. */
 @media (max-width: 60rem) {
-  .focus__card {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'bar' 'body' 'side' 'gal';
+  .focus__sheet {
+    display: flex;
+    flex-direction: column;
   }
-  .focus__side {
+  .focus__top {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    min-height: calc(2.4rem + 2 * var(--space-2xs));
+    padding: 0 calc(2.4rem + 3 * var(--space-2xs)) 0 var(--space-s);
+    background: color-mix(in srgb, var(--paper-2) 90%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .focus__remit { display: none; }
+  .focus__name { display: block; }
+  .focus__close {
+    top: calc(var(--space-2xs) + 1px);
+    right: calc(var(--space-2xs) + 1px);
+  }
+  .focus__stage {
+    flex: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .focus__head { padding: var(--space-m) var(--space-s); }
+  /* the facts as a list: the label on the left, the value beside it */
+  .focus__facts { flex-direction: column; }
+  .focus__fact {
+    flex: none;
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: var(--space-s);
+    padding: 0.6em var(--space-s);
     border-left: 0;
     border-top: 1px solid var(--line);
   }
-  /* nothing to stretch to down here, so the panel takes the poster's own shape
-     instead of cropping a wide picture into a tall slot */
-  .focus__media {
-    flex: none;
-    min-height: 0;
-    aspect-ratio: 16 / 9;
-  }
+  .focus__fact:first-child { border-top: 0; }
+  .focus__fact dt { padding-top: 0.2em; }
+  .focus__story { padding: var(--space-m) var(--space-s) var(--space-l); }
+  .focus__gal { padding: var(--space-s); }
+  .focus__foot { padding: var(--space-s); }
 }
-/* Short laptop screens have the width for the three-column layout but not the
-   height: at 1280x800 the case ran ~40px past the fold. The outer chrome and
-   the body's foot are the cheapest height to give back, and giving it back
-   here costs nothing on a tall screen. */
+/* Short laptop screens have the width for two columns but not the height:
+   the outer chrome is the cheapest height to give back. */
 @media (min-width: 60.0625rem) and (max-height: 54rem) {
   .focus {
     padding-top: calc(var(--header-h) + var(--space-2xs));
     padding-bottom: var(--space-2xs);
   }
   .focus__card { max-height: calc(100svh - var(--header-h) - var(--space-m)); }
-  .focus__body {
-    gap: var(--space-s);
-    padding-bottom: var(--space-m);
-  }
 }
-
 @media (max-width: 40rem) {
   .focus { padding: calc(var(--header-h) + var(--space-xs)) var(--space-xs) var(--space-xs); }
   .focus__frame { inset: -5px; }
   .focus__frame i { width: 14px; height: 14px; }
-  .focus__body { padding: var(--space-s) var(--space-s) var(--space-m); }
-  .focus__side { padding: var(--space-s); }
-  .focus__bar { padding-left: var(--space-s); }
+  .focus__play { padding: var(--space-s); }
+  .focus__play-icon { width: 2.75rem; height: 2.75rem; }
+  .focus__pager { gap: var(--space-s); }
+  .focus__step-title { font-size: var(--step-0); }
 }
 
 @keyframes focus-fade { from { opacity: 0; } }
 @keyframes focus-pop { from { opacity: 0; transform: translateY(10px); } }
+@keyframes focus-lock { from { inset: -26px; opacity: 0; } }
+@keyframes focus-alive { from { filter: grayscale(1) brightness(0.72); } }
+@keyframes focus-from-left { from { opacity: 0; transform: translateX(calc(-1 * var(--rise-in))); } }
+@keyframes focus-from-right { from { opacity: 0; transform: translateX(var(--rise-in)); } }
 
 /* ---------- Gallery — a case's picture set, for the projects whose
      argument is the photographs rather than the write-up ---------- */
@@ -455,23 +645,6 @@
   transform: scale(1.04);
 }
 
-/* ---------- Film — the case's video, over the sheet ---------- */
-/* Sized from its height so the 16:9 box always fits whichever way the viewport
-   is tight, rather than being clamped in one axis and letterboxing itself. */
-.film__stage {
-  position: relative;
-  height: min(720px, calc((100vw - 2rem) * 9 / 16), calc(100svh - 5rem));
-  aspect-ratio: 16 / 9;
-  background: #000;
-  border: 1px solid var(--line);
-}
-.film__stage iframe {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
 
 /* ---------- Lightbox — one frame, full size ---------- */
 .lb {
@@ -579,17 +752,23 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* The sheet's own entrance was missing from this list: it faded the backdrop
-     and slid the sheet up regardless of the setting. */
+  /* Everything arrives finished: no flight (FocusCard skips it), no rise, no
+     lock-on, no slide between projects, the poster in colour from the start. */
   .focus,
   .focus__shell,
-  .focus__frame { animation: none; }
-  .focus__close span { transition: none; }
-  .focus__media img,
-  .focus__play span { transition: none; }
-  .focus__media[data-playable]:hover img,
-  .focus__media:has(.focus__play:focus-visible) img { transform: none; }
-  .focus__play:hover span { transform: none; }
+  .focus__frame,
+  .focus__stage img,
+  .focus__sheet[data-enter] { animation: none; }
+  .focus__play,
+  .focus__play-icon,
+  .focus__close,
+  .focus__step-meta,
+  .focus__step-title,
+  .focus__step-arrow { transition: none; }
+  .focus__play:hover .focus__play-icon,
+  .focus__play:focus-visible .focus__play-icon,
+  .focus__step:hover .focus__step-arrow,
+  .focus__step:focus-visible .focus__step-arrow { transform: none; }
   .gal__thumb img,
   .lb__img { transition: none; }
   .gal__thumb:hover img,
@@ -597,4 +776,3 @@
   .lb { animation: none; }
   .lb__img { opacity: 1; }
 }
-

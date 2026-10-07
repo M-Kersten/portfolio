@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom';
 import { cases, caseBySlug, LAYER_LABEL, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
+import { noteCaseOrigin } from '../lib/caseOrigin';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { FocusCard } from './FocusCard';
 
@@ -110,7 +111,10 @@ export function Search() {
     setQ('');
     triggerRef.current?.focus();
   };
-  const openCase = (slug: string) => {
+  // The case sheet grows out of the hit's thumbnail, so note where that is
+  // before the overlay closes and takes it away.
+  const openCase = (slug: string, i: number) => {
+    noteCaseOrigin(slug, listRef.current?.querySelector(`[data-i="${i}"] .search__thumb`));
     setOpen(false);
     setQ('');
     setOpenSlug(slug);
@@ -131,7 +135,7 @@ export function Search() {
       // freshly-focused close button as it mounts (Enter would dismiss it).
       e.preventDefault();
       const c = results[active];
-      if (c) openCase(c.slug);
+      if (c) openCase(c.slug, active);
     }
   };
 
@@ -211,7 +215,7 @@ export function Search() {
                     data-active={i === active || undefined}
                     className="search__hit"
                     style={{ '--c': LAYER_COLOR[c.layer] } as CSSProperties}
-                    onClick={() => openCase(c.slug)}
+                    onClick={() => openCase(c.slug, i)}
                     onMouseMove={() => setActive(i)}
                   >
                     <span className="search__thumb">

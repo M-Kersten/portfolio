@@ -18,7 +18,7 @@
       "label": { "displayName": "Label / Mono", "purpose": "Every piece of metadata: nav, buttons, tags, timeline dates, story kickers. Always Space Mono, uppercase, letter-spaced — never used for content." }
     },
     "shadows": [
-      { "name": "dialog-lift", "value": "0 44px 96px rgba(0,0,0,0.62)", "purpose": "The focus card overlay — the deepest, most forward surface in the system." },
+      { "name": "dialog-lift", "value": "none: the page behind recedes under blur(10px) and a 78% paper wash", "purpose": "The case sheet — the deepest, most forward surface in the system; the page recedes rather than the sheet casting a shadow." },
       { "name": "card-hover-lift", "value": "0 30px 60px -26px rgba(0,0,0,0.9), 0 0 0 1px color-mix(in srgb, var(--card-accent) 40%, transparent)", "purpose": "Timeline waypoint tile on hover/focus — shadow deepens and an accent ring appears as the object 'comes alive'." },
       { "name": "card-rest", "value": "0 18px 40px -24px rgba(0,0,0,0.8)", "purpose": "Timeline waypoint tile at rest." },
       { "name": "tooltip-lift", "value": "0 18px 40px rgba(0,0,0,0.5)", "purpose": "Timeline tooltips and other mid-depth floating callouts." },

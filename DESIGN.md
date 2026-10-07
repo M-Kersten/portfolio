@@ -174,6 +174,7 @@ One system for every transition and animation (`tokens.css`, mirrored for code i
 
 - **Arrivals.** Content arrives when it reaches one shared point in the scroll (`REVEAL`: a quarter of it on screen, clear of the bottom edge), through `useReveal`: a section's rule draws across, its title decodes, its lead rises a few beats later; the capability columns and the About pins follow in stagger order.
 - **Hover and focus.** One grammar, and keyboard focus gets the same answer as the pointer: a link in running text firms up its underline; a mono UI link (nav, footer) brightens and draws a hairline in under it; a button lifts `--lift`; a ghost button takes the accent on its edge; a card lifts and its scanner brackets lock on; the contact email, the page's one call to action, sweeps a solid rule in.
+- **Opening a project.** The picture that was clicked flies to the case sheet's stage as a grey ghost (`--t-slow`; its box is animated, so nothing stretches), the scanner brackets lock on round the sheet as it lands, then the poster colours in (ghost → alive, at the scale of one picture) and the title decodes. Stepping to the next project slides it in from the side it lies on in time (`--t-base`). Reduced motion opens the finished sheet.
 - **The first-visit cue.** Until a first project is opened, the boot's last beat is an invitation: one crosshair per layer (the tower, the phone on the couch, the die) locks its brackets, puts its name on a chip, pings on a quicker beat and decodes a "click to wake" tag ("tap" on touch), while the layer's other markers hold their pulse so it's the one thing moving. It retires for good on the first open.
 
 ### Named Rules
@@ -184,13 +185,13 @@ One system for every transition and animation (`tokens.css`, mirrored for code i
 This is a hybrid, but depth is driven by the 3D scene's own logic rather than a flat 2D card/page split: elevation (shadow weight + backdrop blur) tracks how close an element is meant to feel to the viewer, mirroring the maquette's own near/far layering, not simply "is this a floating panel." Page sections at rest are flat and matte — no ambient shadow, just hairline dividers — because they're the resting, unpowered plane. Anything that is meant to feel like it has come forward off that plane (the focus dialog popped over a blurred backdrop, a timeline tooltip lifted off its route, the mobile sticky company bar, the mobile nav drawer) earns shadow and blur in rough proportion to how far forward it is meant to read, echoing the same proximity-equals-presence logic that drives the 3D layers.
 
 ### Shadow Vocabulary
-- **Dialog lift** (`box-shadow: 0 44px 96px rgba(0,0,0,.62)` + `backdrop-filter: blur(22px) saturate(1.3)`): the focus card — the deepest, most "forward" surface in the system.
+- **Dialog lift** (the page behind washed with 78% `--paper` under `backdrop-filter: blur(10px)`; no drop shadow on the sheet): the case sheet, the deepest, most "forward" surface in the system. The depth comes from the page receding, so the sheet itself stays as flat and ruled as the page it opened from.
 - **Card hover lift** (`transform: translateY(var(--lift))` + `box-shadow: 0 12px 24px -16px rgba(0,0,0,.85)` under the pointer; nothing at rest): the timeline's waypoint cards and the /projects index cards rest flat on their page, like any resting content, and earn a shadow only while lifted, as their edge and scanner brackets take the layer's colour.
 - **Tooltip / callout lift** (`box-shadow: 0 18px 40px rgba(0,0,0,.5)` + `backdrop-filter: blur(8px)`): timeline tooltips, mid-depth.
 - **Chrome lift** (`box-shadow: 0 20px 40px var(--shadow)` or `0 -14px 32px rgba(0,0,0,.5)`): mobile nav drawer, mobile sticky bar — UI chrome overlaying content, not content itself.
 
 ### Named Rules
-**The Proximity Rule.** Shadow and blur weight tracks how far an element is meant to feel lifted toward the viewer, not whether it happens to overlay something. Resting page content stays flat. The deepest shadow in the system belongs to the single most "forward" surface (the focus dialog); everything else is calibrated relative to that ceiling.
+**The Proximity Rule.** Shadow and blur weight tracks how far an element is meant to feel lifted toward the viewer, not whether it happens to overlay something. Resting page content stays flat. The deepest step in the system belongs to the single most "forward" surface (the case sheet, where the page behind recedes under a blur); everything else is calibrated relative to that ceiling.
 
 ## Shapes
 
@@ -213,7 +214,10 @@ Corners are deliberately small and crisp — `--radius` (4px) for cards, dialogs
 - **Background:** matte `--paper-2` — no glass gradient, no backdrop blur. The focus dialog's sheet adds the shared faint square-dot field for continuity with the site's dot ground.
 - **Shadow Strategy:** see Elevation & Depth — weight scales with how "forward" the card is (resting waypoint tile vs. popped-open focus dialog).
 - **Border:** 1px, colour-mixed toward the active layer's accent so each card visibly carries its layer identity.
-- **Internal Padding:** `--space-l` for dialogs, `--space-s` for waypoint-tile bodies.
+- **Internal Padding:** `--space-m` for the case sheet's sections (`--space-s` on a phone), `--space-s` for waypoint-tile bodies.
+
+### Case sheet
+The dialog every project opens into, from a timeline card, a /projects card or a search hit (`FocusCard.tsx`). It leads with the work: the poster on a 16:9 stage at the top left, its film playing right there behind a square play mark in the corner (nothing loads from YouTube until it's pressed). Beside the stage the title block reads in one pass: the layer and its remit as a mono eyebrow, the title in the display voice, the outcome, then the actions. Under them the facts are ruled off in one row, like a drawing's title block: client, my role, when, sector, stack. "My role" comes from the career entry whose company the client names, and is left off rather than guessed. The story's three beats sit under plain mono kickers (no numbers), each opening with its first sentence as a headline, the way About's chapters do. The foot is the way on: the storyline links, then the projects either side in time, "Earlier" and "Later" with their years (← → and a swipe do the same). Controls are square, nothing glows, and no text is underlined. On a phone it's one column (picture, title block, facts, story) under a slim bar that stays at the top with the project's name and the ✕.
 
 ### Navigation
 - Space Mono links at `--ink-60`, brightening to `--ink` on hover or focus while a 1px accent hairline draws in under them from the left (`.ui-link`). Social icon links get a `--surface-2` hover fill. Below 720px, nav becomes a full-width slide-down drawer (`translateY`) with hairline row dividers, sharing the chrome-lift shadow vocabulary.

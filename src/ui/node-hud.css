@@ -174,10 +174,6 @@
   transition: opacity var(--t-base) var(--ease), transform var(--t-base) var(--ease);
 }
 .node-hud__col::-webkit-scrollbar { width: 0; height: 0; }
-/* the /projects focus card scrolls too — keep its scrollbar hidden (this used to
-   live in the shared rule that the porthole rewrite replaced) */
-.focus__card { scrollbar-width: none; -ms-overflow-style: none; }
-.focus__card::-webkit-scrollbar { width: 0; height: 0; }
 @media (prefers-reduced-motion: reduce) {
   .node-hud__col { transition: opacity var(--t-base) var(--ease); transform: none; }
 }

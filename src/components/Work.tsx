@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { Link } from 'react-router-dom';
-import { cases, caseBySlug, site, type CareerEntry, type CaseStudy } from '../content';
+import { cases, caseBySlug, caseTime, site, type CareerEntry, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { contourCss, contourTileSteps } from '../lib/contours';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -71,16 +71,10 @@ interface Timeline {
 }
 
 function buildTimeline(list: CaseStudy[], career: CareerEntry[], cfg: WallConfig): Timeline {
-  // A project's position on the axis, at month precision. `year` may carry a
-  // month ("YYYY-MM"); a year-only value sits in the *middle* of its year
-  // rather than jammed on the 1-January tick, so it reads closer to when it
-  // happened and lines up better against the month-precise career bands. Add a
-  // month to any project's `year` (e.g. "2024" → "2024-09") to pin it exactly.
-  const posOf = (c: CaseStudy) => {
-    const [y, m] = String(c.year ?? '').split('-').map(Number);
-    if (!y) return 0;
-    return m ? y + (m - 1) / 12 : y + 0.5;
-  };
+  // A project's position on the axis, at month precision (content/index.ts):
+  // a year-only value sits in the middle of its year. Add a month to any
+  // project's `year` (e.g. "2024" → "2024-09") to pin it exactly.
+  const posOf = caseTime;
   const ordered = [...list].sort((a, b) => posOf(a) - posOf(b));
   // Start the axis at the earliest of the first project or the first job, so
   // the timeline reaches back to where the career actually began.
@@ -231,6 +225,10 @@ function Odometer({ year, refs }: { year: number; refs: MutableRefObject<(HTMLSp
   );
 }
 
+// The highlights: the projects the route carries, and so the ones a case sheet
+// opened from it steps through (the archive lives on /projects).
+const CURATED = cases.filter((c) => !c.archive);
+
 // The projects map: a timeline you pan through. While the section is pinned,
 // page scroll drives the wall sideways — you travel from the first project to
 // the most recent, each pinned to the route at the year it happened. Clicking a
@@ -247,7 +245,7 @@ export function Work() {
   const cfg = useWallConfig();
   // The curated route only carries the highlights; long-tail (archive) projects
   // live in the /projects wordcloud instead.
-  const timeline = useMemo(() => buildTimeline(cases.filter((c) => !c.archive), site.career ?? [], cfg), [cfg]);
+  const timeline = useMemo(() => buildTimeline(CURATED, site.career ?? [], cfg), [cfg]);
   const [open, setOpen] = useState<string | null>(null);
   // The mobile sticky company bar: which band is at the scroll position, and
   // whether the timeline is on screen (so the bar only shows while it's in view).
@@ -777,7 +775,7 @@ export function Work() {
         </div>
       )}
 
-      {openStudy && <FocusCard study={openStudy} onClose={() => setOpen(null)} onJump={setOpen} />}
+      {openStudy && <FocusCard study={openStudy} onClose={() => setOpen(null)} onJump={setOpen} browse={CURATED} />}
     </section>
   );
 }

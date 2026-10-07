@@ -408,7 +408,9 @@ img {
 }
 
 /* Storyline footer — "← builds on X · led to Y →" — threads the cases into
-   walkable plots (see StoryLinks.tsx; authored via `follows` in cases.json). */
+   walkable plots (see StoryLinks.tsx; authored via `follows` in cases.json).
+   No underline: the titles stand out at full ink against the quiet mono, and
+   the arrows say which way they go. */
 .story-links {
   display: flex;
   flex-wrap: wrap;
@@ -436,13 +438,11 @@ img {
 }
 .story-links__jump b {
   font-weight: 400;
-  color: var(--ink-60);
-  text-decoration: underline;
-  text-underline-offset: 0.22em;
-  text-decoration-color: color-mix(in srgb, var(--card-accent, var(--accent)) 45%, transparent);
+  color: var(--ink);
   transition: color var(--t-fast) var(--ease);
 }
-.story-links__jump:hover b {
+.story-links__jump:hover b,
+.story-links__jump:focus-visible b {
   color: var(--card-accent, var(--accent));
 }
 
