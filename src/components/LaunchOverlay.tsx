@@ -1,8 +1,10 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sceneStore, useSceneSelector } from '../scene/store';
+import { useLaunchCount } from '../lib/launches';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { recordLaunch, useLaunchCount } from '../lib/launches';
+import { armSound, setSoundWanted, soundWanted } from '../lib/launchSound';
+import { LaunchHud } from './LaunchHud';
 
 // The game pulls in a second R3F canvas (the 3D rocket ship), so it's lazily
 // loaded — it can't reach the entry chunk and only fetches once someone has
@@ -10,18 +12,19 @@ import { recordLaunch, useLaunchCount } from '../lib/launches';
 // scene uses it), so it appears instantly.
 const AsteroidsGame = lazy(() => import('./AsteroidsGame').then((m) => ({ default: m.AsteroidsGame })));
 
-// The DOM half of the launch easter egg (the rocket itself lives in the city
-// scene — see maquette/city.tsx NextProjectSite). Stage-driven off the scene
-// store: 'pad' shows the mission panel + LAUNCH, 'countdown' runs T-minus,
-// 'ascend' is the scene's show (nothing on top of it but a quiet skip, for the
-// second flight onwards), 'game' mounts the asteroids overlay. Esc aborts back
-// to the overview at any point.
+// The DOM half of the launch easter egg (the rocket, the tower and the film
+// live in the city scene — see maquette/launchSite.tsx). Stage-driven off the
+// scene store: 'pad' shows the mission panel + LAUNCH; 'countdown' (the
+// terminal count) and 'ascend' (from liftoff) are the scene's film, with the
+// telemetry over it (LaunchHud) and a way past it; 'game' mounts the asteroids
+// overlay. The scene runs the clock and moves the stages on (and counts the
+// launch at liftoff). Esc aborts back to the overview at any point.
 
 export function LaunchOverlay() {
   const launch = useSceneSelector((s) => s.launch);
-  const reduced = useReducedMotion();
   const flights = useLaunchCount();
-  const [count, setCount] = useState(3);
+  const reduced = useReducedMotion();
+  const [sound, setSound] = useState(soundWanted);
 
   // Esc aborts (except mid-game — the game owns its own exit confirm)
   useEffect(() => {
@@ -33,26 +36,14 @@ export function LaunchOverlay() {
     return () => window.removeEventListener('keydown', onKey);
   }, [launch]);
 
-  // The count: T-3 → T-2 → T-1 → ascend. The scene takes it from there.
-  const timer = useRef<number | null>(null);
+  // the site's header steps aside while the film runs (launch.css)
   useEffect(() => {
-    if (launch !== 'countdown') return;
-    setCount(3);
-    let n = 3;
-    timer.current = window.setInterval(() => {
-      n -= 1;
-      if (n <= 0) {
-        if (timer.current) clearInterval(timer.current);
-        recordLaunch(); // ignition — one tick on the global odometer
-        sceneStore.setLaunch('ascend');
-      } else {
-        setCount(n);
-      }
-    }, reduced ? 400 : 1000);
+    if (launch !== 'countdown' && launch !== 'ascend') return;
+    document.body.dataset.film = '';
     return () => {
-      if (timer.current) clearInterval(timer.current);
+      delete document.body.dataset.film;
     };
-  }, [launch, reduced]);
+  }, [launch]);
 
   // freeze the page scroll while any launch stage is active
   useEffect(() => {
@@ -68,11 +59,23 @@ export function LaunchOverlay() {
   // the fixed header, so anything rendered inside it — whatever its z-index —
   // paints under the header. Mission control outranks navigation.
   if (launch === 'idle') return null;
-  // The ascent is the scene's show: nothing on top of it but a way past it
+  // The film is the scene's show: the telemetry over it and a way past it
   // (Esc and the scroll lock above still hold)
-  if (launch === 'ascend')
+  if (launch === 'countdown' || launch === 'ascend')
     return createPortal(
       <div className="launch launch--flight">
+        <LaunchHud />
+        <button
+          type="button"
+          className="launch__abort launch__sound"
+          aria-pressed={sound}
+          onClick={() => {
+            setSoundWanted(!sound);
+            setSound(!sound);
+          }}
+        >
+          sound {sound ? 'on' : 'off'}
+        </button>
         <button type="button" className="launch__abort launch__skip" onClick={() => sceneStore.setLaunch('game')}>
           skip to the game ›
         </button>
@@ -100,18 +103,21 @@ export function LaunchOverlay() {
             </span>
           )}
           <div className="launch__row">
-            <button type="button" className="btn launch__go" onClick={() => sceneStore.setLaunch('countdown')}>
+            <button
+              type="button"
+              className="btn launch__go"
+              onClick={() => {
+                // the press is the gesture that lets the launch make a sound
+                if (!reduced) armSound();
+                sceneStore.setLaunch('countdown');
+              }}
+            >
               LAUNCH
             </button>
             <button type="button" className="launch__abort" onClick={() => sceneStore.setLaunch('idle')}>
               cancel <kbd>Esc</kbd>
             </button>
           </div>
-        </div>
-      )}
-      {launch === 'countdown' && (
-        <div className="launch__count" key={count} aria-live="assertive">
-          T−{count}
         </div>
       )}
     </div>,

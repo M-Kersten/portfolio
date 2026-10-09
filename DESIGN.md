@@ -223,6 +223,9 @@ The dialog every project opens into, from a timeline card, a /projects card or a
 ### Navigation
 - Space Mono links at `--ink-60`, brightening to `--ink` on hover or focus while a 1px accent hairline draws in under them from the left (`.ui-link`). Social icon links get a `--surface-2` hover fill. Below 720px, nav becomes a full-width slide-down drawer (`translateY`) with hairline row dividers, sharing the chrome-lift shadow vocabulary.
 
+### Launch telemetry
+The launch film's overlay (`LaunchHud.tsx`) borrows a launch broadcast's lower third and draws it in the site's hand: each stage's speed, altitude and propellant in mono readouts, its engines as a diagram of hollow rings that fill as each Raptor starts and empty as it shuts down, the mission clock (flagged "time-lapse ×N" whenever the film runs faster than the flight) over a milestone track that fills as the flight passes each mark, and the callouts as they happen. Colour only for what's live: the engines' fire tint, cyan on the track. A dark wash keeps it legible over the steam, and the site's header steps aside while the film runs. The numbers are a real Starship profile, rounded (`launchPlan.ts`).
+
 ### Signature Component: the Life System
 Every hotspot-bound 3D object and its paired UI ships a "ghost" (desaturated wireframe) and an "alive" (fully authored colour/material) state, lerped by a shared visited/hovered store. This is the literal expression of The Ghost Circuit north star — UI chrome (tags, tooltips, card accents) inherits the same logic by only fully committing to its layer colour once that layer/case has been visited.
 

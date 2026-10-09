@@ -212,13 +212,14 @@ export function CameraRig() {
 
     // ---- Launch mode: the camera belongs to the rocket -------------------
     // On the pad (and through the count) it frames the vehicle three-quarter.
-    // In flight it flies the cinematic's shots (launchShot, choreographed in
-    // maquette/launch.ts and written by the rocket each frame): on the ground
-    // for lift-off, riding the stack for the climb, alongside for staging,
-    // then watching the ship fly on — cutting from one camera to the next.
+    // From the count on it flies the film's shots (launchShot, choreographed
+    // in maquette/launch.ts and written by the launch site each frame): the
+    // pad through the count, the ground for liftoff, riding the stack for the
+    // climb, alongside for staging, the tower for the booster's catch —
+    // cutting from one camera to the next.
     // Overrides journey + node.
     if (launch !== 'idle') {
-      const flying = (launch === 'ascend' || launch === 'game') && launchShot.active;
+      const flying = launch !== 'pad' && launchShot.active;
       const fit = fitScale(aspect);
       if (flying) {
         // the shot pulls back on narrow screens as far as it asks to (a camera
@@ -256,13 +257,13 @@ export function CameraRig() {
         // off the pad framing into the first shot (a chasing ease would trail
         // a stack doing several of its own lengths a second). On the pad it
         // glides as usual.
-        const since = (performance.now() - launchShot.startedAt) / 1000;
+        const since = launchShot.since;
         const settle = Math.min(1, Math.max(0, (since - 0.3) / 1.4));
         const k = flying ? Math.max(1 - Math.exp(-2.4 * dt), settle * settle * (3 - 2 * settle)) : 1 - Math.exp(-3.4 * dt);
         camera.position.lerp(desiredPos.current, k);
         target.current.lerp(desiredTarget.current, k);
-        // a hum through the count; in flight, whatever the shot asks for
-        amp = launch === 'countdown' ? 0.0011 : flying ? launchShot.shake : 0;
+        // whatever the film's shot asks for
+        amp = flying ? launchShot.shake : 0;
       }
       camera.lookAt(target.current);
       // ---- camera rumble: position only ----

@@ -188,7 +188,26 @@ interface Rock {
   id: number; // stable for life — picks the 3D shape + tumble in the GameRocket layer
 }
 let rockId = 0; // monotonic, so a rock keeps its look however the array shifts
-interface Bullet { x: number; y: number; vx: number; vy: number; ttl: number }
+interface Bullet { x: number; y: number; px: number; py: number; vx: number; vy: number; ttl: number }
+/** Shot speed (px/s) and how much the shot itself counts for at a hit. */
+const BULLET_SPEED = 820;
+const BULLET_PAD = 3;
+/** Did a shot pass within `r` of a point on its way from (px,py) to (x,y)?
+ *  A step that wrapped round the screen edge only tests where it landed. */
+function sweptHit(b: Bullet, cx: number, cy: number, r: number): boolean {
+  const sx = b.x - b.px;
+  const sy = b.y - b.py;
+  const len2 = sx * sx + sy * sy;
+  if (len2 === 0 || len2 > 120 * 120) {
+    const dx = cx - b.x;
+    const dy = cy - b.y;
+    return dx * dx + dy * dy < r * r;
+  }
+  const k = Math.max(0, Math.min(1, ((cx - b.px) * sx + (cy - b.py) * sy) / len2));
+  const dx = cx - (b.px + sx * k);
+  const dy = cy - (b.py + sy * k);
+  return dx * dx + dy * dy < r * r;
+}
 interface Particle { x: number; y: number; vx: number; vy: number; ttl: number; max: number; c: string; streak?: boolean }
 interface Ring { x: number; y: number; r: number; v: number; ttl: number; max: number; c: string } // shockwave
 interface Popup { x: number; y: number; txt: string; ttl: number; max: number; c: string } // floating score
@@ -826,10 +845,15 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       muzzle = Math.max(0, muzzle - dt * 9); // a couple of frames of nose flash
       shieldBreak = Math.max(0, shieldBreak - dt * 2.2); // the bubble's burst, fading
       if (ship.fire && cooldown <= 0) {
-        cooldown = 0.17;
+        cooldown = 0.15;
         shots += 1;
         muzzle = 1; // the 3D nose flash
-        bullets.push({ x: ship.x + Math.cos(ship.a) * NOSE, y: ship.y + Math.sin(ship.a) * NOSE, vx: ship.vx + Math.cos(ship.a) * 430, vy: ship.vy + Math.sin(ship.a) * 430, ttl: 1.05 });
+        // Fast enough that you aim where a rock IS, not where it'll be: at the
+        // old 430px/s a shot took a second to cross the screen and the small
+        // rocks had moved on by the time it got there. Same reach as before.
+        const bx = ship.x + Math.cos(ship.a) * NOSE;
+        const by = ship.y + Math.sin(ship.a) * NOSE;
+        bullets.push({ x: bx, y: by, px: bx, py: by, vx: ship.vx + Math.cos(ship.a) * BULLET_SPEED, vy: ship.vy + Math.sin(ship.a) * BULLET_SPEED, ttl: 0.56 });
         // muzzle sparks off the nose
         const mn = reduced ? 1 : 3;
         for (let i = 0; i < mn; i++) {
@@ -860,6 +884,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           bullets.splice(i, 1);
           continue;
         }
+        b.px = b.x;
+        b.py = b.y;
         b.x = (b.x + b.vx * dt + W) % W;
         b.y = (b.y + b.vy * dt + H) % H;
       }
@@ -875,9 +901,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         const rk = rocks[i];
         for (let j = bullets.length - 1; j >= 0; j--) {
           const b = bullets[j];
-          const dx = rk.x - b.x;
-          const dy = rk.y - b.y;
-          if (dx * dx + dy * dy < rk.r * rk.r) {
+          // swept: the whole stretch the shot covered this frame, not just
+          // where it landed — at this speed a frame is ~14px, a small rock 26px
+          // across, and a slow frame would let a shot step clean over one
+          const rr = rk.r + BULLET_PAD;
+          if (sweptHit(b, rk.x, rk.y, rr)) {
             const sp = Math.hypot(b.vx, b.vy) || 1;
             hitsCount += 1;
             bullets.splice(j, 1);
@@ -1125,14 +1153,15 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       ctx.globalCompositeOperation = 'lighter';
       for (const b of bullets) {
         const sp = Math.hypot(b.vx, b.vy) || 1;
-        ctx.strokeStyle = 'rgba(39, 232, 242, 0.5)';
-        ctx.lineWidth = 2;
+        // a longer tracer, so a quick shot still reads as a line you can follow
+        ctx.strokeStyle = 'rgba(39, 232, 242, 0.55)';
+        ctx.lineWidth = 2.4;
         ctx.beginPath();
-        ctx.moveTo(b.x - (b.vx / sp) * 11, b.y - (b.vy / sp) * 11);
+        ctx.moveTo(b.x - (b.vx / sp) * 24, b.y - (b.vy / sp) * 24);
         ctx.lineTo(b.x, b.y);
         ctx.stroke();
         ctx.fillStyle = '#c8fbff';
-        ctx.fillRect(b.x - 1.5, b.y - 1.5, 3, 3);
+        ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
       }
       for (const p of parts) {
         ctx.globalAlpha = Math.max(0, p.ttl / p.max) * 0.9;

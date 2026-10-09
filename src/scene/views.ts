@@ -98,8 +98,8 @@ export const launchTrack = new Vector3(0, 0, 0);
  *  CameraRig while `active`: where the camera is, what it looks at, how much
  *  wider than the scene's lens it shoots (degrees), how much of the narrow-
  *  screen pull-back it takes (0–1), which camera it is (a change is a cut),
- *  how hard it rumbles (world units) and when the flight began
- *  (performance.now()). */
+ *  how hard it rumbles (world units), when the film began (performance.now())
+ *  and how far into it we are. */
 export const launchShot = {
   active: false,
   pos: new Vector3(),
@@ -109,4 +109,7 @@ export const launchShot = {
   cut: 0,
   shake: 0,
   startedAt: 0,
+  /** seconds since the film began (the count's first frame): the rig eases
+   *  into the first shot over this, so it runs on the film's own clock */
+  since: 0,
 };

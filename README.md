@@ -50,6 +50,8 @@ src/
                        search): the work on a stage, the facts, the story, and
                        earlier / later steps through the rest
     NodeHud.tsx        the /work/:slug dossier drawer
+    LaunchOverlay.tsx  the launch easter egg's DOM: the LAUNCH panel, the film's
+                       telemetry (LaunchHud.tsx), skip, sound, and the game
     CvPage.tsx         the /cv sheet (A4, print-styled) that npm run cv prints
     SectionHead.tsx    how every section opens: kicker + rule, title, lead
     About / Contact / Header / Footer / Poster / ScanFrame / SectionTitle
@@ -67,6 +69,13 @@ src/
       materials.tsx    holographic glass + rim shader, accents, SoftBox
       backdrop.tsx     dot floors, point fields, depth veil, blob shadows
       shared.tsx       palette, math helpers, useActive, fog-aware Line
+      launchSite.tsx   the reward pad: stacked piece by piece as projects wake,
+                       then the launch film (stages, fire, smoke, cameras)
+      launchComplex.tsx  its tower (lattice, chopsticks, ship arm) and mount
+      launch.ts        the film's choreography: poses, shots, smoke, shake
+      engineFire.tsx   plumes, a flame per engine, hot-staging jets, Max-Q cone
+      smoke.tsx        the steam, spray and smoke puffs, lit by the engines
+      rocket.tsx       the Starship stack (Blender, scripts/models)
     CameraRig.tsx      journey scroll + node fly-to
     Stage.tsx          lighting, fog, bloom, scene root
     framing.ts         layer stack + hotspot positions + camera tuning (plain data,
@@ -74,6 +83,8 @@ src/
     views.ts           the camera framings built from it, as three.js vectors
     store.ts           tiny cross-reconciler store (selected/hovered/visited,
                        the first-visit cue)
+    launchPlan.ts      the launch's flight plan, no three.js: the timeline, which
+                       engines burn when, telemetry, callouts (scene + HUD read it)
     devTweak.tsx       dev-only 3D position scrubbers (tree-shaken from prod)
   content/             cases.json · capabilities.json · site.json · cv.json (+ types)
   lib/                 asset base-path, reduced-motion, WebGL support, youtube,

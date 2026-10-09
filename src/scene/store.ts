@@ -9,10 +9,11 @@ export const bootAt = typeof performance !== 'undefined' ? performance.now() : 0
  *  (header ~0.1s · name decode ~0.4–0.9s · subhead ~1.05–1.4s · then this). */
 export const MAQUETTE_BOOT = 1450;
 
-/** The launch easter egg's stage machine (see city.tsx LaunchSite +
+/** The launch easter egg's stage machine (see maquette/launchSite.tsx +
  *  components/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;
- *  'countdown' = T-minus running; 'ascend' = rocket flying, camera chasing;
- *  'game' = the asteroids overlay is up. */
+ *  'countdown' = the film's terminal count; 'ascend' = the film from liftoff
+ *  on (the scene moves it along, on the flight plan's clock); 'game' = the
+ *  asteroids overlay is up. */
 export type LaunchStage = 'idle' | 'pad' | 'countdown' | 'ascend' | 'game';
 
 // One renderer, one scene. DOM components (hotspots, routes, overlay) and the

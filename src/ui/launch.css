@@ -94,16 +94,300 @@
 .launch__abort:hover {
   color: var(--ink);
 }
-/* the flight: the frame is the film's, so the way past it keeps to a corner
-   and only turns up once the stack is off the mount */
+/* the film: the frame is the scene's, with the telemetry along the bottom
+   and the way past it in the top corner */
 .launch--flight {
-  justify-content: flex-end;
-  padding-right: clamp(1rem, 4vw, 2.5rem);
+  padding: 0;
 }
 .launch__skip {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 0.9rem);
+  right: clamp(1rem, 4vw, 2.5rem);
   pointer-events: auto;
   padding: 0.6em 0.2em;
   animation: launch-rise var(--t-base) var(--ease) 1.6s both;
+}
+/* and sound on / off, in the other corner */
+.launch__sound {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 0.9rem);
+  left: clamp(1rem, 4vw, 2.5rem);
+  pointer-events: auto;
+  padding: 0.6em 0.2em;
+  animation: launch-rise var(--t-base) var(--ease) 1.6s both;
+}
+.launch__sound[aria-pressed='true'] {
+  color: var(--ink-60);
+}
+/* the site's header steps aside for the film (LaunchOverlay sets the flag) */
+.header {
+  transition: opacity var(--t-slow) var(--ease);
+}
+body[data-film] .header {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- the telemetry (LaunchHud) ----------
+   A launch broadcast's lower third, in the site's own hand: mono labels and
+   readouts, hairline rules, and colour only for what's live — an engine dot
+   lights as its Raptor starts and goes dark when it shuts down, the milestone
+   track fills as the flight passes them. A dark wash along the bottom keeps
+   it legible over the steam. */
+.lhud {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.9rem;
+  padding: 4.5rem clamp(1rem, 3.5vw, 2.5rem) calc(env(safe-area-inset-bottom, 0px) + 1.1rem);
+  background: linear-gradient(to top, rgba(6, 8, 10, 0.82), rgba(6, 8, 10, 0.5) 55%, transparent);
+  font-family: var(--font-mono);
+  color: var(--ink);
+  animation: launch-rise var(--t-slow) var(--ease) 0.3s both;
+}
+.lhud__call {
+  align-self: center;
+  margin: 0;
+  min-height: 1.4em;
+  font-size: var(--step--1);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-align: center;
+  opacity: 0;
+}
+.lhud__call--on {
+  animation: lhud-call 2.8s var(--ease) both;
+}
+@keyframes lhud-call {
+  0% { opacity: 0; transform: translateY(6px); letter-spacing: 0.3em; }
+  12% { opacity: 1; transform: none; letter-spacing: 0.16em; }
+  82% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.lhud__bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(1rem, 3vw, 2.5rem);
+}
+.lhud__stage {
+  display: grid;
+  gap: 0.5rem;
+}
+.lhud__stage:last-child {
+  justify-items: end;
+}
+.lhud__name {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+.lhud__body {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+.lhud__stage:last-child .lhud__body {
+  flex-direction: row-reverse;
+}
+.lhud__engines {
+  flex: none;
+  width: clamp(3.4rem, 6vw, 4.6rem);
+  height: auto;
+  aspect-ratio: 1;
+}
+.lhud__hull {
+  fill: rgba(6, 8, 10, 0.55);
+  stroke: var(--line-strong);
+  stroke-width: 0.8;
+}
+.lhud__engine {
+  fill: transparent;
+  stroke: rgba(234, 234, 234, 0.35);
+  stroke-width: 0.7;
+  transition: fill var(--t-fast) var(--ease), stroke var(--t-fast) var(--ease);
+}
+.lhud__engine[data-lit='0.5'] {
+  fill: rgba(255, 186, 120, 0.5);
+  stroke: #ffba78;
+}
+.lhud__engine[data-lit='1'] {
+  fill: #fff1dc;
+  stroke: #ffba78;
+}
+.lhud__read {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  min-width: 9.5rem;
+}
+.lhud__read > div {
+  display: grid;
+  grid-template-columns: 4.6rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.6rem;
+}
+.lhud__read dt {
+  font-size: var(--step--2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.lhud__read dd {
+  margin: 0;
+  font-size: var(--step--2);
+  letter-spacing: 0.06em;
+  color: var(--ink-60);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lhud__read b {
+  font-size: var(--step-0);
+  font-weight: 400;
+  color: var(--ink);
+}
+.lhud__prop dd {
+  align-self: center;
+}
+.lhud__bar {
+  display: block;
+  height: 3px;
+  background: var(--line);
+}
+.lhud__bar i {
+  display: block;
+  height: 100%;
+  background: var(--ink-60);
+  transform-origin: left;
+}
+.lhud__mid {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+}
+.lhud__clock {
+  font-size: var(--step-2);
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.lhud__lapse {
+  min-height: 1em;
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.lhud__lapse[data-on] {
+  color: var(--accent);
+}
+.lhud__track {
+  position: relative;
+  width: 100%;
+  padding-top: 0.2rem;
+}
+.lhud__line {
+  position: absolute;
+  top: calc(0.2rem + 4px);
+  left: 6.25%;
+  right: 6.25%;
+  height: 1px;
+  background: var(--line-strong);
+}
+.lhud__fill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.lhud__track ol {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lhud__track li {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 0.45rem;
+  font-size: var(--step--2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  white-space: nowrap;
+}
+.lhud__track li::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  background: var(--paper);
+  border: 1.5px solid var(--line-strong);
+}
+/* every other label above the line, so eight of them fit side by side */
+.lhud__track li {
+  position: relative;
+}
+.lhud__track li:nth-child(even) span {
+  position: absolute;
+  bottom: calc(100% - 0.1rem);
+}
+.lhud__track li[data-passed] {
+  color: var(--ink);
+}
+.lhud__track li[data-passed]::before {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* staged: the two stages have their own numbers now */
+.lhud:not([data-staged]) .lhud__stage:last-child .lhud__read b {
+  color: var(--ink-60);
+}
+@media (max-width: 760px) {
+  .lhud {
+    gap: 0.6rem;
+    padding-top: 3rem;
+  }
+  .lhud__bar-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'mid mid' 'b s';
+    row-gap: 0.8rem;
+  }
+  .lhud__mid {
+    grid-area: mid;
+  }
+  .lhud__stage:first-child {
+    grid-area: b;
+  }
+  .lhud__stage:last-child {
+    grid-area: s;
+  }
+  .lhud__track li span {
+    display: none;
+  }
+  .lhud__engines {
+    width: 2.9rem;
+  }
+  .lhud__read {
+    min-width: 0;
+  }
+  .lhud__read > div {
+    grid-template-columns: 2.6rem minmax(0, 1fr);
+    gap: 0.35rem;
+  }
+  .lhud__read b {
+    font-size: var(--step--1);
+  }
 }
 .launch__abort kbd,
 .ast__exit kbd {
@@ -114,18 +398,6 @@
   padding: 0.1em 0.35em;
   margin-left: 0.3em;
   color: var(--ink-60);
-}
-.launch__count {
-  font-family: var(--font-mono);
-  font-size: clamp(4rem, 14vw, 9rem);
-  font-weight: 700;
-  color: var(--ink);
-  text-shadow: 0 0 44px var(--accent-glow);
-  animation: launch-count 0.9s var(--ease);
-}
-@keyframes launch-count {
-  from { opacity: 0; transform: scale(1.35); }
-  30% { opacity: 1; }
 }
 @keyframes launch-rise {
   from { opacity: 0; transform: translateY(10px); }
@@ -621,7 +893,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .launch__go,
-  .launch__count,
+  .lhud,
+  .lhud__call--on,
   .ast__score-bump,
   .ast__chain-pop,
   /* the hologram still reads — it just stops flickering and scanning */

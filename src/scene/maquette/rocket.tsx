@@ -1,6 +1,6 @@
 // The launch vehicle: a Starship stack, modelled in Blender
 // (scripts/models/build_rocket.py, loaded by kit.ts). The pad draws the whole
-// stack (city.tsx NextProjectSite: a ghost until it flies, stacked part by part
+// stack (launchSite.tsx: a ghost until it flies, stacked part by part
 // as projects wake, and split in two at staging); the asteroids easter egg
 // (components/GameRocket) flies the ship alone, since the booster stays behind.
 //

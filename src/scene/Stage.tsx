@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { Environment, Lightformer } from '@react-three/drei';
-import { EffectComposer, BrightnessContrast, Vignette, Scanline } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, BrightnessContrast, Vignette, Scanline } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -98,6 +98,7 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   const dir1 = useRef<DirectionalLight>(null);
   const dir2 = useRef<DirectionalLight>(null);
   const cfg = useFxConfig();
+  const launchOn = useSceneSelector((s) => s.launch) !== 'idle';
 
   // The halftone's two knobs live on every compiled glass shader as the same
   // shared uniform objects (see DOT_TUNE) — mutate `.value` in place here on
@@ -138,8 +139,12 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
       {/* A touch more contrast, a soft vignette pooling the light in the centre
           of the frame where the maquette lives, and a faint scanline. Bloom used
           to lead this chain; it had been tuned to nothing, so it built a mipmap
-          blur every frame and composited black over the result. */}
+          blur every frame and composited black over the result. It's back for
+          the launch only, from the pad on (so its one-off setup lands while the
+          camera glides in, not at ignition): a high threshold, so only the fire
+          — drawn hotter than white — blooms. */}
       <EffectComposer enableNormalPass={false} multisampling={2}>
+        {launchOn ? <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.2} intensity={1.15} radius={0.72} /> : <></>}
         <BrightnessContrast contrast={cfg.contrast} />
         <Vignette eskil={false} offset={cfg.vignetteOffset} darkness={cfg.vignetteDarkness} />
         <Scanline density={cfg.scanlineDensity} opacity={cfg.scanlineOpacity} />
