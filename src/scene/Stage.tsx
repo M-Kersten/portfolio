@@ -143,7 +143,7 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
           the launch only, from the pad on (so its one-off setup lands while the
           camera glides in, not at ignition): a high threshold, so only the fire
           — drawn hotter than white — blooms. */}
-      <EffectComposer enableNormalPass={false} multisampling={2}>
+      <EffectComposer enableNormalPass={false} multisampling={launchOn ? 0 : 2}>
         {launchOn ? <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.2} intensity={1.15} radius={0.72} /> : <></>}
         <BrightnessContrast contrast={cfg.contrast} />
         <Vignette eskil={false} offset={cfg.vignetteOffset} darkness={cfg.vignetteDarkness} />

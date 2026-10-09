@@ -16,7 +16,9 @@ import { useFrame } from '@react-three/fiber';
 import { film } from '../launchPlan';
 import { Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedBufferGeometry, PlaneGeometry, ShaderMaterial, UniformsLib, UniformsUtils, Vector3, type Mesh } from 'three';
 
-const N = 1800;
+// Kept small: every puff is a big transparent quad, and the cloud's overdraw
+// is what a GPU pays for.
+const N = 900;
 
 export interface SmokeApi {
   /** Launch one puff at (x, y, z) with velocity (vx, vy, vz) — `drag` per
@@ -54,7 +56,9 @@ void main() {
   vec4 mvPosition = modelViewMatrix * vec4(iPos, 1.0);
   // a puff rolling up to the lens thins away before it fills the picture, and
   // one that's gone (or spent) collapses to nothing, so it costs no fill
-  float size = iLook.x;
+  // never more than a fraction of the view at its distance: a puff near the
+  // lens would otherwise cover the screen many times over
+  float size = min(iLook.x, -mvPosition.z * 0.3);
   vAlpha = iLook.y * smoothstep(0.5 * size + 0.04, 1.2 * size + 0.1, -mvPosition.z);
   size *= step(0.002, vAlpha);
   float c = cos(iLook.w);

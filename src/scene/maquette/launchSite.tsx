@@ -328,13 +328,13 @@ export function NextProjectSite() {
             // the dome round the base, swelling up slowly
             const r0 = 0.06 + Math.random() * 0.06;
             puffs.puff(w.x * r0, 0.03 + Math.random() * 0.05, w.z * r0, w.x * 0.08, 0.05 + Math.random() * 0.1, w.z * 0.08, {
-              size0: 0.06, size1: 0.2 + Math.random() * 0.12, life: 4.5 + Math.random() * 2.5, alpha: 0.32, warm: hot, drag: 0.9, rise: 0.012,
+              size0: 0.06, size1: 0.2 + Math.random() * 0.12, life: 4.5 + Math.random() * 2.5, alpha: 0.42, warm: hot, drag: 0.9, rise: 0.012,
             });
           } else {
             // rolling out across the ground in a bank, a long way
             const sp = 0.3 + Math.random() * 0.5;
             puffs.puff(w.x * 0.06, 0.02 + Math.random() * 0.03, w.z * 0.06, w.x * sp, 0.02 + Math.random() * 0.05, w.z * sp, {
-              size0: 0.06, size1: 0.34 + Math.random() * 0.22, life: 5 + Math.random() * 3, alpha: 0.34, warm: hot, drag: 0.95, rise: 0.015,
+              size0: 0.06, size1: 0.34 + Math.random() * 0.22, life: 5 + Math.random() * 3, alpha: 0.44, warm: hot, drag: 0.95, rise: 0.015,
             });
           }
         }
