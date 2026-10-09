@@ -116,6 +116,40 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
     };
   }, [reduced]);
 
+  // Scroll parallax: the specimen floats up into place as the bio scrolls past
+  // it. Over the About grid's pass through the viewport it starts low, settles
+  // halfway through and drifts a little higher after, written as --rise and
+  // applied with `translate` so it composes with the pointer tilt's transform.
+  useEffect(() => {
+    const el = ref.current;
+    const grid = el?.closest<HTMLElement>('.about__grid');
+    if (!el || !grid || reduced) {
+      el?.style.removeProperty('--rise');
+      return;
+    }
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const r = grid.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const p = (vh - r.top) / (vh + r.height); // 0 entering at the bottom → 1 gone off the top
+      const range = Math.min(260, vh * 0.32);
+      const rise = Math.max(-range * 0.35, Math.min(range * 0.8, (0.5 - p) * range * 1.6));
+      el.style.setProperty('--rise', `${rise.toFixed(1)}px`);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [reduced]);
+
   const list = facts.slice(0, PINS.length);
   return (
     <div

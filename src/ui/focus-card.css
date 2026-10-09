@@ -182,6 +182,12 @@
   position: relative;
   align-self: stretch;
   aspect-ratio: 16 / 9;
+  /* Hold the column's width. When a long title and outcome stretch the row
+     taller than 16:9, the ratio would otherwise derive the width from that
+     height and push the picture out under the title block; with the width
+     pinned the picture just crops a little more instead. */
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
   background: #06080a;
   border-right: 1px solid var(--line);
