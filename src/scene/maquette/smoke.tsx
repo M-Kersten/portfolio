@@ -41,8 +41,11 @@ varying vec2 vUv;
 varying float vAlpha;
 varying float vWarm;
 varying float vFire;
+varying float vBillow;
 void main() {
   vUv = uv;
+  // only big puffs billow; a wisp or a spray droplet is a soft round haze
+  vBillow = smoothstep(0.03, 0.16, iLook.x);
   vWarm = iLook.z;
   // lit by the engines: falls off with distance from the fire, and a big puff
   // close by catches more of it than a wisp
@@ -73,13 +76,14 @@ varying vec2 vUv;
 varying float vAlpha;
 varying float vWarm;
 varying float vFire;
+varying float vBillow;
 void main() {
   vec2 d = vUv - 0.5;
   float r = length(d) * 2.0;
   // a lumpy rim, so a crowd of them reads as billows rather than balls
   float a = atan(d.y, d.x);
-  float rim = 0.86 + 0.08 * sin(a * 3.0) + 0.05 * sin(a * 7.0 + 1.7);
-  float m = 1.0 - smoothstep(rim * 0.3, rim, r);
+  float rim = 0.86 + vBillow * (0.08 * sin(a * 3.0) + 0.05 * sin(a * 7.0 + 1.7));
+  float m = 1.0 - smoothstep(rim * 0.3 * vBillow, rim, r);
   if (m < 0.004) discard;
   // lit from above: the top of each puff brighter than its underside
   vec3 col = mix(uShade, uSmoke, clamp(0.55 + d.y * 1.1 + (1.0 - r) * 0.25, 0.0, 1.0));

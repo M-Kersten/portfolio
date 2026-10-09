@@ -295,7 +295,7 @@ export function NextProjectSite() {
           const a = Math.random() * Math.PI * 2;
           const rr = 0.02 + Math.random() * 0.045;
           puffs.puff(Math.sin(a) * rr, 0.012, Math.cos(a) * rr, Math.sin(a) * 0.06, 0.32 + Math.random() * 0.34, Math.cos(a) * 0.06, {
-            size0: 0.008, size1: 0.03 + Math.random() * 0.02, life: 0.7 + Math.random() * 0.4, alpha: 0.5, warm: 0, drag: 0.6, rise: -0.9,
+            size0: 0.008, size1: 0.026 + Math.random() * 0.018, life: 0.7 + Math.random() * 0.4, alpha: 0.3, warm: 0, drag: 0.6, rise: -0.9,
           });
         }
         // the steam: the deluge flashed off by the engines, thrown out all
@@ -559,7 +559,7 @@ function vent(puffs: SmokeApi, n: number, o: { vent: number }) {
     const high = Math.random() < 0.45;
     const y = high ? STAGING_Y + (Math.random() - 0.3) * 0.06 : STACK_BASE + 0.015 + Math.random() * 0.05;
     puffs.puff(Math.sin(a) * 0.033, y, Math.cos(a) * 0.033, Math.sin(a) * 0.045, -0.025, Math.cos(a) * 0.045, {
-      size0: 0.012, size1: 0.07, life: 1.3 + Math.random(), alpha: 0.3, warm: 0, drag: 1.6, rise: -0.01,
+      size0: 0.014, size1: 0.085, life: 1.4 + Math.random(), alpha: 0.2, warm: 0, drag: 1.6, rise: -0.01,
     });
   }
 }
