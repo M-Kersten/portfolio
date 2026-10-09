@@ -435,18 +435,15 @@ uniform vec3 uLight;     // view-space direction to the key light
 varying vec2 vUv;
 varying vec3 vN;
 varying vec3 vView;
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 void main() {
   // the frost line: soft, a little ragged round the tank
   float edge = uLevel + 0.03 * sin(vUv.x * 38.0) + 0.02 * sin(vUv.x * 91.0 + 1.3);
   float below = smoothstep(edge + 0.015, edge - 0.03, vUv.y);
-  // vertical streaks where the frost runs, and a grain
-  float streak = 0.75 + 0.25 * sin(vUv.x * 260.0 + sin(vUv.y * 9.0) * 2.0);
-  float grain = 0.85 + 0.15 * hash(floor(vUv * vec2(420.0, 160.0)));
   float lit = 0.55 + 0.45 * max(dot(vN, uLight), 0.0);
   float rim = pow(1.0 - abs(dot(vN, vView)), 2.0);
-  vec3 col = vec3(0.86, 0.9, 0.93) * lit * grain + rim * 0.08;
-  gl_FragColor = vec4(col, uOpacity * below * streak * (0.75 + 0.25 * rim));
+  // a smooth coat, no fine pattern: stripes this thin alias into hard lines
+  vec3 col = vec3(0.86, 0.9, 0.93) * lit + rim * 0.08;
+  gl_FragColor = vec4(col, uOpacity * below * (0.6 + 0.25 * rim));
 }`;
 
 /** White frost on a cryogenic tank: a shell round the hull from `y0` to `y1`,
