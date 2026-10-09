@@ -136,6 +136,8 @@ export function NextProjectSite() {
   const lastTail = useRef(new Vector3());
   const levels = useMemo(() => ({ booster: new Float32Array(BOOSTER_ENGINES), ship: new Float32Array(SHIP_ENGINES) }), []);
   const flashMat = useMemo(() => glowMat(new Color('#ffe2bd').multiplyScalar(2.4), 0), []);
+  const groundFire = useRef<Mesh>(null);
+  const groundFireMat = useMemo(() => glowMat(new Color('#ffb070').multiplyScalar(2.2), 0), []);
 
   useFrame((s, delta) => {
     const realDt = Math.min(delta, 1 / 30);
@@ -175,7 +177,7 @@ export function NextProjectSite() {
       shipPlume.current?.set(0, 1, 1, 1, 0);
       jets.current?.set(0, 0);
       vapor.current?.set(0, 0);
-      for (const m of [flash.current, ventGlow.current]) if (m) m.visible = false;
+      for (const m of [flash.current, ventGlow.current, groundFire.current]) if (m) m.visible = false;
       if (engineLight.current) engineLight.current.intensity = 0;
       tower.current?.set(chopsticks(-COUNT), 0);
       mount.current?.set(0);
@@ -243,6 +245,18 @@ export function NextProjectSite() {
       boosterPlume.current?.set(bThrust, air.wide, air.long, air.flare, t);
       const since = Math.max(0, t - T.hotstage);
       shipPlume.current?.set(sThrust, 1 + Math.min(0.7, since * 0.35), 1 + Math.min(1.8, since * 0.75), 2.6, t);
+      // the booster's exhaust on the plate under the mount, spreading out in a
+      // pool of fire until the stack (or, coming home, the booster) is high
+      // enough that it no longer reaches the ground
+      const gf = groundFire.current;
+      if (gf) {
+        const reach = t < T.ret ? 1 - smooth(0.06, 0.42, st.booster.y) : 1 - smooth(0.24, 0.5, st.booster.y);
+        const g = bThrust * reach;
+        gf.visible = g > 0.01;
+        const spread = 0.07 + 0.08 * g;
+        gf.scale.set(spread, 0.018 + 0.02 * g, spread);
+        groundFireMat.uniforms.uOpacity.value = g * (0.8 + Math.random() * 0.3);
+      }
 
       // ---- hot staging, Max-Q ----
       const sg = staging(t);
@@ -298,25 +312,29 @@ export function NextProjectSite() {
             size0: 0.008, size1: 0.026 + Math.random() * 0.018, life: 0.7 + Math.random() * 0.4, alpha: 0.3, warm: 0, drag: 0.6, rise: -0.9,
           });
         }
-        // the steam: the deluge flashed off by the engines, thrown out all
-        // round the mount and billowing up; the stack climbs out of it
+        // the steam: the deluge flashed off by the engines, blasted out low all
+        // round the mount and rolling away across the ground in a wide bank,
+        // piling up into a dome round the base; the stack climbs out of the
+        // top of it. Less of it is thrown toward the cameras, so the bank sits
+        // round and behind the mount rather than in front of the lens.
         o.steam += sm.steam * dt;
         while (o.steam >= 1) {
           o.steam -= 1;
           const a = Math.random() * Math.PI * 2;
-          const ca = Math.sin(a);
-          const sa = Math.cos(a);
+          w.set(0, 0, 0).addScaledVector(FLIGHT_X, Math.sin(a)).addScaledVector(FLIGHT_Z, Math.cos(a) * (Math.cos(a) > 0 ? 0.5 : 1));
+          w.normalize();
           const hot = t < T.release + 1.5 ? 0.55 : 0.2;
-          if (Math.random() < 0.3) {
-            // billowing up round the base
-            puffs.puff(ca * 0.05, 0.03 + Math.random() * 0.1, sa * 0.05, ca * 0.07, 0.12 + Math.random() * 0.24, sa * 0.07, {
-              size0: 0.07, size1: 0.3 + Math.random() * 0.16, life: 4.5 + Math.random() * 2.5, alpha: 0.4, warm: hot, drag: 0.85,
+          if (Math.random() < 0.25) {
+            // the dome round the base, swelling up slowly
+            const r0 = 0.06 + Math.random() * 0.06;
+            puffs.puff(w.x * r0, 0.03 + Math.random() * 0.05, w.z * r0, w.x * 0.08, 0.05 + Math.random() * 0.1, w.z * 0.08, {
+              size0: 0.06, size1: 0.2 + Math.random() * 0.12, life: 4.5 + Math.random() * 2.5, alpha: 0.32, warm: hot, drag: 0.9, rise: 0.012,
             });
           } else {
-            // rolling out across the ground, a long way
-            const sp = 0.3 + Math.random() * 0.55;
-            puffs.puff(ca * 0.06, 0.02 + Math.random() * 0.03, sa * 0.06, ca * sp, 0.03 + Math.random() * 0.08, sa * sp, {
-              size0: 0.06, size1: 0.34 + Math.random() * 0.2, life: 5 + Math.random() * 3, alpha: 0.42, warm: hot, drag: 0.95,
+            // rolling out across the ground in a bank, a long way
+            const sp = 0.3 + Math.random() * 0.5;
+            puffs.puff(w.x * 0.06, 0.02 + Math.random() * 0.03, w.z * 0.06, w.x * sp, 0.02 + Math.random() * 0.05, w.z * sp, {
+              size0: 0.06, size1: 0.34 + Math.random() * 0.22, life: 5 + Math.random() * 3, alpha: 0.34, warm: hot, drag: 0.95, rise: 0.015,
             });
           }
         }
@@ -508,6 +526,13 @@ export function NextProjectSite() {
         </group>
         {/* the engines' light on the stack, the tower and the ground */}
         {flying && <pointLight ref={engineLight} color="#ffae6e" intensity={0} distance={3} decay={1.4} />}
+        {/* the fire under the mount: the exhaust hitting the plate and
+            spreading out under the steam */}
+        {flying && (
+          <mesh ref={groundFire} position={[0, 0.012, 0]} material={groundFireMat} renderOrder={3} visible={false}>
+            <sphereGeometry args={[1, 24, 12]} />
+          </mesh>
+        )}
         {/* the launch's smoke and steam, in the stack's frame */}
         <LaunchSmoke ref={smokeApi} />
       </group>

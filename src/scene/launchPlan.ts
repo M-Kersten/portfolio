@@ -31,8 +31,8 @@ export const T = {
   /** the stack is clear of the tower: the film turns into a time-lapse */
   clear: 6.2,
   maxq: 7.8,
-  /** the camera alongside, for staging */
-  tracking: 9.4,
+  /** the camera alongside, through Max-Q and staging */
+  tracking: 7.3,
   /** main engine cutoff: the booster's outer twenty and inner ten shut down */
   meco: 10.6,
   /** the ship lights its six through the vented ring, still attached */
@@ -264,7 +264,7 @@ export const CALLOUTS: Callout[] = [
   { t: T.deluge, label: 'Water deluge active' },
   { t: T.startup, label: 'Raptor startup', mark: 'Startup' },
   { t: T.release, label: 'Liftoff', mark: 'Liftoff' },
-  { t: 5.2, label: 'Tower cleared' },
+  { t: T.clear, label: 'Tower cleared' },
   { t: T.maxq, label: 'Max-Q · peak aerodynamic pressure', mark: 'Max-Q' },
   { t: T.meco, label: 'Booster MECO', mark: 'MECO' },
   { t: T.hotstage, label: 'Hot staging · Starship ignition', mark: 'Staging' },

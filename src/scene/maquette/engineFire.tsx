@@ -15,7 +15,7 @@
 // All of it additive and untouched by tone mapping, so it can run hotter than
 // white and the launch's bloom (Stage.tsx) picks it up.
 import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
-import { AdditiveBlending, Color, DoubleSide, InstancedBufferAttribute, Matrix4, ShaderMaterial, Vector3, type InstancedMesh, type Mesh } from 'three';
+import { AdditiveBlending, Color, CylinderGeometry, DoubleSide, InstancedBufferAttribute, Matrix4, ShaderMaterial, Vector3, type InstancedMesh, type Mesh } from 'three';
 
 /** Exhaust colours: a methalox flame is a translucent orange-pink round a
  *  near-white core. Scaled past 1 so the bloom catches them. */
@@ -370,11 +370,14 @@ uniform float uTime;
 varying vec2 vUv;
 varying float vFace;
 void main() {
-  // thickest at its front edge, fraying back along the stack, streaked
-  float edge = smoothstep(1.0, 0.82, vUv.y) * smoothstep(0.0, 0.7, vUv.y);
-  float streak = 0.65 + 0.35 * sin(vUv.x * 80.0 + uTime * 3.0) * sin(vUv.x * 23.0 - uTime * 1.7);
-  float a = uOpacity * edge * streak * (0.35 + 0.65 * (1.0 - vFace));
-  gl_FragColor = vec4(vec3(0.93, 0.96, 1.0), a);
+  // a hard bright front edge (the shock), fraying back along the stack in
+  // streaks that flicker as the cloud forms and tears away
+  float y = vUv.y;
+  float front = smoothstep(1.0, 0.94, y) * smoothstep(0.78, 0.94, y);
+  float body = smoothstep(1.0, 0.86, y) * smoothstep(0.0, 0.8, y);
+  float streak = 0.55 + 0.45 * sin(vUv.x * 80.0 + uTime * 3.0) * sin(vUv.x * 23.0 - uTime * 1.7);
+  float a = uOpacity * (front * 0.9 + body * streak * 0.75) * (0.45 + 0.55 * (1.0 - vFace));
+  gl_FragColor = vec4(vec3(0.95, 0.97, 1.0), clamp(a, 0.0, 1.0));
 }`;
 
 /** The vapour cone that wraps the stack as it goes through the sound barrier
@@ -400,19 +403,16 @@ export const VaporCone = forwardRef<LevelApi, { y: number; r: number }>(function
         const m = mesh.current;
         if (!m) return;
         m.visible = level > 0.01;
-        mat.uniforms.uOpacity.value = 0.55 * level;
+        mat.uniforms.uOpacity.value = 0.9 * level;
         mat.uniforms.uTime.value = time;
-        m.scale.set(1 + 0.15 * level, 1, 1 + 0.15 * level);
+        m.scale.set(0.85 + 0.3 * level, 0.7 + 0.3 * level, 0.85 + 0.3 * level);
       },
     }),
     [mat],
   );
-  const len = 0.16;
-  return (
-    <mesh ref={mesh} position={[0, y - len / 2, 0]} material={mat} renderOrder={2} visible={false}>
-      <cylinderGeometry args={[r * 1.18, r * 2.3, len, 40, 1, true]} />
-    </mesh>
-  );
+  // hung from its front edge, so it stretches back from there
+  const geo = useMemo(() => new CylinderGeometry(r * 1.12, r * 2.9, 0.2, 48, 1, true).translate(0, -0.1, 0), [r]);
+  return <mesh ref={mesh} position={[0, y, 0]} geometry={geo} material={mat} renderOrder={2} visible={false} />;
 });
 
 /* ---------- cryogenic frost ---------- */
