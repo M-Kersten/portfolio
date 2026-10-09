@@ -108,7 +108,7 @@ their own ghost→alive keyed on the same store state. Colour policy lives in
 - `cases.json` — one entry per project. `year` accepts `"2024"` (centres on
   the year) or `"2024-09"` (pins the month on the timeline). `follows` names
   the earlier case this one builds on — it renders as the "← builds on /
-  led to →" storyline links in the dialogs. Drop a matching poster in
+  led to →" storyline links in the /work dossier. Drop a matching poster in
   `public/posters/<slug>.jpg`.
 - `capabilities.json` — the three band columns.
 - `cv.json` — the CV-only extras (tagline, profile paragraph, photo,

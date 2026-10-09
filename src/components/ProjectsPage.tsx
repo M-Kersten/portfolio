@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cases, caseBySlug, site } from '../content';
 import { FocusCard } from './FocusCard';
 import { Footer } from './Footer';
@@ -24,7 +24,6 @@ export function ProjectsPage() {
   const [open, setOpen] = useState<string | null>(null);
   const study = open ? caseBySlug(open) : undefined;
   const items = cases; // the full index — highlights + the long tail
-  const since = useMemo(() => Math.min(...items.map((c) => Number(c.year?.slice(0, 4)) || Infinity)), [items]);
 
   useEffect(() => {
     const prev = document.title;
@@ -40,7 +39,7 @@ export function ProjectsPage() {
       <main id="main" className="pc-stage">
         <section className="section pc">
           <div className="container">
-            <SectionHead id="work" level={1} title={TITLE} lead={LEAD} note={`${items.length} projects · ${since} → now`} />
+            <SectionHead id="work" level={1} title={TITLE} lead={LEAD} note={`${items.length} projects`} />
             <ProjectsIndex items={items} onOpen={setOpen} />
           </div>
         </section>

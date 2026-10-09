@@ -135,10 +135,10 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
                 />
               </span>
               <span className="pi-card__body">
-                {/* An eyebrow, not a headline: the layer in its own colour,
-                    the year opposite. The title carries the card. */}
+                {/* The year as a quiet stamp over the title, which carries the
+                    card. The layer needs no label: its colour is the card's
+                    edge and brackets. */}
                 <span className="pi-card__stamp">
-                  <span className="pi-card__layer">{LAYER_LABEL[c.layer]}</span>
                   {/* `year` may carry a month for timeline placement; the card
                       only ever stamps the year itself. */}
                   <span className="pi-card__yr">{c.year?.slice(0, 4) ?? '—'}</span>

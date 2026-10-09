@@ -274,7 +274,7 @@
   opacity: 0.7;
 }
 
-/* The body reads top-to-bottom as eyebrow → title → client → sector, in
+/* The body reads top-to-bottom as year → title → client → sector, in
    descending weight. Content stays top-aligned; any leftover height collects
    at the card's foot. */
 .pi-card__body {
@@ -289,25 +289,6 @@
   justify-content: space-between;
   gap: 0.75em;
   margin-bottom: 0.55rem;
-}
-.pi-card__layer {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5em;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--c);
-  white-space: nowrap;
-}
-/* the layer's colour as a small lit square — the maquette's pip */
-.pi-card__layer::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  background: var(--c);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--c) 70%, transparent);
 }
 .pi-card__yr {
   font-family: var(--font-mono);

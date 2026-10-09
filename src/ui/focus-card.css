@@ -128,7 +128,7 @@
 }
 .focus__card::-webkit-scrollbar { width: 0; height: 0; }
 
-/* Two columns over full-width rows: the stage beside the eyebrow and the title
+/* Two columns over full-width rows: the stage beside the ✕ row and the title
    block, then the facts, the story, any gallery and the foot right across. The
    stage spans the first two rows at the film's own 16:9, so a film playing in
    place fills it exactly; when a long title runs the block taller, the stage
@@ -146,13 +146,12 @@
     'foot  foot';
 }
 /* stepping from project to project: the next one slides in from the side it
-   lies on in time; a storyline jump rises in */
+   lies on in time */
 .focus__sheet[data-enter='earlier'] { animation: focus-from-left var(--t-base) var(--ease) both; }
 .focus__sheet[data-enter='later'] { animation: focus-from-right var(--t-base) var(--ease) both; }
-.focus__sheet[data-enter='jump'] { animation: focus-pop var(--t-base) var(--ease) both; }
 
-/* The eyebrow: the layer in its colour behind a square pip, then the layer's
-   remit. It keeps clear of the ✕, which floats over this corner. */
+/* The row the ✕ floats over, above the title. On a phone it becomes the bar
+   that names the project (below). No layer label: the layer is its colour. */
 .focus__top {
   grid-area: top;
   display: flex;
@@ -167,30 +166,11 @@
   text-transform: uppercase;
   white-space: nowrap;
 }
-.focus__layer {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55em;
-  color: var(--card-accent);
-}
-.focus__layer::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  background: var(--card-accent);
-}
-.focus__remit,
 .focus__name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--ink-40);
-}
-.focus__remit::before,
-.focus__name::before {
-  content: '·';
-  margin-right: 0.75em;
+  color: var(--ink-60);
 }
 /* the project's name: only in the phone's sticky bar (below) */
 .focus__name { display: none; }
@@ -437,19 +417,12 @@
   aspect-ratio: 16 / 9;
 }
 
-/* The foot: the storyline this belongs to (what it builds on and led to),
-   then the projects either side of it in time — the way on, without closing
-   anything. */
+/* The foot: the projects either side of this one in time — the way on,
+   without closing anything. */
 .focus__foot {
   grid-area: foot;
-  display: grid;
-  gap: var(--space-s);
   padding: var(--space-s) var(--space-m) var(--space-m);
   border-top: 1px solid var(--line);
-}
-.focus__foot .story-links {
-  padding-top: 0;
-  border-top: 0;
 }
 .focus__pager {
   display: grid;
@@ -535,7 +508,6 @@
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--line);
   }
-  .focus__remit { display: none; }
   .focus__name { display: block; }
   .focus__close {
     top: calc(var(--space-2xs) + 1px);

@@ -8,7 +8,7 @@ import {
   type CSSProperties,
   type RefObject,
 } from 'react';
-import { byDate, capabilities, cases, caseWhen, LAYER_LABEL, roleFor, site, type CaseStudy, type Layer } from '../content';
+import { byDate, cases, caseWhen, roleFor, site, type CaseStudy, type Layer } from '../content';
 import { asset } from '../lib/asset';
 import { caseOrigin } from '../lib/caseOrigin';
 import { EASE, MOTION } from '../lib/motion';
@@ -17,36 +17,30 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 import { youtubeEmbed } from '../lib/youtube';
 import { Gallery, Lightbox } from './Gallery';
 import { Scramble } from './Scramble';
-import { StoryLinks } from './StoryLinks';
 
 // A project, opened up: the case sheet. Shared by the timeline (Work), the
 // /projects index and search, so all three open the exact same sheet.
 //
 // It leads with the work: the poster is the stage, top left, and the film
 // plays right there. Beside it the title block says what the project is in
-// five seconds (layer, title, outcome); under them the facts are ruled off in
-// one row (client, role, when, sector, stack); then the story in its three
-// beats, each led by its first sentence as a headline; and at the foot, the
-// way on: what this builds on or led to, and the projects either side of it
-// in time, so the work can be walked without closing anything (← → and a
-// swipe do the same).
+// five seconds (title, outcome); under them the facts are ruled off in one
+// row (client, role, when, sector, stack); then the story in its three beats,
+// each led by its first sentence as a headline; and at the foot, the projects
+// either side of it in time, so the work can be walked without closing
+// anything (← → and a swipe do the same). The layer shows only as colour.
+// The "builds on / led to" storyline stays with the maquette's dossier
+// (NodeHud), where the relations are drawn between the objects.
 //
 // It opens out of the picture that was clicked (lib/caseOrigin): that picture
 // flies to the stage as a grey ghost, the brackets lock on round the sheet,
 // then the poster colours in and the title decodes. Esc / ✕ / backdrop close.
 
 /** How the project on the sheet arrived: out of a card, opened without one,
- *  stepped to from its neighbour, or followed along a storyline link. Picks
- *  its entrance (focus-card.css, [data-enter]). */
-type Enter = 'fly' | 'open' | 'earlier' | 'later' | 'jump';
+ *  or stepped to from its neighbour. Picks its entrance (focus-card.css,
+ *  [data-enter]). */
+type Enter = 'fly' | 'open' | 'earlier' | 'later';
 
 const LAYER_COLOR: Record<Layer, string> = { city: 'var(--cyan)', room: 'var(--coral)', chip: 'var(--lime)' };
-
-// Each layer's remit as the capabilities band words it ("City: maps & the real
-// world" → "maps & the real world"), for the sheet's eyebrow.
-const REMIT: Partial<Record<Layer, string>> = Object.fromEntries(
-  capabilities.map((c) => [c.layer, c.title.split(':')[1]?.trim()]),
-);
 
 /** A beat's first sentence (its headline) and the rest, as About splits its
  *  chapters. It stops at a line break too, and keeps a closing quote. */
@@ -90,8 +84,7 @@ export function FocusCard({
   const ghostRef = useRef<HTMLDivElement>(null);
   const shots = study.gallery ?? [];
 
-  // The neighbours in time. A project reached along a storyline link that the
-  // browsed set doesn't hold (an archive case, from the timeline) walks the
+  // The neighbours in time. A project the browsed set doesn't hold walks the
   // whole index instead.
   const { earlier, later } = useMemo(() => {
     const list = byDate(browse.some((c) => c.slug === study.slug) ? browse : cases);
@@ -182,8 +175,8 @@ export function FocusCard({
   }, [study.slug]);
 
   // Stepping by button takes the button away with the old sheet, so hand focus
-  // to the same step on the new one (Enter keeps walking), or to the ✕ after a
-  // storyline jump. And say where we've got to, for anyone listening.
+  // to the same step on the new one (Enter keeps walking), or to the ✕ at the
+  // end of the line. And say where we've got to, for anyone listening.
   const seen = useRef(study.slug);
   useEffect(() => {
     if (seen.current === study.slug) return;
@@ -309,7 +302,6 @@ function Sheet({
 
   const role = roleFor(study);
   const when = caseWhen(study);
-  const remit = REMIT[study.layer];
   const shots = study.gallery ?? [];
   const beats = (
     [
@@ -324,12 +316,11 @@ function Sheet({
 
   return (
     <div className="focus__sheet" data-enter={enter}>
-      {/* The layer it lives on, and that layer's remit. On a phone this is the
-          bar that stays at the top while the sheet scrolls, so there it names
-          the project instead, with the ✕ at its end. */}
+      {/* The row the ✕ floats over. On a phone it's the bar that stays at the
+          top while the sheet scrolls, naming the project, with the ✕ at its
+          end. The layer needs no label: its colour is on the brackets, the
+          kickers and the play mark. */}
       <div className="focus__top">
-        <span className="focus__layer">{LAYER_LABEL[study.layer]}</span>
-        {remit && <span className="focus__remit">{remit}</span>}
         <span className="focus__name" aria-hidden="true">
           {study.title}
         </span>
@@ -459,17 +450,14 @@ function Sheet({
         </div>
       )}
 
-      {/* The way on, without closing: the storyline this belongs to, and the
-          projects either side of it in time. */}
-      <div className="focus__foot">
-        <StoryLinks study={study} onJump={(slug) => onGo(slug, 'jump')} />
-        {(earlier || later) && (
-          <nav className="focus__pager" aria-label="More projects">
-            {earlier && <Step to={earlier} dir="earlier" onGo={onGo} />}
-            {later && <Step to={later} dir="later" onGo={onGo} />}
-          </nav>
-        )}
-      </div>
+      {/* The way on, without closing: the projects either side of this one
+          in time. */}
+      {(earlier || later) && (
+        <nav className="focus__foot focus__pager" aria-label="More projects">
+          {earlier && <Step to={earlier} dir="earlier" onGo={onGo} />}
+          {later && <Step to={later} dir="later" onGo={onGo} />}
+        </nav>
+      )}
     </div>
   );
 }
