@@ -385,6 +385,20 @@ body[data-film] .header {
     grid-template-columns: 2.6rem minmax(0, 1fr);
     gap: 0.35rem;
   }
+  /* two columns of readouts side by side: the units say which is speed and
+     which is altitude, so those two labels step aside (still read out) and
+     the numbers take the full width */
+  .lhud__read > div:not(.lhud__prop) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lhud__read > div:not(.lhud__prop) dt {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   .lhud__read b {
     font-size: var(--step--1);
   }
