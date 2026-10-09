@@ -1,6 +1,8 @@
 /* The /cv page — an A4 document in the site's language ("blueprint" light:
-   paper, dot grid, mono labels, the career as a route line). Focused on work
-   history and education; it grows to as many pages as the content needs.
+   paper, the site's square-dot grid, mono labels, the name and titles in the
+   display face). Flat like the site: no shadow under the sheet, no underlined
+   links. Focused on work history and education; it grows to as many pages as
+   the content needs.
    `npm run cv` prints it to public/cv.pdf; the print rules at the bottom are
    what the PDF actually sees. */
 
@@ -59,7 +61,8 @@
   --cv-ink-hdr: #0a0d10; /* the black header band (matches the site bg) */
   --cv-gutter: 38px; /* the body's inset from the sheet edge — tight, so text follows the bleed */
   --cv-entry-pad: 30px; /* top padding on each entry — doubles as the space a page break lands into */
-  --cv-dots: radial-gradient(#e7eaec 1px, var(--cv-paper) 1.4px); /* the faint grid */
+  /* the faint grid, in the site's dot language: little squares, not circles */
+  --cv-dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23f6f8f9'/%3E%3Crect x='11' y='11' width='2' height='2' fill='%23e2e6e9'/%3E%3C/svg%3E");
   --cv-measure: 35rem; /* one comfortable reading width for every body text */
 
   width: 210mm;
@@ -77,11 +80,10 @@
   background-image: var(--cv-dots);
   background-size: 24px 24px;
   color: var(--cv-ink);
-  font-family: var(--font-sans, 'Space Grotesk', sans-serif);
+  font-family: var(--font-body);
   /* no top padding — the black header owns the top edge; the body keeps the
      gutter on the sides and a little breathing room at the very bottom */
   padding: 0 var(--cv-gutter) 36px;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
 }
 
 /* Section labels. They are <h2> for the document outline (the sheet used to go
@@ -147,16 +149,14 @@
   text-decoration: none;
   font-variant-numeric: tabular-nums;
 }
-/* the web / social links — clearly blue, underlined, so they read as
-   clickable links (on the black header a bright sky-blue carries best) */
+/* the web / social links — in the site's cyan, which on the black band is
+   enough to say "link" without an underline */
 .cv .cv-head .cv-contact {
   color: rgba(234, 234, 234, 0.5);
 }
 .cv .cv-head .cv-contact a {
-  color: #6ea8ff;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-thickness: 0.5px;
+  color: var(--accent-ink);
+  text-decoration: none;
 }
 /* the portrait fills the band's full height, grounded, bleeding to the right */
 .cv .cv-photo {
@@ -168,8 +168,15 @@
   object-position: bottom right;
 }
 .cv h1 {
-  font: 500 42px/1.04 var(--font-sans, 'Space Grotesk', sans-serif);
-  letter-spacing: -0.01em;
+  /* the site's display voice, as on the hero name: the face, weight, axes and
+     tracking all come from the --display-* tokens */
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-stretch: var(--display-stretch);
+  font-variation-settings: var(--display-axes);
+  font-size: calc(46px * var(--display-scale));
+  line-height: var(--display-leading);
+  letter-spacing: var(--display-tracking);
   margin: 0;
 }
 .cv .cv-tagline {
@@ -244,7 +251,12 @@
 }
 .cv .cv-job h3,
 .cv .cv-edu h3 {
-  font: 700 14.5px/1.25 var(--font-sans, 'Space Grotesk', sans-serif);
+  /* the heading face, as the site's card titles use it */
+  font-family: var(--font-heading);
+  font-weight: var(--heading-weight);
+  font-size: 15px;
+  line-height: 1.2;
+  letter-spacing: var(--heading-tracking);
   margin: 5px 0 0;
 }
 .cv .cv-co {
@@ -323,7 +335,6 @@
     --cv-gutter: 20px;
     width: 100%;
     min-height: 0;
-    box-shadow: none;
   }
 
   /* The band stacks. Side by side, the portrait takes the width the name needs
@@ -344,7 +355,7 @@
     margin-right: calc(-1 * var(--cv-gutter));
   }
   .cv h1 {
-    font-size: clamp(28px, 8.5vw, 42px);
+    font-size: calc(clamp(30px, 9vw, 46px) * var(--display-scale));
   }
 
   /* Paper type sizes are set for a 794px sheet held at reading distance. At
@@ -403,7 +414,7 @@
     color-scheme: light;
     /* literal values — the --cv-* vars are scoped to .cv and don't reach html */
     background-color: #f6f8f9;
-    background-image: radial-gradient(#e7eaec 1px, #f6f8f9 1.4px);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23f6f8f9'/%3E%3Crect x='11' y='11' width='2' height='2' fill='%23e2e6e9'/%3E%3C/svg%3E");
     background-size: 24px 24px;
   }
   body[data-cv] {
@@ -424,7 +435,6 @@
     display: none;
   }
   .cv {
-    box-shadow: none;
     width: auto;
     min-height: 0;
     background: none; /* the dots come from the page canvas (html) now */
