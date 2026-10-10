@@ -9,8 +9,6 @@
 //   RingJets    hot staging: the ship's exhaust pouring out sideways through
 //               the eighteen vents in the ring
 //   VaporCone   the condensation collar round the stack at Max-Q
-//   Frost       the white frost on the cryogenic tanks, down to the level of
-//               the propellant inside
 //
 // All of it additive and untouched by tone mapping, so it can run hotter than
 // white and the launch's bloom (Stage.tsx) picks it up.
@@ -415,68 +413,3 @@ export const VaporCone = forwardRef<LevelApi, { y: number; r: number }>(function
   return <mesh ref={mesh} position={[0, y, 0]} geometry={geo} material={mat} renderOrder={2} visible={false} />;
 });
 
-/* ---------- cryogenic frost ---------- */
-
-const FROST_VERT = /* glsl */ `
-varying vec2 vUv;
-varying vec3 vN;
-varying vec3 vView;
-void main() {
-  vUv = uv;
-  vN = normalize(normalMatrix * normal);
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  vView = normalize(-mv.xyz);
-  gl_Position = projectionMatrix * mv;
-}`;
-const FROST_FRAG = /* glsl */ `
-uniform float uLevel;   // 0–1 up the band: frost below, bare steel above
-uniform float uOpacity;
-uniform vec3 uLight;     // view-space direction to the key light
-varying vec2 vUv;
-varying vec3 vN;
-varying vec3 vView;
-void main() {
-  // the frost line: soft, a little ragged round the tank
-  float edge = uLevel + 0.03 * sin(vUv.x * 38.0) + 0.02 * sin(vUv.x * 91.0 + 1.3);
-  float below = smoothstep(edge + 0.015, edge - 0.03, vUv.y);
-  float lit = 0.55 + 0.45 * max(dot(vN, uLight), 0.0);
-  float rim = pow(1.0 - abs(dot(vN, vView)), 2.0);
-  // a smooth coat, no fine pattern: stripes this thin alias into hard lines
-  vec3 col = vec3(0.86, 0.9, 0.93) * lit + rim * 0.08;
-  gl_FragColor = vec4(col, uOpacity * below * (0.6 + 0.25 * rim));
-}`;
-
-/** White frost on a cryogenic tank: a shell round the hull from `y0` to `y1`,
- *  frosted up to `level` of the way (the propellant inside). */
-export const Frost = forwardRef<{ set(level: number, opacity: number): void }, { r: number; y0: number; y1: number }>(function Frost({ r, y0, y1 }, ref) {
-  const mesh = useRef<Mesh>(null);
-  const mat = useMemo(
-    () =>
-      new ShaderMaterial({
-        vertexShader: FROST_VERT,
-        fragmentShader: FROST_FRAG,
-        uniforms: { uLevel: { value: 1 }, uOpacity: { value: 0 }, uLight: { value: new Vector3(0.45, 0.8, 0.4).normalize() } },
-        transparent: true,
-        depthWrite: false,
-      }),
-    [],
-  );
-  useImperativeHandle(
-    ref,
-    () => ({
-      set(level, opacity) {
-        const m = mesh.current;
-        if (!m) return;
-        m.visible = opacity > 0.01 && level > 0.01;
-        mat.uniforms.uLevel.value = level;
-        mat.uniforms.uOpacity.value = opacity;
-      },
-    }),
-    [mat],
-  );
-  return (
-    <mesh ref={mesh} position={[0, (y0 + y1) / 2, 0]} material={mat} renderOrder={1} visible={false}>
-      <cylinderGeometry args={[r, r, y1 - y0, 48, 1, true]} />
-    </mesh>
-  );
-});

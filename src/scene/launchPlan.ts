@@ -13,6 +13,10 @@
 // about T+1:02, MECO at T+2:41 around 65 km and 5,000+ km/h, hot staging, the
 // booster's boostback, and the catch at the tower at about T+6:50.
 
+/** How much slower than its own clock the film plays: every beat stays where
+ *  the plan puts it, the whole film just takes this much longer to watch. */
+export const PACE = 1.4;
+
 /** Seconds of terminal count shown before liftoff. */
 export const COUNT = 8;
 

@@ -30,9 +30,9 @@ import { FIRE, useAccent, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE } from './life';
 import { BoosterBody, ROCKET_MID, ShipBody, STACK_BASE, STAGING_Y } from './rocket';
 import { BOOSTER_MID, T, bqd, chopsticks, plumeAir, qdArm, shake as flightShake, shot as flightShot, smoke as flightSmoke, stages as flightStages, staging } from './launch';
-import { BOOSTER_ENGINES, BOOSTER_RINGS, COUNT, SHIP_ENGINES, SHIP_RINGS, boosterEngines, boosterTelemetry, film, missionTime, shipEngines, shipTelemetry, smooth } from '../launchPlan';
+import { BOOSTER_ENGINES, BOOSTER_RINGS, COUNT, PACE, SHIP_ENGINES, SHIP_RINGS, boosterEngines, film, shipEngines, smooth } from '../launchPlan';
 import { LaunchSmoke, type SmokeApi } from './smoke';
-import { Frost, Nozzles, Plume, RingJets, VaporCone, glowMat, type LevelApi, type NozzlesApi, type PlumeApi } from './engineFire';
+import { Nozzles, Plume, RingJets, VaporCone, glowMat, type LevelApi, type NozzlesApi, type PlumeApi } from './engineFire';
 import { LaunchMount, LaunchTower, type MountApi, type TowerApi } from './launchComplex';
 
 /** The launch site. Moved back from [0.85, 0, -0.52], where the apron overlapped
@@ -123,10 +123,6 @@ export function NextProjectSite() {
   const tower = useRef<TowerApi>(null);
   const mount = useRef<MountApi>(null);
   const smokeApi = useRef<SmokeApi>(null);
-  type FrostApi = { set(level: number, opacity: number): void };
-  const frostLox = useRef<FrostApi>(null);
-  const frostCh4 = useRef<FrostApi>(null);
-  const frostShip = useRef<FrostApi>(null);
   const beaconMat = useRef<MeshStandardMaterial>(null);
   const t0 = useRef(0); // wall clock when the count began
   const flown = useRef(false); // something to put back once the pad is idle again
@@ -186,11 +182,8 @@ export function NextProjectSite() {
       launchShot.active = false;
     }
 
-    // ---- on the pad: fuelled, frosted, breathing vapour off its tanks ----
+    // ---- on the pad: fuelled, breathing vapour off its tanks ----
     if (launch === 'pad') {
-      frostLox.current?.set(1, 0.8);
-      frostCh4.current?.set(1, 0.8);
-      frostShip.current?.set(1, 0.8);
       if (!reduced && puffs) vent(puffs, realDt * 4, o);
     }
 
@@ -214,9 +207,9 @@ export function NextProjectSite() {
       }
       // wall clock, not the frame sum: dt is clamped, and the film has a set
       // running time (the capture tooling steps it instead)
-      film.time = film.fixed ? film.time + film.fixed : (performance.now() - t0.current) / 1000 - COUNT;
+      film.time = film.fixed ? film.time + film.fixed : (performance.now() - t0.current) / 1000 / PACE - COUNT;
       const t = film.time;
-      const dt = film.fixed || realDt;
+      const dt = film.fixed || realDt / PACE;
 
       // ---- the two stages ----
       const st = flightStages(t);
@@ -274,13 +267,6 @@ export function NextProjectSite() {
       jets.current?.set(sg.jets, t);
       vapor.current?.set(smooth(T.maxq - 0.8, T.maxq - 0.35, t) * (1 - smooth(T.maxq + 0.35, T.maxq + 0.9, t)), t);
 
-      // ---- frost: down to the propellant left in each tank ----
-      const mt = Math.max(0, missionTime(t));
-      const bp = boosterTelemetry(mt);
-      const sp = shipTelemetry(mt);
-      frostLox.current?.set(bp.lox, 0.8);
-      frostCh4.current?.set(bp.ch4, 0.8);
-      frostShip.current?.set(sp.lox, 0.8);
 
       // ---- the tower ----
       tower.current?.set(chopsticks(t), qdArm(t));
@@ -478,10 +464,6 @@ export function NextProjectSite() {
               {flying && (
                 <>
                   <Nozzles ref={boosterNozzles} at={BOOSTER_NOZZLES} y={STACK_BASE + 0.0006} length={0.05} />
-                  {/* frost on the liquid-oxygen tank (the lower two-thirds)
-                      and the methane tank above it */}
-                  <Frost ref={frostLox} r={0.0304} y0={0.1} y1={0.335} />
-                  <Frost ref={frostCh4} r={0.0304} y0={0.352} y1={0.47} />
                 </>
               )}
             </group>
@@ -505,7 +487,6 @@ export function NextProjectSite() {
               {flying && (
                 <>
                   <Nozzles ref={shipNozzles} at={SHIP_NOZZLES} y={STAGING_Y + 0.0006} length={0.04} />
-                  <Frost ref={frostShip} r={0.0304} y0={0.52} y1={0.655} />
                 </>
               )}
             </group>

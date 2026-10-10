@@ -140,11 +140,13 @@ body[data-film] .header {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.9rem;
-  padding: 4.5rem clamp(1rem, 3.5vw, 2.5rem) calc(env(safe-area-inset-bottom, 0px) + 1.1rem);
-  background: linear-gradient(to top, rgba(6, 8, 10, 0.82), rgba(6, 8, 10, 0.5) 55%, transparent);
+  gap: 0.6rem;
+  padding: 3rem clamp(1rem, 3.5vw, 2.5rem) calc(env(safe-area-inset-bottom, 0px) + 0.9rem);
+  /* quiet: a light wash and dimmed readouts, so the picture leads */
+  background: linear-gradient(to top, rgba(6, 8, 10, 0.55), rgba(6, 8, 10, 0.25) 50%, transparent);
   font-family: var(--font-mono);
   color: var(--ink);
+  opacity: 0.78;
   animation: launch-rise var(--t-slow) var(--ease) 0.3s both;
 }
 .lhud__call {
@@ -199,7 +201,7 @@ body[data-film] .header {
 }
 .lhud__engines {
   flex: none;
-  width: clamp(3.4rem, 6vw, 4.6rem);
+  width: clamp(2.8rem, 4.5vw, 3.6rem);
   height: auto;
   aspect-ratio: 1;
 }
@@ -273,7 +275,7 @@ body[data-film] .header {
   gap: 0.45rem;
 }
 .lhud__clock {
-  font-size: var(--step-2);
+  font-size: var(--step-0);
   letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
   color: var(--ink);

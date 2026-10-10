@@ -225,7 +225,7 @@ export function smoke(t: number): { spray: number; steam: number; trail: number;
   const rcs = t > T.sep + 0.3 && t < T.boostback ? 1 : 0;
   const landing = smooth(T.landing + 1.3, T.landing + 1.8, t) * (1 - smooth(T.catch, T.catch + 0.3, t));
   const vent = t > T.catch + 0.2 ? 1 : 0;
-  return { spray: spray * 40, steam: steam * 85, trail: trail * 40, rcs: rcs * 26, landing: landing * 90, vent: vent * 18 };
+  return { spray: spray * 40, steam: steam * 110, trail: trail * 40, rcs: rcs * 26, landing: landing * 90, vent: vent * 18 };
 }
 
 /** How hard the camera rumbles (pad units): a hum as the engines start, the
