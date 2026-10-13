@@ -81,14 +81,14 @@ export function LaunchOverlay() {
         <div className="launch__panel">
           <span className="launch__mission">
             <span className="launch__tag">Passion</span>
-            MK-01{flights != null && ` · FLIGHT ${flights + 1}`}
+            <span className="launch__flight">MK-01 · THE NEXT LAUNCH{flights != null && ` · FLIGHT ${flights + 1}`}</span>
           </span>
-          <p className="launch__lede">Space travel is a passion of mine.</p>
+          <p className="launch__lede">You’ve seen ten projects that shipped. The next one is yours, and it’s on the pad.</p>
           <p className="launch__story">
-            I love following space travel news, and I watch every launch I have the time for. So the tour ends with one: a Starship flight, from the
-            terminal count to the booster caught by the tower.
+            Space travel is a passion of mine: I love following space travel news, and I watch every launch I have the time for. So that’s how I treat
+            a project: a careful countdown, a clean launch, and a booster that comes home to be flown again.
           </p>
-          <p className="launch__brief">Then take the controls and blast through the problems every project runs into.</p>
+          <p className="launch__brief">Press launch to fly yours, then blast through the problems every project runs into.</p>
           {flights != null && (
             <span className="launch__tally">
               <b>{String(flights).padStart(4, '0')}</b> launches performed by visitors before you

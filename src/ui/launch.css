@@ -36,8 +36,13 @@
 }
 .launch__mission {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 0.7em;
+  gap: 0.5em 0.7em;
+}
+.launch__flight {
+  white-space: nowrap;
 }
 /* the site's Passion tag, in its one colour */
 .launch__tag {
