@@ -1,0 +1,83 @@
+/* ---------- voice notes ----------
+   "Hear about this project": a waveform and a label in one quiet button, in
+   the project's layer colour. The bars fill from the left as the clip plays
+   and breathe a little while it does. */
+.voice {
+  --voice-accent: var(--card-accent, var(--accent));
+  display: flex;
+}
+.voice__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.45rem 0.85rem 0.45rem 0.65rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--voice-accent) 45%, transparent);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+.voice__btn:hover,
+.voice__btn:focus-visible {
+  border-color: var(--voice-accent);
+  background: color-mix(in srgb, var(--voice-accent) 8%, transparent);
+}
+.voice__wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 1.5rem;
+}
+.voice__wave i {
+  display: block;
+  width: 2px;
+  height: calc(var(--b) * 100%);
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.voice__wave i[data-on] {
+  background: var(--voice-accent);
+}
+/* playing: the bars breathe, each a beat after the last */
+.voice[data-playing] .voice__wave i {
+  animation: voice-bob 0.9s ease-in-out infinite alternate;
+}
+.voice[data-playing] .voice__wave i:nth-child(3n + 1) { animation-delay: -0.3s; }
+.voice[data-playing] .voice__wave i:nth-child(3n + 2) { animation-delay: -0.6s; }
+.voice[data-playing] .voice__wave i:nth-child(4n) { animation-duration: 0.7s; }
+@keyframes voice-bob {
+  from { transform: scaleY(1); }
+  to { transform: scaleY(0.55); }
+}
+.voice__text {
+  display: grid;
+  justify-items: start;
+  gap: 0.1rem;
+  text-align: left;
+}
+.voice__label {
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.voice__time {
+  min-height: 1em;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-40);
+}
+/* in the maquette's dossier: a breath before the film under it */
+.node-hud .voice {
+  margin-bottom: var(--space-s);
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice[data-playing] .voice__wave i {
+    animation: none;
+  }
+}

@@ -17,6 +17,7 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 import { youtubeEmbed } from '../lib/youtube';
 import { Gallery, Lightbox } from './Gallery';
 import { Scramble } from './Scramble';
+import { VoiceNote } from './VoiceNote';
 
 // A project, opened up: the case sheet. Shared by the timeline (Work), the
 // /projects index and search, so all three open the exact same sheet.
@@ -371,6 +372,8 @@ function Sheet({
           <Scramble text={study.title} delay={decodeAt} wrap />
         </h3>
         <p className="focus__outcome">{study.outcome}</p>
+        {/* me, telling it: right under the one-liner, before the buttons */}
+        <VoiceNote slug={study.slug} title={study.title} />
         <div className="focus__actions">
           <a
             className="btn worktile__discuss"

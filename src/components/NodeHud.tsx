@@ -8,6 +8,7 @@ import { useFocusTrap } from '../lib/useFocusTrap';
 import { sceneStore } from '../scene/store';
 import { StoryLinks } from './StoryLinks';
 import { Scramble } from './Scramble';
+import { VoiceNote } from './VoiceNote';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // Centre of each layer's scroll band on the hero (fraction of scroll travel),
@@ -144,6 +145,8 @@ export function NodeHud() {
           <Scramble key={study.slug} text={study.title} delay={120} wrap />
         </h2>
         <p className="node-hud__outcome">{study.outcome}</p>
+        {/* me, telling it: right under the one-liner, before the film */}
+        <VoiceNote key={`voice-${study.slug}`} slug={study.slug} title={study.title} />
 
         <Media key={study.slug} study={study} />
 

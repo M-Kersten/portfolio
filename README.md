@@ -50,6 +50,7 @@ src/
                        search): the work on a stage, the facts, the story, and
                        earlier / later steps through the rest
     NodeHud.tsx        the /work/:slug dossier drawer
+    VoiceNote.tsx      "Hear about this project": a project's voice note, if it has one
     LaunchOverlay.tsx  the launch easter egg's DOM: the LAUNCH panel, the film's
                        telemetry (LaunchHud.tsx), skip, and the game
     CvPage.tsx         the /cv sheet (A4, print-styled) that npm run cv prints
@@ -86,7 +87,9 @@ src/
     launchPlan.ts      the launch's flight plan, no three.js: the timeline, which
                        engines burn when, telemetry, milestones (scene + HUD read it)
     devTweak.tsx       dev-only 3D position scrubbers (tree-shaken from prod)
-  content/             cases.json · capabilities.json · site.json · cv.json (+ types)
+  content/             cases.json · capabilities.json · site.json · cv.json (+ types),
+                       voice.ts (finds the voice notes in assets/voice/)
+  assets/voice/        the voice notes, one per project: <slug>.mp3
   lib/                 asset base-path, reduced-motion, WebGL support, youtube,
                        the motion numbers for code (motion.ts) + useReveal
   ui/                  tokens.css (design tokens) + one stylesheet per page
@@ -121,6 +124,11 @@ their own ghost→alive keyed on the same store state. Colour policy lives in
   the earlier case this one builds on — it renders as the "← builds on /
   led to →" storyline links in the /work dossier. Drop a matching poster in
   `public/posters/<slug>.jpg`.
+- **Voice notes** — record a short clip about a project and save it as
+  `src/assets/voice/<slug>.mp3` (or `.m4a`, `.ogg`, `.webm`), named after
+  the case's `slug`. The "Hear about this project" button then appears in
+  that project's popup and maquette dossier; projects without a clip show
+  none. Mono at 64–96 kbps is plenty for a voice.
 - `capabilities.json` — the three band columns.
 - `cv.json` — the CV-only extras (tagline, profile paragraph, photo,
   location, phone, links, stack, education, certificates, languages,
