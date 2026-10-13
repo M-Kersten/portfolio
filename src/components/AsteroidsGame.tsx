@@ -1153,15 +1153,13 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           if (!rk.label) continue;
           const born = Math.min(1, rk.age / 0.45);
           const big = rk.tier === 0;
-          lctx.font = `${big ? 700 : 400} ${big ? 12 : 11}px "Space Mono", monospace`;
+          lctx.font = `${big ? 12 : 11}px "Space Mono", monospace`;
           const tw = lctx.measureText(rk.label).width + 12;
           const ty = rk.y + rk.r * 0.95 + 10;
           lctx.globalAlpha = born;
-          lctx.fillStyle = 'rgba(6, 8, 10, 0.72)';
+          lctx.fillStyle = 'rgba(6, 8, 10, 0.5)';
           lctx.fillRect(rk.x - tw / 2, ty - 9, tw, 18);
-          lctx.fillStyle = big ? CYAN : 'rgba(39, 232, 242, 0.55)';
-          lctx.fillRect(rk.x - tw / 2, ty - 9, 2, 18);
-          lctx.fillStyle = INK;
+          lctx.fillStyle = big ? 'rgba(234, 234, 234, 0.85)' : 'rgba(234, 234, 234, 0.6)';
           lctx.fillText(rk.label, rk.x + 1, ty + 0.5);
         }
         lctx.globalAlpha = 1;
@@ -1230,7 +1228,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         lctx.textAlign = 'center';
         for (const p of popups) {
           const k = Math.max(0, p.ttl / p.max);
-          lctx.font = `600 ${p.txt.includes('×') || p.txt === '+150' ? 17 : 14}px "Oxanium Variable", "Space Grotesk", sans-serif`;
+          lctx.font = `500 ${p.txt.includes('×') || p.txt === '+150' ? 15 : 13}px "Oxanium Variable", "Space Grotesk", sans-serif`;
           lctx.globalAlpha = Math.min(1, k * 1.6);
           lctx.fillStyle = p.c;
           lctx.fillText(p.txt, p.x, p.y);
