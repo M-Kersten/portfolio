@@ -242,6 +242,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scoreRef = useRef<HTMLSpanElement>(null);
   const chainRef = useRef<HTMLSpanElement>(null);
+  const stageNumRef = useRef<HTMLElement>(null);
+  const stageNameRef = useRef<HTMLSpanElement>(null);
+  const shieldRef = useRef<HTMLSpanElement>(null);
+  const labelRef = useRef<HTMLCanvasElement>(null);
   const hintRef = useRef<HTMLDivElement>(null); // the control legend, retired once used
   const sayRef = useRef<(msg: string) => void>(() => {}); // set by GameComms
   const commsBusy = useRef(false); // ditto — true while a line is on screen
@@ -250,7 +254,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const [debrief, setDebrief] = useState<Debrief | null>(null); // the RUD card's write-up
   // The slate: the run's arrival card, then each stage's title. One element, so a
   // new one always replaces the last rather than stacking on it.
-  const [slate, setSlate] = useState<{ text: string; kind: 'mission' | 'phase'; id: number } | null>(null);
+  const [slate, setSlate] = useState<{ text: string; kicker?: string; kind: 'mission' | 'phase'; id: number } | null>(null);
   const slateId = useRef(0);
   const [best, setBest] = useState(() => Number(localStorage.getItem('mk-asteroids-best') ?? 0));
   const restartRef = useRef<() => void>(() => {});
@@ -275,6 +279,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    // the labels' and points' layer, over the 3D rocks
+    const lcv = labelRef.current;
+    const lctx = lcv?.getContext('2d') ?? null;
 
     let W = 0;
     let H = 0;
@@ -300,6 +307,12 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (lcv && lctx) {
+        lcv.width = Math.round(W * dpr);
+        lcv.height = Math.round(H * dpr);
+        lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        (lctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '1px';
+      }
       // viewport-sized paint caches — rebuilt on resize, drawn once per frame
       const pc = document.createElement('canvas');
       pc.width = pc.height = 44;
@@ -375,7 +388,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     // No lives, no respawn queue: the vehicle carries a shield that eats exactly
     // one hit and comes back when you clear a stage. Two states, nothing to count.
     let shield = true;
-    let shieldBreak = 0; // 1 on the burst, decays — drives the 3D bubble's flare
+    let shieldBreak = 0;
+    let shieldShown = true; // what the HUD last showed // 1 on the burst, decays — drives the 3D bubble's flare
     let wave = 0;
     let waveGap = 0; // countdown to the next wave while the field is clear
     let cooldown = 0;
@@ -400,7 +414,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let shake = 0;
     let flash = 0; // white-out at the moment of disassembly
     let slomo = 0; // hit-stop: the world catches its breath on big hits
-    let wavePulse = 0; // the stage numeral watermark breathes on each new wave
     let gridPulse = 0; // the paper brightens for a beat on milestones/clears
     // stage separation: stars rush past and settle as you take over — on
     // arrival, and again (STAGE_ADVANCE_RUSH_MS) every time spawnWave moves you
@@ -446,9 +459,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     // hologram (GameComms). The old centre-screen toast is gone — a line is
     // something a person says to you now, not text that appears in the void.
     const say = (msg: string) => sayRef.current(msg);
-    const showSlate = (text: string, kind: 'mission' | 'phase') => {
+    const showSlate = (text: string, kind: 'mission' | 'phase', kicker?: string) => {
       slateId.current += 1;
-      setSlate({ text, kind, id: slateId.current });
+      setSlate({ text, kicker, kind, id: slateId.current });
     };
     // Asides (the hazard stories) only land if he isn't already mid-sentence —
     // better to skip one than to cut him off. The important lines just say().
@@ -477,11 +490,12 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
 
     const spawnWave = () => {
       wave += 1;
-      wavePulse = 1;
       // stage 1's own rush is the arrival intro (reset() below) — this is every
       // stage AFTER it, which otherwise had no visual "we just travelled" beat
       if (wave > 1) introUntil = reduced ? 0 : performance.now() + STAGE_ADVANCE_RUSH_MS;
-      showSlate(phaseTitle(wave), 'phase');
+      showSlate(phaseTitle(wave), 'phase', `Stage ${String(wave).padStart(2, '0')}`);
+      if (stageNumRef.current) stageNumRef.current.textContent = String(wave).padStart(2, '0');
+      if (stageNameRef.current) stageNameRef.current.textContent = phaseTitle(wave);
       const n = Math.min(2 + wave, 7);
       // only what this stage of the project could plausibly have produced
       const labels = hazardsForStage(wave).sort(() => Math.random() - 0.5);
@@ -493,7 +507,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         // aimed to actually cross the play area — an idle pilot should be in
         // trouble within the first pass, not watching rocks orbit the rim
         const a = Math.atan2(H / 2 - y, W / 2 - x) + (Math.random() - 0.5) * 0.7;
-        const sp = 46 + Math.random() * 38 + wave * 6;
+        // a phone's field is small: the rocks come in slower, so there's
+        // still a beat to react in
+        const sp = (46 + Math.random() * 38 + wave * 6) * Math.min(1, Math.max(0.62, Math.min(W, H) / 700));
         rocks.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 44, tier: 0, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 0.8, shape: rockShape(), label: labels[i % labels.length], age: 0, id: rockId++ });
       }
     };
@@ -688,6 +704,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       if (chainRef.current) chainRef.current.textContent = '';
       scoreRef.current?.classList.remove('ast__score-rec');
       if (scoreRef.current) scoreRef.current.textContent = '0000';
+      if (stageNumRef.current) stageNumRef.current.textContent = '01';
+      if (stageNameRef.current) stageNameRef.current.textContent = phaseTitle(1);
       // stage separation: stars rush past for a beat before the first wave
       introUntil = reduced ? 0 : performance.now() + 2200;
       firstWave = false;
@@ -967,7 +985,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       }
       if (shake > 0) shake = Math.max(0, shake - dt * 18);
       if (flash > 0) flash = Math.max(0, flash - dt * 2.4);
-      if (wavePulse > 0) wavePulse = Math.max(0, wavePulse - dt * 1.1);
       if (gridPulse > 0) gridPulse = Math.max(0, gridPulse - dt * 1.4);
     };
 
@@ -1116,19 +1133,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         ctx.fillRect(0, 0, W, H);
       }
 
-      // stage numeral, ghosted bottom-right — the site's layer-index language
-      // ("01 · CITY"); it breathes brighter for a beat when a wave spawns.
-      // Bottom-LEFT used to double as ground control's own corner (.comms in
-      // launch.css), so the transmission panel sat right over the numeral
-      // every time Merijn had a line — which is often. Opposite corner, same
-      // margin, nothing left to fight over.
-      ctx.font = `700 ${Math.round(Math.min(150, H * 0.17))}px "Space Mono", monospace`;
-      ctx.textAlign = 'right';
-      ctx.fillStyle = CYAN;
-      ctx.globalAlpha = 0.045 + 0.09 * wavePulse;
-      ctx.fillText(String(wave).padStart(2, '0'), W - 26, H - 30);
-      ctx.globalAlpha = 1;
-
       // rocks — the bodies themselves are 3D now (the GameRocket layer above),
       // so here we only hand over their live poses and keep the labels, which
       // read through the translucent stone.
@@ -1138,15 +1142,30 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         const rk = rocks[i];
         const born = Math.min(1, rk.age / 0.45);
         rv[i] = { x: rk.x, y: rk.y, r: rk.r, rot: rk.rot, id: rk.id, born };
-        if (rk.label) {
-          ctx.globalAlpha = 0.85 * born;
-          ctx.fillStyle = INK;
-          ctx.font = `${rk.tier === 0 ? 13 : 11}px "Space Mono", monospace`;
-          ctx.textAlign = 'center';
-          ctx.fillText(rk.label, rk.x, rk.y + 4);
-        }
       }
-      ctx.globalAlpha = 1;
+      // the hazards' names, on a dark tag just under each rock (on the layer
+      // over the 3D stone, so they read)
+      if (lctx) {
+        lctx.clearRect(0, 0, W, H);
+        lctx.textAlign = 'center';
+        lctx.textBaseline = 'middle';
+        for (const rk of rocks) {
+          if (!rk.label) continue;
+          const born = Math.min(1, rk.age / 0.45);
+          const big = rk.tier === 0;
+          lctx.font = `${big ? 700 : 400} ${big ? 12 : 11}px "Space Mono", monospace`;
+          const tw = lctx.measureText(rk.label).width + 12;
+          const ty = rk.y + rk.r * 0.95 + 10;
+          lctx.globalAlpha = born;
+          lctx.fillStyle = 'rgba(6, 8, 10, 0.72)';
+          lctx.fillRect(rk.x - tw / 2, ty - 9, tw, 18);
+          lctx.fillStyle = big ? CYAN : 'rgba(39, 232, 242, 0.55)';
+          lctx.fillRect(rk.x - tw / 2, ty - 9, 2, 18);
+          lctx.fillStyle = INK;
+          lctx.fillText(rk.label, rk.x + 1, ty + 0.5);
+        }
+        lctx.globalAlpha = 1;
+      }
 
       // bullets + sparks + shockwaves, additively — they glow against the dark
       ctx.save();
@@ -1206,15 +1225,18 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       ctx.restore();
       ctx.globalAlpha = 1;
 
-      // floating score
-      ctx.font = '12px "Space Mono", monospace';
-      ctx.textAlign = 'center';
-      for (const p of popups) {
-        ctx.globalAlpha = Math.max(0, p.ttl / p.max) * 0.9;
-        ctx.fillStyle = p.c;
-        ctx.fillText(p.txt, p.x, p.y);
+      // floating score (it drifts up as it fades, see the popups step)
+      if (lctx) {
+        lctx.textAlign = 'center';
+        for (const p of popups) {
+          const k = Math.max(0, p.ttl / p.max);
+          lctx.font = `600 ${p.txt.includes('×') || p.txt === '+150' ? 17 : 14}px "Oxanium Variable", "Space Grotesk", sans-serif`;
+          lctx.globalAlpha = Math.min(1, k * 1.6);
+          lctx.fillStyle = p.c;
+          lctx.fillText(p.txt, p.x, p.y);
+        }
+        lctx.globalAlpha = 1;
       }
-      ctx.globalAlpha = 1;
 
       // the odometer rolls; writing through the DOM here also self-heals the
       // HUD after React re-renders (a phase flip restores the JSX's children)
@@ -1241,6 +1263,10 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       sv.pop = Math.min(1, ship.spawnAge / 0.4); // scale-in on spawn
       sv.muzzle = muzzle;
       sv.shield = shield ? 1 : 0;
+      if (shieldShown !== shield) {
+        shieldShown = shield;
+        shieldRef.current?.toggleAttribute('data-down', !shield);
+      }
       sv.shieldBreak = shieldBreak;
       // once the vehicle has RUD'd it's particles — don't leave it intact over
       // the game-over card
@@ -1288,38 +1314,80 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     <div className="ast" role="dialog" aria-label="Asteroids">
       <canvas ref={canvasRef} className="ast__canvas" />
       <GameRocket view={shipView} rocks={rocksView} bursts={burstsView} reduced={reduced} />
-      {/* scanner-frame corners — the site's bracket language on the viewport */}
-      <div className="ast__frame" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-        <i />
-      </div>
+      {/* the hazards' names and the points, over the 3D rocks so they read */}
+      <canvas ref={labelRef} className="ast__labels" aria-hidden="true" />
+      {/* the mission HUD: the stage on the left, the score in the middle, the
+          shield, the record and the hold on the right */}
       <div className="ast__hud">
-        <span className="ast__score">
-          <span ref={scoreRef}>0000</span>
-          <span className="ast__chain" ref={chainRef} /> · BEST {String(best).padStart(4, '0')}
-        </span>
-        {/* Was "abort to pad" wired straight to onExit. Esc no longer quits, so the
-            key hint next to it would have been a lie — and leaving the run is now
-            one of the choices inside the menu rather than a thing on the HUD. */}
-        <button type="button" className="ast__exit" onClick={() => setMenu(true)} disabled={phase === 'over'}>
-          pause <kbd>Esc</kbd>
-        </button>
+        <div className="ast__stage">
+          <span className="ast__k">
+            Stage <b ref={stageNumRef}>01</b>
+          </span>
+          <span className="ast__stage-name" ref={stageNameRef}>
+            Kickoff
+          </span>
+        </div>
+        <div className="ast__score">
+          <span className="ast__score-row">
+            <span className="ast__score-n" ref={scoreRef}>
+              0000
+            </span>
+            <span className="ast__chain" ref={chainRef} />
+          </span>
+          <span className="ast__k">problems fixed</span>
+        </div>
+        <div className="ast__side">
+          <span className="ast__shield" ref={shieldRef}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 1.5 14 4.8v6.4L8 14.5 2 11.2V4.8Z" />
+            </svg>
+            <span className="ast__shield-up">Shield</span>
+            <span className="ast__shield-down">Shield down</span>
+          </span>
+          <span className="ast__best">
+            <span className="ast__k">Best</span> {String(best).padStart(4, '0')}
+          </span>
+          {/* Esc no longer quits: leaving the run is one of the choices in the
+              menu, not a thing on the HUD */}
+          <button type="button" className="ast__exit" onClick={() => setMenu(true)} disabled={phase === 'over'} aria-label="Pause">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="4" y="3" width="2.6" height="10" />
+              <rect x="9.4" y="3" width="2.6" height="10" />
+            </svg>
+            <kbd>Esc</kbd>
+          </button>
+        </div>
       </div>
       {/* The slate: separation on arrival, then the name of each stage as it
           opens. A title card, not a voice — the sentence for the same beat is
           Merijn's, and it lands when the stage is finished. */}
       {phase === 'play' && slate && (
         <div key={slate.id} className="ast__title" data-kind={slate.kind} aria-hidden="true">
-          <span>{slate.text}</span>
+          {slate.kicker && <span className="ast__title-k">{slate.kicker}</span>}
+          <span className="ast__title-t">{slate.text}</span>
+          <i className="ast__title-rule" />
         </div>
       )}
       {/* mission comms — the one narrative voice; every line comes through here */}
       <GameComms sayRef={sayRef} busyRef={commsBusy} />
       {/* the controls: onboarding, so it retires itself once all three are used */}
-      <div className="ast__hint" ref={hintRef}>← → rotate · ↑ thrust · space fire{' '}
-        <span className="ast__hint-touch">— or steer left half, fire right half</span>
+      <div className="ast__hint" ref={hintRef}>
+        <span className="ast__hint-keys">
+          <span>
+            <kbd>←</kbd>
+            <kbd>→</kbd> steer
+          </span>
+          <span>
+            <kbd>↑</kbd> thrust
+          </span>
+          <span>
+            <kbd>Space</kbd> fire
+          </span>
+        </span>
+        <span className="ast__hint-touch">
+          <span>← Hold to fly</span>
+          <span>Tap to fire →</span>
+        </span>
       </div>
 
       {/* The pause menu. Only while flying — on the debrief the run is already over
@@ -1360,9 +1428,12 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
             <span className="rud__eyebrow">MK-01 · FLIGHT {String(Math.max(1, Math.round(finalScore / 100))).padStart(2, '0')}</span>
             <h2 className="rud__title">UNEXPECTED PROJECT DELAY</h2>
             <p className="rud__sub">the project experienced an anomaly...</p>
-            <p className="rud__score">
-              {String(finalScore).padStart(4, '0')} problems fixed · best {String(best).padStart(4, '0')}
-            </p>
+            <div className="rud__score">
+              <span className="rud__score-n">{String(finalScore).padStart(4, '0')}</span>
+              <span className="ast__k">
+                {finalScore > 0 && finalScore >= best ? 'problems fixed · a new record' : `problems fixed · best ${String(best).padStart(4, '0')}`}
+              </span>
+            </div>
             {/* Written up the way every project on this site is written up. */}
             {debrief && (
               <div className="rud__story">

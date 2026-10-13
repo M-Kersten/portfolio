@@ -428,123 +428,265 @@ body[data-film] .header {
   pointer-events: none !important;
   z-index: 1;
 }
+/* the hazards' names and the points, drawn over the 3D rocks */
+.ast__labels {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+/* ---------- the mission HUD ----------
+   One bar across the top, in three parts that never move: the stage on the
+   left (which part of the project you're in), the score in the middle in the
+   display face (the number you're playing for), and on the right the shield,
+   the record and the hold. A light wash keeps it legible over the rocks. */
 .ast__hud {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
   gap: var(--space-m);
-  padding: 0.9rem 1.3rem;
+  padding: calc(env(safe-area-inset-top, 0px) + 1rem) clamp(1rem, 3vw, 2rem) 1.6rem;
+  background: linear-gradient(to bottom, rgba(6, 8, 10, 0.7), rgba(6, 8, 10, 0));
   font-family: var(--font-mono);
-  font-size: 0.9rem;
-  letter-spacing: 0.1em;
   color: var(--ink-60);
   pointer-events: none;
 }
-.ast__score span {
-  display: inline-block; /* transformable for the tick animation */
+/* the small mono labels the HUD's numbers sit under or beside */
+.ast__k {
+  font-size: var(--step--2);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.ast__k b {
+  font-weight: 400;
   color: var(--accent-ink);
 }
-/* tiny HUD reactions: the score ticks on a kill, the boosters flare when one
-   is lost (classes re-applied per event by the game) */
+.ast__stage {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.ast__stage-name {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ast__score {
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+}
+.ast__score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.ast__score-n {
+  display: inline-block; /* transformable for the tick animation */
+  font-family: var(--font-display);
+  font-size: var(--step-4);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+/* the score ticks on a kill (class re-applied per event by the game) */
 .ast__score-bump {
   animation: ast-bump var(--t-base) var(--ease);
 }
 @keyframes ast-bump {
-  30% { transform: scale(1.3); }
+  30% { transform: scale(1.12); color: var(--accent-ink); }
 }
-/* the chain multiplier riding next to the score */
+/* the chain multiplier: a tag beside the score while kills come fast */
 .ast__chain {
-  display: inline-block;
-  margin-left: 0.55em;
+  font-family: var(--font-display);
+  font-size: var(--step-0);
+  font-weight: 600;
   color: var(--accent-ink);
+}
+.ast__chain:not(:empty) {
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-s);
 }
 .ast__chain-pop {
   animation: ast-bump var(--t-base) var(--ease);
 }
-/* once the fleet record falls the score burns brighter for the rest of the run */
+/* once the record falls the score takes the accent for the rest of the run */
 .ast__score-rec {
-  color: #7fe0d0 !important;
-  text-shadow: 0 0 14px rgba(127, 224, 208, 0.5);
+  color: var(--accent-ink);
 }
-/* scanner-frame corners — the site's bracket language on the game viewport */
-.ast__frame {
-  position: absolute;
-  inset: 14px;
-  pointer-events: none;
-  z-index: 1;
+.ast__side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1.1rem;
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
 }
-.ast__frame i {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  border: 0 solid rgba(159, 182, 198, 0.35);
+.ast__best {
+  color: var(--ink-60);
 }
-.ast__frame i:nth-child(1) { top: 0; left: 0; border-top-width: 1px; border-left-width: 1px; }
-.ast__frame i:nth-child(2) { top: 0; right: 0; border-top-width: 1px; border-right-width: 1px; }
-.ast__frame i:nth-child(3) { bottom: 0; left: 0; border-bottom-width: 1px; border-left-width: 1px; }
-.ast__frame i:nth-child(4) { bottom: 0; right: 0; border-bottom-width: 1px; border-right-width: 1px; }
-/* the arrival card — stage separation hands over the stick, then gets out
-   of the way */
+/* the shield: lit while it's up, a dim outline and a warning once it's gone */
+.ast__shield {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: var(--step--2);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.ast__shield svg {
+  width: 1.15em;
+  height: 1.15em;
+  fill: color-mix(in srgb, var(--accent) 35%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+.ast__shield-down {
+  display: none;
+}
+.ast__shield[data-down] {
+  color: var(--ink);
+  animation: ast-warn 1.1s steps(2, end) 3;
+}
+.ast__shield[data-down] svg {
+  fill: none;
+  stroke: var(--ink-40);
+  stroke-dasharray: 3 2;
+}
+.ast__shield[data-down] .ast__shield-up {
+  display: none;
+}
+.ast__shield[data-down] .ast__shield-down {
+  display: inline;
+}
+@keyframes ast-warn {
+  50% { opacity: 0.35; }
+}
+/* the hold: a square control, like the site's other icon buttons */
+.ast__exit {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--ink-60);
+  background: rgba(6, 8, 10, 0.5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.ast__exit svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: currentColor;
+}
+.ast__exit:hover,
+.ast__exit:focus-visible {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+/* nothing to hold once the run is over — the debrief card has the controls */
+.ast__exit:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+@media (pointer: coarse) {
+  .ast__exit kbd {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .ast__hud {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'stage side' 'score score';
+    row-gap: 0.4rem;
+  }
+  .ast__stage { grid-area: stage; }
+  .ast__side { grid-area: side; gap: 0.7rem; }
+  .ast__score { grid-area: score; }
+  .ast__stage-name { font-size: var(--step-0); }
+  .ast__score-n { font-size: var(--step-3); }
+  .ast__best { display: none; }
+}
+
+/* ---------- the slate: each stage's title as it opens ----------
+   "Stage 02" over the stage's name in the display face, a rule drawing out
+   under it, then out of the way. */
 .ast__title {
   position: absolute;
-  top: 24%;
+  top: 30%;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   text-align: center;
-  font-family: var(--font-mono);
   pointer-events: none;
   animation: ast-title 2.8s var(--ease) forwards;
 }
-/* the mission line (arrival): a small letterspaced caption */
-.ast__title span {
-  font-size: 0.72rem;
-  letter-spacing: 0.3em;
+.ast__title-k {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
   color: var(--accent-ink);
 }
-/* a stage's name: the same slot, but an actual title */
-.ast__title[data-kind='phase'] span {
-  font-size: clamp(1.15rem, 3.2vw, 1.7rem);
-  font-weight: 600;
-  letter-spacing: 0.24em;
+.ast__title-t {
+  font-family: var(--font-display);
+  font-size: var(--step-5);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--ink);
-  text-shadow: 0 0 26px color-mix(in srgb, var(--accent) 30%, transparent);
+  white-space: nowrap;
+}
+.ast__title-rule {
+  display: block;
+  width: min(18rem, 60vw);
+  height: 1px;
+  margin-top: 0.3rem;
+  background: var(--accent);
+  transform-origin: center;
+  animation: ast-rule 2.8s var(--ease) forwards;
 }
 @keyframes ast-title {
-  0% { opacity: 0; transform: translate(-50%, 12px); }
-  12%, 68% { opacity: 1; transform: translate(-50%, 0); }
-  100% { opacity: 0; transform: translate(-50%, -6px); }
+  0% { opacity: 0; transform: translate(-50%, 14px); }
+  12%, 70% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
 }
 @keyframes ast-title-fade {
   0% { opacity: 0; }
-  12%, 68% { opacity: 1; }
+  12%, 70% { opacity: 1; }
   100% { opacity: 0; }
 }
-.ast__exit {
-  pointer-events: auto;
-  font-family: var(--font-mono);
-  font-size: 0.86rem;
-  letter-spacing: 0.06em;
-  color: var(--ink-40);
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.ast__exit:hover {
-  color: var(--ink);
-}
-/* nothing to hold once the run is over — the debrief card has the controls */
-.ast__exit:disabled {
-  opacity: 0.35;
-  cursor: default;
+@keyframes ast-rule {
+  0% { transform: scaleX(0); }
+  30%, 100% { transform: scaleX(1); }
 }
 /* ---------- mission comms: a holographic Merijn, talking to the player ----------
    A projected bust bottom-left with the line typing in beside it. The portrait is
@@ -661,9 +803,9 @@ body[data-film] .header {
 
 @media (max-width: 760px) {
   .comms {
-    left: 1.4rem;
-    right: 1.4rem;
-    bottom: 4rem;
+    left: 1rem;
+    right: 1rem;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem);
     max-width: none;
     gap: 0.8rem;
   }
@@ -671,19 +813,39 @@ body[data-film] .header {
   .comms__msg { font-size: 0.86rem; }
 }
 
+/* the controls, as keycaps, for the first seconds of a run */
 .ast__hint {
   position: absolute;
-  bottom: 1rem;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem);
   left: 50%;
   transform: translateX(-50%);
+  z-index: 3;
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: var(--step--1);
   letter-spacing: 0.06em;
-  color: var(--ink-40);
+  color: var(--ink-60);
   pointer-events: none;
+  white-space: nowrap;
   animation: ast-hint 9s var(--ease) forwards;
+}
+.ast__hint-keys,
+.ast__hint-touch {
+  display: flex;
+  gap: 1.4rem;
+}
+.ast__hint kbd {
+  display: inline-block;
+  min-width: 1.7em;
+  margin-right: 0.15em;
+  padding: 0.15em 0.4em;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
   text-align: center;
-  padding: 0 1rem;
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-s);
+  background: rgba(6, 8, 10, 0.6);
 }
 @keyframes ast-hint {
   0%, 80% { opacity: 1; }
@@ -701,9 +863,28 @@ body[data-film] .header {
 .ast__hint-touch {
   display: none;
 }
+/* on a touch screen: which side does what, just under the HUD, clear of comms */
 @media (pointer: coarse) {
+  .ast__hint-keys {
+    display: none;
+  }
   .ast__hint-touch {
-    display: inline;
+    display: flex;
+  }
+  /* one label on each half of the screen, just under the HUD */
+  .ast__hint {
+    bottom: auto;
+    top: calc(env(safe-area-inset-top, 0px) + 7.6rem);
+    left: 0;
+    right: 0;
+    transform: none;
+    padding: 0 1rem;
+    font-size: var(--step--2);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .ast__hint-touch {
+    justify-content: space-between;
   }
 }
 
@@ -827,12 +1008,24 @@ body[data-film] .header {
   color: var(--ink-60);
 }
 .rud__score {
-  margin: 0.2rem 0 0;
-  font-family: var(--font-mono);
-  font-size: 0.86rem;
-  letter-spacing: 0.14em;
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  margin: 0.4rem 0 0.2rem;
+}
+.rud__score-n {
+  font-family: var(--font-display);
+  font-size: var(--step-5);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
   color: var(--accent-ink);
-  text-transform: uppercase;
+}
+@media (max-width: 760px) {
+  .rud__card {
+    padding: 1.4rem 1.2rem;
+  }
 }
 /* The post-flight debrief, set as a miniature case study — the same three beats,
    and the same heading idiom (.story__h), as every project on the site. */
@@ -896,6 +1089,8 @@ body[data-film] .header {
   .lhud,
   .ast__score-bump,
   .ast__chain-pop,
+  .ast__title-rule,
+  .ast__shield[data-down],
   /* the hologram still reads — it just stops flickering and scanning */
   .comms__proj,
   .comms__scan,
