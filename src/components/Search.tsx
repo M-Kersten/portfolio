@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { cases, caseBySlug, LAYER_LABEL, type CaseStudy } from '../content';
+import { byDate, cases, caseBySlug, LAYER_LABEL, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { noteCaseOrigin } from '../lib/caseOrigin';
 import { useFocusTrap } from '../lib/useFocusTrap';
-import { FocusCard } from './FocusCard';
+import { Exhibit } from './Exhibit';
 
 // Site-wide "find a project": a magnifying-glass button in the top bar (with an
 // "F" keycap) that — on click or when you press F anywhere — opens a command-
 // palette-style overlay. Typing filters every case (highlights + the long tail,
 // the same set the /projects cloud shows) across its location, tags and story
-// text; a hit opens the shared FocusCard. This component is self-contained
+// text; a hit opens that project's label (Exhibit). This component is self-contained
 // (trigger + overlay + card), so it can drop into any top bar; only one is
 // mounted per route, so the global F shortcut never double-fires.
 
@@ -255,7 +255,7 @@ export function Search() {
           document.body,
         )}
 
-      {study && createPortal(<FocusCard study={study} onClose={() => setOpenSlug(null)} onJump={setOpenSlug} />, document.body)}
+      {study && <Exhibit study={study} place="page" collection={byDate(cases)} onClose={() => setOpenSlug(null)} onWalk={setOpenSlug} />}
     </>
   );
 }

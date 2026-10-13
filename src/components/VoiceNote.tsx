@@ -27,8 +27,22 @@ function shape(slug: string): number[] {
 
 const clock = (s: number) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '');
 
-export function VoiceNote({ slug, title }: { slug: string; title: string }) {
-  const src = voiceFor(slug);
+export function VoiceNote({
+  slug,
+  title,
+  no,
+  src: given,
+  label = 'Hear about this project',
+}: {
+  slug: string;
+  title: string;
+  /** As an exhibit's audio guide: its number, on the key (the label and book). */
+  no?: string;
+  /** A recording other than the project's own (exhibit 11's). */
+  src?: string;
+  label?: string;
+}) {
+  const src = given ?? voiceFor(slug);
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -59,7 +73,7 @@ export function VoiceNote({ slug, title }: { slug: string; title: string }) {
   const progress = length > 0 ? time / length : 0;
 
   return (
-    <div className="voice" data-playing={playing || undefined}>
+    <div className="voice" data-playing={playing || undefined} data-guide={no ? '' : undefined}>
       <button
         type="button"
         className="voice__btn"
@@ -67,16 +81,24 @@ export function VoiceNote({ slug, title }: { slug: string; title: string }) {
         aria-pressed={playing}
         aria-label={playing ? `Pause: ${title}, in my own words` : `Hear about this project: ${title}, in my own words`}
       >
-        {/* the play mark, the site's square control, a pause while it plays */}
-        <span className="voice__mark" aria-hidden="true">
-          <svg viewBox="0 0 12 12">{playing ? <path d="M3 2.5h2v7H3zM7 2.5h2v7H7z" /> : <path d="M3.5 2.2 9.8 6l-6.3 3.8z" />}</svg>
-        </span>
+        {/* the play mark, the site's square control, a pause while it plays;
+            as an audio guide, the key with the exhibit's number on it */}
+        {no ? (
+          <span className="voice__key" aria-hidden="true">
+            {no}
+            <svg viewBox="0 0 12 12">{playing ? <path d="M3 2.5h2v7H3zM7 2.5h2v7H7z" /> : <path d="M3.5 2.2 9.8 6l-6.3 3.8z" />}</svg>
+          </span>
+        ) : (
+          <span className="voice__mark" aria-hidden="true">
+            <svg viewBox="0 0 12 12">{playing ? <path d="M3 2.5h2v7H3zM7 2.5h2v7H7z" /> : <path d="M3.5 2.2 9.8 6l-6.3 3.8z" />}</svg>
+          </span>
+        )}
         <span className="voice__wave" aria-hidden="true">
           {bars.map((b, i) => (
             <i key={i} style={{ '--b': b } as React.CSSProperties} data-on={(i + 0.5) / BARS <= progress || undefined} />
           ))}
         </span>
-        <span className="voice__label">Hear about this project</span>
+        <span className="voice__label">{label}</span>
         <span className="voice__time">{time > 0 ? `${clock(time)} / ${clock(length)}` : clock(length)}</span>
       </button>
       <audio

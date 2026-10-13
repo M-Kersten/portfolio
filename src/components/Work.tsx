@@ -1,11 +1,11 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import { Link } from 'react-router-dom';
-import { cases, caseBySlug, caseTime, site, type CareerEntry, type CaseStudy } from '../content';
+import { byDate, cases, caseBySlug, caseTime, site, type CareerEntry, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { contourCss, contourTileSteps } from '../lib/contours';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { CaseCard } from './CaseCard';
-import { FocusCard } from './FocusCard';
+import { Exhibit } from './Exhibit';
 import { SectionHead } from './SectionHead';
 import { useWallConfig, type WallConfig } from './wallTweak';
 
@@ -775,7 +775,7 @@ export function Work() {
         </div>
       )}
 
-      {openStudy && <FocusCard study={openStudy} onClose={() => setOpen(null)} onJump={setOpen} browse={CURATED} />}
+      {openStudy && <Exhibit study={openStudy} place="page" collection={byDate(CURATED)} onClose={() => setOpen(null)} onWalk={setOpen} />}
     </section>
   );
 }

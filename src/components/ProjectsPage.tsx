@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { cases, caseBySlug, site } from '../content';
-import { FocusCard } from './FocusCard';
+import { byDate, cases, caseBySlug, site } from '../content';
+import { Exhibit } from './Exhibit';
 import { Footer } from './Footer';
 import { Header } from './Header';
 import { ProjectsIndex } from './ProjectsIndex';
@@ -44,7 +44,7 @@ export function ProjectsPage() {
           </div>
         </section>
         <Footer />
-        {study && <FocusCard study={study} onClose={() => setOpen(null)} onJump={setOpen} />}
+        {study && <Exhibit study={study} place="page" collection={byDate(cases)} onClose={() => setOpen(null)} onWalk={setOpen} />}
       </main>
     </>
   );
