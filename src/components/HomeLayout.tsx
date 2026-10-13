@@ -6,6 +6,7 @@ import { About } from './About';
 import { Contact } from './Contact';
 import { Footer } from './Footer';
 import { LaunchOverlay } from './LaunchOverlay';
+import { SoundScape } from './SoundScape';
 
 // The long home page. Stays mounted while a case modal (the <Outlet/>) is open,
 // so the modal layers over the preserved scroll position (§3).
@@ -21,6 +22,7 @@ export function HomeLayout() {
       <Outlet />
       {/* the launch easter egg's DOM half (LAUNCH button, countdown, the game) */}
       <LaunchOverlay />
+      <SoundScape />
     </>
   );
 }

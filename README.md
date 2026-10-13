@@ -51,6 +51,8 @@ src/
                        earlier / later steps through the rest
     NodeHud.tsx        the /work/:slug dossier drawer
     VoiceNote.tsx      "Hear about this project": a project's voice note, if it has one
+    SoundScape.tsx     the maquette's sound: wake notes, the chord, the ambient beds
+    SoundToggle.tsx    the header's sound switch (shown once there's a sound)
     LaunchOverlay.tsx  the launch easter egg's DOM: the LAUNCH panel, the film's
                        telemetry (LaunchHud.tsx), skip, and the game
     CvPage.tsx         the /cv sheet (A4, print-styled) that npm run cv prints
@@ -90,7 +92,9 @@ src/
   content/             cases.json · capabilities.json · site.json · cv.json (+ types),
                        voice.ts (finds the voice notes in assets/voice/)
   assets/voice/        the voice notes, one per project: <slug>.mp3
+  assets/sound/        the site's effects and ambient (README lists every file)
   lib/                 asset base-path, reduced-motion, WebGL support, youtube,
+                       the sound engine (sound.ts) and the launch's sound,
                        the motion numbers for code (motion.ts) + useReveal
   ui/                  tokens.css (design tokens) + one stylesheet per page
                        section (global.css just imports them in order)
@@ -129,6 +133,11 @@ their own ghost→alive keyed on the same store state. Colour policy lives in
   the case's `slug`. The "Hear about this project" button then appears in
   that project's popup and maquette dossier; projects without a clip show
   none. Mono at 64–96 kbps is plenty for a voice.
+- **Sound** — effects and ambient are recordings in `src/assets/sound/`, one
+  file per event; its README lists every name (wake notes, popups, the
+  launch, the game, the ambient beds). A name with no file is silent, so add
+  them one at a time. The engine is `src/lib/sound.ts`; sound is off until a
+  visitor turns it on in the header.
 - `capabilities.json` — the three band columns.
 - `cv.json` — the CV-only extras (tagline, profile paragraph, photo,
   location, phone, links, stack, education, certificates, languages,

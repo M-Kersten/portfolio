@@ -15,6 +15,7 @@ import {
   shipTelemetry,
   type Telemetry,
 } from '../scene/launchPlan';
+import { launchAudio } from '../lib/launchAudio';
 
 // The launch's telemetry, the way a launch broadcast shows it: each stage's
 // speed and altitude, its engines as a diagram of dots that light as they
@@ -22,7 +23,8 @@ import {
 // track of the milestones along the bottom. It all reads the flight plan
 // (launchPlan.ts) at the film's clock, which the scene writes every frame;
 // nothing here re-renders per frame — a loop writes the numbers and classes
-// straight into the DOM.
+// straight into the DOM, and drives the film's sound (lib/launchAudio) off
+// the same clock.
 
 const MARKS = MILESTONES;
 
@@ -134,10 +136,12 @@ export function LaunchHud() {
     const b = new Float32Array(BOOSTER_ENGINES);
     const s = new Float32Array(SHIP_ENGINES);
     let raf = 0;
+    const audio = launchAudio();
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const t = film.time;
       const m = missionTime(t);
+      audio.update(t);
       if (clock.current) clock.current.textContent = clockLabel(m);
       // the stages' numbers: one vehicle until staging
       write(boosterOut.current, boosterTelemetry(Math.max(0, m)));
@@ -166,7 +170,10 @@ export function LaunchHud() {
       root.current?.toggleAttribute('data-staged', t >= T.sep);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      audio.stop();
+    };
   }, []);
 
   return (

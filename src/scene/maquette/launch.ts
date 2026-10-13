@@ -214,11 +214,9 @@ export function chopsticks(t: number): { y: number; open: number } {
   return { y: CATCH_ARMS, open: mix(0.78, 0.03, close) };
 }
 
-/** The water deluge, 0 → 1: on before the engines light, and dying away once
- *  the stack is off the mount. */
-export function deluge(t: number): number {
-  return smooth(T.deluge, T.deluge + 0.6, t) * (1 - smooth(T.release + 1.2, T.release + 3.2, t));
-}
+/** The water deluge, 0 → 1 (it lives in the flight plan: the sound reads it
+ *  too). */
+export { deluge } from '../launchPlan';
 
 /** Smoke, in puffs a second: the deluge's spray, the steam the engines make
  *  of it (the cloud the stack climbs out of), the trail up the sky, the RCS

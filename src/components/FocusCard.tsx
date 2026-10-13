@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { byDate, cases, caseWhen, roleFor, site, type CaseStudy, type Layer } from '../content';
 import { asset } from '../lib/asset';
+import { play } from '../lib/sound';
 import { caseOrigin } from '../lib/caseOrigin';
 import { EASE, MOTION } from '../lib/motion';
 import { useFocusTrap } from '../lib/useFocusTrap';
@@ -145,6 +146,12 @@ export function FocusCard({
   // whichever control the visitor had just reached.
   useEffect(() => {
     closeRef.current?.focus();
+  }, []);
+
+  // its sound: a breath as it opens, the same reversed as it goes
+  useEffect(() => {
+    play('popup-open', { volume: 0.8 });
+    return () => play('popup-close', { volume: 0.8 });
   }, []);
 
   useEffect(() => {

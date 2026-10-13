@@ -259,6 +259,12 @@ export function shipEngines(t: number, out: Float32Array | number[]): void {
   for (let j = 0; j < 3; j++) out[3 + j] = burn(t, T.hotstage + 0.16 + j * 0.05, 1e9, 0.3);
 }
 
+/** The water deluge, 0 → 1: on before the engines light, and dying away once
+ *  the stack is off the mount. */
+export function deluge(t: number): number {
+  return smooth(T.deluge, T.deluge + 0.6, t) * (1 - smooth(T.release + 1.2, T.release + 3.2, t));
+}
+
 /* ---------- milestones ---------- */
 
 /** The marks along the telemetry's track. */

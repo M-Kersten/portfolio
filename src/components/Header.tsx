@@ -4,6 +4,7 @@ import { site } from '../content';
 import { Logo } from './Logo';
 import { Search } from './Search';
 import { SocialLinks } from './SocialLinks';
+import { SoundToggle } from './SoundToggle';
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -16,6 +17,7 @@ export function Header() {
 
         <div className="header__right">
           <Search />
+          <SoundToggle />
 
           <nav id="primary-nav" className="nav" data-open={open} aria-label="Primary">
             {site.nav.map((item) => (

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { caseBySlug, LAYER_LABEL, site, type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
+import { play } from '../lib/sound';
 import { youtubeEmbed } from '../lib/youtube';
 import { useFocusTrap } from '../lib/useFocusTrap';
 import { sceneStore } from '../scene/store';
@@ -102,6 +103,7 @@ export function NodeHud() {
   const close = () => {
     if (closing) return;
     setClosing(true);
+    play('popup-close', { volume: 0.8 });
     closeTimer.current = window.setTimeout(runClose, CLOSE_FADE);
   };
 

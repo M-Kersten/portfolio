@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { play, preload } from '../lib/sound';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { GameComms } from './GameComms';
 import { GameRocket, type Burst, type RockView, type ShipView } from './GameRocket';
@@ -378,6 +379,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     };
     fit();
     window.addEventListener('resize', fit);
+    // decode the game's sounds now, so the first shot isn't late
+    preload(['game-shot', 'game-break-big', 'game-break-mid', 'game-break-small', 'game-shield', 'game-stage', 'game-crash', 'comms-open', 'comms-close', 'comms-type']);
 
     // ---- state ----
     const ship = { x: 0, y: 0, a: -Math.PI / 2, vx: 0, vy: 0, thrust: false, left: false, right: false, fire: false, inv: 0, dead: 0, spawnAge: 9 };
@@ -546,6 +549,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         if (mult > 1) bump(chainRef.current, 'ast__chain-pop');
       }
       const pts = (rk.tier === 0 ? 20 : rk.tier === 1 ? 50 : 100) * mult;
+      play(rk.tier === 0 ? 'game-break-big' : rk.tier === 1 ? 'game-break-mid' : 'game-break-small', {
+        volume: 0.7,
+        rate: 0.92 + Math.random() * 0.16,
+        pan: (rk.x / W) * 1.2 - 0.6,
+      });
       score += pts;
       popups.push({ x: imp.x, y: imp.y, txt: mult > 1 ? `+${pts} ×${mult}` : `+${pts}`, ttl: 0.7, max: 0.7, c: rk.tier === 2 || mult > 1 ? CYAN : INK });
       boom(imp.x, imp.y, rk.tier === 2 ? 8 : 14, NEUTRAL, imp.dx, imp.dy);
@@ -588,6 +596,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         popups.push({ x: ship.x, y: ship.y - 36, txt: '+150', ttl: 1, max: 1, c: CYAN });
         if (!reduced) rings.push({ x: ship.x, y: ship.y, r: 12, v: 540, ttl: 0.5, max: 0.5, c: CYAN });
         gridPulse = 1;
+        play('game-stage', { volume: 0.8 });
         // clearing a stage re-earns the shield — the only way to get it back
         const regained = !shield;
         shield = true;
@@ -610,6 +619,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       if (shield) {
         shield = false;
         shieldBreak = 1; // the 3D bubble flares and bursts
+        play('game-shield', { volume: 0.8 });
         boom(ship.x, ship.y, 12, CYAN);
         if (!reduced) {
           rings.push({ x: ship.x, y: ship.y, r: 26, v: 320, ttl: 0.4, max: 0.4, c: CYAN });
@@ -627,6 +637,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       }
 
       boom(ship.x, ship.y, 26, CYAN);
+      play('game-crash');
       if (!reduced) {
         flash = 1;
         slomo = Math.max(slomo, 0.3);
@@ -873,6 +884,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         const bx = ship.x + Math.cos(ship.a) * NOSE;
         const by = ship.y + Math.sin(ship.a) * NOSE;
         bullets.push({ x: bx, y: by, px: bx, py: by, vx: ship.vx + Math.cos(ship.a) * BULLET_SPEED, vy: ship.vy + Math.sin(ship.a) * BULLET_SPEED, ttl: 0.56 });
+        // panned to where the ship is on screen, a touch of pitch so a burst isn't one note
+        play('game-shot', { volume: 0.45, rate: 0.94 + Math.random() * 0.12, pan: (ship.x / W) * 1.2 - 0.6 });
         // muzzle sparks off the nose
         const mn = reduced ? 1 : 3;
         for (let i = 0; i < mn; i++) {

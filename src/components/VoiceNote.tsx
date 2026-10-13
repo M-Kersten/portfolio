@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { voiceFor } from '../content/voice';
+import { duck } from '../lib/sound';
 
 // "Hear about this project": a short recording of me talking about the
 // project, as a button with a waveform. The waveform is a drawing, not the
@@ -84,10 +85,17 @@ export function VoiceNote({ slug, title }: { slug: string; title: string }) {
         preload="metadata"
         onLoadedMetadata={(e) => setLength(e.currentTarget.duration)}
         onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
+        onPlay={() => {
+          setPlaying(true);
+          duck(true); // the site's other sound steps back while I talk
+        }}
+        onPause={() => {
+          setPlaying(false);
+          duck(false);
+        }}
         onEnded={(e) => {
           setPlaying(false);
+          duck(false);
           setTime(0);
           e.currentTarget.currentTime = 0;
         }}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { asset } from '../lib/asset';
+import { play } from '../lib/sound';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { ScanFrame } from './ScanFrame';
 
@@ -48,6 +49,7 @@ export function GameComms({
       setShown(reduced ? next.length : 0);
       setOpen(true);
       busyRef.current = true;
+      play('comms-open', { volume: 0.5 });
     };
     return () => {
       sayRef.current = () => {};
@@ -63,6 +65,7 @@ export function GameComms({
     const done = () => {
       if (stayRef.current) return;
       hideT.current = window.setTimeout(() => {
+        play('comms-close', { volume: 0.5 });
         setOpen(false);
         busyRef.current = false;
       }, HOLD);
@@ -71,7 +74,10 @@ export function GameComms({
       done();
       return () => window.clearTimeout(hideT.current);
     }
+    let ticks = 0;
     typeT.current = window.setInterval(() => {
+      // a blip every few characters, as the line comes over the link
+      if (++ticks % 3 === 0 && ticks < msg.length) play('comms-type', { volume: 0.25, rate: 0.9 + Math.random() * 0.2 });
       setShown((n) => {
         if (n >= msg.length) {
           window.clearInterval(typeT.current);
