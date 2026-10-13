@@ -217,13 +217,16 @@ function rockShape(n = 11): number[] {
   return Array.from({ length: n }, () => 0.72 + Math.random() * 0.45);
 }
 
-/** The post-flight debrief, written up the way every case study on this site is
- *  written up: the problem, the approach, the lesson. */
-interface Debrief {
-  problem: string;
-  approach: string;
-  lesson: string;
+/** How the run ended, for the finish screen: the stage the project reached and
+ *  what got through (nothing, if it was called off from the pause menu). */
+interface Outcome {
+  stage: number;
+  killer?: string;
+  gaveUp: boolean;
 }
+
+/** "THE DEMO" → "The Demo", for a stage named inside a sentence. */
+const spoken = (t: string) => t.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
 
 /** The lesson is the one line that isn't just stats: it reads the run and makes
  *  the joke. Kept plain-spoken and specific — same register as the milestone
@@ -247,11 +250,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const shieldRef = useRef<HTMLSpanElement>(null);
   const labelRef = useRef<HTMLCanvasElement>(null);
   const hintRef = useRef<HTMLDivElement>(null); // the control legend, retired once used
-  const sayRef = useRef<(msg: string) => void>(() => {}); // set by GameComms
+  const sayRef = useRef<(msg: string, stay?: boolean) => void>(() => {}); // set by GameComms
   const commsBusy = useRef(false); // ditto — true while a line is on screen
   const [phase, setPhase] = useState<'play' | 'over'>('play');
   const [finalScore, setFinalScore] = useState(0);
-  const [debrief, setDebrief] = useState<Debrief | null>(null); // the RUD card's write-up
+  const [outcome, setOutcome] = useState<Outcome | null>(null); // how the run ended
   // The slate: the run's arrival card, then each stage's title. One element, so a
   // new one always replaces the last rather than stacking on it.
   const [slate, setSlate] = useState<{ text: string; kicker?: string; kind: 'mission' | 'phase'; id: number } | null>(null);
@@ -458,7 +461,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     // Every message the game has to give the player comes over comms, from the
     // hologram (GameComms). The old centre-screen toast is gone — a line is
     // something a person says to you now, not text that appears in the void.
-    const say = (msg: string) => sayRef.current(msg);
+    const say = (msg: string, stay = false) => sayRef.current(msg, stay);
     const showSlate = (text: string, kind: 'mission' | 'phase', kicker?: string) => {
       slateId.current += 1;
       setSlate({ text, kicker, kind, id: slateId.current });
@@ -639,23 +642,19 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       if (over) return; // idempotent: a give-up during the death frame can't double-fire
       over = true;
       setFinalScore(score);
-      // The write-up: the three beats every case study on this site uses, built
-      // from what the engine already knows.
       const acc = shots > 0 ? Math.round((hitsCount / shots) * 100) : 0;
-      const mm = String(Math.floor(playTime / 60)).padStart(2, '0');
-      const ss = String(Math.floor(playTime % 60)).padStart(2, '0');
       const stage = Math.max(1, wave);
-      setDebrief({
-        problem: gaveUp
-          ? `Called off at stage ${stage} (${phaseTitle(stage)}). Nothing hit us — the plug got pulled.`
-          : `${killer ?? 'An unlabelled hazard'} got through at stage ${stage}, with the shield already down.`,
-        approach: `${shots} ticket${shots === 1 ? '' : 's'} fired, ${shots > 0 ? `${acc}% resolved` : 'none resolved'}${
-          bestChain >= 2 ? `, ${bestChain} cleared back-to-back at best` : ''
-        }. ${score} problem${score === 1 ? '' : 's'} fixed in T+${mm}:${ss}.`,
-        lesson: gaveUp
-          ? 'Cancelling it yourself is a real decision, and it never feels like one. Some of the best calls I have made looked exactly like this.'
-          : lessonFor({ acc, shots, wave, chain: bestChain }),
-      });
+      setOutcome({ stage, killer, gaveUp });
+      // the verdict comes from ground control, and stays up with the result:
+      // what happened, where, and the one line that makes the joke
+      const where = spoken(phaseTitle(stage));
+      const fixed = `${score} problem${score === 1 ? '' : 's'} fixed.`;
+      say(
+        gaveUp
+          ? `Called off at ${where}. ${fixed} Cancelling it yourself is a real decision, and it never feels like one.`
+          : `${killer ?? 'Something'} got through at ${where}. ${fixed} ${lessonFor({ acc, shots, wave, chain: bestChain })}`,
+        true,
+      );
       setBest((b) => {
         const nb = Math.max(b, score);
         localStorage.setItem('mk-asteroids-best', String(nb));
@@ -798,7 +797,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let last = performance.now();
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
-      const raw = Math.min((now - last) / 1000, 1 / 30);
+      // (the first frame's timestamp can fall just before `last`: never a
+      // negative step)
+      const raw = Math.min(Math.max(0, (now - last) / 1000), 1 / 30);
       last = now;
       // the pause menu is the only thing that freezes the sim now
       if (!menuRef.current && !over) {
@@ -1309,7 +1310,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   };
 
   return (
-    <div className="ast" role="dialog" aria-label="Asteroids">
+    <div className="ast" role="dialog" aria-label="Asteroids" data-over={phase === 'over' || undefined}>
       <canvas ref={canvasRef} className="ast__canvas" />
       <GameRocket view={shipView} rocks={rocksView} bursts={burstsView} reduced={reduced} />
       {/* the hazards' names and the points, over the 3D rocks so they read */}
@@ -1420,49 +1421,45 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         </div>
       )}
 
-      {phase === 'over' && (
+      {/* The finish: how far the project got along its five stages and what
+          stopped it, the score, and two equal ways on: fly it again, or build
+          the real one. Ground control says the verdict (GameComms). */}
+      {phase === 'over' && outcome && (
         <div className="rud">
-          <div className="rud__card">
-            <span className="rud__eyebrow">MK-01 · FLIGHT {String(Math.max(1, Math.round(finalScore / 100))).padStart(2, '0')}</span>
-            <h2 className="rud__title">UNEXPECTED PROJECT DELAY</h2>
-            <p className="rud__sub">the project experienced an anomaly...</p>
+          <div className="rud__panel" role="dialog" aria-label="Flight over">
+            <span className="rud__kicker">{outcome.gaveUp ? 'Project called off' : 'Project delayed'}</span>
             <div className="rud__score">
               <span className="rud__score-n">{String(finalScore).padStart(4, '0')}</span>
               <span className="ast__k">
                 {finalScore > 0 && finalScore >= best ? 'problems fixed · a new record' : `problems fixed · best ${String(best).padStart(4, '0')}`}
               </span>
             </div>
-            {/* Written up the way every project on this site is written up. */}
-            {debrief && (
-              <div className="rud__story">
-                <section>
-                  <h3 className="rud__h">The problem</h3>
-                  <p>{debrief.problem}</p>
-                </section>
-                <section>
-                  <h3 className="rud__h">The approach</h3>
-                  <p>{debrief.approach}</p>
-                </section>
-                <section>
-                  <h3 className="rud__h">The lesson</h3>
-                  <p>{debrief.lesson}</p>
-                </section>
-              </div>
-            )}
+            <ol className="rud__track" aria-label={`Reached stage ${Math.min(outcome.stage, PHASE_TITLES.length)} of ${PHASE_TITLES.length}`}>
+              {PHASE_TITLES.map((t, i) => {
+                const reached = Math.min(outcome.stage, PHASE_TITLES.length);
+                const n = i + 1;
+                const state = n < reached ? 'done' : n === reached ? 'end' : 'ahead';
+                const name = n === PHASE_TITLES.length && outcome.stage > n ? phaseTitle(outcome.stage) : t;
+                return (
+                  <li key={t} data-state={state}>
+                    <i />
+                    <span>{spoken(name)}</span>
+                    {state === 'end' && <em>{outcome.gaveUp ? 'called off' : (outcome.killer ?? 'hit')}</em>}
+                  </li>
+                );
+              })}
+            </ol>
             <div className="rud__actions">
               <button type="button" className="btn" onClick={() => restartRef.current()}>
-                ITERATE
+                Iterate
               </button>
-              <button type="button" className="btn btn--ghost" onClick={onExit}>
-                RETURN TO PAD
+              <button type="button" className="btn" onClick={contact}>
+                Build the real one with me
               </button>
             </div>
-            <p className="rud__foot">
-              Crew applications open{' '}
-              <button type="button" className="rud__link" onClick={contact}>
-                let's build the next one together
-              </button>
-            </p>
+            <button type="button" className="rud__back" onClick={onExit}>
+              back to the site
+            </button>
           </div>
         </div>
       )}

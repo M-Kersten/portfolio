@@ -22,7 +22,9 @@ export function GameComms({
   sayRef,
   busyRef,
 }: {
-  sayRef: MutableRefObject<(msg: string) => void>;
+  /** Say a line; `stay` keeps it up instead of closing after a beat (the
+   *  verdict at the end of a run). */
+  sayRef: MutableRefObject<(msg: string, stay?: boolean) => void>;
   /** True while a line is on screen, so the game can hold its optional asides
    *  back rather than cutting Merijn off mid-sentence. */
   busyRef: MutableRefObject<boolean>;
@@ -31,13 +33,15 @@ export function GameComms({
   const [msg, setMsg] = useState(''); // the full line
   const [shown, setShown] = useState(0); // characters revealed so far
   const [open, setOpen] = useState(false);
+  const stayRef = useRef(false);
   const hideT = useRef<number>();
   const typeT = useRef<number>();
 
   // Register the imperative hook once. Each call re-opens the panel and restarts
   // the type-on.
   useEffect(() => {
-    sayRef.current = (next: string) => {
+    sayRef.current = (next: string, stay = false) => {
+      stayRef.current = stay;
       window.clearTimeout(hideT.current);
       window.clearInterval(typeT.current);
       setMsg(next);
@@ -57,6 +61,7 @@ export function GameComms({
   useEffect(() => {
     if (!open || !msg) return;
     const done = () => {
+      if (stayRef.current) return;
       hideT.current = window.setTimeout(() => {
         setOpen(false);
         busyRef.current = false;

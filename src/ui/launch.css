@@ -953,124 +953,186 @@ body[data-film] .header {
   color: var(--ink);
 }
 
-/* ---------- the RUD screen ---------- */
+/* ---------- the finish ----------
+   The field dims and a quiet panel says how the run ended: the score, how far
+   the project got along its five stages (and what stopped it), and two equal
+   ways on. Ground control gives the verdict in the comms, bottom left, so the
+   panel itself carries no paragraphs. */
 .rud {
   position: absolute;
   inset: 0;
-  z-index: 2; /* over the ship3d overlay (z-index 1) — card owns the screen now */
+  z-index: 2; /* over the ship3d overlay (z-index 1); comms (3) stays on top */
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--paper) 55%, transparent);
+  /* sat a little high, clear of ground control in the bottom left */
+  padding: 1rem 1rem 11rem;
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
   animation: ast-in var(--t-base) var(--ease);
 }
-.rud__card {
+.rud__panel {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.55rem;
+  gap: 1.1rem;
+  width: min(100%, 40rem);
+  padding: 1.8rem clamp(1rem, 4vw, 2.4rem) 1.4rem;
   text-align: center;
-  padding: 2rem 2.4rem;
-  max-width: min(92vw, 34rem);
-  background: var(--paper-2);
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  box-shadow: 0 30px 80px -20px #000;
+  backdrop-filter: blur(6px);
+  animation: launch-rise var(--t-base) var(--ease);
 }
-.rud__eyebrow {
+.rud__kicker {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--step--1);
   letter-spacing: 0.24em;
-  color: var(--ink-40);
-}
-.rud__title {
-  margin: 0;
-  font-size: clamp(1.3rem, 4.4vw, 1.85rem);
-  letter-spacing: 0.04em;
-  color: var(--ink);
-  text-wrap: balance;
-}
-.rud__sub {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.4;
+  text-transform: uppercase;
   color: var(--ink-60);
 }
 .rud__score {
   display: grid;
   justify-items: center;
-  gap: 0.25rem;
-  margin: 0.4rem 0 0.2rem;
+  gap: 0.3rem;
+  margin-top: -0.3rem;
 }
 .rud__score-n {
   font-family: var(--font-display);
   font-size: var(--step-5);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1;
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
-  color: var(--accent-ink);
+  color: var(--ink);
 }
-@media (max-width: 760px) {
-  .rud__card {
-    padding: 1.4rem 1.2rem;
-  }
+/* how far the project got: the five stages on a line, the ones cleared
+   filled in, the one it ended in marked, with what stopped it under it */
+.rud__track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: 100%;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
 }
-/* The post-flight debrief, set as a miniature case study — the same three beats,
-   and the same heading idiom (.story__h), as every project on the site. */
-.rud__story {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  margin: 0.35rem 0 0;
-  text-align: left;
-}
-.rud__h {
-  margin: 0 0 0.3em;
+.rud__track li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 0.45rem;
+  min-width: 0;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--accent-ink);
+  color: var(--ink-40);
 }
-.rud__story p {
-  margin: 0;
-  font-size: 0.86rem;
-  line-height: 1.45;
+/* the line between the stages, drawn from each node to the next */
+.rud__track li::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 100%;
+  height: 1px;
+  background: var(--line);
+}
+.rud__track li:last-child::before {
+  display: none;
+}
+.rud__track li[data-state='done']::before {
+  background: var(--accent);
+}
+.rud__track i {
+  position: relative;
+  z-index: 1;
+  width: 11px;
+  height: 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  background: var(--paper);
+}
+.rud__track li[data-state='done'] i {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.rud__track li[data-state='done'] {
   color: var(--ink-60);
-  text-wrap: pretty;
+}
+/* where it stopped: a cross in the node, the stage named in full ink */
+.rud__track li[data-state='end'] {
+  color: var(--ink);
+}
+.rud__track li[data-state='end'] i {
+  border-color: var(--ink);
+  background:
+    linear-gradient(45deg, transparent 45%, var(--ink) 45% 55%, transparent 55%),
+    linear-gradient(-45deg, transparent 45%, var(--ink) 45% 55%, transparent 55%),
+    var(--paper);
+}
+.rud__track span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.rud__track em {
+  max-width: 100%;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--ink-60);
+  overflow-wrap: anywhere;
 }
 .rud__actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-s);
-  margin-top: 0.5rem;
+  margin-top: 0.4rem;
 }
-.rud__actions .btn {
+.rud__back {
+  padding: 0.2rem;
   font-family: var(--font-mono);
-  letter-spacing: 0.14em;
-}
-
-.rud__foot {
-  margin: 0.7rem 0 0;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
+  font-size: var(--step--2);
+  letter-spacing: 0.08em;
   color: var(--ink-40);
-}
-.rud__link {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--accent-ink);
   background: none;
   border: 0;
-  padding: 0;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
-.rud__link:hover {
+.rud__back:hover,
+.rud__back:focus-visible {
   color: var(--ink);
+}
+/* the run's over: the HUD and the control hint step aside for the finish */
+.ast__hud,
+.ast__hint {
+  transition: opacity var(--t-base) var(--ease);
+}
+.ast[data-over] .ast__hud,
+.ast[data-over] .ast__hint {
+  opacity: 0;
+  pointer-events: none;
+}
+.ast[data-over] .ast__hint {
+  animation: none;
+}
+/* a phone: the stage names would crowd, so only the one it ended in is named;
+   the panel sits high, clear of ground control at the bottom */
+@media (max-width: 760px) {
+  .rud {
+    align-items: flex-start;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 2.5rem);
+  }
+  .rud__track li:not([data-state='end']) span {
+    visibility: hidden;
+  }
+  .rud__actions .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
