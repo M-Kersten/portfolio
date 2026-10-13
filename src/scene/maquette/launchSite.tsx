@@ -29,10 +29,10 @@ import { recordLaunch, useLaunchCount } from '../../lib/launches';
 import { FIRE, useAccent, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE } from './life';
 import { BoosterBody, ROCKET_MID, ShipBody, STACK_BASE, STAGING_Y } from './rocket';
-import { BOOSTER_MID, T, bqd, chopsticks, plumeAir, qdArm, shake as flightShake, shot as flightShot, smoke as flightSmoke, stages as flightStages, staging } from './launch';
-import { BOOSTER_ENGINES, BOOSTER_RINGS, COUNT, PACE, SHIP_ENGINES, SHIP_RINGS, boosterEngines, film, shipEngines, smooth } from '../launchPlan';
+import { BOOSTER_MID, T, bqd, deluge as flightDeluge, chopsticks, plumeAir, qdArm, shake as flightShake, shot as flightShot, smoke as flightSmoke, stages as flightStages, staging } from './launch';
+import { BOOSTER_ENGINES, BOOSTER_RINGS, COUNT, SHIP_ENGINES, SHIP_RINGS, boosterEngines, film, filmAt, filmRate, shipEngines, smooth } from '../launchPlan';
 import { LaunchSmoke, type SmokeApi } from './smoke';
-import { Nozzles, Plume, RingJets, VaporCone, glowMat, type LevelApi, type NozzlesApi, type PlumeApi } from './engineFire';
+import { Deluge, Nozzles, Plume, RingJets, VaporCone, glowMat, type LevelApi, type NozzlesApi, type PlumeApi } from './engineFire';
 import { LaunchMount, LaunchTower, type MountApi, type TowerApi } from './launchComplex';
 
 /** The launch site. Moved back from [0.85, 0, -0.52], where the apron overlapped
@@ -133,6 +133,7 @@ export function NextProjectSite() {
   const levels = useMemo(() => ({ booster: new Float32Array(BOOSTER_ENGINES), ship: new Float32Array(SHIP_ENGINES) }), []);
   const flashMat = useMemo(() => glowMat(new Color('#ffe2bd').multiplyScalar(2.4), 0), []);
   const groundFire = useRef<Mesh>(null);
+  const delugeJets = useRef<LevelApi>(null);
   const groundFireMat = useMemo(() => glowMat(new Color('#ffb070').multiplyScalar(2.2), 0), []);
 
   useFrame((s, delta) => {
@@ -174,6 +175,7 @@ export function NextProjectSite() {
       jets.current?.set(0, 0);
       vapor.current?.set(0, 0);
       for (const m of [flash.current, ventGlow.current, groundFire.current]) if (m) m.visible = false;
+      delugeJets.current?.set(0, 0);
       if (engineLight.current) engineLight.current.intensity = 0;
       tower.current?.set(chopsticks(-COUNT), 0);
       mount.current?.set(0);
@@ -207,9 +209,9 @@ export function NextProjectSite() {
       }
       // wall clock, not the frame sum: dt is clamped, and the film has a set
       // running time (the capture tooling steps it instead)
-      film.time = film.fixed ? film.time + film.fixed : (performance.now() - t0.current) / 1000 / PACE - COUNT;
+      film.time = film.fixed ? film.time + film.fixed : filmAt((performance.now() - t0.current) / 1000);
       const t = film.time;
-      const dt = film.fixed || realDt / PACE;
+      const dt = film.fixed || realDt * filmRate(t);
 
       // ---- the two stages ----
       const st = flightStages(t);
@@ -238,6 +240,7 @@ export function NextProjectSite() {
       boosterPlume.current?.set(bThrust, air.wide, air.long, air.flare, t);
       const since = Math.max(0, t - T.hotstage);
       shipPlume.current?.set(sThrust, 1 + Math.min(0.7, since * 0.35), 1 + Math.min(1.8, since * 0.75), 2.6, t);
+      delugeJets.current?.set(flightDeluge(t), t);
       // the booster's exhaust on the plate under the mount, spreading out in a
       // pool of fire until the stack (or, coming home, the booster) is high
       // enough that it no longer reaches the ground
@@ -288,14 +291,16 @@ export function NextProjectSite() {
       if (puffs) {
         const sm = flightSmoke(t);
         if (t < T.startup + 0.5) vent(puffs, dt * (t < T.startup ? 10 : 4), o);
-        // the deluge: water thrown up off the deflector plate round the mount
+        // the deluge's mist: spray thrown off the tops of the jets, drifting
+        // out and up round the mount
         o.spray += sm.spray * dt;
         while (o.spray >= 1) {
           o.spray -= 1;
           const a = Math.random() * Math.PI * 2;
-          const rr = 0.02 + Math.random() * 0.045;
-          puffs.puff(Math.sin(a) * rr, 0.012, Math.cos(a) * rr, Math.sin(a) * 0.06, 0.32 + Math.random() * 0.34, Math.cos(a) * 0.06, {
-            size0: 0.008, size1: 0.026 + Math.random() * 0.018, life: 0.7 + Math.random() * 0.4, alpha: 0.3, warm: 0, drag: 0.6, rise: -0.9,
+          const rr = 0.03 + Math.random() * 0.03;
+          const sp = 0.05 + Math.random() * 0.08;
+          puffs.puff(Math.sin(a) * rr, 0.05 + Math.random() * 0.04, Math.cos(a) * rr, Math.sin(a) * sp, 0.05 + Math.random() * 0.06, Math.cos(a) * sp, {
+            size0: 0.02, size1: 0.07 + Math.random() * 0.05, life: 1.4 + Math.random() * 0.8, alpha: 0.16, warm: 0, drag: 1.2, rise: 0.02,
           });
         }
         // the steam: the deluge flashed off by the engines, blasted out low all
@@ -507,6 +512,7 @@ export function NextProjectSite() {
         </group>
         {/* the engines' light on the stack, the tower and the ground */}
         {flying && <pointLight ref={engineLight} color="#ffae6e" intensity={0} distance={3} decay={1.4} />}
+        {flying && <Deluge ref={delugeJets} />}
         {/* the fire under the mount: the exhaust hitting the plate and
             spreading out under the steam */}
         {flying && (

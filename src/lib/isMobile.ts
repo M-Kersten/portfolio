@@ -8,3 +8,9 @@ export const MOBILE_QUERY = '(max-width: 760px)';
 export function isMobileViewport(): boolean {
   return typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches;
 }
+
+/** A phone or tablet (small screen or touch-first): the launch film runs a
+ *  lighter version here — fewer smoke puffs, a cheaper bloom. Read once. */
+export function isLiteDevice(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia(`${MOBILE_QUERY}, (pointer: coarse)`).matches;
+}

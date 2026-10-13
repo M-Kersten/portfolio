@@ -9,11 +9,14 @@
 //   RingJets    hot staging: the ship's exhaust pouring out sideways through
 //               the eighteen vents in the ring
 //   VaporCone   the condensation collar round the stack at Max-Q
+//   Deluge      the water jets off the plate under the mount (not fire, but
+//               the same kind of shader effect, so it lives here)
 //
-// All of it additive and untouched by tone mapping, so it can run hotter than
+// The fire is additive and untouched by tone mapping, so it can run hotter than
 // white and the launch's bloom (Stage.tsx) picks it up.
 import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
-import { AdditiveBlending, Color, CylinderGeometry, DoubleSide, InstancedBufferAttribute, Matrix4, ShaderMaterial, Vector3, type InstancedMesh, type Mesh } from 'three';
+import { AdditiveBlending, BufferAttribute, Color, CylinderGeometry, DoubleSide, InstancedBufferAttribute, Matrix4, Quaternion, ShaderMaterial, Vector3, type BufferGeometry, type InstancedMesh, type Mesh } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /** Exhaust colours: a methalox flame is a translucent orange-pink round a
  *  near-white core. Scaled past 1 so the bloom catches them. */
@@ -413,3 +416,103 @@ export const VaporCone = forwardRef<LevelApi, { y: number; r: number }>(function
   return <mesh ref={mesh} position={[0, y, 0]} geometry={geo} material={mat} renderOrder={2} visible={false} />;
 });
 
+
+/* ---------- the deluge ---------- */
+
+const DELUGE_VERT = /* glsl */ `
+attribute vec3 aBase;
+attribute float aPhase;
+uniform float uLevel;
+uniform float uTime;
+varying float vY;
+varying float vX;
+varying float vFace;
+varying float vPhase;
+void main() {
+  vY = uv.y;
+  vX = uv.x;
+  vPhase = aPhase;
+  // each jet rises from its hole in the plate, surging a little as the
+  // pressure pulses
+  float h = uLevel * (0.82 + 0.18 * sin(uTime * 11.0 + aPhase * 6.0));
+  vec3 p = aBase + (position - aBase) * h;
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  vFace = abs(dot(normalize(normalMatrix * normal), normalize(-mv.xyz)));
+  gl_Position = projectionMatrix * mv;
+}`;
+const DELUGE_FRAG = /* glsl */ `
+uniform float uOpacity;
+uniform float uTime;
+varying float vY;
+varying float vX;
+varying float vFace;
+varying float vPhase;
+float n1(float x) { float i = floor(x); float f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(fract(sin(i * 91.7) * 4375.5), fract(sin((i + 1.0) * 91.7) * 4375.5), f); }
+void main() {
+  // water racing up the jet in broad streaks, breaking up into spray at the top
+  float s = n1(vX * 7.0 + vPhase * 13.0) * 0.6 + n1(vY * 5.0 - uTime * 9.0 + vPhase * 7.0) * 0.6;
+  float along = smoothstep(0.0, 0.08, vY) * (1.0 - smoothstep(0.45, 1.0, vY));
+  float body = 0.35 + 0.65 * vFace;
+  float a = uOpacity * along * body * clamp(s, 0.25, 1.0);
+  gl_FragColor = vec4(mix(vec3(0.72, 0.8, 0.86), vec3(0.95, 0.97, 1.0), vFace), a);
+}`;
+
+/** The water deluge: jets shooting up off the steel plate under the mount,
+ *  through the ring and up round the engines, `set(level, time)`. One merged
+ *  mesh, one draw, all its motion in the shader. */
+export const Deluge = forwardRef<LevelApi>(function Deluge(_, ref) {
+  const mesh = useRef<Mesh>(null);
+  const { geo, mat } = useMemo(() => {
+    const up = new Vector3(0, 1, 0);
+    const q = new Quaternion();
+    const m = new Matrix4();
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const jets: BufferGeometry[] = [];
+    const JETS = 30;
+    for (let j = 0; j < JETS; j++) {
+      const a = (Math.PI * 2 * j) / JETS + rnd() * 0.2;
+      const inner = j % 3 === 0;
+      const r = inner ? 0.012 + rnd() * 0.01 : 0.03 + rnd() * 0.022;
+      const base = new Vector3(Math.sin(a) * r, 0.011, Math.cos(a) * r);
+      // inner jets straight up through the ring, outer ones leaning out
+      const lean = inner ? rnd() * 0.08 : 0.12 + rnd() * 0.22;
+      const dir = new Vector3(Math.sin(a) * Math.sin(lean), Math.cos(lean), Math.cos(a) * Math.sin(lean));
+      const len = inner ? 0.09 + rnd() * 0.04 : 0.05 + rnd() * 0.035;
+      q.setFromUnitVectors(up, dir);
+      m.compose(base, q, new Vector3(1, len, 1));
+      const g = new CylinderGeometry(0.0065, 0.0022, 1, 8, 4, true).translate(0, 0.5, 0).applyMatrix4(m);
+      const count = g.getAttribute('position').count;
+      const b = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) b.set([base.x, base.y, base.z], i * 3);
+      g.setAttribute('aBase', new BufferAttribute(b, 3));
+      g.setAttribute('aPhase', new BufferAttribute(new Float32Array(count).fill(rnd()), 1));
+      jets.push(g);
+    }
+    const geo = mergeGeometries(jets)!;
+    const mat = new ShaderMaterial({
+      vertexShader: DELUGE_VERT,
+      fragmentShader: DELUGE_FRAG,
+      uniforms: { uLevel: { value: 0 }, uOpacity: { value: 0 }, uTime: { value: 0 } },
+      transparent: true,
+      depthWrite: false,
+      side: DoubleSide,
+    });
+    return { geo, mat };
+  }, []);
+  useImperativeHandle(
+    ref,
+    () => ({
+      set(level, time) {
+        const m = mesh.current;
+        if (!m) return;
+        m.visible = level > 0.01;
+        mat.uniforms.uLevel.value = 0.25 + 0.75 * level;
+        mat.uniforms.uOpacity.value = 0.75 * level;
+        mat.uniforms.uTime.value = time;
+      },
+    }),
+    [mat],
+  );
+  return <mesh ref={mesh} geometry={geo} material={mat} renderOrder={2} visible={false} frustumCulled={false} />;
+});

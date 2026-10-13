@@ -9,9 +9,9 @@
 // count (the ship's arm swings back); a camera down by the mount for the
 // deluge and the Raptor startup, ring by ring; the top of the tower, looking
 // down the stack into the steam for the release; a long lens from out past the
-// park as it climbs slowly out of the cloud and clears the tower. Clear of
-// the tower, the film turns into a time-lapse: a camera on the stack looking
-// down at the ground falling away; alongside through Max-Q (the vapour
+// park as it climbs slowly out of the cloud; then a camera riding on the ship,
+// looking down the stack as the tower slides by and the ground falls away.
+// Clear of the tower, the film turns into a time-lapse: alongside through Max-Q (the vapour
 // collar), MECO and hot staging; then the ship flying on while the booster
 // turns back. Last, the tower again: the booster falls out of the sky, lights
 // its landing burn and the chopsticks close round it.
@@ -214,6 +214,12 @@ export function chopsticks(t: number): { y: number; open: number } {
   return { y: CATCH_ARMS, open: mix(0.78, 0.03, close) };
 }
 
+/** The water deluge, 0 → 1: on before the engines light, and dying away once
+ *  the stack is off the mount. */
+export function deluge(t: number): number {
+  return smooth(T.deluge, T.deluge + 0.6, t) * (1 - smooth(T.release + 1.2, T.release + 3.2, t));
+}
+
 /** Smoke, in puffs a second: the deluge's spray, the steam the engines make
  *  of it (the cloud the stack climbs out of), the trail up the sky, the RCS
  *  thrusters turning the booster, the landing burn on the mount, and the
@@ -225,7 +231,7 @@ export function smoke(t: number): { spray: number; steam: number; trail: number;
   const rcs = t > T.sep + 0.3 && t < T.boostback ? 1 : 0;
   const landing = smooth(T.landing + 1.3, T.landing + 1.8, t) * (1 - smooth(T.catch, T.catch + 0.3, t));
   const vent = t > T.catch + 0.2 ? 1 : 0;
-  return { spray: spray * 40, steam: steam * 110, trail: trail * 40, rcs: rcs * 26, landing: landing * 90, vent: vent * 18 };
+  return { spray: spray * 30, steam: steam * 110, trail: trail * 40, rcs: rcs * 26, landing: landing * 90, vent: vent * 18 };
 }
 
 /** How hard the camera rumbles (pad units): a hum as the engines start, the
@@ -269,6 +275,8 @@ function count(t: number): Shot {
 const ENGINE_CAM = -4.8;
 const TOWER_CAM = -1.4;
 const LONG_CAM = 1.5;
+/** …and from the long lens to the camera riding on the ship. */
+const ONBOARD_CAM = 3.6;
 function mountCam(t: number): Shot {
   // low by the mount, close on the skirt: the deluge coming on, then the
   // Raptors lighting under it — the centre three, the ten, the twenty
@@ -286,15 +294,16 @@ function towerTop(t: number): Shot {
 function longLens(t: number): Shot {
   // far out past the park on a long lens, over the treeline: the cloud rolling
   // out above the trees and the stack rising out of it on its flame, slow and
-  // heavy, past the chopsticks and clear of the tower, the lens tilting after it
+  // heavy, up past the chopsticks, the lens tilting after it
   // (aimed low on the stack, so its flame stays clear of the telemetry)
   const h = height(t);
-  const k = smooth(LONG_CAM, T.clear, t);
+  const k = smooth(LONG_CAM, ONBOARD_CAM, t);
   return { pos: [-0.62, mix(0.2, 0.24, k), mix(1.15, 1.1, k)], target: [0.1, 0.33 + 0.97 * h, 0], fov: 4, pull: 0.4, cut: 2 };
 }
 function onboard(t: number): Shot {
-  // riding above the nose, off to one side, looking down the column past the
-  // engines at the trail and the ground falling away
+  // riding on the ship, above the nose and off to one side, looking down the
+  // column past the engines: the tower sliding by, the steam and the ground
+  // falling away
   const p = climb(t);
   return { pos: along(p, STACK_TIP + 0.22, -0.34, 0.36), target: along(p, STACK_BASE - 0.5, 0.06), fov: 6, pull: 0, cut: 3 };
 }
@@ -363,7 +372,7 @@ export function shot(t: number): Shot {
   if (t < ENGINE_CAM) return count(t);
   if (t < TOWER_CAM) return mountCam(t);
   if (t < LONG_CAM) return towerTop(t);
-  if (t < T.clear) return longLens(t);
+  if (t < ONBOARD_CAM) return longLens(t);
   if (t < T.tracking) return onboard(t);
   if (t < T.onward) return tracking(t);
   if (t < T.ret) return onward(t);

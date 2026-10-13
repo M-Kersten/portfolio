@@ -34,6 +34,27 @@
   letter-spacing: 0.22em;
   color: var(--accent-ink);
 }
+.launch__mission {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+}
+/* the site's Passion tag, in its one colour */
+.launch__tag {
+  padding: 0.15em 0.5em;
+  border: 1px solid var(--pink);
+  border-radius: var(--radius-s);
+  color: var(--pink);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.launch__story {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--ink);
+  max-width: 34rem;
+}
 .launch__lede {
   margin: 0.1rem 0 0;
   font-size: 1.02rem;
@@ -107,18 +128,6 @@
   padding: 0.6em 0.2em;
   animation: launch-rise var(--t-base) var(--ease) 1.6s both;
 }
-/* and sound on / off, in the other corner */
-.launch__sound {
-  position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 0.9rem);
-  left: clamp(1rem, 4vw, 2.5rem);
-  pointer-events: auto;
-  padding: 0.6em 0.2em;
-  animation: launch-rise var(--t-base) var(--ease) 1.6s both;
-}
-.launch__sound[aria-pressed='true'] {
-  color: var(--ink-60);
-}
 /* the site's header steps aside for the film (LaunchOverlay sets the flag) */
 .header {
   transition: opacity var(--t-slow) var(--ease);
@@ -148,26 +157,6 @@ body[data-film] .header {
   color: var(--ink);
   opacity: 0.78;
   animation: launch-rise var(--t-slow) var(--ease) 0.3s both;
-}
-.lhud__call {
-  align-self: center;
-  margin: 0;
-  min-height: 1.4em;
-  font-size: var(--step--1);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink);
-  text-align: center;
-  opacity: 0;
-}
-.lhud__call--on {
-  animation: lhud-call 2.8s var(--ease) both;
-}
-@keyframes lhud-call {
-  0% { opacity: 0; transform: translateY(6px); letter-spacing: 0.3em; }
-  12% { opacity: 1; transform: none; letter-spacing: 0.16em; }
-  82% { opacity: 1; }
-  100% { opacity: 0; }
 }
 .lhud__bar-row {
   display: grid;
@@ -279,16 +268,6 @@ body[data-film] .header {
   letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
-}
-.lhud__lapse {
-  min-height: 1em;
-  font-size: var(--step--2);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-40);
-}
-.lhud__lapse[data-on] {
-  color: var(--accent);
 }
 .lhud__track {
   position: relative;
@@ -910,7 +889,6 @@ body[data-film] .header {
 @media (prefers-reduced-motion: reduce) {
   .launch__go,
   .lhud,
-  .lhud__call--on,
   .ast__score-bump,
   .ast__chain-pop,
   /* the hologram still reads — it just stops flickering and scanning */

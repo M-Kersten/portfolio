@@ -1,24 +1,33 @@
 // The launch, as a flight plan: when everything happens, which engines are
-// burning, how fast and how high the two stages are, and what the callouts
-// say. Plain numbers and functions of the film's clock — no three.js — so the
+// burning, how fast and how high the two stages are, and the milestones
+// along the telemetry's track. Plain numbers and functions of the film's clock — no three.js — so the
 // DOM telemetry (components/LaunchHud) and the scene (maquette/launch.ts,
 // launchSite.tsx) read the same plan without the page's entry chunk pulling
 // in the 3D stack.
 //
 // The clock: film seconds, liftoff at 0, the terminal count before it. The
 // count and the climb past the tower run in real time; once the stack is
-// clear the film becomes a time-lapse (the HUD says so), and `missionTime`
+// clear the film becomes a time-lapse, and `missionTime`
 // maps it back onto a real flight's clock, which is what the telemetry and
 // the T+ readout show. The profile is a Starship flight's, rounded: Max-Q at
 // about T+1:02, MECO at T+2:41 around 65 km and 5,000+ km/h, hot staging, the
 // booster's boostback, and the catch at the tower at about T+6:50.
 
-/** How much slower than its own clock the film plays: every beat stays where
- *  the plan puts it, the whole film just takes this much longer to watch. */
-export const PACE = 1.4;
-
 /** Seconds of terminal count shown before liftoff. */
 export const COUNT = 8;
+
+/** How much slower than its own clock the film plays: every beat stays where
+ *  the plan puts it, the film just takes longer to watch. The count a little,
+ *  the flight from liftoff on more, so each beat has time to land. */
+const COUNT_PACE = 1.2;
+const FLIGHT_PACE = 1.75;
+/** The film's time, seconds of wall clock after it started. */
+export function filmAt(seconds: number): number {
+  const count = COUNT * COUNT_PACE;
+  return seconds < count ? seconds / COUNT_PACE - COUNT : (seconds - count) / FLIGHT_PACE;
+}
+/** How many film seconds a wall-clock second is, at film time t. */
+export const filmRate = (t: number) => 1 / (t < 0 ? COUNT_PACE : FLIGHT_PACE);
 
 export const T = {
   start: -COUNT,
@@ -108,10 +117,6 @@ const CLOCK = [
 /** Mission time (seconds, negative before liftoff) at film time t. */
 export function missionTime(t: number): number {
   return table(CLOCK, t, 1);
-}
-/** How many mission seconds a film second covers right now (1 = real time). */
-export function timeLapse(t: number): number {
-  return (missionTime(t + 0.05) - missionTime(t - 0.05)) / 0.1;
 }
 
 /** "T−00:00:08" / "T+00:02:41". */
@@ -254,26 +259,16 @@ export function shipEngines(t: number, out: Float32Array | number[]): void {
   for (let j = 0; j < 3; j++) out[3 + j] = burn(t, T.hotstage + 0.16 + j * 0.05, 1e9, 0.3);
 }
 
-/* ---------- callouts ---------- */
+/* ---------- milestones ---------- */
 
-export interface Callout {
-  t: number;
-  label: string;
-  /** a milestone on the HUD's track (the rest are callouts only) */
-  mark?: string;
-}
-export const CALLOUTS: Callout[] = [
-  { t: T.start, label: 'Terminal count' },
-  { t: T.qd, label: 'Ship quick-disconnect arm retracts' },
-  { t: T.deluge, label: 'Water deluge active' },
-  { t: T.startup, label: 'Raptor startup', mark: 'Startup' },
-  { t: T.release, label: 'Liftoff', mark: 'Liftoff' },
-  { t: T.clear, label: 'Tower cleared' },
-  { t: T.maxq, label: 'Max-Q · peak aerodynamic pressure', mark: 'Max-Q' },
-  { t: T.meco, label: 'Booster MECO', mark: 'MECO' },
-  { t: T.hotstage, label: 'Hot staging · Starship ignition', mark: 'Staging' },
-  { t: T.boostback, label: 'Boostback burn', mark: 'Boostback' },
-  { t: T.onward, label: 'Starship on its way' },
-  { t: T.landing, label: 'Booster landing burn', mark: 'Landing' },
-  { t: T.catch, label: 'Booster caught by the tower', mark: 'Catch' },
+/** The marks along the telemetry's track. */
+export const MILESTONES: { t: number; mark: string }[] = [
+  { t: T.startup, mark: 'Startup' },
+  { t: T.release, mark: 'Liftoff' },
+  { t: T.maxq, mark: 'Max-Q' },
+  { t: T.meco, mark: 'MECO' },
+  { t: T.hotstage, mark: 'Staging' },
+  { t: T.boostback, mark: 'Boostback' },
+  { t: T.landing, mark: 'Landing' },
+  { t: T.catch, mark: 'Catch' },
 ];

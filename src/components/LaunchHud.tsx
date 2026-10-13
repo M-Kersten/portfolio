@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
   BOOSTER_ENGINES,
   BOOSTER_RINGS,
-  CALLOUTS,
+  MILESTONES,
   SHIP_ENGINES,
   SHIP_RINGS,
   T,
@@ -13,21 +13,18 @@ import {
   missionTime,
   shipEngines,
   shipTelemetry,
-  timeLapse,
   type Telemetry,
 } from '../scene/launchPlan';
-import { stopSound, updateSound } from '../lib/launchSound';
 
 // The launch's telemetry, the way a launch broadcast shows it: each stage's
 // speed and altitude, its engines as a diagram of dots that light as they
 // start and go dark as they shut down, its propellant, the mission clock and a
-// track of the milestones along the bottom, and the callouts as they happen.
-// It all reads the flight plan (launchPlan.ts) at the film's clock, which the
-// scene writes every frame; nothing here re-renders per frame — a loop writes
-// the numbers and classes straight into the DOM, and drives the launch's
-// sound (lib/launchSound) off the same clock.
+// track of the milestones along the bottom. It all reads the flight plan
+// (launchPlan.ts) at the film's clock, which the scene writes every frame;
+// nothing here re-renders per frame — a loop writes the numbers and classes
+// straight into the DOM.
 
-const MARKS = CALLOUTS.filter((c) => c.mark);
+const MARKS = MILESTONES;
 
 /** An engine diagram: the stage's nozzles seen from below, as dots. */
 function Engines({ rings, scale, refs, label }: { rings: { n: number; r: number; ph: number }[]; scale: number; refs: React.MutableRefObject<(SVGCircleElement | null)[]>; label: string }) {
@@ -129,8 +126,6 @@ export function LaunchHud() {
   const boosterOut = useRef<Record<string, HTMLElement | null>>({});
   const shipOut = useRef<Record<string, HTMLElement | null>>({});
   const clock = useRef<HTMLSpanElement>(null);
-  const lapse = useRef<HTMLSpanElement>(null);
-  const call = useRef<HTMLParagraphElement>(null);
   const fill = useRef<HTMLSpanElement>(null);
   const marks = useRef<(HTMLLIElement | null)[]>([]);
   const root = useRef<HTMLDivElement>(null);
@@ -139,20 +134,11 @@ export function LaunchHud() {
     const b = new Float32Array(BOOSTER_ENGINES);
     const s = new Float32Array(SHIP_ENGINES);
     let raf = 0;
-    let shown = -1;
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const t = film.time;
       const m = missionTime(t);
-      updateSound(t);
-      // the clock, and a flag when the film is running faster than the flight
       if (clock.current) clock.current.textContent = clockLabel(m);
-      const rate = timeLapse(t);
-      if (lapse.current) {
-        const on = rate > 1.5;
-        lapse.current.textContent = on ? `time-lapse ×${Math.round(rate)}` : '';
-        lapse.current.toggleAttribute('data-on', on);
-      }
       // the stages' numbers: one vehicle until staging
       write(boosterOut.current, boosterTelemetry(Math.max(0, m)));
       write(shipOut.current, shipTelemetry(Math.max(0, m)));
@@ -161,20 +147,6 @@ export function LaunchHud() {
       shipEngines(t, s);
       boosterDots.current.forEach((el, i) => el?.setAttribute('data-lit', b[i] > 0.5 ? '1' : b[i] > 0.02 ? '0.5' : '0'));
       shipDots.current.forEach((el, i) => el?.setAttribute('data-lit', s[i] > 0.5 ? '1' : s[i] > 0.02 ? '0.5' : '0'));
-      // the callout: the latest event, for a few seconds
-      let c = -1;
-      for (let i = 0; i < CALLOUTS.length; i++) if (CALLOUTS[i].t <= t) c = i;
-      const live = c >= 0 && t - CALLOUTS[c].t < 2.8;
-      const want = live ? c : -1;
-      if (want !== shown && call.current) {
-        shown = want;
-        call.current.textContent = want >= 0 ? CALLOUTS[want].label : '';
-        call.current.classList.remove('lhud__call--on');
-        if (want >= 0) {
-          void call.current.offsetWidth; // restart the arrival
-          call.current.classList.add('lhud__call--on');
-        }
-      }
       // the milestone track: evenly spaced marks, the line filling between them
       let p = 0;
       for (let i = 0; i < MARKS.length; i++) {
@@ -194,22 +166,17 @@ export function LaunchHud() {
       root.current?.toggleAttribute('data-staged', t >= T.sep);
     };
     raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf);
-      stopSound();
-    };
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return (
     <div className="lhud" ref={root} aria-hidden="true">
-      <p className="lhud__call" ref={call} />
       <div className="lhud__bar-row">
         <Stage name="Super Heavy" rings={BOOSTER_RINGS} refs={boosterDots} out={boosterOut} label="Booster engines" />
         <div className="lhud__mid">
           <span className="lhud__clock" ref={clock}>
             T−00:00:08
           </span>
-          <span className="lhud__lapse" ref={lapse} />
           <div className="lhud__track">
             <span className="lhud__line">
               <span className="lhud__fill" ref={fill} />

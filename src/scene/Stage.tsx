@@ -4,6 +4,7 @@ import { EffectComposer, Bloom, BrightnessContrast, Vignette, Scanline } from '@
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
+import { isLiteDevice } from '../lib/isMobile';
 import { useSceneSelector } from './store';
 import { fitScale, type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
@@ -18,6 +19,8 @@ import { useFxConfig } from './fxTweak';
 const LAYER_ACCENT: Record<string, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
 const LAYER_BY_STEP = ['city', 'room', 'chip'];
 const RIM_HEX = '#27e8f2'; // city cyan — the fallback / starting air
+// phones and tablets: the launch's bloom at half resolution
+const LITE = isLiteDevice();
 
 // Two coupled washes give the maquette its atmosphere:
 //   1. Air (by scroll): the fog, background and rim light ease toward the ACTIVE
@@ -144,7 +147,7 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
           camera glides in, not at ignition): a high threshold, so only the fire
           — drawn hotter than white — blooms. */}
       <EffectComposer enableNormalPass={false} multisampling={launchOn ? 0 : 2}>
-        {launchOn ? <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.2} intensity={1.15} radius={0.72} /> : <></>}
+        {launchOn ? <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.2} intensity={1.15} radius={0.72} resolutionScale={LITE ? 0.5 : 1} /> : <></>}
         <BrightnessContrast contrast={cfg.contrast} />
         <Vignette eskil={false} offset={cfg.vignetteOffset} darkness={cfg.vignetteDarkness} />
         <Scanline density={cfg.scanlineDensity} opacity={cfg.scanlineOpacity} />

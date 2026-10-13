@@ -14,11 +14,15 @@
 import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { film } from '../launchPlan';
+import { isLiteDevice } from '../../lib/isMobile';
 import { Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedBufferGeometry, PlaneGeometry, ShaderMaterial, UniformsLib, UniformsUtils, Vector3, type Mesh } from 'three';
 
 // Kept small: every puff is a big transparent quad, and the cloud's overdraw
-// is what a GPU pays for.
-const N = 900;
+// is what a GPU pays for. Phones and tablets get a lighter cloud still: a
+// smaller pool, and four in ten puffs skipped (the rest a little bigger, so
+// it still reads as one cloud).
+const LITE = isLiteDevice();
+const N = LITE ? 520 : 900;
 
 export interface SmokeApi {
   /** Launch one puff at (x, y, z) with velocity (vx, vy, vz) — `drag` per
@@ -155,6 +159,7 @@ export const LaunchSmoke = forwardRef<SmokeApi>(function LaunchSmoke(_, ref) {
     ref,
     () => ({
       puff(x, y, z, vx, vy, vz, o) {
+        if (LITE && Math.random() < 0.4) return;
         const i = sim.next;
         sim.next = (i + 1) % N;
         sim.pos[i * 3] = x;
@@ -166,7 +171,7 @@ export const LaunchSmoke = forwardRef<SmokeApi>(function LaunchSmoke(_, ref) {
         sim.age[i] = 0;
         sim.life[i] = o.life;
         sim.size0[i] = o.size0;
-        sim.size1[i] = o.size1;
+        sim.size1[i] = LITE ? o.size1 * 1.15 : o.size1;
         sim.alpha[i] = o.alpha;
         sim.warm[i] = o.warm;
         sim.drag[i] = o.drag;

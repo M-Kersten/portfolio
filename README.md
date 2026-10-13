@@ -51,7 +51,7 @@ src/
                        earlier / later steps through the rest
     NodeHud.tsx        the /work/:slug dossier drawer
     LaunchOverlay.tsx  the launch easter egg's DOM: the LAUNCH panel, the film's
-                       telemetry (LaunchHud.tsx), skip, sound, and the game
+                       telemetry (LaunchHud.tsx), skip, and the game
     CvPage.tsx         the /cv sheet (A4, print-styled) that npm run cv prints
     SectionHead.tsx    how every section opens: kicker + rule, title, lead
     About / Contact / Header / Footer / Poster / ScanFrame / SectionTitle
@@ -84,7 +84,7 @@ src/
     store.ts           tiny cross-reconciler store (selected/hovered/visited,
                        the first-visit cue)
     launchPlan.ts      the launch's flight plan, no three.js: the timeline, which
-                       engines burn when, telemetry, callouts (scene + HUD read it)
+                       engines burn when, telemetry, milestones (scene + HUD read it)
     devTweak.tsx       dev-only 3D position scrubbers (tree-shaken from prod)
   content/             cases.json · capabilities.json · site.json · cv.json (+ types)
   lib/                 asset base-path, reduced-motion, WebGL support, youtube,

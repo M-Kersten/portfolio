@@ -1,9 +1,7 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { sceneStore, useSceneSelector } from '../scene/store';
 import { useLaunchCount } from '../lib/launches';
-import { useReducedMotion } from '../lib/useReducedMotion';
-import { armSound, setSoundWanted, soundWanted } from '../lib/launchSound';
 import { LaunchHud } from './LaunchHud';
 
 // The game pulls in a second R3F canvas (the 3D rocket ship), so it's lazily
@@ -23,8 +21,6 @@ const AsteroidsGame = lazy(() => import('./AsteroidsGame').then((m) => ({ defaul
 export function LaunchOverlay() {
   const launch = useSceneSelector((s) => s.launch);
   const flights = useLaunchCount();
-  const reduced = useReducedMotion();
-  const [sound, setSound] = useState(soundWanted);
 
   // Esc aborts (except mid-game — the game owns its own exit confirm)
   useEffect(() => {
@@ -65,17 +61,6 @@ export function LaunchOverlay() {
     return createPortal(
       <div className="launch launch--flight">
         <LaunchHud />
-        <button
-          type="button"
-          className="launch__abort launch__sound"
-          aria-pressed={sound}
-          onClick={() => {
-            setSoundWanted(!sound);
-            setSound(!sound);
-          }}
-        >
-          sound {sound ? 'on' : 'off'}
-        </button>
         <button type="button" className="launch__abort launch__skip" onClick={() => sceneStore.setLaunch('game')}>
           skip to the game ›
         </button>
@@ -94,9 +79,16 @@ export function LaunchOverlay() {
     <div className="launch" role="dialog" aria-label="Launch control">
       {launch === 'pad' && (
         <div className="launch__panel">
-          <span className="launch__mission">MK-01 · THE NEXT LAUNCH{flights != null && ` · FLIGHT ${flights + 1}`}</span>
-          <p className="launch__lede">You just toured ten projects that shipped, here's the one we haven’t built yet.</p>
-          <p className="launch__brief">Let's launch this one together and blast through all the problems that come in a project</p>
+          <span className="launch__mission">
+            <span className="launch__tag">Passion</span>
+            MK-01{flights != null && ` · FLIGHT ${flights + 1}`}
+          </span>
+          <p className="launch__lede">Space travel is a passion of mine.</p>
+          <p className="launch__story">
+            I love following space travel news, and I watch every launch I have the time for. So the tour ends with one: a Starship flight, from the
+            terminal count to the booster caught by the tower.
+          </p>
+          <p className="launch__brief">Then take the controls and blast through the problems every project runs into.</p>
           {flights != null && (
             <span className="launch__tally">
               <b>{String(flights).padStart(4, '0')}</b> launches performed by visitors before you
@@ -106,11 +98,7 @@ export function LaunchOverlay() {
             <button
               type="button"
               className="btn launch__go"
-              onClick={() => {
-                // the press is the gesture that lets the launch make a sound
-                if (!reduced) armSound();
-                sceneStore.setLaunch('countdown');
-              }}
+              onClick={() => sceneStore.setLaunch('countdown')}
             >
               LAUNCH
             </button>
