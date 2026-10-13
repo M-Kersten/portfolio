@@ -9,7 +9,7 @@ import { voiceFor } from '../content/voice';
 // (preload="metadata"); the rest when it's pressed. One plays at a time, and
 // it stops when the popup or dossier closes.
 
-const BARS = 28;
+const BARS = 18;
 let current: HTMLAudioElement | null = null; // the one clip playing, site-wide
 
 /** A waveform-ish row of bar heights (0.2–1), the same every time for a slug. */
@@ -66,15 +66,17 @@ export function VoiceNote({ slug, title }: { slug: string; title: string }) {
         aria-pressed={playing}
         aria-label={playing ? `Pause: ${title}, in my own words` : `Hear about this project: ${title}, in my own words`}
       >
+        {/* the play mark, the site's square control, a pause while it plays */}
+        <span className="voice__mark" aria-hidden="true">
+          <svg viewBox="0 0 12 12">{playing ? <path d="M3 2.5h2v7H3zM7 2.5h2v7H7z" /> : <path d="M3.5 2.2 9.8 6l-6.3 3.8z" />}</svg>
+        </span>
         <span className="voice__wave" aria-hidden="true">
           {bars.map((b, i) => (
             <i key={i} style={{ '--b': b } as React.CSSProperties} data-on={(i + 0.5) / BARS <= progress || undefined} />
           ))}
         </span>
-        <span className="voice__text">
-          <span className="voice__label">{playing ? 'Playing' : time > 0 && time < length ? 'Paused' : 'Hear about this project'}</span>
-          <span className="voice__time">{time > 0 ? `${clock(time)} / ${clock(length)}` : clock(length)}</span>
-        </span>
+        <span className="voice__label">Hear about this project</span>
+        <span className="voice__time">{time > 0 ? `${clock(time)} / ${clock(length)}` : clock(length)}</span>
       </button>
       <audio
         ref={audio}

@@ -1,7 +1,10 @@
 /* ---------- voice notes ----------
-   "Hear about this project": a waveform and a label in one quiet button, in
-   the project's layer colour. The bars fill from the left as the clip plays
-   and breathe a little while it does. */
+   "Hear about this project": one quiet line that belongs to the project's
+   intro, under its outcome and above its buttons, so it reads as the project
+   in my own words rather than one more call to action. A small square play
+   mark in the layer colour, a short waveform that fills as the clip plays,
+   the label in the body face and the length beside it. No box: the buttons
+   below stay the strongest thing in the block. */
 .voice {
   --voice-accent: var(--card-accent, var(--accent));
   display: flex;
@@ -9,32 +12,55 @@
 .voice__btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0.45rem 0.85rem 0.45rem 0.65rem;
-  color: var(--ink);
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--voice-accent) 45%, transparent);
-  border-radius: var(--radius-s);
+  gap: 0.65rem;
+  padding: 0.2rem 0;
+  font: inherit;
+  color: var(--ink-60);
+  background: none;
+  border: 0;
   cursor: pointer;
-  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+  transition: color var(--t-fast) var(--ease);
 }
 .voice__btn:hover,
-.voice__btn:focus-visible {
+.voice__btn:focus-visible,
+.voice[data-playing] .voice__btn {
+  color: var(--ink);
+}
+.voice__mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--voice-accent) 55%, transparent);
+  border-radius: var(--radius-s);
+  color: var(--voice-accent);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.voice__mark svg {
+  width: 0.7rem;
+  height: 0.7rem;
+  fill: currentColor;
+}
+.voice__btn:hover .voice__mark,
+.voice__btn:focus-visible .voice__mark,
+.voice[data-playing] .voice__mark {
+  color: var(--paper);
+  background: var(--voice-accent);
   border-color: var(--voice-accent);
-  background: color-mix(in srgb, var(--voice-accent) 8%, transparent);
 }
 .voice__wave {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  height: 1.5rem;
+  height: 1rem;
 }
 .voice__wave i {
   display: block;
   width: 2px;
   height: calc(var(--b) * 100%);
   border-radius: 1px;
-  background: color-mix(in srgb, var(--ink) 40%, transparent);
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
   transition: background-color var(--t-fast) var(--ease);
 }
 .voice__wave i[data-on] {
@@ -51,30 +77,24 @@
   from { transform: scaleY(1); }
   to { transform: scaleY(0.55); }
 }
-.voice__text {
-  display: grid;
-  justify-items: start;
-  gap: 0.1rem;
-  text-align: left;
-}
 .voice__label {
-  white-space: nowrap;
-  font-family: var(--font-mono);
   font-size: var(--step--1);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  white-space: nowrap;
 }
 .voice__time {
-  min-height: 1em;
   font-family: var(--font-mono);
   font-size: var(--step--2);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
   color: var(--ink-40);
 }
+/* in the case sheet: tucked under the outcome, a clear gap above the buttons */
+.focus__head .voice {
+  margin-top: calc(var(--space-s) * -0.5);
+}
 /* in the maquette's dossier: a breath before the film under it */
 .node-hud .voice {
-  margin-bottom: var(--space-s);
+  margin: calc(var(--space-s) * -0.5) 0 var(--space-s);
 }
 @media (prefers-reduced-motion: reduce) {
   .voice[data-playing] .voice__wave i {
