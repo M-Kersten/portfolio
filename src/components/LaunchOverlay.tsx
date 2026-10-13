@@ -1,8 +1,10 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { sceneStore, useSceneSelector } from '../scene/store';
+import { EXHIBIT_COUNT, NEXT_LAUNCH_NO } from '../content/exhibits';
 import { useLaunchCount } from '../lib/launches';
 import { LaunchHud } from './LaunchHud';
+import { VoiceNote } from './VoiceNote';
 
 // The game pulls in a second R3F canvas (the 3D rocket ship), so it's lazily
 // loaded — it can't reach the entry chunk and only fetches once someone has
@@ -17,6 +19,11 @@ const AsteroidsGame = lazy(() => import('./AsteroidsGame').then((m) => ({ defaul
 // telemetry over it (LaunchHud) and a way past it; 'game' mounts the asteroids
 // overlay. The scene runs the clock and moves the stages on (and counts the
 // launch at liftoff). Esc aborts back to the overview at any point.
+//
+// On the pad, the panel is exhibit 11's label, in the same hand as the ten
+// before it (Exhibit.tsx): the visitor's own project, not built yet. Its audio
+// guide is my countdown (src/assets/voice/next-launch.*, when it's recorded),
+// and it has two ways on: fly it now, or come and build it (the contact desk).
 
 export function LaunchOverlay() {
   const launch = useSceneSelector((s) => s.launch);
@@ -75,38 +82,60 @@ export function LaunchOverlay() {
       document.body,
     );
 
+  // "Let's build it": off the pad and down to the contact desk
+  const toDesk = () => {
+    sceneStore.setLaunch('idle');
+    requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById('contact')?.scrollIntoView({ block: 'start' })));
+  };
+
   return createPortal(
-    <div className="launch" role="dialog" aria-label="Launch control">
+    <div className="launch" role="dialog" aria-label={`Exhibit ${NEXT_LAUNCH_NO}: the next launch`}>
       {launch === 'pad' && (
-        <div className="launch__panel">
-          <span className="launch__mission">
-            <span className="launch__tag">Passion</span>
-            <span className="launch__flight">MK-01 · THE NEXT LAUNCH{flights != null && ` · FLIGHT ${flights + 1}`}</span>
+        <article className="launch__panel">
+          <span className="xl__frame" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <i />
           </span>
-          <p className="launch__lede">You’ve seen ten projects that shipped. The next one is yours, and it’s on the pad.</p>
+          <div className="xl__top">
+            <span className="xl__no">
+              <b>{NEXT_LAUNCH_NO}</b> the next launch
+            </span>
+            <span className="launch__tag">Passion</span>
+          </div>
+          <h2 className="xl__title">Your project</h2>
+          <p className="xl__outcome">You and me, next</p>
+          <p className="xl__meta">Materials to be decided</p>
+          <p className="xl__materials">
+            {EXHIBIT_COUNT} projects went into it
+            {flights != null && (
+              <>
+                {' · '}
+                <span className="launch__tally">
+                  flight <b>{String(flights + 1).padStart(4, '0')}</b>
+                </span>
+              </>
+            )}
+          </p>
           <p className="launch__story">
             Space travel is a passion of mine: I love following space travel news, and I watch every launch I have the time for. So that’s how I treat
             a project: a careful countdown, a clean launch, and a booster that comes home to be flown again.
           </p>
+          <VoiceNote slug="next-launch" title="The next launch" no={String(NEXT_LAUNCH_NO)} label="Audio guide · the countdown" />
           <p className="launch__brief">Press launch to fly yours, then blast through the problems every project runs into.</p>
-          {flights != null && (
-            <span className="launch__tally">
-              <b>{String(flights).padStart(4, '0')}</b> launches performed by visitors before you
-            </span>
-          )}
           <div className="launch__row">
-            <button
-              type="button"
-              className="btn launch__go"
-              onClick={() => sceneStore.setLaunch('countdown')}
-            >
+            <button type="button" className="btn launch__go" onClick={() => sceneStore.setLaunch('countdown')}>
               LAUNCH
             </button>
-            <button type="button" className="launch__abort" onClick={() => sceneStore.setLaunch('idle')}>
-              cancel <kbd>Esc</kbd>
+            <button type="button" className="btn btn--ghost launch__build" onClick={toDesk}>
+              Let’s build it <span aria-hidden="true">→</span>
             </button>
           </div>
-        </div>
+          <button type="button" className="launch__abort" onClick={() => sceneStore.setLaunch('idle')}>
+            back to the model <kbd>Esc</kbd>
+          </button>
+        </article>
       )}
     </div>,
     document.body,

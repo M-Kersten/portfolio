@@ -2,6 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { DISCIPLINES, LAYER_LABEL, type CaseStudy, type Discipline, type Layer } from '../content';
 import { asset } from '../lib/asset';
 import { noteCaseOrigin } from '../lib/caseOrigin';
+import { exhibitMark } from '../content/exhibits';
 
 // The /projects index — every project (highlights + the long tail) as a
 // scannable card grid. This is the one page a visitor arrives at with a
@@ -120,7 +121,7 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
                 noteCaseOrigin(c.slug, e.currentTarget.querySelector('.pi-card__media'));
                 onOpen(c.slug);
               }}
-              aria-label={`${c.title} — ${c.client}, ${LAYER_LABEL[c.layer]}${c.year ? `, ${c.year.slice(0, 4)}` : ''}`}
+              aria-label={`${c.title} — ${exhibitMark(c.slug)}, ${c.client}, ${LAYER_LABEL[c.layer]}${c.year ? `, ${c.year.slice(0, 4)}` : ''}`}
             >
               <span className="pi-card__media">
                 <img
@@ -142,6 +143,10 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
                   {/* `year` may carry a month for timeline placement; the card
                       only ever stamps the year itself. */}
                   <span className="pi-card__yr">{c.year?.slice(0, 4) ?? '—'}</span>
+                  {/* in the model, or in the collection */}
+                  <span className="pi-card__ex" data-collection={exhibitMark(c.slug) === 'Collection' || undefined}>
+                    {exhibitMark(c.slug)}
+                  </span>
                 </span>
                 <span className="pi-card__title">{c.title}</span>
                 <span className="pi-card__meta">{c.client}</span>

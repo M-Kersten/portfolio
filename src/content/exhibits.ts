@@ -26,6 +26,11 @@ export function exhibitNo(slug: string): number | null {
 }
 /** "02". */
 export const pad2 = (n: number) => String(n).padStart(2, '0');
+/** The mark on a project's card: "Exhibit 02", or "Collection". */
+export function exhibitMark(slug: string): string {
+  const no = exhibitNo(slug);
+  return no !== null ? `Exhibit ${pad2(no)}` : 'Collection';
+}
 
 /** The projects either side of this one on a walk through the exhibition: by
  *  exhibit number for an exhibit, by date through the collection otherwise. */

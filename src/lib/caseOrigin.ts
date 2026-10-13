@@ -1,6 +1,6 @@
-// Where a project's sheet grows from: the picture that was clicked to open it.
-// The openers (a timeline card, a /projects card, a search hit) note it on the
-// click, and the sheet reads it as it mounts (FocusCard). A module value rather
+// Where a project's label stands: beside the picture that was clicked to open
+// it. The openers (a timeline card, a /projects card, a search hit) note it on
+// the click, and the label reads it as it mounts (Exhibit). A module value rather
 // than a prop because all three hand their parent a slug, not an element.
 
 let noted: { slug: string; rect: DOMRect; at: number } | null = null;

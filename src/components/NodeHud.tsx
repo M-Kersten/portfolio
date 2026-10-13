@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { caseBySlug } from '../content';
 import { sceneStore } from '../scene/store';
 import { Exhibit } from './Exhibit';
+import { NotFound } from './NotFound';
 
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
 // Centre of each layer's scroll band on the hero (fraction of scroll travel),
@@ -67,7 +68,8 @@ export function NodeHud() {
     };
   }, [study]);
 
-  if (!study) return <Navigate to="/" replace />;
+  // no such project: that room isn't open
+  if (!study) return <NotFound />;
 
   return (
     <Exhibit

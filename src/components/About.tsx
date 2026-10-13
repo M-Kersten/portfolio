@@ -260,8 +260,8 @@ function aboutStats() {
     { n: new Date().getFullYear() - (Number.isFinite(first) ? first : 2016), label: 'years since my first internship' },
     { n: cases.length, label: 'projects on this site, some of them failures' },
     { n: teams, label: 'companies I’ve worked for' },
-    // the launch pad in the city builds its rocket as projects wake (city.tsx)
-    { n: 1, label: 'rocket in the city, one piece for every project you wake' },
+    // the launch pad in the city builds its rocket as exhibits light up (launchSite.tsx)
+    { n: 1, label: 'rocket in the city, one piece for every exhibit you light' },
   ];
 }
 

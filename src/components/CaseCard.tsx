@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import { type CaseStudy } from '../content';
 import { asset } from '../lib/asset';
 import { noteCaseOrigin } from '../lib/caseOrigin';
+import { exhibitMark } from '../content/exhibits';
 
 // A waypoint on the timeline map: a compact card pinned above or below the
 // route, with a small thumbnail, the year as a milestone and a company tag.
@@ -53,6 +54,10 @@ export function CaseCard({
             <img className="worktile__img" src={src} alt="" loading="lazy" decoding="async" onError={() => setImgOk(false)} />
           )}
           <div className="worktile__scrim" aria-hidden="true" />
+          {/* in the model (its exhibit number), or in the collection */}
+          <span className="worktile__ex" data-collection={exhibitMark(study.slug) === 'Collection' || undefined}>
+            {exhibitMark(study.slug)}
+          </span>
         </div>
         <div className="worktile__body">
           <div className="worktile__stamp">

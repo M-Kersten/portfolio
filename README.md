@@ -29,8 +29,12 @@ npm run preview    # serve the build locally
 Useful while developing:
 
 - `/` — home (hero maquette, capabilities, projects timeline, about, contact)
-- `/work/:slug` — deep link to a project: the camera flies to its object and a
-  dossier HUD opens
+- `/work/:slug` — deep link to a project: the camera flies to its object and
+  its label opens beside it; `/work/:slug?entry` opens straight onto the book
+  (the full entry). The build writes each one a page of its own, so a shared
+  link previews with the project's card (`public/og/<slug>.jpg`)
+- `/projects` — every project, the ten exhibits and the rest of the collection
+- anything else — a closed room: "This part of the exhibition isn't open yet"
 - `/cv` — the CV as a web page; `npm run cv` prints it to `public/cv.pdf`
 - add `?nogl` to any URL to preview the **no-WebGL static fallback**
 - OS reduced-motion is respected everywhere (states snap, no glitches)
@@ -46,15 +50,18 @@ src/
     Capabilities.tsx   the three scales as one full-bleed slanted band
     Work.tsx           the projects map: a pinned, scroll-driven timeline
     CaseCard.tsx       a waypoint card on the timeline
-    FocusCard.tsx      the case sheet a project opens into (timeline, /projects,
-                       search): the work on a stage, the facts, the story, and
-                       earlier / later steps through the rest
-    NodeHud.tsx        the /work/:slug dossier drawer
-    VoiceNote.tsx      "Hear about this project": a project's voice note, if it has one
+    Exhibit.tsx        a project, opened, everywhere (maquette, timeline,
+                       /projects, search): its label (the film first, the
+                       exhibit number, the facts, the audio guide) and the book
+                       it unfolds into (the film playing, the whole story)
+    NodeHud.tsx        the /work/:slug route: the label beside the porthole
+    NotFound.tsx       the closed room (any unknown address)
+    VoiceNote.tsx      the audio guide: a project's voice note, if it has one
     SoundScape.tsx     the maquette's sound: wake notes, the chord, the ambient beds
     SoundToggle.tsx    the header's sound switch (shown once there's a sound)
-    LaunchOverlay.tsx  the launch easter egg's DOM: the LAUNCH panel, the film's
-                       telemetry (LaunchHud.tsx), skip, and the game
+    LaunchOverlay.tsx  the launch easter egg's DOM: exhibit 11's label on the pad
+                       (LAUNCH, or "Let's build it"), the film's telemetry
+                       (LaunchHud.tsx), skip, and the game
     CvPage.tsx         the /cv sheet (A4, print-styled) that npm run cv prints
     SectionHead.tsx    how every section opens: kicker + rule, title, lead
     About / Contact / Header / Footer / Poster / ScanFrame / SectionTitle
@@ -65,7 +72,7 @@ src/
       room.tsx         Room rig: desk/monitor, couch + phone, AR table, bookcase
       chip.tsx         Chip rig: board, accelerator, camera, monitor, traces
       kit.ts           loads the Blender models (public/models: chip, tower, blocks, mill)
-      hotspots.tsx     the floating crosshair markers
+      hotspots.tsx     the floating crosshair markers, with their exhibit numbers
       signals.tsx      cross-layer relation cables (edit RELATIONS here)
       life.tsx         the ghost→alive life system (LifeGroup, EmissiveHover)
       presence.tsx     active-layer focus: neighbour layers rest dimmed
@@ -90,16 +97,20 @@ src/
                        engines burn when, telemetry, milestones (scene + HUD read it)
     devTweak.tsx       dev-only 3D position scrubbers (tree-shaken from prod)
   content/             cases.json · capabilities.json · site.json · cv.json (+ types),
-                       voice.ts (finds the voice notes in assets/voice/)
+                       voice.ts (finds the voice notes in assets/voice/),
+                       exhibits.ts (the numbering, the film loops, see also)
   assets/voice/        the voice notes, one per project: <slug>.mp3
+  assets/loops/        the silent film loops on the labels: <slug>.mp4
   assets/sound/        the site's effects and ambient (README lists every file)
   lib/                 asset base-path, reduced-motion, WebGL support, youtube,
+                       the label's touch handling (useSheetDrag.ts),
                        the sound engine (sound.ts) and the launch's sound,
                        the motion numbers for code (motion.ts) + useReveal
   ui/                  tokens.css (design tokens) + one stylesheet per page
                        section (global.css just imports them in order)
 public/
   posters/<slug>.jpg   timeline/card artwork per project
+  og/<slug>.jpg        each project's share card (npm run og)
   textures/            optional real screenshots (room-screen / room-phone /
                        zwijsen-book) — objects fall back to procedural looks
   models/              binoculars.gltf (the park's AR viewer) · chip.glb (the
@@ -125,14 +136,22 @@ their own ghost→alive keyed on the same store state. Colour policy lives in
   `YYYY-MM`), about facts, contact links.
 - `cases.json` — one entry per project. `year` accepts `"2024"` (centres on
   the year) or `"2024-09"` (pins the month on the timeline). `follows` names
-  the earlier case this one builds on — it renders as the "← builds on /
-  led to →" storyline links in the /work dossier. Drop a matching poster in
-  `public/posters/<slug>.jpg`.
+  the earlier case this one builds on — it renders under "See also" in the
+  book, both ways. Drop a matching poster in `public/posters/<slug>.jpg`, then
+  run `npm run og` to redraw the share cards (it uses your installed Chrome,
+  or `CHROME_PATH`) and commit them.
+- **The exhibits** — the ten projects with an object in the maquette
+  (`HOTSPOTS` in `src/scene/framing.ts`) are numbered 01–10, city then room
+  then chip; every other project is "in the collection". Exhibit 11 is the
+  next launch on the pad.
+- **Film loops** — a silent 6–10 s clip per project in
+  `src/assets/loops/<slug>.mp4` plays at the top of its label (the README
+  there has the format); without one the poster drifts slowly instead.
 - **Voice notes** — record a short clip about a project and save it as
   `src/assets/voice/<slug>.mp3` (or `.m4a`, `.ogg`, `.webm`), named after
-  the case's `slug`. The "Hear about this project" button then appears in
-  that project's popup and maquette dossier; projects without a clip show
-  none. Mono at 64–96 kbps is plenty for a voice.
+  the case's `slug`. Its audio guide then appears on that project's label
+  and in its book; projects without a clip show none. `next-launch.mp3` is
+  exhibit 11's (the countdown). Mono at 64–96 kbps is plenty for a voice.
 - **Sound** — effects and ambient are recordings in `src/assets/sound/`, one
   file per event; its README lists every name (wake notes, popups, the
   launch, the game, the ambient beds). A name with no file is silent, so add

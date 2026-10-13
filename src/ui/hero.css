@@ -177,8 +177,10 @@
   }
 }
 
-/* the manifest — a small dossier above the tally: found projects are named
-   and clickable, unfound ones stay redacted (you know the layer, not the name) */
+/* the exhibition guide — a small sheet above the tally: lit exhibits are
+   named and clickable, dark ones stay redacted (you know the number and the
+   layer, not the name); then exhibit 11, and the way to the rest of the
+   collection */
 .manifest {
   position: absolute;
   right: 0;
@@ -307,11 +309,68 @@
 .manifest__reset:focus-visible {
   color: var(--ink);
 }
-.manifest__foot {
-  margin: 0.65rem 0 0;
+.manifest__no {
+  min-width: 1.6em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-40);
+}
+.manifest__layer li button:not(.manifest__dark) .manifest__no {
+  color: var(--accent-ink);
+}
+/* exhibit 11, in the Passion colour once it's ready */
+.manifest__next button,
+.manifest__next .manifest__dark {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  width: 100%;
+  padding: 0.18em 0.3em;
+  margin-inline: -0.3em;
+  font: inherit;
+  font-size: var(--step--2);
+  letter-spacing: 0.04em;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-s);
+}
+.manifest__next button {
+  color: var(--ink);
+  cursor: pointer;
+}
+.manifest__next button i[data-on] {
+  background: var(--pink);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--pink) 60%, transparent);
+}
+.manifest__next button .manifest__no,
+.manifest__next button .manifest__go {
+  color: var(--pink);
+  opacity: 1;
+}
+.manifest__next button:hover,
+.manifest__next button:focus-visible {
+  background: var(--surface-2);
+}
+.manifest__next .manifest__dark {
+  cursor: default;
+}
+.manifest__when {
+  margin-left: auto;
+  color: var(--ink-40);
+}
+.manifest__more {
+  display: block;
+  margin-top: 0.6rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--hairline);
   font-size: var(--step--2);
   letter-spacing: 0.05em;
-  color: var(--ink-40);
+  color: var(--accent-ink);
+  text-decoration: none;
+}
+.manifest__more:hover,
+.manifest__more:focus-visible {
+  color: var(--ink);
 }
 .hero__signals-pips {
   display: inline-flex;

@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { SceneCanvas } from '../components/SceneCanvas';
 import { IntroCard } from '../components/IntroCard';
@@ -6,6 +6,7 @@ import { BootVeil } from '../components/BootVeil';
 import { FocusReticle } from '../components/FocusReticle';
 import { HomeLayout } from '../components/HomeLayout';
 import { NodeHud } from '../components/NodeHud';
+import { NotFound } from '../components/NotFound';
 import { CvPage } from '../components/CvPage';
 import { ProjectsPage } from '../components/ProjectsPage';
 import { ScrollToHash } from '../components/ScrollToHash';
@@ -55,11 +56,12 @@ export function App() {
           <Route element={<HomeLayout />}>
             <Route index element={null} />
             <Route path="work/:slug" element={<NodeHud />} />
+            {/* a wrong address: a closed room, with the exhibition behind it */}
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Route>
         <Route path="cv" element={<CvPage />} />
         <Route path="projects" element={<ProjectsPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { caseBySlug, site } from '../content';
+import { Link, useNavigate } from 'react-router-dom';
+import { caseBySlug, cases, site } from '../content';
+import { EXHIBITS, NEXT_LAUNCH_NO, exhibitNo, pad2 } from '../content/exhibits';
 import { sceneStore, useSceneSelector } from '../scene/store';
 import { HOTSPOTS } from '../scene/framing';
 import { useReducedMotion } from '../lib/useReducedMotion';
@@ -20,9 +21,10 @@ const CAPTIONS = [
   { index: '03', name: 'chip', blurb: 'the tools supporting it all', accent: 'var(--lime)' },
 ];
 
-// The exploration game: every object in the maquette IS a project — click one
-// and it comes alive. The tally is quiet instrument chrome that doubles as the
-// model manifest (which projects stand where, which are still dark); it steps
+// The exploration game: every object in the maquette IS a project, an exhibit
+// numbered 01–10 — click one and it lights up. The tally is quiet instrument
+// chrome that doubles as the exhibition guide (which exhibit stands where,
+// which are still dark, and exhibit 11, the launch they add up to); it steps
 // once a hotspot's HUD closes and the zoom-out has settled, not the instant it
 // opens, so the visitor watches the model fill in rather than seeing the
 // number jump while still looking at a close-up. 10/10 triggers the world's
@@ -42,14 +44,16 @@ const LAYERS = [
 // they're still looking at the close-up and never see the model fill in.
 const TALLY_SETTLE_MS = 900;
 /** The tally's words: the count, and what it's counting toward. The model
- *  assembles the next launch as projects wake, so the label names that goal
- *  from the first glance, counts down the last two, and says when it's ready. */
+ *  assembles the next launch as exhibits light up, so the label names that
+ *  goal from the first glance, counts down the last two, and says when it's ready. */
 function tallyLabel(n: number): string {
-  if (n >= TOTAL) return `${TOTAL}/${TOTAL} · ready to launch`;
-  if (n === 0) return `0/${TOTAL} · wake ${TOTAL} to launch`;
-  if (n >= TOTAL - 2) return `${n}/${TOTAL} · ${TOTAL - n} to go`;
-  return `${n}/${TOTAL} · stacking the next launch`;
+  if (n >= TOTAL) return `${TOTAL}/${TOTAL} lit · ready to launch`;
+  if (n === 0) return `0/${TOTAL} lit · light all ${TOTAL} to launch`;
+  if (n >= TOTAL - 2) return `${n}/${TOTAL} lit · ${TOTAL - n} to go`;
+  return `${n}/${TOTAL} lit · stacking the next launch`;
 }
+/** The projects that aren't in the model: on the timeline and /projects. */
+const IN_COLLECTION = cases.filter((c) => !EXHIBITS.includes(c.slug)).length;
 // What the finger does on a touch screen, what the pointer does elsewhere —
 // the same words the crosshair's cue uses.
 const PRESS = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches ? 'tap' : 'click';
@@ -195,6 +199,14 @@ export function HeroStage() {
     setManifestOpen(false);
     navigate(`/work/${slug}`);
   };
+  // exhibit 11: up to the city, where the pad stands, and onto it
+  const openPad = () => {
+    setManifestOpen(false);
+    const hero = heroRef.current;
+    if (hero) window.scrollTo({ top: hero.offsetTop });
+    sceneStore.setJourneyStep(0);
+    sceneStore.setLaunch('pad');
+  };
 
   return (
     <section id="hero" className="hero" ref={heroRef} aria-label="Introduction">
@@ -229,15 +241,15 @@ export function HeroStage() {
       >
         {cue && (
           <p className="hero__hint" aria-hidden="true">
-            {PRESS} a project awake — all ten launch the next one
+            {PRESS} an exhibit to light it — all ten launch the next one
           </p>
         )}
         {manifestOpen && (
-          <div className="manifest" role="dialog" aria-label="Projects in this model">
+          <div className="manifest" role="dialog" aria-label="Exhibition guide">
             <div className="manifest__head">
-              <b>the model</b>
+              <b>exhibition guide</b>
               <span>
-                {found}/{TOTAL} live
+                {found}/{TOTAL} lit
               </span>
             </div>
             {LAYERS.map((l) => (
@@ -249,23 +261,26 @@ export function HeroStage() {
                   {HOTSPOTS.filter((h) => h.layer === l.key).map((h) => {
                     const c = caseBySlug(h.slug);
                     const on = visited.includes(h.slug);
+                    const no = pad2(exhibitNo(h.slug) ?? 0);
                     return (
                       <li key={h.slug}>
                         {on ? (
                           <button type="button" onClick={() => openFromManifest(h.slug)}>
                             <i data-on="" />
+                            <span className="manifest__no">{no}</span>
                             {c?.title ?? h.slug}
                           </button>
                         ) : (
                           // still dark: its name stays redacted, but it's a way
-                          // there — the camera flies to it and it wakes
+                          // there — the camera flies to it and it lights up
                           <button
                             type="button"
                             className="manifest__dark"
                             onClick={() => openFromManifest(h.slug)}
-                            aria-label={`Fly to a project you haven't woken yet, in the ${l.name}`}
+                            aria-label={`Fly to exhibit ${no}, still dark, in the ${l.name}`}
                           >
                             <i />
+                            <span className="manifest__no">{no}</span>
                             <span aria-hidden="true">{'▓'.repeat(Math.min(12, Math.max(6, (c?.title ?? h.slug).length)))}</span>
                             <span className="manifest__go" aria-hidden="true">
                               fly there →
@@ -278,11 +293,27 @@ export function HeroStage() {
                 </ul>
               </div>
             ))}
-            <p className="manifest__foot">
-              {found === TOTAL
-                ? 'every project is live — the next one is a rocket, ready to launch'
-                : 'every object is a project — wake all ten to launch the next one'}
-            </p>
+            {/* exhibit 11: what the ten add up to */}
+            <div className="manifest__layer manifest__next">
+              {found === TOTAL ? (
+                <button type="button" onClick={openPad}>
+                  <i data-on="" />
+                  <span className="manifest__no">{NEXT_LAUNCH_NO}</span>
+                  The next launch
+                  <span className="manifest__go">on the pad →</span>
+                </button>
+              ) : (
+                <span className="manifest__dark">
+                  <i />
+                  <span className="manifest__no">{NEXT_LAUNCH_NO}</span>
+                  The next launch
+                  <span className="manifest__when">lights at {TOTAL}</span>
+                </span>
+              )}
+            </div>
+            <Link className="manifest__more" to="/projects" onClick={() => setManifestOpen(false)}>
+              {IN_COLLECTION} more in the collection <span aria-hidden="true">→</span>
+            </Link>
             {found > 0 && (
               <button
                 type="button"
@@ -325,7 +356,7 @@ export function HeroStage() {
           >
             {tallyLabel(revealed)}
           </span>
-          <span className="visually-hidden"> — the manifest of projects</span>
+          <span className="visually-hidden"> — the exhibition guide</span>
         </button>
       </div>
 

@@ -6,13 +6,14 @@ import { type CSSProperties } from 'react';
 import { Html } from '@react-three/drei';
 import { sceneStore } from '../store';
 import { caseBySlug } from '../../content';
+import { exhibitNo, pad2 } from '../../content/exhibits';
 import { Scramble } from '../../components/Scramble';
 import { type Hotspot } from '../framing';
 import { Line, useActive, type V3 } from './shared';
 
 // Touch has no hover and no click, so the cue says what the finger does.
 const CUE_TEXT =
-  typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches ? 'tap to wake' : 'click to wake';
+  typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches ? 'tap to light it' : 'click to light it';
 
 export function HotspotMarker({
   hotspot,
@@ -34,6 +35,9 @@ export function HotspotMarker({
 }) {
   const study = caseBySlug(hotspot.slug);
   const label = study?.title ?? hotspot.slug;
+  // its exhibit number, stencilled beside the crosshair like a gallery's floor number
+  const no = exhibitNo(hotspot.slug);
+  const tag = no !== null ? pad2(no) : null;
   const { selected, visited } = useActive(hotspot.slug);
   // The marker is the invitation to click — it always carries the layer
   // accent so it stands out against the ghost world, growing a touch
@@ -62,7 +66,7 @@ export function HotspotMarker({
           <button
             type="button"
             className="hotspot__dot"
-            aria-label={`${label} — open node`}
+            aria-label={tag ? `Exhibit ${tag}, ${label}` : label}
             onPointerEnter={() => sceneStore.setHovered(hotspot.slug)}
             onPointerLeave={() => sceneStore.setHovered(null)}
             onFocus={() => sceneStore.setHovered(hotspot.slug)}
@@ -80,11 +84,19 @@ export function HotspotMarker({
               <i />
               <i />
             </span>
+            {tag && (
+              <span className="hotspot__no" aria-hidden="true">
+                {tag}
+              </span>
+            )}
             <span className="hotspot__label">
-              <span className="hotspot__label-fill">{label}</span>
+              <span className="hotspot__label-fill">
+                {tag && <b>{tag}</b>}
+                {label}
+              </span>
             </span>
             {/* The first-visit cue's tag, decoding in under the name. Decoration:
-                the button already says what it does ("… — open node"). */}
+                the button already says which exhibit it opens. */}
             {cue === 'lead' && (
               <span className="hotspot__cue" aria-hidden="true">
                 <Scramble text={CUE_TEXT} delay={240} />

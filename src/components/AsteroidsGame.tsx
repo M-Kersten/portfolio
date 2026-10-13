@@ -47,7 +47,7 @@ interface Hazard {
 
 const HAZARDS: Hazard[] = [
   // Stage 1 — nothing is built yet, so the hazards are people and inheritance.
-  { label: 'ANOTHER MEETING', from: 1, line: "The well known 'we'll just have a quick meeting' that takes 1-2 hours." },
+  { label: 'ANOTHER MEETING', from: 1, line: "The well-known 'we'll just have a quick meeting' that takes one to two hours." },
   {
     label: 'SCOPE CREEP',
     from: 1,
@@ -57,7 +57,7 @@ const HAZARDS: Hazard[] = [
   {
     label: 'CAN WE PUT AI IN THIS?',
     from: 1,
-    line: 'A client asked if we could train an LLM to answer a simple question, why not right?',
+    line: 'A client asked if we could train an LLM to answer one simple question. Why not, right?',
     splits: ['EXPLAIN TRADE OFFS', 'SHOW THE COSTS'],
   },
   {
@@ -88,10 +88,10 @@ const HAZARDS: Hazard[] = [
   {
     label: 'LOST SDK KEYS',
     from: 2,
-    line: 'We decided on storing keys on a shared drive, can you guess what happened when the senior dev left?',
+    line: 'We kept the keys on a shared drive. Can you guess what happened when the senior dev left?',
     splits: ['RECOVER KEYS', 'ACTUALLY STORE THEM'],
   },
-  { label: 'GPS DRIFT', from: 2, line: 'At Alliander the hologram had to be perfectly placed but GPS had other plans that day.' },
+  { label: 'GPS DRIFT', from: 2, line: 'At Alliander the hologram had to sit perfectly in place, but GPS had other plans that day.' },
   // Stage 3 — it's on someone else's hardware, in someone else's room, now.
   {
     label: 'WORKS ON MY MACHINE',
@@ -116,13 +116,13 @@ const CHILD_LINES: Record<string, string> = {
   'BUILD LOG': 'The build failed. The log is 2,000 lines long. Good luck.',
   EMULATE: "Let's see how we can actually test this on the users' machine without shipping it to them.",
   'RECOVER KEYS': 'The SDK vendor emailed me a new key. I had to email them back to get it.',
-  'ACTUALLY STORE THEM': 'The SDK vendor emailed me a new key. I had to email them back to get it.',
-  // These two split children had no line at all, so clearing them said nothing.
-  // Placeholders in your voice — reword or delete them as you like.
+  'ACTUALLY STORE THEM': 'In a password vault this time, not in a folder called keys.',
+  // Placeholder lines, written for the split children that had none (so
+  // clearing them said nothing). Reword them in your own voice.
   'WRITE TESTS': 'The tests I skipped to save an afternoon cost me the whole week.',
-  'TEST AGAIN': 'On the real device this time. It is never the same as the editor.',
+  'TEST AGAIN': 'On the real device this time. It never behaves like it did in the editor.',
   'EXPLAIN TRADE OFFS': "It's never as simple as 'just add AI'. I have to explain the trade-offs and the risks.",
-  'SHOW THE COSTS': "AI is not magic, it's expensive!",
+  'SHOW THE COSTS': "AI isn't magic. It's expensive!",
 };
 
 const SPLITS: Record<string, [string, string]> = Object.fromEntries(
@@ -149,7 +149,7 @@ const PHASES: string[] = [
   "Kickoff survived. Now we find out what we actually agreed to.",
   "Architecture's holding... Now let's actually build something.",
   "That's the demo done! Nothing broke while anyone important was watching.",
-  "We're live! Just when we thought it's done the support tickets start rolling in.",
+  "We're live! Just when we thought it was done, the support tickets start rolling in.",
   "Post-launch... Another update to ship, another wave of bugs.",
 ];
 // Past the arc, it's maintenance — which does not end, so these just alternate.

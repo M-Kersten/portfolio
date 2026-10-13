@@ -14,76 +14,57 @@
   padding-bottom: clamp(2rem, 9vh, 6rem);
 }
 .launch__panel {
+  /* exhibit 11's label: the same hand as the ten before it (exhibit.css), in
+     the Passion tag's colour, standing under the rocket */
+  --card-accent: var(--pink);
+  position: relative;
   pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1.2rem 1.6rem 1.3rem;
-  max-width: min(92vw, 32rem);
-  text-align: center;
-  background: color-mix(in srgb, var(--paper) 80%, transparent);
+  display: grid;
+  gap: 0.6rem;
+  width: min(92vw, 27rem);
+  max-height: calc(100svh - 7rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 1.1rem 1.35rem 1rem;
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
   backdrop-filter: blur(8px);
   animation: launch-rise var(--t-base) var(--ease);
 }
-.launch__mission {
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  letter-spacing: 0.22em;
-  color: var(--accent-ink);
+.launch__panel .xl__no b {
+  font-size: var(--step-2);
 }
-.launch__mission {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5em 0.7em;
-}
-.launch__flight {
-  white-space: nowrap;
+.launch__panel .voice {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
 }
 /* the site's Passion tag, in its one colour */
 .launch__tag {
   padding: 0.15em 0.5em;
   border: 1px solid var(--pink);
   border-radius: var(--radius-s);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
   color: var(--pink);
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 .launch__story {
   margin: 0;
-  font-size: 0.92rem;
-  line-height: 1.5;
-  color: var(--ink);
-  max-width: 34rem;
-}
-.launch__lede {
-  margin: 0.1rem 0 0;
-  font-size: 1.02rem;
-  line-height: 1.35;
-  color: var(--ink);
-  text-wrap: balance;
+  font-size: var(--step--1);
+  line-height: 1.55;
+  color: var(--ink-80, var(--ink-60));
 }
 .launch__brief {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: var(--step--2);
   color: var(--ink-60);
   letter-spacing: 0.02em;
-  line-height: 1.4;
-  text-wrap: balance;
+  line-height: 1.5;
 }
-/* the global odometer — appears only once the count has loaded. The count
-   itself takes the accent so it reads as a live figure being tallied, not a
-   caption; --ink-40 (used here before) all but disappeared on this panel. */
+/* the global odometer — appears only once the count has loaded */
 .launch__tally {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  color: var(--ink-60);
   font-variant-numeric: tabular-nums;
 }
 .launch__tally b {
@@ -93,9 +74,10 @@
 }
 .launch__row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-s);
-  margin-top: 0.3rem;
+  gap: var(--space-xs, 0.6rem);
+  margin-top: 0.2rem;
 }
 .launch__go {
   font-family: var(--font-mono);
@@ -107,6 +89,10 @@
 @keyframes launch-arm {
   from { box-shadow: 0 0 0 0 transparent; }
   to { box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 45%, transparent); }
+}
+.launch__panel .launch__abort {
+  justify-self: start;
+  padding: 0.2rem 0;
 }
 .launch__abort {
   font-family: var(--font-mono);

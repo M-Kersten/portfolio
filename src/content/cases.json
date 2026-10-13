@@ -9,9 +9,9 @@
     "discipline": [
       "VR"
     ],
-    "problem": "I joined a VR training sim project that had been in the works for years, and my job was to add multiplayer and VR support to it, quite a task.",
-    "approach": "A lot of careful surgery later, instructors could run shared scenarios together in VR, desktop, in editor, it all works. I was responsible for development, lots of refactoring of code architecture and for the UX flow of the whole application. It gets wheeled out at events and will replace the previous software package used in training new KMar agents, which I’m pretty proud of.",
-    "outcome": "Multiplayer VR, retrofitted into a long running project",
+    "problem": "I joined a VR training sim project that had been in the works for years, and my job was to add multiplayer and VR support to it. Quite a task.",
+    "approach": "A lot of careful surgery later, instructors could run shared scenarios together in VR, on desktop or in the editor: it all works. I was responsible for development, lots of refactoring of code architecture and for the UX flow of the whole application. It gets wheeled out at events and will replace the previous software package used in training new KMar agents, which I’m pretty proud of.",
+    "outcome": "Multiplayer VR, retrofitted into a long-running project",
     "tech": [
       "Unity",
       "C#",
@@ -39,8 +39,8 @@
       "AR",
       "Geo"
     ],
-    "problem": "Alliander has to drop transformers into neighbourhoods where people are not waiting for an ugly box in view so they complain, but the energy transition has to start somewhere. Paper plans were used to decide on a location, this could be improved upon.",
-    "approach": "We combined RTK GPS, an Android phone, a HoloLens and a backend together so specialists could literally see the transformer house floating in exactly the right spot on the real street, to the centimeter. The sighting can be saved and reviewed, visuals give an immediate idea of the resulting environment. I was responsible for development and for the UX flow of the application.",
+    "problem": "Alliander has to drop transformers into neighbourhoods where nobody wants an ugly box in view, so people complain, but the energy transition has to start somewhere. Locations were decided on paper plans, and that could be improved upon.",
+    "approach": "We combined RTK GPS, an Android phone, a HoloLens and a backend together so specialists could literally see the transformer house floating in exactly the right spot on the real street, to the centimetre. The sighting can be saved and reviewed, and the visuals give an immediate idea of the resulting environment. I was responsible for development and for the UX flow of the application.",
     "outcome": "Visuals that line up with the world to the cm",
     "tech": [
       "HoloLens",
@@ -49,7 +49,7 @@
       "Figma",
       "Azure"
     ],
-    "lesson": "The tech was the easy half. But getting it to fit how an organisation actually works was the real puzzle and eventual downfall of this project, it did not catch on due to impracticalities. If it were up to me I would not choose a HoloLens but an iPad instead.",
+    "lesson": "The tech was the easy half. But getting it to fit how an organisation actually works was the real puzzle, and the eventual downfall of this project: it did not catch on due to impracticalities. If it were up to me, I would choose an iPad over a HoloLens.",
     "year": "2024-06",
     "video": "https://www.youtube.com/watch?v=2HM8ZNnEKeU",
     "links": [
@@ -68,7 +68,7 @@
     "discipline": [
       "Geo"
     ],
-    "problem": "Engineers were driving out to the same sites over and over, to check the measurements and sizing of a transformer house",
+    "problem": "Engineers were driving out to the same sites over and over, to check the measurements and sizing of a transformer house.",
     "approach": "I built a web tool that mashes laser scans, 360° photos and equipment models together, so they could walk the site from their desk and try things out before anyone got in a van.",
     "outcome": "Site visits you can do from your chair",
     "tech": [
@@ -77,7 +77,7 @@
       "WebGL",
       "Geo-data"
     ],
-    "lesson": "Technically it worked great, but the organisation wasn’t quite ready to change how it worked so it never fully landed.",
+    "lesson": "Technically it worked great, but the organisation wasn’t quite ready to change how it worked, so it never fully landed.",
     "year": "2024-06",
     "links": [
       {
@@ -98,7 +98,7 @@
       "Installation"
     ],
     "problem": "Niantic wanted to hand event visitors a real photo with their favourite characters from the IPs they work with. Think Pokémon, Monster Hunter beasts, basketball stars, the Niantic mascot. It all had to work first time, on a busy show floor, in a different city every other week.",
-    "approach": "ARCam, an AR photo installation I built at Wonderment for Niantic. An iPad running the Lightship SDK drops the characters into the scene through a viewfinder that came in a few builds, a sturdy pedestal and 2 portable tripod rigs. Two modes: take a photo with the characters (the main event) or pan around to spot location-based highlights out in the world.",
+    "approach": "ARCam, an AR photo installation I built at Wonderment for Niantic. An iPad running the Lightship SDK drops the characters into the scene through a viewfinder that came in a few builds: a sturdy pedestal and two portable tripod rigs. Two modes: take a photo with the characters (the main event) or pan around to spot location-based highlights out in the world.",
     "outcome": "ARCam activations, 16 cities worldwide, all packed in a suitcase",
     "tech": [
       "Lightship ARDK",
@@ -127,8 +127,8 @@
       "AR",
       "Geo"
     ],
-    "problem": "We kept circling the same question: what can you actually build when digital content is pinned to a real place, how can we tell stories about the places you visit?",
-    "approach": "A run of location-based experiments: GPS and map-anchored AR prototypes that tie content to real coordinates, poking at how it behaves out in the wild rather than on a tidy desk. I'm especially proud of a concept I developed myself completely which guides a tourist through the landings from operation Market Garden, which shows the allied liberation attempt at my birthplace, a story I really wanted to help tell.",
+    "problem": "We kept circling the same question: what can you actually build when digital content is pinned to a real place, and how can we tell stories about the places you visit?",
+    "approach": "A run of location-based experiments: GPS and map-anchored AR prototypes that tie content to real coordinates, poking at how it behaves out in the wild rather than on a tidy desk. I'm especially proud of a concept I developed entirely myself, which guides a tourist through the landings of Operation Market Garden: the Allied liberation attempt at my birthplace, a story I really wanted to help tell.",
     "outcome": "A bunch of location-anchored AR prototypes",
     "tech": [
       "GPS",
@@ -157,7 +157,7 @@
       "AR",
       "VR"
     ],
-    "problem": "How do I get started building interesting projects that ship to big clients? That was when I landed an internship at DTT where I quickly learned that this was the right career for me even through the challenges that came up from time to time",
+    "problem": "How do I get started building interesting projects that ship to big clients? That was when I landed an internship at DTT, where I quickly learned that this was the right career for me, even through the challenges that came up from time to time.",
     "approach": "I worked across a run of projects here: educational reading games, iOS optimization, a space VR experience, an AR sample & showcase app that shows off what the tech can do.",
     "outcome": "A shelf of shipped AR / VR / app projects, a flying start to my experience working in and even leading a team of developers",
     "tech": [
@@ -187,7 +187,7 @@
       "AR",
       "Games"
     ],
-    "problem": "Show off shared, multiplayer AR on a noisy trade-show floor with terrible connection, about the most difficult environment you can imagine for a tech demo.",
+    "problem": "Show off shared, multiplayer AR on a noisy trade-show floor with a terrible connection, about the most difficult environment you can imagine for a tech demo.",
     "approach": "A multiplayer AR racing game with spectator screens, synced audio and a server holding it all together. People racing little AR cars across a real table together. The track on the table changes every 30 seconds, the cars play a version of tag where the crown can be captured from the leading player.",
     "outcome": "AR races on a show floor (and they actually worked)",
     "tech": [
@@ -197,7 +197,7 @@
       "Lightship ARDK"
     ],
     "follows": "arcam",
-    "lesson": "Build assuming things will fail, because on a show floor they absolutely will. In this case the server SDK was brand new and cut off sessions after some 10 minutes, not seeing a fix I introduced a 'you won! give the phone to the next visitor' popup when the server decided to close.",
+    "lesson": "Build assuming things will fail, because on a show floor they absolutely will. In this case the server SDK was brand new and cut sessions off after about 10 minutes. With no fix in sight, I added a 'You won! Give the phone to the next visitor' popup for when the server decided to close.",
     "year": "2023-06",
     "video": "https://youtu.be/pXhApOdiq9g",
     "links": [
@@ -217,7 +217,7 @@
     "discipline": [
       "AR"
     ],
-    "problem": "Zwijsen approached me with an interesting assignment. There was a new edition of a classic book coming out, they wanted to spotlight this release with a companion app that would bring the book to life.",
+    "problem": "Zwijsen approached me with an interesting assignment. There was a new edition of a classic book coming out, and they wanted to spotlight this release with a companion app that would bring the book to life.",
     "approach": "I designed, built and shipped the AR app, from concepting and UX to the technical details of store page submissions. The release was so successful that we ended up doing 6 more book releases and a series of audiobook apps tied to printed books via QR codes.",
     "outcome": "The apps ended up on tens of thousands of phones",
     "tech": [
@@ -245,7 +245,7 @@
     "discipline": [
       "Games"
     ],
-    "problem": "Hyper-casual games live and die by speed: it should ship fast, perform well, and kill it if it flops, then repeat the cycle. Question is: can we make the next hit game?",
+    "problem": "Hyper-casual games live and die by speed: ship fast, perform well, kill it if it flops, then repeat the cycle. The question is: can we make the next hit game?",
     "approach": "I built new games but also additions to existing titles, multiplayer features and tools for level and game designers, including for big titles like Parking Jam and Pull the Pin.",
     "outcome": "Lots of tiny games, shipped fast",
     "tech": [
@@ -285,7 +285,7 @@
       "Vision Pro",
       "AI"
     ],
-    "lesson": "Research is as much about finding out what you shouldn’t build as what you should. “This isn’t worth it” is still a valuable outcome, better to find that out early than late.",
+    "lesson": "Research is as much about finding out what you shouldn’t build as what you should. “This isn’t worth it” is still a valuable outcome; better to find that out early than late.",
     "year": "2025-03",
     "video": "https://www.youtube.com/watch?v=lDBxik5v1e0",
     "links": [
@@ -317,7 +317,7 @@
       "Generative AI"
     ],
     "follows": "philips-medical-xr",
-    "lesson": "Just because you can automate the human out of something doesn’t mean you should. This prototype was functional and I made tutorials, documentation, everything. Still it wasn't doing what we hoped it did and ended up on the shelf.",
+    "lesson": "Just because you can automate the human out of something doesn’t mean you should. This prototype was functional and I made tutorials, documentation, everything. Still, it didn't do what we hoped it would, and it ended up on the shelf.",
     "year": "2025-06",
     "video": "https://youtu.be/8UI8EQKnCTY",
     "links": [
@@ -338,8 +338,8 @@
       "AR"
     ],
     "problem": "Back before AR Foundation existed, ARKit and ARCore were two separate worlds, and cross-platform AR meant maintaining two codebases. Could we bridge this divide?",
-    "approach": "For my graduation I built a framework that unified both behind one API and even ran cloud anchors so the experience could be shared between an Android and iPhone",
-    "outcome": "Two AR platforms working together in one tidy API. The lesson was mostly a technical one, how to set up this project so it will be maintainable and used in the future.",
+    "approach": "For my graduation I built a framework that unified both behind one API and even ran cloud anchors so the experience could be shared between an Android phone and an iPhone.",
+    "outcome": "Two AR platforms working together in one tidy API",
     "tech": [
       "ARCore",
       "ARKit",
@@ -397,7 +397,7 @@
       "C#",
       "FMOD"
     ],
-    "lesson": "This was the first project that showed me software isn't just about writing good code. Every technical decision influences the experience someone has on screen. Winning first place throughout the competition was rewarding, but the bigger takeaway was learning how to align programmers, artists and designers around a single creative vision.",
+    "lesson": "This was the first project that showed me software isn't just about writing good code. Every technical decision influences the experience someone has on screen. Winning first place in the competition was rewarding, but the bigger takeaway was learning how to align programmers, artists and designers around a single creative vision.",
     "year": "2017",
     "video": "https://youtu.be/ZyWztEz-mkw",
     "archive": true

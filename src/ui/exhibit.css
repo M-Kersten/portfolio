@@ -338,6 +338,19 @@
   fill: var(--card-accent);
 }
 
+/* ---------- a closed room (the 404, NotFound.tsx) ---------- */
+.closed__label .xl__curator {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
+}
+.closed__ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  padding-top: 0.3rem;
+}
+
 /* ---------- the book ---------- */
 .xb {
   position: fixed;
