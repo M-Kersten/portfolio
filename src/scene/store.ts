@@ -33,6 +33,12 @@ interface SceneState {
   /** Slugs the visitor has opened at least once. Their objects stay "alive"
    *  (lifelike colour + a gentle idle), so exploring brings the scene to life. */
   visited: string[];
+  /** How many woken projects the model SHOWS: it trails `visited` and steps
+   *  only once a project's dossier has closed and the camera has zoomed back
+   *  out (HeroStage sets it), so the tally ticks and the rocket's next piece
+   *  rises on the pad at the same moment, in view, rather than while the
+   *  visitor is still looking at a close-up. */
+  settled: number;
   /** Set (once, to performance.now()) the moment every hotspot has been
    *  visited — "all systems live". Drives the 10/10 tally state. */
   completedAt: number | null;
@@ -74,6 +80,40 @@ interface SceneState {
   booted: boolean;
 }
 
+/** The woken projects, remembered in a cookie so a returning visitor finds
+ *  the model as they left it (a functional first-party cookie: it holds the
+ *  slugs and nothing else, and never leaves this browser for anywhere but this
+ *  site). Only slugs that are still hotspots count. */
+const WOKEN_COOKIE = 'mk-woken';
+const YEAR = 60 * 60 * 24 * 365;
+function readWoken(): string[] {
+  try {
+    const m = document.cookie.match(new RegExp(`(?:^|; )${WOKEN_COOKIE}=([^;]*)`));
+    if (!m) return [];
+    const slugs = decodeURIComponent(m[1]).split(',');
+    return HOTSPOTS.map((h) => h.slug).filter((slug) => slugs.includes(slug));
+  } catch {
+    return [];
+  }
+}
+function writeWoken(visited: string[]) {
+  try {
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+    const value = encodeURIComponent(visited.join(','));
+    document.cookie = visited.length
+      ? `${WOKEN_COOKIE}=${value}; Max-Age=${YEAR}; Path=/; SameSite=Lax${secure}`
+      : `${WOKEN_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+  } catch {
+    /* cookies blocked: the model just starts dark next time */
+  }
+}
+const woken = typeof document !== 'undefined' ? readWoken() : [];
+const wokenAll = woken.length === HOTSPOTS.length;
+/** A moment long past, for a model that was already complete when the page
+ *  loaded: everything that plays out from the celebration (the burst, the pad
+ *  lighting) reads as long finished, and the launch is simply there. */
+const LONG_AGO = -1e7;
+
 /** localStorage flag: this browser has opened a project, so the cue is done. */
 const CUE_KEY = 'mk-model-hint';
 function cueDone(): boolean {
@@ -88,15 +128,16 @@ let state: SceneState = {
   journeyStep: 0,
   selectedSlug: null,
   hoveredSlug: null,
-  visited: [],
-  completedAt: null,
+  visited: woken,
+  settled: woken.length,
+  completedAt: wokenAll ? LONG_AGO : null,
   celebrationPending: false,
-  celebrateAt: null,
+  celebrateAt: wokenAll ? LONG_AGO : null,
   launch: 'idle',
   introOver: false,
   reticleStart: null,
   zoomSettled: true,
-  cue: typeof window !== 'undefined' && !cueDone(),
+  cue: typeof window !== 'undefined' && woken.length === 0 && !cueDone(),
   booted: false,
 };
 
@@ -144,7 +185,18 @@ export const sceneStore = {
     if (state.visited.includes(slug)) return;
     const visited = [...state.visited, slug];
     const complete = state.completedAt === null && HOTSPOTS.every((h) => visited.includes(h.slug));
+    if (HOTSPOTS.some((h) => h.slug === slug)) writeWoken(visited.filter((v) => HOTSPOTS.some((h) => h.slug === v)));
     set(complete ? { visited, completedAt: performance.now(), celebrationPending: true } : { visited });
+  },
+  /** The model catches up with the visits (see `settled`). */
+  settle(settled: number) {
+    if (settled !== state.settled) set({ settled });
+  },
+  /** Start the tour over: every project dark again, the pad back to a survey
+   *  plot, and the cookie cleared. */
+  resetVisited() {
+    writeWoken([]);
+    set({ visited: [], settled: 0, completedAt: null, celebrationPending: false, celebrateAt: null });
   },
   /** Consume the pending celebration (called when the 10th node's HUD closes). */
   celebrate() {

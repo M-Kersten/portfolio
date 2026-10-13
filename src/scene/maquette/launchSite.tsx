@@ -103,10 +103,22 @@ const SHIP_NOZZLES = SHIP_RINGS.flatMap(({ n, r, ph }, k) =>
 export function NextProjectSite() {
   const { accent } = useAccent();
   const celebrateAt = useSceneSelector((s) => s.celebrateAt);
-  const built = useSceneSelector((s) => s.visited.length); // assembly progress
+  // assembly progress: the model's settled count (scene store), which steps
+  // once a project's dossier has closed and the camera is back out, so each
+  // new piece rises in view, as the tally ticks
+  const reduced = useReducedMotion();
+  const built = useSceneSelector((s) => s.settled);
+  // …and a quiet ping across the apron as it does: the cause and effect of
+  // "I woke a project and the rocket grew"
+  const ping = useRef<Mesh>(null);
+  const pingAt = useRef(-1);
+  const lastBuilt = useRef(built);
+  if (built !== lastBuilt.current) {
+    if (built > lastBuilt.current && !reduced) pingAt.current = performance.now();
+    lastBuilt.current = built;
+  }
   const launch = useSceneSelector((s) => s.launch);
   const flights = useLaunchCount(); // global odometer, null until known
-  const reduced = useReducedMotion();
   const pad = useRef<Group>(null); // the stack's own frame: its base at the origin
   const rocket = useRef<Group>(null); // the clickable stack (hums through the count)
   const booster = useRef<Group>(null);
@@ -140,9 +152,28 @@ export function NextProjectSite() {
     const realDt = Math.min(delta, 1 / 30);
     // the beacon powers on with the 10th project (the site is complete) — a
     // faint standby ember while the vehicle is still being assembled
+    // …and with two to go it starts to blink, slowly: the pad is nearly ready
     if (beaconMat.current) {
+      const nearly = built >= HOTSPOTS.length - 2;
       beaconMat.current.emissiveIntensity =
-        celebrateAt === null ? 0.06 : reduced ? 0.8 : 0.3 + (Math.sin(s.clock.elapsedTime * 2.4) > 0.7 ? 1.6 : 0);
+        celebrateAt !== null
+          ? reduced
+            ? 0.8
+            : 0.3 + (Math.sin(s.clock.elapsedTime * 2.4) > 0.7 ? 1.6 : 0)
+          : nearly && !reduced
+            ? 0.06 + (Math.sin(s.clock.elapsedTime * 1.3) > 0.82 ? 0.7 : 0)
+            : 0.06;
+    }
+    // the apron's ping as a piece arrives: a ring running out across the plot
+    const pg = ping.current;
+    if (pg) {
+      const k = pingAt.current < 0 ? 1 : (performance.now() - pingAt.current) / 1600;
+      pg.visible = k < 1;
+      if (k < 1) {
+        const e = 1 - (1 - k) * (1 - k);
+        pg.scale.setScalar(0.03 + 0.19 * e);
+        (pg.material as MeshBasicMaterial).opacity = 0.55 * (1 - k);
+      }
     }
 
     const r = rocket.current;
@@ -417,6 +448,11 @@ export function NextProjectSite() {
       <mesh position={[-0.02, 0.003, 0.03]}>
         <cylinderGeometry args={[0.2, 0.21, 0.006, 32]} />
         <meshStandardMaterial color={GHOST_FILL} transparent opacity={0.28} />
+      </mesh>
+      {/* the ping as a piece arrives (see `ping` above) */}
+      <mesh ref={ping} position={[-0.02, 0.009, 0.03]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+        <ringGeometry args={[0.93, 1, 48]} />
+        <meshBasicMaterial color={accent} transparent opacity={0} depthWrite={false} toneMapped={false} />
       </mesh>
       {/* surveyor's corner brackets — the plot is marked out until the build
           is complete, then the marks come up */}

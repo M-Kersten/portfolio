@@ -184,7 +184,7 @@
   right: 0;
   bottom: calc(100% + 0.8rem);
   width: 17rem;
-  max-height: min(60vh, 26rem);
+  max-height: min(70vh, 30rem);
   overflow-y: auto;
   padding: 0.8rem 0.95rem 0.7rem;
   background: color-mix(in srgb, var(--paper) 88%, transparent);
@@ -268,6 +268,45 @@
   background: var(--accent);
   box-shadow: 0 0 6px var(--accent-glow);
 }
+.manifest__dark {
+  cursor: pointer;
+}
+.manifest__dark:hover,
+.manifest__dark:focus-visible {
+  background: var(--surface-2);
+  color: var(--ink-60);
+}
+/* a dark project's way there, shown as you point at it */
+.manifest__go {
+  margin-left: auto;
+  color: var(--accent-ink);
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease);
+}
+.manifest__dark:hover .manifest__go,
+.manifest__dark:focus-visible .manifest__go {
+  opacity: 1;
+}
+@media (hover: none) {
+  .manifest__go {
+    opacity: 0.7;
+  }
+}
+.manifest__reset {
+  margin-top: 0.35rem;
+  padding: 0;
+  font: inherit;
+  font-size: var(--step--2);
+  letter-spacing: 0.05em;
+  color: var(--ink-40);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.manifest__reset:hover,
+.manifest__reset:focus-visible {
+  color: var(--ink);
+}
 .manifest__foot {
   margin: 0.65rem 0 0;
   font-size: var(--step--2);
@@ -293,6 +332,22 @@
 .hero__signals[data-complete] .hero__signals-pips i[data-on] {
   background: var(--grad-spectrum);
   box-shadow: 0 0 6px rgba(168, 158, 255, 0.45);
+}
+/* the tenth pip is the rocket the ten add up to: a dim outline until the
+   model is complete, then lit with the rest */
+.hero__signals-rocket {
+  width: 6px;
+  height: 9px;
+  margin-left: 2px;
+  align-self: center;
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 40%, transparent);
+  stroke-width: 0.9;
+  transition: fill var(--t-base) var(--ease), stroke var(--t-base) var(--ease);
+}
+.hero__signals-rocket[data-on] {
+  fill: var(--accent);
+  stroke: var(--accent);
 }
 .hero__signals-label {
   font-family: var(--font-mono);

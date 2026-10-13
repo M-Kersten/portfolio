@@ -41,6 +41,15 @@ const LAYERS = [
 // model again, rather than jumping the instant they open a project, while
 // they're still looking at the close-up and never see the model fill in.
 const TALLY_SETTLE_MS = 900;
+/** The tally's words: the count, and what it's counting toward. The model
+ *  assembles the next launch as projects wake, so the label names that goal
+ *  from the first glance, counts down the last two, and says when it's ready. */
+function tallyLabel(n: number): string {
+  if (n >= TOTAL) return `${TOTAL}/${TOTAL} · ready to launch`;
+  if (n === 0) return `0/${TOTAL} · wake ${TOTAL} to launch`;
+  if (n >= TOTAL - 2) return `${n}/${TOTAL} · ${TOTAL - n} to go`;
+  return `${n}/${TOTAL} · stacking the next launch`;
+}
 // What the finger does on a touch screen, what the pointer does elsewhere —
 // the same words the crosshair's cue uses.
 const PRESS = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches ? 'tap' : 'click';
@@ -119,15 +128,16 @@ export function HeroStage() {
   foundRef.current = found;
 
   // The AMBIENT tally — the pips and the label a visitor sees without asking
-  // for it — trails `found` and only steps on a deselect (zoom-out), after
-  // TALLY_SETTLE_MS. Keyed on selectedSlug transitions rather than `found`
-  // itself, so opening a hotspot never moves it; only closing one does.
-  const [revealed, setRevealed] = useState(0);
-  const revealedRef = useRef(0); // mirrors `revealed`, read synchronously below
+  // for it — shows the model's settled count (scene store), which trails
+  // `found` and only steps on a deselect (zoom-out), after TALLY_SETTLE_MS.
+  // Keyed on selectedSlug transitions rather than `found` itself, so opening a
+  // hotspot never moves it; only closing one does. The rocket on the pad reads
+  // the same count, so its next piece rises as the tally ticks.
+  const revealed = useSceneSelector((s) => s.settled);
   // Bumped only on an actual numeric change (never on mount) — it's both the
   // label's `key` (React remounts on a new key, which is what restarts the
   // flash keyframe) and the switch that adds the flash class at all, so the
-  // very first paint ("0/10") never flashes for a change that didn't happen.
+  // very first paint never flashes for a change that didn't happen.
   const [flashKey, setFlashKey] = useState(0);
   const wasSelected = useRef(selectedSlug);
   useEffect(() => {
@@ -136,9 +146,8 @@ export function HeroStage() {
     if (!prev || selectedSlug) return; // only fires on prev-non-null -> null
     const reveal = () => {
       const next = foundRef.current;
-      if (next === revealedRef.current) return; // reopened something already counted
-      revealedRef.current = next;
-      setRevealed(next);
+      if (next === sceneStore.snapshot().settled) return; // reopened something already counted
+      sceneStore.settle(next);
       setFlashKey((k) => k + 1);
     };
     if (reduced) {
@@ -220,7 +229,7 @@ export function HeroStage() {
       >
         {cue && (
           <p className="hero__hint" aria-hidden="true">
-            ten projects built this miniature — {PRESS} one awake
+            {PRESS} a project awake — all ten launch the next one
           </p>
         )}
         {manifestOpen && (
@@ -248,10 +257,20 @@ export function HeroStage() {
                             {c?.title ?? h.slug}
                           </button>
                         ) : (
-                          <span className="manifest__dark">
+                          // still dark: its name stays redacted, but it's a way
+                          // there — the camera flies to it and it wakes
+                          <button
+                            type="button"
+                            className="manifest__dark"
+                            onClick={() => openFromManifest(h.slug)}
+                            aria-label={`Fly to a project you haven't woken yet, in the ${l.name}`}
+                          >
                             <i />
-                            {'▓'.repeat(Math.min(12, Math.max(6, (c?.title ?? h.slug).length)))}
-                          </span>
+                            <span aria-hidden="true">{'▓'.repeat(Math.min(12, Math.max(6, (c?.title ?? h.slug).length)))}</span>
+                            <span className="manifest__go" aria-hidden="true">
+                              fly there →
+                            </span>
+                          </button>
                         )}
                       </li>
                     );
@@ -262,8 +281,20 @@ export function HeroStage() {
             <p className="manifest__foot">
               {found === TOTAL
                 ? 'every project is live — the next one is a rocket, ready to launch'
-                : `every object in the model is a project — ${PRESS} one to wake it`}
+                : 'every object is a project — wake all ten to launch the next one'}
             </p>
+            {found > 0 && (
+              <button
+                type="button"
+                className="manifest__reset"
+                onClick={() => {
+                  setManifestOpen(false);
+                  sceneStore.resetVisited();
+                }}
+              >
+                start the tour over
+              </button>
+            )}
           </div>
         )}
         <button
@@ -276,15 +307,23 @@ export function HeroStage() {
               aria-label that said something else ("Projects live in the model:
               0 of 10…") — speech input users say what they see. */}
           <span className="hero__signals-pips" aria-hidden="true">
-            {HOTSPOTS.map((h, i) => (
-              <i key={h.slug} data-on={i < revealed || undefined} />
-            ))}
+            {HOTSPOTS.map((h, i) =>
+              i < TOTAL - 1 ? (
+                <i key={h.slug} data-on={i < revealed || undefined} />
+              ) : (
+                // the last one is what the ten add up to: the rocket
+                <svg key={h.slug} className="hero__signals-rocket" viewBox="0 0 8 12" data-on={i < revealed || undefined}>
+                  <path d="M4 0.6C5.6 2.2 6 4.4 6 6.6V9H2V6.6C2 4.4 2.4 2.2 4 0.6Z" />
+                  <path d="M2 7.2 0.6 9.6V10.6L2 9.8ZM6 7.2 7.4 9.6V10.6L6 9.8Z" />
+                </svg>
+              ),
+            )}
           </span>
           <span
             key={flashKey}
             className={flashKey > 0 ? 'hero__signals-label hero__signals-label--flash' : 'hero__signals-label'}
           >
-            {complete ? `${TOTAL}/${TOTAL} · ready to launch` : `${revealed}/${TOTAL} projects live`}
+            {tallyLabel(revealed)}
           </span>
           <span className="visually-hidden"> — the manifest of projects</span>
         </button>
