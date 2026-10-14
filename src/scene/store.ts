@@ -8,6 +8,11 @@ export const bootAt = typeof performance !== 'undefined' ? performance.now() : 0
 /** ms after boot that the maquette powers on — its beat, after the hero text
  *  (header ~0.1s · name decode ~0.4–0.9s · subhead ~1.05–1.4s · then this). */
 export const MAQUETTE_BOOT = 1450;
+/** The opening dolly, shared between the camera that runs it (CameraRig) and
+ *  what holds still for it: the model's power-on scale and its pointer
+ *  parallax would each read as the camera changing speed mid-move. A plain
+ *  value rather than store state: it's read every frame, and set by the rig. */
+export const opening = { dollying: false };
 
 /** The launch easter egg's stage machine (see maquette/launchSite.tsx +
  *  components/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;

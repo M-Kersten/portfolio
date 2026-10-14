@@ -9,7 +9,7 @@
 // first sentence of a story beat, and a project's "see also" (what it builds
 // on, and what it led to).
 import { HOTSPOTS } from '../scene/framing';
-import { cases, caseBySlug, type CaseStudy } from './index';
+import { byDate, cases, caseBySlug, type CaseStudy } from './index';
 
 const LAYER_ORDER = ['city', 'room', 'chip'] as const;
 
@@ -32,16 +32,39 @@ export function exhibitMark(slug: string): string {
   return no !== null ? `Exhibit ${pad2(no)}` : 'Collection';
 }
 
-/** The projects either side of this one on a walk through the exhibition: by
- *  exhibit number for an exhibit, by date through the collection otherwise. */
-export function walkFrom(study: CaseStudy, collection: CaseStudy[]): { prev?: CaseStudy; next?: CaseStudy } {
+/** The projects either side of this one on a walk: in the maquette, through
+ *  the exhibits by number; on a page (the timeline, /projects, search), through
+ *  the projects there from oldest to newest, so ← is older and → is newer. */
+export function walkFrom(study: CaseStudy, place: 'maquette' | 'page', collection?: CaseStudy[]): { prev?: CaseStudy; next?: CaseStudy } {
   const no = exhibitNo(study.slug);
-  if (no !== null) {
+  if (place === 'maquette' && no !== null) {
     return { prev: no > 1 ? caseBySlug(EXHIBITS[no - 2]) : undefined, next: no < EXHIBIT_COUNT ? caseBySlug(EXHIBITS[no]) : undefined };
   }
-  const list = collection.some((c) => c.slug === study.slug) ? collection : cases;
+  const list = collection?.some((c) => c.slug === study.slug) ? collection : byDate(cases);
   const i = list.findIndex((c) => c.slug === study.slug);
   return { prev: list[i - 1], next: list[i + 1] };
+}
+
+/* ---------- the book ---------- */
+
+/** The catalogue's order: the exhibits by number, then the collection by date. */
+const CATALOGUE = [...EXHIBITS, ...byDate(cases).map((c) => c.slug).filter((slug) => !EXHIBITS.includes(slug))];
+/** A project's two page numbers in the book, the spread it's printed on (after
+ *  four pages of front matter, one spread per project). */
+export function folios(slug: string): [number, number] {
+  const page = 2 * Math.max(0, CATALOGUE.indexOf(slug)) + 4;
+  return [page, page + 1];
+}
+/** A story beat's paragraphs (a blank line between them in the content). */
+export const paragraphs = (text: string): string[] =>
+  text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+/** Minutes to read the whole story, at an unhurried 200 words a minute. */
+export function readingMinutes(study: CaseStudy): number {
+  const words = [study.problem, study.approach, study.lesson ?? ''].join(' ').split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
 }
 
 /* ---------- film loops ---------- */

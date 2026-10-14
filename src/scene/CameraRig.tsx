@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { sceneStore, useSceneSelector } from './store';
+import { opening, sceneStore, useSceneSelector } from './store';
+import { maquetteLoaded } from './maquette/kit';
 import { HOTSPOTS, hotspotView, fitScale, fitFov, layerGap, portraitMix, CAMERA, LAUNCH } from './framing';
 import { anchorWorld, journeyView, introView, nodeView, launchShot, launchTrack } from './views';
 import { tweakedView } from './nodeTweak';
@@ -24,7 +25,15 @@ import { isMobileViewport } from '../lib/isMobile';
 // has usually finished fading by the time the canvas first paints anyway.
 // The smoothstep below has zero derivative at both ends, so the dolly eases up
 // from a standstill and settles to one.
+//
+// It doesn't leave until the shot is ready: the camera holds the establishing
+// shot until every model has arrived and the scene's shaders are compiled
+// (INTRO_WAIT at most), so nothing pops in under the move and no first-draw
+// compile stalls a frame of it. And it runs on frame time, clamped, not on the
+// wall clock: a long stall pauses the move instead of jumping it forward to
+// catch up, which is what read as a stutter.
 const INTRO_DUR = 4.65;
+const INTRO_WAIT = 2500; // ms
 
 // Porthole focus: the woken object is framed inside the reticle ring — left of
 // centre on a desktop so the dossier clears on the right, high on a phone so the
@@ -57,6 +66,8 @@ const ZOOM_SETTLE = ACQUIRE_HOLD + 0.9;
 
 export function CameraRig() {
   const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
   const invalidate = useThree((s) => s.invalidate);
   const size = useThree((s) => s.size);
   const reduced = useReducedMotion();
@@ -82,7 +93,8 @@ export function CameraRig() {
   const focusAmt = useRef(0); // 0 overview → 1 zoomed on a node (drives the porthole view-offset)
   // Reduced motion and phones skip the dolly — straight to the City overview.
   const introDone = useRef(reduced || isMobileViewport());
-  const introStart = useRef(0); // wall clock at the dolly's first frame (0 = not yet)
+  const introReady = useRef(false); // models in, shaders compiled: the dolly may go
+  const introT = useRef(0); // seconds of the dolly played
   const skipIntro = useRef(false); // any scroll / tap / key cancels the intro
 
   // Park the camera at the dolly's START before anything is painted. The Canvas
@@ -101,8 +113,49 @@ export function CameraRig() {
     camera.position.copy(s.pos);
     target.current.copy(s.target);
     camera.lookAt(target.current);
+    opening.dollying = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Ready the shot: wait for the models (or INTRO_WAIT), give the arrivals two
+  // frames to mount into the scene, then compile every shader the scene holds,
+  // while the camera is still parked and a stalled frame is invisible.
+  useEffect(() => {
+    if (introDone.current) return;
+    let live = true;
+    const go = () => {
+      if (live) introReady.current = true;
+    };
+    const cap = new Promise<void>((r) => window.setTimeout(r, INTRO_WAIT));
+    Promise.race([maquetteLoaded(), cap]).then(() =>
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (!live) return;
+          // Synchronous on purpose: compileAsync's readiness poll throws on a
+          // material that's been swapped out in the meantime, and then never
+          // resolves. The stall this costs lands on the parked shot.
+          try {
+            gl.compile(scene, camera);
+          } catch {
+            /* a shader that fails here fails on its first draw anyway */
+          }
+          go();
+        }),
+      ),
+    );
+    // whatever happens above, the dolly goes
+    const failsafe = window.setTimeout(go, INTRO_WAIT + 1500);
+    return () => {
+      live = false;
+      clearTimeout(failsafe);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // dev: the capture scripts read the camera and the dolly's clock
+  useEffect(() => {
+    if (import.meta.env.DEV) (window as unknown as { __cam: unknown }).__cam = { camera, opening, introT, introReady };
+  }, [camera]);
 
   // State changes (and resizes) need at least one frame in demand mode; the FOV
   // itself is driven per-frame in useFrame so it can ease when zooming in/out.
@@ -168,20 +221,18 @@ export function CameraRig() {
     // link (a node is already selected), during a launch, or once it completes —
     // then the normal journey logic below takes over from wherever the camera is.
     if (!introDone.current) {
-      // Measured from the dolly's OWN first frame, not the shared boot clock.
-      // On the boot clock, everything between module eval and the canvas's first
-      // frame (bundle parse, three/R3F init, shader compile) was already spending
-      // the dolly's 4.65s — so on a cold load the first frame it painted was
-      // already a third of the way along, which meant the camera snapped from the
-      // parked establishing shot to the middle of the move and only then eased.
-      // That jump *was* the weird movement. Anchoring here means p is always 0 on
-      // the first frame, so the dolly departs from the establishing shot smoothly
-      // however long the load took (and it makes the useLayoutEffect parking above
-      // self-healing rather than load-order-dependent).
-      if (introStart.current === 0) introStart.current = performance.now();
-      const p = (performance.now() - introStart.current) / (INTRO_DUR * 1000);
+      // Played on the dolly's own frame time, from when the shot is ready (see
+      // INTRO_WAIT): not the shared boot clock, which a slow load had already
+      // spent part of (the camera then snapped into the middle of the move),
+      // and not the wall clock, which jumps it forward after a dropped frame.
+      // Until it's ready p stays 0: the camera holds the establishing shot.
+      // (A frame up to 1/15 s counts in full, so a slow device still plays
+      // the move in its own time; only a real stall is cut short.)
+      if (introReady.current) introT.current += Math.min(delta, 1 / 15);
+      const p = introT.current / INTRO_DUR;
       if (skipIntro.current || selectedSlug || journeyStep !== 0 || launch !== 'idle' || p >= 1) {
         introDone.current = true;
+        opening.dollying = false;
       } else {
         const g = layerGap(aspect);
         const s = introView(g);

@@ -50,10 +50,11 @@ src/
     Capabilities.tsx   the three scales as one full-bleed slanted band
     Work.tsx           the projects map: a pinned, scroll-driven timeline
     CaseCard.tsx       a waypoint card on the timeline
-    Exhibit.tsx        a project, opened, everywhere (maquette, timeline,
-                       /projects, search): its label (the film first, the
-                       exhibit number, the facts, the audio guide) and the book
-                       it unfolds into (the film playing, the whole story)
+    Exhibit.tsx        a project, opened: its label beside the object in the
+                       maquette (the film, the number, the facts, the audio
+                       guide, "Read the full story") and the book, the full
+                       story as a printed spread (timeline, /projects and
+                       search open straight onto it)
     NodeHud.tsx        the /work/:slug route: the label beside the porthole
     NotFound.tsx       the closed room (any unknown address)
     VoiceNote.tsx      the audio guide: a project's voice note, if it has one
@@ -103,7 +104,8 @@ src/
   assets/loops/        the silent film loops on the labels: <slug>.mp4
   assets/sound/        the site's effects and ambient (README lists every file)
   lib/                 asset base-path, reduced-motion, WebGL support, youtube,
-                       the label's touch handling (useSheetDrag.ts),
+                       the label's touch handling (useSheetDrag.ts), a YouTube
+                       player's position for the film's handover (youtubeClock.ts),
                        the sound engine (sound.ts) and the launch's sound,
                        the motion numbers for code (motion.ts) + useReveal
   ui/                  tokens.css (design tokens) + one stylesheet per page

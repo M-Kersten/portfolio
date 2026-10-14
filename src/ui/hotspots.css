@@ -82,25 +82,6 @@
   background: var(--hotc);
   box-shadow: 0 0 12px color-mix(in srgb, var(--hot, var(--accent)) 75%, transparent);
 }
-/* the exhibit number, stencilled up and to the left of the crosshair: small,
-   always there, so the model reads as numbered exhibits from across the room */
-.hotspot__no {
-  position: absolute;
-  right: calc(100% - 3px);
-  bottom: calc(100% - 3px);
-  font-size: 0.62rem;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
-  color: var(--hotc);
-  opacity: 0.7;
-  pointer-events: none;
-  text-shadow: 0 0 6px var(--paper), 0 0 2px var(--paper);
-}
-.hotspot[data-alive] .hotspot__no {
-  opacity: 1;
-}
 /* Unvisited markers pulse to invite the first click: an expanding "ping" ring
    (::before) plus a gently breathing core (::after). Both fall calm the instant
    the node is visited (data-alive), so the eye is always led to what's left. */
@@ -257,12 +238,6 @@
   pointer-events: none;
   transform: translate(0, -50%);
   transition: opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
-}
-.hotspot__label-fill b {
-  margin-right: 0.6em;
-  font-weight: 600;
-  color: var(--hotc);
-  -webkit-text-fill-color: var(--hotc); /* out of the name's wipe */
 }
 .hotspot__dot:hover .hotspot__label,
 .hotspot__dot:focus-visible .hotspot__label {

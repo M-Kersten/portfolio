@@ -1,11 +1,13 @@
-/* ---------- An exhibit: its label, and the book it unfolds into ----------
-   (components/Exhibit.tsx). The label is the glance: the film on top, playing
-   silently, then the number, title, outcome, who it was for and what it's made
-   of, two sentences, the audio guide and the way on. It's drawn in the site's
-   own hand: the scanner brackets in the layer's colour, square controls, mono
-   meta, and a line connecting it to the object (or the card) it belongs to.
-   The book is the full entry, a spread: the film playing on the left page,
-   the label as the right page with the whole story under it. */
+/* ---------- An exhibit: its label, and the book it opens into ----------
+   (components/Exhibit.tsx). The label is the glance, beside the object in the
+   maquette: the film on top, the number, the title and what it achieved, who
+   it was for and what it's made of, a sentence of curator's note, the audio
+   guide, and the way into the full story. It's drawn in the site's own hand:
+   the scanner brackets in the layer's colour, square controls, mono meta, and
+   a line from the object it belongs to. The book is the full story, set as a
+   printed spread: a chapter opener and the plate on the left page, the
+   catalogue entry on the right (the facts, then the story with a drop cap and
+   numbered sections), running heads and page numbers. */
 
 .exhibit {
   --card-accent: var(--cyan);
@@ -17,7 +19,7 @@
 .exhibit[data-layer='chip'] { --card-accent: var(--lime); }
 
 /* behind it: in the maquette the porthole's own vignette does the work, so the
-   dim is clear until the book opens; on a page it dims the page */
+   dim is clear until the book opens; on a page the page recedes */
 .exhibit__dim {
   position: absolute;
   inset: 0;
@@ -30,6 +32,10 @@
 .exhibit[data-place='maquette'][data-book] .exhibit__dim {
   background: color-mix(in srgb, var(--paper) 72%, transparent);
 }
+.exhibit[data-place='page'][data-book] .exhibit__dim {
+  background: color-mix(in srgb, var(--paper) 80%, transparent);
+  backdrop-filter: blur(6px);
+}
 @keyframes x-fade {
   from { opacity: 0; }
 }
@@ -40,45 +46,70 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(24rem, calc(100vw - 2rem));
+  width: min(26rem, calc(100vw - 2rem));
   max-height: calc(100svh - var(--header-h) - 2rem);
   overflow-y: auto;
   scrollbar-width: none;
   display: flex;
   flex-direction: column;
-  background: color-mix(in srgb, var(--paper) 93%, transparent);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
   backdrop-filter: blur(8px);
   border: 1px solid var(--line);
   animation: xl-in var(--t-slow) var(--ease);
 }
 .xl::-webkit-scrollbar { display: none; }
-/* in the maquette: beside the porthole, clear of its ring */
-.exhibit[data-place='maquette'] .xl {
-  left: min(calc(var(--fr-cx) + var(--fr-r) + 4.5rem), calc(100vw - 24rem - 2rem));
-  transform: translateY(-50%);
-  top: calc(50% + var(--header-h) / 2);
-}
-.exhibit[data-closing] .xl,
-.exhibit[data-closing] .xl__line {
-  opacity: 0;
-  transition: opacity var(--t-fast) var(--ease);
-}
 @keyframes xl-in {
   from { opacity: 0; translate: 0 10px; }
 }
-/* after a walk, the next label comes in from the side it was walked towards */
-.xl[data-enter='right'],
-.xb[data-enter='right'] { animation: xl-in-right var(--t-base) var(--ease); }
-.xl[data-enter='left'],
-.xb[data-enter='left'] { animation: xl-in-left var(--t-base) var(--ease); }
-@keyframes xl-in-right {
-  from { opacity: 0; translate: 48px 0; }
+/* In the maquette it stands in the column beside the porthole, as wide as that
+   column allows with some air either side. And it opens at the end of its
+   line: the camera reaches the object, the line runs out from it, then the
+   label unrolls from where the line meets it. (The line's and the unroll's
+   timings ride the camera's arrival, so they're their own numbers, not the
+   motion tokens.) */
+.exhibit[data-place='maquette'] .xl {
+  --xl-col: calc(100vw - var(--fr-cx) - var(--fr-r));
+  --xl-w: clamp(22rem, calc(var(--xl-col) - 4rem), 32rem);
+  width: var(--xl-w);
+  left: auto;
+  right: max(2rem, calc((var(--xl-col) - var(--xl-w)) / 2));
+  top: calc(50% + var(--header-h) / 2);
+  transform: translateY(-50%);
+  max-height: calc(100svh - var(--header-h) - 3rem);
+  animation: xl-open 0.5s var(--ease) 0.34s backwards;
 }
-@keyframes xl-in-left {
-  from { opacity: 0; translate: -48px 0; }
+@keyframes xl-open {
+  from { clip-path: inset(0 100% 0 0); opacity: 0.5; }
+  to { clip-path: inset(-4px); opacity: 1; }
 }
-/* the line lets go while a finger has the label */
-.exhibit[data-dragging] .xl__line {
+/* on a laptop-height screen the film gives up a little height, so the way
+   into the full story always shows without scrolling the label (it's 16:9
+   again once it plays) */
+@media (max-height: 940px) {
+  .exhibit[data-place='maquette'] .xl__film:not([data-playing]) {
+    aspect-ratio: 2 / 1;
+  }
+}
+/* and on a short one, everything a notch tighter */
+@media (max-height: 800px) {
+  .exhibit[data-place='maquette'] .xl__film:not([data-playing]) {
+    aspect-ratio: 21 / 9;
+  }
+  .exhibit[data-place='maquette'] .xl__body {
+    gap: 0.9rem;
+    padding: 1.1rem 1.5rem 1.2rem;
+  }
+  .exhibit[data-place='maquette'] .xl__title {
+    font-size: var(--step-2);
+  }
+  .exhibit[data-place='maquette'] .xl__note {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+.exhibit[data-closing] .xl,
+.exhibit[data-closing] .xl__line,
+.exhibit[data-closing] .xb {
   opacity: 0;
   transition: opacity var(--t-fast) var(--ease);
 }
@@ -97,7 +128,7 @@
 .xl__frame i:nth-child(3) { bottom: -1px; left: -1px; border-bottom-width: 2px; border-left-width: 2px; }
 .xl__frame i:nth-child(4) { bottom: -1px; right: -1px; border-bottom-width: 2px; border-right-width: 2px; }
 
-/* the film: the first thing the eye lands on, and the door to the book */
+/* the film: the first thing the eye lands on; pressed, it plays right here */
 .xl__film {
   position: relative;
   flex: none;
@@ -107,11 +138,13 @@
   border-bottom: 1px solid var(--line);
 }
 .xl__film video,
-.xl__film img {
+.xl__film img,
+.xl__film iframe {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  border: 0;
   object-fit: cover;
 }
 /* no loop yet: the poster drifts, slowly, so it still reads as moving image */
@@ -133,14 +166,14 @@
   z-index: 1;
   display: flex;
   align-items: flex-end;
-  gap: 0.6rem;
-  padding: 0.75rem;
+  gap: 0.7rem;
+  padding: 1rem;
   font-family: var(--font-mono);
   font-size: var(--step--2);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink);
-  background: linear-gradient(transparent 55%, color-mix(in srgb, var(--paper) 78%, transparent));
+  background: linear-gradient(transparent 50%, color-mix(in srgb, var(--paper) 80%, transparent));
   border: 0;
   cursor: pointer;
   text-align: left;
@@ -148,16 +181,16 @@
 .xl__watch-mark {
   display: inline-grid;
   place-items: center;
-  width: 2.1rem;
-  height: 2.1rem;
+  width: 2.5rem;
+  height: 2.5rem;
   background: var(--card-accent);
   color: var(--paper);
   border-radius: var(--radius-s);
   transition: transform var(--t-fast) var(--ease);
 }
 .xl__watch-mark svg {
-  width: 0.7rem;
-  height: 0.8rem;
+  width: 0.8rem;
+  height: 0.9rem;
   fill: currentColor;
   margin-left: 2px;
 }
@@ -166,16 +199,23 @@
   transform: scale(1.08);
 }
 
+/* the words: grouped, with air between the groups and little inside them —
+   the heading, the facts, the note, the voice, the way in, the way on */
 .xl__body {
   display: grid;
-  gap: 0.7rem;
-  padding: 1rem 1.25rem 1.1rem;
+  gap: 1.15rem;
+  padding: 1.35rem 1.75rem 1.5rem;
+}
+.xl__head {
+  display: grid;
+  gap: 0.55rem;
 }
 .xl__top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-s);
+  margin-bottom: 0.2rem;
 }
 .xl__no {
   display: flex;
@@ -201,12 +241,13 @@
   text-transform: uppercase;
   color: var(--ink-40);
 }
-.xl__close {
+.xl__close,
+.xb__close {
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 2rem;
-  height: 2rem;
+  width: 2.25rem;
+  height: 2.25rem;
   color: var(--ink-60);
   background: none;
   border: 1px solid var(--line);
@@ -215,7 +256,9 @@
   transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .xl__close:hover,
-.xl__close:focus-visible {
+.xl__close:focus-visible,
+.xb__close:hover,
+.xb__close:focus-visible {
   color: var(--ink);
   border-color: var(--line-strong);
 }
@@ -224,14 +267,22 @@
   font-family: var(--font-display);
   font-size: var(--step-2);
   font-weight: 650;
-  line-height: 1.05;
+  line-height: 1.06;
   text-wrap: balance;
 }
+.xl .xl__title {
+  font-size: var(--step-3);
+}
 .xl__outcome {
-  margin: -0.2rem 0 0;
+  margin: 0;
   font-size: var(--step-0);
-  line-height: 1.35;
+  line-height: 1.45;
   color: var(--accent-ink);
+  text-wrap: pretty;
+}
+.xl__facts {
+  display: grid;
+  gap: 0.4rem;
 }
 .xl__meta {
   margin: 0;
@@ -239,54 +290,62 @@
   color: var(--ink);
 }
 .xl__materials {
-  margin: -0.35rem 0 0;
+  margin: 0;
   font-family: var(--font-mono);
   font-size: var(--step--2);
   letter-spacing: 0.04em;
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--ink-40);
 }
-.xl__curator {
+.xl__note {
   margin: 0;
-  font-size: var(--step--1);
-  line-height: 1.55;
+  font-size: var(--step-0);
+  line-height: 1.65;
   color: var(--ink-80, var(--ink-60));
-  /* a note, not the story: the longest first sentences stop at four lines */
+  /* a note, not the story: the longest first sentences stop at three lines */
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   overflow: hidden;
 }
-.xl .voice,
-.xb__label .voice {
-  padding-top: 0.7rem;
-  border-top: 1px solid var(--line);
-}
-.xl__more,
-.xb__fold {
-  justify-self: start;
-  padding: 0.2rem 0;
+/* the way to the content: the one solid thing on the label */
+.xl__read {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.15rem;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.14em;
+  font-size: var(--step--1);
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent-ink);
-  background: none;
-  border: 0;
+  color: var(--accent-contrast);
+  background: var(--card-accent);
+  border: 1px solid var(--card-accent);
+  border-radius: var(--radius-s);
   cursor: pointer;
+  transition: filter var(--t-fast) var(--ease), transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
-.xl__more:hover,
-.xl__more:focus-visible,
-.xb__fold:hover,
-.xb__fold:focus-visible {
-  color: var(--ink);
+.xl__read:hover,
+.xl__read:focus-visible {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px -14px var(--card-accent);
+}
+.xl__read-time {
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  opacity: 0.78;
 }
 .xl__walk {
   display: flex;
   justify-content: space-between;
   gap: var(--space-s);
-  padding-top: 0.7rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--line);
 }
 .xl__walk button {
@@ -309,7 +368,8 @@
   color: var(--ink);
 }
 
-/* the line that connects it to its object (or card): drawn in as it opens */
+/* the line from the object to its label: it starts once the camera has
+   arrived, at the object, and runs out to the label (which opens after it) */
 .xl__line {
   position: fixed;
   inset: 0;
@@ -324,10 +384,19 @@
   stroke-width: 1;
   stroke-dasharray: 1600;
   stroke-dashoffset: 0;
-  animation: xl-draw var(--t-slow) var(--ease);
+  animation: xl-draw 0.45s var(--ease-in-out) backwards;
 }
 @keyframes xl-draw {
   from { stroke-dashoffset: 1600; }
+}
+.xl__mark,
+.xl__mark-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: xl-mark var(--t-base) var(--ease) backwards;
+}
+@keyframes xl-mark {
+  from { opacity: 0; transform: scale(0.3); }
 }
 .xl__mark {
   fill: var(--paper);
@@ -337,68 +406,157 @@
 .xl__mark-dot {
   fill: var(--card-accent);
 }
-
-/* ---------- a closed room (the 404, NotFound.tsx) ---------- */
-.closed__label .xl__curator {
-  display: block;
-  -webkit-line-clamp: unset;
-  line-clamp: none;
-}
-.closed__ways {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  padding-top: 0.3rem;
+/* …and lets go while a finger has the label */
+.exhibit[data-dragging] .xl__line {
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease);
 }
 
 /* ---------- the book ---------- */
 .xb {
+  --spine: 53.5%;
+  --page: #0d1115;
   position: fixed;
   inset: calc(var(--header-h) + 0.5rem) clamp(1rem, 4vw, 3.5rem) 1.25rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  background: #0d1115;
+  grid-template-columns: var(--spine) minmax(0, 1fr);
+  background: var(--page);
   border: 1px solid var(--line);
   box-shadow: 0 40px 90px -20px #000;
 }
-/* the fold between the pages */
+/* the spine: the pages curve down into it */
 .xb::after {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 58.33%;
-  width: 2.25rem;
+  left: var(--spine);
+  width: 2.5rem;
   transform: translateX(-50%);
-  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.32) 45%, rgba(234, 234, 234, 0.05) 50%, rgba(0, 0, 0, 0.28) 55%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.34) 45%, rgba(234, 234, 234, 0.05) 50%, rgba(0, 0, 0, 0.3) 55%, transparent);
   pointer-events: none;
 }
-.xb__left,
-.xb__right {
+/* after a walk, the next one comes in from the side it was walked towards */
+.xb[data-enter='right'] { animation: xl-in-right var(--t-base) var(--ease); }
+.xb[data-enter='left'] { animation: xl-in-left var(--t-base) var(--ease); }
+@keyframes xl-in-right {
+  from { opacity: 0; translate: 48px 0; }
+}
+@keyframes xl-in-left {
+  from { opacity: 0; translate: -48px 0; }
+}
+.xb__close {
+  position: absolute;
+  z-index: 3;
+  top: 0.75rem;
+  right: 0.75rem;
+}
+.xb__verso,
+.xb__recto {
+  position: relative;
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  background: var(--page);
 }
-.xb__left {
-  padding: 1.5rem 2.25rem 1.25rem;
+.xb__verso {
+  gap: 1.2rem;
+  padding: 1.25rem 2.75rem 1rem 2.5rem;
 }
-.xb__right {
-  padding: 1.5rem 2rem 1.25rem;
+.xb__recto {
+  gap: 1.35rem;
+  padding: 1.25rem 2.5rem 1rem 3rem;
 }
+/* running heads: the book's name on the left page, the chapter's on the right */
 .xb__run {
   display: flex;
   justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--hairline);
   font-family: var(--font-mono);
   font-size: var(--step--2);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ink-40);
 }
+.xb__run--recto {
+  justify-content: flex-end;
+  padding-right: 2.75rem; /* clear of the close button */
+}
+.xb__run--recto span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* page numbers, at the outer corners */
+.xb__folio {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-40);
+}
+
+/* the left page: the chapter opener and the plate, centred on the page */
+.xb__chapter {
+  display: grid;
+  gap: 1.3rem;
+  margin-block: auto;
+}
+.xb__opener {
+  display: grid;
+  gap: 0.5rem;
+}
+.xb__no {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55em;
+  margin: 0 0 0.15rem;
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--card-accent);
+}
+.xb__no b {
+  font-size: var(--step-4);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: 0;
+}
+.xb__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--step-3);
+  font-weight: 650;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+.xb__standfirst {
+  margin: 0;
+  max-width: 40ch;
+  font-size: var(--step-1);
+  line-height: 1.35;
+  color: var(--accent-ink);
+  text-wrap: balance;
+}
+.xb__opener .voice {
+  margin-top: 0.4rem;
+}
+.xb__plate {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+}
+/* as wide as the page, unless the page is short: then only as wide as the
+   height left over allows, so the whole opener stays on the page */
 .xb__screen {
   position: relative;
+  width: min(100%, calc((100svh - var(--header-h) - 24rem) * 16 / 9));
   aspect-ratio: 16 / 9;
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -419,7 +577,6 @@
   transition: opacity var(--t-base) var(--ease);
 }
 .xb__screen iframe[data-loaded] { opacity: 1; }
-.xb__screen .xl__watch { padding: 1rem; }
 .xb__caption {
   margin: 0;
   font-size: var(--step--1);
@@ -430,23 +587,94 @@
   font-weight: 500;
   color: var(--ink);
 }
-.xb__label {
+
+/* the right page: the catalogue entry. The facts first, the way a museum
+   prints them under a work's title… */
+.xb__tomb {
   display: grid;
-  gap: 0.7rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem 1.25rem;
+  margin: 0;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--line);
 }
-.xb__story {
-  border-top: 1px solid var(--line);
-  padding-top: 0.9rem;
+.xb__tomb div {
+  display: grid;
+  align-content: start;
+  gap: 0.2rem;
+  min-width: 0;
 }
-.xb__story p {
-  margin: 0 0 0.8rem;
+.xb__tomb-wide {
+  grid-column: span 2;
+}
+.xb__tomb dt {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.xb__tomb dd {
+  margin: 0;
   font-size: var(--step--1);
-  line-height: 1.65;
-  color: var(--ink-80, var(--ink-60));
-}
-.xb__story b {
-  font-weight: 500;
+  line-height: 1.4;
   color: var(--ink);
+}
+/* …then the story, set as a book sets it: justified, hyphenated, a drop cap,
+   indented paragraphs, numbered sections, and an end mark */
+.xb__essay {
+  font-size: var(--step-0);
+  line-height: 1.72;
+  color: var(--ink-80, var(--ink-60));
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+.xb__essay section + section {
+  margin-top: 1.5rem;
+}
+.xb__essay h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8em;
+  margin: 0 0 0.55rem;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+.xb__essay h3 span {
+  min-width: 1.6em;
+  font-family: var(--font-display);
+  font-size: var(--step-0);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--card-accent);
+}
+.xb__essay p {
+  margin: 0;
+}
+.xb__essay p + p {
+  text-indent: 1.5em;
+}
+.xb__first::first-letter {
+  float: left;
+  margin: 0.08em 0.12em 0 0;
+  font-family: var(--font-display);
+  font-size: 3.5em;
+  font-weight: 700;
+  line-height: 0.8;
+  color: var(--card-accent);
+}
+.xb__essay section:last-child p:last-child::after {
+  content: '';
+  display: inline-block;
+  width: 0.55em;
+  height: 0.55em;
+  margin-left: 0.4em;
+  background: var(--card-accent);
 }
 .xb__see {
   display: flex;
@@ -454,6 +682,8 @@
   align-items: baseline;
   gap: 0.35rem 0.9rem;
   margin: 0;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--line);
 }
 .xb__k {
   font-family: var(--font-mono);
@@ -481,20 +711,43 @@
   flex-wrap: wrap;
   gap: var(--space-s);
 }
-.xb__colophon {
+.xb__foot {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+.xb__foot .xb__folio {
   margin: 0;
-  padding-top: 0.7rem;
-  border-top: 1px solid var(--line);
+  text-align: right;
+}
+.xb__fold {
+  justify-self: start;
+  padding: 0.2rem 0;
   font-family: var(--font-mono);
   font-size: var(--step--2);
-  letter-spacing: 0.04em;
-  line-height: 1.7;
-  color: var(--ink-40);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
 }
-.xb__right > div:last-child {
-  display: grid;
-  gap: 0.6rem;
-  margin-top: auto;
+.xb__fold:hover,
+.xb__fold:focus-visible {
+  color: var(--ink);
+}
+
+/* ---------- a closed room (the 404, NotFound.tsx) ---------- */
+.closed__label .xl__note {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
+}
+.closed__ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  padding-top: 0.3rem;
 }
 
 /* ---------- a phone (and a tablet held upright, as the porthole is) ---------- */
@@ -509,15 +762,26 @@
     width: auto;
     max-height: 64svh;
     transform: none;
+    overscroll-behavior: contain;
   }
-  .exhibit[data-place='maquette'] .xl__film {
-    /* the porthole already shows the object: keep the film, but shorter */
-    aspect-ratio: 21 / 9;
-  }
-  /* and the label stops short of the object: it peeks (film, number, title,
-     what it achieved), and the rest scrolls, or comes with a pull up */
+  /* it stops short of the object: it peeks (film, number, title, what it
+     achieved), and the rest scrolls, or comes with a pull up; it opens
+     downward from where the line meets its top edge */
   .exhibit[data-place='maquette'] .xl {
     max-height: 50svh;
+    animation-name: xl-open-down;
+  }
+  .exhibit[data-place='maquette'] .xl__film:not([data-playing]) {
+    /* the porthole already shows the object: the film, shorter… */
+    aspect-ratio: 21 / 9;
+  }
+  .exhibit[data-place='maquette'] .xl__film[data-playing] {
+    /* …until it plays */
+    aspect-ratio: 16 / 9;
+  }
+  .xl__body {
+    gap: 1.1rem;
+    padding: 1.15rem 1.25rem 1.25rem;
   }
   /* it's a sheet: the grip says it can be pulled (up into the book, down away) */
   .xl__grip {
@@ -533,57 +797,75 @@
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
     pointer-events: none;
   }
-  .xl {
-    overscroll-behavior: contain;
-  }
-  /* the book is the whole screen: the film stays at the top, playing, and the
-     story scrolls under it */
+  /* the book is the whole screen, one column: the opener and the plate, then
+     the entry; while the film plays it stays at the top as the story scrolls */
   .xb {
     inset: 0;
     display: block;
     overflow-y: auto;
+    overscroll-behavior: contain;
     border: 0;
   }
-  .xb::after {
+  .xb::after,
+  .xb__folio,
+  .xb__run {
     display: none;
   }
-  .xb__left,
-  .xb__right {
+  .xb__verso,
+  .xb__recto {
     overflow: visible;
   }
-  .xb__left {
-    padding: 0;
-    gap: 0;
+  .xb__verso {
+    padding: 1.25rem 1rem 0;
   }
-  .xb__run,
-  .xb__caption {
-    display: none;
+  .xb__recto {
+    padding: 1.5rem 1rem calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+  }
+  .xb__close {
+    position: fixed;
+    z-index: 4;
+    background: color-mix(in srgb, var(--paper) 80%, transparent);
+  }
+  .xb__opener {
+    padding-right: 2.75rem; /* clear of the close button */
   }
   .xb__screen {
+    width: 100%;
+  }
+  .xb__screen[data-playing] {
     position: sticky;
     top: 0;
     z-index: 2;
-    border: 0;
   }
-  .xb__gal {
-    padding: 1rem 1rem 0;
+  .xb__tomb {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .xb__right {
-    padding: 1rem 1rem calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+  .xb__essay {
+    text-align: left;
   }
+}
+@keyframes xl-open-down {
+  from { clip-path: inset(0 0 100% 0); opacity: 0.5; }
+  to { clip-path: inset(-4px); opacity: 1; }
 }
 
 /* reduced motion: nothing travels, things just fade */
 @media (prefers-reduced-motion: reduce) {
   .xl,
-  .xl[data-enter],
+  .exhibit[data-place='maquette'] .xl,
   .xb[data-enter] {
     animation: x-fade var(--t-fast) linear;
   }
-  .xl__line polyline {
+  .xl__line polyline,
+  .xl__mark,
+  .xl__mark-dot,
+  .xl__film img[data-drift] {
     animation: none;
   }
   .xl__line {
     animation: x-fade var(--t-fast) linear;
+  }
+  .xl__read {
+    transition: none;
   }
 }

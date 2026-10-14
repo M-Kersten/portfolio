@@ -12,7 +12,7 @@ import { Scramble } from './Scramble';
 // deep link (a /work node), and its copy lives in site.hero.intro (remove that
 // to drop the card). The premise line is written for a first-time visitor.
 
-const HOLD = 3400; // ms the card stays up before it clears itself
+const HOLD = 4200; // ms the card stays up before it clears itself: long enough to read both lines
 const FADE = 650; // ms for the card to fade out (covers intro-card.css's opacity transition)
 
 export function IntroCard() {

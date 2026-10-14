@@ -5,11 +5,9 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useTweak } from '../devTweak';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { asset } from '../../lib/asset';
 import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
@@ -19,7 +17,7 @@ import { faceted, lathe, place, useGeometry } from './shapes';
 import { useFxConfig } from '../fxTweak';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { NextProjectSite, SITE_POS } from './launchSite';
-import { loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
+import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
  *  Building for both its windows and its body. A module-level box rather than
@@ -750,11 +748,10 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
 
   useEffect(() => {
     let cancelled = false;
-    new GLTFLoader().load(
-      asset('/models/binoculars.gltf'),
-      (g) => {
+    loadBinoculars().then(
+      (loaded) => {
         if (cancelled) return;
-        const scene = g.scene;
+        const scene = loaded.clone(true); // the loaded one stays untouched for the next mount
         scene.traverse((o) => {
           const mesh = o as Mesh;
           if ((mesh as { isMesh?: boolean }).isMesh) mesh.material = glass;
@@ -768,7 +765,6 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
         scene.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
         setModel(scene);
       },
-      undefined,
       () => {}, // absent model → the viewer simply never pops in
     );
     return () => {

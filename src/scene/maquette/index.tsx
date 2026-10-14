@@ -8,7 +8,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { type Group } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, layerGap, type Hotspot, type LayerId } from '../framing';
-import { useSceneSelector, bootAt, MAQUETTE_BOOT } from '../store';
+import { useSceneSelector, bootAt, MAQUETTE_BOOT, opening } from '../store';
 import { AccentCtx, PALETTE } from './shared';
 import { DotFloor, SurveyMarks, PointCloud, DepthVeil, HoloFloor } from './backdrop';
 import { PresenceGroup } from './presence';
@@ -35,6 +35,9 @@ const CUE_LEAD: Record<LayerId, string> = { city: 'alliander-hololens', room: 'p
 // the same clock; the bloom pass is gone.) One-shot; instant under reduced motion.
 // three.js loads after first paint, so on a slow line the scene can arrive after
 // its beat — then it settles from its first frame instead of appearing done.
+// Not while the opening dolly plays (desktop): the camera's push-in is the
+// reveal there, and the model growing under it read as the camera's speed
+// changing halfway through the move.
 const REVEAL_FROM = 0.92;
 const REVEAL_DUR = 1400; // ms — the settle
 function Reveal({ children }: { children: ReactNode }) {
@@ -45,7 +48,7 @@ function Reveal({ children }: { children: ReactNode }) {
   useFrame(() => {
     const g = grp.current;
     if (!g || done.current) return;
-    if (reduced) {
+    if (reduced || opening.dollying) {
       g.scale.setScalar(1);
       done.current = true;
       return;
@@ -74,7 +77,8 @@ function Reveal({ children }: { children: ReactNode }) {
 // the pointer, so it reads as a physical model under glass you can peer around.
 // A node close-up must stay precisely framed, so the tilt eases back to zero the
 // moment one is open; off entirely under reduced motion and on coarse (touch)
-// pointers.
+// pointers, and held level through the opening dolly (a tilt drifting in under
+// the camera's move reads as the move itself wavering).
 const PARALLAX_YAW = 0.06; // ~3.4° left/right
 const PARALLAX_PITCH = 0.035; // ~2° up/down
 function Parallax({ children }: { children: ReactNode }) {
@@ -90,7 +94,7 @@ function Parallax({ children }: { children: ReactNode }) {
     const g = grp.current;
     if (!g) return;
     // active only on the overview, with a fine pointer, and not under reduced motion
-    const on = !reduced && !coarse && selected === null;
+    const on = !reduced && !coarse && selected === null && !opening.dollying;
     const tx = on ? pointer.y * PARALLAX_PITCH : 0; // lean toward the cursor
     const ty = on ? -pointer.x * PARALLAX_YAW : 0;
     const lerp = selected ? 0.16 : 0.05; // zero out quickly on select; drift gently otherwise

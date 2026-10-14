@@ -38,7 +38,7 @@ export function NotFound() {
           <h1 id="closed-title" className="xl__title">
             This part of the exhibition isn’t open yet
           </h1>
-          <p className="xl__curator">
+          <p className="xl__note">
             The address leads to a room that hasn’t been built. The {EXHIBIT_COUNT} exhibits in the model are open, and so is the rest of the
             collection: {cases.length} projects in all.
           </p>

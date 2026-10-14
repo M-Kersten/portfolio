@@ -9,8 +9,12 @@
 //   mill.glb    the windmill at the city's edge (city.tsx)
 //   trafo.glb   the transformer house in front of the tower (city.tsx)
 //   rocket.glb  the Starship stack on the launch pad (rocket.tsx)
+// (and binoculars.gltf, the park's AR viewer, a whole scene rather than parts)
+//
+// maquetteLoaded() is all of them arriving: the opening dolly waits for it, so
+// nothing pops in, and nothing compiles its shader, under the camera's move.
 import { useEffect, useState } from 'react';
-import { BufferAttribute, BufferGeometry, type InterleavedBufferAttribute, type Mesh, type Object3D } from 'three';
+import { BufferAttribute, BufferGeometry, type Group, type InterleavedBufferAttribute, type Mesh, type Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { asset } from '../../lib/asset';
@@ -152,6 +156,27 @@ const blocks = modelFile('blocks.glb', BLOCK_PARTS, "city's blocks");
 const mill = modelFile('mill.glb', MILL_PARTS, "city's windmill");
 const trafo = modelFile('trafo.glb', TRAFO_PARTS, "city's transformer house");
 const rocket = modelFile('rocket.glb', ROCKET_PARTS, 'launch vehicle');
+
+/** The park's AR viewer (city.tsx): one self-contained glTF scene, loaded once.
+ *  Each user takes a clone, since it re-materials and re-scales what it gets. */
+let binoculars: Promise<Group> | null = null;
+export function loadBinoculars(): Promise<Group> {
+  if (!binoculars) {
+    binoculars = new Promise<Group>((resolve, reject) => {
+      new GLTFLoader().load(asset('/models/binoculars.gltf'), (g) => resolve(g.scene), undefined, reject);
+    }).catch((e: unknown) => {
+      binoculars = null;
+      throw e;
+    });
+  }
+  return binoculars;
+}
+
+/** Every model the maquette draws, arrived (or failed: a missing file is its
+ *  layer's problem, not the camera's). Asking starts any load not yet begun. */
+export function maquetteLoaded(): Promise<void> {
+  return Promise.allSettled([chip.get(), tower.get(), blocks.get(), mill.get(), trafo.get(), rocket.get(), loadBinoculars()]).then(() => undefined);
+}
 
 export const loadChipKit = chip.get;
 export const useChipKit = chip.useKit;
