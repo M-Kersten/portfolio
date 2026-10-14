@@ -322,7 +322,9 @@ export function Work() {
       if (!raf) raf = requestAnimationFrame(compute);
     };
     pin.addEventListener('scroll', onScroll, { passive: true });
-    const io = new IntersectionObserver((es) => setPinIn(es[0].isIntersecting), { threshold: 0.35 });
+    // only while the timeline is under the bar itself (the bottom of the
+    // screen), so it goes as soon as the timeline scrolls up past it
+    const io = new IntersectionObserver((es) => setPinIn(es[0].isIntersecting), { rootMargin: '-85% 0px 0px 0px' });
     io.observe(pin);
     compute();
     return () => {
@@ -486,6 +488,8 @@ export function Work() {
       // The focus crosses the screen as the wall pans, left edge to right
       // edge, so it reaches the end of the route exactly as the route runs out.
       const focus = p * window.innerWidth;
+      // the scroll cue retires once there's no more time to scroll through
+      scrollRef.current?.querySelector('.wall__cue')?.toggleAttribute('data-done', p > 0.92);
       // xAt() run backwards for the focus, held to the route
       const yr = Math.floor(timeline.minYear + (x + focus - cfg.startX) / cfg.yearGap);
       const year = String(Math.min(Math.floor(timeline.maxYear), Math.max(timeline.minYear, yr)));
@@ -695,13 +699,6 @@ export function Work() {
             ))}
           </div>
           <span className="wall__cue" aria-hidden="true">scroll through time →</span>
-          {/* Razor-thin scanner-frame corners around the viewport. */}
-          <div className="wall__frame" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-            <i />
-          </div>
         </div>
       </div>
 

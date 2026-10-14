@@ -152,6 +152,22 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-l) var(--space-m);
 }
+/* each chapter's heading and text share rows with its neighbour's, so two
+   side by side start their text on the same line however the headings wrap */
+@supports (grid-template-rows: subgrid) {
+  .about__chapter {
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    row-gap: 0;
+  }
+}
+/* below a laptop the two columns get too narrow to read: one column */
+@media (max-width: 1000px) {
+  .about__chapters {
+    grid-template-columns: 1fr;
+  }
+}
 .about__hook {
   font-family: var(--font-heading);
   font-size: var(--step-1);
@@ -397,6 +413,7 @@
   font-family: var(--font-mono);
   font-size: var(--step--1);
   line-height: 1.45;
+  text-wrap: balance; /* no word left alone on a ragged last line */
   color: var(--ink-60);
   transition: color var(--t-base) var(--ease);
 }

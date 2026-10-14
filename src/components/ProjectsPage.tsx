@@ -39,7 +39,7 @@ export function ProjectsPage() {
       <main id="main" className="pc-stage">
         <section className="section pc">
           <div className="container">
-            <SectionHead id="work" level={1} title={TITLE} lead={LEAD} note={`${items.length} projects`} />
+            <SectionHead id="work" level={1} title={TITLE} lead={LEAD} />
             <ProjectsIndex items={items} onOpen={setOpen} />
           </div>
         </section>

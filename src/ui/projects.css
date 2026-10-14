@@ -55,8 +55,8 @@
    accent; picked, the tag lights up between them like a locked-on target. The
    corners are drawn as background, so the hit area is the whole chip. */
 .pi-chip {
-  /* at rest the corners are a whisper — the label is what says "press me";
-     the brackets are what say "picked" */
+  /* at rest the outline is a whisper — the label is what says "press me";
+     the accent outline and fill are what say "picked" */
   --bc: color-mix(in srgb, var(--ink) 26%, transparent);
   --bl: 5px;
   display: inline-flex;
@@ -67,24 +67,14 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-60);
-  border: 0;
   border-radius: var(--radius-s);
   padding: 0.62em 0.95em;
   min-height: 2.5rem; /* a real touch target */
   cursor: pointer;
   white-space: nowrap;
-  background:
-    linear-gradient(var(--bc), var(--bc)) top left / var(--bl) 1px,
-    linear-gradient(var(--bc), var(--bc)) top left / 1px var(--bl),
-    linear-gradient(var(--bc), var(--bc)) top right / var(--bl) 1px,
-    linear-gradient(var(--bc), var(--bc)) top right / 1px var(--bl),
-    linear-gradient(var(--bc), var(--bc)) bottom left / var(--bl) 1px,
-    linear-gradient(var(--bc), var(--bc)) bottom left / 1px var(--bl),
-    linear-gradient(var(--bc), var(--bc)) bottom right / var(--bl) 1px,
-    linear-gradient(var(--bc), var(--bc)) bottom right / 1px var(--bl),
-    var(--chip-fill, transparent);
-  background-repeat: no-repeat;
-  transition: color var(--t-fast) var(--ease), background-size var(--t-base) var(--ease), --bc var(--t-fast) var(--ease);
+  border: 1px solid var(--bc);
+  background: var(--chip-fill, transparent);
+  transition: color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease), --bc var(--t-fast) var(--ease);
 }
 .pi-chip b {
   font-weight: 400;

@@ -7,11 +7,19 @@
 /* A tall scroll region; while it's pinned the page scroll pans the wall
    sideways, one to one, like sliding a map past a fixed frame. */
 .wall__scroll { position: relative; }
+/* air between the section's opening (title, lead) and the map */
+.wall > .container { margin-bottom: var(--space-l); }
 .wall__pin {
   position: sticky;
   top: 0;
   height: 100svh;
   overflow: hidden;
+}
+/* the map fades into the page at its foot (and under the header at its top)
+   instead of ending on a hard edge as the pinned view scrolls away */
+.wall:not([data-static]) .wall__pin {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 6%, #000 93%, transparent);
+          mask-image: linear-gradient(to bottom, transparent, #000 6%, #000 93%, transparent);
 }
 /* The ground the route is drawn on, on its own layer under the year (it pans
    with the route, transform set per frame in JS): the canyon map once
@@ -338,24 +346,6 @@
 /* (The BASEMAP instrument HUD, scattered map labels and land features were
    removed — the timeline route is the map's single organising device now.) */
 
-/* Razor-thin scanner-frame brackets around the viewport (clear of the header). */
-.wall__frame {
-  position: absolute;
-  inset: calc(var(--header-h) + var(--space-xs)) var(--space-s) var(--space-m);
-  z-index: 5;
-  pointer-events: none;
-}
-.wall__frame i {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
-}
-.wall__frame i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-.wall__frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
-.wall__frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
-.wall__frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-.wall[data-static] .wall__frame { display: none; }
 /* Manual-pan mode (reduced-motion + phones): no scroll-jack — the pinned region
    becomes a plain horizontally-scrollable strip you swipe/drag by hand. The plane
    is one viewport tall (planeVh: 1), so this scrolls horizontally only. */
@@ -419,7 +409,9 @@
   text-transform: uppercase;
   color: var(--ink-40);
   pointer-events: none;
+  transition: opacity var(--t-base) var(--ease);
 }
+.wall__cue[data-done] { opacity: 0; }
 /* On phones the sticky company bar owns the bottom, so drop the scroll cue. */
 .wall[data-static] .wall__cue { display: none; }
 /* …and say it above the strip instead (Work.tsx), in the same voice, with the

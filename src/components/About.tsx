@@ -3,7 +3,6 @@ import { cases, site } from '../content';
 import { asset } from '../lib/asset';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { useReveal } from '../lib/useReveal';
-import { ScanFrame } from './ScanFrame';
 import { Scramble } from './Scramble';
 import { SectionHead } from './SectionHead';
 
@@ -55,7 +54,6 @@ function AboutPortrait({ children }: { children?: ReactNode }) {
         />
       ))}
       {children}
-      <ScanFrame variant="portrait" />
     </figure>
   );
 }

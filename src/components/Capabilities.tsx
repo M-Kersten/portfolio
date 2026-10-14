@@ -4,7 +4,6 @@ import { MOTION } from '../lib/motion';
 import { useReveal } from '../lib/useReveal';
 import { ScaleMotif } from './ScaleMotif';
 import { CapBandMotif } from './CapBandMotif';
-import { ScanFrame } from './ScanFrame';
 import { Scramble } from './Scramble';
 import { SectionHead } from './SectionHead';
 
@@ -49,7 +48,6 @@ export function Capabilities() {
 
   return (
     <section id="capabilities" className="section capabilities">
-      <ScanFrame variant="section" />
       <div className="container">
         {/* the note is the three scales the work happens at, as a model
             maker would mark them: the city small, the chip blown up */}

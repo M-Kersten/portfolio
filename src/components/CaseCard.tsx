@@ -27,7 +27,8 @@ export function CaseCard({
   // a "Freelance" / "Passion" label (and then the client moves into the meta
   // line so it stays visible).
   const kindLabel = study.kind === 'freelance' ? 'Freelance' : study.kind === 'passion' ? 'Passion' : null;
-  const tagText = kindLabel ?? study.tag ?? study.client;
+  // the company itself: "Philips (Via Rebels)" is Philips on a tag this small
+  const tagText = kindLabel ?? (study.tag ?? study.client).replace(/\s*\(via [^)]+\)/i, '');
   const metaText = kindLabel ? `${study.client} · ${study.sector}` : study.sector;
   // `year` may carry a month for timeline placement ("2024-09"); the stamp only
   // ever shows the year itself.

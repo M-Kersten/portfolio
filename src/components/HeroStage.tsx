@@ -46,9 +46,10 @@ const TALLY_SETTLE_MS = 900;
 /** The tally's words: the count, and what it's counting toward. The model
  *  assembles the next launch as exhibits light up, so the label names that
  *  goal from the first glance, counts down the last two, and says when it's ready. */
-function tallyLabel(n: number): string {
+function tallyLabel(n: number, cue: boolean): string {
   if (n >= TOTAL) return `${TOTAL}/${TOTAL} lit · ready to launch`;
-  if (n === 0) return `0/${TOTAL} lit · light all ${TOTAL} to launch`;
+  // while the first-visit hint above it says the goal, the tally doesn't repeat it
+  if (n === 0) return cue ? `0/${TOTAL} lit` : `0/${TOTAL} lit · light all ${TOTAL} to launch`;
   if (n >= TOTAL - 2) return `${n}/${TOTAL} lit · ${TOTAL - n} to go`;
   return `${n}/${TOTAL} lit · stacking the next launch`;
 }
@@ -239,7 +240,7 @@ export function HeroStage() {
         style={{ opacity: overlayOpacity * (booted ? 1 : 0), pointerEvents: overlayOpacity && booted ? undefined : 'none' }}
         data-complete={complete || undefined}
       >
-        {cue && (
+        {cue && !manifestOpen && (
           <p className="hero__hint" aria-hidden="true">
             {PRESS} an exhibit to light it — all ten launch the next one
           </p>
@@ -349,7 +350,7 @@ export function HeroStage() {
             key={flashKey}
             className={flashKey > 0 ? 'hero__signals-label hero__signals-label--flash' : 'hero__signals-label'}
           >
-            {tallyLabel(revealed)}
+            {tallyLabel(revealed, cue)}
           </span>
           <span className="visually-hidden"> — the exhibition guide</span>
         </button>

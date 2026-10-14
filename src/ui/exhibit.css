@@ -159,7 +159,9 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink);
-  background: linear-gradient(transparent 50%, color-mix(in srgb, var(--paper) 80%, transparent));
+  /* dark enough under the words to read on the brightest poster */
+  background: linear-gradient(transparent 35%, color-mix(in srgb, var(--paper) 88%, transparent));
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
   border: 0;
   cursor: pointer;
   text-align: left;
@@ -189,6 +191,9 @@
    the heading, the facts, the note, the voice, the way in, the way on */
 .xl__body {
   display: grid;
+  /* one column that may shrink: the walk's one-line names mustn't push the
+     label wider than the screen */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.15rem;
   padding: 1.35rem 1.75rem 1.5rem;
 }
@@ -453,8 +458,20 @@
 }
 .xb__recto {
   gap: 1.35rem;
-  padding: 1.25rem 2.5rem 1.25rem 3rem;
+  padding: 1.25rem 2.5rem 0 3rem;
   border-radius: 0 var(--radius) var(--radius) 0;
+}
+/* a long page fades out at its foot rather than slicing through a line; at
+   the end of the page it's just the bottom margin */
+.xb__recto::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  flex: none;
+  height: 2.5rem;
+  margin-top: -1.35rem; /* sits on the column gap, not after it */
+  background: linear-gradient(transparent, var(--page) 80%);
+  pointer-events: none;
 }
 /* running heads: the book's name on the left page, the chapter's on the right */
 .xb__run {
@@ -478,11 +495,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* the left page: the chapter opener and the film, centred on the page */
+/* the left page: the chapter opener and the film, from the top of the page */
 .xb__chapter {
   display: grid;
   gap: 1.3rem;
-  margin-block: auto;
+  margin-top: 1.25rem;
 }
 .xb__opener {
   display: grid;
@@ -578,15 +595,14 @@
   line-height: 1.4;
   color: var(--ink);
 }
-/* …then the story, set as a book sets it: justified and hyphenated, each
-   part under a plain heading, indented paragraphs, and an end mark */
+/* …then the story: each part under a plain heading, indented paragraphs,
+   and an end mark. Set ragged-right: justified at this measure opened gaps
+   between the words. */
 .xb__essay {
   font-size: var(--step-0);
   line-height: 1.72;
   color: var(--ink-80, var(--ink-60));
-  text-align: justify;
-  hyphens: auto;
-  -webkit-hyphens: auto;
+  text-wrap: pretty;
 }
 .xb__essay section + section {
   margin-top: 1.5rem;
@@ -764,9 +780,6 @@
   }
   .xb__tomb {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .xb__essay {
-    text-align: left;
   }
 }
 @keyframes xl-open-down {
