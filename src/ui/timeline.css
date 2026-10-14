@@ -578,53 +578,14 @@
 
 /* Not reached yet: the poster rests grey and dim, like the maquette's ghosts.
    When the focus passes it, the card powers on — the picture comes up to
-   colour and the brackets flash locked for a beat. (A static, unpanned wall
+   colour. (A static, unpanned wall
    never sets data-lit off, and reduced motion lights everything at once.) */
 .worktile-slot:not([data-lit]) .worktile__img {
   filter: grayscale(0.85) brightness(0.62);
 }
-.worktile-slot:not([data-lit]) .worktile__reticle i {
-  border-color: color-mix(in srgb, var(--ink) 16%, transparent);
-}
 .worktile__img {
   transition: filter var(--t-slow) var(--ease);
 }
-.worktile-slot[data-lit] .worktile__reticle i {
-  animation: tile-lock var(--t-slow) var(--ease);
-}
-@keyframes tile-lock {
-  0% { border-color: var(--card-accent); }
-  100% { border-color: color-mix(in srgb, var(--card-accent) 30%, transparent); }
-}
-
-/* Survey-plate registration frame — faint corner brackets that mark each tile
-   as a catalogued location on the map, then expand + lock on when hovered. */
-.worktile__reticle {
-  position: absolute;
-  inset: 8px;
-  pointer-events: none;
-  z-index: 4;
-  transition: inset var(--t-base) var(--ease);
-}
-.worktile:hover .worktile__reticle,
-.worktile:focus-visible .worktile__reticle {
-  inset: 5px;
-}
-.worktile__reticle i {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border: 1.5px solid color-mix(in srgb, var(--card-accent) 30%, transparent);
-  transition: border-color var(--t-base) var(--ease);
-}
-.worktile:hover .worktile__reticle i,
-.worktile:focus-visible .worktile__reticle i {
-  border-color: var(--card-accent);
-}
-.worktile__reticle i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-.worktile__reticle i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
-.worktile__reticle i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
-.worktile__reticle i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
 
 /* Milestone stamp in the body — the year is the map's unit of distance, so it
    leads; a small layer tag (the faint tie back to the maquette) sits beside it. */
@@ -740,8 +701,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.35em;
-  /* a touch more floor than walls so the meta line clears the reticle corner */
-  padding: var(--space-s) var(--space-s) calc(var(--space-s) + 0.3rem);
+  padding: var(--space-s);
 }
 .worktile__meta {
   font-family: var(--font-mono);
@@ -766,7 +726,6 @@
    (Work.tsx also lights every stop and the whole route, and weaves the whole
    map, up front). */
 @media (prefers-reduced-motion: reduce) {
-  .worktile-slot[data-lit] .worktile__reticle i { animation: none; }
   .wall__strip,
   .worktile__img { transition: none; }
 }

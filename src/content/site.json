@@ -36,7 +36,7 @@
     { "company": "Marechaussee", "from": "2025-07", "to": "2026-12", "color": "#d97f7f" , "role": "XR consultant & networking engineer", "location": "Apeldoorn, NL", "blurb": "At the Dutch military police I connect VR players inside a training simulation that’s been in development for years, with all the security that comes with it.", "url": "https://www.defensie.nl/onderwerpen/marechaussee", "logo": "/logos/kmar.png", "sector": "Defence", "tech": ["Unity · C#", "VR", "Multiplayer networking"], "detail": "For the Dutch military police I work on connecting VR players inside a complex training system that has been in development for years. Given the security, I had to build a lot of networking components myself and learn how they work in detail." }
   ],
   "about": {
-    "title": "making computers do unusual things since 2016",
+    "title": "About the artist",
     "lead": "I’m a creative technologist from Utrecht. For almost a decade I’ve been chasing the same little moment, when a piece of technology stops feeling like technology and starts feeling like *a small magic trick*. I’m not bored of it yet.",
     "body": [
       "Most of my work happens somewhere between the screen and the real world. I’ve put virtual objects in public spaces, turned children’s books into AR seek-and-find games and had strangers racing tiny AR cars across the same table. I like being close to the machine, down in the pixels, the code and the hardware, but I care just as much about the people holding it and *what happens when it all has to connect*.",

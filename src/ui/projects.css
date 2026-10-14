@@ -334,33 +334,6 @@
   margin-top: auto;
 }
 
-/* the brackets: faint, set in a little; tighten and take the layer's colour */
-.pi-card__reticle {
-  position: absolute;
-  inset: 8px;
-  pointer-events: none;
-  transition: inset var(--t-base) var(--ease);
-}
-.pi-card__reticle i {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border: 1.5px solid color-mix(in srgb, var(--c) 30%, transparent);
-  transition: border-color var(--t-base) var(--ease);
-}
-.pi-card__reticle i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-.pi-card__reticle i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
-.pi-card__reticle i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
-.pi-card__reticle i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-.pi-card:hover .pi-card__reticle,
-.pi-card:focus-visible .pi-card__reticle {
-  inset: 5px;
-}
-.pi-card:hover .pi-card__reticle i,
-.pi-card:focus-visible .pi-card__reticle i {
-  border-color: var(--c);
-}
-
 /* Cards fade up once on mount. Keyed by slug, so re-filtering reorders the
    existing nodes instead of replaying this. */
 @media (prefers-reduced-motion: no-preference) {
@@ -420,13 +393,6 @@
      down; --step-1 wrapped most of them onto three lines. */
   .pi-card__title {
     font-size: var(--step-0);
-  }
-  .pi-card__reticle {
-    inset: 5px;
-  }
-  .pi-card__reticle i {
-    width: 10px;
-    height: 10px;
   }
   .pi-chip {
     padding: 0.55em 0.75em;

@@ -116,10 +116,13 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
     };
   }, [reduced]);
 
-  // Scroll parallax: the specimen floats up into place as the bio scrolls past
-  // it. Over the About grid's pass through the viewport it starts low, settles
-  // halfway through and drifts a little higher after, written as --rise and
-  // applied with `translate` so it composes with the pointer tilt's transform.
+  // Scroll settle: the specimen rises into place as the bio arrives, then
+  // stays put beside the text (its column is sticky) while you read. It
+  // starts a little low as the section comes up the screen and settles by
+  // the time the bio's top reaches the header, where the sticky column takes
+  // over; nothing moves after that. Eased toward its target every frame, so
+  // it glides rather than tracking each scroll tick. Written as --rise and
+  // applied with `translate`, so it composes with the pointer tilt.
   useEffect(() => {
     const el = ref.current;
     const grid = el?.closest<HTMLElement>('.about__grid');
@@ -128,19 +131,25 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
       return;
     }
     let raf = 0;
-    const update = () => {
-      raf = 0;
+    let shown = NaN;
+    const target = () => {
       const r = grid.getBoundingClientRect();
       const vh = window.innerHeight;
-      const p = (vh - r.top) / (vh + r.height); // 0 entering at the bottom → 1 gone off the top
-      const range = Math.min(260, vh * 0.32);
-      const rise = Math.max(-range * 0.35, Math.min(range * 0.8, (0.5 - p) * range * 1.6));
-      el.style.setProperty('--rise', `${rise.toFixed(1)}px`);
+      const settleAt = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) * 16 || 68;
+      const p = Math.min(1, Math.max(0, (vh - r.top) / Math.max(1, vh - settleAt)));
+      const e = 1 - (1 - p) ** 3; // eases out into place
+      return (1 - e) * Math.min(160, vh * 0.18);
+    };
+    const tick = () => {
+      const t = target();
+      shown = Number.isNaN(shown) ? t : shown + (t - shown) * 0.12;
+      el.style.setProperty('--rise', `${shown.toFixed(1)}px`);
+      raf = Math.abs(t - shown) > 0.3 ? requestAnimationFrame(tick) : 0;
     };
     const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(update);
+      if (!raf) raf = requestAnimationFrame(tick);
     };
-    update();
+    tick();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
     return () => {
@@ -260,8 +269,6 @@ function aboutStats() {
     { n: new Date().getFullYear() - (Number.isFinite(first) ? first : 2016), label: 'years since my first internship' },
     { n: cases.length, label: 'projects on this site, some of them failures' },
     { n: teams, label: 'companies I’ve worked for' },
-    // the launch pad in the city builds its rocket as exhibits light up (launchSite.tsx)
-    { n: 1, label: 'rocket in the city, one piece for every exhibit you light' },
   ];
 }
 

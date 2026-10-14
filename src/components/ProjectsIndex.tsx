@@ -18,8 +18,8 @@ import { exhibitMark } from '../content/exhibits';
 // Everything here speaks the home page's language: chips are tags framed by
 // the scanner brackets that lock on when one is picked, the sort is a row of
 // mono links with the nav's drawn rule under the current one, and the cards are
-// the timeline's waypoint cards — frosted, tinted by their layer, brackets
-// tightening round them under the pointer.
+// the timeline's waypoint cards — frosted, tinted by their layer, the edge
+// firming up under the pointer.
 
 const LAYER_COLOR: Record<Layer, string> = { city: 'var(--cyan)', room: 'var(--coral)', chip: 'var(--lime)' };
 
@@ -151,13 +151,6 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
                 <span className="pi-card__title">{c.title}</span>
                 <span className="pi-card__meta">{c.client}</span>
                 <span className="pi-card__sector">{c.sector}</span>
-              </span>
-              {/* the waypoint cards' scanner brackets, locking on under the pointer */}
-              <span className="pi-card__reticle" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-                <i />
               </span>
             </button>
           </li>

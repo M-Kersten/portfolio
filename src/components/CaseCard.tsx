@@ -65,13 +65,6 @@ export function CaseCard({
           <h3 className="worktile__title">{study.title}</h3>
           <span className="worktile__meta">{metaText}</span>
         </div>
-        {/* AR-style tracking overlay — corner brackets that "lock on" on hover. */}
-        <span className="worktile__reticle" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <i />
-        </span>
       </button>
     </div>
   );

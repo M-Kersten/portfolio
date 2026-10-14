@@ -14,11 +14,11 @@ import { Scramble } from './Scramble';
 const STEPS = [0, 1, 2];
 
 // One line of narration per layer, so the descent reads as a told story
-// instead of a silent slideshow. The index carries the layer's accent.
+// instead of a silent slideshow. The layer's name carries its accent.
 const CAPTIONS = [
-  { index: '01', name: 'city', blurb: 'at the scale of streets', accent: 'var(--cyan)' },
-  { index: '02', name: 'room', blurb: 'the things you pick up and use', accent: 'var(--coral)' },
-  { index: '03', name: 'chip', blurb: 'the tools supporting it all', accent: 'var(--lime)' },
+  { name: 'city', blurb: 'at the scale of streets', accent: 'var(--cyan)' },
+  { name: 'room', blurb: 'the things you pick up and use', accent: 'var(--coral)' },
+  { name: 'chip', blurb: 'the tools supporting it all', accent: 'var(--lime)' },
 ];
 
 // The exploration game: every object in the maquette IS a project, an exhibit
@@ -32,9 +32,9 @@ const CAPTIONS = [
 // from ghost to lit, and the tally's own label says so.
 const TOTAL = HOTSPOTS.length;
 const LAYERS = [
-  { key: 'city', index: '01', name: 'city' },
-  { key: 'room', index: '02', name: 'room' },
-  { key: 'chip', index: '03', name: 'chip' },
+  { key: 'city', name: 'city' },
+  { key: 'room', name: 'room' },
+  { key: 'chip', name: 'chip' },
 ] as const;
 // How long the ambient tally waits, after a hotspot's HUD closes, before it
 // steps to the new count. Roughly how long CameraRig's exponential zoom-out
@@ -229,7 +229,7 @@ export function HeroStage() {
         style={{ opacity: overlayOpacity * (booted ? 1 : 0), '--cap-accent': caption.accent } as CSSProperties}
         aria-hidden="true"
       >
-        <b>{caption.index}</b> · {caption.name} <span>— {caption.blurb}</span>
+        <b>{caption.name}</b> <span>— {caption.blurb}</span>
       </div>
 
       {/* The model tally — every object in the maquette is a project; this is
@@ -248,15 +248,10 @@ export function HeroStage() {
           <div className="manifest" role="dialog" aria-label="Exhibition guide">
             <div className="manifest__head">
               <b>exhibition guide</b>
-              <span>
-                {found}/{TOTAL} lit
-              </span>
             </div>
             {LAYERS.map((l) => (
               <div key={l.key} className="manifest__layer">
-                <span className="manifest__index">
-                  {l.index} · {l.name}
-                </span>
+                <span className="manifest__index">{l.name}</span>
                 <ul>
                   {HOTSPOTS.filter((h) => h.layer === l.key).map((h) => {
                     const c = caseBySlug(h.slug);

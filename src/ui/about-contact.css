@@ -108,7 +108,7 @@
    the display voice over its label, counting up as the row arrives */
 .about__stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
   border-block: 1px solid var(--line);
 }
@@ -506,15 +506,13 @@
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 480px) {
   .about__stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
-  .about__stat:nth-child(3) {
+  .about__stat + .about__stat {
     padding-left: 0;
     border-left: 0;
-  }
-  .about__stat:nth-child(n + 3) {
     border-top: 1px solid var(--hairline);
   }
 }
