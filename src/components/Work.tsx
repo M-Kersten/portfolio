@@ -705,11 +705,11 @@ export function Work() {
         </div>
       </div>
 
-      {/* Underneath the timeline: the way into the full index — every project,
+      {/* Underneath the timeline: the way into the collection — every project,
           not just the highlights on the route. */}
       <div className="wall__more">
         <Link className="btn btn--ghost wall__more-btn" to="/projects">
-          Every project <span aria-hidden="true">↗</span>
+          The collection <span aria-hidden="true">↗</span>
         </Link>
       </div>
 

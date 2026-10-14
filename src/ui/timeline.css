@@ -680,25 +680,21 @@
   background: var(--paper-2);
 }
 
-/* the exhibit mark, on the picture's top-left corner */
+/* the exhibit mark, quietly on the picture's top-left corner */
 .worktile__ex {
   position: absolute;
   z-index: 2;
   top: 0.4rem;
   left: 0.4rem;
-  padding: 0.2em 0.45em;
+  padding: 0.25em 0.45em;
   font-family: var(--font-mono);
   font-size: 0.6rem;
   line-height: 1;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--paper) 78%, transparent);
-  border-left: 2px solid var(--card-accent, var(--accent));
-}
-.worktile__ex[data-collection] {
   color: var(--ink-60);
-  border-left-color: var(--ink-40);
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+  border-radius: var(--radius-s);
 }
 /* placeholder poster — shown until a real image is dropped in: a quiet
    layer-tinted panel on the site's dot ground, marked with a hollow ring (the

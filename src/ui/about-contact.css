@@ -473,21 +473,12 @@
    with the gaps widening down the ladder. */
 /* The page's one call to action: a quiet rule under it at rest, and on hover a
    solid accent rule sweeps in over it, left to right. */
-/* the desk's question, picking up the launch pad's thread; the address under
-   it is the answer */
-.contact__thread {
-  margin: var(--space-l) auto 0; /* paragraphs keep a measure; this one sits on the centre line */
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.08em;
-  color: var(--pink);
-}
 .contact__email {
   display: inline-block;
   font-family: var(--font-heading);
   font-size: var(--step-3);
   color: var(--accent-ink);
-  margin-top: var(--space-xs);
+  margin-top: var(--space-l);
   padding-bottom: 0.1em;
   text-decoration: none;
   background:

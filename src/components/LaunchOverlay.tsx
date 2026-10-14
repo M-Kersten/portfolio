@@ -92,12 +92,6 @@ export function LaunchOverlay() {
     <div className="launch" role="dialog" aria-label={`Exhibit ${NEXT_LAUNCH_NO}: the next launch`}>
       {launch === 'pad' && (
         <article className="launch__panel">
-          <span className="xl__frame" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-            <i />
-          </span>
           <div className="xl__top">
             <span className="xl__no">
               <b>{NEXT_LAUNCH_NO}</b> the next launch

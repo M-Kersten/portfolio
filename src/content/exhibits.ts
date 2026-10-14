@@ -47,14 +47,6 @@ export function walkFrom(study: CaseStudy, place: 'maquette' | 'page', collectio
 
 /* ---------- the book ---------- */
 
-/** The catalogue's order: the exhibits by number, then the collection by date. */
-const CATALOGUE = [...EXHIBITS, ...byDate(cases).map((c) => c.slug).filter((slug) => !EXHIBITS.includes(slug))];
-/** A project's two page numbers in the book, the spread it's printed on (after
- *  four pages of front matter, one spread per project). */
-export function folios(slug: string): [number, number] {
-  const page = 2 * Math.max(0, CATALOGUE.indexOf(slug)) + 4;
-  return [page, page + 1];
-}
 /** A story beat's paragraphs (a blank line between them in the content). */
 export const paragraphs = (text: string): string[] =>
   text

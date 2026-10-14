@@ -28,11 +28,9 @@
   padding: 1.1rem 1.35rem 1rem;
   background: color-mix(in srgb, var(--paper) 90%, transparent);
   border: 1px solid var(--line);
+  border-radius: var(--radius);
   backdrop-filter: blur(8px);
   animation: launch-rise var(--t-base) var(--ease);
-}
-.launch__panel .xl__no b {
-  font-size: var(--step-2);
 }
 .launch__panel .voice {
   padding-top: 0.6rem;

@@ -33,7 +33,7 @@ Useful while developing:
   its label opens beside it; `/work/:slug?entry` opens straight onto the book
   (the full entry). The build writes each one a page of its own, so a shared
   link previews with the project's card (`public/og/<slug>.jpg`)
-- `/projects` — every project, the ten exhibits and the rest of the collection
+- `/projects` — the collection: every project, the ten exhibits and the rest
 - anything else — a closed room: "This part of the exhibition isn't open yet"
 - `/cv` — the CV as a web page; `npm run cv` prints it to `public/cv.pdf`
 - add `?nogl` to any URL to preview the **no-WebGL static fallback**
@@ -99,7 +99,8 @@ src/
     devTweak.tsx       dev-only 3D position scrubbers (tree-shaken from prod)
   content/             cases.json · capabilities.json · site.json · cv.json (+ types),
                        voice.ts (finds the voice notes in assets/voice/),
-                       exhibits.ts (the numbering, the film loops, see also)
+                       exhibits.ts (the numbering, the film loops, see also),
+                       films.ts (the line under each film in the book)
   assets/voice/        the voice notes, one per project: <slug>.mp3
   assets/loops/        the silent film loops on the labels: <slug>.mp4
   assets/sound/        the site's effects and ambient (README lists every file)
@@ -149,6 +150,10 @@ their own ghost→alive keyed on the same store state. Colour policy lives in
 - **Film loops** — a silent 6–10 s clip per project in
   `src/assets/loops/<slug>.mp4` plays at the top of its label (the README
   there has the format); without one the poster drifts slowly instead.
+- **What the film shows** — the line under each project's film in the book
+  lives in `src/content/films.ts` (not cases.json: the CMS drops keys it
+  doesn't know). The current lines are drafts from each film's YouTube title
+  and poster; rewrite them in your own words.
 - **Voice notes** — record a short clip about a project and save it as
   `src/assets/voice/<slug>.mp3` (or `.m4a`, `.ogg`, `.webm`), named after
   the case's `slug`. Its audio guide then appears on that project's label

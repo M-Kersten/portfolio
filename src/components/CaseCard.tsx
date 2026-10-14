@@ -55,9 +55,7 @@ export function CaseCard({
           )}
           <div className="worktile__scrim" aria-hidden="true" />
           {/* in the model (its exhibit number), or in the collection */}
-          <span className="worktile__ex" data-collection={exhibitMark(study.slug) === 'Collection' || undefined}>
-            {exhibitMark(study.slug)}
-          </span>
+          <span className="worktile__ex">{exhibitMark(study.slug)}</span>
         </div>
         <div className="worktile__body">
           <div className="worktile__stamp">

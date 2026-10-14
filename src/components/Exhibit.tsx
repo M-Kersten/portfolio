@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { caseWhen, roleFor, site, type CaseStudy } from '../content';
-import { EXHIBIT_COUNT, exhibitNo, folios, loopFor, pad2, paragraphs, readingMinutes, seeAlso, splitHook, walkFrom } from '../content/exhibits';
+import { EXHIBIT_COUNT, exhibitNo, loopFor, pad2, paragraphs, readingMinutes, seeAlso, splitHook, walkFrom } from '../content/exhibits';
+import { filmCaption } from '../content/films';
 import { asset } from '../lib/asset';
 import { caseOrigin } from '../lib/caseOrigin';
 import { EASE, MOTION } from '../lib/motion';
@@ -29,12 +30,12 @@ import { VoiceNote } from './VoiceNote';
 // full story". Esc closes it; ← → walk the exhibits by number.
 //
 // The book is the full story, set as a spread. The label becomes its left page,
-// the chapter opener: the number, the title, the standfirst, the film as the
-// plate (carrying on from where it was in the label), its caption and the
-// facts. The right page swings open from the spine with the story itself: the
-// problem, the approach and the lesson as numbered sections, a drop cap, book
-// paragraphs, then "See also" and the way to ask about it. Running heads and
-// page numbers, because it's a book. Esc folds it back into the label.
+// the chapter opener: the number, the title, the standfirst, and the film
+// (carrying on from where it was in the label) with a line under it on what
+// you're looking at. The right page swings open from the spine with the facts
+// and the story itself: the problem, the approach and the lesson, each under
+// its own heading, set as a book sets text, then "See also" and the way to ask
+// about it. Esc folds it back into the label.
 //
 // On a page (the timeline, /projects, search) the card that was clicked is the
 // label already, so a project opens straight onto the book, its plate growing
@@ -296,15 +297,6 @@ function Walk({ place, prev, next, onWalk }: { place: Place; prev?: CaseStudy; n
   );
 }
 
-const Frame = () => (
-  <span className="xl__frame" aria-hidden="true">
-    <i />
-    <i />
-    <i />
-    <i />
-  </span>
-);
-
 const PlayMark = () => (
   <span className="xl__watch-mark" aria-hidden="true">
     <svg viewBox="0 0 12 14">
@@ -447,7 +439,6 @@ function Label({
         </svg>
       )}
       <article ref={labelRef} className="xl" role="dialog" aria-modal="true" aria-label={study.title}>
-        <Frame />
         {sheet && <span className="xl__grip" aria-hidden="true" />}
         {/* the film first: a silent loop (or the poster, drifting), and pressed,
             the film itself, right here */}
@@ -476,7 +467,7 @@ function Label({
                   <b>{pad2(no)}</b> of {EXHIBIT_COUNT} in the model
                 </span>
               ) : (
-                <span className="xl__no xl__no--collection">In the collection</span>
+                <span className="xl__no">In the collection</span>
               )}
               <button ref={closeRef} type="button" className="xl__close" onClick={onClose} aria-label="Close">
                 <span aria-hidden="true">✕</span>
@@ -549,10 +540,8 @@ function Book({
   const inMaquette = place === 'maquette';
   const embed = youtubeEmbed(study.video);
   const no = exhibitNo(study.slug);
-  const year = study.year?.slice(0, 4);
   const role = roleFor(study);
   const when = caseWhen(study);
-  const [verso, recto] = folios(study.slug);
   const [imgOk, setImgOk] = useState(true);
   // the film plays on if it was playing in the label; otherwise it waits to be pressed
   const [playing, setPlaying] = useState(Boolean(embed && film?.playing));
@@ -565,11 +554,14 @@ function Book({
   const { buildsOn, ledTo } = seeAlso(study);
   const chapters = (
     [
-      ['I', 'The problem', study.problem],
-      ['II', 'The approach', study.approach],
-      ['III', 'The lesson', study.lesson],
-    ] as [string, string, string | undefined][]
-  ).filter((c): c is [string, string, string] => Boolean(c[2]));
+      ['The problem', study.problem],
+      ['The approach', study.approach],
+      ['The lesson', study.lesson],
+    ] as [string, string | undefined][]
+  ).filter((c): c is [string, string] => Boolean(c[1]));
+  // what you're looking at, under the film
+  const caption = embed ? filmCaption(study.slug) : undefined;
+  const related = [...(buildsOn ? [buildsOn] : []), ...ledTo];
   const [enter] = useState(enterDir);
   useEffect(() => {
     enterDir = 0;
@@ -594,26 +586,13 @@ function Book({
     const page = rectoRef.current;
     if (!spread || !screen) return;
     if (reduced || !from) {
-      spread.animate([{ opacity: 0 }, { opacity: 1 }], {
-        duration: MOTION.fast,
-        easing: EASE,
-      });
+      spread.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.fast, easing: EASE });
       return;
     }
     const d = MOTION.slow;
     const s = screen.getBoundingClientRect();
     const anims = [
-      spread.animate(
-        [
-          {
-            backgroundColor: 'transparent',
-            borderColor: 'transparent',
-            boxShadow: 'none',
-          },
-          {},
-        ],
-        { duration: d, easing: EASE },
-      ),
+      spread.animate([{ backgroundColor: 'transparent', borderColor: 'transparent', boxShadow: 'none' }, {}], { duration: d, easing: EASE }),
       screen.animate(
         [
           {
@@ -629,15 +608,7 @@ function Book({
       const o = opener.getBoundingClientRect();
       anims.push(
         from.head
-          ? opener.animate(
-              [
-                {
-                  transform: `translate(${from.head.left - o.left}px, ${from.head.top - o.top}px)`,
-                },
-                { transform: 'none' },
-              ],
-              { duration: d, easing: EASE },
-            )
+          ? opener.animate([{ transform: `translate(${from.head.left - o.left}px, ${from.head.top - o.top}px)` }, { transform: 'none' }], { duration: d, easing: EASE })
           : opener.animate([{ opacity: 0 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }], { duration: d * 1.2, easing: EASE }),
       );
     }
@@ -645,30 +616,15 @@ function Book({
       anims.push(
         page.animate(
           [
-            {
-              transformOrigin: '0 50%',
-              transform: 'perspective(2000px) rotateY(-84deg)',
-              opacity: 0.3,
-            },
-            {
-              transformOrigin: '0 50%',
-              transform: 'perspective(2000px) rotateY(0deg)',
-              opacity: 1,
-            },
+            { transformOrigin: '0 50%', transform: 'perspective(2000px) rotateY(-84deg)', opacity: 0.3 },
+            { transformOrigin: '0 50%', transform: 'perspective(2000px) rotateY(0deg)', opacity: 1 },
           ],
-          {
-            duration: d * 1.3,
-            delay: d * 0.3,
-            easing: EASE,
-            fill: 'backwards',
-          },
+          { duration: d * 1.3, delay: d * 0.3, easing: EASE, fill: 'backwards' },
         ),
       );
     }
     // what wasn't on the label arrives after it
-    spread
-      .querySelectorAll<HTMLElement>('[data-after]')
-      .forEach((el) => anims.push(el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: d * 1.4, easing: EASE })));
+    spread.querySelectorAll<HTMLElement>('[data-after]').forEach((el) => anims.push(el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: d * 1.4, easing: EASE })));
     return () => anims.forEach((a) => a.cancel());
   }, [from, reduced]);
 
@@ -725,10 +681,11 @@ function Book({
                 </button>
               )}
             </div>
-            <figcaption className="xb__caption" data-after="">
-              <b>{no !== null ? `Plate ${pad2(no)}.` : 'Plate.'}</b> {study.title}
-              {year ? `, ${year}` : ''}.
-            </figcaption>
+            {caption && (
+              <figcaption className="xb__caption" data-after="">
+                {caption}
+              </figcaption>
+            )}
           </figure>
           {(study.gallery?.length ?? 0) > 0 && (
             <div className="xb__gal" data-after="">
@@ -736,9 +693,6 @@ function Book({
             </div>
           )}
         </div>
-        <p className="xb__folio" data-after="">
-          {verso}
-        </p>
       </section>
 
       {/* the right page: the catalogue entry, the facts then the story */}
@@ -780,34 +734,29 @@ function Book({
           ) : null}
         </dl>
         <article className="xb__essay">
-          {chapters.map(([num, head, text], ci) => (
+          {chapters.map(([head, text]) => (
             <section key={head}>
-              <h3>
-                <span>{num}</span> {head}
-              </h3>
+              <h3>{head}</h3>
               {paragraphs(text).map((para, pi) => (
-                <p key={pi} className={ci === 0 && pi === 0 ? 'xb__first' : undefined}>
-                  {para}
-                </p>
+                <p key={pi}>{para}</p>
               ))}
             </section>
           ))}
         </article>
-        {(buildsOn || ledTo.length > 0) && (
+        {related.length > 0 && (
           <p className="xb__see">
-            <span className="xb__k">See also</span>
-            {buildsOn && (
-              <button type="button" onClick={() => onWalk(buildsOn.slug)}>
-                {exhibitNo(buildsOn.slug) !== null ? `Exhibit ${pad2(exhibitNo(buildsOn.slug)!)}, ` : ''}
-                {buildsOn.title}, which this builds on
-              </button>
-            )}
-            {ledTo.map((c) => (
-              <button key={c.slug} type="button" onClick={() => onWalk(c.slug)}>
-                {exhibitNo(c.slug) !== null ? `Exhibit ${pad2(exhibitNo(c.slug)!)}, ` : ''}
-                {c.title}, which it led to
-              </button>
-            ))}
+            See also:{' '}
+            {related.map((c, i) => {
+              const n = exhibitNo(c.slug);
+              return (
+                <span key={c.slug}>
+                  {i > 0 && ' · '}
+                  <button type="button" onClick={() => onWalk(c.slug)}>
+                    {n !== null ? `Exhibit ${pad2(n)}, ${c.title}` : c.title}
+                  </button>
+                </span>
+              );
+            })}
           </p>
         )}
         <div className="xb__acts">
@@ -827,7 +776,6 @@ function Book({
             </button>
           )}
           <Walk place={place} prev={prev} next={next} onWalk={onWalk} />
-          <p className="xb__folio">{recto}</p>
         </footer>
       </section>
     </div>

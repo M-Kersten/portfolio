@@ -1,13 +1,12 @@
 /* ---------- An exhibit: its label, and the book it opens into ----------
    (components/Exhibit.tsx). The label is the glance, beside the object in the
    maquette: the film on top, the number, the title and what it achieved, who
-   it was for and what it's made of, a sentence of curator's note, the audio
-   guide, and the way into the full story. It's drawn in the site's own hand:
-   the scanner brackets in the layer's colour, square controls, mono meta, and
-   a line from the object it belongs to. The book is the full story, set as a
-   printed spread: a chapter opener and the plate on the left page, the
-   catalogue entry on the right (the facts, then the story with a drop cap and
-   numbered sections), running heads and page numbers. */
+   it was for and my part in it, a sentence of curator's note, the audio
+   guide, and the way into the full story. It's a panel like the site's other
+   panels (a hairline outline, the small radius), with a line from the object
+   it belongs to. The book is the full story, set as a printed spread: the
+   chapter opener and the film on the left page, the facts and the story on
+   the right, under running heads. */
 
 .exhibit {
   --card-accent: var(--cyan);
@@ -55,6 +54,7 @@
   background: color-mix(in srgb, var(--paper) 94%, transparent);
   backdrop-filter: blur(8px);
   border: 1px solid var(--line);
+  border-radius: var(--radius);
   animation: xl-in var(--t-slow) var(--ease);
 }
 .xl::-webkit-scrollbar { display: none; }
@@ -113,20 +113,6 @@
   opacity: 0;
   transition: opacity var(--t-fast) var(--ease);
 }
-
-/* the scanner brackets, in the layer's colour */
-.xl__frame i {
-  position: absolute;
-  z-index: 2;
-  width: 14px;
-  height: 14px;
-  border: 0 solid var(--card-accent);
-  pointer-events: none;
-}
-.xl__frame i:nth-child(1) { top: -1px; left: -1px; border-top-width: 2px; border-left-width: 2px; }
-.xl__frame i:nth-child(2) { top: -1px; right: -1px; border-top-width: 2px; border-right-width: 2px; }
-.xl__frame i:nth-child(3) { bottom: -1px; left: -1px; border-bottom-width: 2px; border-left-width: 2px; }
-.xl__frame i:nth-child(4) { bottom: -1px; right: -1px; border-bottom-width: 2px; border-right-width: 2px; }
 
 /* the film: the first thing the eye lands on; pressed, it plays right here */
 .xl__film {
@@ -217,29 +203,22 @@
   gap: var(--space-s);
   margin-bottom: 0.2rem;
 }
-.xl__no {
+/* where it stands: "02 of 10 in the model", said quietly */
+.xl__no,
+.xb__no {
   display: flex;
   align-items: baseline;
-  gap: 0.45em;
-  font-family: var(--font-display);
+  gap: 0.3em;
+  margin: 0;
   font-size: var(--step--1);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--card-accent);
+  line-height: 1.4;
+  color: var(--ink-60);
 }
-.xl__no b {
-  font-size: var(--step-2);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0;
-}
-.xl__no--collection {
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  font-weight: 400;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-40);
+.xl__no b,
+.xb__no b {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 .xl__close,
 .xb__close {
@@ -422,6 +401,7 @@
   grid-template-columns: var(--spine) minmax(0, 1fr);
   background: var(--page);
   border: 1px solid var(--line);
+  border-radius: var(--radius);
   box-shadow: 0 40px 90px -20px #000;
 }
 /* the spine: the pages curve down into it */
@@ -456,18 +436,25 @@
   position: relative;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none; /* a page scrolls if it must, without a bar down it */
   display: flex;
   flex-direction: column;
   background: var(--page);
 }
+.xb__verso::-webkit-scrollbar,
+.xb__recto::-webkit-scrollbar,
+.xb::-webkit-scrollbar {
+  display: none;
+}
 .xb__verso {
   gap: 1.2rem;
-  padding: 1.25rem 2.75rem 1rem 2.5rem;
+  padding: 1.25rem 2.75rem 1.25rem 2.5rem;
+  border-radius: var(--radius) 0 0 var(--radius);
 }
 .xb__recto {
   gap: 1.35rem;
-  padding: 1.25rem 2.5rem 1rem 3rem;
+  padding: 1.25rem 2.5rem 1.25rem 3rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
 /* running heads: the book's name on the left page, the chapter's on the right */
 .xb__run {
@@ -491,17 +478,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* page numbers, at the outer corners */
-.xb__folio {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.1em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-40);
-}
-
-/* the left page: the chapter opener and the plate, centred on the page */
+/* the left page: the chapter opener and the film, centred on the page */
 .xb__chapter {
   display: grid;
   gap: 1.3rem;
@@ -510,23 +487,6 @@
 .xb__opener {
   display: grid;
   gap: 0.5rem;
-}
-.xb__no {
-  display: flex;
-  align-items: baseline;
-  gap: 0.55em;
-  margin: 0 0 0.15rem;
-  font-family: var(--font-display);
-  font-size: var(--step--1);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--card-accent);
-}
-.xb__no b {
-  font-size: var(--step-4);
-  font-weight: 700;
-  line-height: 0.9;
-  letter-spacing: 0;
 }
 .xb__title {
   margin: 0;
@@ -577,15 +537,13 @@
   transition: opacity var(--t-base) var(--ease);
 }
 .xb__screen iframe[data-loaded] { opacity: 1; }
+/* what you're looking at */
 .xb__caption {
   margin: 0;
+  max-width: 62ch;
   font-size: var(--step--1);
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--ink-60);
-}
-.xb__caption b {
-  font-weight: 500;
-  color: var(--ink);
 }
 
 /* the right page: the catalogue entry. The facts first, the way a museum
@@ -620,8 +578,8 @@
   line-height: 1.4;
   color: var(--ink);
 }
-/* …then the story, set as a book sets it: justified, hyphenated, a drop cap,
-   indented paragraphs, numbered sections, and an end mark */
+/* …then the story, set as a book sets it: justified and hyphenated, each
+   part under a plain heading, indented paragraphs, and an end mark */
 .xb__essay {
   font-size: var(--step-0);
   line-height: 1.72;
@@ -634,39 +592,17 @@
   margin-top: 1.5rem;
 }
 .xb__essay h3 {
-  display: flex;
-  align-items: baseline;
-  gap: 0.8em;
-  margin: 0 0 0.55rem;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  font-weight: 400;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ink-60);
-}
-.xb__essay h3 span {
-  min-width: 1.6em;
-  font-family: var(--font-display);
-  font-size: var(--step-0);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--card-accent);
+  margin: 0 0 0.45em;
+  font-size: var(--step-1);
+  line-height: 1.18;
+  color: var(--ink);
+  text-align: left;
 }
 .xb__essay p {
   margin: 0;
 }
 .xb__essay p + p {
   text-indent: 1.5em;
-}
-.xb__first::first-letter {
-  float: left;
-  margin: 0.08em 0.12em 0 0;
-  font-family: var(--font-display);
-  font-size: 3.5em;
-  font-weight: 700;
-  line-height: 0.8;
-  color: var(--card-accent);
 }
 .xb__essay section:last-child p:last-child::after {
   content: '';
@@ -677,25 +613,16 @@
   background: var(--card-accent);
 }
 .xb__see {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35rem 0.9rem;
   margin: 0;
   padding-top: 1.1rem;
   border-top: 1px solid var(--line);
-}
-.xb__k {
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-40);
+  font-size: var(--step--1);
+  line-height: 1.6;
+  color: var(--ink-60);
 }
 .xb__see button {
   padding: 0;
   font: inherit;
-  font-size: var(--step--1);
   color: var(--accent-ink);
   background: none;
   border: 0;
@@ -715,10 +642,6 @@
   display: grid;
   gap: 0.75rem;
   margin-top: auto;
-}
-.xb__foot .xb__folio {
-  margin: 0;
-  text-align: right;
 }
 .xb__fold {
   justify-self: start;
@@ -804,16 +727,18 @@
     display: block;
     overflow-y: auto;
     overscroll-behavior: contain;
+    scrollbar-width: none;
     border: 0;
+    border-radius: 0;
   }
   .xb::after,
-  .xb__folio,
   .xb__run {
     display: none;
   }
   .xb__verso,
   .xb__recto {
     overflow: visible;
+    border-radius: 0;
   }
   .xb__verso {
     padding: 1.25rem 1rem 0;

@@ -1,12 +1,8 @@
 import { site } from '../content';
-import { NEXT_LAUNCH_NO } from '../content/exhibits';
 import { asset } from '../lib/asset';
 import { ContactMotif } from './ContactMotif';
 import { SectionHead } from './SectionHead';
 
-// The commission desk: where the exhibition's last exhibit gets ordered. It
-// picks up the thread from the launch pad (exhibit 11, "your project"), asks
-// the question, and the address is the answer.
 export function Contact() {
   const c = site.contact;
   return (
@@ -14,11 +10,8 @@ export function Contact() {
       <div className="container">
         <div className="contact">
           <ContactMotif />
-          <SectionHead id="contact" title={c.title} lead={c.lead} align="center" note="the commission desk" />
-          <p className="contact__thread">
-            Exhibit {NEXT_LAUNCH_NO} is yours. What are we launching?
-          </p>
-          <a className="contact__email" href={`mailto:${c.email}?subject=${encodeURIComponent(`Exhibit ${NEXT_LAUNCH_NO}`)}`}>
+          <SectionHead id="contact" title={c.title} lead={c.lead} align="center" />
+          <a className="contact__email" href={`mailto:${c.email}`}>
             {c.email}
           </a>
           <div className="contact__links">

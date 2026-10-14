@@ -6,8 +6,8 @@ import { Header } from './Header';
 import { ProjectsIndex } from './ProjectsIndex';
 import { SectionHead } from './SectionHead';
 
-// The fullscreen "all projects" view (/projects) — reached from the button under
-// the timeline. A standalone route (no 3D): a filterable index of every project,
+// The collection (/projects): every project, the ten exhibits in the model and
+// the rest. Reached from the button under the timeline. A standalone route (no 3D): a filterable index of every project,
 // where the homepage carries the atmosphere and this page carries the answers.
 // It wears the rest of the site's chrome — the same header and footer, and an
 // opening built like every home section's (kicker, measuring rule, display
@@ -17,8 +17,8 @@ import { SectionHead } from './SectionHead';
 // The heading lives here rather than in site.json: the CMS round-trips that
 // file against a fixed model, and a key it doesn't know would be dropped on the
 // next publish.
-const TITLE = "The director's cut";
-const LEAD = 'The timeline is the theatrical release. This is everything: the hits, the deep cuts and the side quests.';
+const TITLE = 'The collection';
+const LEAD = 'Here’s where I keep all my projects.';
 
 export function ProjectsPage() {
   const [open, setOpen] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function ProjectsPage() {
 
   useEffect(() => {
     const prev = document.title;
-    document.title = `Projects — ${site.hero.name}`;
+    document.title = `The collection — ${site.hero.name}`;
     return () => {
       document.title = prev;
     };

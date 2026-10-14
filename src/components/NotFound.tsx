@@ -27,14 +27,8 @@ export function NotFound() {
     <div ref={ref} className="exhibit closed" data-place="page">
       <div className="exhibit__dim" aria-hidden="true" />
       <article className="xl closed__label" role="dialog" aria-modal="true" aria-labelledby="closed-title">
-        <span className="xl__frame" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <i />
-        </span>
         <div className="xl__body">
-          <span className="xl__no xl__no--collection">Closed for now</span>
+          <span className="xl__no">Closed for now</span>
           <h1 id="closed-title" className="xl__title">
             This part of the exhibition isn’t open yet
           </h1>
