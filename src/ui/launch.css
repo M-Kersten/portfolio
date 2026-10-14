@@ -9,14 +9,27 @@
   z-index: 70; /* over the header (50), under the game (95) */
   pointer-events: none;
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: clamp(2rem, 9vh, 6rem);
+  /* the pad camera frames the rocket left of centre: the label stands to its
+     right, clear of it */
+  align-items: center;
+  justify-content: flex-end;
+  padding: calc(var(--header-h) + 1rem) clamp(1rem, 5vw, 4rem) 1.5rem;
+}
+/* a phone: under the rocket */
+@media (max-width: 760px), (max-width: 1120px) and (orientation: portrait) {
+  .launch {
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0 0.75rem calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
+  /* it stops short of the rocket, and scrolls if it must */
+  .launch__panel {
+    max-height: 56svh;
+  }
 }
 .launch__panel {
-  /* exhibit 11's label: the same hand as the ten before it (exhibit.css), in
-     the Passion tag's colour, standing under the rocket */
-  --card-accent: var(--pink);
+  /* exhibit 11's label: the same hand as the ten before it (exhibit.css),
+     standing beside the rocket */
   position: relative;
   pointer-events: auto;
   display: grid;
@@ -36,30 +49,11 @@
   padding-top: 0.6rem;
   border-top: 1px solid var(--line);
 }
-/* the site's Passion tag, in its one colour */
-.launch__tag {
-  padding: 0.15em 0.5em;
-  border: 1px solid var(--pink);
-  border-radius: var(--radius-s);
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  color: var(--pink);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
 .launch__story {
   margin: 0;
   font-size: var(--step--1);
   line-height: 1.55;
   color: var(--ink-80, var(--ink-60));
-}
-.launch__brief {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  color: var(--ink-60);
-  letter-spacing: 0.02em;
-  line-height: 1.5;
 }
 /* the global odometer — appears only once the count has loaded */
 .launch__tally {
@@ -87,10 +81,6 @@
 @keyframes launch-arm {
   from { box-shadow: 0 0 0 0 transparent; }
   to { box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 45%, transparent); }
-}
-.launch__panel .launch__abort {
-  justify-self: start;
-  padding: 0.2rem 0;
 }
 .launch__abort {
   font-family: var(--font-mono);

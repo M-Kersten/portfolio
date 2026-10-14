@@ -154,7 +154,7 @@ export function CameraRig() {
 
   // dev: the capture scripts read the camera and the dolly's clock
   useEffect(() => {
-    if (import.meta.env.DEV) (window as unknown as { __cam: unknown }).__cam = { camera, opening, introT, introReady };
+    if (import.meta.env.DEV) (window as unknown as { __cam: unknown }).__cam = { camera, scene, opening, introT, introReady };
   }, [camera]);
 
   // State changes (and resizes) need at least one frame in demand mode; the FOV

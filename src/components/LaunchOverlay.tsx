@@ -94,15 +94,17 @@ export function LaunchOverlay() {
         <article className="launch__panel">
           <div className="xl__top">
             <span className="xl__no">
-              <b>{NEXT_LAUNCH_NO}</b> the next launch
+              <b>{NEXT_LAUNCH_NO}</b> of {EXHIBIT_COUNT} · still in the workshop
             </span>
-            <span className="launch__tag">Passion</span>
+            <button type="button" className="xl__close" onClick={() => sceneStore.setLaunch('idle')} aria-label="Back to the model">
+              <span aria-hidden="true">✕</span>
+            </button>
           </div>
           <h2 className="xl__title">Your project</h2>
-          <p className="xl__outcome">You and me, next</p>
+          <p className="xl__outcome">The exhibit that isn’t built yet</p>
           <p className="xl__meta">Materials to be decided</p>
           <p className="xl__materials">
-            {EXHIBIT_COUNT} projects went into it
+            Assembled from the {EXHIBIT_COUNT} in the model
             {flights != null && (
               <>
                 {' · '}
@@ -113,11 +115,11 @@ export function LaunchOverlay() {
             )}
           </p>
           <p className="launch__story">
-            Space travel is a passion of mine: I love following space travel news, and I watch every launch I have the time for. So that’s how I treat
-            a project: a careful countdown, a clean launch, and a booster that comes home to be flown again.
+            Every exhibit in this model was launched once: a careful countdown, a clean lift-off, then the problems every project runs into. I follow
+            spaceflight closely and watch every launch I have time for, so that’s how I build. This one is still on the pad. Fly it to see how it
+            would go, or let’s build it and give it a place in the collection.
           </p>
           <VoiceNote slug="next-launch" title="The next launch" no={String(NEXT_LAUNCH_NO)} label="Audio guide · the countdown" />
-          <p className="launch__brief">Press launch to fly yours, then blast through the problems every project runs into.</p>
           <div className="launch__row">
             <button type="button" className="btn launch__go" onClick={() => sceneStore.setLaunch('countdown')}>
               LAUNCH
@@ -126,9 +128,6 @@ export function LaunchOverlay() {
               Let’s build it <span aria-hidden="true">→</span>
             </button>
           </div>
-          <button type="button" className="launch__abort" onClick={() => sceneStore.setLaunch('idle')}>
-            back to the model <kbd>Esc</kbd>
-          </button>
         </article>
       )}
     </div>,

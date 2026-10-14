@@ -53,18 +53,22 @@ type Role = 'steel' | 'tiles' | 'engines' | 'dark';
  *  false it's a plain group (reduced motion, and the game's complete ship). */
 export function Rise({ animate, children }: { animate: boolean; children: ReactNode }) {
   const g = useRef<Group>(null);
-  const t0 = useRef<number>(animate ? -1 : 0); // -1 = armed, 0 = done
+  // null = armed, a time = rising since then; `done` once it's up. (Not a 0
+  // sentinel for done: a piece already built when the page loads arms on the
+  // very first frame, when the clock still reads 0, and stayed shrunk to nothing.)
+  const t0 = useRef<number | null>(null);
+  const done = useRef(!animate);
   useFrame((s) => {
-    if (t0.current === 0) return;
+    if (done.current) return;
     const grp = g.current;
     if (!grp) return;
-    if (t0.current < 0) t0.current = s.clock.elapsedTime;
+    if (t0.current === null) t0.current = s.clock.elapsedTime;
     const p = Math.min(1, (s.clock.elapsedTime - t0.current) / 0.55);
     const e = 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2);
     grp.scale.setScalar(Math.max(0.001, e));
     if (p >= 1) {
       grp.scale.setScalar(1);
-      t0.current = 0;
+      done.current = true;
     }
   });
   return (
