@@ -223,13 +223,18 @@ img {
   display: block;
   margin-left: calc(var(--ln, 0) * 0.55em);
 }
+/* The lead is the title's standfirst: directly under it, on the same left
+   edge as the first line of the title, read as one block with it, the way a
+   wall text sits under an exhibit's name. (It used to hang off to the right,
+   which left a short line floating on its own.) */
 .section__lead {
-  grid-column: 7 / -1;
-  margin: var(--space-l) 0 0;
+  grid-column: 1 / -1;
+  margin: var(--space-m) 0 0;
   font-size: var(--step-1);
   line-height: 1.45;
   color: var(--ink-60);
-  max-width: 34ch;
+  max-width: 42ch;
+  text-wrap: pretty;
   transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
   transition-delay: calc(var(--stagger) * 4);
 }
@@ -257,12 +262,6 @@ img {
 .section__head:not([data-shown]) .section__lead {
   opacity: 0;
   transform: translateY(var(--rise-in));
-}
-@media (max-width: 900px) {
-  .section__lead {
-    grid-column: 1 / -1;
-    margin-top: var(--space-m);
-  }
 }
 @media (max-width: 760px) {
   .section__title {

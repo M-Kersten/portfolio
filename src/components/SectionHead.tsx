@@ -6,9 +6,9 @@ import { SectionTitle } from './SectionTitle';
 // How every section opens. A mono kicker carries the section's name (the same
 // name as the header nav, without a number) and a measuring rule running out
 // to a short note, the way a drawing's scale bar or title block would; then
-// the title, at display size; then the lead, set small and off to the right,
-// so each opening is one big thing and one quiet one rather than a centred
-// stack. They arrive in that order as the head scrolls in: the rule draws
+// the title, at display size; then the lead, its standfirst, directly under
+// it on the same left edge, so the two read as one block (a wall text under
+// an exhibit's name) rather than a short line floating off on its own. They arrive in that order as the head scrolls in: the rule draws
 // across, the title decodes, the lead rises.
 export function SectionHead({
   id,
