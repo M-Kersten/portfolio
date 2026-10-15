@@ -170,6 +170,14 @@
   color: var(--accent-ink);
   animation: hero-hint-in 0.8s var(--ease);
 }
+/* a returning visitor's greeting: quieter than the cue, and it goes */
+.hero__hint--welcome {
+  color: color-mix(in srgb, var(--ink) 74%, transparent);
+  transition: opacity 0.6s var(--ease);
+}
+.hero__hint--welcome[data-leaving] {
+  opacity: 0;
+}
 @keyframes hero-hint-in {
   from {
     opacity: 0;

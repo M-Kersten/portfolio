@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { caseBySlug, cases, site } from '../content';
 import { EXHIBITS, NEXT_LAUNCH_NO, exhibitNo, pad2 } from '../content/exhibits';
-import { sceneStore, useSceneSelector } from '../scene/store';
+import { returning, sceneStore, useSceneSelector } from '../scene/store';
 import { HOTSPOTS } from '../scene/framing';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { Scramble } from './Scramble';
@@ -53,6 +53,16 @@ function tallyLabel(n: number, cue: boolean): string {
   if (n >= TOTAL - 2) return `${n}/${TOTAL} lit · ${TOTAL - n} to go`;
   return `${n}/${TOTAL} lit · stacking the next launch`;
 }
+/** The line a returning visitor is greeted with, above the tally. The tally
+ *  beside it already has the count, so this only says where they stand. */
+function welcomeLine(n: number): string {
+  if (n >= TOTAL) return 'Welcome back — the next launch is still on the pad';
+  if (n > 0) return 'Welcome back — the model is as you left it';
+  return 'Welcome back';
+}
+// how long the greeting stays up once the boot has played, and its fade out
+const WELCOME_MS = 6500;
+const WELCOME_FADE_MS = 600;
 /** The projects that aren't in the model: on the timeline and /projects. */
 const IN_COLLECTION = cases.filter((c) => !EXHIBITS.includes(c.slug)).length;
 // What the finger does on a touch screen, what the pointer does elsewhere —
@@ -89,6 +99,10 @@ export function HeroStage() {
   // states the premise, while a crosshair in the model asks to be clicked;
   // both retire for good the moment a first project is opened.
   const cue = useSceneSelector((s) => s.cue);
+  // A returning visitor (the opening has played in this browser before) is
+  // greeted for a few seconds as the instrument line comes up; the first-visit
+  // cue, if it still applies, takes the spot after it. Opening anything ends it.
+  const [welcome, setWelcome] = useState<'on' | 'leaving' | 'off'>(returning ? 'on' : 'off');
 
   // The scroll journey and the "is the hero on screen?" flag are both derived
   // from the hero's own scroll progress on one cheap rAF loop (no scroll events,
@@ -178,6 +192,17 @@ export function HeroStage() {
     if (booted) sceneStore.setBooted();
   }, [booted]);
 
+  // the greeting's lifetime: up with the instrument line, then out
+  useEffect(() => {
+    if (!booted || welcome === 'off') return;
+    if (selectedSlug || launching || manifestOpen) {
+      setWelcome('off');
+      return;
+    }
+    const t = window.setTimeout(() => setWelcome(welcome === 'on' ? 'leaving' : 'off'), welcome === 'on' ? WELCOME_MS : reduced ? 0 : WELCOME_FADE_MS);
+    return () => clearTimeout(t);
+  }, [booted, welcome, selectedSlug, launching, manifestOpen, reduced]);
+
   // Esc closes the manifest
   useEffect(() => {
     if (!manifestOpen) return;
@@ -240,11 +265,19 @@ export function HeroStage() {
         style={{ opacity: overlayOpacity * (booted ? 1 : 0), pointerEvents: overlayOpacity && booted ? undefined : 'none' }}
         data-complete={complete || undefined}
       >
-        {cue && !manifestOpen && (
-          <p className="hero__hint" aria-hidden="true">
-            {PRESS} an exhibit to light it — all ten launch the next one
-          </p>
-        )}
+        {welcome !== 'off'
+          ? booted &&
+            !manifestOpen && (
+              <p className="hero__hint hero__hint--welcome" data-leaving={welcome === 'leaving' || undefined} role="status">
+                {welcomeLine(revealed)}
+              </p>
+            )
+          : cue &&
+            !manifestOpen && (
+              <p className="hero__hint" aria-hidden="true">
+                {PRESS} an exhibit to light it — all ten launch the next one
+              </p>
+            )}
         {manifestOpen && (
           <div className="manifest" role="dialog" aria-label="Exhibition guide">
             <div className="manifest__head">
@@ -324,12 +357,7 @@ export function HeroStage() {
             )}
           </div>
         )}
-        <button
-          type="button"
-          className="hero__signals-btn"
-          aria-expanded={manifestOpen}
-          onClick={() => setManifestOpen((v) => !v)}
-        >
+        <button type="button" className="hero__signals-btn" aria-expanded={manifestOpen} onClick={() => setManifestOpen((v) => !v)}>
           {/* Named by its visible text plus a hidden hint, rather than an
               aria-label that said something else ("Projects live in the model:
               0 of 10…") — speech input users say what they see. */}
@@ -346,10 +374,7 @@ export function HeroStage() {
               ),
             )}
           </span>
-          <span
-            key={flashKey}
-            className={flashKey > 0 ? 'hero__signals-label hero__signals-label--flash' : 'hero__signals-label'}
-          >
+          <span key={flashKey} className={flashKey > 0 ? 'hero__signals-label hero__signals-label--flash' : 'hero__signals-label'}>
             {tallyLabel(revealed, cue)}
           </span>
           <span className="visually-hidden"> — the exhibition guide</span>
