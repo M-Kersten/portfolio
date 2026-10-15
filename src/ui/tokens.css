@@ -17,9 +17,8 @@
      facet labels — so it has to clear WCAG AA for normal text, not just look
      recessive. 0.52 is the floor for 4.5:1 on both --paper and --paper-2; the
      old 0.4 measured 3.35:1 and failed on every surface. Anything genuinely
-     decorative belongs in --ink-20, which makes no such promise. */
+     decorative can go fainter; this one can't. */
   --ink-40: rgba(234, 234, 234, 0.52);
-  --ink-20: rgba(234, 234, 234, 0.16);
 
   /* ---- The spatial palette — one locked job per colour ------------------
      The colour system is deliberately small so the whole site reads as one
@@ -33,7 +32,7 @@
        pink     — the "Passion" project tag (+ coral's gradient partner).
 
      Layer → colour is fixed and used identically by the hero maquette, the
-     capabilities band, the project cards and the focus popup:
+     capabilities band, the project cards and the exhibit labels:
        city = cyan · room = coral · chip = lime.
 
      The employer / career palette (site.json `career[].color`) is a separate,
@@ -48,7 +47,6 @@
 
   /* Primary accent = cyan (names kept stable for existing components). */
   --accent: #27e8f2;
-  --accent-2: #15b6c0; /* deeper cyan for gradients */
   --accent-ink: #5cf0f7; /* accent as text on dark */
   --accent-contrast: #06181b; /* near-black text on an accent fill */
   --accent-glow: rgba(39, 232, 242, 0.3);
@@ -61,8 +59,6 @@
      WCAG 1.4.11 puts that at 3:1 — --line manages 1.48:1 and reads as a ghost
      outline. 0.38 is where a 1px edge clears the bar on --paper. */
   --line-strong: rgba(234, 234, 234, 0.38);
-  --model-mid: #2a3340;
-  --model-deep: #1a212a;
 
   /* ---- The completion gradient ----
      One signature gradient, reserved for one moment: all locked hues appear
@@ -77,8 +73,6 @@
      background field (timeline, About/Contact, case cards, hero flourishes)
      reads as one system. Colours are baked in (the palette is locked). */
   --dots-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Crect x='14' y='14' width='2' height='2' fill='%23eaeaea' fill-opacity='.13'/%3E%3C/svg%3E");
-  /* A fainter ink field for raised surfaces (the HUD card). */
-  --dots-faint: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Crect x='14' y='14' width='2' height='2' fill='%23eaeaea' fill-opacity='.16'/%3E%3C/svg%3E");
   /* Accent-dot field for hero/section flourishes (finer 14px grid). */
   --dotfield: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Crect x='6' y='6' width='1.8' height='1.8' fill='%2327e8f2' fill-opacity='.6'/%3E%3C/svg%3E");
   --dotfield-size: 14px 14px;

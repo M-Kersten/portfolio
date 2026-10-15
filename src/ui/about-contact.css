@@ -3,12 +3,10 @@
 
 /* ---------- About + Contact ---------- */
 
-/* Shared "instrument viewport" framing (§ cohesion). A faint STATIC dot-field
-   behind the content plus scanner-corner brackets, so these editorial sections
-   read as part of the same holographic UI as the hero and the projects
-   timeline. Deliberately static — no hover-glow or live motif — so the copy
-   stays comfortable to read. The dot field mirrors the timeline's base layer;
-   the corner idiom mirrors .wall__frame. */
+/* Shared "instrument viewport" framing: a faint STATIC dot field behind the
+   content, so these editorial sections read as part of the same UI as the
+   hero and the timeline. Deliberately static — no hover-glow or live motif —
+   so the copy stays comfortable to read. */
 .section--instrument {
   overflow: hidden;
   /* clip, where it's supported: it trims the same overflow without making the
@@ -30,34 +28,6 @@
 .section--instrument > .container {
   position: relative;
   z-index: 1;
-}
-
-/* Corner brackets — four L-shapes. Base fills its positioned parent; the
-   modifiers set the inset/scale for a whole section vs. the portrait. */
-.scanframe {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-.scanframe i {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
-}
-.scanframe i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-.scanframe i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
-.scanframe i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
-.scanframe i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-/* Section-scale — hugs the section a little in from the edges. */
-.scanframe--section { inset: var(--space-l) var(--space-m); }
-/* Portrait-scale — a small viewfinder lock-on just inside the photo. */
-.scanframe--portrait { inset: 7px; z-index: 1; }
-.scanframe--portrait i {
-  width: 13px;
-  height: 13px;
-  border-color: color-mix(in srgb, var(--ink) 34%, transparent);
 }
 
 /* The bio, laid out to be skimmed: the lead said out loud, a row of numbers,
@@ -316,13 +286,6 @@
   85% { top: 86%; opacity: 0.9; transform: translateX(2px); }
   85.6% { top: 94%; opacity: 0.3; transform: translateX(-1px); }
   86.2%, 100% { top: 100%; opacity: 0; transform: translateX(0); }
-}
-.about__stage .scanframe--portrait i {
-  transition: border-color var(--t-base) var(--ease);
-}
-/* the hovered fact's accent locks the viewfinder brackets */
-.about__stage[data-hot] .scanframe--portrait i {
-  border-color: color-mix(in srgb, var(--hotc) 80%, transparent);
 }
 .about__stage-svg {
   position: absolute;

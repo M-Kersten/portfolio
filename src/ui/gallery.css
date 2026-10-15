@@ -5,6 +5,15 @@
   flex-direction: column;
   gap: var(--space-2xs);
 }
+.gal__h {
+  margin: 0 0 0.5em;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
 /* auto-fill, not auto-fit: a set of three shouldn't stretch to three huge
    panes across the card — the frames keep their size and the row runs short,
    which is what a contact sheet does. */

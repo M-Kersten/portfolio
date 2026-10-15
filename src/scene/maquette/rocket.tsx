@@ -157,14 +157,3 @@ export function ShipBody({ mode = 'ghost', assemble = false }: { mode?: Mode; as
     </Rise>
   );
 }
-
-/** The whole stack, booster under ship. */
-export function RocketBody({ mode = 'ghost', parts, assemble = false }: { mode?: Mode; parts?: RocketParts; assemble?: boolean }) {
-  const ship = parts?.ship ?? true;
-  return (
-    <group>
-      <BoosterBody mode={mode} parts={parts} assemble={assemble} />
-      {ship && <ShipBody mode={mode} assemble={assemble} />}
-    </group>
-  );
-}

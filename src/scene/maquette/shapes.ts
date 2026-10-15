@@ -156,7 +156,7 @@ export function tube(points: V3[], radius: number, radial = 6, segments = 0, clo
 
 /** Points round a rounded rectangle in the XZ plane (for piping on a cushion
  *  top or a table edge), `perCorner` per quarter round. */
-export function roundedRectPath(w: number, d: number, r: number, y = 0, perCorner = 4): V3[] {
+function roundedRectPath(w: number, d: number, r: number, y = 0, perCorner = 4): V3[] {
   const pts: V3[] = [];
   const cx = w / 2 - r;
   const cz = d / 2 - r;
@@ -238,13 +238,6 @@ export function leaf(path: V3[], width: number, side: V3, o: { fold?: number; th
   return merged;
 }
 
-/** A plain box, for small parts too far away to need a rounded edge. */
-export function block(w: number, h: number, d: number): BufferGeometry {
-  const g = new BoxGeometry(w, h, d);
-  g.deleteAttribute('uv');
-  return g;
-}
-
 /** Flat-shaded: every face its own normal, so a lathed octagon reads as eight
  *  panels (a smock mill, a faceted pine) instead of a smooth round. */
 export function faceted(g: BufferGeometry): BufferGeometry {
@@ -286,7 +279,3 @@ export function merge(parts: BufferGeometry[]): BufferGeometry {
   return out;
 }
 
-/** Triangle count, for the notes. */
-export function tris(g: BufferGeometry) {
-  return (g.index ? g.index.count : g.attributes.position.count) / 3;
-}

@@ -59,8 +59,7 @@ h4 {
   text-wrap: balance;
 }
 /* The display voice (see tokens.css): the section titles, the hero name and
-   the contact line, plus anything else that wants to be said at that size. */
-.display,
+   the intro card's title. */
 .section__title,
 .hero__name,
 .intro-card__title {
@@ -83,7 +82,7 @@ p {
      - a link in running text firms up its underline
      - a mono UI link (nav, footer) brightens and draws a hairline in under it
      - a button lifts a touch; a ghost button takes the accent on its edge
-     - a card lifts, and its scanner brackets lock on (see .worktile)
+     - a card lifts, and its edge firms up (see .worktile)
      - the one call to action (the contact email) draws a solid rule in */
 a {
   color: var(--accent-ink);
@@ -158,8 +157,8 @@ img {
 .section + .section {
   border-top: 1px solid var(--hairline);
 }
-/* About + Contact read as open editorial pages — no scanner brackets, no
-   hairline seams boxing them off from their neighbours. */
+/* About + Contact read as open editorial pages — no hairline seams boxing them
+   off from their neighbours. */
 #about,
 #contact {
   border-top: 0;
@@ -364,46 +363,3 @@ img {
     transition: none;
   }
 }
-
-/* ---------- Case story ---------- */
-
-/* The three beats every case is told in — the problem, the approach, the
-   lesson — shared by the focus sheet and the node HUD. This text is what
-   visitors come for, so it reads at full body size on a comfortable measure,
-   with only a quiet mono kicker per beat (the dialog's layer colour).
-
-   One rule serves both because it measures the space it is given: in the node
-   dossier's 416px column auto-fit resolves to a single track, and in the wide
-   focus sheet the same rule lays the three beats side by side. That is what
-   keeps the sheet off a scrollbar — the same words in a third of the height.
-   The beats are separate grid items rather than CSS multi-column, which would
-   need a fixed height and could silently clip a fourth column. */
-.story {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: var(--space-m);
-  align-items: start;
-}
-.story__h {
-  margin: 0 0 0.5em;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--card-accent, var(--accent));
-}
-.story p {
-  margin: 0;
-  max-width: 58ch;
-  font-size: var(--step-0);
-  line-height: 1.65;
-  color: color-mix(in srgb, var(--ink) 88%, transparent);
-  /* A case beat is one string in cases.json, so a blank line in that string is
-     the only way to author a paragraph break — without this the browser
-     collapses it and two beats run together as one dense block. A no-op for the
-     single-paragraph cases, which carry no newlines at all. */
-  white-space: pre-line;
-}
-
-

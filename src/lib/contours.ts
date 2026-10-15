@@ -142,7 +142,7 @@ const CASES: number[][] = [[], [3, 0], [0, 1], [3, 1], [1, 2], [], [0, 2], [3, 2
 
 /** Build a contour tile `width` × `height` px (repeats seamlessly along x),
  *  one contour level per step, so a page can spread the work over a few
- *  frames instead of stalling one (contourTile runs it all at once). */
+ *  frames instead of stalling one. */
 export function* contourTileSteps(
   width: number,
   height: number,
@@ -207,15 +207,6 @@ export function* contourTileSteps(
     yield;
   }
   return { width, height, minor: minor.join(''), major: major.join('') };
-}
-
-/** contourTileSteps, run to the end in one go. */
-export function contourTile(width: number, height: number, options?: { cell?: number; levels?: number; seed?: number }): ContourTile {
-  const steps = contourTileSteps(width, height, options);
-  for (;;) {
-    const r = steps.next();
-    if (r.done) return r.value;
-  }
 }
 
 export interface ContourInk {

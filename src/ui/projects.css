@@ -4,9 +4,8 @@
    client, sector and layer, and the chip row narrows the set.
 
    It is built from the home page's own parts rather than a look of its own:
-   the site header, an opening like every section's (SectionHead), tags framed
-   by scanner brackets, a sort set like the nav, and the timeline's waypoint
-   cards. */
+   the site header, an opening like every section's (SectionHead), outlined
+   mono tags, a sort set like the nav, and the timeline's waypoint cards. */
 
 .pc-stage {
   min-height: 100svh;
@@ -49,16 +48,12 @@
   min-width: 0;
 }
 
-/* A chip is a tag framed by the scanner brackets — the same four corner marks
-   that frame the waypoint cards, the sections and the portrait. At rest they're
-   faint ticks round a mono label; under the pointer they tighten and take the
-   accent; picked, the tag lights up between them like a locked-on target. The
-   corners are drawn as background, so the hit area is the whole chip. */
+/* A chip is a mono tag in a plain outline: faint at rest, the accent under the
+   pointer, and filled with it once picked. */
 .pi-chip {
   /* at rest the outline is a whisper — the label is what says "press me";
      the accent outline and fill are what say "picked" */
   --bc: color-mix(in srgb, var(--ink) 26%, transparent);
-  --bl: 5px;
   display: inline-flex;
   align-items: baseline;
   gap: 0.55em;
@@ -87,12 +82,10 @@
 .pi-chip:hover,
 .pi-chip:focus-visible {
   --bc: var(--accent);
-  --bl: 10px;
   color: var(--ink);
 }
 .pi-chip[aria-pressed='true'] {
   --bc: var(--accent);
-  --bl: 10px;
   --chip-fill: color-mix(in srgb, var(--accent) 13%, transparent);
   color: var(--accent-ink);
 }
@@ -184,9 +177,8 @@
 }
 
 /* The timeline's waypoint card, at index size: a matte panel resting flat,
-   its edge tinted by its layer, the scanner brackets tightening and taking
-   the layer's colour under the pointer while the card lifts by --lift and the
-   poster comes up to full colour. */
+   its edge tinted by its layer and firming up under the pointer while the
+   card lifts by --lift and the poster comes up to full colour. */
 .pi-card {
   position: relative;
   width: 100%;

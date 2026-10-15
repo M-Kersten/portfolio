@@ -1,11 +1,11 @@
 // The maquette's material language: frosted holographic glass (with a fresnel
 // rim + screen-space dot grid injected into the shader), its "comes alive once
-// visited" variant, and the rounded soft box.
+// visited" variant.
 import { forwardRef, useContext, useImperativeHandle, useLayoutEffect, useMemo, useRef, type ComponentPropsWithoutRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { RoundedBox, type EdgesRef } from '@react-three/drei';
+import { type EdgesRef } from '@react-three/drei';
 import { Color, FrontSide, MathUtils, MeshStandardMaterial, Triangle, Vector3, type BufferGeometry, type Material, type Mesh, type Side } from 'three';
-import { useActive, GROUND, LINE_REST, NEUTRAL, SURFACE, SURFACE_AWAKE, SURFACE_GLOW, Line, roundedRectPts, type Tint, type V3 } from './shared';
+import { useActive, GROUND, LINE_REST, NEUTRAL, SURFACE, SURFACE_AWAKE, SURFACE_GLOW, Line, type Tint } from './shared';
 import { GHOST_FILL } from './life';
 import { PresenceCtx } from './presence';
 import { LIT_GLASS, LIT_PARS, LIT_SOLID_OPACITY, litUniforms, useLitBody, useLitLink, type LitLink } from './lit';
@@ -193,7 +193,7 @@ export function GroundMat({ opacity = GROUND.film, side }: { opacity?: number; s
  *  above it, and the pair read as one thick band round every ground floor.
  *  Unmatched (open) edges are kept, as EdgesGeometry keeps them. */
 const creaseCache = new WeakMap<BufferGeometry, Map<number, Float32Array>>();
-export function creaseLines(geometry: BufferGeometry, threshold: number): Float32Array {
+function creaseLines(geometry: BufferGeometry, threshold: number): Float32Array {
   let byT = creaseCache.get(geometry);
   const hit = byT?.get(threshold);
   if (hit) return hit;
@@ -306,22 +306,6 @@ export function LiveEdges({ slug, threshold = 20, rest = LINE_REST, wake }: { sl
     mat.opacity = rest * (1 - k.current) * presence.current;
   });
   return <Crease ref={ref} threshold={threshold} color={NEUTRAL} transparent />;
-}
-
-
-export function SoftBox({ position, args, radius = 0.03, opacity = 0.2, outline = false, rotation, color, liveSlug, liveGhost = true }: { position: V3; args: V3; radius?: number; opacity?: number; outline?: boolean; rotation?: V3; color?: string; liveSlug?: string; liveGhost?: boolean }) {
-  // Clamp so the corner radius never exceeds half the smallest side.
-  const r = Math.min(radius, Math.min(args[0], args[1], args[2]) / 2 - 0.002);
-  return (
-    <group position={position} rotation={rotation}>
-      <RoundedBox args={args} radius={r} smoothness={3}>
-        {liveSlug ? <LiveGlassMat slug={liveSlug} ghost={liveGhost} opacity={opacity} color={color} /> : <GlassMat opacity={opacity} color={color} />}
-      </RoundedBox>
-      {outline && (
-        <Line points={roundedRectPts(args[0], args[2], radius * 1.6)} position={[0, args[1] / 2, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.45} />
-      )}
-    </group>
-  );
 }
 
 /** Flat floor of dots that fade into the background toward the rim. Neutral —

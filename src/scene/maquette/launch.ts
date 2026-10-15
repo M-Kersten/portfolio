@@ -21,24 +21,21 @@
 // in the pad's own units, the stack's base at the origin. launchSite.tsx maps
 // it onto the pad's axes.
 import { STACK_BASE, STACK_TIP, STAGING_Y } from './rocket';
-import { COUNT, T, smooth } from '../launchPlan';
+import { T, smooth } from '../launchPlan';
 
 export { T };
 
 /** Up a stage's body: the ship's middle, and the booster's (it flips about
  *  that, not about its skirt). */
-export const SHIP_MID = (STAGING_Y + STACK_TIP) / 2;
+const SHIP_MID = (STAGING_Y + STACK_TIP) / 2;
 export const BOOSTER_MID = (STACK_BASE + STAGING_Y) / 2;
 
 /** Where the chopsticks hold the booster: how far its group sits above the
  *  mount when caught, and the arms' height then (the grid fins rest on them). */
-export const CATCH_Y = 0.17;
-export const CATCH_ARMS = CATCH_Y + 0.468 - 0.006;
+const CATCH_Y = 0.17;
+const CATCH_ARMS = CATCH_Y + 0.468 - 0.006;
 /** The arms' parked height through the launch, high on the tower. */
-export const PARK_ARMS = 0.73;
-/** Where the tower stands in this frame (launchSite.tsx places it). */
-export const TOWER_X = 0.173;
-export const TOWER_Z = -0.052;
+const PARK_ARMS = 0.73;
 
 const mix = (a: number, b: number, k: number) => a + (b - a) * k;
 
@@ -378,5 +375,3 @@ export function shot(t: number): Shot {
   return catchUp(t);
 }
 
-/** Seconds since the film began (the count's first frame). */
-export const sinceStart = (t: number) => t + COUNT;

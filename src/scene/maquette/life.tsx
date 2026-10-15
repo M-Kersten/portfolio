@@ -1,12 +1,11 @@
 // The "life system" — the maquette's central mechanic. Every hotspot object
 // rests as a grey ghost; visiting its project brings it (permanently) to
-// colour. LifeGroup does the material lerp for everything inside it;
-// EmissiveHover is the glowing-accent variant for screens/lights.
-import { useContext, useMemo, useRef, type ReactNode } from 'react';
+// colour. LifeGroup does the material lerp for everything inside it.
+import { useContext, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Color, MeshStandardMaterial, type Group, type Material, type Mesh } from 'three';
 import { useReducedMotion } from '../../lib/useReducedMotion';
-import { useAccent, useActive, type V3 } from './shared';
+import { useActive } from './shared';
 import { PresenceCtx } from './presence';
 
 /* ---------- The life system — you give the world its colour ----------
@@ -123,58 +122,3 @@ export function LifeGroup({ slug, children }: { slug: string; children: ReactNod
   // layer-level presence dimmer (presence.tsx) keeps its hands off it.
   return <group ref={grp} userData={{ lifeGroup: true }}>{children}</group>;
 }
-
-/** An emissive surface that powers on when its hotspot is selected and stays lit
- *  once visited (no hover response) — a smooth "turn on" that breathes.
- *  On select it also shifts toward a lifelike colour and blooms. */
-export function EmissiveHover({ slug, position, rotation, args, color, liveColor, rest = 0.12, peak = 1.0 }: {
-  slug: string;
-  position: V3;
-  rotation?: V3;
-  args: V3;
-  color?: string;
-  liveColor?: string;
-  rest?: number;
-  peak?: number;
-}) {
-  const { accent } = useAccent();
-  const col = color ?? accent;
-  const { selected, visited } = useActive(slug);
-  const reduced = useReducedMotion();
-  const mat = useRef<MeshStandardMaterial>(null);
-  const k = useRef(0);
-  const live = useRef(0);
-  const base = useMemo(() => new Color(col), [col]);
-  const lifelike = useMemo(() => new Color(liveColor ?? col), [liveColor, col]);
-  const presence = useContext(PresenceCtx);
-  useFrame((s) => {
-    if (!mat.current) return;
-    // select → full on, and it stays on once visited; otherwise off (no hover)
-    const kT = selected || visited ? 1 : 0;
-    k.current += (kT - k.current) * 0.12;
-    // colour resolves to lifelike once selected, and stays that way once visited
-    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
-    const t = s.clock.elapsedTime;
-    // dormant = a grey whisper of the rest level; colour + brightness are the
-    // visitor's to switch on (the life mechanic)
-    const restLvl = rest * (0.25 + 0.75 * k.current);
-    const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.07;
-    const lvl = restLvl + k.current * (peak + breathe);
-    mat.current.emissiveIntensity = lvl * presence.current;
-    mat.current.color.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);
-    mat.current.emissive.copy(GHOST_FILL).lerp(base, k.current).lerp(lifelike, live.current);
-  });
-  return (
-    <mesh position={position} rotation={rotation}>
-      <boxGeometry args={args} />
-      <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={col} emissive={col} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
-    </mesh>
-  );
-}
-
-
-/** The phone on the couch (Popcore). It buzzes on hover; on *select* it lifts
- *  off the cushion and rotates to face you, and the first time you open it a
- *  handful of ping-pong balls pop out of the screen and settle on the seat.
- *  The screen shows a screenshot once you've visited it — drop a JPG at
- *  public/textures/room-phone.jpg; until then it stays a plain glowing screen. */

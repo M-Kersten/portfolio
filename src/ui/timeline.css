@@ -525,8 +525,7 @@
 /* Waypoint card — its slot is absolutely placed, centred on its year (the
    margin pulls it back half its width), hanging above or below the route by
    top/bottom set inline. The card rests flat on the map, a matte panel like
-   every other card on the site; under the pointer it lifts by --lift and its
-   brackets lock on. */
+   every other card on the site; under the pointer it lifts by --lift. */
 .worktile-slot {
   position: absolute;
   width: var(--card-w, 250px);
@@ -707,13 +706,6 @@
   line-height: 1.12;
   margin: 0.15em 0 0;
 }
-/* discuss button — reused by the focus (lifted-off-the-wall) view */
-.worktile__discuss {
-  align-self: flex-start;
-  margin-top: 0.2em;
-  --btn-bg: var(--card-accent);
-}
-
 /* Reduced motion: the route arrives finished — no flash, no rolling year
    (Work.tsx also lights every stop and the whole route, and weaves the whole
    map, up front). */

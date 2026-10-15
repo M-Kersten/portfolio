@@ -125,14 +125,6 @@
 .voice[data-guide] .voice__time {
   margin-left: auto;
 }
-/* in the case sheet: tucked under the outcome, a clear gap above the buttons */
-.focus__head .voice {
-  margin-top: calc(var(--space-s) * -0.5);
-}
-/* in the maquette's dossier: a breath before the film under it */
-.node-hud .voice {
-  margin: calc(var(--space-s) * -0.5) 0 var(--space-s);
-}
 @media (prefers-reduced-motion: reduce) {
   .voice[data-playing] .voice__wave i {
     animation: none;

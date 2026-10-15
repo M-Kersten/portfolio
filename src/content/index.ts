@@ -14,10 +14,8 @@ import type { SiteContent, Capability, CaseStudy, CvContent, Discipline } from '
 export const site = siteJson as unknown as SiteContent;
 export const capabilities = capabilitiesJson as unknown as Capability[];
 export const cases = casesJson as unknown as CaseStudy[];
-export const cv = cvJson as unknown as CvContent;
-export const cvNl = cvNlJson as unknown as CvContent;
 /** CV content packs by language code (the /cv route picks via ?lang). */
-export const cvByLang: Record<string, CvContent> = { en: cv, nl: cvNl };
+export const cvByLang: Record<string, CvContent> = { en: cvJson as unknown as CvContent, nl: cvNlJson as unknown as CvContent };
 
 export const caseBySlug = (slug: string): CaseStudy | undefined =>
   cases.find((c) => c.slug === slug);

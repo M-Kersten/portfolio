@@ -3,7 +3,7 @@ import type { GalleryImage } from '../content';
 import { asset } from '../lib/asset';
 import { useFocusTrap } from '../lib/useFocusTrap';
 
-// A case's picture set: a contact-sheet grid inside the popup, and a lightbox
+// A project's picture set: a contact-sheet grid in the book, and a lightbox
 // over it for looking properly.
 //
 // The grid is the summary and the lightbox is the reading view — which is why
@@ -12,12 +12,12 @@ import { useFocusTrap } from '../lib/useFocusTrap';
 // text is about; at full size it's the one place the words help.
 
 /** Where a case's frames live — the same slug-derived convention as posters. */
-export const galleryUrl = (slug: string, file: string) => asset(`/gallery/${slug}/${file}`);
+const galleryUrl = (slug: string, file: string) => asset(`/gallery/${slug}/${file}`);
 
 export function Gallery({ slug, images, onOpen }: { slug: string; images: GalleryImage[]; onOpen: (i: number) => void }) {
   return (
     <section className="gal">
-      <h4 className="story__h">Gallery</h4>
+      <h4 className="gal__h">Gallery</h4>
       <ul className="gal__grid">
         {images.map((img, i) => (
           <li key={img.file}>
@@ -40,7 +40,7 @@ export function Gallery({ slug, images, onOpen }: { slug: string; images: Galler
 }
 
 /** The full-size viewer. Owns nothing but the frame it's showing — `index` and
- *  the step/close callbacks come from whoever opened it, so the popup behind it
+ *  the step/close callbacks come from whoever opened it, so the book behind it
  *  can keep one Escape handler for both layers instead of two that race. */
 export function Lightbox({ slug, images, index, onStep, onClose }: { slug: string; images: GalleryImage[]; index: number; onStep: (delta: number) => void; onClose: () => void }) {
   const img = images[index];
@@ -78,8 +78,8 @@ export function Lightbox({ slug, images, index, onStep, onClose }: { slug: strin
 
   const many = images.length > 1;
   return (
-    // stopPropagation because this renders inside the case popup's backdrop,
-    // which closes the card on any click — without it, dismissing a picture
+    // stopPropagation because this renders inside the exhibit's backdrop,
+    // which closes the book on any click — without it, dismissing a picture
     // would take the whole project down with it.
     <div
       className="lb"

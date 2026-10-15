@@ -178,7 +178,6 @@ export function maquetteLoaded(): Promise<void> {
   return Promise.allSettled([chip.get(), tower.get(), blocks.get(), mill.get(), trafo.get(), rocket.get(), loadBinoculars()]).then(() => undefined);
 }
 
-export const loadChipKit = chip.get;
 export const useChipKit = chip.useKit;
 export const loadTowerKit = tower.get;
 export const useTowerKit = tower.useKit;

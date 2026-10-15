@@ -15,8 +15,8 @@ import { exhibitMark } from '../content/exhibits';
 // navigate by: most tags are used once, and Unity covers nearly every case.
 // Tech is still fully searchable — the Find overlay indexes it.
 //
-// Everything here speaks the home page's language: chips are tags framed by
-// the scanner brackets that lock on when one is picked, the sort is a row of
+// Everything here speaks the home page's language: chips are mono tags in a
+// plain outline that fills when one is picked, the sort is a row of
 // mono links with the nav's drawn rule under the current one, and the cards are
 // the timeline's waypoint cards — frosted, tinted by their layer, the edge
 // firming up under the pointer.
@@ -138,7 +138,7 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
               <span className="pi-card__body">
                 {/* The year as a quiet stamp over the title, which carries the
                     card. The layer needs no label: its colour is the card's
-                    edge and brackets. */}
+                    edge. */}
                 <span className="pi-card__stamp">
                   {/* `year` may carry a month for timeline placement; the card
                       only ever stamps the year itself. */}

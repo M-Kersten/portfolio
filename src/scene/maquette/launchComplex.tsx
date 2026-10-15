@@ -60,7 +60,7 @@ function Steel({ geo, mode, tone = 'steel', ghost = 0.45, edges = false }: { geo
 /* ---------- the mount ---------- */
 
 /** The mount's ring: its top is where the booster's skirt sits. */
-export const MOUNT_TOP = 0.09;
+const MOUNT_TOP = 0.09;
 
 export interface MountApi {
   /** The booster quick-disconnect: 0 attached, 1 dropped away. */
@@ -130,7 +130,7 @@ export const LaunchMount = forwardRef<MountApi, { mode: Mode; animate: boolean; 
 
 /** The tower's square, its height, and the face the chopsticks ride on. */
 const W = 0.058;
-export const TOWER_H = 0.86;
+const TOWER_H = 0.86;
 const LEVEL = 0.0625;
 
 export interface TowerApi {

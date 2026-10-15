@@ -57,7 +57,6 @@ for (const [path, url] of Object.entries(files)) {
 /** Whether there's anything to hear at all (the header switch hides itself
  *  until the first recording is in). */
 export const hasSounds = Object.keys(VARIANTS).length > 0;
-export const hasSound = (name: SoundName) => !!VARIANTS[name];
 
 /* ---------- on / off ---------- */
 

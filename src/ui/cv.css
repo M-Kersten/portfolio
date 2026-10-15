@@ -55,7 +55,6 @@
      labels it carries. 0.62 lands at 5.0:1 and still reads as the quiet grey. */
   --cv-soft: rgba(16, 22, 27, 0.62);
   --cv-line: rgba(16, 22, 27, 0.14);
-  --cv-dot: rgba(16, 22, 27, 0.12);
   --cv-accent: #0f9fae; /* the site's cyan, darkened for paper */
   --cv-blue: #2456d6; /* spot colour — the technologies print in this blue */
   --cv-ink-hdr: #0a0d10; /* the black header band (matches the site bg) */

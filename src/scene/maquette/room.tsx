@@ -18,6 +18,11 @@ import { hang, lathe, leaf, merge, place, softBox, softSeam, tube, useGeometry, 
 
 const PHONE_BALLS = 6;
 const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
+/** The phone on the couch (Popcore). It buzzes on hover; on *select* it lifts
+ *  off the cushion and rotates to face you, and the first time you open it a
+ *  handful of ping-pong balls pop out of the screen and settle on the seat.
+ *  The screen shows a screenshot once you've visited it — drop a JPG at
+ *  public/textures/room-phone.jpg; until then it stays a plain glowing screen. */
 function Phone({ slug, position, args, liveColor }: { slug: string; position: V3; args: V3; liveColor: string }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(slug);

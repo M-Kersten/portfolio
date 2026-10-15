@@ -33,10 +33,6 @@
   pointer-events: none;
   transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 }
-.hero__title[data-visible='false'] {
-  opacity: 0;
-  transform: translateY(-10px);
-}
 /* Held upright (a phone, a tablet, a tall window), the model sits under the
    title rather than beside it — the camera's portrait framing (framing.ts,
    portraitOffset) — so the drop that cleared the windmill is no longer needed:

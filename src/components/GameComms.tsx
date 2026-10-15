@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { asset } from '../lib/asset';
 import { play } from '../lib/sound';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { ScanFrame } from './ScanFrame';
 
 // Ground control: the game's messages arrive as a transmission from Merijn rather
 // than as floating terminal text — a holographic bust in the corner of the
@@ -103,7 +102,12 @@ export function GameComms({
           <div className="comms__photo" style={{ backgroundImage: `url(${asset(PORTRAIT)})` }} />
           <div className="comms__scan" />
           <div className="comms__glow" />
-          <ScanFrame />
+          <span className="comms__frame">
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
         </div>
         {/* the transmission itself */}
         <div className="comms__body">

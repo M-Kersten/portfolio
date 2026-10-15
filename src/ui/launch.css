@@ -714,9 +714,23 @@ body[data-film] .header {
   background: linear-gradient(0deg, color-mix(in srgb, var(--accent) 30%, transparent), transparent 55%);
   opacity: 0.6;
 }
-.comms .scanframe i {
-  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+.comms__frame {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
 }
+/* four L-shaped corner brackets round the projection */
+.comms__frame i {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.comms__frame i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.comms__frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.comms__frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.comms__frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
 @keyframes comms-scan {
   to { background-position: 0 -60px; }
 }

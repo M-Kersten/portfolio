@@ -192,7 +192,7 @@ function bandsAt(bands: CareerBand[], x: number): { main: CareerBand; concurrent
 // all of it. Everything is measured from it each frame. The route behind it is
 // lit in its employers' colours and dim ahead; each waypoint's station fills
 // in as the focus reaches it, and its card powers on — the poster comes up
-// from grey, the brackets lock — the maquette's ghost → alive, at timeline
+// from grey — the maquette's ghost → alive, at timeline
 // scale. Under it all, the canyon map is woven together from its points as the
 // focus passes (lib/contours): far ahead it's a sparse scatter of dots, the
 // trails fill in as you come up to them, and behind you they're joined into
