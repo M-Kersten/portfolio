@@ -1,7 +1,7 @@
 // The launch, as a flight plan: when everything happens, which engines are
 // burning, how fast and how high the two stages are, and the milestones
 // along the telemetry's track. Plain numbers and functions of the film's clock — no three.js — so the
-// DOM telemetry (components/LaunchHud) and the scene (maquette/launch.ts,
+// DOM telemetry (components/launch/LaunchHud) and the scene (maquette/launch.ts,
 // launchSite.tsx) read the same plan without the page's entry chunk pulling
 // in the 3D stack.
 //

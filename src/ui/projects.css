@@ -381,7 +381,7 @@
   }
 }
 
-/* The way in — a centred CTA under the timeline (rendered in Work.tsx). */
+/* The way in — a centred CTA under the timeline (rendered in timeline/Timeline.tsx). */
 .wall__more {
   display: flex;
   flex-direction: column;

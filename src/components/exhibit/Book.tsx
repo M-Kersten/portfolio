@@ -5,8 +5,7 @@ import { filmCaption } from '../../content/films';
 import { asset } from '../../lib/asset';
 import { EASE, MOTION } from '../../lib/motion';
 import { useSheetDrag } from '../../lib/useSheetDrag';
-import { youtubeEmbed } from '../../lib/youtube';
-import { clockLabel, type FilmClock } from '../../lib/youtubeClock';
+import { clockLabel, youtubeEmbed, type FilmClock } from '../../lib/youtube';
 import { Gallery } from './Gallery';
 import { VoiceNote } from './VoiceNote';
 import { PlayMark, Player, Walk, enterAttr, sheetLayout, walkIn, type Dir, type From, type Place } from './parts';
@@ -119,7 +118,10 @@ export function Book({
       const o = opener.getBoundingClientRect();
       anims.push(
         from.head
-          ? opener.animate([{ transform: `translate(${from.head.left - o.left}px, ${from.head.top - o.top}px)` }, { transform: 'none' }], { duration: d, easing: EASE })
+          ? opener.animate([{ transform: `translate(${from.head.left - o.left}px, ${from.head.top - o.top}px)` }, { transform: 'none' }], {
+              duration: d,
+              easing: EASE,
+            })
           : opener.animate([{ opacity: 0 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }], { duration: d * 1.2, easing: EASE }),
       );
     }
@@ -135,7 +137,9 @@ export function Book({
       );
     }
     // what wasn't on the label arrives after it
-    spread.querySelectorAll<HTMLElement>('[data-after]').forEach((el) => anims.push(el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: d * 1.4, easing: EASE })));
+    spread
+      .querySelectorAll<HTMLElement>('[data-after]')
+      .forEach((el) => anims.push(el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: d * 1.4, easing: EASE })));
     return () => anims.forEach((a) => a.cancel());
   }, [from, reduced]);
 

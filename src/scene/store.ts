@@ -23,7 +23,7 @@ export const returning = remembered(INTRO_KEY) === '1';
 export const markIntroSeen = () => remember(INTRO_KEY, '1');
 
 /** The launch easter egg's stage machine (see maquette/launchSite.tsx +
- *  components/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;
+ *  components/launch/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;
  *  'countdown' = the film's terminal count; 'ascend' = the film from liftoff
  *  on (the scene moves it along, on the flight plan's clock); 'game' = the
  *  asteroids overlay is up. */

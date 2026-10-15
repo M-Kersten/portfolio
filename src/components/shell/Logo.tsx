@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 // Merijn's real MK + aperture logo (public/logo.svg), inlined so the aperture
 // can be animated on its own. Both the wordmark and the aperture inherit
 // currentColor (white); the aperture "eye" blinks occasionally (off under
-// reduced motion — see global.css).
+// reduced motion — see header.css).
 export function Logo() {
   return (
     <Link to="/" className="logo" aria-label="Merijn Kersten — home">

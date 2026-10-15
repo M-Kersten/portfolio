@@ -9,7 +9,15 @@ const voices = import.meta.glob('../assets/voice/*.{mp3,m4a,ogg,webm}', { eager:
 
 /** A folder's files as slug → URL ("../assets/voice/arcam.mp3" is "arcam"). */
 const bySlug = (files: Record<string, string>): Record<string, string> =>
-  Object.fromEntries(Object.entries(files).map(([path, url]) => [path.split('/').pop()!.replace(/\.[^.]+$/, ''), url]));
+  Object.fromEntries(
+    Object.entries(files).map(([path, url]) => [
+      path
+        .split('/')
+        .pop()!
+        .replace(/\.[^.]+$/, ''),
+      url,
+    ]),
+  );
 
 const LOOPS = bySlug(loops);
 const VOICES = bySlug(voices);

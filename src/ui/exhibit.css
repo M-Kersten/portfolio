@@ -1,5 +1,5 @@
 /* ---------- An exhibit: its label, and the book it opens into ----------
-   (components/Exhibit.tsx). The label is the glance, beside the object in the
+   (components/exhibit/). The label is the glance, beside the object in the
    maquette: the film on top, the number, the title and what it achieved, who
    it was for and my part in it, a sentence of curator's note, the audio
    guide, and the way into the full story. It's a panel like the site's other

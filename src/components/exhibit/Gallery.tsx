@@ -42,7 +42,19 @@ export function Gallery({ slug, images, onOpen }: { slug: string; images: Galler
 /** The full-size viewer. Owns nothing but the frame it's showing — `index` and
  *  the step/close callbacks come from whoever opened it, so the book behind it
  *  can keep one Escape handler for both layers instead of two that race. */
-export function Lightbox({ slug, images, index, onStep, onClose }: { slug: string; images: GalleryImage[]; index: number; onStep: (delta: number) => void; onClose: () => void }) {
+export function Lightbox({
+  slug,
+  images,
+  index,
+  onStep,
+  onClose,
+}: {
+  slug: string;
+  images: GalleryImage[];
+  index: number;
+  onStep: (delta: number) => void;
+  onClose: () => void;
+}) {
   const img = images[index];
   const boxRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);

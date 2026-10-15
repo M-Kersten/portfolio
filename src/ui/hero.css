@@ -120,7 +120,7 @@
 
 /* The model tally — quiet instrument chrome bottom-right. Every object in the
    maquette is a project; pips fill as they're brought alive, and the whole
-   chip is a button that opens the manifest (which stands where, what's still
+   chip is a button that opens the guide (which stands where, what's still
    dark). At 10/10 the readout takes the accent and the scene's completion
    state does the real celebrating. */
 .hero__signals {
@@ -185,7 +185,7 @@
    named and clickable, dark ones stay redacted (you know the number and the
    layer, not the name); then exhibit 11, and the way to the rest of the
    collection */
-.manifest {
+.guide {
   position: absolute;
   right: 0;
   bottom: calc(100% + 0.8rem);
@@ -200,7 +200,7 @@
   font-family: var(--font-mono);
   animation: hero-hint-in var(--t-base) var(--ease);
 }
-.manifest__head {
+.guide__head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -210,25 +210,25 @@
   color: var(--accent-ink);
   margin-bottom: 0.55rem;
 }
-.manifest__head span {
+.guide__head span {
   color: var(--ink-40);
   letter-spacing: 0.12em;
 }
-.manifest__layer {
+.guide__layer {
   padding-top: 0.45rem;
 }
-.manifest__layer + .manifest__layer {
+.guide__layer + .guide__layer {
   margin-top: 0.45rem;
   border-top: 1px solid var(--hairline);
 }
-.manifest__index {
+.guide__index {
   display: block;
   font-size: var(--step--2);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--ink-40);
 }
-.manifest__layer ul {
+.guide__layer ul {
   list-style: none;
   margin: 0.3rem 0 0;
   padding: 0;
@@ -236,8 +236,8 @@
   flex-direction: column;
   gap: 0.15rem;
 }
-.manifest__layer li button,
-.manifest__dark {
+.guide__layer li button,
+.guide__dark {
   display: flex;
   align-items: center;
   gap: 0.55em;
@@ -253,52 +253,52 @@
   border-radius: var(--radius-s);
   color: var(--ink);
 }
-.manifest__layer li button {
+.guide__layer li button {
   cursor: pointer;
 }
-.manifest__layer li button:hover,
-.manifest__layer li button:focus-visible {
+.guide__layer li button:hover,
+.guide__layer li button:focus-visible {
   background: var(--surface-2);
   color: var(--accent-ink);
 }
-.manifest__dark {
+.guide__dark {
   color: var(--ink-40);
 }
-.manifest__layer i {
+.guide__layer i {
   flex: 0 0 auto;
   width: 5px;
   height: 5px;
   background: color-mix(in srgb, var(--ink) 22%, transparent);
 }
-.manifest__layer i[data-on] {
+.guide__layer i[data-on] {
   background: var(--accent);
   box-shadow: 0 0 6px var(--accent-glow);
 }
-.manifest__dark {
+.guide__dark {
   cursor: pointer;
 }
-.manifest__dark:hover,
-.manifest__dark:focus-visible {
+.guide__dark:hover,
+.guide__dark:focus-visible {
   background: var(--surface-2);
   color: var(--ink-60);
 }
 /* a dark project's way there, shown as you point at it */
-.manifest__go {
+.guide__go {
   margin-left: auto;
   color: var(--accent-ink);
   opacity: 0;
   transition: opacity var(--t-fast) var(--ease);
 }
-.manifest__dark:hover .manifest__go,
-.manifest__dark:focus-visible .manifest__go {
+.guide__dark:hover .guide__go,
+.guide__dark:focus-visible .guide__go {
   opacity: 1;
 }
 @media (hover: none) {
-  .manifest__go {
+  .guide__go {
     opacity: 0.7;
   }
 }
-.manifest__reset {
+.guide__reset {
   margin-top: 0.35rem;
   padding: 0;
   font: inherit;
@@ -309,21 +309,21 @@
   border: 0;
   cursor: pointer;
 }
-.manifest__reset:hover,
-.manifest__reset:focus-visible {
+.guide__reset:hover,
+.guide__reset:focus-visible {
   color: var(--ink);
 }
-.manifest__no {
+.guide__no {
   min-width: 1.6em;
   font-variant-numeric: tabular-nums;
   color: var(--ink-40);
 }
-.manifest__layer li button:not(.manifest__dark) .manifest__no {
+.guide__layer li button:not(.guide__dark) .guide__no {
   color: var(--accent-ink);
 }
 /* exhibit 11, in the Passion colour once it's ready */
-.manifest__next button,
-.manifest__next .manifest__dark {
+.guide__next button,
+.guide__next .guide__dark {
   display: flex;
   align-items: center;
   gap: 0.55em;
@@ -338,31 +338,31 @@
   border: 0;
   border-radius: var(--radius-s);
 }
-.manifest__next button {
+.guide__next button {
   color: var(--ink);
   cursor: pointer;
 }
-.manifest__next button i[data-on] {
+.guide__next button i[data-on] {
   background: var(--pink);
   box-shadow: 0 0 6px color-mix(in srgb, var(--pink) 60%, transparent);
 }
-.manifest__next button .manifest__no,
-.manifest__next button .manifest__go {
+.guide__next button .guide__no,
+.guide__next button .guide__go {
   color: var(--pink);
   opacity: 1;
 }
-.manifest__next button:hover,
-.manifest__next button:focus-visible {
+.guide__next button:hover,
+.guide__next button:focus-visible {
   background: var(--surface-2);
 }
-.manifest__next .manifest__dark {
+.guide__next .guide__dark {
   cursor: default;
 }
-.manifest__when {
+.guide__when {
   margin-left: auto;
   color: var(--ink-40);
 }
-.manifest__more {
+.guide__more {
   display: block;
   margin-top: 0.6rem;
   padding-top: 0.55rem;
@@ -372,8 +372,8 @@
   color: var(--accent-ink);
   text-decoration: none;
 }
-.manifest__more:hover,
-.manifest__more:focus-visible {
+.guide__more:hover,
+.guide__more:focus-visible {
   color: var(--ink);
 }
 .hero__signals-pips {
@@ -467,7 +467,7 @@
     width: 4px;
     height: 4px;
   }
-  /* tally sits at the left gutter on phones — hang the whisper + manifest
+  /* tally sits at the left gutter on phones — hang the whisper + guide
      off the left edge so they stay on screen */
   .hero__hint {
     right: auto;
@@ -475,7 +475,7 @@
     white-space: normal;
     max-width: 78vw;
   }
-  .manifest {
+  .guide {
     right: auto;
     left: var(--space-m);
     width: min(19rem, 88vw);

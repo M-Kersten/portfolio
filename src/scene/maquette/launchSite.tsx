@@ -9,7 +9,7 @@
    the journey home so it plays in view) and the invitation appears; the
    complex turns to steel, the vehicle stays the only ghost-free thing that
    hasn't flown. Clicking it moves the camera to the pad and offers a LAUNCH
-   button (components/LaunchOverlay).
+   button (components/launch/LaunchOverlay).
 
    Then the film (launchPlan.ts for when, maquette/launch.ts for where): the
    terminal count with the ship's arm swinging back and the deluge coming on,

@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { caseBySlug, cases, site } from '../../content';
-import { EXHIBITS, NEXT_LAUNCH_NO, exhibitNo, pad2 } from '../../content/exhibits';
+import { site } from '../../content';
 import { returning, sceneStore, useSceneSelector } from '../../scene/store';
 import { HOTSPOTS, stepAt } from '../../scene/framing';
 import { PRESS, useReducedMotion } from '../../lib/media';
 import { useEscape } from '../../lib/page';
 import { Scramble } from '../shell/Scramble';
+import { ExhibitionGuide } from './ExhibitionGuide';
 
 // Three invisible scroll panels give the camera journey its length and drive
 // `journeyStep` (0 City · 1 Room · 2 Chip). The minimal title lives only on
@@ -32,11 +31,6 @@ const CAPTIONS = [
 // completion state (see scene/maquette) — the rocket at NextProjectSite goes
 // from ghost to lit, and the tally's own label says so.
 const TOTAL = HOTSPOTS.length;
-const LAYERS = [
-  { key: 'city', name: 'city' },
-  { key: 'room', name: 'room' },
-  { key: 'chip', name: 'chip' },
-] as const;
 // How long the ambient tally waits, after a hotspot's HUD closes, before it
 // steps to the new count. Roughly how long CameraRig's exponential zoom-out
 // takes to visually settle (it eases at k=3.4/s — ~95% of the way there by
@@ -64,8 +58,6 @@ function welcomeLine(n: number): string {
 // how long the greeting stays up once the boot has played, and its fade out
 const WELCOME_MS = 6500;
 const WELCOME_FADE_MS = 600;
-/** The projects that aren't in the model: on the timeline and /projects. */
-const IN_COLLECTION = cases.filter((c) => !EXHIBITS.includes(c.slug)).length;
 
 export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
@@ -77,7 +69,6 @@ export function HeroStage() {
   // premise card), flipped true once that card clears — so the title/subtitle
   // are the beat *after* the intro, not underneath it. See IntroCard.
   const introOver = useSceneSelector((s) => s.introOver);
-  const navigate = useNavigate();
   const heroRef = useRef<HTMLElement>(null);
   // Whether the hero itself is on screen — guards against `journeyStep` going
   // stale (e.g. an anchor jump straight to the wall never crosses a panel).
@@ -86,7 +77,7 @@ export function HeroStage() {
   // model tally live down there, so they clear as soon as the capabilities
   // section scrolls up over that spot instead of lingering on top of it.
   const [heroOwnsBottom, setHeroOwnsBottom] = useState(true);
-  const [manifestOpen, setManifestOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const reduced = useReducedMotion();
   // Load boot sequence: the bottom instrument line (layer caption + model tally)
   // is the LAST beat — it's held until the hero text has decoded in and the
@@ -135,7 +126,7 @@ export function HeroStage() {
   }, []);
 
   // The real, live count — used wherever truth matters more than pacing: the
-  // manifest dialog (a deliberate "let me check" action) and the aria-label.
+  // exhibition guide (a deliberate "let me check" action) and the aria-label.
   const found = visited.filter((slug) => HOTSPOTS.some((h) => h.slug === slug)).length;
   const foundRef = useRef(found);
   foundRef.current = found;
@@ -189,16 +180,16 @@ export function HeroStage() {
   // the greeting's lifetime: up with the instrument line, then out
   useEffect(() => {
     if (!booted || welcome === 'off') return;
-    if (selectedSlug || launching || manifestOpen) {
+    if (selectedSlug || launching || guideOpen) {
       setWelcome('off');
       return;
     }
     const t = window.setTimeout(() => setWelcome(welcome === 'on' ? 'leaving' : 'off'), welcome === 'on' ? WELCOME_MS : reduced ? 0 : WELCOME_FADE_MS);
     return () => clearTimeout(t);
-  }, [booted, welcome, selectedSlug, launching, manifestOpen, reduced]);
+  }, [booted, welcome, selectedSlug, launching, guideOpen, reduced]);
 
   // Esc closes the guide
-  useEscape(() => setManifestOpen(false), manifestOpen);
+  useEscape(() => setGuideOpen(false), guideOpen);
 
   // Title lives only on the City layer (and only while the hero is on screen);
   // it clears the moment you scroll to Room or leave the hero entirely.
@@ -208,13 +199,8 @@ export function HeroStage() {
   const overlayOpacity = selectedSlug || launching || !heroOwnsBottom ? 0 : 1;
   const caption = CAPTIONS[journeyStep] ?? CAPTIONS[0];
 
-  const openFromManifest = (slug: string) => {
-    setManifestOpen(false);
-    navigate(`/work/${slug}`);
-  };
-  // exhibit 11: up to the city, where the pad stands, and onto it
+  // exhibit 11, from the guide: up to the city, where the pad stands, and onto it
   const openPad = () => {
-    setManifestOpen(false);
     const hero = heroRef.current;
     if (hero) window.scrollTo({ top: hero.offsetTop });
     sceneStore.setJourneyStep(0);
@@ -246,7 +232,7 @@ export function HeroStage() {
       </div>
 
       {/* The model tally — every object in the maquette is a project; this is
-          the running count, and clicking it opens the manifest. */}
+          the running count, and clicking it opens the exhibition guide. */}
       <div
         className="hero__signals"
         style={{ opacity: overlayOpacity * (booted ? 1 : 0), pointerEvents: overlayOpacity && booted ? undefined : 'none' }}
@@ -254,97 +240,19 @@ export function HeroStage() {
       >
         {welcome !== 'off'
           ? booted &&
-            !manifestOpen && (
+            !guideOpen && (
               <p className="hero__hint hero__hint--welcome" data-leaving={welcome === 'leaving' || undefined} role="status">
                 {welcomeLine(revealed)}
               </p>
             )
           : cue &&
-            !manifestOpen && (
+            !guideOpen && (
               <p className="hero__hint" aria-hidden="true">
                 {PRESS} an exhibit to light it — all ten launch the next one
               </p>
             )}
-        {manifestOpen && (
-          <div className="manifest" role="dialog" aria-label="Exhibition guide">
-            <div className="manifest__head">
-              <b>exhibition guide</b>
-            </div>
-            {LAYERS.map((l) => (
-              <div key={l.key} className="manifest__layer">
-                <span className="manifest__index">{l.name}</span>
-                <ul>
-                  {HOTSPOTS.filter((h) => h.layer === l.key).map((h) => {
-                    const c = caseBySlug(h.slug);
-                    const on = visited.includes(h.slug);
-                    const no = pad2(exhibitNo(h.slug) ?? 0);
-                    return (
-                      <li key={h.slug}>
-                        {on ? (
-                          <button type="button" onClick={() => openFromManifest(h.slug)}>
-                            <i data-on="" />
-                            <span className="manifest__no">{no}</span>
-                            {c?.title ?? h.slug}
-                          </button>
-                        ) : (
-                          // still dark: its name stays redacted, but it's a way
-                          // there — the camera flies to it and it lights up
-                          <button
-                            type="button"
-                            className="manifest__dark"
-                            onClick={() => openFromManifest(h.slug)}
-                            aria-label={`Fly to exhibit ${no}, still dark, in the ${l.name}`}
-                          >
-                            <i />
-                            <span className="manifest__no">{no}</span>
-                            <span aria-hidden="true">{'▓'.repeat(Math.min(12, Math.max(6, (c?.title ?? h.slug).length)))}</span>
-                            <span className="manifest__go" aria-hidden="true">
-                              fly there →
-                            </span>
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
-            {/* exhibit 11: what the ten add up to */}
-            <div className="manifest__layer manifest__next">
-              {found === TOTAL ? (
-                <button type="button" onClick={openPad}>
-                  <i data-on="" />
-                  <span className="manifest__no">{NEXT_LAUNCH_NO}</span>
-                  The next launch
-                  <span className="manifest__go">on the pad →</span>
-                </button>
-              ) : (
-                <span className="manifest__dark">
-                  <i />
-                  <span className="manifest__no">{NEXT_LAUNCH_NO}</span>
-                  The next launch
-                  <span className="manifest__when">lights at {TOTAL}</span>
-                </span>
-              )}
-            </div>
-            <Link className="manifest__more" to="/projects" onClick={() => setManifestOpen(false)}>
-              {IN_COLLECTION} more in the collection <span aria-hidden="true">→</span>
-            </Link>
-            {found > 0 && (
-              <button
-                type="button"
-                className="manifest__reset"
-                onClick={() => {
-                  setManifestOpen(false);
-                  sceneStore.resetVisited();
-                }}
-              >
-                start the tour over
-              </button>
-            )}
-          </div>
-        )}
-        <button type="button" className="hero__signals-btn" aria-expanded={manifestOpen} onClick={() => setManifestOpen((v) => !v)}>
+        {guideOpen && <ExhibitionGuide visited={visited} onClose={() => setGuideOpen(false)} onOpenPad={openPad} />}
+        <button type="button" className="hero__signals-btn" aria-expanded={guideOpen} onClick={() => setGuideOpen((v) => !v)}>
           {/* Named by its visible text plus a hidden hint, rather than an
               aria-label that said something else ("Projects live in the model:
               0 of 10…") — speech input users say what they see. */}

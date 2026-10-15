@@ -2,7 +2,7 @@
 // (scripts/models/build_rocket.py, loaded by kit.ts). The pad draws the whole
 // stack (launchSite.tsx: a ghost until it flies, stacked part by part
 // as projects wake, and split in two at staging); the asteroids easter egg
-// (components/GameRocket) flies the ship alone, since the booster stays behind.
+// (components/launch/GameRocket) flies the ship alone, since the booster stays behind.
 //
 // Body local space: Super Heavy's skirt on the launch mount at y 0.09, the
 // hot-staging ring 0.49–0.505, Starship from there to its nose at 0.795. The

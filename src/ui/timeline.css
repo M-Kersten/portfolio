@@ -23,7 +23,7 @@
 }
 /* The ground the route is drawn on, on its own layer under the year (it pans
    with the route, transform set per frame in JS): the canyon map once
-   Work.tsx has built it (lib/contours), the site's square dots standing in
+   Timeline.tsx has built it (lib/contours), the site's square dots standing in
    until then. */
 .wall__far {
   position: absolute;
@@ -38,7 +38,7 @@
 }
 .wall__far[data-topo] { background-image: none; }
 /* The canyon map, woven from its points as the focus passes (--front, its x
-   on the ground, written per frame by Work.tsx). Far ahead it's a sparse
+   on the ground, written per frame by Timeline.tsx). Far ahead it's a sparse
    scatter: a dot every 40px along the contours. Coming up to the focus a
    second trail fills in between them, then a third, until the dots run every
    10px; around the focus they're strung on the lines as those draw in, and
@@ -87,7 +87,7 @@
 /* Employer band — a coloured segment of the route for one stint. Lit behind
    the focus and dim ahead of it: the band itself is the dim route, and its
    ::before is the lit length, --fill of the way along (written per frame by
-   Work.tsx; 100% when nothing drives it, so a static route is fully lit).
+   Timeline.tsx; 100% when nothing drives it, so a static route is fully lit).
    Flat ink, no halo: the route is drawn on the map, it doesn't shine. */
 .tl-band {
   position: absolute;
@@ -359,7 +359,7 @@
 }
 /* The year at the focus: a big outlined numeral in the display voice at the
    foot of the pinned view, rolling like an odometer as the wall pans — each
-   digit a window onto a strip of 0–9 that Work.tsx slides to its place. It
+   digit a window onto a strip of 0–9 that Timeline.tsx slides to its place. It
    sits behind the plane, so the cards travel over it. Only while the wall is
    pinned; the hand-panned strip keeps its company bar instead. */
 .wall__year {
@@ -414,7 +414,7 @@
 .wall__cue[data-done] { opacity: 0; }
 /* On phones the sticky company bar owns the bottom, so drop the scroll cue. */
 .wall[data-static] .wall__cue { display: none; }
-/* …and say it above the strip instead (Work.tsx), in the same voice, with the
+/* …and say it above the strip instead (Timeline.tsx), in the same voice, with the
    arrow nudging the way the strip goes. */
 .wall__swipe {
   margin: var(--space-s) 0 0;
@@ -707,7 +707,7 @@
   margin: 0.15em 0 0;
 }
 /* Reduced motion: the route arrives finished — no flash, no rolling year
-   (Work.tsx also lights every stop and the whole route, and weaves the whole
+   (Timeline.tsx also lights every stop and the whole route, and weaves the whole
    map, up front). */
 @media (prefers-reduced-motion: reduce) {
   .wall__strip,

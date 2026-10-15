@@ -10,7 +10,7 @@
 // The same tile is drawn in several inks (contourCss): as lines, and as trails
 // of the site's square dots along the very same lines, from a sparse scatter to
 // a dot every few pixels. The timeline shows the scatter far ahead of you, the
-// trail filling in as you come up to it and the lines behind (Work.tsx), so
+// trail filling in as you come up to it and the lines behind (Timeline.tsx), so
 // travelling it is what weaves the map together from its points.
 //
 // Pure and deterministic (seeded): the same size always draws the same

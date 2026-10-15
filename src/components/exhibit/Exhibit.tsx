@@ -7,7 +7,7 @@ import { useReducedMotion } from '../../lib/media';
 import { useDocumentTitle, useScrollLock } from '../../lib/page';
 import { play } from '../../lib/sound';
 import { useFocusTrap } from '../../lib/useFocusTrap';
-import { type FilmClock } from '../../lib/youtubeClock';
+import { type FilmClock } from '../../lib/youtube';
 import { useSceneSelector } from '../../scene/store';
 import { Book } from './Book';
 import { Lightbox } from './Gallery';
