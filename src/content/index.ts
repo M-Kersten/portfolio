@@ -23,7 +23,7 @@ export const caseBySlug = (slug: string): CaseStudy | undefined =>
 /** A "YYYY" or "YYYY-MM" date as a fractional year (0 when absent). A year on
  *  its own sits in the *middle* of that year rather than on 1 January, so it
  *  reads closer to when it happened against the month-precise career dates. */
-function fractionalYear(value?: string | null): number {
+export function fractionalYear(value?: string | null): number {
   const [y, m] = String(value ?? '').split('-').map(Number);
   if (!y) return 0;
   return m ? y + (m - 1) / 12 : y + 0.5;
@@ -39,11 +39,21 @@ export const byDate = (list: CaseStudy[]): CaseStudy[] => [...list].sort((a, b) 
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** The date as written for people: "Mar 2022", or just "2026". */
-export function caseWhen(c: CaseStudy): string {
-  const [y, m] = String(c.year ?? '').split('-');
-  return y ? (m ? `${MONTHS[Number(m) - 1]} ${y}` : y) : '';
+/** A content date as written for people: "2026" stays "2026", "2022-03"
+ *  reads "Mar 2022", and "1997-03-16" reads "16 Mar 1997". */
+export function formatDate(value?: string | null): string {
+  const [y, m, d] = String(value ?? '').split('-');
+  if (!y) return '';
+  if (!m) return y;
+  const month = `${MONTHS[Number(m) - 1]} ${y}`;
+  return d ? `${Number(d)} ${month}` : month;
 }
+
+/** When a project happened, as written for people: "Mar 2022", or "2026". */
+export const caseWhen = (c: CaseStudy): string => formatDate(c.year);
+
+/** A stint, as written for people: "Sep 2016 – Sep 2018", or "… – present". */
+export const formatPeriod = (from: string, to: string | null): string => `${formatDate(from)} – ${to ? formatDate(to) : 'present'}`;
 
 /** The job Merijn held on a project, from the career entry it was done at.
  *  The employer is read off the client: its own name first, then the agency

@@ -14,7 +14,7 @@
 import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { film } from '../launchPlan';
-import { isLiteDevice } from '../../lib/isMobile';
+import { isLiteDevice } from '../../lib/media';
 import { Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedBufferGeometry, PlaneGeometry, ShaderMaterial, UniformsLib, UniformsUtils, Vector3, type Mesh } from 'three';
 
 // Kept small: every puff is a big transparent quad, and the cloud's overdraw

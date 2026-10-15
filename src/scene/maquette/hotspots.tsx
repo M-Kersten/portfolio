@@ -6,13 +6,13 @@ import { type CSSProperties } from 'react';
 import { Html } from '@react-three/drei';
 import { sceneStore } from '../store';
 import { caseBySlug } from '../../content';
-import { Scramble } from '../../components/Scramble';
+import { Scramble } from '../../components/shell/Scramble';
 import { type Hotspot } from '../framing';
+import { PRESS } from '../../lib/media';
 import { Line, useActive, type V3 } from './shared';
 
 // Touch has no hover and no click, so the cue says what the finger does.
-const CUE_TEXT =
-  typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches ? 'tap to light it' : 'click to light it';
+const CUE_TEXT = `${PRESS} to light it`;
 
 export function HotspotMarker({
   hotspot,

@@ -6,7 +6,7 @@
 import { useMemo, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { type Group } from 'three';
-import { useReducedMotion } from '../../lib/useReducedMotion';
+import { isTouch, useReducedMotion } from '../../lib/media';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, layerGap, type Hotspot, type LayerId } from '../framing';
 import { useSceneSelector, bootAt, MAQUETTE_BOOT, opening } from '../store';
 import { AccentCtx, PALETTE } from './shared';
@@ -86,10 +86,7 @@ function Parallax({ children }: { children: ReactNode }) {
   const reduced = useReducedMotion();
   const selected = useSceneSelector((s) => s.selectedSlug);
   const pointer = useThree((s) => s.pointer);
-  const coarse = useMemo(
-    () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(hover: none)').matches,
-    [],
-  );
+  const coarse = useMemo(isTouch, []);
   useFrame(() => {
     const g = grp.current;
     if (!g) return;

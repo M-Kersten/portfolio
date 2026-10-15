@@ -5,16 +5,16 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
-import { useTweak } from '../devTweak';
+import { usePlacement } from '../../dev/tuning';
 import { useSceneSelector } from '../store';
-import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useReducedMotion } from '../../lib/media';
 import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
 import { PresenceCtx } from './presence';
 import { LIT_SOLID_OPACITY, litMat, litShade, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
 import { faceted, lathe, place, useGeometry } from './shapes';
-import { useFxConfig } from '../fxTweak';
+import { useLook } from '../look';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { NextProjectSite, SITE_POS } from './launchSite';
 import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
@@ -69,7 +69,7 @@ function flicker(level: number, t: number, phase: number, reduced: boolean) {
 /* ---------- where the outlying pieces stand ----------
  *  Hoisted out of CityRig because the outskirts have to keep clear of all three,
  *  and a fringe that read its neighbours' places off a dev scrubber would
- *  reshuffle itself every time one was dragged. These are the seeds; useTweak
+ *  reshuffle itself every time one was dragged. These are the seeds; usePlacement
  *  still moves the mill and the park themselves in dev. */
 const MILL_POS: V3 = [-1.2, 0, -0.06];
 const PARK_POS: V3 = [1.3, 0, -0.23];
@@ -720,7 +720,7 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
   const screenMat = useRef<MeshStandardMaterial>(null);
   const [model, setModel] = useState<Group | null>(null);
   const presence = useContext(PresenceCtx);
-  const cfg = useFxConfig();
+  const cfg = useLook();
 
   // The frosted glass shared by the buildings + windmill — the model and the
   // post it stands on both wear it, so they read as one object. It's assigned
@@ -1820,14 +1820,14 @@ export function CityRig() {
       if (!fits) console.warn(`public/models/blocks.glb doesn't match block ${i} of the city's plan. Rebuild it: see scripts/models/README.md.`);
     });
   }, [blocksKit, cluster]);
-  // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
-  const mill = useTweak('City.Windmill', { position: MILL_POS });
-  const park = useTweak('City.Park', { position: PARK_POS });
+  // placeable by eye from the dev tools in `npm run dev` (dev/tuning.ts)
+  const mill = usePlacement('City.Windmill', { position: MILL_POS });
+  const park = usePlacement('City.Park', { position: PARK_POS });
   // The transformer house sits on the front-centre plot of the 3×3 block grid,
   // just across the road from the tower and facing the camera (its own building
   // is dropped so the spot isn't doubled up). Drag City.Transformer in the dev
   // panel to move it to any of the 9 spots.
-  const trafo = useTweak('City.Transformer', { position: [0, 0, 0.55] });
+  const trafo = usePlacement('City.Transformer', { position: [0, 0, 0.55] });
   // Power lines fan from the tower to every building AND to the transformer house,
   // so it reads as part of the grid that powers the city.
   const wireTargets = useMemo(

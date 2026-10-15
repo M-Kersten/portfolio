@@ -8,14 +8,14 @@ import { CatmullRomCurve3, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, 
 import { type LayerId } from '../framing';
 import { useSceneSelector } from '../store';
 import { asset } from '../../lib/asset';
+import { LOOK } from '../look';
 
-// The blueprint statics. These two are baked into props/geometry at mount, so
-// unlike the palette colours in scene/fxTweak.tsx they can't scrub live — keep
-// them in tune with fxTweak's bgColor/ink values when regrading the scene.
-// (Pre-blueprint they were NEUTRAL '#9fb6c6', BG '#0a0d10'.)
+// The blueprint statics. These are baked into props/geometry at mount, so
+// unlike the palette in scene/look.ts they don't scrub live — keep NEUTRAL in
+// tune with the LOOK's ink when regrading the scene.
 export const NEUTRAL = '#d3e4f6'; // drawn-ink white-blue — the wireframe lines
 export const GLASS = '#5b7da0';
-export const BG = '#0c2044'; // matches fxTweak bgColor — the drawing's paper
+export const BG = LOOK.defaults.bgColor; // the drawing's paper
 
 /* ===========================================================================
  * THE MATERIAL SYSTEM

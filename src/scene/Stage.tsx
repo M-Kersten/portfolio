@@ -3,16 +3,16 @@ import { Environment, Lightformer } from '@react-three/drei';
 import { EffectComposer, Bloom, BrightnessContrast, Vignette, Scanline } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
-import { useReducedMotion } from '../lib/useReducedMotion';
-import { isLiteDevice } from '../lib/isMobile';
+import { useReducedMotion } from '../lib/media';
+import { isLiteDevice } from '../lib/media';
 import { useSceneSelector } from './store';
 import { fitScale, type Hotspot } from './framing';
 import { CameraRig } from './CameraRig';
-import { Maquette } from './maquette';
+import { Maquette } from './maquette/index';
 import { GHOST_FILL, GHOST_LINE } from './maquette/life';
 import { RIM, DOT_TUNE } from './maquette/materials';
 import { ShadeLight } from './maquette/lit';
-import { useFxConfig } from './fxTweak';
+import { useLook } from './look';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
 // further toward it when a node in it is picked.
@@ -38,7 +38,7 @@ function SelectDim({ hemi, dir1, dir2 }: {
   const selected = useSceneSelector((s) => s.selectedSlug);
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   const reduced = useReducedMotion();
-  const cfg = useFxConfig();
+  const cfg = useLook();
   const scene = useThree((s) => s.scene);
   const size = useThree((s) => s.size);
   const d = useRef(0);
@@ -49,11 +49,11 @@ function SelectDim({ hemi, dir1, dir2 }: {
   // no snap back to cyan.
   const air = useMemo(() => new Color(RIM_HEX), []);
   useFrame(() => {
-    // The palette rides the frame loop so the fx panel's colour swatches scrub
+    // The palette rides the frame loop so the dev tools' colour swatches scrub
     // the whole scene live: `bg` feeds the fog/background lerps below, and
     // GHOST_FILL / RIM are the shared Color objects every dormant material and
     // compiled glass shader already reads from. In production these are the
-    // frozen FX_DEFAULTS, so the sets are constant (and cheap either way).
+    // LOOK as written, so the sets are constant (and cheap either way).
     bg.set(cfg.bgColor);
     GHOST_FILL.set(cfg.ghostFill);
     GHOST_LINE.set(cfg.ghostLine);
@@ -100,7 +100,7 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   const hemi = useRef<HemisphereLight>(null);
   const dir1 = useRef<DirectionalLight>(null);
   const dir2 = useRef<DirectionalLight>(null);
-  const cfg = useFxConfig();
+  const cfg = useLook();
   const launchOn = useSceneSelector((s) => s.launch) !== 'idle';
 
   // The halftone's two knobs live on every compiled glass shader as the same

@@ -1,13 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
-import { useReducedMotion } from '../lib/useReducedMotion';
+import { useReducedMotion } from '../lib/media';
 import { opening, returning, sceneStore, useSceneSelector } from './store';
 import { maquetteLoaded } from './maquette/kit';
-import { HOTSPOTS, hotspotView, fitScale, fitFov, layerGap, portraitMix, CAMERA, LAUNCH } from './framing';
+import { HOTSPOTS, fitScale, fitFov, layerGap, portraitMix, CAMERA, LAUNCH } from './framing';
 import { anchorWorld, journeyView, introView, nodeView, launchShot, launchTrack } from './views';
-import { tweakedView } from './nodeTweak';
-import { isMobileViewport } from '../lib/isMobile';
+import { viewFor } from '../dev/tuning';
+import { isMobileViewport } from '../lib/media';
 
 // The camera is driven by the scroll journey (which layer is centred) and by the
 // selected node (zoom in).
@@ -336,8 +336,8 @@ export function CameraRig() {
 
     const hotspot = selectedSlug ? HOTSPOTS.find((h) => h.slug === selectedSlug) : undefined;
     // The close-up framing for this node: its own `view` overrides falling back
-    // to the CAMERA defaults, and in dev the live-dragged values from the tuner.
-    const view = hotspot ? (import.meta.env.DEV ? tweakedView(hotspot) : hotspotView(hotspot)) : undefined;
+    // to the CAMERA defaults, and in dev the live values from the dev tools.
+    const view = hotspot ? viewFor(hotspot) : undefined;
 
     // Restart the pan (and its ease-in) whenever the selection changes, so it
     // begins centred on the freshly-framed node and drifts out from there.

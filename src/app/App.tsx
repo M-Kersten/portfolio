@@ -1,19 +1,16 @@
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom';
-import { Header } from '../components/Header';
-import { SceneCanvas } from '../components/SceneCanvas';
-import { IntroCard } from '../components/IntroCard';
-import { BootVeil } from '../components/BootVeil';
-import { FocusReticle } from '../components/FocusReticle';
-import { HomeLayout } from '../components/HomeLayout';
-import { NodeHud } from '../components/NodeHud';
-import { NotFound } from '../components/NotFound';
-import { CvPage } from '../components/CvPage';
-import { ProjectsPage } from '../components/ProjectsPage';
-import { ScrollToHash } from '../components/ScrollToHash';
-import { DevTweakPanel } from '../scene/devTweak';
-import { NodeTweakPanel } from '../scene/nodeTweak';
-import { WallTweakPanel } from '../components/wallTweak';
-import { FxTweakPanel } from '../scene/fxTweak';
+import { Header } from '../components/shell/Header';
+import { SceneCanvas } from '../components/hero/SceneCanvas';
+import { IntroCard } from '../components/hero/IntroCard';
+import { BootVeil } from '../components/shell/BootVeil';
+import { FocusReticle } from '../components/hero/FocusReticle';
+import { HomeLayout } from '../components/home/HomeLayout';
+import { NodeHud } from '../components/exhibit/NodeHud';
+import { NotFound } from '../components/shell/NotFound';
+import { CvPage } from '../components/pages/CvPage';
+import { ProjectsPage } from '../components/pages/ProjectsPage';
+import { ScrollToHash } from '../components/shell/ScrollToHash';
+import { DevTools } from '../dev/DevTools';
 
 // One Router, one persistent <SceneCanvas/> (§6). Every case study is a modal
 // nested in the home layout, so the scene stays mounted behind it. The CV
@@ -30,10 +27,7 @@ function SiteChrome() {
           <body> and layer above the fixed header, so the focus view reads as the
           top plane — you look through the ring at the woken object. */}
       <FocusReticle />
-      {import.meta.env.DEV && <DevTweakPanel />}
-      {import.meta.env.DEV && <NodeTweakPanel />}
-      {import.meta.env.DEV && <WallTweakPanel />}
-      {import.meta.env.DEV && <FxTweakPanel />}
+      {import.meta.env.DEV && <DevTools />}
       <main id="main">
         <Outlet />
       </main>

@@ -10,7 +10,7 @@
 import { createContext, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { type Group, type Material, type Mesh, type Object3D } from 'three';
-import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useReducedMotion } from '../../lib/media';
 
 /** How bright a non-active layer rests (0..1). Raise toward 1 for less focus.
  *  Kept low so the layer you're not on genuinely recedes into the fog — the one

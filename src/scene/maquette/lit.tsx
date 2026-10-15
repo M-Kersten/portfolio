@@ -56,7 +56,7 @@ import {
   WebGLRenderTarget,
   type WebGLRenderer,
 } from 'three';
-import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useReducedMotion } from '../../lib/media';
 import { useSceneSelector } from '../store';
 import { useAccent } from './shared';
 import { PresenceCtx } from './presence';

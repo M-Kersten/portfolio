@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { REVEAL } from './motion';
-import { useReducedMotion } from './useReducedMotion';
+import { useReducedMotion } from './media';
 
 /** Scroll-triggered arrival. `shown` turns true once, when the element reaches
  *  the shared REVEAL point, and straight away under reduced motion. Put

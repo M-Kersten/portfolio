@@ -24,7 +24,7 @@ import { AdditiveBlending, Color, DoubleSide, MeshBasicMaterial, Quaternion, Vec
 import { sceneStore, useSceneSelector } from '../store';
 import { HOTSPOTS } from '../framing';
 import { launchShot, launchTrack } from '../views';
-import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useReducedMotion } from '../../lib/media';
 import { recordLaunch, useLaunchCount } from '../../lib/launches';
 import { FIRE, useAccent, type V3 } from './shared';
 import { GHOST_FILL, GHOST_LINE } from './life';

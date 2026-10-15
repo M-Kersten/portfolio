@@ -4,9 +4,10 @@
 import { useContext, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Color, MeshStandardMaterial, type Group, type Material, type Mesh } from 'three';
-import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useReducedMotion } from '../../lib/media';
 import { useActive } from './shared';
 import { PresenceCtx } from './presence';
+import { LOOK } from '../look';
 
 /* ---------- The life system — you give the world its colour ----------
    Every interactive object starts as a DORMANT GHOST: a faint monochrome
@@ -14,11 +15,11 @@ import { PresenceCtx } from './presence';
    authored materials back in — with a brief glitch as it materialises — and it
    stays alive for the rest of the session (store.visited). Non-interactive
    props keep their quiet glass, so the ghosts read as the things to touch. */
-// Seeds match fxTweak's FX_DEFAULTS (the live source — Stage's SelectDim pushes
-// the config into these Colors every frame; matching seeds keep any material
-// that bakes the value at mount consistent with the first painted frame).
-export const GHOST_FILL = new Color('#a8c4e4'); // pale drawing-blue for surfaces
-export const GHOST_LINE = new Color('#c6dcf4'); // brighter ink for edges/outlines
+// Seeded from the LOOK (scene/look.ts). Stage's SelectDim pushes the live
+// values into these Colors every frame; seeding them the same keeps anything
+// that bakes the colour at mount consistent with the first painted frame.
+export const GHOST_FILL = new Color(LOOK.defaults.ghostFill); // the pencil shading on surfaces
+export const GHOST_LINE = new Color(LOOK.defaults.ghostLine); // the drawn line on edges
 
 interface LifeSnap {
   color: Color | null;

@@ -14,7 +14,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Html, Line as DreiLine } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, CatmullRomCurve3, Color, Vector3, type Points as ThreePoints } from 'three';
 
-import { useReducedMotion } from '../../lib/useReducedMotion';
+import { useReducedMotion } from '../../lib/media';
 import { HOTSPOTS, layerGap, type Hotspot } from '../framing';
 import { anchorWorld } from '../views';
 import { PALETTE, useActive } from './shared';

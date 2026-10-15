@@ -7,8 +7,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type BufferGeometry, type Group, type Mesh, type Texture } from 'three';
-import { useTweak } from '../devTweak';
-import { useReducedMotion } from '../../lib/useReducedMotion';
+import { usePlacement } from '../../dev/tuning';
+import { useReducedMotion } from '../../lib/media';
 import { FIRE, GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { GlassMat, GroundMat, LiveGlassMat } from './materials';
@@ -1397,13 +1397,13 @@ function Couch() {
 export function RoomRig() {
   const { accent } = useAccent();
   const brigade = useLitLink('virtuele-brigade'); // the coffee's light (lit.tsx)
-  // DEV-only position scrubbers; tree-shaken from production builds (see devTweak).
-  const desk = useTweak('Room.Desk', { position: [-1.2, 0, 0.18], rotationY: 1.76 });
-  const couch = useTweak('Room.Couch', { position: [0.12, 0, -0.22], rotationY: -0.16 });
-  const table = useTweak('Room.AR table', { position: [0, 0, 0.52] });
-  const shelf = useTweak('Room.Bookcase', { position: [1, 0, -1.06], rotationY: -0.27 });
-  const plant = useTweak('Room.Plant', { position: [-1.23, 0, 0.9] });
-  const lamp = useTweak('Room.Floor lamp', { position: [-0.32, 0, -1.57] });
+  // placeable by eye from the dev tools in `npm run dev` (dev/tuning.ts)
+  const desk = usePlacement('Room.Desk', { position: [-1.2, 0, 0.18], rotationY: 1.76 });
+  const couch = usePlacement('Room.Couch', { position: [0.12, 0, -0.22], rotationY: -0.16 });
+  const table = usePlacement('Room.AR table', { position: [0, 0, 0.52] });
+  const shelf = usePlacement('Room.Bookcase', { position: [1, 0, -1.06], rotationY: -0.27 });
+  const plant = usePlacement('Room.Plant', { position: [-1.23, 0, 0.9] });
+  const lamp = usePlacement('Room.Floor lamp', { position: [-0.32, 0, -1.57] });
   return (
     <group>
       {/* round rug centred on the scene — lined up with the chip die below it.

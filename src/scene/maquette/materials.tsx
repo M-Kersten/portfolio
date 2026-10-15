@@ -9,7 +9,7 @@ import { useActive, GROUND, LINE_REST, NEUTRAL, SURFACE, SURFACE_AWAKE, SURFACE_
 import { GHOST_FILL } from './life';
 import { PresenceCtx } from './presence';
 import { LIT_GLASS, LIT_PARS, LIT_SOLID_OPACITY, litUniforms, useLitBody, useLitLink, type LitLink } from './lit';
-import { useFxConfig } from '../fxTweak';
+import { LOOK, useLook } from '../look';
 
 /* ---------- materials ---------- */
 
@@ -18,8 +18,8 @@ import { useFxConfig } from '../fxTweak';
 // standard material before fog/tonemapping so the rim hazes + tonemaps too.
 // Exported because every compiled glass shader holds this same Color as its
 // uniform, so Stage's SelectDim can restyle every silhouette at once by
-// mutating it (the live value is fxTweak's rimColor; seed kept in sync).
-export const RIM = new Color('#dcecfc');
+// mutating it (seeded from the LOOK's rimColor).
+export const RIM = new Color(LOOK.defaults.rimColor);
 // How much of the key light's specular highlight survives on glass. The sun sits
 // front-right (Stage: dir1 at [6, 11, 4]) — the same side the node cameras look
 // from — so at full strength it lays a hard white blob across whatever you just
@@ -31,11 +31,11 @@ const SPEC = 0.15;
 // The screen-space halftone's two knobs, shared across every compiled glass
 // shader the same way RIM is: each is the actual `{ value }` uniform object
 // three.js reads every frame, so Stage's SelectDim can retune the whole
-// maquette's dot grid at once by mutating `.value` in place (see fxTweak's
-// dotFreq/dotStrength). Seeds match FX_DEFAULTS.
+// maquette's dot grid at once by mutating `.value` in place (the LOOK's
+// dotFreq/dotStrength).
 export const DOT_TUNE = {
-  freq: { value: 1.7 }, // higher = smaller, denser cells
-  strength: { value: 0.3 }, // 0 = pattern invisible; scales both the rgb darkening and the alpha lift below, keeping their original ratio (~0.53)
+  freq: { value: LOOK.defaults.dotFreq }, // higher = smaller, denser cells
+  strength: { value: LOOK.defaults.dotStrength }, // 0 = pattern invisible; scales both the rgb darkening and the alpha lift below, keeping their original ratio (~0.53)
 };
 // `this` is the material: three calls onBeforeCompile as a method, which is how
 // a material hands in its own lit level (userData.litU — see lit.tsx).
@@ -123,7 +123,7 @@ export function LiveGlassMat({ slug, tint = 'glass', color, opacity, ghost = tru
   const k = useRef(0);
   const baseC = useMemo(() => new Color(fill), [fill]);
   const presence = useContext(PresenceCtx); // a layer that isn't the subject recedes
-  const cfg = useFxConfig();
+  const cfg = useLook();
   // Lit on hover (lit.tsx): the level rides into the shader through userData,
   // and a solid object gets its one-volume twin and its shadow while lit.
   const lit = useLitLink(slug);
@@ -279,7 +279,7 @@ export function LiveEdges({ slug, threshold = 20, rest = LINE_REST, wake }: { sl
   // Shares wakeSpeed with LiveGlassMat so an object's fill and its retiring
   // outline move on the same trajectory — they're always used together via
   // LifeGroup, and drifting out of step would read as two separate animations.
-  const cfg = useFxConfig();
+  const cfg = useLook();
   useFrame(() => {
     const mat = ref.current?.material as Material | undefined;
     if (!mat) return;
