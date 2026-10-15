@@ -232,8 +232,8 @@ img {
   margin: var(--space-m) 0 0;
   font-size: var(--step-1);
   line-height: 1.45;
-  color: var(--ink-60);
-  max-width: 42ch;
+  color: color-mix(in srgb, var(--ink) 74%, transparent); /* a step brighter than ink-60 */
+  max-width: 54ch; /* two lines for the longest lead, not three */
   text-wrap: pretty;
   transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
   transition-delay: calc(var(--stagger) * 4);

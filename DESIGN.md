@@ -151,7 +151,7 @@ Every size on the site is one of nine steps: a fluid modular scale from a 16px b
 ### Hierarchy
 - **Display** (step 6, `--display-*` tokens, line-height 0.92): section titles and the hero name; `text-wrap: balance`. Also the big numerals: the timeline card years (step 3) and the year at the timeline's focus.
 - **Title** (step 2): panel and dialog titles, the About opening paragraph (at full ink, so the bio opens on a line).
-- **Lead** (step 1, ink-60): a section's lead, the title's standfirst, directly under it on the same left edge.
+- **Lead** (step 1, ink at 74%): a section's lead, the title's standfirst, directly under it on the same left edge.
 - **Body** (400, step 0, line-height 1.6, max 58–65ch measure): case-story prose and running copy; case-study text carries paragraph breaks via literal blank lines in the JSON source (`white-space: pre-line`).
 - **Label** (500, step −1 or −2, letter-spacing 0.04–0.16em, uppercase): nav links, buttons, tags, timeline metadata, story kickers, section kickers — always Space Mono, always uppercase, always letter-spaced.
 
