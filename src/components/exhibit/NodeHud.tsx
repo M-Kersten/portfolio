@@ -2,13 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { caseBySlug } from '../../content';
 import { sceneStore } from '../../scene/store';
+import { LAYER_STEP, STEP_CENTRE } from '../../scene/framing';
+import { useScrollLock } from '../../lib/page';
 import { Exhibit } from './Exhibit';
 import { NotFound } from '../shell/NotFound';
 
-const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
-// Centre of each layer's scroll band on the hero (fraction of scroll travel),
-// matching the City <0.25 · Room 0.25–0.75 · Chip ≥0.75 split in HeroStage.
-const ZONE_CENTER = [0.125, 0.5, 0.875];
 const CLOSE_FADE = 200; // ms the label fades before the route (and the zoom-out) commits
 
 // An exhibit opened in the maquette: the woken 3D object sits framed in the
@@ -42,7 +40,7 @@ export function NodeHud() {
     else navigate('/', { replace: true });
     if (!study) return;
     const homecoming = sceneStore.snapshot().celebrationPending;
-    const step = homecoming ? 0 : LAYER_STEP[study.layer] ?? 0;
+    const step = homecoming ? 0 : LAYER_STEP[study.layer];
     if (homecoming) sceneStore.celebrate();
     sceneStore.setJourneyStep(step);
     // Lift the body-scroll lock before scrolling (the unmount cleanup can land
@@ -53,7 +51,7 @@ export function NodeHud() {
         const hero = document.getElementById('hero');
         if (!hero) return;
         const travel = Math.max(hero.offsetHeight - window.innerHeight, 0);
-        window.scrollTo({ top: hero.offsetTop + (ZONE_CENTER[step] ?? 0.125) * travel });
+        window.scrollTo({ top: hero.offsetTop + STEP_CENTRE[step] * travel });
       }),
     );
   };
@@ -66,15 +64,9 @@ export function NodeHud() {
     closeTimer.current = window.setTimeout(runClose, CLOSE_FADE);
   };
 
-  useEffect(() => {
-    if (!study) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden'; // pause the journey while inspecting
-    return () => {
-      document.body.style.overflow = prev;
-      clearTimeout(closeTimer.current);
-    };
-  }, [study]);
+  // the journey holds still while an exhibit is open
+  useScrollLock(Boolean(study));
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
 
   // no such project: that room isn't open
   if (!study) return <NotFound />;

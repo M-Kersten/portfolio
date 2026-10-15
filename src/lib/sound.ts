@@ -13,6 +13,8 @@
 // by the scroll journey) and the launch (the film's roar and water, which also
 // sit under the duck). Files decode on first use and stay cached.
 
+import { remember, remembered } from './page';
+
 const files = import.meta.glob('../assets/sound/*.{mp3,m4a,ogg,webm,wav}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 
 /** Every event the site can sound, and the file name it plays (any of the
@@ -61,13 +63,7 @@ export const hasSounds = Object.keys(VARIANTS).length > 0;
 /* ---------- on / off ---------- */
 
 const KEY = 'mk-sound';
-let enabled = (() => {
-  try {
-    return localStorage.getItem(KEY) === 'on';
-  } catch {
-    return false;
-  }
-})();
+let enabled = remembered(KEY) === 'on';
 const listeners = new Set<() => void>();
 
 export const soundOn = () => enabled;
@@ -81,11 +77,7 @@ export function subscribeSound(fn: () => void) {
  *  lets the page make sound. */
 export function setSound(on: boolean) {
   enabled = on;
-  try {
-    localStorage.setItem(KEY, on ? 'on' : 'off');
-  } catch {
-    /* a private window: it just isn't remembered */
-  }
+  remember(KEY, on ? 'on' : 'off');
   if (on) wake();
   if (graph && ctx) graph.master.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, 0.15);
   listeners.forEach((l) => l());

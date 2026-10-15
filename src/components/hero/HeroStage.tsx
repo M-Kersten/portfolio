@@ -3,8 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { caseBySlug, cases, site } from '../../content';
 import { EXHIBITS, NEXT_LAUNCH_NO, exhibitNo, pad2 } from '../../content/exhibits';
 import { returning, sceneStore, useSceneSelector } from '../../scene/store';
-import { HOTSPOTS } from '../../scene/framing';
+import { HOTSPOTS, stepAt } from '../../scene/framing';
 import { PRESS, useReducedMotion } from '../../lib/media';
+import { useEscape } from '../../lib/page';
 import { Scramble } from '../shell/Scramble';
 
 // Three invisible scroll panels give the camera journey its length and drive
@@ -107,11 +108,7 @@ export function HeroStage() {
   // below doesn't reliably trip an observer, which used to strand the title over
   // the wall — a per-frame rect read is robust to that.
   //
-  // journeyStep = which band of the hero's scroll travel we're in. City rests at
-  // the very top and Chip at the very bottom, so they're easy to land on at the
-  // extremes; Room is the only layer you have to stop *in the middle* to hold.
-  // So Room gets the widest band — the middle half of the travel — which makes
-  // it easy to reach, while City→Room stays a short first hop.
+  // journeyStep = which band of the hero's scroll travel we're in (stepAt).
   useEffect(() => {
     let raf = 0;
     let lastStep = -1;
@@ -125,7 +122,7 @@ export function HeroStage() {
 
         const travel = Math.max(hero.offsetHeight - vh, 1);
         const p = Math.min(Math.max(-r.top, 0), travel) / travel; // 0→1 across the hero
-        const step = p >= 0.75 ? 2 : p >= 0.25 ? 1 : 0; // City <0.25 · Room 0.25–0.75 · Chip ≥0.75
+        const step = stepAt(p);
         if (step !== lastStep) {
           lastStep = step;
           sceneStore.setJourneyStep(step);
@@ -200,15 +197,8 @@ export function HeroStage() {
     return () => clearTimeout(t);
   }, [booted, welcome, selectedSlug, launching, manifestOpen, reduced]);
 
-  // Esc closes the manifest
-  useEffect(() => {
-    if (!manifestOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setManifestOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [manifestOpen]);
+  // Esc closes the guide
+  useEscape(() => setManifestOpen(false), manifestOpen);
 
   // Title lives only on the City layer (and only while the hero is on screen);
   // it clears the moment you scroll to Room or leave the hero entirely.

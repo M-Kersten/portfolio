@@ -4,10 +4,9 @@
 // the collection: on the timeline and /projects, with a label of its own but
 // no number. Exhibit 11 is the next launch (the rocket on the pad).
 //
-// Also here, because the label and the book both need them: each project's
-// silent film loop (src/assets/loops/<slug>.mp4, see the README there), the
-// first sentence of a story beat, and a project's "see also" (what it builds
-// on, and what it led to).
+// Also here, because the label and the book both need them: the walk from one
+// project to the next, the story's paragraphs and first sentence, and a
+// project's "see also" (what it builds on, and what it led to).
 import { HOTSPOTS } from '../scene/framing';
 import { byDate, cases, caseBySlug, type CaseStudy } from './index';
 
@@ -58,13 +57,6 @@ export function readingMinutes(study: CaseStudy): number {
   const words = [study.problem, study.approach, study.lesson ?? ''].join(' ').split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(words / 200));
 }
-
-/* ---------- film loops ---------- */
-
-const loops = import.meta.glob('../assets/loops/*.{mp4,webm}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-const LOOPS: Record<string, string> = Object.fromEntries(Object.entries(loops).map(([p, url]) => [p.split('/').pop()!.replace(/\.[^.]+$/, ''), url]));
-/** The URL of a project's silent film loop, if it has one. */
-export const loopFor = (slug: string): string | undefined => LOOPS[slug];
 
 /* ---------- the story ---------- */
 

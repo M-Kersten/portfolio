@@ -42,7 +42,7 @@ const INTRO_WAIT = 2500; // ms
 // whole image so that point lands on the ring's centre, moving the object
 // across the frame without moving the camera, so the framing angle is kept.
 // The ring's centre is read from the same custom properties the reticle is
-// drawn with (--fr-cx / --fr-cy, node-hud.css), so the two can't disagree at
+// drawn with (--fr-cx / --fr-cy, porthole.css), so the two can't disagree at
 // any screen size. The slide animates in with the zoom.
 const PORTHOLE_LIFT = 1.0;
 function readPorthole(): { x: number; y: number } {
@@ -55,7 +55,7 @@ function readPorthole(): { x: number; y: number } {
 }
 // Seconds the camera holds still after a selection while the reticle materialises
 // over the object and locks onto it. Mirrors the hold in the fr-acquire keyframes
-// (node-hud.css) — the two are one movement and have to agree.
+// (porthole.css) — the two are one movement and have to agree.
 const ACQUIRE_HOLD = 0.4;
 // Seconds from selection to the push-in visually settling — the acquire hold
 // above, plus how long the glide's exponential ease (k=3.4/s, below) takes to

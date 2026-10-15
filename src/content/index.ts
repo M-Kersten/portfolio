@@ -90,6 +90,12 @@ export const LAYER_LABEL: Record<CaseStudy['layer'], string> = {
   chip: 'Chip',
 };
 
+/** Each layer's colour, for canvas and 3D: the same as --cyan, --coral and
+ *  --lime in src/ui/tokens.css (keep them in step). */
+export const LAYER_HEX: Record<CaseStudy['layer'], string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
+/** Each layer's colour, for styles. */
+export const LAYER_VAR: Record<CaseStudy['layer'], string> = { city: 'var(--cyan)', room: 'var(--coral)', chip: 'var(--lime)' };
+
 /** Every discipline, in the order the /projects chips show them — broadest
  *  bodies of work first. Must cover the Discipline union in types.ts. */
 export const DISCIPLINES: Discipline[] = ['AR', 'VR', 'AI', 'Games', 'Geo', 'Installation', 'Design'];

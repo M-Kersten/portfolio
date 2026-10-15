@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { DISCIPLINES, LAYER_LABEL, type CaseStudy, type Discipline, type Layer } from '../../content';
+import { DISCIPLINES, LAYER_LABEL, LAYER_VAR, type CaseStudy, type Discipline } from '../../content';
 import { asset } from '../../lib/asset';
 import { noteCaseOrigin } from '../../lib/caseOrigin';
 import { exhibitMark } from '../../content/exhibits';
@@ -21,7 +21,6 @@ import { exhibitMark } from '../../content/exhibits';
 // the timeline's waypoint cards — frosted, tinted by their layer, the edge
 // firming up under the pointer.
 
-const LAYER_COLOR: Record<Layer, string> = { city: 'var(--cyan)', room: 'var(--coral)', chip: 'var(--lime)' };
 
 type Sort = 'new' | 'old' | 'curated';
 const SORTS: { value: Sort; label: string }[] = [
@@ -115,7 +114,7 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
               type="button"
               className="pi-card"
               data-layer={c.layer}
-              style={{ '--c': LAYER_COLOR[c.layer] } as CSSProperties}
+              style={{ '--c': LAYER_VAR[c.layer] } as CSSProperties}
               onClick={(e) => {
                 // the case sheet grows out of this card's picture
                 noteCaseOrigin(c.slug, e.currentTarget.querySelector('.pi-card__media'));

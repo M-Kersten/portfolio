@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { play, preload } from '../../lib/sound';
 import { useReducedMotion } from '../../lib/media';
+import { remember, remembered } from '../../lib/page';
 import { GameComms } from './GameComms';
 import { GameRocket, type Burst, type RockView, type ShipView } from './GameRocket';
 
@@ -191,6 +192,8 @@ interface Rock {
 let rockId = 0; // monotonic, so a rock keeps its look however the array shifts
 interface Bullet { x: number; y: number; px: number; py: number; vx: number; vy: number; ttl: number }
 /** Shot speed (px/s) and how much the shot itself counts for at a hit. */
+/** The best score, remembered in this browser. */
+const BEST_KEY = 'mk-asteroids-best';
 const BULLET_SPEED = 820;
 const BULLET_PAD = 3;
 /** Did a shot pass within `r` of a point on its way from (px,py) to (x,y)?
@@ -260,7 +263,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   // new one always replaces the last rather than stacking on it.
   const [slate, setSlate] = useState<{ text: string; kicker?: string; kind: 'mission' | 'phase'; id: number } | null>(null);
   const slateId = useRef(0);
-  const [best, setBest] = useState(() => Number(localStorage.getItem('mk-asteroids-best') ?? 0));
+  const [best, setBest] = useState(() => Number(remembered(BEST_KEY) ?? 0));
   const restartRef = useRef<() => void>(() => {});
   // The pause menu. Esc opens it instead of dumping you back to the pad — quitting
   // a run by accident on the key you'd reach for to pause was the whole problem.
@@ -668,7 +671,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       );
       setBest((b) => {
         const nb = Math.max(b, score);
-        localStorage.setItem('mk-asteroids-best', String(nb));
+        remember(BEST_KEY, String(nb));
         return nb;
       });
       setPhase('over');
@@ -695,7 +698,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       chainT = 0;
       bestChain = 1;
       recordBroken = false;
-      bestAtStart = Number(localStorage.getItem('mk-asteroids-best') ?? 0);
+      bestAtStart = Number(remembered(BEST_KEY) ?? 0);
       gridPulse = 0;
       throttle = 0;
       turnIn = 0;
@@ -720,14 +723,6 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       introUntil = reduced ? 0 : performance.now() + 2200;
       firstWave = false;
       waveGap = 0;
-      // e2e playtest hook (sessionStorage 'mk-ast-test' = 'rud'): shield already
-      // down + a rock dead ahead, so automation can reach the RUD screen determin-
-      // istically. Unreachable in normal play — nothing sets the flag.
-      if (sessionStorage.getItem('mk-ast-test') === 'rud') {
-        shield = false;
-        ship.inv = 0;
-        rocks.push({ x: W / 2, y: H / 2, vx: 0, vy: 0, r: 44, tier: 0, rot: 0, spin: 0.4, shape: rockShape(), label: 'SCOPE CREEP', age: 9, id: rockId++ });
-      }
     };
     restartRef.current = () => {
       reset(true);

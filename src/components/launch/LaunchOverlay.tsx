@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { sceneStore, useSceneSelector } from '../../scene/store';
 import { EXHIBIT_COUNT, NEXT_LAUNCH_NO } from '../../content/exhibits';
 import { useLaunchCount } from '../../lib/launches';
+import { useEscape, useScrollLock } from '../../lib/page';
 import { LaunchHud } from './LaunchHud';
 import { VoiceNote } from '../exhibit/VoiceNote';
 
@@ -30,14 +31,7 @@ export function LaunchOverlay() {
   const flights = useLaunchCount();
 
   // Esc aborts (except mid-game — the game owns its own exit confirm)
-  useEffect(() => {
-    if (launch === 'idle' || launch === 'game') return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') sceneStore.setLaunch('idle');
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [launch]);
+  useEscape(() => sceneStore.setLaunch('idle'), launch !== 'idle' && launch !== 'game');
 
   // the site's header steps aside while the film runs (launch.css)
   useEffect(() => {
@@ -49,14 +43,7 @@ export function LaunchOverlay() {
   }, [launch]);
 
   // freeze the page scroll while any launch stage is active
-  useEffect(() => {
-    if (launch === 'idle') return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [launch]);
+  useScrollLock(launch !== 'idle');
 
   // Portal to <body>: the home page's <main> is its own stacking context below
   // the fixed header, so anything rendered inside it — whatever its z-index —

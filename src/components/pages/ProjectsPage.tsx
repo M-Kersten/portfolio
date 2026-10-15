@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { byDate, cases, caseBySlug, site } from '../../content';
 import { Exhibit } from '../exhibit/Exhibit';
+import { useDocumentTitle } from '../../lib/page';
 import { Footer } from '../shell/Footer';
 import { Header } from '../shell/Header';
 import { ProjectsIndex } from './ProjectsIndex';
@@ -25,13 +26,7 @@ export function ProjectsPage() {
   const study = open ? caseBySlug(open) : undefined;
   const items = cases; // the full index — highlights + the long tail
 
-  useEffect(() => {
-    const prev = document.title;
-    document.title = `The collection — ${site.hero.name}`;
-    return () => {
-      document.title = prev;
-    };
-  }, []);
+  useDocumentTitle(`${TITLE} — ${site.hero.name}`);
 
   return (
     <>

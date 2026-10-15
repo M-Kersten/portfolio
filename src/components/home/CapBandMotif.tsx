@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useReducedMotion } from '../../lib/media';
 import { drawCity, drawRoom, drawChip } from './ScaleMotif';
-import type { Layer } from '../../content';
+import { LAYER_HEX, type Layer } from '../../content';
 
-const COLOR: Record<Layer, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
 
 // One canvas for the whole capabilities band: it draws the three motifs into
 // three slanted regions (city / room / chip) sheared apart by two diagonal
@@ -62,7 +61,7 @@ export function CapBandMotif({ active }: { active: Layer | null }) {
         poly(pts);
         ctx.clip();
         ctx.translate(tx, 0);
-        ctx.fillStyle = COLOR[layer];
+        ctx.fillStyle = LAYER_HEX[layer];
         fn(ctx, rw, h, time * speedOf(layer), baseOf(layer));
         ctx.restore();
       };

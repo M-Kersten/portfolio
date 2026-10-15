@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { byDate, cases, caseBySlug, LAYER_LABEL, type CaseStudy } from '../../content';
+import { byDate, cases, caseBySlug, LAYER_LABEL, LAYER_VAR, type CaseStudy } from '../../content';
 import { asset } from '../../lib/asset';
 import { noteCaseOrigin } from '../../lib/caseOrigin';
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { useScrollLock } from '../../lib/page';
 import { Exhibit } from '../exhibit/Exhibit';
 
 // Site-wide "find a project": a magnifying-glass button in the top bar (with an
@@ -14,7 +15,6 @@ import { Exhibit } from '../exhibit/Exhibit';
 // (trigger + overlay + card), so it can drop into any top bar; only one is
 // mounted per route, so the global F shortcut never double-fires.
 
-const LAYER_COLOR: Record<string, string> = { city: 'var(--cyan)', room: 'var(--coral)', chip: 'var(--lime)' };
 
 // Pre-built search index. Fields are split by weight so a name or tag match
 // ranks above a passing mention deep in the story text.
@@ -89,15 +89,10 @@ export function Search() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Focus the box on open; freeze the page behind the overlay; restore on close.
+  // Focus the box on open, and freeze the page behind the overlay.
+  useScrollLock(open);
   useEffect(() => {
-    if (!open) return;
-    inputRef.current?.focus();
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    if (open) inputRef.current?.focus();
   }, [open]);
 
   useEffect(() => setActive(0), [q]);
@@ -214,7 +209,7 @@ export function Search() {
                     aria-selected={i === active}
                     data-active={i === active || undefined}
                     className="search__hit"
-                    style={{ '--c': LAYER_COLOR[c.layer] } as CSSProperties}
+                    style={{ '--c': LAYER_VAR[c.layer] } as CSSProperties}
                     onClick={() => openCase(c.slug, i)}
                     onMouseMove={() => setActive(i)}
                   >

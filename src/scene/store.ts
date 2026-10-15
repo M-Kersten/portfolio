@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { HOTSPOTS } from './framing';
+import { remember, remembered } from '../lib/page';
 
 /** Wall-clock moment the app first loaded. The boot sequence sequences off this
  *  one shared clock so the DOM beats (header → name → subhead) and the 3D beat
@@ -17,20 +18,9 @@ export const opening = { dollying: false };
  *  once it has played). A returning visitor gets a shorter way in: no premise
  *  card, a quicker dolly. Read once, at load. */
 const INTRO_KEY = 'mk-intro-seen';
-export const returning = (() => {
-  try {
-    return typeof localStorage !== 'undefined' && localStorage.getItem(INTRO_KEY) === '1';
-  } catch {
-    return false;
-  }
-})();
-export function markIntroSeen() {
-  try {
-    localStorage.setItem(INTRO_KEY, '1');
-  } catch {
-    /* storage blocked: the card just plays again next time */
-  }
-}
+export const returning = remembered(INTRO_KEY) === '1';
+/** (Storage blocked: the card just plays again next time.) */
+export const markIntroSeen = () => remember(INTRO_KEY, '1');
 
 /** The launch easter egg's stage machine (see maquette/launchSite.tsx +
  *  components/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;
@@ -193,11 +183,7 @@ export const sceneStore = {
     // the first open is the moment the cue has done its job
     if (selectedSlug && state.cue) {
       patch.cue = false;
-      try {
-        localStorage.setItem(CUE_KEY, '1');
-      } catch {
-        /* fine: it shows again next visit */
-      }
+      remember(CUE_KEY, '1');
     }
     set(patch);
   },

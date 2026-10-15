@@ -17,6 +17,16 @@ export const LAYER_Y: Record<LayerId, number> = { city: 1.32, room: 0, chip: -1.
 // Sized so the scale ladder reads — City largest, Chip smallest.
 export const LAYER_SCALE: Record<LayerId, number> = { city: 1.15, room: 1.0, chip: 0.82 };
 
+/** The scroll journey down the hero: City at the top (step 0), Room in the
+ *  middle (1), Chip at the bottom (2). */
+export const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };
+/** Which step a point in the hero's scroll travel (0 → 1) is on. City and Chip
+ *  rest at the very top and bottom, easy to land on; Room is the one you stop
+ *  in the middle to hold, so it gets the widest band: the middle half. */
+export const stepAt = (p: number) => (p >= 0.75 ? 2 : p >= 0.25 ? 1 : 0);
+/** The middle of each step's band, where closing an exhibit lands you. */
+export const STEP_CENTRE = [0.125, 0.5, 0.875];
+
 export interface Hotspot {
   slug: string;
   layer: LayerId;

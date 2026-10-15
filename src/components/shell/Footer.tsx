@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { site } from '../../content';
+import { remember, remembered } from '../../lib/page';
 
 const EDIT_KEY = 'mk:edit';
 
@@ -9,14 +10,10 @@ const EDIT_KEY = 'mk:edit';
  *  faint enough to fail contrast, and an admin link on a public page besides. */
 function useEditLink(): boolean {
   const [on] = useState(() => {
-    try {
-      const q = new URLSearchParams(window.location.search).get('edit');
-      if (q === 'off') localStorage.removeItem(EDIT_KEY);
-      else if (q !== null) localStorage.setItem(EDIT_KEY, '1');
-      return localStorage.getItem(EDIT_KEY) === '1';
-    } catch {
-      return false; // storage blocked: no link, which is the public default anyway
-    }
+    const q = new URLSearchParams(window.location.search).get('edit');
+    if (q !== null) remember(EDIT_KEY, q === 'off' ? null : '1');
+    // storage blocked: no link, which is the public default anyway
+    return remembered(EDIT_KEY) === '1';
   });
   return on;
 }

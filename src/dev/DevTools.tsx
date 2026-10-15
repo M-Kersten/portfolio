@@ -4,6 +4,7 @@ import { HOTSPOTS, hotspotView } from '../scene/framing';
 import { useSceneSelector } from '../scene/store';
 import { WALL, type WallLayout } from '../components/timeline/layout';
 import { PLACEMENTS, VIEWS, useTuned, type PlacementEntry } from './tuning';
+import { remember, remembered } from '../lib/page';
 
 // The dev tools: one panel, only in `npm run dev` (App mounts it behind
 // import.meta.env.DEV, so none of this ships). Folded to a small "tune" chip
@@ -22,24 +23,20 @@ type Tab = 'look' | 'timeline' | 'camera' | 'objects';
 const TABS: Tab[] = ['look', 'timeline', 'camera', 'objects'];
 const STATE_KEY = 'mk-devtools';
 
-function remembered(): { open: boolean; tab: Tab } {
+function saved(): { open: boolean; tab: Tab } {
   try {
-    return { open: false, tab: 'look', ...JSON.parse(localStorage.getItem(STATE_KEY) ?? '{}') };
+    return { open: false, tab: 'look', ...JSON.parse(remembered(STATE_KEY) ?? '{}') };
   } catch {
     return { open: false, tab: 'look' };
   }
 }
 
 export function DevTools() {
-  const [state, setState] = useState(remembered);
+  const [state, setState] = useState(saved);
   const update = (patch: Partial<typeof state>) => {
     const next = { ...state, ...patch };
     setState(next);
-    try {
-      localStorage.setItem(STATE_KEY, JSON.stringify(next));
-    } catch {
-      /* fine: it just isn't remembered */
-    }
+    remember(STATE_KEY, JSON.stringify(next));
   };
 
   if (!state.open) {

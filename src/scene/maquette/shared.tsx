@@ -9,6 +9,7 @@ import { type LayerId } from '../framing';
 import { useSceneSelector } from '../store';
 import { asset } from '../../lib/asset';
 import { LOOK } from '../look';
+import { LAYER_HEX } from '../../content';
 
 // The blueprint statics. These are baked into props/geometry at mount, so
 // unlike the palette in scene/look.ts they don't scrub live — keep NEUTRAL in
@@ -109,9 +110,9 @@ interface Palette {
   accentDeep: string;
 }
 export const PALETTE: Record<LayerId, Palette> = {
-  city: { accent: '#27e8f2', accentPale: '#9ef2f8', accentDeep: '#12909c' },
-  room: { accent: '#ff9068', accentPale: '#ffc5ab', accentDeep: '#c25b38' },
-  chip: { accent: '#a9f75c', accentPale: '#d6fbaa', accentDeep: '#6faa33' },
+  city: { accent: LAYER_HEX.city, accentPale: '#9ef2f8', accentDeep: '#12909c' },
+  room: { accent: LAYER_HEX.room, accentPale: '#ffc5ab', accentDeep: '#c25b38' },
+  chip: { accent: LAYER_HEX.chip, accentPale: '#d6fbaa', accentDeep: '#6faa33' },
 };
 export const AccentCtx = createContext<Palette>(PALETTE.city);
 export const useAccent = () => useContext(AccentCtx);

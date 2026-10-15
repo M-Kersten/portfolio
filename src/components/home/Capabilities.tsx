@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { capabilities, site, type Capability, type Layer } from '../../content';
+import { capabilities, site, LAYER_HEX, type Capability, type Layer } from '../../content';
 import { MOTION } from '../../lib/motion';
 import { useReveal } from '../../lib/useReveal';
 import { ScaleMotif } from './ScaleMotif';
@@ -7,7 +7,6 @@ import { CapBandMotif } from './CapBandMotif';
 import { Scramble } from '../shell/Scramble';
 import { SectionHead } from '../shell/SectionHead';
 
-const COLOR: Record<Layer, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
 
 // The written content, shared by the desktop band columns and the mobile
 // cards. The title decodes in (scrambled → clear) when it scrolls into view.
@@ -90,7 +89,7 @@ export function Capabilities() {
             onMouseLeave={() => leave(c.layer)}
           >
             <div className="cap__motif">
-              <ScaleMotif layer={c.layer} color={COLOR[c.layer]} active={active === c.layer} />
+              <ScaleMotif layer={c.layer} color={LAYER_HEX[c.layer]} active={active === c.layer} />
             </div>
             <div className="cap__body">
               <CapText c={c} delay={i * 2 * MOTION.stagger} />

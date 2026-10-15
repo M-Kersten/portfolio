@@ -2,10 +2,10 @@ import { Component, Suspense, lazy, useCallback, useEffect, useState, type React
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Poster, SceneLoading } from './Poster';
 import { sceneStore, useSceneSelector } from '../../scene/store';
-import { type Hotspot } from '../../scene/framing';
+import { LAYER_STEP, type Hotspot } from '../../scene/framing';
 import { useReducedMotion } from '../../lib/media';
 import { useWebGLSupport } from '../../lib/useWebGLSupport';
-import { caseBySlug, type Layer } from '../../content';
+import { caseBySlug } from '../../content';
 
 const CanvasScene = lazy(() => import('./CanvasScene'));
 
@@ -15,8 +15,6 @@ const CanvasScene = lazy(() => import('./CanvasScene'));
 // be had (see the render below for the states in between).
 
 const WORK_RE = /^\/work\/([^/]+)\/?$/;
-// Scroll-journey step per layer: City top (0) → Room (1) → Chip bottom (2).
-const JOURNEY_STEP: Record<Layer, number> = { city: 0, room: 1, chip: 2 };
 
 /** Anything the WebGL stack throws — no context for the renderer, a chunk that
  *  won't load, an error inside the scene, the effect composer choking on a lost
@@ -50,7 +48,7 @@ export function SceneCanvas() {
     const study = slug ? caseBySlug(slug) : undefined;
     if (slug) sceneStore.markVisited(slug); // opening a node marks it "alive"
     sceneStore.setSelected(study ? study.slug : null);
-    if (study) sceneStore.setJourneyStep(JOURNEY_STEP[study.layer]);
+    if (study) sceneStore.setJourneyStep(LAYER_STEP[study.layer]);
   }, [location.pathname]);
 
   // Pause rendering when the hero scrolls out of view (§10). #hero only exists

@@ -13,12 +13,11 @@ import { GHOST_FILL, GHOST_LINE } from './maquette/life';
 import { RIM, DOT_TUNE } from './maquette/materials';
 import { ShadeLight } from './maquette/lit';
 import { useLook } from './look';
+import { LAYER_HEX } from '../content';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
 // further toward it when a node in it is picked.
-const LAYER_ACCENT: Record<string, string> = { city: '#27e8f2', room: '#ff9068', chip: '#a9f75c' };
-const LAYER_BY_STEP = ['city', 'room', 'chip'];
-const RIM_HEX = '#27e8f2'; // city cyan — the fallback / starting air
+const LAYER_BY_STEP = ['city', 'room', 'chip'] as const;
 // phones and tablets: the launch's bloom at half resolution
 const LITE = isLiteDevice();
 
@@ -47,7 +46,7 @@ function SelectDim({ hemi, dir1, dir2 }: {
   // The resting air colour — eased toward the active layer's accent, so it also
   // holds through a fade-out (journeyStep tracks the layer you left from) with
   // no snap back to cyan.
-  const air = useMemo(() => new Color(RIM_HEX), []);
+  const air = useMemo(() => new Color(LAYER_HEX.city), []);
   useFrame(() => {
     // The palette rides the frame loop so the dev tools' colour swatches scrub
     // the whole scene live: `bg` feeds the fog/background lerps below, and
@@ -63,7 +62,7 @@ function SelectDim({ hemi, dir1, dir2 }: {
     const k = d.current;
     // ease the air toward the active layer's accent (a cross-fade of atmosphere
     // as you scroll between layers, not a snap)
-    tmp.set(LAYER_ACCENT[LAYER_BY_STEP[journeyStep] ?? 'city'] ?? RIM_HEX);
+    tmp.set(LAYER_HEX[LAYER_BY_STEP[journeyStep] ?? 'city']);
     if (reduced) air.copy(tmp);
     else air.lerp(tmp, 0.045);
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { voiceFor } from '../../content/voice';
+import { voiceFor } from '../../content/media';
 import { duck } from '../../lib/sound';
 
 // "Hear about this project": a short recording of me talking about the
@@ -8,7 +8,7 @@ import { duck } from '../../lib/sound';
 // button): a fixed shape per project, seeded from its slug, that fills from
 // the left as the clip plays. Only the clip's length loads up front
 // (preload="metadata"); the rest when it's pressed. One plays at a time, and
-// it stops when the popup or dossier closes.
+// it stops when the label or the book closes.
 
 const BARS = 18;
 let current: HTMLAudioElement | null = null; // the one clip playing, site-wide
@@ -49,7 +49,7 @@ export function VoiceNote({
   const [length, setLength] = useState(NaN);
   const bars = useMemo(() => shape(slug), [slug]);
 
-  // stop when the project changes or the popup closes
+  // stop when the project changes or the label closes
   useEffect(() => {
     const a = audio.current;
     return () => {

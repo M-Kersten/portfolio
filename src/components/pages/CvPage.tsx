@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { site, cvByLang } from '../../content';
 import { asset } from '../../lib/asset';
+import { useDocumentTitle } from '../../lib/page';
 
 // The CV page (/cv) — an A4 document in the site's visual language, focused on
 // work history and education. Bilingual: English by default, Dutch at
@@ -26,16 +27,14 @@ export function CvPage() {
   const cv = cvByLang[lang];
   const t = cv.ui;
 
+  useDocumentTitle(`CV — ${site.hero.name}`);
   useEffect(() => {
-    const prev = document.title;
-    document.title = `CV — ${site.hero.name}`;
     document.documentElement.lang = lang;
     // Lets print CSS give the whole page canvas the paper background + a
     // light colour-scheme (html carries the site's dark scheme otherwise).
     document.documentElement.dataset.cv = '1';
     document.body.dataset.cv = '1';
     return () => {
-      document.title = prev;
       document.documentElement.lang = 'en';
       delete document.documentElement.dataset.cv;
       delete document.body.dataset.cv;

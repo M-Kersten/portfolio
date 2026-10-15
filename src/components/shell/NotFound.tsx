@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { cases } from '../../content';
+import { cases, site } from '../../content';
 import { EXHIBIT_COUNT } from '../../content/exhibits';
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { useDocumentTitle, useEscape } from '../../lib/page';
 
 // A wrong address, in the exhibition's own words: a label on a closed room,
 // with the maquette still standing behind it. Any path the site doesn't know
@@ -14,21 +15,11 @@ export function NotFound() {
   const ref = useRef<HTMLDivElement>(null);
   const back = useRef<HTMLButtonElement>(null);
   useFocusTrap(ref);
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Not open yet — Merijn Kersten';
-    return () => {
-      document.title = prev;
-    };
-  }, []);
+  useDocumentTitle(`Not open yet — ${site.hero.name}`);
+  useEscape(() => navigate('/', { replace: true }));
   useEffect(() => {
     back.current?.focus({ preventScroll: true });
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') navigate('/', { replace: true });
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [navigate]);
+  }, []);
 
   return createPortal(
     <div ref={ref} className="exhibit closed" data-place="page">
