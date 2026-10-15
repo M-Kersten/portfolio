@@ -62,7 +62,7 @@ for zero backend of our own.
   `fetch`, no SDK. Fails soft to "no tally shown".
 - `src/scene/maquette/city.tsx` — the invitation label under
   "my next launch" shows `0042 launches by visitors so far`.
-- `src/components/LaunchOverlay.tsx` — the pad panel eyebrow becomes
+- `src/components/launch/LaunchOverlay.tsx` — the pad panel eyebrow becomes
   `MK-01 · THE NEXT LAUNCH · FLIGHT 43`, with the tally line underneath;
   `recordLaunch()` fires when the count reaches zero (scrubs don't count).
 - `.github/workflows/deploy.yml` — passes the two repo Variables in as

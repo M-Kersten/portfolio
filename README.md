@@ -39,88 +39,124 @@ Useful while developing:
 - add `?nogl` to any URL to preview the **no-WebGL static fallback**
 - OS reduced-motion is respected everywhere (states snap, no glitches)
 
+## Where to change what
+
+The things you're most likely to want to change, and the file they live in.
+
+| To change… | Edit |
+| --- | --- |
+| A project's words, dates, client, links, tech | `src/content/cases.json` (or the CMS) |
+| The hero lines, section titles and leads, career, about, contact | `src/content/site.json` (or the CMS) |
+| The line under a project's film in the book | `src/content/films.ts` |
+| A project's film loop or voice note | drop `<slug>.mp4` in `src/assets/loops/`, `<slug>.mp3` in `src/assets/voice/` |
+| A sound effect or ambient bed | `src/assets/sound/` (its README lists every name) |
+| A poster or share card | `public/posters/<slug>.jpg`, then `npm run og` |
+| The CV | `src/content/cv.json` / `cv.nl.json`, then `npm run cv` |
+| Which projects are exhibits, and where their marker sits | `HOTSPOTS` in `src/scene/framing.ts` |
+| An exhibit's camera close-up | its `view` in `HOTSPOTS` (or the dev tools' Camera tab) |
+| An object's place in the model | the `usePlacement(...)` call in `src/scene/maquette/city.tsx` or `room.tsx` (or the dev tools' Objects tab) |
+| The 3D stage's lighting, fog, palette, post-processing | `LOOK` in `src/scene/look.ts` (or the dev tools' Look tab) |
+| The timeline's spacing | `WALL` in `src/components/timeline/layout.ts` (or the dev tools' Timeline tab) |
+| Colours, type, spacing, motion for the whole site | `src/ui/tokens.css` |
+| A section's styling | `src/ui/<section>.css`, named after what you see on the page |
+
+**Wording that isn't in the CMS** sits next to the markup it belongs to:
+
+| Where on the site | File |
+| --- | --- |
+| The welcome back line, the first-visit hint, the "n/10 lit" counter | `components/hero/HeroStage.tsx` |
+| The exhibition guide the counter opens | `components/hero/ExhibitionGuide.tsx` |
+| The label beside an exhibit ("Read the full story", "Watch the film") | `components/exhibit/Label.tsx` |
+| The book ("The problem", "See also", "Ask me about it") | `components/exhibit/Book.tsx` |
+| The collection's title and line | `components/pages/ProjectsPage.tsx` |
+| The launch pad's panel (exhibit 11) | `components/launch/LaunchOverlay.tsx` |
+| The "not open yet" page | `components/shell/NotFound.tsx` |
+| The timeline's "scroll through time", "now →", "The collection" | `components/timeline/Timeline.tsx` |
+
+**Dev tools**: in `npm run dev` a small "⚙ tune" chip sits in the bottom-left
+corner. It opens one panel with four tabs (Look, Timeline, Camera, Objects)
+that scrub the values in the table above live, then copy them back out as
+source to paste over the originals. None of it is in the production build.
+
 ## How it's wired
 
 ```
 src/
-  app/App.tsx          router + layout (dev-only tweak panels mount here)
+  main.tsx, app/App.tsx  entry, router, and the layout every page shares
+  content/             everything written: the JSON the CMS edits (cases, site,
+                       capabilities, cv) and types.ts documenting every field;
+                       index.ts (typed access, dates, roles, layer colours),
+                       exhibits.ts (the numbering, the walk, see also),
+                       films.ts (the line under each film), media.ts (finds
+                       the film loops and voice notes)
   components/
-    SceneCanvas.tsx    the hero canvas: lazy three/R3F boundary, WebGL fallback
-    HeroStage.tsx      hero copy + the scroll panels that drive the layer journey
-    Capabilities.tsx   the three scales as one full-bleed slanted band
-    Work.tsx           the projects map: a pinned, scroll-driven timeline
-    CaseCard.tsx       a waypoint card on the timeline
-    Exhibit.tsx        a project, opened: its label beside the object in the
-                       maquette (the film, the number, the facts, the audio
-                       guide, "Read the full story") and the book, the full
-                       story as a printed spread (timeline, /projects and
-                       search open straight onto it)
-    NodeHud.tsx        the /work/:slug route: the label beside the porthole
-    NotFound.tsx       the closed room (any unknown address)
-    VoiceNote.tsx      the audio guide: a project's voice note, if it has one
-    SoundScape.tsx     the maquette's sound: wake notes, the chord, the ambient beds
-    SoundToggle.tsx    the header's sound switch (shown once there's a sound)
-    LaunchOverlay.tsx  the launch easter egg's DOM: exhibit 11's label on the pad
-                       (LAUNCH, or "Let's build it"), the film's telemetry
-                       (LaunchHud.tsx), skip, and the game
-    CvPage.tsx         the /cv sheet (A4, print-styled) that npm run cv prints
-    SectionHead.tsx    how every section opens: kicker + rule, title, lead
-    About / Contact / Header / Footer / Poster / ScanFrame / SectionTitle
+    shell/             what every page has: Header (+ Logo, SocialLinks,
+                       Search, SoundToggle), Footer, SectionHead, Scramble
+                       (the text decode), BootVeil, ScrollToHash, NotFound
+    hero/              the maquette's page: SceneCanvas (the lazy 3D boundary
+                       and its no-WebGL poster), HeroStage (the title, the
+                       layer captions, the counter), ExhibitionGuide,
+                       IntroCard, FocusReticle (the porthole), SoundScape
+    home/              the home page's sections: HomeLayout (their order),
+                       Capabilities, About, Contact, and their canvas motifs
+    timeline/          the projects timeline: Timeline.tsx (the component),
+                       layout.ts (where everything sits on the route), CaseCard
+    exhibit/           a project, opened: Exhibit.tsx (label and book
+                       together), Label.tsx, Book.tsx, parts.tsx, NodeHud (the
+                       /work/:slug route), VoiceNote, Gallery
+    launch/            the launch easter egg: LaunchOverlay (the pad's panel),
+                       LaunchHud (the film's telemetry), AsteroidsGame (+
+                       GameRocket, GameComms)
+    pages/             /projects (ProjectsPage, ProjectsIndex) and /cv
   scene/
+    Stage.tsx          lighting, fog, post-processing, scene root
+    look.ts            the numbers behind the stage's look (LOOK)
+    CameraRig.tsx      the opening dolly, the scroll journey, the fly-to
+    framing.ts         layer stack, hotspots, camera tuning (plain data, no
+                       three.js: the page reads it on first paint)
+    views.ts           the camera framings built from it, as three.js vectors
+    store.ts           the tiny store the page and the 3D share (selected,
+                       visited, the cue, the launch stage, returning visitor)
+    launchPlan.ts      the launch's flight plan: timeline, engines, telemetry
     maquette/          the three-layer 3D world, one file per concern:
-      index.tsx        composition root — stacks the layers, culls the far one
-      city.tsx         City rig: skyline, windmill, park + ARCam, the Alliander tower
+      index.tsx        composition root: stacks the layers, culls the far one
+      city.tsx         City rig: skyline, windmill, park + ARCam, the tower
       room.tsx         Room rig: desk/monitor, couch + phone, AR table, bookcase
       chip.tsx         Chip rig: board, accelerator, camera, monitor, traces
-      kit.ts           loads the Blender models (public/models: chip, tower, blocks, mill)
-      hotspots.tsx     the floating crosshair markers, with their exhibit numbers
+      kit.ts           loads the Blender models (public/models)
+      hotspots.tsx     the floating crosshair markers
       signals.tsx      cross-layer relation cables (edit RELATIONS here)
-      life.tsx         the ghost→alive life system (LifeGroup, EmissiveHover)
+      life.tsx         the ghost → alive life system (LifeGroup)
       presence.tsx     active-layer focus: neighbour layers rest dimmed
-      materials.tsx    holographic glass + rim shader, accents, SoftBox
+      materials.tsx    holographic glass + rim shader, the shared materials
+      lit.tsx          the hover light and its shadows
       backdrop.tsx     dot floors, point fields, depth veil, blob shadows
       shared.tsx       palette, math helpers, useActive, fog-aware Line
-      launchSite.tsx   the reward pad: stacked piece by piece as projects wake,
-                       then the launch film (stages, fire, smoke, cameras)
+      shapes.ts        the procedural geometry helpers
+      launchSite.tsx   the pad: stacked piece by piece as projects wake, then
+                       the launch film (stages, fire, smoke, cameras)
       launchComplex.tsx  its tower (lattice, chopsticks, ship arm) and mount
       launch.ts        the film's choreography: poses, shots, smoke, shake
-      engineFire.tsx   plumes, a flame per engine, hot-staging jets, Max-Q cone
-      smoke.tsx        the steam, spray and smoke puffs, lit by the engines
+      engineFire.tsx   plumes, a flame per engine, hot-staging jets
+      smoke.tsx        the steam, spray and smoke puffs
       rocket.tsx       the Starship stack (Blender, scripts/models)
-    CameraRig.tsx      journey scroll + node fly-to
-    Stage.tsx          lighting, fog, bloom, scene root
-    framing.ts         layer stack + hotspot positions + camera tuning (plain data,
-                       no three.js — the page shell reads it on first paint)
-    views.ts           the camera framings built from it, as three.js vectors
-    store.ts           tiny cross-reconciler store (selected/hovered/visited,
-                       the first-visit cue)
-    launchPlan.ts      the launch's flight plan, no three.js: the timeline, which
-                       engines burn when, telemetry, milestones (scene + HUD read it)
-    devTweak.tsx       dev-only 3D position scrubbers (tree-shaken from prod)
-  content/             cases.json · capabilities.json · site.json · cv.json (+ types),
-                       voice.ts (finds the voice notes in assets/voice/),
-                       exhibits.ts (the numbering, the film loops, see also),
-                       films.ts (the line under each film in the book)
-  assets/voice/        the voice notes, one per project: <slug>.mp3
-  assets/loops/        the silent film loops on the labels: <slug>.mp4
-  assets/sound/        the site's effects and ambient (README lists every file)
-  lib/                 asset base-path, reduced-motion, WebGL support, youtube,
-                       the label's touch handling (useSheetDrag.ts), a YouTube
-                       player's position for the film's handover (youtubeClock.ts),
-                       the sound engine (sound.ts) and the launch's sound,
-                       the motion numbers for code (motion.ts) + useReveal
-  ui/                  tokens.css (design tokens) + one stylesheet per page
-                       section (global.css just imports them in order)
+  lib/                 small shared helpers: media.ts (phone, reduced motion,
+                       touch), page.ts (tab title, scroll lock, Escape, stored
+                       settings), sound.ts (the sound engine), youtube.ts,
+                       motion.ts (the motion numbers for code), useReveal,
+                       useFocusTrap, useSheetDrag (the label's touch handling),
+                       contours.ts (the timeline's canyon map)
+  dev/                 the dev tools (dev only) and the tuning store they share
+                       with the values above
+  ui/                  tokens.css (design tokens) + one stylesheet per part of
+                       the page (global.css imports them in order)
 public/
   posters/<slug>.jpg   timeline/card artwork per project
   og/<slug>.jpg        each project's share card (npm run og)
   textures/            optional real screenshots (room-screen / room-phone /
-                       zwijsen-book) — objects fall back to procedural looks
-  models/              binoculars.gltf (the park's AR viewer) · chip.glb (the
-                       chip layer's parts) · tower.glb (the city's tower) ·
-                       blocks.glb (the six blocks round it) · mill.glb (the
-                       windmill); the last four are built in Blender from
-                       scripts/models
+                       zwijsen-book): objects fall back to procedural looks
+  models/              the Blender models (built from scripts/models) and the
+                       park's binoculars
   logos/               employer marks for the timeline tooltips
   profile/1..5.png     the About portrait frames
 ```
@@ -129,7 +165,8 @@ public/
 snapshotted and lerped between a grey wireframe ghost and their authored
 state. Self-animating materials opt out via `userData.lifeSkip` and blend
 their own ghost→alive keyed on the same store state. Colour policy lives in
-`src/ui/tokens.css`: cyan = interactive + City, coral = Room, lime = Chip.
+`src/ui/tokens.css`: cyan = interactive + City, coral = Room, lime = Chip
+(and `LAYER_HEX` in `src/content/index.ts` for canvas and 3D).
 
 ## Editing guide
 
@@ -183,12 +220,11 @@ the layer), and give it an object in that layer's rig
 `<LifeGroup slug="...">` so it ghosts until visited. Link related projects in
 `scene/maquette/signals.tsx` (`RELATIONS`).
 
-**Moving things in 3D**: run `npm run dev` — two tweak panels appear. The
-top-left **wall layout** panel scrubs the timeline's spacing (card width,
-year spacing, how far the cards sit off the route); the **scene** panel
-(from `useTweak` calls in the rigs) scrubs object positions live. Both print
-the values to copy back into code, and both are stripped from production
-builds.
+**Moving things in 3D**: run `npm run dev` and open the dev tools (the "⚙ tune"
+chip, bottom left). Objects drags the movable objects about, Camera tunes the
+close-up of whichever exhibit is open; both copy the values to paste back
+into the source. An object anchored to a hotspot also needs that hotspot's
+`anchor` in `framing.ts` moved to match.
 
 **The Blender models** (the chip layer's parts, and the city's tower, its six
 blocks and the windmill) are built from scripts: `scripts/models/README.md`
@@ -205,7 +241,8 @@ Section styling lives in the `src/ui/*.css` file named after the section;
 `DESIGN.md` has the rules they follow.
 
 **Camera & layout of the 3D stack**: `src/scene/framing.ts` — layer heights,
-scales, and the three camera framings (home, journey, node close-up).
+scales, the scroll journey's bands, and the three camera framings (home,
+journey, node close-up).
 
 ## Deploy
 

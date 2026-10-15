@@ -76,10 +76,9 @@ export function introView(gap = 1): Framing {
   return { pos, target: home.target.clone().add(new Vector3(0, -0.25, 0)) };
 }
 
-/** Closer look at a selected node. Pulled back a touch and aimed below the
- *  object so it sits high in the upper area, clear of the bottom dossier HUD.
- *  `view` is resolved per hotspot (hotspotView) but can be passed in — the dev
- *  tuner feeds it the live-dragged values. */
+/** Closer look at a selected node, framed in the porthole. `view` is resolved
+ *  per hotspot (hotspotView) but can be passed in: the camera passes the dev
+ *  tools' live values (dev/tuning.ts viewFor). */
 export function nodeView(hotspot: Hotspot, gap = 1, view: Required<HotspotView> = hotspotView(hotspot)): Framing {
   const obj = anchorWorld(hotspot, gap);
   return {

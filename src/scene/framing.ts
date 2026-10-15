@@ -36,8 +36,8 @@ export interface Hotspot {
   anchor?: [number, number, number];
   /** Per-hotspot close-up framing. Any field left out falls back to the global
    *  CAMERA defaults — so you only override what a given object needs. Tune it
-   *  live with the dev panel (open a node in `npm run dev`) and paste the
-   *  `view: { … }` it copies right here. */
+   *  live in the dev tools' Camera tab (open an exhibit in `npm run dev`) and
+   *  paste the `view: { … }` it copies right here. */
   view?: HotspotView;
 }
 
