@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { site } from '../content';
-import { bootAt, MAQUETTE_BOOT, sceneStore } from '../scene/store';
+import { bootAt, markIntroSeen, MAQUETTE_BOOT, returning, sceneStore } from '../scene/store';
 import { useReducedMotion } from '../lib/useReducedMotion';
 import { isMobileViewport } from '../lib/isMobile';
 import { Scramble } from './Scramble';
@@ -18,12 +18,14 @@ const FADE = 650; // ms for the card to fade out (covers intro-card.css's opacit
 export function IntroCard() {
   const intro = site.hero.intro;
   const reduced = useReducedMotion();
-  // Play once per page load. Skipped on a phone (the intro is a desktop
-  // flourish — mobile just appears), on a deep link (a /work/… route goes
-  // straight to the node), and once the intro has already been released — so
-  // navigating back to home from another route doesn't replay the card.
+  // Play once per browser: a returning visitor has read the premise. Also
+  // skipped on a phone (the intro is a desktop flourish — mobile just
+  // appears), on a deep link (a /work/… route goes straight to the node), and
+  // once the intro has already been released — so navigating back to home
+  // from another route doesn't replay the card.
   const skip = useRef(
     !intro ||
+      returning || // seen it before: a returning visitor goes straight to the model
       isMobileViewport() ||
       (typeof window !== 'undefined' && /\/work\//.test(window.location.pathname)) ||
       sceneStore.snapshot().introOver,
@@ -39,7 +41,10 @@ export function IntroCard() {
       sceneStore.endIntro();
       return;
     }
-    const t1 = window.setTimeout(() => setShow(true), showDelay.current);
+    const t1 = window.setTimeout(() => {
+      setShow(true);
+      markIntroSeen();
+    }, showDelay.current);
     const t2 = window.setTimeout(() => setShow(false), showDelay.current + HOLD);
     // The hero title/subtitle are the NEXT beat: release them only once the card
     // has fully faded out, so the two never animate at the same time.

@@ -38,10 +38,15 @@
   height: auto;
 }
 .poster__note {
+  /* at the top, under the header: the bottom edge belongs to the caption and
+     the tally */
   position: absolute;
-  bottom: var(--space-m);
+  top: calc(var(--header-h) + var(--space-m));
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 2 * var(--space-m));
+  text-align: center;
   font-family: var(--font-mono);
   font-size: var(--step--1);
   color: var(--ink-40);

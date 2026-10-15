@@ -15,6 +15,13 @@ export function NotFound() {
   const back = useRef<HTMLButtonElement>(null);
   useFocusTrap(ref);
   useEffect(() => {
+    const prev = document.title;
+    document.title = 'Not open yet — Merijn Kersten';
+    return () => {
+      document.title = prev;
+    };
+  }, []);
+  useEffect(() => {
     back.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') navigate('/', { replace: true });

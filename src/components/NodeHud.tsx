@@ -23,6 +23,9 @@ export function NodeHud() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const closeTimer = useRef<number>();
+  // whether this label was opened from inside the site (the guide, a marker),
+  // rather than arriving on a /work link
+  const openedInApp = useRef((window.history.state as { idx?: number } | null)?.idx ? true : false);
   const [closing, setClosing] = useState(false);
   const study = slug ? caseBySlug(slug) : undefined;
 
@@ -31,7 +34,12 @@ export function NodeHud() {
   // the TENTH project is the homecoming: the journey pulls up to the City overview
   // where the celebration plays out (particle burst, ghost pad).
   const runClose = () => {
-    navigate('/');
+    // Back to the model the way you came: opened from the home page, closing
+    // steps back to it (so the browser's Back doesn't reopen the label);
+    // arrived on a link, it replaces this entry with the home page.
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0 && openedInApp.current) navigate(-1);
+    else navigate('/', { replace: true });
     if (!study) return;
     const homecoming = sceneStore.snapshot().celebrationPending;
     const step = homecoming ? 0 : LAYER_STEP[study.layer] ?? 0;
@@ -80,7 +88,9 @@ export function NodeHud() {
       startInBook={params.has('entry')}
       onBookChange={(open) => setParams(open ? { entry: '' } : {}, { replace: true })}
       onClose={close}
-      onWalk={(s, book) => navigate(`/work/${s}${book ? '?entry=' : ''}`)}
+      // a walk replaces the entry: Back leaves the exhibition rather than
+      // stepping back through every exhibit you walked past
+      onWalk={(s, book) => navigate(`/work/${s}${book ? '?entry=' : ''}`, { replace: true })}
     />
   );
 }

@@ -1,4 +1,5 @@
-// A page per project, so a shared /work/<slug> link previews as that project:
+// A page per project, so a shared /work/<slug> link previews as that project
+// (and the collection and the CV, as themselves):
 // after the build, dist/index.html is copied to dist/work/<slug>.html with its
 // title, description, canonical URL and share card (public/og/<slug>.jpg, see
 // gen-og.mjs) swapped in. GitHub Pages serves it for /work/<slug> directly, so
@@ -46,4 +47,22 @@ for (const c of cases) {
   writeFileSync(join(dist, 'work', `${c.slug}.html`), html);
   n++;
 }
-console.log(`pages — ${n} project pages with their own share cards`);
+// …and the two pages of their own, so a link to them previews (and is
+// indexed) as itself rather than as the home page
+const PAGES = [
+  { path: 'projects', title: 'The collection — Merijn Kersten', description: 'Every project in one place: the ten exhibits in the model and the rest of the collection.' },
+  { path: 'cv', title: 'CV — Merijn Kersten', description: 'The CV of Merijn Kersten, creative technologist in Utrecht: AR, VR, games and digital twins.' },
+];
+for (const pg of PAGES) {
+  const url = `${SITE}/${pg.path}`;
+  let html = base.replace(/<title>[^<]*<\/title>/, `<title>${esc(pg.title)}</title>`);
+  html = meta(html, 'description', pg.description);
+  html = meta(html, 'og:url', url);
+  html = meta(html, 'og:title', pg.title);
+  html = meta(html, 'og:description', pg.description);
+  html = meta(html, 'twitter:title', pg.title);
+  html = meta(html, 'twitter:description', pg.description);
+  html = html.replace(/(<link rel="canonical" href=")[^"]*(")/, `$1${url}$2`);
+  writeFileSync(join(dist, `${pg.path}.html`), html);
+}
+console.log(`pages — ${n} project pages with their own share cards, plus ${PAGES.map((pg) => '/' + pg.path).join(' and ')}`);

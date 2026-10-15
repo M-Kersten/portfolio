@@ -144,6 +144,14 @@ export function Exhibit({
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
   }, [study.slug, book, arrived]);
+  // the tab names the project while it's open (and in the history list)
+  useEffect(() => {
+    const prev = document.title;
+    document.title = `${study.title} — ${site.hero.name}`;
+    return () => {
+      document.title = prev;
+    };
+  }, [study.title]);
   useEffect(() => {
     play('popup-open', { volume: 0.8 });
     return () => play('popup-close', { volume: 0.8 });

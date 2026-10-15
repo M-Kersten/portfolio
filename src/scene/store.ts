@@ -13,6 +13,24 @@ export const MAQUETTE_BOOT = 1450;
  *  parallax would each read as the camera changing speed mid-move. A plain
  *  value rather than store state: it's read every frame, and set by the rig. */
 export const opening = { dollying: false };
+/** Whether this browser has seen the opening before (the intro card marks it
+ *  once it has played). A returning visitor gets a shorter way in: no premise
+ *  card, a quicker dolly. Read once, at load. */
+const INTRO_KEY = 'mk-intro-seen';
+export const returning = (() => {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(INTRO_KEY) === '1';
+  } catch {
+    return false;
+  }
+})();
+export function markIntroSeen() {
+  try {
+    localStorage.setItem(INTRO_KEY, '1');
+  } catch {
+    /* storage blocked: the card just plays again next time */
+  }
+}
 
 /** The launch easter egg's stage machine (see maquette/launchSite.tsx +
  *  components/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;

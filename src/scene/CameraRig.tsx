@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/useReducedMotion';
-import { opening, sceneStore, useSceneSelector } from './store';
+import { opening, returning, sceneStore, useSceneSelector } from './store';
 import { maquetteLoaded } from './maquette/kit';
 import { HOTSPOTS, hotspotView, fitScale, fitFov, layerGap, portraitMix, CAMERA, LAUNCH } from './framing';
 import { anchorWorld, journeyView, introView, nodeView, launchShot, launchTrack } from './views';
@@ -32,7 +32,7 @@ import { isMobileViewport } from '../lib/isMobile';
 // compile stalls a frame of it. And it runs on frame time, clamped, not on the
 // wall clock: a long stall pauses the move instead of jumping it forward to
 // catch up, which is what read as a stutter.
-const INTRO_DUR = 4.65;
+const INTRO_DUR = returning ? 2.8 : 4.65; // a returning visitor has seen the long version
 const INTRO_WAIT = 2500; // ms
 
 // Porthole focus: the woken object is framed inside the reticle ring — left of
