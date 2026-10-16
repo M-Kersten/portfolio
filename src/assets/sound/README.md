@@ -24,8 +24,8 @@ first file is in here; a visitor's choice is remembered.
 | File | When | Notes |
 | --- | --- | --- |
 | `select` | opening a project in the maquette you've already visited | one dry tick |
-| `popup-open` | a project popup opens | a soft glass "breath", under 150 ms |
-| `popup-close` | a project popup or the maquette dossier closes | the same, reversed |
+| `popup-open` | a project's label or book opens | a soft glass "breath", under 150 ms |
+| `popup-close` | the label or book closes | the same, reversed |
 
 ## The launch
 
