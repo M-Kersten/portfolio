@@ -9,6 +9,7 @@
 //   mill.glb    the windmill at the city's edge (city.tsx)
 //   trafo.glb   the transformer house in front of the tower (city.tsx)
 //   rocket.glb  the Starship stack on the launch pad (rocket.tsx)
+//   car.glb     the Lightship Drive cars and their crown (room.tsx)
 // (and binoculars.gltf, the park's AR viewer, a whole scene rather than parts)
 //
 // maquetteLoaded() is all of them arriving: the opening dolly waits for it, so
@@ -43,12 +44,15 @@ const ROCKET_PARTS = [
   'sh_engines', 'sh_body', 'sh_fins', 'sh_ring', 'sh_ring_core',
   'ss_engines', 'ss_body', 'ss_tiles', 'ss_flaps', 'ss_flaps_tiles',
 ] as const;
+/** The race cars on the Room's AR table, and the leader's crown. */
+const CAR_PARTS = ['car_body', 'car_cabin', 'car_stripe', 'car_tyres', 'car_rims', 'crown'] as const;
 export type ChipKit = Record<(typeof CHIP_PARTS)[number], BufferGeometry>;
 export type TowerKit = Record<(typeof TOWER_PARTS)[number], BufferGeometry>;
 export type BlocksKit = Record<string, BufferGeometry | undefined>;
 export type MillKit = Record<(typeof MILL_PARTS)[number], BufferGeometry>;
 export type TrafoKit = Record<(typeof TRAFO_PARTS)[number], BufferGeometry>;
 export type RocketKit = Record<(typeof ROCKET_PARTS)[number], BufferGeometry>;
+export type CarKit = Record<(typeof CAR_PARTS)[number], BufferGeometry>;
 
 /** gltfpack stores positions and normals as quantized integers and parks the
  *  scale that undoes it on the piece's node. Bake that back into plain floats
@@ -156,6 +160,7 @@ const blocks = modelFile('blocks.glb', BLOCK_PARTS, "city's blocks");
 const mill = modelFile('mill.glb', MILL_PARTS, "city's windmill");
 const trafo = modelFile('trafo.glb', TRAFO_PARTS, "city's transformer house");
 const rocket = modelFile('rocket.glb', ROCKET_PARTS, 'launch vehicle');
+const car = modelFile('car.glb', CAR_PARTS, 'race cars');
 
 /** The park's AR viewer (city.tsx): one self-contained glTF scene, loaded once.
  *  Each user takes a clone, since it re-materials and re-scales what it gets. */
@@ -175,7 +180,7 @@ export function loadBinoculars(): Promise<Group> {
 /** Every model the maquette draws, arrived (or failed: a missing file is its
  *  layer's problem, not the camera's). Asking starts any load not yet begun. */
 export function maquetteLoaded(): Promise<void> {
-  return Promise.allSettled([chip.get(), tower.get(), blocks.get(), mill.get(), trafo.get(), rocket.get(), loadBinoculars()]).then(() => undefined);
+  return Promise.allSettled([chip.get(), tower.get(), blocks.get(), mill.get(), trafo.get(), rocket.get(), car.get(), loadBinoculars()]).then(() => undefined);
 }
 
 export const useChipKit = chip.useKit;
@@ -189,3 +194,4 @@ export const loadTrafoKit = trafo.get;
 export const useTrafoKit = trafo.useKit;
 export const loadRocketKit = rocket.get;
 export const useRocketKit = rocket.useKit;
+export const useCarKit = car.useKit;

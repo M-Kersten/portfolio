@@ -6,12 +6,13 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type BufferGeometry, type Group, type Mesh, type Texture } from 'three';
+import { AdditiveBlending, BufferAttribute, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type BufferGeometry, type Group, type Mesh, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
 import { FIRE, GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
-import { GlassMat, GroundMat, LiveGlassMat } from './materials';
+import { Crease, GlassMat, GroundMat, LiveGlassMat } from './materials';
+import { useCarKit } from './kit';
 import { BlobShadow } from './backdrop';
 import { litMat, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
 import { hang, lathe, leaf, merge, place, softBox, softSeam, tube, useGeometry, type Soft } from './shapes';
@@ -298,108 +299,74 @@ function RoomScreen({ slug, position, rotation, args }: { slug: string; position
  *  skyline keeps a quiet glow — toned down, never warm/orange. */
 /* ---------- Room — games, apps & websites (middle) ---------- */
 
-// A tiny race car for the Lightship Drive AR table — chassis, nose, cabin, a
-// rear wing and four wheels — pointing along its local +z (its heading).
-/** An open-wheel racer. This is the object under the tightest camera in the whole
- *  maquette (lightship-drive frames at fovZoom 30), so it carries the detail
- *  that zoom asks for: a tapered nose, a raised airbox behind the cockpit, a
- *  rear wing on endplates, and wheels with a visible rim face. It used to be
- *  four axis-aligned boxes, which at that framing read as a doorstop. */
-function RaceCar({ color }: { color: string }) {
-  const body = (
-    <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} roughness={0.35} metalness={0.15} toneMapped={false} />
-  );
+/* The Lightship Drive cars, after the game's own (scripts/models/build_car.py,
+   loaded by kit.ts): a low, chunky wedge with a dark glass cabin, a neon stripe
+   round its beltline running yellow at the nose through blue to magenta at the
+   tail, and fat tyres with glowing rims. They point along their local +z. The
+   colours are the game's: they show once the table has come alive, and until
+   then the life system holds them to the ghost like the rest of the model. */
+interface Livery {
+  body: string;
+  cabin: string;
+  rim: string;
+}
+const STRIPE = ['#ff3ad0', '#3aa8ff', '#ffe23a'].map((c) => new Color(c)); // tail → nose
+
+/** The stripe's gradient, written once into the shared geometry as vertex
+ *  colours, by how far along the car each vertex sits. */
+function paintStripe(g: BufferGeometry) {
+  if (g.attributes.color) return;
+  const pos = g.attributes.position;
+  g.computeBoundingBox();
+  const { min, max } = g.boundingBox!;
+  const col = new Float32Array(pos.count * 3);
+  const c = new Color();
+  for (let i = 0; i < pos.count; i++) {
+    const t = (pos.getZ(i) - min.z) / Math.max(1e-6, max.z - min.z);
+    const k = Math.min(0.999, t) * (STRIPE.length - 1);
+    c.copy(STRIPE[Math.floor(k)]).lerp(STRIPE[Math.floor(k) + 1], k % 1);
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute('color', new BufferAttribute(col, 3));
+}
+
+function RaceCar({ livery }: { livery: Livery }) {
+  const kit = useCarKit();
+  if (!kit) return null;
+  paintStripe(kit.car_stripe);
   return (
     <group>
-      {/* floor pan — the widest part, sitting low between the wheels */}
-      <mesh position={[0, 0.004, -0.002]}>
-        <boxGeometry args={[0.03, 0.005, 0.062]} />
-        {body}
+      <mesh geometry={kit.car_body}>
+        <meshStandardMaterial color={livery.body} emissive={livery.body} emissiveIntensity={0.35} roughness={0.42} metalness={0.1} />
+        <Crease threshold={30} color={NEUTRAL} transparent opacity={0.3} />
       </mesh>
-      {/* central tub, narrower than the floor so the pan shows as a lip */}
-      <mesh position={[0, 0.01, -0.004]}>
-        <boxGeometry args={[0.022, 0.011, 0.05]} />
-        {body}
+      <mesh geometry={kit.car_cabin}>
+        <meshStandardMaterial color={livery.cabin} roughness={0.18} metalness={0.35} />
+        <Crease threshold={30} color={NEUTRAL} transparent opacity={0.3} />
       </mesh>
-      {/* nose cone — tapers to a point ahead of the front axle */}
-      <mesh position={[0, 0.0085, 0.038]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.004, 0.011, 0.03, 4]} />
-        {body}
+      <mesh geometry={kit.car_stripe}>
+        <meshBasicMaterial vertexColors toneMapped={false} />
       </mesh>
-      {/* front wing on the deck, spanning the front axle */}
-      <mesh position={[0, 0.0045, 0.05]}>
-        <boxGeometry args={[0.036, 0.0022, 0.011]} />
-        {body}
+      <mesh geometry={kit.car_tyres}>
+        <meshStandardMaterial color="#15121c" roughness={0.8} />
       </mesh>
-      {/* sidepods flanking the tub, angled inward toward the rear */}
-      {([-1, 1] as const).map((s, i) => (
-        <mesh key={i} position={[s * 0.016, 0.0105, -0.008]} rotation={[0, s * 0.11, 0]}>
-          <boxGeometry args={[0.009, 0.011, 0.032]} />
-          {body}
-        </mesh>
-      ))}
-      {/* cockpit opening — dark, set into the tub */}
-      <mesh position={[0, 0.0165, 0.006]}>
-        <boxGeometry args={[0.015, 0.004, 0.018]} />
-        <meshStandardMaterial color={SURFACE.deep.color} roughness={0.3} toneMapped={false} />
+      <mesh geometry={kit.car_rims}>
+        <meshStandardMaterial color={livery.rim} emissive={livery.rim} emissiveIntensity={1.1} roughness={0.35} toneMapped={false} />
       </mesh>
-      {/* airbox / roll hoop rising behind the driver */}
-      <mesh position={[0, 0.021, -0.012]}>
-        <boxGeometry args={[0.013, 0.014, 0.02]} />
-        {body}
-      </mesh>
-      {/* engine cover tapering back to the wing */}
-      <mesh position={[0, 0.0165, -0.026]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.0035, 0.008, 0.022, 5]} />
-        {body}
-      </mesh>
-      {/* rear wing, carried on two endplates rather than floating */}
-      {([-1, 1] as const).map((s, i) => (
-        <mesh key={i} position={[s * 0.014, 0.019, -0.032]}>
-          <boxGeometry args={[0.0025, 0.011, 0.01]} />
-          {body}
-        </mesh>
-      ))}
-      <mesh position={[0, 0.0235, -0.032]} rotation={[0.18, 0, 0]}>
-        <boxGeometry args={[0.031, 0.0022, 0.011]} />
-        {body}
-      </mesh>
-      {/* wheels: a tyre plus a brighter rim face, so they read as wheels rather
-          than plain cylinders at close range */}
-      {([[-0.019, 0.024], [0.019, 0.024], [-0.019, -0.024], [0.019, -0.024]] as [number, number][]).map(([wx, wz], i) => (
-        <group key={i} position={[wx, 0.0065, wz]} rotation={[0, 0, Math.PI / 2]}>
-          <mesh>
-            <cylinderGeometry args={[0.0065, 0.0065, 0.007, 14]} />
-            <meshStandardMaterial color={SURFACE.deep.color} roughness={0.75} />
-          </mesh>
-          <mesh position={[0, Math.sign(wx) * 0.0038, 0]}>
-            <cylinderGeometry args={[0.0037, 0.0037, 0.0012, 12]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.35} roughness={0.4} toneMapped={false} />
-          </mesh>
-        </group>
-      ))}
     </group>
   );
 }
 
-/** The little gold crown that floats over whichever car is winning. Deliberately
- *  not one of the layer accents — it isn't a project colour, it's a trophy. */
+/** The crown that floats over whichever car is winning, a flat cut-out like the
+ *  game's. Gold, not a layer accent: it isn't a project colour, it's a trophy. */
 const CROWN = GOLD;
 function LeaderCrown() {
-  const pts = useMemo(() => Array.from({ length: 5 }, (_, i) => (i / 5) * Math.PI * 2), []);
+  const kit = useCarKit();
+  if (!kit) return null;
   return (
-    <group>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.012, 0.0022, 6, 16]} />
-        <meshStandardMaterial color={CROWN} emissive={CROWN} emissiveIntensity={1.2} roughness={0.35} toneMapped={false} />
-      </mesh>
-      {pts.map((a, i) => (
-        <mesh key={i} position={[Math.cos(a) * 0.012, 0.007, Math.sin(a) * 0.012]}>
-          <coneGeometry args={[0.003, 0.011, 5]} />
-          <meshStandardMaterial color={CROWN} emissive={CROWN} emissiveIntensity={1.2} roughness={0.35} toneMapped={false} />
-        </mesh>
-      ))}
-    </group>
+    <mesh geometry={kit.crown}>
+      <meshStandardMaterial color={CROWN} emissive={CROWN} emissiveIntensity={1.1} roughness={0.3} transparent opacity={0.88} toneMapped={false} />
+    </mesh>
   );
 }
 
@@ -435,9 +402,10 @@ function LeaderCrown() {
    They also run marginally different lines, in and out, so a pass happens
    alongside instead of straight through the other car. */
 const R = 0.2; // track radius — the drawn loop
-const CARS = [
-  { color: PALETTE.room.accent, at: 0, dr: 0.016, wob: 3, amp: 0.2, phase: 0, pace: 0 },
-  { color: NEUTRAL, at: -1.8, dr: -0.016, wob: 2, amp: 0.26, phase: 1.9, pace: Math.PI },
+const CARS: { livery: Livery; at: number; dr: number; wob: number; amp: number; phase: number; pace: number }[] = [
+  // the game's purple car, magenta rims; its orange rival with a blue cabin
+  { livery: { body: '#5b2a8f', cabin: '#1d1a3f', rim: '#ff4fd8' }, at: 0, dr: 0.016, wob: 3, amp: 0.2, phase: 0, pace: 0 },
+  { livery: { body: '#ff8a3c', cabin: '#3a2f9e', rim: '#b45cff' }, at: -1.8, dr: -0.016, wob: 2, amp: 0.26, phase: 1.9, pace: Math.PI },
 ];
 const PACE = 0.17; // depth of the slow pace swing
 const PACE_W = 0.175; // rad/s — a full swing every ~36s, so a pass is an event
@@ -532,14 +500,14 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         ))}
         {/* the AR race loop — a circle */}
         <Line points={circlePts(R)} position={[0, 0.2, 0]} color={accent} lineWidth={1.5} transparent opacity={0.7} />
-        {/* Two cars racing the loop, each facing its direction of travel — one
-            wears the room's coral, its rival the neutral white-blue. One carrier
+        {/* Two cars racing the loop, each facing its direction of travel — the
+            game's purple car and its orange rival. One carrier
             group per car, each turned by its own distance, so they're free to
             close on each other and swap places. */}
         {CARS.map((c, i) => (
           <group key={i} ref={(g) => (cars.current[i] = g)} position={[0, 0.202, 0]}>
             <group position={[R + c.dr, 0, 0]} rotation={[0, Math.PI, 0]}>
-              <RaceCar color={c.color} />
+              <RaceCar livery={c.livery} />
             </group>
           </group>
         ))}
