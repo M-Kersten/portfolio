@@ -6,7 +6,7 @@
 // next publish. Each one was drafted from the film's own title on YouTube and
 // its poster: worth a rewrite once you've watched them back.
 const FILMS: Record<string, string> = {
-  preekstof: 'The Preekstof film: a sermon clip going from a wide shot to a vertical reel, with the crop following the speaker and the subtitles in place.',
+  preekstof: 'The Preekstof film: a Sunday’s sermon turned into a vertical reel, the crop following the speaker and the subtitles in place.',
   'virtuele-brigade': 'A look inside the Virtuele Brigade training sim, the shared scenarios I brought multiplayer and VR to.',
   'alliander-hololens':
     "A break-out session on AR in the energy transition, from The Future Group's Innovation Event 2023, with the suite seen through the HoloLens (in Dutch).",

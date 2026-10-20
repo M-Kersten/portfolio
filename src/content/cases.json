@@ -26,8 +26,12 @@
     "video": "https://youtu.be/mjzZSOB-jAM",
     "links": [
       {
+        "url": "https://m-kersten.github.io/Preekstof/",
+        "label": "Visit the landing page"
+      },
+      {
         "url": "https://github.com/M-Kersten/Preekstof",
-        "label": "See the project"
+        "label": "See it on GitHub"
       }
     ]
   },
