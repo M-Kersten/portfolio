@@ -1,5 +1,37 @@
 [
   {
+    "slug": "preekstof",
+    "title": "Preekstof",
+    "layer": "room",
+    "client": "Nieuwe Kerk Utrecht",
+    "kind": "passion",
+    "sector": "Church media · App",
+    "discipline": [
+      "AI",
+      "Design"
+    ],
+    "problem": "A church service is an hour of speaking, and somewhere in it are two or three minutes people would love to share. But turning those minutes into a reel means cutting, cropping to vertical, subtitling in Dutch and finding the right words to post, which is a lot to ask of a volunteer on a Sunday afternoon. So the clips mostly never got made.",
+    "approach": "I built Preekstof, an app that takes a service recording and turns a moment from it into a vertical video, ready for Instagram Reels and YouTube Shorts. It transcribes the Dutch speech and lets you correct the subtitles, with word-by-word highlighting. It frames the crop on the speaker, adds music that ducks under the voice, a corner logo and an end screen, and drafts the text to post with it. It can also scan a whole service for the moments worth sharing, and it all runs on your own computer. I made the app, its landing page and the film that goes with it.",
+    "outcome": "A volunteer-friendly way to turn a sermon into a reel, now being piloted by my church",
+    "tech": [
+      "Python",
+      "FastAPI",
+      "TypeScript",
+      "Whisper",
+      "FFmpeg",
+      "LLM"
+    ],
+    "lesson": "The people who would use it aren't developers, so every decision had to answer one question: could a volunteer do this without me standing next to them? That is a different standard from 'it works', and it shaped everything from the readiness panel to the one-click start.",
+    "year": "2026-10",
+    "video": "https://youtu.be/mjzZSOB-jAM",
+    "links": [
+      {
+        "url": "https://github.com/M-Kersten/Preekstof",
+        "label": "See the project"
+      }
+    ]
+  },
+  {
     "slug": "virtuele-brigade",
     "title": "Virtuele Brigade",
     "tag": "Marechaussee (Via Rebels)",
