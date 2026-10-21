@@ -34,13 +34,14 @@
   font-family: var(--font-mono);
 }
 /* The crosshair is only 24px — too small a target. This transparent halo
-   enlarges the hover/click area well past the mark (to ~52px) without shifting
+   enlarges the hover/click area well past the mark (to ~64px) without shifting
    the mark or the label or affecting layout, so the whole neighbourhood of the
-   crosshair is live. */
+   crosshair is live. The name is part of the button too (see the label), so
+   the target is the mark, the name and the gap between them. */
 .hotspot__dot::before {
   content: '';
   position: absolute;
-  inset: -14px;
+  inset: -20px;
 }
 .hotspot__mark {
   position: relative;
@@ -235,7 +236,8 @@
   padding: 0.3em 0.65em;
   border-radius: var(--radius-s);
   opacity: 0.62;
-  pointer-events: none;
+  /* the name is a target too, not just the mark beside it */
+  pointer-events: auto;
   transform: translate(0, -50%);
   transition: opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
@@ -268,6 +270,9 @@
 .hotspot__label-fill {
   display: inline-block;
   --fill: 0%;
+  /* the accent the name is washed with: the layer's colour, eased toward the
+     ink so it warms the name rather than shouting over it */
+  --hover-ink: color-mix(in srgb, var(--hot, var(--accent)) 62%, var(--ink));
   /* Fallback for browsers without text background-clip: solid ink, not
      invisible text — the gradient wipe below is progressive enhancement. */
   color: var(--ink);
@@ -275,38 +280,22 @@
 }
 @supports (background-clip: text) or (-webkit-background-clip: text) {
   .hotspot__label-fill {
-    background-image: linear-gradient(90deg, var(--hotc) 0 var(--fill), var(--ink) var(--fill) 100%);
+    background-image: linear-gradient(90deg, var(--hover-ink) 0 var(--fill), var(--ink) var(--fill) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
   }
 }
-/* the exciting bit — HOVER wipes the accent across the name, a little glitchy */
+/* hovering washes the accent across the name, once, smoothly */
 .hotspot__dot:hover .hotspot__label-fill,
 .hotspot__dot:focus-visible .hotspot__label-fill {
   text-shadow: none;
-  animation:
-    hotspot-fill var(--t-slow) linear both,
-    hotspot-glitch var(--t-slow) linear both;
+  animation: hotspot-fill var(--t-slow) var(--ease) both;
 }
 @keyframes hotspot-fill {
-  0% { --fill: 0%; }
-  18% { --fill: 14%; }
-  30% { --fill: 56%; }
-  40% { --fill: 41%; }
-  56% { --fill: 76%; }
-  66% { --fill: 63%; }
-  84% { --fill: 100%; }
-  90% { --fill: 91%; }
-  100% { --fill: 100%; }
-}
-@keyframes hotspot-glitch {
-  0%, 24%, 44%, 70%, 100% { transform: none; text-shadow: none; }
-  30% { transform: translateX(-1.5px) skewX(-6deg); text-shadow: 1.5px 0 var(--hotc), -1.5px 0 #ff2d78; }
-  38% { transform: translateX(1px); text-shadow: none; }
-  58% { transform: translateX(1.5px) skewX(4deg); text-shadow: -1.5px 0 var(--hotc), 1.5px 0 #00e0ff; }
-  66% { transform: translateX(-1px); text-shadow: none; }
+  from { --fill: 0%; }
+  to { --fill: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hotspot__dot:hover .hotspot__label-fill,

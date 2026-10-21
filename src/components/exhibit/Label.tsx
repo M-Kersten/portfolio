@@ -1,19 +1,22 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react';
 import { roleFor, type CaseStudy } from '../../content';
-import { EXHIBIT_COUNT, exhibitNo, pad2, readingMinutes, splitHook } from '../../content/exhibits';
+import { EXHIBIT_COUNT, exhibitNo, pad2, splitHook } from '../../content/exhibits';
 import { loopFor } from '../../content/media';
 import { asset } from '../../lib/asset';
 import { MOTION } from '../../lib/motion';
 import { useSheetDrag } from '../../lib/useSheetDrag';
-import { useYouTubeClock, youtubeEmbed, type FilmClock } from '../../lib/youtube';
+import { useYouTubeClock, useYouTubePreviewLoop, youtubeEmbed, youtubeStart, type FilmClock } from '../../lib/youtube';
 import { Scramble } from '../shell/Scramble';
 import { VoiceNote } from './VoiceNote';
 import { PlayMark, Player, Walk, sheetLayout, type Dir } from './parts';
 
+/** How long the silent preview runs before it goes round again. */
+const PREVIEW_SECONDS = 14;
+
 // The label, in the maquette: it opens beside the porthole once the camera has
 // reached the object, with a line drawn from the object to it. The film at the
 // top, the number, the title and what it achieved, who it was for, one
-// sentence of curator's note, the audio guide, and "Read the full story".
+// sentence of curator's note, the audio tour, and "Read the full story".
 
 /** Read a length custom property off :root as px (a % of the viewport's width
  *  or height, a vh / vw, or px). */
@@ -58,18 +61,27 @@ export function Label({
 }) {
   const loop = loopFor(study.slug);
   const embed = youtubeEmbed(study.video);
+  const filmStart = youtubeStart(study.video);
   const no = exhibitNo(study.slug);
   const year = study.year?.slice(0, 4);
   const role = roleFor(study);
   const second = [study.sector, role].filter(Boolean).join(' · ');
   const [imgOk, setImgOk] = useState(true);
   const [playing, setPlaying] = useState(false); // the film, playing here with sound
+  // Until it's pressed, the film plays itself, silent, behind the button (a
+  // loop file first if there is one, else the film itself from the moment its
+  // link starts at). Not under reduced motion, nor on a connection that asked
+  // for less data: the poster stands in.
+  const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData === true;
+  const previewing = Boolean(embed) && !playing && !loop && !reduced && !saveData;
+  const [previewUp, setPreviewUp] = useState(false);
+  const previewRef = useRef<HTMLIFrameElement>(null);
+  useYouTubePreviewLoop(previewRef, previewing, filmStart, PREVIEW_SECONDS);
   const playerRef = useRef<HTMLIFrameElement>(null);
   const [line, setLine] = useState<string | null>(null);
   const [mark, setMark] = useState<{ x: number; y: number } | null>(null);
   // a curator's note: the problem, in its first sentence (the book has the rest)
   const note = splitHook(study.problem)[0];
-  const minutes = readingMinutes(study);
   const sheet = sheetLayout();
 
   // this label's player starts from nothing
@@ -134,13 +146,16 @@ export function Label({
             the film itself, right here */}
         <div ref={filmRef} className="xl__film" data-playing={playing || undefined}>
           {playing && embed ? (
-            <Player embed={embed} title={study.title} frameRef={playerRef} />
+            <Player embed={embed} title={study.title} start={filmStart} frameRef={playerRef} />
           ) : loop && !reduced ? (
             <video src={loop} poster={asset(`/posters/${study.slug}.jpg`)} muted autoPlay loop playsInline preload="metadata" aria-hidden="true" />
           ) : imgOk ? (
             <img src={asset(`/posters/${study.slug}.jpg`)} alt="" data-drift={reduced ? undefined : ''} onError={() => setImgOk(false)} />
           ) : (
             <span className="xl__ph" />
+          )}
+          {previewing && embed && (
+            <Player preview embed={embed} title={study.title} start={filmStart} frameRef={previewRef} loaded={previewUp} onLoad={() => setPreviewUp(true)} />
           )}
           {embed && !playing && (
             <button type="button" className="xl__watch" onClick={() => setPlaying(true)}>
@@ -177,14 +192,12 @@ export function Label({
             slug={study.slug}
             title={study.title}
             no={no !== null ? pad2(no) : undefined}
-            label="Audio guide · in my own words"
+            label="Audio tour · in my own words"
           />
           {/* the way to the content: the whole story, in the book */}
           <button type="button" className="xl__read" onClick={onOpen}>
             <span>Read the full story</span>
-            <span className="xl__read-time">
-              {minutes} min <span aria-hidden="true">→</span>
-            </span>
+            <span aria-hidden="true">→</span>
           </button>
           <Walk place="maquette" prev={prev} next={next} onWalk={onWalk} />
         </div>

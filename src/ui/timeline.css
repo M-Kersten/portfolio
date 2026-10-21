@@ -321,7 +321,8 @@
   pointer-events: none;
   transition: background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
 }
-.tl-node[data-lit] {
+.tl-node[data-lit],
+.tl-node[data-hover] {
   background: color-mix(in srgb, var(--band, var(--ink)) 88%, white);
   border-color: color-mix(in srgb, var(--band, var(--ink)) 88%, white);
 }
@@ -340,8 +341,10 @@
   background: linear-gradient(transparent, var(--line));
 }
 .tl-leader--below { top: 50%; }
-.tl-node[data-lit] + .tl-leader--above { background: linear-gradient(transparent, color-mix(in srgb, var(--ink) 55%, transparent)); }
-.tl-node[data-lit] + .tl-leader--below { background: linear-gradient(color-mix(in srgb, var(--ink) 55%, transparent), transparent); }
+.tl-node[data-lit] + .tl-leader--above,
+.tl-node[data-hover] + .tl-leader--above { background: linear-gradient(transparent, color-mix(in srgb, var(--ink) 55%, transparent)); }
+.tl-node[data-lit] + .tl-leader--below,
+.tl-node[data-hover] + .tl-leader--below { background: linear-gradient(color-mix(in srgb, var(--ink) 55%, transparent), transparent); }
 
 /* (The BASEMAP instrument HUD, scattered map labels and land features were
    removed — the timeline route is the map's single organising device now.) */
@@ -569,9 +572,11 @@
 
 /* Not reached yet: the poster rests grey and dim, like the maquette's ghosts.
    When the focus passes it, the card powers on — the picture comes up to
-   colour. (A static, unpanned wall
-   never sets data-lit off, and reduced motion lights everything at once.) */
-.worktile-slot:not([data-lit]) .worktile__img {
+   colour. Pointing at a card (or focusing it) powers it on at once, however
+   far along the visitor is, and it dims again when they leave. (A static,
+   unpanned wall never sets data-lit off, and reduced motion lights everything
+   at once.) */
+.worktile-slot:not([data-lit]):not(:hover):not(:focus-within) .worktile__img {
   filter: grayscale(0.85) brightness(0.62);
 }
 .worktile__img {

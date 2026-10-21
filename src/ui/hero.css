@@ -181,24 +181,128 @@
   }
 }
 
-/* the exhibition guide — a small sheet above the tally: lit exhibits are
-   named and clickable, dark ones stay redacted (you know the number and the
-   layer, not the name); then exhibit 11, and the way to the rest of the
-   collection */
+/* the exhibition guide — a leaflet folded in half, like the one you pick up
+   at the door. It comes out of the tally as its cover (the left panel, folded
+   over the right) and the cover swings open on the fold, to the left, onto the
+   inside: the ten exhibits by layer (a lit one named and bright, a dark one
+   named and dim), then exhibit 11 and the way to the rest of the collection.
+   Closing folds it shut again. */
 .guide {
   position: absolute;
   right: 0;
   bottom: calc(100% + 0.8rem);
-  width: 19rem;
-  max-height: min(70vh, 30rem);
-  overflow-y: auto;
-  padding: 0.8rem 0.95rem 0.7rem;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  backdrop-filter: blur(10px);
+  width: min(32rem, calc(100vw - 2 * var(--space-m)));
   font-family: var(--font-mono);
   animation: hero-hint-in var(--t-base) var(--ease);
+}
+.guide__sheet {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  perspective: 1800px;
+  /* so the folded cover sorts in front of the panel under it, not behind it */
+  transform-style: preserve-3d;
+}
+.guide__half {
+  position: relative;
+  min-width: 0;
+  transform-style: preserve-3d;
+}
+/* the cover's panel is hinged on the fold, at its right edge; folded, it lies
+   over the right-hand panel (1px proud of it) */
+.guide__half--left {
+  transform-origin: 100% 50%;
+  transform: translateZ(1px) rotateY(0deg);
+  animation: guide-unfold 0.8s var(--ease) 0.08s backwards;
+}
+.guide[data-closing] .guide__half--left {
+  animation: guide-fold 0.4s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+@keyframes guide-unfold {
+  from { transform: translateZ(1px) rotateY(180deg); }
+}
+@keyframes guide-fold {
+  to { transform: translateZ(1px) rotateY(180deg); }
+}
+.guide[data-closing] {
+  animation: none;
+}
+/* a panel: the page the leaflet is printed on */
+.guide__face {
+  box-sizing: border-box;
+  height: 100%;
+  max-height: min(70vh, 30rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0.8rem 0.85rem 0.7rem;
+  background: color-mix(in srgb, var(--paper-2) 96%, var(--ink) 4%);
+  border: 1px solid var(--line);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.guide__face::-webkit-scrollbar {
+  display: none;
+}
+.guide__half--left .guide__face--front {
+  border-right: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+.guide__half--right .guide__face {
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+/* the crease down the middle: a shaded hairline each side of the fold, and
+   the left panel darkening as it comes round */
+.guide__half--left .guide__face--front::before,
+.guide__half--right .guide__face::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.4rem;
+  pointer-events: none;
+}
+.guide__half--left .guide__face--front::before {
+  right: 0;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.28), transparent);
+}
+.guide__half--right .guide__face::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.28), transparent);
+  border-left: 1px solid var(--line);
+}
+/* the cover, printed on the back of the left panel */
+.guide__face--back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  border-left: 0;
+  background: color-mix(in srgb, var(--paper-2) 92%, var(--accent) 8%);
+}
+.guide__cover-kicker,
+.guide__cover-count {
+  font-size: var(--step--2);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.guide__cover-title {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.05;
+  text-wrap: balance;
+  color: var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide__half--left,
+  .guide[data-closing] .guide__half--left {
+    animation: none;
+  }
+  .guide[data-closing] {
+    opacity: 0;
+  }
 }
 .guide__head {
   display: flex;
@@ -210,12 +314,11 @@
   color: var(--accent-ink);
   margin-bottom: 0.55rem;
 }
-.guide__head span {
-  color: var(--ink-40);
-  letter-spacing: 0.12em;
-}
 .guide__layer {
   padding-top: 0.45rem;
+}
+.guide__head + .guide__layer {
+  padding-top: 0;
 }
 .guide__layer + .guide__layer {
   margin-top: 0.45rem;
@@ -261,6 +364,15 @@
   background: var(--surface-2);
   color: var(--accent-ink);
 }
+.guide__name {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* an exhibit not yet lit: its name is there, in dim letters, and dim it stays
+   until you've been */
 .guide__dark {
   color: var(--ink-40);
 }
@@ -281,6 +393,17 @@
 .guide__dark:focus-visible {
   background: var(--surface-2);
   color: var(--ink-60);
+}
+/* its way there replaces nothing: it sits over the end of the name, which dims
+   under it */
+.guide__dark .guide__go {
+  position: absolute;
+  right: 0.3em;
+  padding-left: 1.2em;
+  background: linear-gradient(to right, transparent, var(--surface-2) 40%);
+}
+.guide__layer li button {
+  position: relative;
 }
 /* a dark project's way there, shown as you point at it */
 .guide__go {
@@ -361,6 +484,15 @@
 .guide__when {
   margin-left: auto;
   color: var(--ink-40);
+}
+/* exhibit 11 while it's dark: "lights at 10" goes under its name, not over it */
+.guide__next .guide__dark {
+  flex-wrap: wrap;
+}
+.guide__next .guide__when {
+  flex-basis: 100%;
+  margin-left: 0;
+  padding-left: calc(5px + 1.6em + 1.1em);
 }
 .guide__more {
   display: block;
@@ -478,7 +610,6 @@
   .guide {
     right: auto;
     left: var(--space-m);
-    width: min(19rem, 88vw);
   }
   /* let the narration wrap within the viewport instead of running off the edge;
      the tally above leaves room for up to two lines */

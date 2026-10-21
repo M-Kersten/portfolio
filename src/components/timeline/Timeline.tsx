@@ -442,6 +442,7 @@ export function Timeline() {
                 <CaseCard
                   study={s.study}
                   slotRef={(el) => (slotRefs.current[i] = el)}
+                  onHover={(on) => nodeRefs.current[i]?.toggleAttribute('data-hover', on)}
                   onOpen={() => setOpen(s.study.slug)}
                   style={s.side === 'above' ? { left: `${s.x}px`, bottom: 'calc(50% + var(--rise))' } : { left: `${s.x}px`, top: 'calc(50% + var(--rise))' }}
                 />

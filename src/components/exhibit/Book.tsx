@@ -5,13 +5,13 @@ import { filmCaption } from '../../content/films';
 import { asset } from '../../lib/asset';
 import { EASE, MOTION } from '../../lib/motion';
 import { useSheetDrag } from '../../lib/useSheetDrag';
-import { clockLabel, youtubeEmbed, type FilmClock } from '../../lib/youtube';
+import { clockLabel, youtubeEmbed, youtubeStart, type FilmClock } from '../../lib/youtube';
 import { Gallery } from './Gallery';
 import { VoiceNote } from './VoiceNote';
 import { PlayMark, Player, Walk, enterAttr, sheetLayout, walkIn, type Dir, type From, type Place } from './parts';
 
 // The book: the full story, set as a spread. The left page is the chapter
-// opener (the number, the title, the standfirst, the audio guide) over the
+// opener (the number, the title, the standfirst, the audio tour) over the
 // plate, the film; the right page swings open from the spine with the facts
 // and the story itself, then "See also" and the way to ask about it.
 
@@ -24,6 +24,7 @@ export function Book({
   prev,
   next,
   reduced,
+  turning,
   onFold,
   onClose,
   onWalk,
@@ -39,6 +40,8 @@ export function Book({
   prev?: CaseStudy;
   next?: CaseStudy;
   reduced: boolean;
+  /** a page is turning: 1 lifts the right page (to the next), -1 the left (back) */
+  turning: Dir | 0;
   onFold: () => void;
   onClose: () => void;
   onWalk: (slug: string) => void;
@@ -56,7 +59,9 @@ export function Book({
   // the film plays on if it was playing in the label; otherwise it waits to be pressed
   const [playing, setPlaying] = useState(Boolean(embed && film?.playing));
   const [loaded, setLoaded] = useState(false);
-  const start = film ? Math.floor(film.t) : 0;
+  const filmStart = youtubeStart(study.video); // where its link says to begin
+  const handover = film ? Math.floor(film.t) : 0; // or wherever the label's film had got to
+  const start = film ? handover : filmStart;
   const spreadRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLDivElement>(null);
   const screenRef = useRef<HTMLDivElement>(null);
@@ -148,6 +153,7 @@ export function Book({
       ref={spreadRef}
       className="xb"
       data-enter={reduced || from ? undefined : enterAttr(enter)}
+      data-turning={turning || undefined}
       role="dialog"
       aria-modal="true"
       aria-label={`${study.title}: the full story`}
@@ -180,7 +186,7 @@ export function Book({
               slug={study.slug}
               title={study.title}
               no={no !== null ? pad2(no) : undefined}
-              label="Audio guide · in my own words"
+              label="Audio tour · in my own words"
             />
           </div>
           <figure className="xb__plate">
@@ -192,7 +198,7 @@ export function Book({
               {embed && !playing && (
                 <button type="button" className="xl__watch" onClick={() => setPlaying(true)}>
                   <PlayMark />
-                  {start > 2 ? `Carry on watching · ${clockLabel(start)}` : 'Play the film'}
+                  {handover > 2 ? `Carry on watching · ${clockLabel(handover)}` : 'Play the film'}
                 </button>
               )}
             </div>

@@ -21,20 +21,20 @@ export function Header() {
 
           <nav id="primary-nav" className="nav" data-open={open} aria-label="Primary">
             {site.nav.map((item) => (
-              <Link key={item.href} to={{ pathname: '/', hash: item.href }} className="nav__link ui-link" onClick={close}>
+              // "#work" is a place on the home page, "/projects" a page of its own
+              <Link
+                key={item.href}
+                to={item.href.startsWith('#') ? { pathname: '/', hash: item.href } : item.href}
+                className="nav__link ui-link"
+                onClick={close}
+              >
                 {item.label}
               </Link>
             ))}
             <SocialLinks className="nav__social" />
           </nav>
 
-          <button
-            type="button"
-            className="nav__toggle"
-            aria-expanded={open}
-            aria-controls="primary-nav"
-            onClick={() => setOpen((v) => !v)}
-          >
+          <button type="button" className="nav__toggle" aria-expanded={open} aria-controls="primary-nav" onClick={() => setOpen((v) => !v)}>
             <span className="visually-hidden">Menu</span>
             <span aria-hidden="true">{open ? '✕' : '☰'}</span>
           </button>

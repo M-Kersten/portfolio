@@ -80,7 +80,9 @@ export interface CaseStudy {
   /** Flags independent work so the waypoint tag reads "Freelance" / "Passion"
    *  in its own colour instead of a client company. */
   kind?: 'freelance' | 'passion';
-  /** A YouTube URL — embedded in the node HUD and the map card popup. */
+  /** A YouTube URL, shown in the exhibit's label (a silent preview) and book.
+   *  To start a long film at its best part, paste YouTube's own "start at" link
+   *  (`https://youtu.be/…?t=95`): the preview and the film begin on that second. */
   video?: string;
   /** Outbound links — write-ups, talks, press, demo films. Rendered as buttons
    *  in the case dialogs, in the order given, each with its own label. */

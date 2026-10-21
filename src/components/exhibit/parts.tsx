@@ -21,6 +21,8 @@ export const box = (r: DOMRect): Box => ({
  *  the picture on the card that was clicked. */
 export type From = { head?: Box; film: Box };
 export type Dir = 1 | -1;
+/** How long a page takes to lift off the spine when a walk turns it (exhibit.css --turn). */
+export const TURN_MS = 320;
 /** The side the next book comes in from after a walk: it outlives the book that
  *  walked (in the maquette a walk is a route change, and remounts the lot). */
 export const walkIn: { dir: Dir | 0 } = { dir: 0 };
@@ -63,11 +65,14 @@ export const PlayMark = () => (
   </span>
 );
 
-/** A YouTube player, autoplaying (it's only ever mounted when pressed for). */
+/** A YouTube player, autoplaying: with sound and its controls when it was
+ *  pressed for, or as a silent `preview` (no controls, no keys, no clicks)
+ *  playing behind the label's button. */
 export function Player({
   embed,
   title,
   start = 0,
+  preview = false,
   frameRef,
   onLoad,
   loaded,
@@ -75,18 +80,23 @@ export function Player({
   embed: string;
   title: string;
   start?: number;
+  preview?: boolean;
   frameRef?: RefObject<HTMLIFrameElement>;
   onLoad?: () => void;
   loaded?: boolean;
 }) {
   const origin = `&origin=${encodeURIComponent(window.location.origin)}`;
+  const silent = preview ? '&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&playsinline=1' : '';
   return (
     <iframe
       ref={frameRef}
-      src={`${embed}&autoplay=1&enablejsapi=1${origin}${start > 0 ? `&start=${start}` : ''}`}
+      src={`${embed}&autoplay=1&enablejsapi=1${origin}${silent}${start > 0 ? `&start=${start}` : ''}`}
+      tabIndex={preview ? -1 : undefined}
+      aria-hidden={preview || undefined}
+      data-preview={preview || undefined}
       title={`${title}: film`}
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowFullScreen
+      allowFullScreen={!preview}
       data-loaded={loaded || undefined}
       onLoad={onLoad}
     />

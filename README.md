@@ -48,6 +48,7 @@ The things you're most likely to want to change, and the file they live in.
 | A project's words, dates, client, links, tech | `src/content/cases.json` (or the CMS) |
 | The hero lines, section titles and leads, career, about, contact | `src/content/site.json` (or the CMS) |
 | The line under a project's film in the book | `src/content/films.ts` |
+| Where a long film starts | the project's `video` link in `cases.json`, with `?t=95` on it (YouTube's "start at" link) |
 | A project's film loop or voice note | drop `<slug>.mp4` in `src/assets/loops/`, `<slug>.mp3` in `src/assets/voice/` |
 | A sound effect or ambient bed | `src/assets/sound/` (its README lists every name) |
 | A poster or share card | `public/posters/<slug>.jpg`, then `npm run og` |
@@ -186,14 +187,18 @@ their own ghost→alive keyed on the same store state. Colour policy lives in
   next launch on the pad.
 - **Film loops** — a silent 6–10 s clip per project in
   `src/assets/loops/<slug>.mp4` plays at the top of its label (the README
-  there has the format); without one the poster drifts slowly instead.
+  there has the format). Without one, the project's own YouTube film plays
+  itself there, silent, on a short loop; "Watch the film" plays it with sound.
+  **Start time:** for a long film, paste YouTube's "start at" link as the
+  project's `video` (`https://youtu.be/mjzZSOB-jAM?t=95`) and both the preview
+  and the film begin on that second.
 - **What the film shows** — the line under each project's film in the book
   lives in `src/content/films.ts` (not cases.json: the CMS drops keys it
   doesn't know). The current lines are drafts from each film's YouTube title
   and poster; rewrite them in your own words.
 - **Voice notes** — record a short clip about a project and save it as
   `src/assets/voice/<slug>.mp3` (or `.m4a`, `.ogg`, `.webm`), named after
-  the case's `slug`. Its audio guide then appears on that project's label
+  the case's `slug`. Its audio tour then appears on that project's label
   and in its book; projects without a clip show none. `next-launch.mp3` is
   exhibit 11's (the countdown). Mono at 64–96 kbps is plenty for a voice.
 - **Sound** — effects and ambient are recordings in `src/assets/sound/`, one

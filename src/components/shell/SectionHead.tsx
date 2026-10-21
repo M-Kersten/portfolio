@@ -19,7 +19,7 @@ export function SectionHead({
   align = 'split',
   level = 2,
 }: {
-  /** the section's anchor, as the nav links it (e.g. "capabilities") */
+  /** the section's anchor, as the nav links it (e.g. "capabilities", or "projects" for the page) */
   id: string;
   title: string;
   lead?: ReactNode;
@@ -31,7 +31,7 @@ export function SectionHead({
   level?: 1 | 2;
 }) {
   const [ref, shown] = useReveal<HTMLElement>();
-  const label = site.nav.find((n) => n.href === `#${id}`)?.label ?? null;
+  const label = site.nav.find((n) => n.href === `#${id}` || n.href === `/${id}`)?.label ?? null;
   return (
     <header ref={ref} className="section__head" data-align={align} data-shown={shown || undefined}>
       {label && (

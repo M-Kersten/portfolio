@@ -15,11 +15,14 @@ export function CaseCard({
   onOpen,
   style,
   slotRef,
+  onHover,
 }: {
   study: CaseStudy;
   onOpen: () => void;
   style?: CSSProperties;
   slotRef?: (el: HTMLDivElement | null) => void;
+  /** pointed at or focused: the timeline lights its station too, however far along it is */
+  onHover?: (on: boolean) => void;
 }) {
   const [imgOk, setImgOk] = useState(true);
   const src = asset(`/posters/${study.slug}.jpg`);
@@ -35,7 +38,15 @@ export function CaseCard({
   const yearLabel = study.year?.slice(0, 4);
 
   return (
-    <div className="worktile-slot" style={style} ref={slotRef}>
+    <div
+      className="worktile-slot"
+      style={style}
+      ref={slotRef}
+      onMouseEnter={() => onHover?.(true)}
+      onMouseLeave={() => onHover?.(false)}
+      onFocus={() => onHover?.(true)}
+      onBlur={() => onHover?.(false)}
+    >
       <button
         type="button"
         className="worktile"
@@ -51,9 +62,7 @@ export function CaseCard({
       >
         <div className="worktile__media">
           <div className="worktile__ph" aria-hidden="true" />
-          {imgOk && (
-            <img className="worktile__img" src={src} alt="" loading="lazy" decoding="async" onError={() => setImgOk(false)} />
-          )}
+          {imgOk && <img className="worktile__img" src={src} alt="" loading="lazy" decoding="async" onError={() => setImgOk(false)} />}
           <div className="worktile__scrim" aria-hidden="true" />
           {/* in the model (its exhibit number), or in the collection */}
           <span className="worktile__ex">{exhibitMark(study.slug)}</span>
@@ -61,7 +70,9 @@ export function CaseCard({
         <div className="worktile__body">
           <div className="worktile__stamp">
             <span className="worktile__yr">{yearLabel}</span>
-            <span className="worktile__tag" data-kind={study.kind}>{tagText}</span>
+            <span className="worktile__tag" data-kind={study.kind}>
+              {tagText}
+            </span>
           </div>
           <h3 className="worktile__title">{study.title}</h3>
           <span className="worktile__meta">{metaText}</span>

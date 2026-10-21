@@ -88,7 +88,7 @@
   font-variant-numeric: tabular-nums;
   color: var(--ink-40);
 }
-/* as an exhibit's audio guide: a keypad key with the exhibit's number */
+/* as an exhibit's audio tour: a keypad key with the exhibit's number */
 .voice__key {
   position: relative;
   display: inline-grid;

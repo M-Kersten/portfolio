@@ -77,8 +77,16 @@ export function HeroStage() {
   // model tally live down there, so they clear as soon as the capabilities
   // section scrolls up over that spot instead of lingering on top of it.
   const [heroOwnsBottom, setHeroOwnsBottom] = useState(true);
-  const [guideOpen, setGuideOpen] = useState(false);
   const reduced = useReducedMotion();
+  // the guide is a leaflet that folds: 'closing' is it folding shut again
+  const [guide, setGuide] = useState<'closed' | 'open' | 'closing'>('closed');
+  const guideOpen = guide === 'open';
+  const closeGuide = () => setGuide((g) => (g === 'open' ? 'closing' : g));
+  useEffect(() => {
+    if (guide !== 'closing') return;
+    const t = window.setTimeout(() => setGuide('closed'), reduced ? 0 : 420);
+    return () => clearTimeout(t);
+  }, [guide, reduced]);
   // Load boot sequence: the bottom instrument line (layer caption + model tally)
   // is the LAST beat — it's held until the hero text has decoded in and the
   // maquette has powered on, so the boot reads as one thing at a time. Instant
@@ -189,7 +197,7 @@ export function HeroStage() {
   }, [booted, welcome, selectedSlug, launching, guideOpen, reduced]);
 
   // Esc closes the guide
-  useEscape(() => setGuideOpen(false), guideOpen);
+  useEscape(closeGuide, guideOpen);
 
   // Title lives only on the City layer (and only while the hero is on screen);
   // it clears the moment you scroll to Room or leave the hero entirely.
@@ -251,8 +259,8 @@ export function HeroStage() {
                 {PRESS} an exhibit to light it — all ten launch the next one
               </p>
             )}
-        {guideOpen && <ExhibitionGuide visited={visited} onClose={() => setGuideOpen(false)} onOpenPad={openPad} />}
-        <button type="button" className="hero__signals-btn" aria-expanded={guideOpen} onClick={() => setGuideOpen((v) => !v)}>
+        {guide !== 'closed' && <ExhibitionGuide visited={visited} closing={guide === 'closing'} onClose={closeGuide} onOpenPad={openPad} />}
+        <button type="button" className="hero__signals-btn" aria-expanded={guideOpen} onClick={() => (guideOpen ? closeGuide() : setGuide('open'))}>
           {/* Named by its visible text plus a hidden hint, rather than an
               aria-label that said something else ("Projects live in the model:
               0 of 10…") — speech input users say what they see. */}

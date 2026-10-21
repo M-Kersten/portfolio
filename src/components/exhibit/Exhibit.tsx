@@ -12,7 +12,7 @@ import { useSceneSelector } from '../../scene/store';
 import { Book } from './Book';
 import { Lightbox } from './Gallery';
 import { Label } from './Label';
-import { box, walkIn, type Dir, type From, type Place } from './parts';
+import { TURN_MS, box, sheetLayout, walkIn, type Dir, type From, type Place } from './parts';
 
 // A project, opened. The site is an exhibition of my work in miniature, so a
 // project reads the way an exhibit does: a label beside the object, and the
@@ -23,7 +23,7 @@ import { box, walkIn, type Dir, type From, type Place } from './parts';
 // the film at the top (a silent loop, or the poster drifting; "Watch the film"
 // plays it right there, with sound), the number (01–10 in the model, or "in
 // the collection"), the title and what it achieved, who it was for and what
-// it's made of, one sentence of curator's note, the audio guide, and "Read the
+// it's made of, one sentence of curator's note, the audio tour, and "Read the
 // full story". Esc closes it; ← → walk the exhibits by number.
 //
 // The book is the full story, set as a spread. The label becomes its left page,
@@ -137,15 +137,27 @@ export function Exhibit({
     setBook(false);
     onBookChange?.(false);
   }, [onBookChange]);
+  // Walking to the next or the previous project from the book turns the page:
+  // the leaf lifts off the spine first (TURN_MS), and the next spread's page
+  // lands as the new book arrives (exhibit.css). Where there's no spread (the
+  // phone) or no motion, it's a plain step.
+  const [turning, setTurning] = useState<Dir | 0>(0);
+  const turnTimer = useRef(0);
+  useEffect(() => () => clearTimeout(turnTimer.current), []);
   const walk = useCallback(
     (slug: string) => {
-      walkIn.dir = slug === next?.slug ? 1 : slug === prev?.slug ? -1 : 0;
+      if (turning) return;
+      const dir = slug === next?.slug ? 1 : slug === prev?.slug ? -1 : 0;
+      walkIn.dir = dir;
       unfoldFrom.current = null;
       setFrame(null);
       setFilm(null);
-      onWalk(slug, book);
+      if (book && dir && !reduced && !sheetLayout()) {
+        setTurning(dir);
+        turnTimer.current = window.setTimeout(() => onWalk(slug, book), TURN_MS);
+      } else onWalk(slug, book);
     },
-    [onWalk, book, next, prev],
+    [onWalk, book, next, prev, turning, reduced],
   );
   const step = useCallback(
     (dir: Dir) => {
@@ -208,6 +220,7 @@ export function Exhibit({
           prev={prev}
           next={next}
           reduced={reduced}
+          turning={turning}
           onFold={foldBook}
           onClose={onClose}
           onWalk={walk}

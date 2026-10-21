@@ -183,14 +183,7 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
                 strokeWidth="1"
                 style={{ '--i': i } as CSSProperties}
               >
-                <line
-                  className="about__lead-line"
-                  pathLength={1}
-                  x1={s.line[0]}
-                  y1={s.line[1]}
-                  x2={s.line[2]}
-                  y2={s.line[3]}
-                />
+                <line className="about__lead-line" pathLength={1} x1={s.line[0]} y1={s.line[1]} x2={s.line[2]} y2={s.line[3]} />
                 <g className="about__lead-mark">
                   <circle cx={s.mark[0]} cy={s.mark[1]} r="3.4" />
                   <line x1={s.mark[0]} y1={s.mark[1] - 9} x2={s.mark[0]} y2={s.mark[1] - 4.5} />
@@ -264,9 +257,9 @@ function aboutStats() {
   const first = Math.min(...career.map((c) => Number(c.from.slice(0, 4))).filter(Boolean));
   const teams = new Set(career.map((c) => c.company)).size;
   return [
-    { n: new Date().getFullYear() - (Number.isFinite(first) ? first : 2016), label: 'years since my first internship' },
-    { n: cases.length, label: 'projects on this site, some of them failures' },
-    { n: teams, label: 'companies I’ve worked for' },
+    { n: new Date().getFullYear() - (Number.isFinite(first) ? first : 2016), word: 'years', note: 'since my first internship' },
+    { n: cases.length, word: 'projects', note: 'on this site, some of them failures' },
+    { n: teams, word: 'companies', note: 'I’ve worked for' },
   ];
 }
 
@@ -299,11 +292,14 @@ function AboutStats() {
   return (
     <dl className="about__stats" ref={ref} data-shown={shown || undefined}>
       {stats.map((st, i) => (
-        <div key={st.label} className="about__stat" style={{ '--i': i } as CSSProperties}>
-          <dt>{st.label}</dt>
-          <dd>
-            <CountUp to={st.n} run={shown} />
-          </dd>
+        <div key={st.word} className="about__stat" style={{ '--i': i } as CSSProperties}>
+          <dt>
+            <span className="about__num">
+              <CountUp to={st.n} run={shown} />
+            </span>
+            <span className="about__word">{st.word}</span>
+          </dt>
+          <dd>{st.note}</dd>
         </div>
       ))}
     </dl>

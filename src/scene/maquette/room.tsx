@@ -9,7 +9,7 @@ import { RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type BufferGeometry, type Group, type Mesh, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
-import { FIRE, GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
+import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, GlassMat, GroundMat, LiveGlassMat } from './materials';
 import { useCarKit } from './kit';
@@ -236,7 +236,7 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
           visible={false}
         >
           <sphereGeometry args={[R, 16, 12]} />
-          <meshStandardMaterial color={SURFACE.pale.color} emissive={FIRE} emissiveIntensity={0.2} roughness={0.55} toneMapped={false} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.3} roughness={0.45} toneMapped={false} />
         </mesh>
       ))}
     </>
@@ -667,6 +667,45 @@ function Mouse({ position, rotation }: { position: V3; rotation?: V3 }) {
   );
 }
 
+/** A VR headset lying on the desk, front to the room: a rounded visor with a
+ *  dark front plate and a foam face pad behind it, and the head strap looped
+ *  out the back and left flat on the desk. */
+function VRHeadset({ position, rotation, scale = 1 }: { position: V3; rotation?: V3; scale?: number }) {
+  const g = useGeometry(() => {
+    const strap: BufferGeometry[] = [];
+    // the strap: an ellipse out from both sides of the visor, closing behind it
+    const loop: V3[] = Array.from({ length: 16 }, (_, i) => {
+      const a = (i / 16) * Math.PI * 2;
+      return [Math.sin(a) * 0.062, 0.006, -0.115 + Math.cos(a) * 0.075];
+    });
+    strap.push(tube(loop, 0.0055, 6, 64, true));
+    // a thicker crown pad where it would sit on the back of the head
+    strap.push(place(softBox(0.07, 0.013, 0.014, 0.005), [0, 0.0075, -0.19]));
+    return {
+      visor: merge([place(softBox(0.108, 0.058, 0.07, 0.022, { bulge: 0.006 }), [0, 0.036, 0], [-0.1, 0, 0])]),
+      plate: merge([place(softBox(0.098, 0.044, 0.008, 0.018), [0, 0.036, 0.0345], [-0.1, 0, 0])]),
+      pad: merge([place(softBox(0.092, 0.046, 0.016, 0.007), [0, 0.034, -0.042], [-0.1, 0, 0])]),
+      strap: merge(strap),
+    };
+  });
+  return (
+    <group position={position} rotation={rotation} scale={scale}>
+      <mesh geometry={g.strap}>
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="deep" />
+      </mesh>
+      <mesh geometry={g.visor}>
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="pale" />
+      </mesh>
+      <mesh geometry={g.plate}>
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="deep" />
+      </mesh>
+      <mesh geometry={g.pad}>
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
+      </mesh>
+    </group>
+  );
+}
+
 /** A coffee cup, turned from a profile: a foot, a belly, a rolled lip and a D
  *  handle, with a dark disc of coffee just under the lip so it reads as full
  *  rather than as an empty tube. */
@@ -799,7 +838,7 @@ const BOOK_W = 0.17; // full open width
 const BOOK_H = 0.19; // page depth (spine length)
 const BOOK_T = 0.011; // cover board thickness
 const BOOK_PT = 0.009; // page block thickness per half
-const BOOK_ANG = 0.22; // resting V of the halves once open
+const BOOK_ANG = 0.14; // resting V of the halves once open: shallow, so both pages face you
 function BookHalf({ side, tex, lit }: { side: -1 | 1; tex: Texture | null; lit: LitLink }) {
   const { accentDeep } = useAccent();
   const x = (side * BOOK_W) / 4;
@@ -813,15 +852,15 @@ function BookHalf({ side, tex, lit }: { side: -1 | 1; tex: Texture | null; lit: 
       {/* page block */}
       <mesh position={[x, BOOK_T / 2 + BOOK_PT / 2, 0]}>
         <boxGeometry args={[BOOK_W / 2 - 0.012, BOOK_PT, BOOK_H - 0.014]} />
-        <meshStandardMaterial {...litMat(lit)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.1} roughness={0.85} />
+        <meshStandardMaterial {...litMat(lit)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.32} roughness={0.85} />
       </mesh>
       {/* the printed page on top of the block */}
       <mesh position={[x, BOOK_T / 2 + BOOK_PT + 0.0008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[BOOK_W / 2 - 0.016, BOOK_H - 0.02]} />
         {tex ? (
-          <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.5} roughness={0.75} toneMapped={false} side={DoubleSide} />
+          <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={1} roughness={0.75} toneMapped={false} side={DoubleSide} />
         ) : (
-          <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.14} roughness={0.85} side={DoubleSide} />
+          <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.55} roughness={0.85} side={DoubleSide} />
         )}
       </mesh>
     </>
@@ -917,13 +956,17 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
       // hinge's +x side, so the rest pose shifts −x to centre that mass in
       // the gap and keep clear of the leaning neighbour.
       g.rotation.x = (Math.PI / 2) * (1 - s) + 1.12 * s;
-      g.rotation.y = 0.35 * s;
-      g.position.set(position[0] - 0.04 + 0.01 * s, position[1] + 0.01 + 0.13 * s, position[2] + 0.02 + 0.26 * s);
+      g.rotation.y = 0.17 * s; // squared up to the camera, which looks from a little to the right
+      g.scale.setScalar(1 + 0.4 * s); // held up to be read: bigger than it stood on the shelf
+      g.position.set(position[0] - 0.04 + 0.01 * s, position[1] + 0.01 + 0.15 * s, position[2] + 0.02 + 0.34 * s);
     }
-    // the front half swings 180° around the spine, from folded-shut to the
-    // open V; its hinge also drops level with the back half as it opens
+    // the front cover swings 180° round the spine, from folded-shut to the open
+    // V, out through the front of the book (the side that faces the room: the
+    // other way it opened through the back, into the shelf, and the book
+    // looked as if it were opening inside out). Its hinge also drops level
+    // with the back half as it opens
     if (frontHinge.current) {
-      frontHinge.current.rotation.z = Math.PI * (1 - s) - BOOK_ANG * s;
+      frontHinge.current.rotation.z = -Math.PI * (1 - s) - BOOK_ANG * s; // -π: out through the front, toward the room
       frontHinge.current.position.y = (BOOK_T + BOOK_PT * 2 + 0.001) * (1 - s);
     }
     if (backHinge.current) backHinge.current.rotation.z = BOOK_ANG * s;
@@ -1240,6 +1283,8 @@ function Desk({ brigade }: { brigade: LitLink }) {
       <Keyboard position={[-0.02, 0.403, 0.06]} rotation={[0, 0.04, 0]} />
       <Mouse position={[0.235, 0.408, 0.055]} rotation={[0, -0.12, 0]} />
       <CoffeeCup position={[-0.34, 0.395, 0.075]} rotation={[0, -0.5, 0]} lit={brigade} />
+      {/* the headset the project is for, put down beside the monitor, on the side the room can see */}
+      <VRHeadset position={[-0.37, 0.395, -0.1]} rotation={[0, 0.55, 0]} scale={1.3} />
       {/* the antenna deploying out of the monitor, hailing for a link */}
       <BrigadeAntenna />
     </>

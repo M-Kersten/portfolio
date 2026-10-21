@@ -858,6 +858,61 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
   );
 }
 
+/** The path through the park: a narrow ribbon that wanders in from the west
+ *  edge, over the top of the lake, between the trees, and loops out round the
+ *  east end, kept off the water, the jetty and the trunks. */
+const PARK_PATH: V3[] = [
+  [-0.49, 0.026, -0.1],
+  [-0.37, 0.026, -0.15],
+  [-0.23, 0.026, -0.09],
+  [-0.08, 0.026, -0.12],
+  [0.05, 0.026, -0.05],
+  [0.13, 0.026, 0.07],
+  [0.27, 0.026, 0.1],
+  [0.34, 0.026, -0.06],
+  [0.47, 0.026, -0.12],
+];
+const PATH_W = 0.032;
+function ParkPath({ lit }: { lit: LitLink }) {
+  const { geo, edges } = useMemo(() => {
+    const pts = smoothCurve(PARK_PATH, 90);
+    const pos: number[] = [];
+    const idx: number[] = [];
+    const left: V3[] = [];
+    const right: V3[] = [];
+    pts.forEach((p, i) => {
+      const a = pts[Math.max(0, i - 1)];
+      const b = pts[Math.min(pts.length - 1, i + 1)];
+      const dx = b[0] - a[0];
+      const dz = b[2] - a[2];
+      const len = Math.hypot(dx, dz) || 1;
+      // the ribbon swells a little in the middle, so it reads as trodden, not drawn
+      const w = PATH_W * (0.8 + 0.4 * Math.sin((i / (pts.length - 1)) * Math.PI));
+      const nx = (-dz / len) * w;
+      const nz = (dx / len) * w;
+      left.push([p[0] + nx, p[1], p[2] + nz]);
+      right.push([p[0] - nx, p[1], p[2] - nz]);
+      pos.push(p[0] + nx, p[1], p[2] + nz, p[0] - nx, p[1], p[2] - nz);
+      if (i < pts.length - 1) idx.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3); // facing up
+    });
+    const g = new BufferGeometry();
+    g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return { geo: g, edges: [left, right] };
+  }, []);
+  return (
+    <group>
+      <mesh geometry={geo}>
+        <GlassMat tint="pale" lit={lit} />
+      </mesh>
+      {edges.map((e, i) => (
+        <Line key={i} points={e} color={NEUTRAL} lineWidth={1} transparent opacity={0.3} />
+      ))}
+    </group>
+  );
+}
+
 function Park({ position, slug }: { position: V3; slug?: string }) {
   const { accent, accentPale } = useAccent();
   const { selected, visited } = useActive(slug ?? '');
@@ -936,6 +991,7 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
         {/* two ducks drifting their lazy loops */}
         <LakeDucks lit={lit} />
       </group>
+      <ParkPath lit={lit} />
       {/* a small varied grove — each pine at its own height and turn */}
       <ParkTree position={[0.2, 0, -0.18]} h={0.46} yaw={0.4} slug={slug} lit={lit} />
       <ParkTree position={[0.24, 0, 0.22]} h={0.34} yaw={2.1} slug={slug} lit={lit} />

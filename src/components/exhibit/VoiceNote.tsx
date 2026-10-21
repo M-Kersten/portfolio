@@ -36,7 +36,7 @@ export function VoiceNote({
 }: {
   slug: string;
   title: string;
-  /** As an exhibit's audio guide: its number, on the key (the label and book). */
+  /** As an exhibit's audio tour: its number, on the key (the label and book). */
   no?: string;
   /** A recording other than the project's own (exhibit 11's). */
   src?: string;
@@ -82,7 +82,7 @@ export function VoiceNote({
         aria-label={playing ? `Pause: ${title}, in my own words` : `Hear about this project: ${title}, in my own words`}
       >
         {/* the play mark, the site's square control, a pause while it plays;
-            as an audio guide, the key with the exhibit's number on it */}
+            as an audio tour, the key with the exhibit's number on it */}
         {no ? (
           <span className="voice__key" aria-hidden="true">
             {no}

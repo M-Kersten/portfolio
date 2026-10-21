@@ -133,6 +133,26 @@
   border: 0;
   object-fit: cover;
 }
+/* the silent preview of the film: the film itself plays behind the button,
+   cropped to fill the box like the poster does, and fades in once it's up
+   (the poster is under it until then). Nothing on it can be pressed. */
+.xl__film {
+  container-type: size;
+}
+.xl__film iframe[data-preview] {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: max(100cqw, 177.78cqh);
+  height: max(100cqh, 56.25cqw);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-slow) var(--ease);
+}
+.xl__film iframe[data-preview][data-loaded] {
+  opacity: 1;
+}
 /* no loop yet: the poster drifts, slowly, so it still reads as moving image */
 .xl__film img[data-drift] {
   animation: xl-drift 16s ease-in-out infinite alternate;
@@ -319,12 +339,6 @@
   transform: translateY(-1px);
   box-shadow: 0 12px 26px -14px var(--card-accent);
 }
-.xl__read-time {
-  font-weight: 400;
-  letter-spacing: 0.06em;
-  text-transform: none;
-  opacity: 0.78;
-}
 .xl__walk {
   display: flex;
   justify-content: space-between;
@@ -421,14 +435,47 @@
   background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.34) 45%, rgba(234, 234, 234, 0.05) 50%, rgba(0, 0, 0, 0.3) 55%, transparent);
   pointer-events: none;
 }
-/* after a walk, the next one comes in from the side it was walked towards */
-.xb[data-enter='right'] { animation: xl-in-right var(--t-base) var(--ease); }
-.xb[data-enter='left'] { animation: xl-in-left var(--t-base) var(--ease); }
-@keyframes xl-in-right {
-  from { opacity: 0; translate: 48px 0; }
+/* Walking from page to page turns a leaf, the way a book does (Exhibit.tsx
+   waits --turn for it). Towards the next project the right-hand page lifts off
+   the spine and goes over edge-on; the new spread's left page lands where it
+   came down, with the new right page already under it. Back is the mirror:
+   the left page lifts, and the new right page lands. */
+.xb {
+  --turn: 320ms;
+  perspective: 2600px;
 }
-@keyframes xl-in-left {
-  from { opacity: 0; translate: -48px 0; }
+.xb[data-turning] .xb__verso,
+.xb[data-turning] .xb__recto {
+  z-index: 2;
+  backface-visibility: hidden;
+}
+.xb[data-turning='1'] .xb__recto {
+  transform-origin: 0 50%;
+  animation: leaf-lift-right var(--turn) cubic-bezier(0.45, 0, 0.9, 0.5) forwards;
+}
+.xb[data-turning='-1'] .xb__verso {
+  transform-origin: 100% 50%;
+  animation: leaf-lift-left var(--turn) cubic-bezier(0.45, 0, 0.9, 0.5) forwards;
+}
+@keyframes leaf-lift-right {
+  to { transform: rotateY(-89deg); filter: brightness(0.55); }
+}
+@keyframes leaf-lift-left {
+  to { transform: rotateY(89deg); filter: brightness(0.55); }
+}
+.xb[data-enter='right'] .xb__verso {
+  transform-origin: 100% 50%;
+  animation: leaf-land-left 0.42s cubic-bezier(0.1, 0.6, 0.3, 1) both;
+}
+.xb[data-enter='left'] .xb__recto {
+  transform-origin: 0 50%;
+  animation: leaf-land-right 0.42s cubic-bezier(0.1, 0.6, 0.3, 1) both;
+}
+@keyframes leaf-land-left {
+  from { transform: rotateY(89deg); filter: brightness(0.55); }
+}
+@keyframes leaf-land-right {
+  from { transform: rotateY(-89deg); filter: brightness(0.55); }
 }
 .xb__close {
   position: absolute;
@@ -691,6 +738,14 @@
 
 /* ---------- a phone (and a tablet held upright, as the porthole is) ---------- */
 @media (max-width: 760px), (max-width: 1120px) and (orientation: portrait) {
+  /* one column, no spine to turn a leaf on: after a walk the next one slides
+     in from the side it was walked towards */
+  .xb[data-enter='right'] .xb__verso,
+  .xb[data-enter='left'] .xb__recto {
+    animation: none;
+  }
+  .xb[data-enter='right'] { animation: xl-in-right var(--t-base) var(--ease); }
+  .xb[data-enter='left'] { animation: xl-in-left var(--t-base) var(--ease); }
   /* the label comes up from the bottom, the porthole above it */
   .xl,
   .exhibit[data-place='maquette'] .xl {
@@ -781,6 +836,12 @@
   .xb__tomb {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+@keyframes xl-in-right {
+  from { opacity: 0; translate: 48px 0; }
+}
+@keyframes xl-in-left {
+  from { opacity: 0; translate: -48px 0; }
 }
 @keyframes xl-open-down {
   from { clip-path: inset(0 0 100% 0); opacity: 0.5; }

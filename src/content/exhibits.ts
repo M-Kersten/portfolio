@@ -52,11 +52,6 @@ export const paragraphs = (text: string): string[] =>
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean);
-/** Minutes to read the whole story, at an unhurried 200 words a minute. */
-export function readingMinutes(study: CaseStudy): number {
-  const words = [study.problem, study.approach, study.lesson ?? ''].join(' ').split(/\s+/).filter(Boolean).length;
-  return Math.max(1, Math.round(words / 200));
-}
 
 /* ---------- the story ---------- */
 
