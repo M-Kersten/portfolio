@@ -65,8 +65,8 @@ The things you're most likely to want to change, and the file they live in.
 
 | Where on the site | File |
 | --- | --- |
-| The welcome back line, the first-visit hint, the "n/10 lit" counter | `components/hero/HeroStage.tsx` |
-| The exhibition guide the counter opens | `components/hero/ExhibitionGuide.tsx` |
+| The welcome back line and the first-visit hint | `components/hero/HeroStage.tsx` |
+| The exhibition guide, and the "n/10 lit" counter on its cover | `components/hero/ExhibitionGuide.tsx` |
 | The label beside an exhibit ("Read the full story", "Watch the film") | `components/exhibit/Label.tsx` |
 | The book ("The problem", "See also", "Ask me about it") | `components/exhibit/Book.tsx` |
 | The collection's title and line | `components/pages/ProjectsPage.tsx` |

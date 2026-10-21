@@ -80,7 +80,7 @@
 @media (prefers-reduced-motion: reduce) {
   .hero__name,
   .hero__sub,
-  .hero__signals-label--flash {
+  .guide__cover-count--flash {
     animation: none;
   }
 }
@@ -118,38 +118,25 @@
   }
 }
 
-/* The model tally — quiet instrument chrome bottom-right. Every object in the
-   maquette is a project; pips fill as they're brought alive, and the whole
-   chip is a button that opens the guide (which stands where, what's still
-   dark). At 10/10 the readout takes the accent and the scene's completion
-   state does the real celebrating. */
+/* The model tally — the cover of the exhibition guide. The guide is a leaflet
+   pushed into the bottom edge of the screen, bottom-right, and what shows of
+   it is its cover: pips that fill as exhibits are brought alive, and the count
+   (4/10 lit) printed on it. Pulling it out opens it (see .guide below). At
+   10/10 the cover's readout takes the accent and the scene's completion state
+   does the real celebrating. This box is only as tall as what shows of the
+   cover (--peek); the rest of the leaflet hangs below the screen's edge. */
 .hero__signals {
+  --peek: 5.75rem;
   position: fixed;
   right: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
-  bottom: var(--space-l);
+  bottom: 0;
   z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 0.7em;
+  width: min(32rem, calc(100vw - 2 * var(--space-m)));
+  height: var(--peek);
   /* the hero section is pointer-through (page-shell.css) so the 3D hotspots
-     stay clickable — the tally is its one interactive instrument, so opt back in */
-  pointer-events: auto;
+     stay clickable, and so is this box: only the leaflet itself is live */
+  pointer-events: none;
   transition: opacity var(--t-base) var(--ease);
-}
-.hero__signals-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7em;
-  padding: 0.35em 0.55em;
-  margin: -0.35em -0.55em;
-  background: none;
-  border: 0;
-  border-radius: var(--radius-s);
-  cursor: pointer;
-}
-.hero__signals-btn:hover .hero__signals-label,
-.hero__signals-btn:focus-visible .hero__signals-label {
-  color: var(--ink);
 }
 
 /* the first-visit whisper — states the premise once, then retires. Floats
@@ -182,18 +169,61 @@
 }
 
 /* the exhibition guide — a leaflet folded in half, like the one you pick up
-   at the door. It comes out of the tally as its cover (the left panel, folded
-   over the right) and the cover swings open on the fold, to the left, onto the
-   inside: the ten exhibits by layer (a lit one named and bright, a dark one
-   named and dim), then exhibit 11 and the way to the rest of the collection.
-   Closing folds it shut again. */
+   at the door. Pushed into the screen's bottom edge it shows only its cover
+   (the left panel, folded over the right one), with the tally printed on it.
+   Pulling it out slides it up into the frame, and the cover swings open on the
+   fold, to the left, onto the inside: the ten exhibits by layer (a lit one
+   named and bright, a dark one named and dim), then exhibit 11 and the way to
+   the rest of the collection. Folding it shut reverses it: the cover closes,
+   then the leaflet slides back in. */
 .guide {
   position: absolute;
+  top: 0;
   right: 0;
-  bottom: calc(100% + 0.8rem);
-  width: min(32rem, calc(100vw - 2 * var(--space-m)));
+  width: 100%;
   font-family: var(--font-mono);
-  animation: hero-hint-in var(--t-base) var(--ease);
+  pointer-events: none;
+  /* closing: wait for the fold, then slide in */
+  transition: translate 0.45s var(--ease-in-out) 0.38s;
+}
+.guide[data-state='open'] {
+  /* up into the frame: its bottom edge a little clear of the screen's */
+  translate: 0 calc(var(--peek) - 100% - 1.5rem);
+  transition: translate 0.55s var(--ease);
+}
+/* pushed in, it lifts a little under the pointer: there's something to pull */
+.guide[data-state='closed'] {
+  transition: translate 0.25s var(--ease);
+}
+.guide[data-state='closed']:has(.guide__peek:hover),
+.guide[data-state='closed']:has(.guide__peek:focus-visible) {
+  translate: 0 -0.5rem;
+}
+.guide[data-state='open'] .guide__sheet {
+  pointer-events: auto;
+}
+/* the whole of the cover that shows is the way to pull it out */
+.guide__peek {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  width: 50%;
+  height: var(--peek);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.guide__peek:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.guide:not([data-state='closed']) .guide__peek {
+  pointer-events: none;
+  visibility: hidden;
 }
 .guide__sheet {
   display: grid;
@@ -211,20 +241,22 @@
    over the right-hand panel (1px proud of it) */
 .guide__half--left {
   transform-origin: 100% 50%;
-  transform: translateZ(1px) rotateY(0deg);
-  animation: guide-unfold 0.8s var(--ease) 0.08s backwards;
+  /* folded: lying over the right panel */
+  transform: translateZ(1px) rotateY(180deg);
 }
-.guide[data-closing] .guide__half--left {
-  animation: guide-fold 0.4s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+.guide[data-state='open'] .guide__half--left {
+  transform: translateZ(1px) rotateY(0deg);
+  /* once it has slid up into the frame */
+  animation: guide-unfold 0.8s var(--ease) 0.35s backwards;
+}
+.guide[data-state='closing'] .guide__half--left {
+  animation: guide-fold 0.4s cubic-bezier(0.5, 0, 0.75, 0) backwards;
 }
 @keyframes guide-unfold {
   from { transform: translateZ(1px) rotateY(180deg); }
 }
 @keyframes guide-fold {
-  to { transform: translateZ(1px) rotateY(180deg); }
-}
-.guide[data-closing] {
-  animation: none;
+  from { transform: translateZ(1px) rotateY(0deg); }
 }
 /* a panel: the page the leaflet is printed on */
 .guide__face {
@@ -281,38 +313,109 @@
   border-left: 0;
   background: color-mix(in srgb, var(--paper-2) 92%, var(--accent) 8%);
 }
-.guide__cover-kicker,
-.guide__cover-count {
+/* what's printed on the cover: the guide's name, the pips and the count, the
+   count's note, and the exhibition's name at the foot. The first three lines
+   are what shows while it's pushed in. */
+.guide__cover {
+  gap: 0.45rem;
+  justify-content: flex-start;
+}
+.guide__cover-kicker {
   font-size: var(--step--2);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.guide__cover-tally {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.7em;
+}
+.guide__cover-count {
+  font-size: var(--step--1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  transition: color var(--t-base) var(--ease);
+}
+.hero__signals[data-complete] .guide__cover-count {
+  color: var(--accent-ink);
+}
+/* the count steps when the model does, and the number flashes as it lands */
+@keyframes cover-flash {
+  0% { color: #8fe9ff; text-shadow: 0 0 10px rgba(39, 232, 242, 0.6); }
+}
+.guide__cover-count--flash {
+  animation: cover-flash 0.9s var(--ease);
+}
+.guide__cover-note {
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-40);
 }
 .guide__cover-title {
+  margin-top: auto;
   font-family: var(--font-display);
   font-size: var(--step-2);
   line-height: 1.05;
   text-wrap: balance;
-  color: var(--ink);
+  color: var(--ink-60);
 }
 @media (prefers-reduced-motion: reduce) {
-  .guide__half--left,
-  .guide[data-closing] .guide__half--left {
+  .guide,
+  .guide[data-state] {
+    transition: none;
+  }
+  .guide[data-state] .guide__half--left {
     animation: none;
   }
-  .guide[data-closing] {
-    opacity: 0;
+  .guide[data-state='closed']:has(.guide__peek:hover) {
+    translate: none;
   }
 }
 .guide__head {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
+  gap: 0.6em;
   font-size: var(--step--2);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--accent-ink);
   margin-bottom: 0.55rem;
+}
+/* the name and the way to fold it away on the first line, the count under them */
+.guide__head {
+  flex-wrap: wrap;
+  row-gap: 0.2rem;
+}
+.guide__head b {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.guide__head span {
+  order: 3;
+  flex: 1 0 100%;
+  color: var(--ink-40);
+  letter-spacing: 0.12em;
+}
+.guide__close {
+  align-self: flex-start;
+  padding: 0.1em 0.3em;
+  margin-right: -0.3em;
+  font: inherit;
+  letter-spacing: 0;
+  color: var(--ink-40);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+.guide__close:hover,
+.guide__close:focus-visible {
+  color: var(--ink);
 }
 .guide__layer {
   padding-top: 0.45rem;
@@ -448,6 +551,7 @@
 .guide__next button,
 .guide__next .guide__dark {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.55em;
   width: 100%;
@@ -485,11 +589,9 @@
   margin-left: auto;
   color: var(--ink-40);
 }
-/* exhibit 11 while it's dark: "lights at 10" goes under its name, not over it */
-.guide__next .guide__dark {
-  flex-wrap: wrap;
-}
-.guide__next .guide__when {
+/* exhibit 11's note ("lights at 10", "on the pad") goes under its name, not over it */
+.guide__next .guide__when,
+.guide__next button .guide__go {
   flex-basis: 100%;
   margin-left: 0;
   padding-left: calc(5px + 1.6em + 1.1em);
@@ -544,31 +646,6 @@
   fill: var(--accent);
   stroke: var(--accent);
 }
-.hero__signals-label {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-40);
-  font-variant-numeric: tabular-nums;
-  transition: color var(--t-base) var(--ease);
-}
-.hero__signals[data-complete] .hero__signals-label {
-  color: var(--accent-ink);
-}
-/* the tally steps (see HeroStage's TALLY_SETTLE_MS), and this is the moment it
-   does it — a bright flash that settles back into whichever colour the rule
-   above actually wants, so it still resolves correctly on the one flash that
-   lands on 10/10. Re-keyed per change (see the JSX) so it restarts every time
-   rather than only playing once. */
-@keyframes signals-flash {
-  0% { color: #8fe9ff; text-shadow: 0 0 10px rgba(39, 232, 242, 0.6); }
-  100% { color: var(--ink-40); text-shadow: none; }
-}
-.hero__signals-label--flash {
-  animation: signals-flash 0.9s var(--ease);
-}
-
 @media (max-width: 760px) {
   .hero__name {
     font-size: calc(var(--step-5) * var(--display-scale));
@@ -579,37 +656,39 @@
   .hero__title {
     max-width: 86vw;
   }
-  /* Keep the tally on screen (incl. the 10/10 completion state), stacked just
-     above the caption on the same left gutter so the two never collide. */
-  .hero__signals {
-    right: auto;
-    left: max(0px, calc((100vw - var(--container)) / 2));
-    bottom: calc(var(--space-l) + 2.6rem);
-    padding-inline: var(--space-m);
-    gap: 0.5em;
-  }
+  /* the leaflet's cover keeps the bottom-right corner on a phone too (the
+     caption has the left), a little shorter */
   .hero__signals-pips {
     gap: 3px;
-  }
-  /* when it wraps, it wraps along the left gutter it hangs from */
-  .hero__signals-label {
-    text-align: left;
   }
   .hero__signals-pips i {
     width: 4px;
     height: 4px;
   }
-  /* tally sits at the left gutter on phones — hang the whisper + guide
-     off the left edge so they stay on screen */
   .hero__hint {
-    right: auto;
-    left: var(--space-m);
     white-space: normal;
     max-width: 78vw;
+    text-align: right;
   }
-  .guide {
-    right: auto;
-    left: var(--space-m);
+  /* a narrow cover: the name on one line, the pips over the count, no note */
+  .guide__face--back {
+    padding: 0.7rem 0.7rem 0.6rem;
+  }
+  .guide__cover-kicker {
+    letter-spacing: 0.12em;
+  }
+  .guide__cover-note {
+    display: none;
+  }
+  /* and narrow panels: a name wraps rather than trailing off, and a dark one's
+     way there is the tap itself */
+  .guide__name {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+  .guide__dark .guide__go {
+    display: none;
   }
   /* let the narration wrap within the viewport instead of running off the edge;
      the tally above leaves room for up to two lines */

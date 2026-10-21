@@ -46,6 +46,8 @@ const ROCKET_PARTS = [
 ] as const;
 /** The race cars on the Room's AR table, and the leader's crown. */
 const CAR_PARTS = ['car_body', 'car_cabin', 'car_stripe', 'car_tyres', 'car_rims', 'crown'] as const;
+/** The VR headset on the Room's desk: the visor's parts, the strap and its dial. */
+const HEADSET_PARTS = ['hs_shell', 'hs_plate', 'hs_lenses', 'hs_face', 'hs_strap', 'hs_dial'] as const;
 export type ChipKit = Record<(typeof CHIP_PARTS)[number], BufferGeometry>;
 export type TowerKit = Record<(typeof TOWER_PARTS)[number], BufferGeometry>;
 export type BlocksKit = Record<string, BufferGeometry | undefined>;
@@ -53,6 +55,7 @@ export type MillKit = Record<(typeof MILL_PARTS)[number], BufferGeometry>;
 export type TrafoKit = Record<(typeof TRAFO_PARTS)[number], BufferGeometry>;
 export type RocketKit = Record<(typeof ROCKET_PARTS)[number], BufferGeometry>;
 export type CarKit = Record<(typeof CAR_PARTS)[number], BufferGeometry>;
+export type HeadsetKit = Record<(typeof HEADSET_PARTS)[number], BufferGeometry>;
 
 /** gltfpack stores positions and normals as quantized integers and parks the
  *  scale that undoes it on the piece's node. Bake that back into plain floats
@@ -161,6 +164,7 @@ const mill = modelFile('mill.glb', MILL_PARTS, "city's windmill");
 const trafo = modelFile('trafo.glb', TRAFO_PARTS, "city's transformer house");
 const rocket = modelFile('rocket.glb', ROCKET_PARTS, 'launch vehicle');
 const car = modelFile('car.glb', CAR_PARTS, 'race cars');
+const headset = modelFile('headset.glb', HEADSET_PARTS, 'VR headset');
 
 /** The park's AR viewer (city.tsx): one self-contained glTF scene, loaded once.
  *  Each user takes a clone, since it re-materials and re-scales what it gets. */
@@ -180,7 +184,7 @@ export function loadBinoculars(): Promise<Group> {
 /** Every model the maquette draws, arrived (or failed: a missing file is its
  *  layer's problem, not the camera's). Asking starts any load not yet begun. */
 export function maquetteLoaded(): Promise<void> {
-  return Promise.allSettled([chip.get(), tower.get(), blocks.get(), mill.get(), trafo.get(), rocket.get(), car.get(), loadBinoculars()]).then(() => undefined);
+  return Promise.allSettled([chip.get(), tower.get(), blocks.get(), mill.get(), trafo.get(), rocket.get(), car.get(), headset.get(), loadBinoculars()]).then(() => undefined);
 }
 
 export const useChipKit = chip.useKit;
@@ -195,3 +199,4 @@ export const useTrafoKit = trafo.useKit;
 export const loadRocketKit = rocket.get;
 export const useRocketKit = rocket.useKit;
 export const useCarKit = car.useKit;
+export const useHeadsetKit = headset.useKit;

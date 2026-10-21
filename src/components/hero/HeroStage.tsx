@@ -38,16 +38,6 @@ const TOTAL = HOTSPOTS.length;
 // model again, rather than jumping the instant they open a project, while
 // they're still looking at the close-up and never see the model fill in.
 const TALLY_SETTLE_MS = 900;
-/** The tally's words: the count, and what it's counting toward. The model
- *  assembles the next launch as exhibits light up, so the label names that
- *  goal from the first glance, counts down the last two, and says when it's ready. */
-function tallyLabel(n: number, cue: boolean): string {
-  if (n >= TOTAL) return `${TOTAL}/${TOTAL} lit · ready to launch`;
-  // while the first-visit hint above it says the goal, the tally doesn't repeat it
-  if (n === 0) return cue ? `0/${TOTAL} lit` : `0/${TOTAL} lit · light all ${TOTAL} to launch`;
-  if (n >= TOTAL - 2) return `${n}/${TOTAL} lit · ${TOTAL - n} to go`;
-  return `${n}/${TOTAL} lit · stacking the next launch`;
-}
 /** The line a returning visitor is greeted with, above the tally. The tally
  *  beside it already has the count, so this only says where they stand. */
 function welcomeLine(n: number): string {
@@ -78,13 +68,13 @@ export function HeroStage() {
   // section scrolls up over that spot instead of lingering on top of it.
   const [heroOwnsBottom, setHeroOwnsBottom] = useState(true);
   const reduced = useReducedMotion();
-  // the guide is a leaflet that folds: 'closing' is it folding shut again
+  // the guide is a leaflet pushed into the screen's edge: 'closing' is it folding shut and sliding back in
   const [guide, setGuide] = useState<'closed' | 'open' | 'closing'>('closed');
   const guideOpen = guide === 'open';
   const closeGuide = () => setGuide((g) => (g === 'open' ? 'closing' : g));
   useEffect(() => {
     if (guide !== 'closing') return;
-    const t = window.setTimeout(() => setGuide('closed'), reduced ? 0 : 420);
+    const t = window.setTimeout(() => setGuide('closed'), reduced ? 0 : 880);
     return () => clearTimeout(t);
   }, [guide, reduced]);
   // Load boot sequence: the bottom instrument line (layer caption + model tally)
@@ -206,6 +196,10 @@ export function HeroStage() {
   // and the moment the next section takes over the bottom of the screen.
   const overlayOpacity = selectedSlug || launching || !heroOwnsBottom ? 0 : 1;
   const caption = CAPTIONS[journeyStep] ?? CAPTIONS[0];
+  // out of sight (a label opened, the page scrolled on): the leaflet goes back in, so an unseen sheet never catches a click
+  useEffect(() => {
+    if (!overlayOpacity) setGuide('closed');
+  }, [overlayOpacity]);
 
   // exhibit 11, from the guide: up to the city, where the pad stands, and onto it
   const openPad = () => {
@@ -259,29 +253,16 @@ export function HeroStage() {
                 {PRESS} an exhibit to light it — all ten launch the next one
               </p>
             )}
-        {guide !== 'closed' && <ExhibitionGuide visited={visited} closing={guide === 'closing'} onClose={closeGuide} onOpenPad={openPad} />}
-        <button type="button" className="hero__signals-btn" aria-expanded={guideOpen} onClick={() => (guideOpen ? closeGuide() : setGuide('open'))}>
-          {/* Named by its visible text plus a hidden hint, rather than an
-              aria-label that said something else ("Projects live in the model:
-              0 of 10…") — speech input users say what they see. */}
-          <span className="hero__signals-pips" aria-hidden="true">
-            {HOTSPOTS.map((h, i) =>
-              i < TOTAL - 1 ? (
-                <i key={h.slug} data-on={i < revealed || undefined} />
-              ) : (
-                // the last one is what the ten add up to: the rocket
-                <svg key={h.slug} className="hero__signals-rocket" viewBox="0 0 8 12" data-on={i < revealed || undefined}>
-                  <path d="M4 0.6C5.6 2.2 6 4.4 6 6.6V9H2V6.6C2 4.4 2.4 2.2 4 0.6Z" />
-                  <path d="M2 7.2 0.6 9.6V10.6L2 9.8ZM6 7.2 7.4 9.6V10.6L6 9.8Z" />
-                </svg>
-              ),
-            )}
-          </span>
-          <span key={flashKey} className={flashKey > 0 ? 'hero__signals-label hero__signals-label--flash' : 'hero__signals-label'}>
-            {tallyLabel(revealed, cue)}
-          </span>
-          <span className="visually-hidden"> — the exhibition guide</span>
-        </button>
+        <ExhibitionGuide
+          state={guide}
+          visited={visited}
+          revealed={revealed}
+          cue={cue}
+          flashKey={flashKey}
+          onOpen={() => setGuide('open')}
+          onClose={closeGuide}
+          onOpenPad={openPad}
+        />
       </div>
 
       {STEPS.map((step) => (

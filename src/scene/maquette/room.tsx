@@ -11,8 +11,8 @@ import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
 import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
-import { Crease, GlassMat, GroundMat, LiveGlassMat } from './materials';
-import { useCarKit } from './kit';
+import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
+import { useCarKit, useHeadsetKit } from './kit';
 import { BlobShadow } from './backdrop';
 import { litMat, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
 import { hang, lathe, leaf, merge, place, softBox, softSeam, tube, useGeometry, type Soft } from './shapes';
@@ -667,40 +667,34 @@ function Mouse({ position, rotation }: { position: V3; rotation?: V3 }) {
   );
 }
 
-/** A VR headset lying on the desk, front to the room: a rounded visor with a
- *  dark front plate and a foam face pad behind it, and the head strap looped
- *  out the back and left flat on the desk. */
-function VRHeadset({ position, rotation, scale = 1 }: { position: V3; rotation?: V3; scale?: number }) {
-  const g = useGeometry(() => {
-    const strap: BufferGeometry[] = [];
-    // the strap: an ellipse out from both sides of the visor, closing behind it
-    const loop: V3[] = Array.from({ length: 16 }, (_, i) => {
-      const a = (i / 16) * Math.PI * 2;
-      return [Math.sin(a) * 0.062, 0.006, -0.115 + Math.cos(a) * 0.075];
-    });
-    strap.push(tube(loop, 0.0055, 6, 64, true));
-    // a thicker crown pad where it would sit on the back of the head
-    strap.push(place(softBox(0.07, 0.013, 0.014, 0.005), [0, 0.0075, -0.19]));
-    return {
-      visor: merge([place(softBox(0.108, 0.058, 0.07, 0.022, { bulge: 0.006 }), [0, 0.036, 0], [-0.1, 0, 0])]),
-      plate: merge([place(softBox(0.098, 0.044, 0.008, 0.018), [0, 0.036, 0.0345], [-0.1, 0, 0])]),
-      pad: merge([place(softBox(0.092, 0.046, 0.016, 0.007), [0, 0.034, -0.042], [-0.1, 0, 0])]),
-      strap: merge(strap),
-    };
-  });
+/** A VR headset put down on the desk, front to the room: the visor with its dark
+ *  glass front and tracking lenses, the foam gasket behind it, and the head strap
+ *  looped out the back. Modelled in Blender (scripts/models/build_headset.py);
+ *  the tension dial on its cushion takes the layer's accent. */
+function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
+  const kit = useHeadsetKit();
+  const { accent } = useAccent();
+  if (!kit) return null;
   return (
-    <group position={position} rotation={rotation} scale={scale}>
-      <mesh geometry={g.strap}>
+    <group position={position} rotation={rotation}>
+      <mesh geometry={kit.hs_strap}>
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="deep" />
       </mesh>
-      <mesh geometry={g.visor}>
+      <mesh geometry={kit.hs_shell}>
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="pale" />
+        <LiveEdges slug={DESK_SLUG} threshold={35} />
       </mesh>
-      <mesh geometry={g.plate}>
+      <mesh geometry={kit.hs_plate}>
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="deep" />
       </mesh>
-      <mesh geometry={g.pad}>
+      <mesh geometry={kit.hs_lenses}>
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
+      </mesh>
+      <mesh geometry={kit.hs_face}>
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
+      </mesh>
+      <mesh geometry={kit.hs_dial}>
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.9} roughness={0.4} toneMapped={false} />
       </mesh>
     </group>
   );
@@ -1278,13 +1272,13 @@ function Desk({ brigade }: { brigade: LitLink }) {
         </mesh>
         <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
       </LifeGroup>
-      {/* keyboard square in front of the monitor, mouse to its right, the cup
-          off to the left where an elbow won't knock it */}
+      {/* keyboard square in front of the monitor, mouse to its right; to its left
+          the headset the project is for, put down facing the room with its strap
+          trailing back, and the cup in the far corner, where an elbow won't knock it */}
       <Keyboard position={[-0.02, 0.403, 0.06]} rotation={[0, 0.04, 0]} />
       <Mouse position={[0.235, 0.408, 0.055]} rotation={[0, -0.12, 0]} />
-      <CoffeeCup position={[-0.34, 0.395, 0.075]} rotation={[0, -0.5, 0]} lit={brigade} />
-      {/* the headset the project is for, put down beside the monitor, on the side the room can see */}
-      <VRHeadset position={[-0.37, 0.395, -0.1]} rotation={[0, 0.55, 0]} scale={1.3} />
+      <CoffeeCup position={[-0.4, 0.395, -0.13]} rotation={[0, -2.2, 0]} lit={brigade} />
+      <VRHeadset position={[-0.28, 0.395, 0.06]} rotation={[0, -0.35, 0]} />
       {/* the antenna deploying out of the monitor, hailing for a link */}
       <BrigadeAntenna />
     </>
@@ -1352,8 +1346,7 @@ function OfficeChair() {
 // seat cushions have a crowned top and a rounded front, the back cushions
 // recline against a full-width back, a welt of piping runs round every
 // cushion — the detail that says "upholstered" at a glance, and at rest it
-// draws the seams into the ghost sketch — and a throw pillow sits in the free
-// corner. It used to be built with one corner radius on every part, which is
+// draws the seams into the ghost sketch. It used to be built with one corner radius on every part, which is
 // what made it read as inflated blocks: here it is tight on the frame and
 // soft on everything you would sit on.
 const COUCH_SEAT: { w: number; h: number; d: number; r: number; o: Soft } = { w: 0.369, h: 0.066, d: 0.4, r: 0.026, o: { crown: 0.007, bulge: 0.006, mid: 5 } };
@@ -1383,8 +1376,6 @@ function Couch() {
       body.push(place(softBox(B.w, B.h, B.d, B.r, B.o), at, rot));
       welt.push(place(tube(softSeam(B.w, B.h, B.d, B.r, B.o, 'front'), 0.003, 5, 72, true), at, rot));
     }
-    // a throw pillow in the free corner, away from the phone
-    wood.push(place(softBox(0.15, 0.15, 0.045, 0.03, { crown: 0.01, bulge: 0.014, bulgeBack: 0.014, mid: 4 }), [-0.305, 0.268, -0.055], [-0.42, 0.42, 0.1]));
     // splayed, tapered legs with a ferrule at the foot
     const leg = [[0, -0.08], [0.0095, -0.08], [0.0095, -0.069], [0.0086, -0.068], [0.0155, 0], [0, 0]] as [number, number][];
     for (const [lx, lz] of [[-0.4, 0.17], [0.4, 0.17], [-0.4, -0.17], [0.4, -0.17]]) {

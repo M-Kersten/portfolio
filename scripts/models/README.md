@@ -35,6 +35,12 @@ model, with the shared helpers in `modelkit.py`:
   tyres with rim faces, and the flat crown that floats over the leader. It
   ships as `public/models/car.glb`; `room.tsx` (RaceCar, LeaderCrown) gives
   the parts the game's colours, with the stripe's gradient painted on in code.
+- `build_headset.py`: the VR headset on the Room's desk, the Virtuele
+  Brigade's own kit: a rounded visor with a dark glass front and tracking
+  lenses, a foam gasket notched for the nose, and the head strap put down
+  behind it (a loop that rises from the desk to the visor, a top strap, a
+  cushion and a tension dial). It ships as `public/models/headset.glb`;
+  `room.tsx` (VRHeadset) gives the parts their glass, and the dial the accent.
 
 `src/scene/maquette/kit.ts` loads the files, and the layers give every part
 the site's own materials.
@@ -63,7 +69,8 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   origin, the mill on its own with its sails in the hub's space, the
   transformer house on its own plot's origin, the rocket on its axis with its
   skirt on the launch mount at y 0.09, the car on its wheels at y 0 nose to
-  +Z, and the crown standing on y 0. Each is authored around the
+  +Z, the crown standing on y 0, and the headset resting on y 0 with its
+  visor facing +Z. Each is authored around the
   origin its JSX group already uses, and exported without axis conversion, so
   a part drops onto its slot with no offsets in code.
 - **One bevel.** Every hard edge gets the same round two-segment bevel. That
