@@ -117,6 +117,33 @@
   opacity: 0;
   transition: opacity var(--t-fast) var(--ease);
 }
+/* Walking from one exhibit to the next while zoomed in (Exhibit.tsx): the
+   label steps aside the way you're going as the camera sets off (LEAVE_MS),
+   its line lets go of the object, and once the camera has arrived the next
+   label comes in from the other side, rather than unrolling from its line as
+   a first opening does. */
+.exhibit[data-leaving='1'] .xl {
+  animation: xl-leave-left 0.2s var(--ease-in-out) forwards;
+}
+.exhibit[data-leaving='-1'] .xl {
+  animation: xl-leave-right 0.2s var(--ease-in-out) forwards;
+}
+.exhibit[data-leaving] .xl__line {
+  opacity: 0;
+  transition: opacity 0.15s var(--ease);
+}
+@keyframes xl-leave-left {
+  to { opacity: 0; translate: -36px 0; }
+}
+@keyframes xl-leave-right {
+  to { opacity: 0; translate: 36px 0; }
+}
+.exhibit[data-place='maquette'][data-arrive='1'] .xl {
+  animation: xl-in-right 0.5s var(--ease) 0.12s backwards;
+}
+.exhibit[data-place='maquette'][data-arrive='-1'] .xl {
+  animation: xl-in-left 0.5s var(--ease) 0.12s backwards;
+}
 
 /* the film: the first thing the eye lands on; pressed, it plays right here */
 .xl__film {

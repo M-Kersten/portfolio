@@ -119,6 +119,19 @@
 .focus-reticle[data-fly] .focus-reticle__svg {
   animation: fr-acquire 1.55s both;
 }
+/* The re-lock: walking straight on to the next exhibit, the ring doesn't let go
+   and re-acquire. It stays on the porthole and turns a few ticks back into
+   place, breathing in a little as it does, over the camera's glide to the next
+   object (its new accent arrives with it). */
+@keyframes fr-relock {
+  0% {
+    transform: translate(-50%, -50%) scale(0.965) rotate(-22deg);
+    opacity: 0.55;
+  }
+}
+.focus-reticle[data-hop] .focus-reticle__svg {
+  animation: fr-relock 1.2s cubic-bezier(0.45, 0, 0.2, 1) both;
+}
 /* a clean hairline rim, a soft outer bloom, and a ring of short ticks whose sweep
    makes the lock-on rotation read — a camera viewfinder, not a busy gauge */
 .focus-reticle .fr-ring { fill: none; stroke: var(--fr-accent); stroke-width: 0.13; opacity: 0.5; }
@@ -130,7 +143,8 @@
   .focus-reticle__mask { transition: opacity var(--t-base) var(--ease); }
   /* no acquire under reduced motion (CameraRig sends no start point either) —
      the ring just sits locked at the centre */
-  .focus-reticle[data-fly] .focus-reticle__svg { animation: none; }
+  .focus-reticle[data-fly] .focus-reticle__svg,
+  .focus-reticle[data-hop] .focus-reticle__svg { animation: none; }
   .focus-reticle[data-fly] .focus-reticle__mask { transition-delay: 0s; }
 }
 

@@ -12,7 +12,7 @@ import { useSceneSelector } from '../../scene/store';
 import { Book } from './Book';
 import { Lightbox } from './Gallery';
 import { Label } from './Label';
-import { TURN_MS, box, sheetLayout, walkIn, type Dir, type From, type Place } from './parts';
+import { LEAVE_MS, TURN_MS, box, sheetLayout, walkIn, type Dir, type From, type Place } from './parts';
 
 // A project, opened. The site is an exhibition of my work in miniature, so a
 // project reads the way an exhibit does: a label beside the object, and the
@@ -47,8 +47,13 @@ import { TURN_MS, box, sheetLayout, walkIn, type Dir, type From, type Place } fr
 // Its styles are src/ui/exhibit.css.
 
 // How long the label waits for the camera before it shows anyway (no WebGL, so
-// nothing will ever report the camera as arrived).
+// nothing will ever report the camera as arrived). Once the camera has reported
+// an arrival in this visit it's known to be there, and a slow device can take
+// longer than that over a walk's glide, which would open the next label before
+// the camera has moved: then the wait is only a backstop.
 const ARRIVE_WAIT = 2200;
+const ARRIVE_BACKSTOP = 6000;
+const camera = { reported: false };
 
 export function Exhibit({
   study,
@@ -99,11 +104,13 @@ export function Exhibit({
   const reached = useSceneSelector((s) => s.selectedSlug === study.slug && s.zoomSettled);
   const [arrived, setArrived] = useState(!inMaquette || reached);
   useEffect(() => {
-    if (reached) setArrived(true);
+    if (!reached) return;
+    camera.reported = true;
+    setArrived(true);
   }, [reached]);
   useEffect(() => {
     if (arrived) return;
-    const t = window.setTimeout(() => setArrived(true), ARRIVE_WAIT);
+    const t = window.setTimeout(() => setArrived(true), camera.reported ? ARRIVE_BACKSTOP : ARRIVE_WAIT);
     return () => clearTimeout(t);
   }, [arrived]);
 
@@ -115,10 +122,22 @@ export function Exhibit({
   }, [study.slug, book, arrived]);
   // the tab names the project while it's open (and in the history list)
   useDocumentTitle(`${study.title} — ${site.hero.name}`);
+  // a walk from one exhibit to the next is one move, not a close and an open:
+  // it arrives without the pair of sounds (and its label from the side it was
+  // walked to, exhibit.css)
+  const [arrivedBy] = useState(walkIn.dir);
+  const walkedOn = useRef(false);
   useEffect(() => {
-    play('popup-open', { volume: 0.8 });
-    return () => play('popup-close', { volume: 0.8 });
-  }, []);
+    walkIn.dir = 0;
+    if (!arrivedBy) play('popup-open', { volume: 0.8 });
+    return () => {
+      if (!walkedOn.current) play('popup-close', { volume: 0.8 });
+    };
+  }, [arrivedBy]);
+  // (on a page this stays mounted through a walk, so it's only "walked on" until the next project is in)
+  useEffect(() => {
+    walkedOn.current = false;
+  }, [study.slug]);
   // a page holds still behind it (the maquette's route does its own)
   useScrollLock(!inMaquette);
 
@@ -139,11 +158,14 @@ export function Exhibit({
   }, [onBookChange]);
   // Walking to the next or the previous project from the book turns the page:
   // the leaf lifts off the spine first (TURN_MS), and the next spread's page
-  // lands as the new book arrives (exhibit.css). Where there's no spread (the
-  // phone) or no motion, it's a plain step. The turn belongs to the project it
-  // was started from: on a page (the timeline, the collection, search) this
-  // stays mounted as the walk swaps its project, and a turn left standing kept
-  // the new book's page lifted off and every further walk blocked.
+  // lands as the new book arrives (exhibit.css). From the label in the
+  // maquette, the label steps aside the way you're going (LEAVE_MS) as the
+  // camera sets off, and the next one comes in from the other side once it
+  // arrives. Where there's no spread (the phone) or no motion, it's a plain
+  // step. The turn belongs to the project it was started from: on a page (the
+  // timeline, the collection, search) this stays mounted as the walk swaps its
+  // project, and a turn left standing kept the new book's page lifted off and
+  // every further walk blocked.
   const [turn, setTurn] = useState<{ slug: string; dir: Dir } | null>(null);
   const turning: Dir | 0 = turn?.slug === study.slug ? turn.dir : 0;
   const turnTimer = useRef(0);
@@ -156,15 +178,19 @@ export function Exhibit({
       unfoldFrom.current = null;
       setFrame(null);
       setFilm(null);
-      if (book && dir && !reduced && !sheetLayout()) {
+      walkedOn.current = true;
+      if ((book || inMaquette) && dir && !reduced && !sheetLayout()) {
         setTurn({ slug: study.slug, dir });
-        turnTimer.current = window.setTimeout(() => {
-          setTurn(null);
-          onWalk(slug, book);
-        }, TURN_MS);
+        turnTimer.current = window.setTimeout(
+          () => {
+            setTurn(null);
+            onWalk(slug, book);
+          },
+          book ? TURN_MS : LEAVE_MS,
+        );
       } else onWalk(slug, book);
     },
-    [onWalk, book, next, prev, turning, reduced, study.slug],
+    [onWalk, book, next, prev, turning, reduced, study.slug, inMaquette],
   );
   const step = useCallback(
     (dir: Dir) => {
@@ -195,7 +221,16 @@ export function Exhibit({
   }, [frame, back, step]);
 
   return createPortal(
-    <div ref={rootRef} className="exhibit" data-place={place} data-layer={study.layer} data-book={book || undefined} data-closing={closing || undefined}>
+    <div
+      ref={rootRef}
+      className="exhibit"
+      data-place={place}
+      data-layer={study.layer}
+      data-book={book || undefined}
+      data-closing={closing || undefined}
+      data-leaving={(!book && turning) || undefined}
+      data-arrive={(!reduced && arrivedBy) || undefined}
+    >
       {/* behind it: a page dims; a click there steps back */}
       <div className="exhibit__dim" onClick={back} aria-hidden="true" />
       {!book && arrived && (

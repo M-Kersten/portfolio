@@ -23,6 +23,8 @@ export type From = { head?: Box; film: Box };
 export type Dir = 1 | -1;
 /** How long a page takes to lift off the spine when a walk turns it (exhibit.css --turn). */
 export const TURN_MS = 320;
+/** How long the label takes to step aside when a walk leaves it (exhibit.css xl-leave). */
+export const LEAVE_MS = 200;
 /** The side the next book comes in from after a walk: it outlives the book that
  *  walked (in the maquette a walk is a route change, and remounts the lot). */
 export const walkIn: { dir: Dir | 0 } = { dir: 0 };

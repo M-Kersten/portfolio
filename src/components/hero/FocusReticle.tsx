@@ -29,7 +29,17 @@ export function FocusReticle() {
 
   // The projection for THIS selection (written a frame after the slug lands, so
   // gating the reticle's appearance on it lets it open cleanly ON the target).
-  const acquired = open && start && start.slug === slug ? start : null;
+  // Walking straight from one exhibit to the next (the camera's hop) the ring
+  // stays locked on the porthole: it holds the last target through the frame
+  // the camera takes to report the new one, then re-locks (data-hop).
+  const fresh = open && start && start.slug === slug ? start : null;
+  const last = useRef<string | null>(null);
+  const hopFor = useRef<string | null>(null); // the exhibit the ring re-locked onto, for as long as it's held
+  const acquired = fresh ?? (open && last.current ? { slug: last.current, pos: null } : null);
+  if (fresh && !fresh.pos && last.current && last.current !== fresh.slug) hopFor.current = fresh.slug;
+  if (!acquired) hopFor.current = null;
+  last.current = acquired?.slug ?? null;
+  const hop = !!acquired && hopFor.current === acquired.slug;
   const from = acquired?.pos ?? null;
 
   // With a start point the ring plays the acquire (see the fr-acquire keyframes):
@@ -44,6 +54,7 @@ export function FocusReticle() {
       className="focus-reticle"
       data-open={!!acquired || undefined}
       data-fly={from ? true : undefined}
+      data-hop={hop || undefined}
       data-layer={layer.current}
       style={styleVars}
       aria-hidden="true"

@@ -64,6 +64,21 @@ const ACQUIRE_HOLD = 0.4;
 // on arrival instead of partway through the swoop in.
 const ZOOM_SETTLE = ACQUIRE_HOLD + 0.9;
 
+// A hop: the selection moves straight from one exhibit to the next while
+// zoomed in (a walk from the label or the book, a story link). Played as its
+// own move rather than as a fresh push-in, which used to zoom most of the way
+// back out during the acquire hold, swing the whole image sideways off the
+// porthole and back, then lurch in: one glide instead, on a timed curve that
+// starts and ends at rest, with the aim and the view angle travelling together
+// and the camera easing back a little mid-flight (more for a longer hop, so a
+// jump between layers arcs over the model rather than cutting through it). The
+// porthole stays where it is. `base`, `perUnit`, `min`, `max`: its length in
+// seconds, by how far the aim travels (world units); `lift*`: the pull-back at
+// its middle, as a share of the viewing distance; `settle`: how far through it
+// the camera counts as arrived (the label opens as it settles).
+const HOP = { base: 0.95, perUnit: 0.32, min: 1.05, max: 1.7, liftPerUnit: 0.16, liftMin: 0.06, liftMax: 0.42, settle: 0.8 };
+const smootherstep = (u: number) => u * u * u * (u * (u * 6 - 15) + 10);
+
 export function CameraRig() {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
@@ -91,6 +106,10 @@ export function CameraRig() {
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
   const focusAmt = useRef(0); // 0 overview → 1 zoomed on a node (drives the porthole view-offset)
+  // the hop in flight (see HOP): where it set off from, and how far along it is
+  const hop = useRef<{ fromPos: Vector3; fromTarget: Vector3; fromOff: Vector3; fromFov: number; t: number; dur: number; lift: number } | null>(null);
+  const hopTo = useRef(new Vector3());
+  const hopDir = useRef(new Vector3());
   // Reduced motion and phones skip the dolly — straight to the City overview.
   const introDone = useRef(reduced || isMobileViewport());
   const introReady = useRef(false); // models in, shaders compiled: the dolly may go
@@ -200,8 +219,13 @@ export function CameraRig() {
     // sideways, so if it ran while the reticle was still locking on, the object
     // would crawl out from under a ring that hasn't moved yet. `justSwitched`
     // covers the first frame, where nodeAge is still the outgoing node's.
+    // A hop holds the porthole where it is (see HOP).
     const justSwitched = selectedSlug !== prevSel.current;
-    const holdFocus = !!selectedSlug && !reduced && (justSwitched || nodeAge.current < ACQUIRE_HOLD);
+    const isExhibit = (slug: string | null) => !!slug && HOTSPOTS.some((h) => h.slug === slug);
+    const hopping = justSwitched
+      ? !reduced && launch === 'idle' && introDone.current && isExhibit(prevSel.current) && isExhibit(selectedSlug)
+      : hop.current !== null;
+    const holdFocus = !!selectedSlug && !reduced && !hopping && (justSwitched || nodeAge.current < ACQUIRE_HOLD);
     const wantFocus = !!selectedSlug && launch === 'idle' && !holdFocus;
     focusAmt.current += ((wantFocus ? 1 : 0) - focusAmt.current) * (reduced ? 1 : 1 - Math.exp(-6 * dt));
     const pcam = camera as PerspectiveCamera;
@@ -345,6 +369,20 @@ export function CameraRig() {
       prevSel.current = selectedSlug;
       nodeAge.current = 0;
       sway.current = 0;
+      // straight from one exhibit to another: a hop, from wherever the camera is
+      const cam0 = camera as PerspectiveCamera;
+      hop.current =
+        hotspot && hopping
+          ? {
+              fromPos: camera.position.clone(),
+              fromTarget: target.current.clone(),
+              fromOff: new Vector3(),
+              fromFov: cam0.isPerspectiveCamera ? cam0.fov : 0,
+              t: 0,
+              dur: 0,
+              lift: 0,
+            }
+          : null;
       // setSelected already latched zoomSettled false for a fresh push-in, so the
       // rig only ever RELEASES it — one owner per edge, no race. Reduced motion
       // has no glide to wait out and a selection with no hotspot has nothing to
@@ -354,8 +392,9 @@ export function CameraRig() {
       // the porthole reticle can appear ON it and fly to the ring centre as the
       // camera zooms in. Off-screen / reduced-motion → no fly-in (opens centred).
       if (hotspot) {
+        // (a hop keeps the ring locked on the porthole: no fly-in)
         const ndc = anchorWorld(hotspot, gap).project(camera);
-        const onScreen = !reduced && ndc.z < 1 && Math.abs(ndc.x) < 1.4 && Math.abs(ndc.y) < 1.4;
+        const onScreen = !reduced && !hop.current && ndc.z < 1 && Math.abs(ndc.x) < 1.4 && Math.abs(ndc.y) < 1.4;
         sceneStore.setReticleStart({
           slug: hotspot.slug,
           pos: onScreen ? { x: (ndc.x * 0.5 + 0.5) * 100, y: (-ndc.y * 0.5 + 0.5) * 100 } : null,
@@ -366,7 +405,8 @@ export function CameraRig() {
     }
     if (hotspot) {
       nodeAge.current += dt;
-      if (nodeAge.current >= ZOOM_SETTLE) sceneStore.setZoomSettled(true);
+      // (a hop says when it has arrived itself, below)
+      if (!hop.current && nodeAge.current >= ZOOM_SETTLE) sceneStore.setZoomSettled(true);
     }
 
     // ---- The acquire hold. The camera's glide is exponential (see the lerp at the
@@ -376,7 +416,7 @@ export function CameraRig() {
     // So hold the previous framing while the reticle finds and locks the target,
     // then release: the push-in and the ring's travel start on the same beat and
     // ease the same way. Must match ACQUIRE_HOLD in the fr-acquire keyframes.
-    const acquiring = !!hotspot && !reduced && nodeAge.current < ACQUIRE_HOLD;
+    const acquiring = !!hotspot && !reduced && !hop.current && nodeAge.current < ACQUIRE_HOLD;
     const framed = hotspot && !acquiring ? hotspot : undefined;
 
     const base = framed ? nodeView(framed, gap, view!) : journeyView(journeyStep, gap, aspect);
@@ -426,9 +466,41 @@ export function CameraRig() {
       desiredPos.current.copy(base.target).add(off);
     }
 
+    const cam = camera as PerspectiveCamera;
+
+    // ---- The hop (see HOP): the aim travels from where it was to the new
+    // object, the view's direction turns from the old angle to the new one and
+    // its distance from the old to the new, with a pull-back at the middle, all
+    // on one curve that leaves and arrives at rest; the lens with them. The
+    // chase below takes over from exactly where it ends.
+    const h = hop.current;
+    if (h && framed) {
+      if (!h.dur) {
+        const d = h.fromTarget.distanceTo(desiredTarget.current);
+        h.dur = Math.min(HOP.max, Math.max(HOP.min, HOP.base + HOP.perUnit * d));
+        h.lift = Math.min(HOP.liftMax, Math.max(HOP.liftMin, HOP.liftPerUnit * d));
+        h.fromOff.copy(h.fromPos).sub(h.fromTarget);
+      }
+      h.t += dt;
+      const u = Math.min(1, h.t / h.dur);
+      const e = smootherstep(u);
+      target.current.copy(h.fromTarget).lerp(desiredTarget.current, e);
+      const to = hopTo.current.copy(desiredPos.current).sub(desiredTarget.current);
+      const len = (h.fromOff.length() + (to.length() - h.fromOff.length()) * e) * (1 + h.lift * Math.sin(Math.PI * e));
+      const dir = hopDir.current.copy(h.fromOff).normalize().lerp(to.normalize(), e).normalize();
+      camera.position.copy(target.current).addScaledVector(dir, len);
+      if (cam.isPerspectiveCamera && h.fromFov) {
+        cam.fov = h.fromFov + (wantFov - h.fromFov) * e;
+        cam.updateProjectionMatrix();
+      }
+      if (u >= HOP.settle) sceneStore.setZoomSettled(true);
+      if (u >= 1) hop.current = null;
+      camera.lookAt(target.current);
+      return;
+    }
+
     // The lens breathes with the zoom: ease the FOV toward wantFov so zooming in
     // visibly widens it and zooming out settles it back.
-    const cam = camera as PerspectiveCamera;
     if (cam.isPerspectiveCamera) {
       const nextFov = reduced ? wantFov : cam.fov + (wantFov - cam.fov) * (1 - Math.exp(-CAMERA.fovLerp * dt));
       if (Math.abs(nextFov - cam.fov) > 0.002) {
