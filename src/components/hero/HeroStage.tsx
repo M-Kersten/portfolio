@@ -32,12 +32,17 @@ const CAPTIONS = [
 // from ghost to lit, and the tally's own label says so.
 const TOTAL = HOTSPOTS.length;
 // How long the ambient tally waits, after a hotspot's HUD closes, before it
-// steps to the new count. Roughly how long CameraRig's exponential zoom-out
-// takes to visually settle (it eases at k=3.4/s — ~95% of the way there by
+// steps to the new count. Roughly how long CameraRig's zoom-out takes to
+// visually settle (its spring, CAMERA.glide, is ~95% of the way there by
 // ~0.9s) — the tally lands once the visitor is actually looking at the whole
 // model again, rather than jumping the instant they open a project, while
 // they're still looking at the close-up and never see the model fill in.
 const TALLY_SETTLE_MS = 900;
+// Back from an exhibit, the hero's chrome (the title, the caption, the guide)
+// waits this long before it fades back, so it returns over the model rather
+// than over the close-up the camera is still pulling out of (the markers wait
+// the same, hotspots.tsx).
+const RETURN_MS = 400;
 /** The line a returning visitor is greeted with, above the tally. The tally
  *  beside it already has the count, so this only says where they stand. */
 function welcomeLine(n: number): string {
@@ -142,6 +147,18 @@ export function HeroStage() {
   // very first paint never flashes for a change that didn't happen.
   const [flashKey, setFlashKey] = useState(0);
   const wasSelected = useRef(selectedSlug);
+  // just back from an exhibit (see RETURN_MS)
+  const [returningFrom, setReturningFrom] = useState(false);
+  const hadSelection = useRef(selectedSlug);
+  useEffect(() => {
+    const was = hadSelection.current;
+    hadSelection.current = selectedSlug;
+    if (selectedSlug) setReturningFrom(false);
+    if (!was || selectedSlug || reduced) return;
+    setReturningFrom(true);
+    const t = window.setTimeout(() => setReturningFrom(false), RETURN_MS);
+    return () => clearTimeout(t);
+  }, [selectedSlug, reduced]);
   useEffect(() => {
     const prev = wasSelected.current;
     wasSelected.current = selectedSlug;
@@ -191,10 +208,11 @@ export function HeroStage() {
 
   // Title lives only on the City layer (and only while the hero is on screen);
   // it clears the moment you scroll to Room or leave the hero entirely.
-  const opacity = selectedSlug || launching ? 0 : heroInView && journeyStep === 0 ? 1 : 0;
+  const away = Boolean(selectedSlug) || launching || returningFrom;
+  const opacity = away ? 0 : heroInView && journeyStep === 0 ? 1 : 0;
   // The caption + model tally ride the whole journey, clearing with the HUD
   // and the moment the next section takes over the bottom of the screen.
-  const overlayOpacity = selectedSlug || launching || !heroOwnsBottom ? 0 : 1;
+  const overlayOpacity = away || !heroOwnsBottom ? 0 : 1;
   const caption = CAPTIONS[journeyStep] ?? CAPTIONS[0];
   // out of sight (a label opened, the page scrolled on): the leaflet goes back in, so an unseen sheet never catches a click
   useEffect(() => {

@@ -12,12 +12,20 @@
   position: relative;
   /* the marker colour: the layer accent from the very first frame */
   --hotc: var(--hot, var(--accent));
-  transition: opacity var(--t-base) var(--ease);
+  /* closing an exhibit, it comes back once the camera has mostly pulled out
+     (SHOW_DELAY in hotspots.tsx, which fades the leader line the same way) */
+  transition: opacity var(--t-base) var(--ease) 0.4s;
 }
 /* When any node is selected every marker fades out — the HUD owns the frame. */
 .hotspot[data-hidden] {
   opacity: 0;
   pointer-events: none;
+  transition-delay: 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hotspot {
+    transition-delay: 0s;
+  }
 }
 .hotspot[data-alive] {
   --hotc: color-mix(in srgb, var(--hot, var(--accent)) 85%, white 15%);

@@ -2,17 +2,23 @@
 // part (crosshair, brackets, label) lives in a drei <Html>; the leader line and
 // anchor ring are real scene geometry so they sit in the fog like everything
 // else. Styling lives in src/ui (search ".hotspot").
-import { type CSSProperties } from 'react';
+import { useRef, type CSSProperties, type ElementRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
+import { type MeshBasicMaterial } from 'three';
 import { sceneStore } from '../store';
 import { caseBySlug } from '../../content';
 import { Scramble } from '../../components/shell/Scramble';
 import { type Hotspot } from '../framing';
-import { PRESS } from '../../lib/media';
+import { PRESS, useReducedMotion } from '../../lib/media';
 import { Line, useActive, type V3 } from './shared';
 
 // Touch has no hover and no click, so the cue says what the finger does.
 const CUE_TEXT = `${PRESS} to light it`;
+// Closing an exhibit, the markers come back once the camera has mostly pulled
+// out, not while it's still flying (the crosshairs wait the same in
+// hotspots.css); they go at once.
+const SHOW_DELAY = 0.4;
 
 export function HotspotMarker({
   hotspot,
@@ -41,14 +47,29 @@ export function HotspotMarker({
   // node is open the markers all vanish, so the HUD gets a clean stage.
   const alive = selected || visited;
   const anchor: V3 = hotspot.anchor ?? [hotspot.position[0], 0, hotspot.position[2]];
+  // the leader line and the ring fade with the crosshair rather than popping
+  const reduced = useReducedMotion();
+  const lineRef = useRef<ElementRef<typeof Line>>(null);
+  const ringMat = useRef<MeshBasicMaterial>(null);
+  const shown = useRef(hidden ? 0 : 1);
+  const since = useRef(SHOW_DELAY);
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05);
+    since.current = hidden ? 0 : since.current + dt;
+    const want = !hidden && since.current >= SHOW_DELAY ? 1 : 0;
+    shown.current = reduced ? (hidden ? 0 : 1) : shown.current + (want - shown.current) * (1 - Math.exp(-(want ? 7 : 14) * dt));
+    const line = lineRef.current?.material as { opacity: number } | undefined;
+    if (line) line.opacity = shown.current * (alive ? 0.55 : 0.4);
+    if (ringMat.current) ringMat.current.opacity = shown.current * (alive ? 0.65 : 0.48);
+  });
   return (
     <group>
       {/* leader line from the object up to the floating crosshair */}
-      <Line points={[anchor, hotspot.position]} color={color} lineWidth={1} transparent opacity={hidden ? 0 : alive ? 0.55 : 0.4} />
+      <Line ref={lineRef} points={[anchor, hotspot.position]} color={color} lineWidth={1} transparent opacity={0} />
       {/* a ring marking the exact spot on the object */}
       <mesh position={anchor} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.016, 0.027, 20]} />
-        <meshBasicMaterial color={color} transparent opacity={hidden ? 0 : alive ? 0.65 : 0.48} side={2} toneMapped={false} />
+        <meshBasicMaterial ref={ringMat} color={color} transparent opacity={0} side={2} toneMapped={false} />
       </mesh>
       <Html position={hotspot.position} center zIndexRange={[20, 0]} className="hotspot-wrap">
         <span

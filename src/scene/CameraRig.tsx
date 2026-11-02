@@ -58,8 +58,8 @@ function readPorthole(): { x: number; y: number } {
 // (porthole.css) — the two are one movement and have to agree.
 const ACQUIRE_HOLD = 0.4;
 // Seconds from selection to the push-in visually settling — the acquire hold
-// above, plus how long the glide's exponential ease (k=3.4/s, below) takes to
-// close ~95% of the distance: -ln(0.05)/3.4 ≈ 0.88s. Gates store.zoomSettled,
+// above, plus how long the camera's spring (CAMERA.glide, 0.37s) takes to close
+// ~95% of the distance: 2.37 × 0.37 ≈ 0.88s. Gates store.zoomSettled,
 // which useActive ANDs into `selected` — so an object's wake animations start
 // on arrival instead of partway through the swoop in.
 const ZOOM_SETTLE = ACQUIRE_HOLD + 0.9;
@@ -78,6 +78,33 @@ const ZOOM_SETTLE = ACQUIRE_HOLD + 0.9;
 // the camera counts as arrived (the label opens as it settles).
 const HOP = { base: 0.95, perUnit: 0.32, min: 1.05, max: 1.7, liftPerUnit: 0.16, liftMin: 0.06, liftMax: 0.42, settle: 0.8 };
 const smootherstep = (u: number) => u * u * u * (u * (u * 6 - 15) + 10);
+
+// The camera's spring (CAMERA.glide): one step of a critically damped spring
+// toward `to` (the closed-form approximation game engines use for "smooth
+// damp", stable at any frame time), with its velocity carried in `vel`. Where
+// an exponential chase leaves at full speed the instant its goal changes, this
+// gathers speed and settles, and a new goal mid-move bends the path rather
+// than snapping its speed.
+function springFactor(dt: number, glide: number) {
+  const x = (2 / glide) * dt;
+  return { omega: 2 / glide, decay: 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x) };
+}
+function spring(cur: number, to: number, vel: { v: number }, dt: number, glide: number): number {
+  const { omega, decay } = springFactor(dt, glide);
+  const change = cur - to;
+  const temp = (vel.v + omega * change) * dt;
+  vel.v = (vel.v - omega * temp) * decay;
+  return to + (change + temp) * decay;
+}
+function springVec(cur: Vector3, to: Vector3, vel: Vector3, dt: number, glide: number) {
+  const { omega, decay } = springFactor(dt, glide);
+  for (const k of ['x', 'y', 'z'] as const) {
+    const change = cur[k] - to[k];
+    const temp = (vel[k] + omega * change) * dt;
+    vel[k] = (vel[k] - omega * temp) * decay;
+    cur[k] = to[k] + (change + temp) * decay;
+  }
+}
 
 export function CameraRig() {
   const camera = useThree((s) => s.camera);
@@ -106,6 +133,17 @@ export function CameraRig() {
   const desiredPos = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
   const focusAmt = useRef(0); // 0 overview → 1 zoomed on a node (drives the porthole view-offset)
+  // the spring's velocities (see spring): the camera, its aim, its lens, the porthole's slide
+  const posVel = useRef(new Vector3());
+  const aimVel = useRef(new Vector3());
+  const fovVel = useRef({ v: 0 });
+  const focusVel = useRef({ v: 0 });
+  // something else is steering (the intro's dolly, the launch, a hop): the spring picks up from rest
+  const restSpring = () => {
+    posVel.current.set(0, 0, 0);
+    aimVel.current.set(0, 0, 0);
+    fovVel.current.v = 0;
+  };
   // the hop in flight (see HOP): where it set off from, and how far along it is
   const hop = useRef<{ fromPos: Vector3; fromTarget: Vector3; fromOff: Vector3; fromFov: number; t: number; dur: number; lift: number } | null>(null);
   const hopTo = useRef(new Vector3());
@@ -227,7 +265,8 @@ export function CameraRig() {
       : hop.current !== null;
     const holdFocus = !!selectedSlug && !reduced && !hopping && (justSwitched || nodeAge.current < ACQUIRE_HOLD);
     const wantFocus = !!selectedSlug && launch === 'idle' && !holdFocus;
-    focusAmt.current += ((wantFocus ? 1 : 0) - focusAmt.current) * (reduced ? 1 : 1 - Math.exp(-6 * dt));
+    if (reduced) focusAmt.current = wantFocus ? 1 : 0;
+    else focusAmt.current = Math.min(1, Math.max(0, spring(focusAmt.current, wantFocus ? 1 : 0, focusVel.current, dt, CAMERA.glide)));
     const pcam = camera as PerspectiveCamera;
     if (pcam.isPerspectiveCamera) {
       if (focusAmt.current > 0.001) {
@@ -272,6 +311,7 @@ export function CameraRig() {
         camera.position.copy(s.pos).lerp(e.pos, t);
         target.current.copy(s.target).lerp(e.target, t);
         camera.lookAt(target.current);
+        restSpring();
         const cam0 = camera as PerspectiveCamera;
         const wantFov0 = fitFov(aspect);
         if (cam0.isPerspectiveCamera && Math.abs(cam0.fov - wantFov0) > 0.01) {
@@ -294,6 +334,7 @@ export function CameraRig() {
     // cutting from one camera to the next.
     // Overrides journey + node.
     if (launch !== 'idle') {
+      restSpring();
       const flying = launch !== 'pad' && launchShot.active;
       const fit = fitScale(aspect);
       if (flying) {
@@ -409,13 +450,13 @@ export function CameraRig() {
       if (!hop.current && nodeAge.current >= ZOOM_SETTLE) sceneStore.setZoomSettled(true);
     }
 
-    // ---- The acquire hold. The camera's glide is exponential (see the lerp at the
-    // bottom: ~86% of the way in 0.6s), so if it starts the instant you select, it
-    // has effectively arrived before the reticle has even begun to travel — the
-    // ring then lands about a second late, which is exactly what read as wrong.
-    // So hold the previous framing while the reticle finds and locks the target,
-    // then release: the push-in and the ring's travel start on the same beat and
-    // ease the same way. Must match ACQUIRE_HOLD in the fr-acquire keyframes.
+    // ---- The acquire hold. If the push-in started the instant you select, the
+    // camera would be well on its way before the reticle had even begun to
+    // travel, and the ring would land late. So hold the previous framing while
+    // the reticle finds and locks the target, then release: the push-in and the
+    // ring's travel start on the same beat and ease the same way (the ring's
+    // curve is fitted to the camera's spring). Must match ACQUIRE_HOLD in the
+    // fr-acquire keyframes.
     const acquiring = !!hotspot && !reduced && !hop.current && nodeAge.current < ACQUIRE_HOLD;
     const framed = hotspot && !acquiring ? hotspot : undefined;
 
@@ -495,14 +536,16 @@ export function CameraRig() {
       }
       if (u >= HOP.settle) sceneStore.setZoomSettled(true);
       if (u >= 1) hop.current = null;
+      restSpring();
       camera.lookAt(target.current);
       return;
     }
 
-    // The lens breathes with the zoom: ease the FOV toward wantFov so zooming in
-    // visibly widens it and zooming out settles it back.
+    // The lens breathes with the zoom: the FOV widens as the camera dollies in
+    // and settles back as it pulls out, on the camera's own spring, so the
+    // dolly and the lens (which the pull-in above compensates for) move as one.
     if (cam.isPerspectiveCamera) {
-      const nextFov = reduced ? wantFov : cam.fov + (wantFov - cam.fov) * (1 - Math.exp(-CAMERA.fovLerp * dt));
+      const nextFov = reduced ? wantFov : spring(cam.fov, wantFov, fovVel.current, dt, CAMERA.glide);
       if (Math.abs(nextFov - cam.fov) > 0.002) {
         cam.fov = nextFov;
         cam.updateProjectionMatrix();
@@ -512,10 +555,10 @@ export function CameraRig() {
     if (reduced) {
       camera.position.copy(desiredPos.current);
       target.current.copy(desiredTarget.current);
+      restSpring();
     } else {
-      const k = 1 - Math.exp(-3.4 * dt);
-      camera.position.lerp(desiredPos.current, k);
-      target.current.lerp(desiredTarget.current, k);
+      springVec(camera.position, desiredPos.current, posVel.current, dt, CAMERA.glide);
+      springVec(target.current, desiredTarget.current, aimVel.current, dt, CAMERA.glide);
     }
     camera.lookAt(target.current);
   });

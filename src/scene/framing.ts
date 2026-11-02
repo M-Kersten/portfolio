@@ -170,7 +170,14 @@ export const CAMERA = {
   // push). The camera pulls in to match so the node keeps its framing whatever
   // you set here. `fovLerp` = how fast it settles.
   fovZoom: 8,
-  fovLerp: 2.2,
+  fovLerp: 2.2, // (the launch's lens; the maquette's rides `glide`)
+  // How the camera travels between framings (the scroll journey's layers, a
+  // node's close-up and back): a critically damped spring, so it leaves from
+  // rest, never overshoots, and carries its speed through a change of mind
+  // (scrolling on mid-move). The seconds it's tuned by: ~95% of the way in 2.4×
+  // this. The lens and the porthole's slide ride the same spring, so the
+  // framing and the ring stay together on the way in.
+  glide: 0.37,
 };
 
 // The launch easter egg's camera on the pad (see CameraRig's launch branch).
