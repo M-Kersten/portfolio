@@ -247,6 +247,13 @@
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   border-color: var(--line);
 }
+/* a name that would run into its neighbour's marker reads to the left of its
+   own (the windmill's, beside the tower's) */
+.hotspot[data-side='left'] .hotspot__label,
+.hotspot[data-side='left'] .hotspot__cue {
+  left: auto;
+  right: calc(100% + 0.55em);
+}
 /* selecting hides the name — the title now lives in the HUD card */
 .hotspot[data-open='true'] .hotspot__label {
   opacity: 0;

@@ -31,6 +31,7 @@ export function IntroCard() {
       sceneStore.snapshot().introOver,
   );
   const [show, setShow] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
   // the card decodes on the maquette's beat; the Scramble waits out that delay
   const showDelay = useRef(Math.max(0, MAQUETTE_BOOT - (performance.now() - bootAt)));
 
@@ -41,14 +42,34 @@ export function IntroCard() {
       sceneStore.endIntro();
       return;
     }
+    // The hero title/subtitle are the NEXT beat: release them only once the card
+    // has fully faded out, so the two never animate at the same time. Both
+    // beats are taken from what the card actually does rather than from load:
+    // while the models load, a long task can start the card late (which used to
+    // cut its reading time short) and hold its fade back until a clock would
+    // already have released the title. So the hold runs from when it shows, and
+    // the title waits for the fade OUT to end (a timer is only the backstop,
+    // should the fade not run at all).
+    const card = cardRef.current;
+    let t2 = 0;
+    let t3 = 0;
+    const release = () => {
+      clearTimeout(t3);
+      card?.removeEventListener('transitionend', onFaded);
+      sceneStore.endIntro();
+    };
+    const onFaded = (e: TransitionEvent) => {
+      if (card && e.target === card && e.propertyName === 'opacity' && !card.hasAttribute('data-show')) release();
+    };
     const t1 = window.setTimeout(() => {
       setShow(true);
       markIntroSeen();
+      t2 = window.setTimeout(() => {
+        setShow(false);
+        card?.addEventListener('transitionend', onFaded);
+        t3 = window.setTimeout(release, FADE * 3);
+      }, HOLD);
     }, showDelay.current);
-    const t2 = window.setTimeout(() => setShow(false), showDelay.current + HOLD);
-    // The hero title/subtitle are the NEXT beat: release them only once the card
-    // has fully faded out, so the two never animate at the same time.
-    const t3 = window.setTimeout(() => sceneStore.endIntro(), showDelay.current + HOLD + FADE);
     const clear = () => {
       setShow(false); // first interaction dismisses the card early…
       sceneStore.endIntro(); // …and hands the hero straight back
@@ -59,13 +80,14 @@ export function IntroCard() {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      card?.removeEventListener('transitionend', onFaded);
       evs.forEach((ev) => window.removeEventListener(ev, clear));
     };
   }, [reduced]);
 
   if (skip.current || !intro || reduced) return null;
   return (
-    <div className="intro-card" data-show={show || undefined} aria-hidden={!show}>
+    <div ref={cardRef} className="intro-card" data-show={show || undefined} aria-hidden={!show}>
       <p className="intro-card__title">
         <Scramble text={intro.title} delay={reduced ? 0 : showDelay.current} wrap />
       </p>

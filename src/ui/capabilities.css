@@ -50,7 +50,7 @@
   /* Where the container's left/right grid line falls, measured from the band's
      edge — the outer columns aim their text edge at it so the copy starts on
      the same line as the section title above. */
-  --cap-gutter: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
+  --cap-gutter: max(var(--space-m), calc((var(--page-w) - var(--container)) / 2 + var(--space-m)));
   /* ...but only as far as the column can afford. Past the container width the
      gutter grows by half of every pixel added to the window while the column
      grows by a third, so aiming at it unchecked made the outer columns NARROWER
@@ -223,7 +223,7 @@
     min-height: clamp(240px, 60vw, 340px);
     padding-block: clamp(1.75rem, 6vw, 2.75rem);
     /* the copy sits on the same left grid line as the section title above */
-    padding-inline: max(var(--space-m), calc((100vw - var(--container)) / 2 + var(--space-m)));
+    padding-inline: max(var(--space-m), calc((var(--page-w) - var(--container)) / 2 + var(--space-m)));
     border-top: 1px solid var(--line); /* seam between the stacked scales */
   }
   .cap:first-child { border-top: 0; }

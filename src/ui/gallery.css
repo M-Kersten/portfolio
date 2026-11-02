@@ -72,8 +72,14 @@
   place-items: center;
   padding: var(--space-s);
   background: color-mix(in srgb, #05070a 88%, transparent);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   animation: focus-fade var(--t-base) var(--ease);
+}
+@keyframes focus-fade {
+  from {
+    opacity: 0;
+  }
 }
 .lb__frame {
   position: relative;
@@ -89,6 +95,7 @@
      `min-height: 0` lets it actually shrink inside the flex column. */
   min-height: 0;
   max-width: 100%;
+  max-height: calc(100vh - 8rem);
   max-height: calc(100svh - 8rem);
   object-fit: contain;
   margin: auto;
@@ -131,6 +138,7 @@
   color: var(--ink);
   cursor: pointer;
   line-height: 1;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 .lb__btn:hover { border-color: var(--ink); }

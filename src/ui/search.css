@@ -62,6 +62,7 @@
   align-items: center;
   padding: clamp(3rem, 11vh, 8rem) var(--space-m) var(--space-m);
   background: color-mix(in srgb, var(--paper) 68%, transparent);
+  -webkit-backdrop-filter: blur(6px) saturate(1.1);
   backdrop-filter: blur(6px) saturate(1.1);
   animation: search-fade var(--t-fast) var(--ease);
 }
@@ -267,8 +268,8 @@
   }
 }
 
-@media (max-width: 720px) {
-  /* on the phone bar, the trigger collapses to just the glass */
+@media (max-width: 960px) {
+  /* on the drawer's bar (header.css), the trigger collapses to just the glass */
   .find {
     padding: 0;
     width: 2rem;

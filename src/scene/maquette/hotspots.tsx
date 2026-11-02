@@ -57,6 +57,7 @@ export function HotspotMarker({
           data-alive={alive || undefined}
           data-hidden={hidden || undefined}
           data-cue={cue}
+          data-side={hotspot.labelSide}
           style={{ '--hot': color, '--phase': phase } as CSSProperties}
         >
           <button

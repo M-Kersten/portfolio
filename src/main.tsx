@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
+import { jumpTo, trackScrollbar } from './lib/page';
 import './ui/global.css';
 
 // Start every hard load at the top and stop the browser restoring a prior
@@ -11,7 +12,8 @@ import './ui/global.css';
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 // Instant, not smooth — html has scroll-behavior:smooth, and a smooth reset
 // would animate down THROUGH the lower layers, cancelling the intro on the way.
-if (!window.location.hash) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+if (!window.location.hash) jumpTo(0);
+trackScrollbar();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

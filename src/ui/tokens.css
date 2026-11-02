@@ -143,6 +143,11 @@
      maquette and let every section breathe. All the "one grid line" math
      (hero title, band gutters, wall cue) derives from this token. */
   --container: 87.5rem;
+  /* The page's width without its scroll bar: what .container is centred in.
+     100vw counts a desktop scroll bar (Windows, Linux) as page, which put a
+     gutter worked out from it half a bar off the grid line; --sbw is kept at
+     the bar's width by lib/page.ts (0 where bars float over the page). */
+  --page-w: calc(100vw - var(--sbw, 0px));
   --radius: 4px; /* crisp, tactile corners (was a soft acrylic 14px) */
   --radius-s: 2px;
 

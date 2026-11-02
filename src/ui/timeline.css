@@ -12,6 +12,7 @@
 .wall__pin {
   position: sticky;
   top: 0;
+  height: 100vh;
   height: 100svh;
   overflow: hidden;
 }
@@ -178,6 +179,7 @@
   border: 1px solid color-mix(in srgb, var(--band) 45%, var(--line));
   border-radius: var(--radius-s);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   opacity: 0;
   visibility: hidden;
@@ -381,6 +383,7 @@
   color: transparent;
   -webkit-text-stroke: 1px color-mix(in srgb, var(--ink) 20%, transparent);
   pointer-events: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 .wall__digit {
@@ -452,6 +455,7 @@
   padding: 0.7rem var(--space-m) max(0.7rem, env(safe-area-inset-bottom));
   background: color-mix(in srgb, var(--paper-2) 92%, transparent);
   border-top: 2px solid color-mix(in srgb, var(--band, var(--accent)) 70%, var(--line));
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   backdrop-filter: blur(12px) saturate(1.2);
   box-shadow: 0 -14px 32px rgba(0, 0, 0, 0.5);
   transform: translateY(110%);

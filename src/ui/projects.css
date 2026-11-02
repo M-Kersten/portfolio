@@ -8,6 +8,7 @@
    mono tags, a sort set like the nav, and the timeline's waypoint cards. */
 
 .pc-stage {
+  min-height: 100vh;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -341,8 +342,9 @@
   .pi-tools {
     width: 100%;
     margin-left: 0;
+    flex-wrap: wrap; /* on the narrowest phones the sort drops under the count */
     justify-content: space-between;
-    gap: var(--space-s);
+    gap: var(--space-2xs) var(--space-s);
   }
   .pi-count {
     font-size: var(--step--2);

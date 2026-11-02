@@ -34,6 +34,9 @@ export interface Hotspot {
   position: [number, number, number];
   /** Point ON the object the leader line points down to (local). */
   anchor?: [number, number, number];
+  /** Which side of the marker its name reads on (right if left out): left for
+   *  one whose name would otherwise run into a neighbour's marker. */
+  labelSide?: 'left';
   /** Per-hotspot close-up framing. Any field left out falls back to the global
    *  CAMERA defaults — so you only override what a given object needs. Tune it
    *  live in the dev tools' Camera tab (open an exhibit in `npm run dev`) and
@@ -75,7 +78,7 @@ export const HOTSPOTS: Hotspot[] = [
   // City — GIS / location work
   { slug: 'arcam', layer: 'city', position: [1.15, 0.66, -0.32], anchor: [1.25, 0.0, -0.22], view: { offset: [1.45, 1.15, 2.1], aimDown: 0.3, fovZoom: 17 } }, // the park
   { slug: 'alliander-hololens', layer: 'city', position: [.05, 1.15, 0], anchor: [0, 0.77, 0], view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26 } }, // the skyscraper (skyline peak)
-  { slug: 'dtt-amsterdam', layer: 'city', position: [-0.55, 1.15, 0.4], anchor: [-1.2, 0.58, -0.06], view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19 } }, // the windmill
+  { slug: 'dtt-amsterdam', layer: 'city', position: [-0.55, 1.15, 0.4], anchor: [-1.2, 0.58, -0.06], labelSide: 'left', view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19 } }, // the windmill
 ];
 
 type Vec3 = [number, number, number];

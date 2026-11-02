@@ -169,6 +169,20 @@ their own ghost→alive keyed on the same store state. Colour policy lives in
 `src/ui/tokens.css`: cyan = interactive + City, coral = Room, lime = Chip
 (and `LAYER_HEX` in `src/content/index.ts` for canvas and 3D).
 
+**Every browser** — there's no autoprefixer, so the stylesheets carry what
+Safari and older browsers need themselves. When you add CSS:
+
+- `backdrop-filter`, `user-select` and `backface-visibility` get a
+  `-webkit-` twin on the line above (Safari before 18 needs it).
+- An `svh` size gets a `vh` line above it, for browsers without `svh`.
+- A gutter that lines up with `.container` is worked out from
+  `var(--page-w)`, not `100vw`: `100vw` counts a Windows or Linux scroll bar
+  as page, which puts the line half a bar off (`--page-w` takes it off; see
+  `trackScrollbar` in `src/lib/page.ts`).
+- A hover that moves something sits in `@media (hover: hover)`, or a tap on a
+  phone leaves it moved.
+- Check the narrowest phone (320px) for sideways scroll.
+
 ## Editing guide
 
 **Copy & content** — everything written lives in `src/content/`:

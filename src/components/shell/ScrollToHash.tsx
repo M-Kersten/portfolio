@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { jumpTo } from '../../lib/page';
 
 // Smoothly scrolls to #anchors after a route+hash navigation (e.g. arriving at
 // /#work from the twin route), and scrolls to the top when a page of its own
@@ -13,7 +14,7 @@ export function ScrollToHash() {
     // and its /work overlays keep their scroll: the maquette's journey and
     // closing a label both set it themselves.
     if (!hash && pathname !== '/' && !pathname.startsWith('/work/')) {
-      window.scrollTo(0, 0);
+      jumpTo(0);
       return;
     }
     if (hash) {

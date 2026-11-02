@@ -11,6 +11,7 @@
   display: flex;
   align-items: center;
   background: color-mix(in srgb, var(--paper) 72%, transparent);
+  -webkit-backdrop-filter: saturate(1.2) blur(12px);
   backdrop-filter: saturate(1.2) blur(12px);
   border-bottom: 1px solid var(--hairline);
   /* Load boot — beat 1: the chrome settles in first, before the hero name. */
@@ -84,6 +85,7 @@
   font-family: var(--font-mono);
   font-size: var(--step--1);
   letter-spacing: 0.04em;
+  white-space: nowrap;
   color: var(--ink-60);
   text-decoration: none;
   transition: color var(--t-fast) var(--ease);
@@ -130,7 +132,10 @@
   display: none;
 }
 
-@media (max-width: 720px) {
+/* The drawer takes over while the bar would still be too tight for its five
+   links and the icons: at 820 (an iPad held upright) they wrapped, "What I /
+   do". From 961 up the row has room. */
+@media (max-width: 960px) {
   .nav {
     position: fixed;
     inset: var(--header-h) 0 auto 0;

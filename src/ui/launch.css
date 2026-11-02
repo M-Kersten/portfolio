@@ -24,6 +24,7 @@
   }
   /* it stops short of the rocket, and scrolls if it must */
   .launch__panel {
+    max-height: 56vh;
     max-height: 56svh;
   }
 }
@@ -35,6 +36,7 @@
   display: grid;
   gap: 0.6rem;
   width: min(92vw, 27rem);
+  max-height: calc(100vh - 7rem);
   max-height: calc(100svh - 7rem);
   overflow-y: auto;
   scrollbar-width: none;
@@ -42,6 +44,7 @@
   background: color-mix(in srgb, var(--paper) 90%, transparent);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   animation: launch-rise var(--t-base) var(--ease);
 }
@@ -53,7 +56,7 @@
   margin: 0;
   font-size: var(--step--1);
   line-height: 1.55;
-  color: var(--ink-80, var(--ink-60));
+  color: var(--ink-60);
 }
 /* the global odometer — appears only once the count has loaded */
 .launch__tally {
@@ -879,6 +882,7 @@ body[data-film] .header {
   align-items: center;
   justify-content: center;
   background: color-mix(in srgb, var(--paper) 62%, transparent);
+  -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   animation: ast-in var(--t-base) var(--ease);
 }
@@ -969,6 +973,7 @@ body[data-film] .header {
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   animation: launch-rise var(--t-base) var(--ease);
 }

@@ -32,6 +32,9 @@ import { WALL, bandsAt, buildRoute, companyFavicon, type CareerBand } from './la
 // lines. The wall itself is flat and moves exactly with the scroll, a map
 // sliding past a fixed frame.
 const DIGITS = '0123456789';
+/** The screen's height unit: the small viewport where the browser has it, so a
+ *  phone's toolbars never crop the wall, plain vh where it doesn't. */
+const SVH = typeof CSS !== 'undefined' && CSS.supports?.('height', '1svh') ? 'svh' : 'vh';
 
 /** Where the focus is on a hand-panned strip: as far across the visible width
  *  as the strip is scrolled across its whole length. */
@@ -295,12 +298,14 @@ export function Timeline() {
       if (!el || !plane) return;
       const scrollable = el.offsetHeight - window.innerHeight;
       const p = scrollable > 0 ? Math.min(1, Math.max(0, -el.getBoundingClientRect().top / scrollable)) : 0;
-      const maxX = Math.max(0, timeline.width - window.innerWidth);
+      // the page's width without a desktop scroll bar, which would hide the route's end
+      const vw = document.documentElement.clientWidth;
+      const maxX = Math.max(0, timeline.width - vw);
       const maxY = Math.max(0, plane.offsetHeight - window.innerHeight);
       const x = p * maxX;
       // The focus crosses the screen as the wall pans, left edge to right
       // edge, so it reaches the end of the route exactly as the route runs out.
-      const focus = p * window.innerWidth;
+      const focus = p * vw;
       // the scroll cue retires once there's no more time to scroll through
       scrollRef.current?.querySelector('.wall__cue')?.toggleAttribute('data-done', p > 0.92);
       // xAt() run backwards for the focus, held to the route
@@ -355,14 +360,14 @@ export function Timeline() {
         )}
       </div>
 
-      <div className="wall__scroll" ref={scrollRef} style={manualPan ? undefined : { height: `calc(100svh + ${timeline.width}px - 100vw)` }}>
+      <div className="wall__scroll" ref={scrollRef} style={manualPan ? undefined : { height: `calc(100${SVH} + ${timeline.width}px - var(--page-w))` }}>
         <div className="wall__pin" ref={pinRef}>
           <div
             className="wall__far"
             ref={farRef}
             aria-hidden="true"
             data-topo={topo ? '' : undefined}
-            style={{ width: `${timeline.width}px`, height: `${cfg.planeVh * 100}svh` }}
+            style={{ width: `${timeline.width}px`, height: `${cfg.planeVh * 100}${SVH}` }}
           >
             {/* the canyon map, woven from its points as the focus passes: the
                 lines behind it, and ahead of it three trails of dots that
@@ -386,7 +391,7 @@ export function Timeline() {
             style={
               {
                 width: `${timeline.width}px`,
-                height: `${cfg.planeVh * 100}svh`,
+                height: `${cfg.planeVh * 100}${SVH}`,
                 '--card-w': `${cfg.cardW}px`,
                 '--rise': `${cfg.rise}%`,
               } as CSSProperties

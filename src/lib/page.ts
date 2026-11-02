@@ -15,6 +15,28 @@ export function useDocumentTitle(title: string) {
   }, [title]);
 }
 
+/** Scroll the page to `top` at once: html scrolls smoothly (base.css), and a
+ *  jump that should be instant would otherwise glide there. */
+export function jumpTo(top: number) {
+  const root = document.documentElement;
+  const prev = root.style.scrollBehavior;
+  root.style.scrollBehavior = 'auto';
+  window.scrollTo(0, top);
+  root.style.scrollBehavior = prev;
+}
+
+/** Keep --sbw on :root at the width of the page's scroll bar, so a gutter
+ *  worked out from the viewport's width (--page-w, tokens.css) lines up with
+ *  .container on a desktop with real scroll bars. 0 where they float over the
+ *  page (phones, a Mac); a zoomed phone's narrower visual viewport reads as 0. */
+export function trackScrollbar() {
+  const root = document.documentElement;
+  const set = () => root.style.setProperty('--sbw', `${Math.max(0, window.innerWidth - root.clientWidth)}px`);
+  set();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(set).observe(root);
+  else window.addEventListener('resize', set);
+}
+
 /** Stop the page scrolling behind an overlay while `on`. */
 export function useScrollLock(on = true) {
   // before paint, so the page never gets a frame to scroll in
