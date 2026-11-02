@@ -101,7 +101,9 @@ export function Book({
     const page = rectoRef.current;
     if (!spread || !screen) return;
     if (reduced || !from) {
-      spread.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.fast, easing: EASE });
+      // a walk lands its page over a spread that's already there (exhibit.css,
+      // data-enter); anything else fades up
+      if (reduced || !enter) spread.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.fast, easing: EASE });
       return;
     }
     const d = MOTION.slow;
@@ -146,7 +148,7 @@ export function Book({
       .querySelectorAll<HTMLElement>('[data-after]')
       .forEach((el) => anims.push(el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: d * 1.4, easing: EASE })));
     return () => anims.forEach((a) => a.cancel());
-  }, [from, reduced]);
+  }, [from, reduced, enter]);
 
   return (
     <div

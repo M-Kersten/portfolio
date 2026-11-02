@@ -140,8 +140,12 @@ export function Exhibit({
   // Walking to the next or the previous project from the book turns the page:
   // the leaf lifts off the spine first (TURN_MS), and the next spread's page
   // lands as the new book arrives (exhibit.css). Where there's no spread (the
-  // phone) or no motion, it's a plain step.
-  const [turning, setTurning] = useState<Dir | 0>(0);
+  // phone) or no motion, it's a plain step. The turn belongs to the project it
+  // was started from: on a page (the timeline, the collection, search) this
+  // stays mounted as the walk swaps its project, and a turn left standing kept
+  // the new book's page lifted off and every further walk blocked.
+  const [turn, setTurn] = useState<{ slug: string; dir: Dir } | null>(null);
+  const turning: Dir | 0 = turn?.slug === study.slug ? turn.dir : 0;
   const turnTimer = useRef(0);
   useEffect(() => () => clearTimeout(turnTimer.current), []);
   const walk = useCallback(
@@ -153,11 +157,14 @@ export function Exhibit({
       setFrame(null);
       setFilm(null);
       if (book && dir && !reduced && !sheetLayout()) {
-        setTurning(dir);
-        turnTimer.current = window.setTimeout(() => onWalk(slug, book), TURN_MS);
+        setTurn({ slug: study.slug, dir });
+        turnTimer.current = window.setTimeout(() => {
+          setTurn(null);
+          onWalk(slug, book);
+        }, TURN_MS);
       } else onWalk(slug, book);
     },
-    [onWalk, book, next, prev, turning, reduced],
+    [onWalk, book, next, prev, turning, reduced, study.slug],
   );
   const step = useCallback(
     (dir: Dir) => {
