@@ -48,6 +48,12 @@ const ROCKET_PARTS = [
 const CAR_PARTS = ['car_body', 'car_cabin', 'car_stripe', 'car_tyres', 'car_rims', 'crown'] as const;
 /** The VR headset on the Room's desk (a Quest): the visor, its sensor pills, the face pad, the strap. */
 const HEADSET_PARTS = ['hs_shell', 'hs_pods', 'hs_face', 'hs_strap'] as const;
+/** The Lightship Drive table in the Room: the table itself, and the kicker and crystal pyramid set out on its mat. */
+const TABLE_PARTS = ['tbl_frame', 'ramp', 'pyramid'] as const;
+/** The Custom AR framework's CCTV camera on the chip layer: its mount, and the head that nods on the ball. */
+const CAMERA_PARTS = ['cam_mount', 'cam_screws', 'cam_body', 'cam_visor', 'cam_front', 'cam_ir', 'cam_cable', 'cam_lens'] as const;
+/** The Popcore phone on the Room's couch: the handset, its keys, and the camera island on its back. */
+const PHONE_PARTS = ['ph_body', 'ph_keys', 'ph_island', 'ph_lens', 'ph_glass', 'ph_flash'] as const;
 export type ChipKit = Record<(typeof CHIP_PARTS)[number], BufferGeometry>;
 export type TowerKit = Record<(typeof TOWER_PARTS)[number], BufferGeometry>;
 export type BlocksKit = Record<string, BufferGeometry | undefined>;
@@ -56,6 +62,9 @@ export type TrafoKit = Record<(typeof TRAFO_PARTS)[number], BufferGeometry>;
 export type RocketKit = Record<(typeof ROCKET_PARTS)[number], BufferGeometry>;
 export type CarKit = Record<(typeof CAR_PARTS)[number], BufferGeometry>;
 export type HeadsetKit = Record<(typeof HEADSET_PARTS)[number], BufferGeometry>;
+export type TableKit = Record<(typeof TABLE_PARTS)[number], BufferGeometry>;
+export type CameraKit = Record<(typeof CAMERA_PARTS)[number], BufferGeometry>;
+export type PhoneKit = Record<(typeof PHONE_PARTS)[number], BufferGeometry>;
 
 /** gltfpack stores positions and normals as quantized integers and parks the
  *  scale that undoes it on the piece's node. Bake that back into plain floats
@@ -165,6 +174,9 @@ const trafo = modelFile('trafo.glb', TRAFO_PARTS, "city's transformer house");
 const rocket = modelFile('rocket.glb', ROCKET_PARTS, 'launch vehicle');
 const car = modelFile('car.glb', CAR_PARTS, 'race cars');
 const headset = modelFile('headset.glb', HEADSET_PARTS, 'VR headset');
+const table = modelFile('table.glb', TABLE_PARTS, 'AR table');
+const camera = modelFile('camera.glb', CAMERA_PARTS, 'CV camera');
+const phone = modelFile('phone.glb', PHONE_PARTS, 'phone');
 
 /** The park's AR viewer (city.tsx): one self-contained glTF scene, loaded once.
  *  Each user takes a clone, since it re-materials and re-scales what it gets. */
@@ -184,7 +196,7 @@ export function loadBinoculars(): Promise<Group> {
 /** Every model the maquette draws, arrived (or failed: a missing file is its
  *  layer's problem, not the camera's). Asking starts any load not yet begun. */
 export function maquetteLoaded(): Promise<void> {
-  return Promise.allSettled([chip.get(), tower.get(), blocks.get(), mill.get(), trafo.get(), rocket.get(), car.get(), headset.get(), loadBinoculars()]).then(() => undefined);
+  return Promise.allSettled([chip.get(), tower.get(), blocks.get(), mill.get(), trafo.get(), rocket.get(), car.get(), headset.get(), table.get(), camera.get(), phone.get(), loadBinoculars()]).then(() => undefined);
 }
 
 export const useChipKit = chip.useKit;
@@ -200,3 +212,6 @@ export const loadRocketKit = rocket.get;
 export const useRocketKit = rocket.useKit;
 export const useCarKit = car.useKit;
 export const useHeadsetKit = headset.useKit;
+export const useTableKit = table.useKit;
+export const useCameraKit = camera.useKit;
+export const usePhoneKit = phone.useKit;

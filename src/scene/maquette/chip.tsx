@@ -16,7 +16,7 @@ import { Crease, GlassMat, LiveEdges, LiveGlassMat } from './materials';
 import { litMat, ShadowPrint, useLitLink } from './lit';
 import { BlobShadow } from './backdrop';
 import { PresenceCtx } from './presence';
-import { useChipKit, type ChipKit } from './kit';
+import { useCameraKit, useChipKit, type ChipKit } from './kit';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
 
@@ -432,23 +432,26 @@ function landTrace(e: number, pin: number, bx: number, bz: number, y: number): V
   return densify([[ax, y, az], ...pcbRoute(lx, lz, bx, bz, y, e === 0 || e === 2)]);
 }
 
-/** custom-ar-framework as a fixed security / computer-vision camera. A faceted
- *  low-poly bullet head hangs from an articulated two-segment leg — base puck →
- *  knee joint → overhead grip, circular joint discs like a lamp arm — aimed out
- *  past the back of the board. Selecting it lifts the head once, like a desk lamp
- *  taking notice, and spawns the hologram: a clean cone of light onto a wireframe
- *  cube that bobs and turns in the beam. Once alive it keeps looking the cube up
- *  and down, selected or not (visited things stay awake). */
-const CAM_LENS_Z = 0.17; // cone apex, just past the hood
+/** custom-ar-framework as a fixed security / computer-vision camera: a bullet
+ *  CCTV camera on a post (scripts/models/build_camera.py), in the chip kit's
+ *  idiom — a deep housing under a pale sun visor, a dark front panel with a
+ *  ring of IR LEDs round the lens, a cable gland on the back, and a ball joint
+ *  on the post that the head nods and pans on. It looks out past the back of
+ *  the board. Selecting it racks the lens for focus and spawns the hologram: a
+ *  clean cone of light onto a wireframe cube that bobs and turns in the beam.
+ *  Once alive it keeps looking the cube up and down, selected or not (visited
+ *  things stay awake), and its IR ring stays lit. */
+const CAM_PIVOT_Y = 0.17; // the ball joint's centre over the board (PIVOT_Y in build_camera.py)
+const CAM_HEAD_UP = 0.075; // the housing's axis over the ball (HEAD_UP)
+const CAM_LENS_AT = 0.094; // the lens dome's base in the bezel, along the aim
+const CAM_LENS_Z = 0.105; // cone apex, just past the dome
 const CAM_CUBE_Z = 0.78; // hologram centre, out in front of the lens
 const CAM_CUBE = 0.22; // hologram cube edge length
 const CAM_CONE_R = 0.22; // vision-cone radius where it meets the cube
-const FACET = Math.PI / 8; // spin octagonal parts so a flat facet faces up
-const HEAD_DROP = -0.08; // head centre, hanging below the grip pivot
 
-/* The head's motion. It hangs off the grip pivot with the lens aimed +z, so a
-   positive rotation.x tips that aim DOWN — pitch is the whole performance here
-   and everything else is kept small enough to stay underneath it.
+/* The head's motion. It sits on the ball with the lens aimed +z, so a positive
+   rotation.x tips that aim DOWN — pitch is the whole performance here and
+   everything else is kept small enough to stay underneath it.
    One sine per axis, deliberately: the idle used to sum two sines on the yaw,
    which wandered without ever reading as a decision. */
 const CAM_NOD = 0.12; // pitch sweep, rad (~7° either way)
@@ -457,29 +460,29 @@ const CAM_NOD_RATE = 0.62; // ~10s for a full down-up-down
 // never phase-lock into a pattern you can predict.
 const CAM_PAN = 0.05;
 const CAM_PAN_RATE = 0.23;
-// Looking up lifts the head a little: the tilt and the rise are one movement, so
-// the bob is derived from the pitch rather than being its own free-running sine.
-const CAM_BOB_PER_RAD = 0.1;
 /* The focus rack, fired when the hologram appears: the camera hunts for focus.
-   The barrel dollies in and out along its aim while the vision cone narrows and
-   widens with it — tight when pushed in, wide when pulled back, the way a zoom
-   trades field of view for reach. The two are driven off one curve so they read
-   as a single lens action rather than two things happening near each other.
+   The lens racks in and out of its bezel while the vision cone narrows and
+   widens with it — tight when pushed out, wide when pulled back, the way a zoom
+   trades field of view for reach — and the IR ring flares with each swing. The
+   three are driven off one curve so they read as a single lens action rather
+   than things happening near each other.
    A damped oscillation, so it overshoots and settles rather than sliding to a
    stop: an autofocus hunts past the mark before it locks. sin() starts at zero,
    so the rack always grows out of the resting pose — no first-frame jump. */
 const FOCUS_FREQ = 7.0; // rad/s (~1.1Hz) — a deliberate rack, not a twitch
 const FOCUS_DAMP = 2.2; // ~three clear in-out swings before it locks
-const FOCUS_DOLLY = 0.055; // barrel travel along the aim; ~0.035 on the first swing
+const FOCUS_DOLLY = 0.012; // lens travel along the aim; ~0.008 on the first swing, inside the bezel
 const FOCUS_CONE = 0.31; // cone radius swing; ~20% tighter on the first swing
 const FOCUS_SETTLE = 2.4; // s; past here the term is negligible, so stop evaluating
 function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
   const { accent, accentPale } = useAccent();
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
-  const lit = useLitLink(slug); // the metal parts light with the glass (lit.tsx)
+  const kit = useCameraKit();
+  const lit = useLitLink(slug); // the front panel lights with the glass (lit.tsx)
   const headRef = useRef<Group>(null);
   const lensMat = useRef<MeshStandardMaterial>(null);
+  const irMat = useRef<MeshStandardMaterial>(null);
   const coneMat = useRef<MeshBasicMaterial>(null);
   const holoRef = useRef<Group>(null); // the cube hologram, fixed on the aim axis
   const beamRef = useRef<Group>(null); // the cone + rim, attached to the lens
@@ -489,10 +492,11 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const holo = useRef(0); // hologram presence
   const scanW = useRef(0); // continuous look-around weight (alive)
   const focusT = useRef(999); // seconds since the focus rack fired (999 = long done)
-  const bodyRef = useRef<Group>(null); // the barrel — dollies along the aim
+  const lensRef = useRef<Group>(null); // the lens and its beam — rack along the aim
   const coneRef = useRef<Group>(null); // the vision cone + rim — widens/narrows
   const wasSel = useRef(false);
   const lensC = useMemo(() => new Color(accent), [accent]);
+  const presence = useContext(PresenceCtx);
 
   // the tracked cube's wireframe, on an owned material (opted out of ghosting)
   const cube = useMemo(() => {
@@ -524,28 +528,34 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
     wasSel.current = selected;
     focusT.current += delta;
     const on = k.current;
+    // The focus rack on select (see the FOCUS_* constants): the lens pushes out
+    // as the cone tightens, pulls back as it opens, hunting past the mark a few
+    // times before it locks. One curve drives all of it.
+    const u = focusT.current;
+    const rack = u < FOCUS_SETTLE ? Math.exp(-FOCUS_DAMP * u) * Math.sin(FOCUS_FREQ * u) : 0;
     if (lensMat.current) {
       const breathe = reduced ? 0 : Math.sin(t * 2.2) * 0.06;
       lensMat.current.color.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * on);
       lensMat.current.emissive.copy(GHOST_FILL).lerp(lensC, 0.2 + 0.8 * on);
       lensMat.current.emissiveIntensity = 0.05 + on * (1.0 + breathe);
     }
+    if (irMat.current) {
+      // the IR ring: dark while the camera sleeps, a low glow once it's awake,
+      // flaring with each swing of the rack
+      irMat.current.color.copy(GHOST_FILL).lerp(lensC, on);
+      irMat.current.emissive.copy(GHOST_FILL).lerp(lensC, on);
+      irMat.current.emissiveIntensity = (0.04 + on * (0.45 + 1.6 * Math.abs(rack))) * presence.current;
+      irMat.current.opacity = (0.35 + 0.6 * on) * presence.current;
+    }
     // The idle: a steady up-and-down look over the cube. The cube holds its spot
     // (it lives outside headRef), so the beam sweeps across the tracked target as
     // the head nods — the nod amplitude is sized to keep the cube inside the cone
-    // at the extremes.
+    // at the extremes. The head turns about the ball, which holds still.
     if (headRef.current && !reduced) {
-      const pitch = scanW.current * Math.sin(t * CAM_NOD_RATE) * CAM_NOD;
-      headRef.current.rotation.x = pitch;
+      headRef.current.rotation.x = scanW.current * Math.sin(t * CAM_NOD_RATE) * CAM_NOD;
       headRef.current.rotation.y = scanW.current * Math.sin(t * CAM_PAN_RATE) * CAM_PAN;
-      headRef.current.position.y = -pitch * CAM_BOB_PER_RAD; // rises as it looks up
     }
-    // The focus rack on select (see the FOCUS_* constants): the barrel pushes in
-    // as the cone tightens, pulls back as it opens, hunting past the mark a few
-    // times before it locks. One curve drives both so it reads as one lens action.
-    const u = focusT.current;
-    const rack = u < FOCUS_SETTLE ? Math.exp(-FOCUS_DAMP * u) * Math.sin(FOCUS_FREQ * u) : 0;
-    if (bodyRef.current) bodyRef.current.position.z = FOCUS_DOLLY * rack;
+    if (lensRef.current) lensRef.current.position.z = CAM_LENS_AT + FOCUS_DOLLY * rack;
     if (coneRef.current) {
       const w = 1 - FOCUS_CONE * rack; // scaled across the beam only, so its reach holds
       coneRef.current.scale.set(w, w, 1);
@@ -583,115 +593,74 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
 
   return (
     <group position={position} rotation={[0, aimYaw, 0]}>
-      <group>
-        {/* ---- the leg stand: base puck → knee joint → overhead grip ----
-            Line discipline: only the round joints keep rim edges (threshold 30,
-            like the board's other cylinders); plates and boxes go edge-free so
-            the mount doesn't read as a wireframe tangle. LiveGlassMat solidifies
-            it all once visited, like every other hotspot body. */}
-        <mesh position={[0, 0.02, -0.09]} rotation={[0, FACET, 0]}>
-          <cylinderGeometry args={[0.05, 0.058, 0.035, 8]} />
-          <LiveGlassMat slug={slug} tint="deep" />
-          <LiveEdges slug={slug} threshold={50} />
-        </mesh>
-        {/* lower segment — twin plates leaning forward to the knee */}
-        {[-0.026, 0.026].map((x, i) => (
-          <mesh key={`l${i}`} position={[x, 0.118, -0.053]} rotation={[0.43, 0, 0]}>
-            <boxGeometry args={[0.011, 0.19, 0.034]} />
-            <LiveGlassMat slug={slug} tint="deep" />
+      {/* the mount: base plate, post and the ball the head turns on. Glass like
+          the monitor's stand; the outline draws the plate and the ball's socket. */}
+      {kit && (
+        <>
+          <mesh geometry={kit.cam_mount}>
+            <LiveGlassMat slug={slug} tint="glass" />
+            <LiveEdges slug={slug} threshold={35} />
           </mesh>
-        ))}
-        {/* knee joint disc */}
-        <mesh position={[0, 0.2, -0.015]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.032, 0.032, 0.064, 18]} />
-          <LiveGlassMat slug={slug} tint="deep" />
-          <LiveEdges slug={slug} threshold={30} />
-        </mesh>
-        {/* upper segment — twin plates leaning back up to the grip hub */}
-        {[-0.026, 0.026].map((x, i) => (
-          <mesh key={`u${i}`} position={[x, 0.278, -0.045]} rotation={[-0.37, 0, 0]}>
-            <boxGeometry args={[0.011, 0.17, 0.034]} />
-            <LiveGlassMat slug={slug} tint="deep" />
+          <mesh geometry={kit.cam_screws}>
+            <LiveGlassMat slug={slug} tint="pale" />
           </mesh>
-        ))}
-        {/* grip hub + the horizontal arm reaching over the head */}
-        <mesh position={[0, 0.355, -0.075]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.028, 0.028, 0.058, 18]} />
-          <LiveGlassMat slug={slug} tint="deep" />
-          <LiveEdges slug={slug} threshold={30} />
-        </mesh>
-        <mesh position={[0, 0.358, -0.036]}>
-          <boxGeometry args={[0.026, 0.02, 0.1]} />
-          <LiveGlassMat slug={slug} tint="deep" />
-        </mesh>
-
-        {/* ---- the pivot: the head hangs from the grip and pans/nods on it ---- */}
-        <group position={[0, 0.33, 0]}>
-          {/* the hologram cube holds its spot on the aim axis while the camera
-              scans around it — so the beam plays over the tracked target */}
-          <group rotation={[aimPitch, 0, 0]}>
-            <group ref={holoRef} visible={false} position={[0, HEAD_DROP, 0]}>
-              <group ref={cubeRef} position={[0, 0, CAM_CUBE_Z]}>
-                <primitive object={cube.obj} />
-                <mesh>
-                  <boxGeometry args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
-                  <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
+        </>
+      )}
+      <group position={[0, CAM_PIVOT_Y, 0]}>
+        {/* the hologram cube holds its spot on the aim axis while the camera
+            scans around it — so the beam plays over the tracked target */}
+        <group rotation={[aimPitch, 0, 0]}>
+          <group ref={holoRef} visible={false} position={[0, CAM_HEAD_UP, 0]}>
+            <group ref={cubeRef} position={[0, 0, CAM_CUBE_Z]}>
+              <primitive object={cube.obj} />
+              <mesh>
+                <boxGeometry args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
+                <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
+              </mesh>
+              {corners.map((c, i) => (
+                <mesh key={i} position={c}>
+                  <sphereGeometry args={[0.006, 8, 8]} />
+                  <meshStandardMaterial ref={(r) => (cornerMats.current[i] = r)} color={accentPale} emissive={accent} emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
                 </mesh>
-                {corners.map((c, i) => (
-                  <mesh key={i} position={c}>
-                    <sphereGeometry args={[0.006, 8, 8]} />
-                    <meshStandardMaterial ref={(r) => (cornerMats.current[i] = r)} color={accentPale} emissive={accent} emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
-                  </mesh>
-                ))}
-              </group>
+              ))}
             </group>
           </group>
-          <group ref={headRef}>
-            <group rotation={[aimPitch, 0, 0]}>
-              {/* pivot stub + yoke cap the head hangs from */}
-              <mesh position={[0, 0.008, 0]}>
-                <cylinderGeometry args={[0.012, 0.012, 0.045, 10]} />
-                {/* plain metal — see the connector pins; nothing dormant self-lights */}
-                <meshStandardMaterial {...litMat(lit)} color={NEUTRAL} roughness={0.4} metalness={0.5} />
-              </mesh>
-              <mesh position={[0, -0.015, 0]}>
-                <boxGeometry args={[0.034, 0.014, 0.034]} />
-                <LiveGlassMat slug={slug} tint="deep" />
-              </mesh>
-              {/* the barrel: everything past the yoke, beam included, so the focus
-                  rack dollies the lens and its light together while the stub and
-                  yoke stay put on the grip arm */}
-              <group ref={bodyRef} position={[0, HEAD_DROP, 0]}>
-                {/* faceted bullet body — threshold 50 hides the 45° facet seams,
-                    so only the octagonal rims draw (the facets read via shading) */}
-                <mesh position={[0, 0, -0.01]} rotation={[Math.PI / 2, FACET, 0]}>
-                  <cylinderGeometry args={[0.054, 0.06, 0.2, 8]} />
+        </group>
+        <group ref={headRef}>
+          <group rotation={[aimPitch, 0, 0]}>
+            {kit && (
+              <>
+                {/* the housing draws the ghost: its rims, the mouth, the saddle */}
+                <mesh geometry={kit.cam_body}>
                   <LiveGlassMat slug={slug} tint="deep" />
-                  <LiveEdges slug={slug} threshold={50} />
+                  <LiveEdges slug={slug} threshold={35} />
                 </mesh>
-                {/* back cap */}
-                <mesh position={[0, 0, -0.12]} rotation={[Math.PI / 2, FACET, 0]}>
-                  <cylinderGeometry args={[0.06, 0.046, 0.025, 8]} />
+                <mesh geometry={kit.cam_visor}>
+                  <LiveGlassMat slug={slug} tint="pale" />
+                  <LiveEdges slug={slug} threshold={35} />
+                </mesh>
+                <mesh geometry={kit.cam_front}>
+                  <meshStandardMaterial {...litMat(lit)} color={SURFACE.deep.color} roughness={0.25} metalness={0.3} />
+                </mesh>
+                <mesh geometry={kit.cam_ir}>
+                  <meshStandardMaterial ref={irMat} userData={{ lifeSkip: true }} color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.04} transparent opacity={0.35} roughness={0.3} toneMapped={false} />
+                </mesh>
+                <mesh geometry={kit.cam_cable}>
                   <LiveGlassMat slug={slug} tint="deep" />
                 </mesh>
-                {/* hood — an open octagonal shade past the lens */}
-                <mesh position={[0, 0, 0.135]} rotation={[Math.PI / 2, FACET, 0]}>
-                  <cylinderGeometry args={[0.062, 0.058, 0.075, 8, 1, true]} />
-                  <LiveGlassMat slug={slug} tint="glass" />
-                  <LiveEdges slug={slug} threshold={50} />
-                </mesh>
-                {/* dark lens recess + the glass element that lights up */}
-                <mesh position={[0, 0, 0.104]} rotation={[Math.PI / 2, FACET, 0]}>
-                  <cylinderGeometry args={[0.048, 0.048, 0.012, 8]} />
-                  <meshStandardMaterial {...litMat(lit)} color={SURFACE.deep.color} roughness={0.5} metalness={0.2} />
-                </mesh>
-                <mesh position={[0, 0, 0.114]} scale={[1, 1, 0.5]}>
-                  <sphereGeometry args={[0.04, 24, 18]} />
-                  <meshStandardMaterial ref={lensMat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.14} transparent opacity={0.6} roughness={0.12} metalness={0.1} toneMapped={false} />
-                </mesh>
-
+              </>
+            )}
+            {/* the lens: everything the rack moves, beam included, so the lens
+                and its light travel together while the housing holds still */}
+            <group position={[0, CAM_HEAD_UP, 0]}>
+              <group ref={lensRef} position={[0, 0, CAM_LENS_AT]}>
+                {kit && (
+                  <mesh geometry={kit.cam_lens}>
+                    <meshStandardMaterial ref={lensMat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.14} transparent opacity={0.7} roughness={0.12} metalness={0.1} toneMapped={false} />
+                  </mesh>
+                )}
                 {/* the beam — a clean cone of light, swinging with the head */}
-                <group ref={beamRef} visible={false}>
+                <group ref={beamRef} visible={false} position={[0, 0, -CAM_LENS_AT]}>
                   {/* Cone + rim share one group so the focus rack can scale them
                       together. Both sit with the beam axis on local z — the cone
                       after its -90° tilt, the rim after its +90° one — so scaling

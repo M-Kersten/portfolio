@@ -6,36 +6,45 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, Color, DoubleSide, ExtrudeGeometry, MeshStandardMaterial, Vector3, type BufferGeometry, type Group, type Mesh, type Texture } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, Vector3, type Group, type Mesh, type MeshBasicMaterial, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
-import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedRectShape, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
+import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, makeRand, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
-import { useCarKit, useHeadsetKit } from './kit';
+import { useCarKit, useHeadsetKit, usePhoneKit, useTableKit } from './kit';
 import { BlobShadow } from './backdrop';
 import { litMat, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
 import { hang, lathe, leaf, merge, place, softBox, softSeam, tube, useGeometry, type Soft } from './shapes';
 
 const PHONE_BALLS = 6;
 const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
-/** The phone on the couch (Popcore). It buzzes on hover; on *select* it lifts
- *  off the cushion and rotates to face you, and the first time you open it a
- *  handful of ping-pong balls pop out of the screen and settle on the seat.
- *  The screen shows a screenshot once you've visited it — drop a JPG at
+// the handset's size (build_phone.py: W, H, T); the screen is drawn here, off W and H
+const PHONE_W = 0.075;
+const PHONE_H = 0.155;
+const PHONE_T = 0.0075;
+/** The phone on the couch (Popcore), a Blender model (build_phone.py). It lies
+ *  face down, the way a phone is left on a cushion, so what you see from across
+ *  the room is its back, and the camera island on it is what says "phone". It
+ *  buzzes on hover, and the screen it's lying on lights the cushion round its
+ *  edges. On *select* it lifts off the cushion and turns over to face you, and
+ *  the first time you open it a handful of ping-pong balls pop out and settle on
+ *  the seat. The screen shows a screenshot once you've visited it — drop a JPG at
  *  public/textures/room-phone.jpg; until then it stays a plain glowing screen. */
-function Phone({ slug, position, args, liveColor }: { slug: string; position: V3; args: V3; liveColor: string }) {
+function Phone({ slug, position, liveColor }: { slug: string; position: V3; liveColor: string }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
+  const kit = usePhoneKit();
   const rigRef = useRef<Group>(null);
   const mat = useRef<MeshStandardMaterial>(null);
+  const spill = useRef<MeshBasicMaterial>(null);
   // lit on hover (lit.tsx): the handset, not its screen
   const lit = useLitLink(slug);
   const body = useLitBody(rigRef);
   const k = useRef(0); // emissive hover/select level
   const glow = useRef(0); // 0 → 1 shift toward the lifelike colour
-  const turn = useRef(0); // 0 = lying flat, 1 = lifted + facing the user
+  const turn = useRef(0); // 0 = lying face down, 1 = lifted + facing the user
   const buzz = useRef(0); // hover buzz envelope
   const base = useMemo(() => new Color(accent), [accent]);
   const lifelike = useMemo(() => new Color(liveColor), [liveColor]);
@@ -51,65 +60,34 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
   const fired = useRef(false);
   const shown = useRef(false); // whether the screenshot is currently mapped on
   const tex = useOptionalTexture('/textures/room-phone.jpg');
+  const spillTex = useMemo(glowTexture, []);
 
-  // Rounded body (extruded rounded-rect with a soft bevelled edge) + rounded
-  // screen, so the handset reads as a real phone rather than a flat slab.
-  const bodyGeo = useMemo(() => {
-    const [w, h, d] = args;
-    const g = new ExtrudeGeometry(roundedRectShape(w, h, Math.min(w, h) * 0.22), {
-      depth: d,
-      bevelEnabled: true,
-      bevelThickness: d * 0.4,
-      bevelSize: d * 0.4,
-      bevelSegments: 2,
-      curveSegments: 10,
-    });
-    g.translate(0, 0, -d / 2);
-    return g;
-  }, [args]);
-  // Bezels: 0.84 × 0.90 of the body left a chin and forehead wide enough to date
-  // the handset to about 2016. 0.93 × 0.955 puts the glass close to the edge the
-  // way a current phone does, and the corner radius rises with it so the screen
-  // still follows the body's own curve rather than cutting across it.
-  const screenGeo = useMemo(() => roundedPlaneGeometry(args[0] * 0.93, args[1] * 0.955, Math.min(args[0], args[1]) * 0.19), [args]);
-  useEffect(() => {
-    return () => {
-      bodyGeo.dispose();
-      screenGeo.dispose();
-    };
-  }, [bodyGeo, screenGeo]);
+  // The screen: glass close to the edge the way a current phone's is, its
+  // corners following the body's own curve rather than cutting across it.
+  const screenGeo = useGeometry(() => roundedPlaneGeometry(PHONE_W * 0.93, PHONE_H * 0.955, PHONE_W * 0.19));
 
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
     const t = s.clock.elapsedTime;
     body(lit.litU.value, selected || visited);
 
-    // --- lift, scale, and rotate toward the user on select; buzz on hover while resting ---
+    // --- lift and turn over toward the user on select; buzz on hover while resting ---
     const rig = rigRef.current;
     if (rig) {
       turn.current += ((selected ? 1 : 0) - turn.current) * 0.1;
       const tt = reduced ? (selected ? 1 : 0) : turn.current;
+      // the lift leads and the turn follows (its square), so the phone is clear
+      // of the cushion before its end swings down through where it was lying
+      const tr = tt * tt;
       buzz.current += ((hovered || selected ? 1 : 0) - buzz.current) * 0.2;
       const a = reduced ? 0 : buzz.current * (1 - tt); // buzz fades as it stands up
-      
-      // Tweak this value to match your scene's camera angle:
-      // Positive values (e.g., 0.35) rotate it right; negative values (e.g., -0.35) rotate it left.
-      const YAW_OFFSET = 0.38; 
-
-      rig.rotation.set(
-        mix(-Math.PI / 2, -0.15, tt), 
-        mix(0, YAW_OFFSET, tt) + (Math.sin(t * 45) * 0.022 * a), 
-        mix(0.3, 0.0, tt)
-      );
-      
-      rig.position.set(
-        position[0] + Math.sin(t * 50) * 0.005 * a,
-        position[1] + tt * 0.14, 
-        position[2] + Math.cos(t * 58) * 0.005 * a,
-      );
-
-      const sLvl = mix(1, 1.35, tt);
-      rig.scale.set(sLvl, sLvl, sLvl);
+      // turned a little toward the camera's side once up, so the screen faces the view
+      const YAW_OFFSET = 0.38;
+      rig.rotation.set(mix(Math.PI / 2, -0.15, tr), mix(0, YAW_OFFSET, tr) + Math.sin(t * 45) * 0.022 * a, mix(0.3, 0.0, tr));
+      rig.position.set(position[0] + Math.sin(t * 50) * 0.005 * a, position[1] + tt * 0.14, position[2] + Math.cos(t * 58) * 0.005 * a);
+      rig.scale.setScalar(mix(1, 1.35, tt));
+      // the screen it's lying on, buzzing: light leaking out round its edges
+      if (spill.current) spill.current.opacity = (reduced ? buzz.current : a) * (1 - tt) * (0.45 + 0.15 * Math.sin(t * 9));
     }
 
     // --- emissive screen: glows on hover/visit, and swaps to a screenshot once
@@ -186,44 +164,45 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
 
   return (
     <>
-      <group ref={rigRef} position={position} rotation={[-Math.PI / 2, 0, 0.3]}>
-        {/* body / bezel — rounded corners + a soft bevelled edge */}
-        <mesh geometry={bodyGeo}>
-          <meshStandardMaterial {...litMat(lit)} color={accent} emissive={accent} emissiveIntensity={0.28} roughness={0.4} toneMapped={false} />
+      {/* the light the face-down screen leaks onto the cushion when it buzzes,
+          lying under the phone at its resting turn */}
+      <group position={[position[0], COUCH_SEAT_Y + 0.004, position[2]]} rotation={[0, -0.3, 0]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+          <planeGeometry args={[PHONE_W * 2, PHONE_H * 1.5]} />
+          <meshBasicMaterial ref={spill} userData={{ lifeSkip: true }} map={spillTex} color={accent} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
         </mesh>
-        {/* screen face — a ghost glow until opened, then the screenshot. Sits
-            clear of the body's bevelled front cap (extrude depth d/2 + bevel
-            d·0.4 = d·0.9) or the opaque body would bury it. */}
-        <mesh geometry={screenGeo} position={[0, 0, args[2] * 0.9 + 0.0006]}>
-          <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={true} side={DoubleSide} />
-        </mesh>
-        {/* Side hardware — a volume rocker and a longer power key opposite it.
-            They sit a hair proud of the body's bevel so they catch their own
-            highlight; without them the handset is a blank lozenge from every
-            angle but straight on. `lifeSkip` keeps them off the life system's
-            ghost lerp, matching the screen. */}
-        {([
-          [-1, args[1] * 0.20, args[1] * 0.17], // volume rocker, upper left
-          [-1, args[1] * -0.03, args[1] * 0.09], // second volume key
-          [1, args[1] * 0.10, args[1] * 0.20], // power, upper right and longer
-        ] as [number, number, number][]).map(([side, y, len], i) => (
-          <mesh key={i} position={[side * (args[0] / 2 + args[2] * 0.28), y, 0]}>
-            <boxGeometry args={[args[2] * 0.7, len, args[2] * 1.5]} />
-            <meshStandardMaterial
-              {...litMat(lit, { lifeSkip: true })}
-              color={accent}
-              emissive={accent}
-              emissiveIntensity={0.16}
-              roughness={0.3}
-              metalness={0.25}
-              toneMapped={false}
-            />
-          </mesh>
-        ))}
-        {/* camera bump — the other thing that dates a phone, on the back */}
-        <mesh position={[args[0] * 0.26, args[1] * 0.3, -args[2] * 1.1]}>
-          <boxGeometry args={[args[0] * 0.34, args[1] * 0.17, args[2] * 0.5]} />
-          <meshStandardMaterial {...litMat(lit, { lifeSkip: true })} color={SURFACE.deep.color} roughness={0.35} metalness={0.3} toneMapped={false} />
+      </group>
+      <group ref={rigRef} position={position} rotation={[Math.PI / 2, 0, 0.3]}>
+        {kit && (
+          <>
+            {/* the body, in the project's colour; the life system greys it until opened */}
+            <mesh geometry={kit.ph_body}>
+              <meshStandardMaterial {...litMat(lit)} color={accent} emissive={accent} emissiveIntensity={0.28} roughness={0.4} toneMapped={false} />
+            </mesh>
+            {/* The keys and the camera island hold their own look, ghost or not
+                (`lifeSkip`): face down, the island is the one detail that says
+                what this is, so it can't fade with the rest. */}
+            <mesh geometry={kit.ph_keys}>
+              <meshStandardMaterial {...litMat(lit, { lifeSkip: true })} color={accent} emissive={accent} emissiveIntensity={0.16} roughness={0.3} metalness={0.25} toneMapped={false} />
+            </mesh>
+            <mesh geometry={kit.ph_island}>
+              <meshStandardMaterial {...litMat(lit, { lifeSkip: true })} color={SURFACE.deep.color} roughness={0.3} metalness={0.3} toneMapped={false} />
+            </mesh>
+            <mesh geometry={kit.ph_lens}>
+              <meshStandardMaterial {...litMat(lit, { lifeSkip: true })} color={SURFACE.pale.color} roughness={0.25} metalness={0.6} toneMapped={false} />
+            </mesh>
+            <mesh geometry={kit.ph_glass}>
+              <meshStandardMaterial {...litMat(lit, { lifeSkip: true })} color="#05070c" emissive={accent} emissiveIntensity={0.08} roughness={0.08} metalness={0.4} toneMapped={false} />
+            </mesh>
+            <mesh geometry={kit.ph_flash}>
+              <meshStandardMaterial {...litMat(lit, { lifeSkip: true })} color="#fff4dc" emissive="#fff4dc" emissiveIntensity={0.25} roughness={0.4} toneMapped={false} />
+            </mesh>
+          </>
+        )}
+        {/* screen face — a ghost glow until opened, then the screenshot. Just
+            clear of the body's front face. */}
+        <mesh geometry={screenGeo} position={[0, 0, PHONE_T / 2 + 0.0004]}>
+          <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.4} toneMapped={true} />
         </mesh>
       </group>
       {balls.map((b, i) => (
@@ -241,6 +220,25 @@ function Phone({ slug, position, args, liveColor }: { slug: string; position: V3
       ))}
     </>
   );
+}
+
+/** A soft rounded glow, white at its heart and gone by its edge: the light a
+ *  face-down screen leaks out round its sides. */
+let glowTex: CanvasTexture | null = null;
+function glowTexture(): CanvasTexture {
+  if (glowTex) return glowTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  if (g) {
+    const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, 'rgba(255,255,255,0.9)');
+    r.addColorStop(0.5, 'rgba(255,255,255,0.45)');
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, 64, 64);
+  }
+  return (glowTex = new CanvasTexture(c));
 }
 
 /** The room monitor. At rest it's a dim screen that flickers on as you hover;
@@ -370,62 +368,358 @@ function LeaderCrown() {
   );
 }
 
-/* Two cars actually racing, rather than two cars bolted to one turntable.
-   They used to be children of a single rotating group, which is why they held a
-   perfect 180° apart at identical speed forever — a carousel, not a race.
-   Each one now runs its own lap, and three things stack up to make it a contest:
+/* ---------- The Lightship Drive table ----------
+   After the show-floor setup in the project's film: a low table with a dark,
+   speckled mat on it, light-blue faceted pieces set out on the mat, and the AR
+   course the game draws over and around them. The cars follow that course
+   instead of circling a ring: down the front straight and off a kicker, braking
+   into the hairpin, a jog in round a pyramid, off the second kicker on the back
+   straight, and round the tighter sweeper home.
 
-     · `wob`/`amp` — speed rises and falls around the circuit on each car's own
-       rhythm, so they're quick and slow in different places and the gap breathes.
-       On its own this is NOT a race: the modulation averages out over a lap, so
-       whoever starts ahead stays ahead forever.
+   The table, the kicker and the pyramid are Blender models (build_table.py, via
+   kit.ts); the mat, the course and the race are laid out here. Table space: x
+   along the table, y up, z across it, the front straight at +z. */
+const MAT = 0.19 + 0.0012; // the mat on the table's top (TOP in build_table.py): everything below stands on it
+const MAT_W = 0.7;
+const MAT_D = 0.36;
+const TW = 0.074; // the course's width: two cars abreast
+const LANE = 0.0185; // each car's line off the middle of it
+const CAR_SCALE = 0.85; // the cars at this table's scale, so two fit abreast
+
+// The course, as a turtle drives it from the start of the front straight,
+// heading +x: straights and arcs, each (length, radians turned; right is
+// negative). Round the near end in a wide hairpin; then the back steps in toward
+// the middle (two 10 cm arcs), leaving a pocket between it and the mat's edge
+// for a pyramid; a short back straight; and a tighter sweeper home. It closes on
+// itself: the jog takes up the difference between the two ends' radii.
+const JOG_R = 0.1;
+const JOG = Math.acos(1 - 0.05 / (2 * JOG_R)); // each arc of the 5 cm step in
+const LEGS: [number, number][] = [
+  [0.33, 0], // the front straight, with the first kicker on it
+  [Math.PI * 0.12, -Math.PI], // the hairpin
+  [0.06, 0],
+  [JOG_R * JOG, -JOG], // the jog in toward the middle…
+  [JOG_R * JOG, JOG], // …and out of it, straight again
+  [0.19, 0], // the back straight, with the second kicker
+  [Math.PI * 0.095, -Math.PI], // the sweeper
+  [0.06 + 2 * JOG_R * Math.sin(JOG) + 0.19 - 0.33, 0], // home
+];
+const START: [number, number] = [-0.1515, 0.12]; // centres the course on the mat
+const COURSE = (() => {
+  const total = LEGS.reduce((n, [l]) => n + l, 0);
+  const N = Math.round(total / 0.012);
+  const pts: Vector3[] = [];
+  let [x, z] = START;
+  let h = 0; // heading, from +x toward +z
+  let leg = 0;
+  let into = 0; // how far along the current leg
+  const step = total / N;
+  for (let i = 0; i < N; i++) {
+    pts.push(new Vector3(x, 0, z));
+    // drive one step, across leg ends
+    let left = step;
+    while (left > 1e-9) {
+      const [len, turn] = LEGS[leg];
+      const go = Math.min(left, len - into);
+      if (turn === 0) {
+        x += Math.cos(h) * go;
+        z += Math.sin(h) * go;
+      } else {
+        const r = len / Math.abs(turn);
+        const dh = (turn / len) * go;
+        // along the arc: the chord, at the mid heading
+        const c = 2 * r * Math.sin(Math.abs(dh) / 2);
+        x += Math.cos(h + dh / 2) * c;
+        z += Math.sin(h + dh / 2) * c;
+        h += dh;
+      }
+      into += go;
+      left -= go;
+      if (into >= len - 1e-9) {
+        leg = (leg + 1) % LEGS.length;
+        into = 0;
+      }
+    }
+  }
+  const curve = new CatmullRomCurve3(pts, true, 'centripetal');
+  const L = curve.getLength();
+  // a kicker on each straight, by its toe: the first late on the front
+  // straight, landing just before the hairpin; the second as the back straight
+  // begins, landing as the sweeper does
+  const at = (n: number) => LEGS.slice(0, n).reduce((m, [l]) => m + l, 0);
+  const toes = [0.085, at(5) + 0.004].map((s) => (s / total) * L);
+  return { curve, L, toes };
+})();
+const wrapS = (s: number) => ((s % COURSE.L) + COURSE.L) % COURSE.L;
+
+// The kicker (build_table.py): its length, its height at the lip, and its face as
+// (distance from the toe, height), down its steep back to the mat. The course is
+// draped over it; a car goes up the face and off the lip.
+const RAMP_L = 0.08;
+const RAMP_H = 0.03;
+const LIP = RAMP_L - 0.004;
+const RAMP_FACE: [number, number][] = [
+  [0, 0.0016],
+  [RAMP_L / 2 + 0.004, RAMP_H * 0.64],
+  [LIP, RAMP_H],
+  [RAMP_L, 0],
+];
+// Off the lip a car flies a parabola, launched along the face's last facet and
+// landing FLIGHT beyond the lip, then a small bounce as it lands.
+const LAUNCH = (RAMP_H * 0.36) / (LIP - RAMP_FACE[1][0]);
+const FLIGHT = 0.12;
+const FALL = (RAMP_H + LAUNCH * FLIGHT) / FLIGHT ** 2; // so it's back on the mat at FLIGHT
+const BOUNCE = { h: 0.0025, len: 0.035 };
+
+/** How high the course lies at `s` along it: on the mat, or draped over a kicker. */
+function courseHeight(s: number): number {
+  for (const toe of COURSE.toes) {
+    const x = wrapS(s - toe);
+    if (x > RAMP_L) continue;
+    for (let i = 1; i < RAMP_FACE.length; i++) {
+      const [x1, y1] = RAMP_FACE[i];
+      if (x <= x1) {
+        const [x0, y0] = RAMP_FACE[i - 1];
+        return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
+      }
+    }
+  }
+  return 0;
+}
+
+/** Where a car rides at `s`: its height off the mat, and the slope it's pitched to. */
+function rideAt(s: number): [number, number] {
+  for (const toe of COURSE.toes) {
+    const x = wrapS(s - toe) - LIP; // past the lip
+    if (x > 0 && x < FLIGHT) return [RAMP_H + LAUNCH * x - FALL * x * x, LAUNCH - 2 * FALL * x];
+    if (x >= FLIGHT && x < FLIGHT + BOUNCE.len) {
+      const k = (Math.PI * (x - FLIGHT)) / BOUNCE.len;
+      return [BOUNCE.h * Math.sin(k), ((BOUNCE.h * Math.PI) / BOUNCE.len) * Math.cos(k)];
+    }
+  }
+  const e = 0.003;
+  return [courseHeight(s), (courseHeight(s + e) - courseHeight(s - e)) / (2 * e)];
+}
+
+// How hard a car brakes for the bend ahead: the course's curvature, averaged
+// over the next few centimetres so it slows before the hairpin rather than in
+// it, and picks up again on the way out.
+const GRIP_N = 256;
+const BRAKE = 0.32; // the speed shed in the tightest bend
+const GRIP = (() => {
+  const { curve } = COURSE;
+  const ds = COURSE.L / GRIP_N;
+  const k = new Float32Array(GRIP_N);
+  const a = new Vector3();
+  const b = new Vector3();
+  for (let i = 0; i < GRIP_N; i++) {
+    curve.getTangentAt(i / GRIP_N, a);
+    curve.getTangentAt(((i + 1) % GRIP_N) / GRIP_N, b);
+    k[i] = Math.abs(Math.atan2(a.x * b.z - a.z * b.x, a.x * b.x + a.z * b.z)) / ds;
+  }
+  const AHEAD = Math.round(0.06 / ds);
+  const out = new Float32Array(GRIP_N);
+  for (let i = 0; i < GRIP_N; i++) {
+    let sum = 0;
+    for (let j = 0; j <= AHEAD; j++) sum += k[(i + j) % GRIP_N];
+    out[i] = 1 - BRAKE * Math.min(1, sum / (AHEAD + 1) / 11);
+  }
+  return out;
+})();
+const gripAt = (s: number) => GRIP[Math.floor((wrapS(s) / COURSE.L) * GRIP_N) % GRIP_N];
+
+/* The course as the game draws it: a purple band with yellow edges and pale
+   chevrons running the way the race goes. One tile of the pattern is one
+   chevron; the band's length is a whole number of them, so it closes without a
+   seam, and the chevrons stream by sliding the texture along it. */
+const CHEVRON = COURSE.L / Math.round(COURSE.L / 0.06);
+let courseTex: CanvasTexture | null = null;
+function courseTexture(): CanvasTexture {
+  if (courseTex) return courseTex;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = Math.round((128 * CHEVRON) / TW); // square texels: TW across, one chevron along
+  const g = c.getContext('2d');
+  if (g) {
+    const { width: w, height: h } = c;
+    g.fillStyle = 'rgba(122, 44, 255, 0.62)';
+    g.fillRect(0, 0, w, h);
+    // the edges: a yellow kerb, a hairline of shadow inside it
+    g.fillStyle = '#ffd23f';
+    g.fillRect(0, 0, 9, h);
+    g.fillRect(w - 9, 0, 9, h);
+    g.fillStyle = 'rgba(40, 8, 90, 0.5)';
+    g.fillRect(9, 0, 3, h);
+    g.fillRect(w - 12, 0, 3, h);
+    // a chevron pointing up the texture, which the band's v runs along with the race
+    g.strokeStyle = 'rgba(255, 214, 245, 0.92)';
+    g.lineWidth = 11;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.beginPath();
+    g.moveTo(w * 0.3, h * 0.66);
+    g.lineTo(w * 0.5, h * 0.36);
+    g.lineTo(w * 0.7, h * 0.66);
+    g.stroke();
+  }
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  t.wrapT = RepeatWrapping;
+  t.anisotropy = 4;
+  return (courseTex = t);
+}
+
+/** The band: a ribbon along the course, draped over the kickers, with v
+ *  running along it in chevrons. */
+function courseGeometry(): BufferGeometry {
+  const N = 420;
+  const pos = new Float32Array((N + 1) * 6);
+  const uv = new Float32Array((N + 1) * 4);
+  const idx: number[] = [];
+  const p = new Vector3();
+  const t = new Vector3();
+  for (let i = 0; i <= N; i++) {
+    const u = (i % N) / N;
+    COURSE.curve.getPointAt(u, p);
+    COURSE.curve.getTangentAt(u, t);
+    const s = (i / N) * COURSE.L;
+    const y = MAT + courseHeight(s) + 0.0007;
+    const nx = t.z * (TW / 2);
+    const nz = -t.x * (TW / 2);
+    pos.set([p.x + nx, y, p.z + nz, p.x - nx, y, p.z - nz], i * 6);
+    uv.set([0, s / CHEVRON, 1, s / CHEVRON], i * 4);
+  }
+  // a quad per step, except down the steep back of a kicker: the band stops at
+  // the lip and picks up again on the mat behind it, rather than hanging a wall
+  for (let i = 0; i < N; i++) {
+    if (Math.abs(pos[i * 6 + 1] - pos[(i + 1) * 6 + 1]) > 0.004) continue;
+    idx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(pos, 3));
+  g.setAttribute('uv', new BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** One edge of the band, as a closed line: `side` 1 is the inside of the loop. */
+function courseEdge(side: number): [number, number, number][] {
+  const out: [number, number, number][] = [];
+  const p = new Vector3();
+  const t = new Vector3();
+  const N = 240;
+  for (let i = 0; i <= N; i++) {
+    const u = (i % N) / N;
+    COURSE.curve.getPointAt(u, p);
+    COURSE.curve.getTangentAt(u, t);
+    const o = side * (TW / 2);
+    out.push([p.x + t.z * o, MAT + courseHeight(u * COURSE.L) + 0.001, p.z - t.x * o]);
+  }
+  return out;
+}
+
+/* The mat the game is played on, as in the film: deep indigo, flecked pink and
+   red. Drawn once; the life system greys it with the rest of the table until the
+   project's been opened. */
+let matTex: CanvasTexture | null = null;
+function matTexture(): CanvasTexture {
+  if (matTex) return matTex;
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = Math.round((512 * MAT_D) / MAT_W);
+  const g = c.getContext('2d');
+  if (g) {
+    const { width: w, height: h } = c;
+    g.fillStyle = '#1c1c4a';
+    g.fillRect(0, 0, w, h);
+    const rand = makeRand(17);
+    const flecks = ['#ff4f8b', '#ff3b5c', '#ff8fb8', '#b45cff'];
+    for (let i = 0; i < 1500; i++) {
+      g.globalAlpha = 0.35 + rand() * 0.55;
+      g.fillStyle = flecks[Math.floor(rand() * flecks.length)];
+      g.beginPath();
+      g.arc(rand() * w, rand() * h, 0.5 + rand() * 1.3, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+    g.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+    g.lineWidth = 2;
+    g.strokeRect(9, 9, w - 18, h - 18);
+  }
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  t.anisotropy = 4;
+  return (matTex = t);
+}
+
+// The light-blue pieces on the mat: a crystal pyramid in the infield, one in
+// each bend, and one in the pocket the back steps in round. (x, z, scale, turn)
+const PYRAMIDS: [number, number, number, number][] = [
+  [0.04, 0.015, 1.1, 0.4],
+  [0.1755, 0.0, 0.8, 1.9],
+  [-0.2, 0.025, 0.85, 3.1],
+  [-0.1, -0.145, 0.8, 0.9],
+];
+const PIECE = '#74b6ff';
+
+/* Two cars racing the course. Each runs its own lap, and three things make it a
+   contest rather than a procession (simulated across wake phases: a pass every
+   ~19s, a typical gap a sixth of a lap, and no car ever below half pace):
+
+     · `wob`/`amp` — each car's pace rises and falls round the lap on its own
+       rhythm, on top of the braking every car does for the bends.
      · `PACE` — a slow swing in outright pace, in antiphase between the two, so
-       each is genuinely the quicker car for a spell. This is what opens a gap and
-       then closes it again; the wobble only decides where on the lap they meet.
-     · `CATCH` — a catch-up band on whoever is behind, growing with the gap and
-       worth nothing at all when they're level.
+       each is genuinely the quicker car for a spell: this is what opens a gap
+       and closes it again.
+     · `CATCH` — a push on whoever is behind, growing with the gap and worth
+       nothing when they're level, so the gap centres on zero whenever you
+       arrive and nothing holds them together through a pass.
 
-   That last one used to be a slipstream — a tow that peaked just off the leader's
-   tail — and it was wrong twice over. It parked the chaser on the leader's bumper
-   (simulated: half the time inside a third of a radian, a pass every 7 seconds),
-   and being open-loop it left the race at the mercy of the clock: the pace swing
-   runs off `elapsedTime`, so depending on when the table was woken the gap could
-   settle anywhere, and at four of eight wake phases the cars never traded places
-   at all. Pushing from behind instead of pulling from the front fixes both — the
-   band is a restoring force, so the gap is centred on zero no matter when you
-   arrive, and nothing holds them together through the pass.
-
-   Simulated across wake phases: a pass every ~19s, typical separation a fifth of
-   the lap and up to a third at the peaks, only ~12% of the time nose-to-tail, and
-   the speed factor never below 0.59 so neither car stalls or reverses.
-
-   They also run marginally different lines, in and out, so a pass happens
-   alongside instead of straight through the other car. */
-const R = 0.2; // track radius — the drawn loop
-const CARS: { livery: Livery; at: number; dr: number; wob: number; amp: number; phase: number; pace: number }[] = [
+   Progress is counted in laps (2π a lap), which is what decides the lead. They
+   keep to their own lanes, so a pass happens alongside. */
+const CARS: { livery: Livery; at: number; lane: number; wob: number; amp: number; phase: number; pace: number }[] = [
   // the game's purple car, magenta rims; its orange rival with a blue cabin
-  { livery: { body: '#5b2a8f', cabin: '#1d1a3f', rim: '#ff4fd8' }, at: 0, dr: 0.016, wob: 3, amp: 0.2, phase: 0, pace: 0 },
-  { livery: { body: '#ff8a3c', cabin: '#3a2f9e', rim: '#b45cff' }, at: -1.8, dr: -0.016, wob: 2, amp: 0.26, phase: 1.9, pace: Math.PI },
+  { livery: { body: '#5b2a8f', cabin: '#1d1a3f', rim: '#ff4fd8' }, at: 0, lane: LANE, wob: 3, amp: 0.12, phase: 0, pace: 0 },
+  { livery: { body: '#ff8a3c', cabin: '#3a2f9e', rim: '#b45cff' }, at: -1.8, lane: -LANE, wob: 2, amp: 0.15, phase: 1.9, pace: Math.PI },
 ];
 const PACE = 0.17; // depth of the slow pace swing
 const PACE_W = 0.175; // rad/s — a full swing every ~36s, so a pass is an event
 const CATCH = 0.07; // how hard a dropped car pushes on, per radian of gap
 const CATCH_CAP = 6; // never let the band become a rocket if the gap ever runs away
 const LEAD_HYST = 0.07; // the crown won't change hands on a photo finish jitter
+const LAP_SPEED = (2 * Math.PI * 0.2) / COURSE.L; // laps (in radians) per metre-per-second at 0.2 m/s top speed
+const FLOW = 0.09; // m/s the chevrons stream at, once the course is on
 
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
-  const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
+  const kit = useTableKit();
   const cars = useRef<(Group | null)[]>([]);
   const crown = useRef<Group>(null);
   const speed = useRef(0.1);
   const live = useRef(0);
-  // Distance covered, per car — this is what decides the lead, not where they
-  // happen to be on the circle. Seeded with each car's starting offset so the
-  // comparison is right from the first frame.
+  // laps covered per car, seeded with each car's start so the lead is right from the first frame
   const dist = useRef(CARS.map((c) => c.at));
+  const pitch = useRef(CARS.map(() => 0));
   const lead = useRef(0);
+  const band = useGeometry(courseGeometry);
+  const mat = useGeometry(() => roundedPlaneGeometry(MAT_W, MAT_D, 0.03));
+  const bandTex = useMemo(courseTexture, []);
+  const matMap = useMemo(matTexture, []);
+  const edges = useMemo(() => [courseEdge(1), courseEdge(-1)], []);
+  const ramps = useMemo(
+    () =>
+      COURSE.toes.map((toe) => {
+        const u = wrapS(toe + RAMP_L / 2) / COURSE.L;
+        const p = COURSE.curve.getPointAt(u);
+        const t = COURSE.curve.getTangentAt(u);
+        return { p: [p.x, MAT, p.z] as V3, yaw: Math.atan2(t.x, t.z) };
+      }),
+    [],
+  );
+  const p = useMemo(() => new Vector3(), []);
+  const tan = useMemo(() => new Vector3(), []);
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
     // ghost table: the cars barely creep; the race only runs once it's alive
@@ -433,92 +727,91 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     speed.current += (sT - speed.current) * 0.05;
     live.current += ((selected || visited ? 1 : 0) - live.current) * FX.engage;
     const t = s.clock.elapsedTime;
+    if (!reduced) bandTex.offset.y -= (FLOW * live.current * dt) / CHEVRON;
 
-    // who's ahead, by distance covered rather than where they sit on the circle.
-    // The dead band stops the crown flickering between them through a pass.
+    // who's ahead, by laps covered; the dead band stops the crown flickering through a pass
     const d = dist.current[0] - dist.current[1];
     if (d > LEAD_HYST) lead.current = 0;
     else if (d < -LEAD_HYST) lead.current = 1;
     for (let i = 0; i < CARS.length; i++) {
       const c = CARS[i];
+      const at = (dist.current[i] / (2 * Math.PI)) * COURSE.L;
       if (!reduced) {
-        let v = speed.current * (1 + c.amp * Math.sin(dist.current[i] * c.wob + c.phase) + PACE * Math.sin(t * PACE_W + c.pace));
+        let v = speed.current * gripAt(at) * (1 + c.amp * Math.sin(dist.current[i] * c.wob + c.phase) + PACE * Math.sin(t * PACE_W + c.pace));
         if (i !== lead.current) {
-          // pushing on from behind, not being towed along in front: zero at the
-          // pass, so they're free to come apart again on the other side of it
+          // pushing on from behind, not towed along in front: zero at the pass,
+          // so they're free to come apart again on the other side of it
           const gap = Math.min(CATCH_CAP, Math.max(0, dist.current[lead.current] - dist.current[i]));
           v *= 1 + CATCH * gap;
         }
-        dist.current[i] += v * dt;
+        dist.current[i] += v * dt * LAP_SPEED;
       }
       const g = cars.current[i];
-      if (g) g.rotation.y = dist.current[i];
+      if (!g) continue;
+      const u = wrapS(at) / COURSE.L;
+      COURSE.curve.getPointAt(u, p);
+      COURSE.curve.getTangentAt(u, tan);
+      const [y, slope] = rideAt(at);
+      // the nose follows the slope, eased, so a landing settles rather than snaps
+      const aim = -Math.atan(slope);
+      pitch.current[i] = reduced ? aim : pitch.current[i] + (aim - pitch.current[i]) * (1 - Math.exp(-dt * 16));
+      g.position.set(p.x + tan.z * c.lane, MAT + y, p.z - tan.x * c.lane);
+      g.rotation.set(pitch.current[i], Math.atan2(tan.x, tan.z), 0, 'YXZ');
     }
 
     // the crown rides whoever is ahead, and hops across the moment that changes
-    if (crown.current) {
+    const lc = cars.current[lead.current];
+    if (crown.current && lc) {
       const bob = reduced ? 0 : t;
-      const a = dist.current[lead.current];
-      const rad = R + CARS[lead.current].dr;
-      crown.current.position.set(rad * Math.cos(a), 0.036 + Math.sin(bob * 3) * 0.004, -rad * Math.sin(a));
+      crown.current.position.set(lc.position.x, lc.position.y + 0.034 + Math.sin(bob * 3) * 0.004, lc.position.z);
       crown.current.rotation.y = bob * 0.9;
-      crown.current.scale.setScalar(live.current); // only once the race is real
+      crown.current.scale.setScalar(live.current * CAR_SCALE); // only once the race is real
       crown.current.visible = live.current > 0.02;
     }
   });
   return (
-    <group position={position}>
-      <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.4} />
-      <group>
-        {/* The top is filleted rather than a hard-edged disc, so it catches the
-            light the way the desk's SoftBox does instead of showing one bright
-            cut line around the rim. A slightly inset core plus a torus round the
-            edge is the round-table equivalent of SoftBox's radius. Edges are
-            kept off the torus — a threshold outline on a curved band draws a
-            ring on every segment. */}
-        <mesh position={[0, 0.18, 0]}>
-          <cylinderGeometry args={[0.32, 0.32, 0.019, 44]} />
+    <group position={position} rotation={[0, -0.16, 0]}>
+      <BlobShadow position={[0, 0.004, 0]} radius={0.48} aspect={0.62} opacity={0.4} />
+      {kit && (
+        <mesh geometry={kit.tbl_frame}>
           <LiveGlassMat slug="lightship-drive" tint="pale" />
+          <LiveEdges slug="lightship-drive" threshold={35} />
         </mesh>
-        <mesh position={[0, 0.18, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.3145, 0.0095, 8, 44]} />
-          <LiveGlassMat slug="lightship-drive" tint="pale" />
-        </mesh>
-        <mesh position={[0, 0.18, 0]}>
-          <cylinderGeometry args={[0.3145, 0.3145, 0.0295, 44]} />
-          <LiveGlassMat slug="lightship-drive" tint="pale" />
-        </mesh>
-        {/* the silhouette line, drawn once on the widest circle */}
-        <Line points={circlePts(0.32)} position={[0, 0.18, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.32} />
-        {/* legs taper toward the floor and toe in, so the table stands rather
-            than resting on four identical dowels */}
-        {([[0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2]] as [number, number][]).map(([lx, lz], i) => (
-          <mesh key={i} position={[lx * 0.94, 0.088, lz * 0.94]} rotation={[lz * 0.09, 0, -lx * 0.09]}>
-            <cylinderGeometry args={[0.011, 0.017, 0.176, 10]} />
-            <LiveGlassMat slug="lightship-drive" tint="pale" />
+      )}
+      {/* the mat, held just behind the band that lies on it */}
+      <mesh geometry={mat} position={[0, MAT, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <meshStandardMaterial map={matMap} roughness={0.9} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
+      </mesh>
+      <mesh geometry={band} renderOrder={1}>
+        <meshBasicMaterial map={bandTex} transparent depthWrite={false} toneMapped={false} />
+      </mesh>
+      {edges.map((pts, i) => (
+        <Line key={i} points={pts} color="#ffd23f" lineWidth={1.4} transparent opacity={0.85} />
+      ))}
+      {kit &&
+        ramps.map((r, i) => (
+          <mesh key={i} geometry={kit.ramp} position={r.p} rotation={[0, r.yaw, 0]}>
+            <LiveGlassMat slug="lightship-drive" tint="pale" color={PIECE} />
+            <LiveEdges slug="lightship-drive" threshold={20} />
           </mesh>
         ))}
-        {/* the AR race loop — a circle */}
-        <Line points={circlePts(R)} position={[0, 0.2, 0]} color={accent} lineWidth={1.5} transparent opacity={0.7} />
-        {/* Two cars racing the loop, each facing its direction of travel — the
-            game's purple car and its orange rival. One carrier
-            group per car, each turned by its own distance, so they're free to
-            close on each other and swap places. */}
-        {CARS.map((c, i) => (
-          <group key={i} ref={(g) => (cars.current[i] = g)} position={[0, 0.202, 0]}>
-            <group position={[R + c.dr, 0, 0]} rotation={[0, Math.PI, 0]}>
-              <RaceCar livery={c.livery} />
-            </group>
-          </group>
+      {kit &&
+        PYRAMIDS.map(([x, z, k, turn], i) => (
+          <mesh key={i} geometry={kit.pyramid} position={[x, MAT, z]} rotation={[0, turn, 0]} scale={k}>
+            <LiveGlassMat slug="lightship-drive" tint="pale" color={PIECE} />
+            <LiveEdges slug="lightship-drive" threshold={20} />
+          </mesh>
         ))}
-        {/* The trophy, floating over whoever is winning. Nested inside the table's
-            own plane so the per-frame position below is purely the lap position —
-            setting it directly on this group would overwrite the table height. */}
-        <group position={[0, 0.202, 0]}>
-          <group ref={crown} visible={false}>
-            <LeaderCrown />
+      {CARS.map((c, i) => (
+        <group key={i} ref={(g) => (cars.current[i] = g)}>
+          <group scale={CAR_SCALE}>
+            <RaceCar livery={c.livery} />
           </group>
         </group>
+      ))}
+      {/* the trophy over whoever is winning */}
+      <group ref={crown} visible={false}>
+        <LeaderCrown />
       </group>
     </group>
   );
@@ -1442,10 +1735,11 @@ export function RoomRig() {
 
         {/* The phone. This is what the couch is here FOR — the popcore hotspot
             anchors to it, and a couch with nothing on it gives the marker
-            nothing to point at. It lands on the right-hand cushion, whose top
-            is at about 0.203 there, crown included. */}
+            nothing to point at. It lands face down on the right-hand cushion,
+            whose top is at about 0.203 there, crown included: its centre half
+            its thickness above that, and a hair more for the screen. */}
         <LifeGroup slug="popcore-games">
-          <Phone slug="popcore-games" position={[0.12, 0.205, 0.06]} args={[0.075, 0.155, 0.004]} liveColor={accent} />
+          <Phone slug="popcore-games" position={[0.12, 0.2075, 0.06]} liveColor={accent} />
         </LifeGroup>
       </group>
 

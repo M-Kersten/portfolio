@@ -41,6 +41,27 @@ model, with the shared helpers in `modelkit.py`:
   nose, short white arms, and a grey fabric strap put down behind it (a loop
   that drops from the arms to the desk, and a top strap). It ships as
   `public/models/headset.glb`; `room.tsx` (VRHeadset) gives the parts their glass.
+- `build_table.py`: the Lightship Drive table in the Room, after the show-floor
+  setup in the project's film: a low mid-century table (a rounded top with an
+  eased edge, an apron, four tapered legs splayed out to the floor), and the
+  light-blue faceted pieces set out on its mat, a kicker the cars jump off and
+  a crystal pyramid. It ships as `public/models/table.glb`; `room.tsx`
+  (CoffeeTableAR) lays out the mat, the AR course over the kicker and round
+  the pyramids, and the race on it. The course is draped over the kicker's
+  face, so a change to the kicker's size or facets has to be made in
+  `RAMP_FACE` there too.
+- `build_camera.py`: the Custom AR framework's camera on the chip layer, a
+  bullet CCTV camera made in the chip kit's idiom (rounded housings, the kit
+  bevel, deep bodies with pale fittings and a glass stand): a housing under a
+  sun visor, a dark front panel with a ring of IR LEDs round the lens, a cable
+  gland and pigtail on the back, on a post with a ball joint. It ships as
+  `public/models/camera.glb`; `chip.tsx` (SecurityCamera) nods and pans the
+  head on the ball, racks the lens, lights the IR ring and throws the beam.
+- `build_phone.py`: the Popcore phone on the Room's couch, a current handset
+  with soft edges, side keys and a three-lens camera island on its back. It
+  lies face down, so the island is what reads as a phone from across the room.
+  It ships as `public/models/phone.glb`; `room.tsx` (Phone) draws the screen
+  over its front and turns it over when it's opened.
 
 `src/scene/maquette/kit.ts` loads the files, and the layers give every part
 the site's own materials.
@@ -69,8 +90,12 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   origin, the mill on its own with its sails in the hub's space, the
   transformer house on its own plot's origin, the rocket on its axis with its
   skirt on the launch mount at y 0.09, the car on its wheels at y 0 nose to
-  +Z, the crown standing on y 0, and the headset resting on y 0 with its
-  visor facing +Z. Each is authored around the
+  +Z, the crown standing on y 0, the headset resting on y 0 with its
+  visor facing +Z, the table on the floor with its top's surface at y 0.19,
+  and the kicker and pyramid standing on y 0, the kicker rising toward +Z;
+  the camera's mount on the board's top at y 0 with its head in the ball
+  joint's own frame, and the phone centred on its own origin with its screen
+  facing +Z. Each is authored around the
   origin its JSX group already uses, and exported without axis conversion, so
   a part drops onto its slot with no offsets in code.
 - **One bevel.** Every hard edge gets the same round two-segment bevel. That
