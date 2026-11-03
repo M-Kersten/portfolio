@@ -1,19 +1,17 @@
-# The VR headset on the Room's desk (the Virtuele Brigade's own kit): a rounded
-# visor with a dark glass front carrying its tracking lenses, a foam face
-# gasket with the nose notch, and the head strap put down behind it in a loop
-# that rises from the desk to the visor, a top strap over it and a cushion with
-# a tension dial at the back. Exported as one glb of named parts for the site
-# (src/scene/maquette/room.tsx, VRHeadset, which tints them). See README.md to
-# rebuild.
+# The VR headset on the Room's desk (the Virtuele Brigade's own kit), after a
+# Meta Quest 3: a soft, pillow-shaped white visor with three dark sensor pills
+# down its front, a dark foam face pad, short white arms off its sides and a
+# grey fabric strap, put down behind it in a loop that drops from the arms to
+# the desk, with a top strap over it. Exported as one glb of named parts for
+# the site (src/scene/maquette/room.tsx, VRHeadset, which tints them). See
+# README.md to rebuild.
 #
 # Coordinates are the headset's own (see modelkit.py): Y up, resting on the desk
 # at y 0, the visor's front facing +Z, the strap trailing out behind at -Z.
-#   hs_shell   the visor's housing, a pale rounded block
-#   hs_plate   the front glass plate, and the lens barrels inside the face
-#   hs_lenses  the tracking lenses on the plate (the site gives them a faint glow)
-#   hs_face    the foam gasket behind the visor, notched for the nose
-#   hs_strap   the loop, the top strap, the hinges and the back cushion
-#   hs_dial    the tension dial on the cushion (the site colours it with the accent)
+#   hs_shell   the visor and its two arms, white
+#   hs_pods    the three sensor pills on the front, dark glass
+#   hs_face    the foam face pad behind the visor, notched for the nose
+#   hs_strap   the fabric: the loop round the back and the top strap
 import math
 import os
 import sys
@@ -26,19 +24,27 @@ from mathutils import Vector  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
 
-# the visor
-W, H, R = 0.140, 0.066, 0.024  # housing width, height, corner radius
-YC = 0.037  # its centre height: it stands on its lower edge
-Z_BACK, Z_FRONT = -0.006, 0.0345  # the housing's depth
-PLATE_W, PLATE_H, PLATE_R = 0.130, 0.056, 0.019
-PLATE_OUT = 0.0055  # how far the plate stands proud of the housing
-FACE_Z0, FACE_Z1 = -0.032, -0.0055  # the gasket, behind the housing
+YC = 0.036  # the visor's centre height: it stands on its lower edge
+# the visor as a stack of rounded rectangles front to back (z, width, height,
+# corner radius): fullest in the middle, rounding off to the front and to the
+# face, so it reads as one soft pillow rather than a box with a lid
+VISOR = [
+    (-0.004, 0.128, 0.060, 0.022),
+    (0.000, 0.136, 0.066, 0.026),
+    (0.010, 0.140, 0.070, 0.028),
+    (0.026, 0.140, 0.070, 0.028),
+    (0.036, 0.136, 0.066, 0.026),
+    (0.042, 0.128, 0.058, 0.022),
+    (0.0455, 0.116, 0.047, 0.018),
+]
+FRONT = VISOR[-1][0]
+SEG = 8  # points per rounded corner
 
 # the strap
-STRAP_HW, STRAP_T = 0.0105, 0.0065  # half the strap's width, and its thickness
-RING_LOW = 0.0135  # the loop's centre height at the back, on the desk
-TOP_HW, TOP_T = 0.0125, 0.0055
-BACK_Z = -0.19  # the loop's farthest point
+ARM_END = -0.048  # where the white arms end and the fabric takes over
+LOOP_LOW = 0.0125  # the loop's centre height at the back, lying on the desk
+BAND_HW, BAND_T = 0.012, 0.0042  # half the fabric's width, its thickness
+BACK_Z = -0.182
 
 
 def smooth(a, b, x):
@@ -46,34 +52,28 @@ def smooth(a, b, x):
     return t * t * (3 - 2 * t)
 
 
-def catmull(pts, per=8, closed=False):
+def catmull(pts, per=8):
     """A smooth curve through the points (Catmull-Rom), per spans between each pair."""
     P = [Vector(p) for p in pts]
-    n = len(P)
     out = []
-    rng = range(n) if closed else range(n - 1)
-    for i in rng:
-        p0 = P[(i - 1) % n] if (closed or i > 0) else P[0] * 2 - P[1]
-        p1 = P[i]
-        p2 = P[(i + 1) % n]
-        p3 = P[(i + 2) % n] if (closed or i + 2 < n) else P[-1] * 2 - P[-2]
+    for i in range(len(P) - 1):
+        p0 = P[i - 1] if i > 0 else P[0] * 2 - P[1]
+        p1, p2 = P[i], P[i + 1]
+        p3 = P[i + 2] if i + 2 < len(P) else P[-1] * 2 - P[-2]
         for k in range(per):
             t = k / per
             out.append(0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t))
-    if not closed:
-        out.append(P[-1])
+    out.append(P[-1])
     return out
 
 
 def sweep(name, path, side, hw, ht):
-    """A flat strap along a path: hw is half its width along `side(point)`, ht half
+    """A flat band along a path: hw is half its width along `side(point)`, ht half
     its thickness across it. Capped at both ends."""
     bm = bmesh.new()
     rings = []
     for i, p in enumerate(path):
-        a = path[max(0, i - 1)]
-        b = path[min(len(path) - 1, i + 1)]
-        t = (b - a).normalized()
+        t = (path[min(len(path) - 1, i + 1)] - path[max(0, i - 1)]).normalized()
         s = Vector(side(p)).normalized()
         n = t.cross(s).normalized()
         rings.append([bm.verts.new(p + s * sy * hw + n * sn * ht) for sy, sn in ((1, 1), (1, -1), (-1, -1), (-1, 1))])
@@ -86,99 +86,70 @@ def sweep(name, path, side, hw, ht):
     return K.mk(name, bm)
 
 
+def visor():
+    # lofted along Y, then turned so the stack runs along +Z (front) and the
+    # outlines stand in the XY plane
+    ob = K.loft('visor', [(K.rrect_pts(w, h, r, SEG), z) for z, w, h, r in VISOR])
+    K.xf(ob, (0, YC, 0), (math.pi / 2, 0, 0))
+    return ob
+
+
+def arms():
+    out = []
+    for s in (1, -1):
+        path = [Vector(p) for p in catmull([(s * 0.0665, YC, 0.006), (s * 0.0715, YC - 0.001, -0.02), (s * 0.0725, YC - 0.003, ARM_END)], 8)]
+        a = sweep('arm', path, lambda p: (0, 1, 0), 0.0085, 0.0034)
+        K.bevel(a, 0.0016, now=True)
+        out.append(a)
+    return out
+
+
 def shell():
-    ob = K.prism_ax('hs_shell', K.rrect_pts(W, H, R, 8), Z_BACK, Z_FRONT, axis='z')
-    K.xf(ob, (0, YC, 0))
-    K.bevel(ob, 0.0035, now=True)
+    ob = K.join('hs_shell', [visor()] + arms())
     return K.finish(ob, 50)
 
 
-def plate():
-    z0 = Z_FRONT - 0.002  # seated into the housing
-    ob = K.prism_ax('plate', K.rrect_pts(PLATE_W, PLATE_H, PLATE_R, 8), z0, Z_FRONT + PLATE_OUT, axis='z')
-    K.xf(ob, (0, YC, 0))
-    K.bevel(ob, 0.0016, now=True)
-    # the lens barrels, deep in the face: two short tubes behind the opening
-    barrels = []
-    for s in (1, -1):
-        b = K.cyl('barrel', 0.0225, 0.012, pos=(s * 0.032, YC, Z_BACK + 0.001), rot=(math.pi / 2, 0, 0), seg=32)
-        barrels.append(b)
-    ob = K.join('hs_plate', [ob] + barrels)
-    return K.finish(ob, 50)
-
-
-def lenses():
-    z0 = Z_FRONT + PLATE_OUT - 0.0006
+def pods():
     parts = []
-    for s in (1, -1):
-        # the tall tracking lenses at either side of the plate
-        pill = K.prism_ax('pill', K.rrect_pts(0.0165, 0.033, 0.0082, 8), z0, z0 + 0.0026, axis='z')
-        K.xf(pill, (s * 0.0435, YC + 0.001, 0))
-        K.bevel(pill, 0.0006, now=True)
+    for x in (-0.034, 0.0, 0.034):
+        pill = K.prism_ax('pill', K.rrect_pts(0.0135, 0.031, 0.0067, SEG), FRONT - 0.0012, FRONT + 0.0014, axis='z')
+        K.xf(pill, (x, YC, 0))
+        K.bevel(pill, 0.0007, now=True)
         parts.append(pill)
-        # and a small one beside the nose
-        dot = K.cyl('dot', 0.0035, 0.0022, pos=(s * 0.0125, YC - 0.012, z0 + 0.0011), rot=(math.pi / 2, 0, 0), seg=20)
-        parts.append(dot)
-    # a centre sensor between them, high on the brow
-    parts.append(K.cyl('dot', 0.0028, 0.0022, pos=(0, YC + 0.016, z0 + 0.0011), rot=(math.pi / 2, 0, 0), seg=20))
-    ob = K.join('hs_lenses', parts)
+    ob = K.join('hs_pods', parts)
     return K.finish(ob, 50)
 
 
 def face():
-    ob = K.prism_ax('hs_face', K.rrect_pts(0.126, 0.057, 0.022, 8), FACE_Z0, FACE_Z1, axis='z')
+    ob = K.prism_ax('hs_face', K.rrect_pts(0.122, 0.054, 0.021, SEG), -0.027, -0.003, axis='z')
     K.xf(ob, (0, YC - 0.002, 0))
-    # the opening you look through, and the notch the nose sits in
-    hole = K.prism_ax('hole', K.rrect_pts(0.104, 0.037, 0.0165, 8), FACE_Z0 - 0.005, FACE_Z1 + 0.005, axis='z')
-    K.xf(hole, (0, YC + 0.001, 0))
-    notch = K.cyl('notch', 0.0125, 0.06, pos=(0, YC - 0.0285, (FACE_Z0 + FACE_Z1) / 2), rot=(math.pi / 2, 0, 0), seg=32)
-    K.cut(ob, hole, notch)
-    K.bevel(ob, 0.0028, now=True)
+    notch = K.cyl('notch', 0.012, 0.06, pos=(0, YC - 0.028, -0.015), rot=(math.pi / 2, 0, 0), seg=32)
+    K.cut(ob, notch)
+    K.bevel(ob, 0.0035, now=True)
     return K.finish(ob, 50)
 
 
 def strap():
-    # the loop: out from both sides of the visor, round the back at the desk,
-    # rising to the visor's own height where it hooks on
-    plan = [(-0.0715, 0.0), (-0.0735, -0.04), (-0.0705, -0.09), (-0.058, -0.145), (-0.03, -0.1795), (0.0, BACK_Z + 0.0005)]
+    # the loop: on from the arms, dropping to the desk and round the back
+    plan = [(-0.0725, ARM_END + 0.004), (-0.0725, -0.085), (-0.064, -0.135), (-0.036, -0.170), (0.0, BACK_Z)]
     plan += [(-x, z) for x, z in reversed(plan[:-1])]
     path = [Vector((p.x, 0, p.z)) for p in catmull([(x, 0, z) for x, z in plan], 8)]
     for p in path:
-        p.y = RING_LOW + (YC - RING_LOW) * smooth(-0.125, -0.002, p.z)
-    ring = sweep('ring', path, lambda p: (0, 1, 0), STRAP_HW, STRAP_T / 2)
-    K.bevel(ring, 0.0014, now=True)
-
+        p.y = LOOP_LOW + (YC - 0.003 - LOOP_LOW) * smooth(-0.13, ARM_END, p.z)
+    loop = sweep('loop', path, lambda p: (0, 1, 0), BAND_HW, BAND_T / 2)
+    K.bevel(loop, 0.0013, now=True)
     # the top strap, from the visor's brow down to the loop's back
-    top_pts = [(0, 0.0705, 0.0), (0, 0.0635, -0.04), (0, 0.0455, -0.092), (0, 0.032, -0.14), (0, 0.0278, BACK_Z + 0.006)]
-    top = sweep('top', catmull(top_pts, 8), lambda p: (1, 0, 0), TOP_HW, TOP_T / 2)
-    K.bevel(top, 0.0012, now=True)
-
-    # the hinges where the loop hooks onto the visor, and the cushion at the back
-    parts = [ring, top]
-    for s in (1, -1):
-        h = K.prism_ax('hinge', K.rrect_pts(0.030, 0.024, 0.0075, 6), -0.004, 0.003, axis='x')
-        K.xf(h, (s * 0.0735, YC - 0.001, 0.0))
-        K.bevel(h, 0.0012, now=True)
-        parts.append(h)
-    pad = K.prism('pad', K.rrect_pts(0.072, 0.034, 0.0145, 8), 0.030, y0=0.0015)
-    K.xf(pad, (0, 0, BACK_Z - 0.0075))
-    K.bevel(pad, 0.0028, now=True)
-    parts.append(pad)
-    ob = K.join('hs_strap', parts)
-    return K.finish(ob, 50)
-
-
-def dial():
-    ob = K.knurl('hs_dial', 0.0115, 0.0008, 0.0295, 0.0372, n=24, axis='y', flat=0.55)
-    K.xf(ob, (0, 0, BACK_Z - 0.0035))
-    K.bevel(ob, 0.0006, now=True)
+    top_pts = [(0, 0.0705, -0.002), (0, 0.065, -0.04), (0, 0.048, -0.09), (0, 0.033, -0.14), (0, LOOP_LOW + BAND_HW + BAND_T / 2, BACK_Z + 0.004)]
+    top = sweep('top', catmull(top_pts, 8), lambda p: (1, 0, 0), 0.013, BAND_T / 2)
+    K.bevel(top, 0.0013, now=True)
+    ob = K.join('hs_strap', [loop, top])
     return K.finish(ob, 50)
 
 
 def main():
     K.reset()
     t0 = time.time()
-    parts = [(shell(), 'pale'), (plate(), 'deep'), (lenses(), 'glass'), (face(), 'glass'), (strap(), 'deep'), (dial(), 'mark')]
+    parts = [(shell(), 'pale'), (pods(), 'deep'), (face(), 'deep'), (strap(), 'glass')]
     for ob, _ in parts:
         print(f'  {ob.name:10s} {K.tris(ob):6d} tris')
     print(f'headset: {len(parts)} meshes, {sum(K.tris(o) for o, _ in parts)} tris, {time.time() - t0:.1f}s')
@@ -188,8 +159,8 @@ def main():
     print(f'exported {path} {size / 1024:.0f} KB')
     if '--preview' in sys.argv:
         view = sys.argv[sys.argv.index('--view') + 1] if '--view' in sys.argv else 'front'
-        cams = {'front': (0.2, 0.17, 0.26), 'back': (-0.17, 0.15, -0.3), 'top': (0.0, 0.42, 0.06), 'side': (0.34, 0.07, -0.05)}
-        s = K.preview(os.path.join(OUT, f'prev-headset-{view}.png'), parts, cams[view], (0, 0.03, -0.075), lens=60)
+        cams = {'front': (0.2, 0.17, 0.26), 'back': (-0.2, 0.18, -0.34), 'side': (0.34, 0.08, -0.04), 'face': (0.05, 0.06, 0.3)}
+        s = K.preview(os.path.join(OUT, f'prev-headset-{view}.png'), parts, cams[view], (0, 0.03, -0.07), lens=60)
         print(f'preview {s:.1f}s')
 
 

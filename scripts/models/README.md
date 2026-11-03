@@ -36,11 +36,11 @@ model, with the shared helpers in `modelkit.py`:
   ships as `public/models/car.glb`; `room.tsx` (RaceCar, LeaderCrown) gives
   the parts the game's colours, with the stripe's gradient painted on in code.
 - `build_headset.py`: the VR headset on the Room's desk, the Virtuele
-  Brigade's own kit: a rounded visor with a dark glass front and tracking
-  lenses, a foam gasket notched for the nose, and the head strap put down
-  behind it (a loop that rises from the desk to the visor, a top strap, a
-  cushion and a tension dial). It ships as `public/models/headset.glb`;
-  `room.tsx` (VRHeadset) gives the parts their glass, and the dial the accent.
+  Brigade's own kit, after a Meta Quest 3: a soft, pillow-shaped white visor
+  with three dark sensor pills down its front, a foam face pad notched for the
+  nose, short white arms, and a grey fabric strap put down behind it (a loop
+  that drops from the arms to the desk, and a top strap). It ships as
+  `public/models/headset.glb`; `room.tsx` (VRHeadset) gives the parts their glass.
 
 `src/scene/maquette/kit.ts` loads the files, and the layers give every part
 the site's own materials.

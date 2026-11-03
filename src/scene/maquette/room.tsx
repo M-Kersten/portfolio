@@ -667,34 +667,27 @@ function Mouse({ position, rotation }: { position: V3; rotation?: V3 }) {
   );
 }
 
-/** A VR headset put down on the desk, front to the room: the visor with its dark
- *  glass front and tracking lenses, the foam gasket behind it, and the head strap
- *  looped out the back. Modelled in Blender (scripts/models/build_headset.py);
- *  the tension dial on its cushion takes the layer's accent. */
+/** A VR headset put down on the desk, front to the room, after a Meta Quest: a
+ *  soft white visor with three dark sensor pills down its front, the foam face
+ *  pad behind it, and the fabric strap looped out the back. Modelled in Blender
+ *  (scripts/models/build_headset.py). */
 function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
   const kit = useHeadsetKit();
-  const { accent } = useAccent();
   if (!kit) return null;
   return (
     <group position={position} rotation={rotation}>
       <mesh geometry={kit.hs_strap}>
-        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="deep" />
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
       </mesh>
       <mesh geometry={kit.hs_shell}>
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="pale" />
         <LiveEdges slug={DESK_SLUG} threshold={35} />
       </mesh>
-      <mesh geometry={kit.hs_plate}>
+      <mesh geometry={kit.hs_pods}>
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="deep" />
       </mesh>
-      <mesh geometry={kit.hs_lenses}>
-        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
-      </mesh>
       <mesh geometry={kit.hs_face}>
-        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
-      </mesh>
-      <mesh geometry={kit.hs_dial}>
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.9} roughness={0.4} toneMapped={false} />
+        <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="deep" />
       </mesh>
     </group>
   );

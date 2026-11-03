@@ -46,8 +46,8 @@ const ROCKET_PARTS = [
 ] as const;
 /** The race cars on the Room's AR table, and the leader's crown. */
 const CAR_PARTS = ['car_body', 'car_cabin', 'car_stripe', 'car_tyres', 'car_rims', 'crown'] as const;
-/** The VR headset on the Room's desk: the visor's parts, the strap and its dial. */
-const HEADSET_PARTS = ['hs_shell', 'hs_plate', 'hs_lenses', 'hs_face', 'hs_strap', 'hs_dial'] as const;
+/** The VR headset on the Room's desk (a Quest): the visor, its sensor pills, the face pad, the strap. */
+const HEADSET_PARTS = ['hs_shell', 'hs_pods', 'hs_face', 'hs_strap'] as const;
 export type ChipKit = Record<(typeof CHIP_PARTS)[number], BufferGeometry>;
 export type TowerKit = Record<(typeof TOWER_PARTS)[number], BufferGeometry>;
 export type BlocksKit = Record<string, BufferGeometry | undefined>;
