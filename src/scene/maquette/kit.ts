@@ -54,6 +54,8 @@ const TABLE_PARTS = ['tbl_frame', 'ramp'] as const;
 const CAMERA_PARTS = ['cam_mount', 'cam_screws', 'cam_body', 'cam_visor', 'cam_front', 'cam_ir', 'cam_cable', 'cam_lens'] as const;
 /** The Popcore phone on the Room's couch: the handset, its keys, and the camera island on its back. */
 const PHONE_PARTS = ['ph_body', 'ph_keys', 'ph_island', 'ph_lens', 'ph_glass', 'ph_flash'] as const;
+/** The books on the Room's bookcase: one hardcover (placed at each book's size), and the Zwijsen book's halves. */
+const BOOK_PARTS = ['book_cover', 'book_pages', 'book_bands', 'zw_board', 'zw_block'] as const;
 export type ChipKit = Record<(typeof CHIP_PARTS)[number], BufferGeometry>;
 export type TowerKit = Record<(typeof TOWER_PARTS)[number], BufferGeometry>;
 export type BlocksKit = Record<string, BufferGeometry | undefined>;
@@ -65,6 +67,7 @@ export type HeadsetKit = Record<(typeof HEADSET_PARTS)[number], BufferGeometry>;
 export type TableKit = Record<(typeof TABLE_PARTS)[number], BufferGeometry>;
 export type CameraKit = Record<(typeof CAMERA_PARTS)[number], BufferGeometry>;
 export type PhoneKit = Record<(typeof PHONE_PARTS)[number], BufferGeometry>;
+export type BooksKit = Record<(typeof BOOK_PARTS)[number], BufferGeometry>;
 
 /** gltfpack stores positions and normals as quantized integers and parks the
  *  scale that undoes it on the piece's node. Bake that back into plain floats
@@ -177,6 +180,7 @@ const headset = modelFile('headset.glb', HEADSET_PARTS, 'VR headset');
 const table = modelFile('table.glb', TABLE_PARTS, 'AR table');
 const camera = modelFile('camera.glb', CAMERA_PARTS, 'CV camera');
 const phone = modelFile('phone.glb', PHONE_PARTS, 'phone');
+const books = modelFile('books.glb', BOOK_PARTS, 'books');
 
 /** The park's AR viewer (city.tsx): one self-contained glTF scene, loaded once.
  *  Each user takes a clone, since it re-materials and re-scales what it gets. */
@@ -196,7 +200,7 @@ export function loadBinoculars(): Promise<Group> {
 /** Every model the maquette draws, arrived (or failed: a missing file is its
  *  layer's problem, not the camera's). Asking starts any load not yet begun. */
 export function maquetteLoaded(): Promise<void> {
-  return Promise.allSettled([chip.get(), tower.get(), blocks.get(), mill.get(), trafo.get(), rocket.get(), car.get(), headset.get(), table.get(), camera.get(), phone.get(), loadBinoculars()]).then(() => undefined);
+  return Promise.allSettled([chip.get(), tower.get(), blocks.get(), mill.get(), trafo.get(), rocket.get(), car.get(), headset.get(), table.get(), camera.get(), phone.get(), books.get(), loadBinoculars()]).then(() => undefined);
 }
 
 export const useChipKit = chip.useKit;
@@ -215,3 +219,4 @@ export const useHeadsetKit = headset.useKit;
 export const useTableKit = table.useKit;
 export const useCameraKit = camera.useKit;
 export const usePhoneKit = phone.useKit;
+export const useBooksKit = books.useKit;

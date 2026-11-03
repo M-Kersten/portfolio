@@ -49,6 +49,14 @@ model, with the shared helpers in `modelkit.py`:
   mat, the course (two kickers, faint arrows down its middle) and the race on
   it. The cars and the arrows ride over the kicker's face, so a change to its
   size or facets has to be made in `RAMP_FACE` there too.
+- `build_books.py`: the books on the Room's bookcase, as hardcovers: two
+  cover boards standing a little proud of the page block, a rounded spine
+  with a groove at each joint, and two raised bands across it. It holds one
+  book at a typical size (5 × 17 × 17 cm), which `room.tsx` (ShelvedBooks)
+  places along the shelves at each book's own size and merges by tone; and
+  the halves of the Zwijsen picture book (a board with rounded outer corners,
+  its page block), which OpenBook hinges open. It ships as
+  `public/models/books.glb`.
 - `build_camera.py`: the Custom AR framework's camera on the chip layer, a
   bullet CCTV camera made in the chip kit's idiom (rounded housings, the kit
   bevel, deep bodies with pale fittings and a glass stand): a housing under a
@@ -93,8 +101,9 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   visor facing +Z, the table on the floor with its top's surface at y 0.19,
   and the kicker standing on y 0, rising toward +Z;
   the camera's mount on the board's top at y 0 with its head in the ball
-  joint's own frame, and the phone centred on its own origin with its screen
-  facing +Z. Each is authored around the
+  joint's own frame, the phone centred on its own origin with its screen
+  facing +Z, the shelved book standing centred on its origin with its spine
+  facing +Z, and the Zwijsen book's half lying in its hinge's frame. Each is authored around the
   origin its JSX group already uses, and exported without axis conversion, so
   a part drops onto its slot with no offsets in code.
 - **One bevel.** Every hard edge gets the same round two-segment bevel. That

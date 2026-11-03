@@ -9,10 +9,10 @@ import { RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, Vector3, type Group, type Mesh, type MeshBasicMaterial, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
-import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, makeRand, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
+import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
-import { useCarKit, useHeadsetKit, usePhoneKit, useTableKit } from './kit';
+import { useBooksKit, useCarKit, useHeadsetKit, usePhoneKit, useTableKit, type BooksKit } from './kit';
 import { BlobShadow } from './backdrop';
 import { litMat, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
 import { hang, lathe, leaf, merge, place, softBox, softSeam, tube, useGeometry, type Soft } from './shapes';
@@ -369,8 +369,8 @@ function LeaderCrown() {
 }
 
 /* ---------- The Lightship Drive table ----------
-   After the show-floor setup in the project's film: a low table with a dark,
-   speckled mat on it and two light-blue kickers set out on the mat. The cars
+   After the show-floor setup in the project's film: a low table with a mat on
+   it and two light-blue kickers set out on the mat. The cars
    follow a course over it instead of circling a ring: down the front straight
    and off a kicker, braking into the hairpin, a jog in toward the middle, off
    the second kicker on the back straight, and round the tighter sweeper home.
@@ -544,7 +544,7 @@ function arrowTexture(): CanvasTexture {
     const { width: w } = c;
     // an arrowhead pointing up the texture, which the strip's v runs along
     // with the race; the rest of the tile is clear
-    g.strokeStyle = 'rgba(226, 214, 255, 1)';
+    g.strokeStyle = SURFACE.pale.color;
     g.lineWidth = 6;
     g.lineCap = 'round';
     g.lineJoin = 'round';
@@ -575,7 +575,7 @@ function arrowGeometry(): BufferGeometry {
     COURSE.curve.getPointAt(u, p);
     COURSE.curve.getTangentAt(u, t);
     const s = (i / N) * COURSE.L;
-    const y = MAT + courseHeight(s) + 0.0007;
+    const y = MAT + courseHeight(s) + 0.0012;
     const nx = t.z * (ARROW_W / 2);
     const nz = -t.x * (ARROW_W / 2);
     pos.set([p.x + nx, y, p.z + nz, p.x - nx, y, p.z - nz], i * 6);
@@ -593,40 +593,6 @@ function arrowGeometry(): BufferGeometry {
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
-}
-
-/* The mat the game is played on, as in the film: deep indigo, flecked pink and
-   red. Drawn once; the life system greys it with the rest of the table until the
-   project's been opened. */
-let matTex: CanvasTexture | null = null;
-function matTexture(): CanvasTexture {
-  if (matTex) return matTex;
-  const c = document.createElement('canvas');
-  c.width = 512;
-  c.height = Math.round((512 * MAT_D) / MAT_W);
-  const g = c.getContext('2d');
-  if (g) {
-    const { width: w, height: h } = c;
-    g.fillStyle = '#1c1c4a';
-    g.fillRect(0, 0, w, h);
-    const rand = makeRand(17);
-    const flecks = ['#ff4f8b', '#ff3b5c', '#ff8fb8', '#b45cff'];
-    for (let i = 0; i < 1500; i++) {
-      g.globalAlpha = 0.35 + rand() * 0.55;
-      g.fillStyle = flecks[Math.floor(rand() * flecks.length)];
-      g.beginPath();
-      g.arc(rand() * w, rand() * h, 0.5 + rand() * 1.3, 0, Math.PI * 2);
-      g.fill();
-    }
-    g.globalAlpha = 1;
-    g.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-    g.lineWidth = 2;
-    g.strokeRect(9, 9, w - 18, h - 18);
-  }
-  const t = new CanvasTexture(c);
-  t.colorSpace = SRGBColorSpace;
-  t.anisotropy = 4;
-  return (matTex = t);
 }
 
 const PIECE = '#74b6ff'; // the kickers' light blue, as in the film
@@ -673,7 +639,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const arrows = useGeometry(arrowGeometry);
   const mat = useGeometry(() => roundedPlaneGeometry(MAT_W, MAT_D, 0.03));
   const arrowMap = useMemo(arrowTexture, []);
-  const matMap = useMemo(matTexture, []);
   const ramps = useMemo(
     () =>
       COURSE.toes.map((toe) => {
@@ -743,13 +708,16 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
           <LiveEdges slug="lightship-drive" threshold={35} />
         </mesh>
       )}
-      {/* the mat, held just behind the arrows that lie on it */}
+      {/* the mat the game is played on: a plain sheet in the model's ground
+          (GROUND, materials.tsx — it lies on the table rather than standing on
+          it, like the rug), so the table reads as part of the maquette and the
+          cars and kickers carry the colour */}
       <mesh geometry={mat} position={[0, MAT, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <meshStandardMaterial map={matMap} roughness={0.9} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
+        <GroundMat />
       </mesh>
       {/* faint: they show the way without drawing the eye off the cars */}
       <mesh geometry={arrows} renderOrder={1}>
-        <meshBasicMaterial map={arrowMap} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial map={arrowMap} transparent opacity={0.5} depthWrite={false} toneMapped={false} />
       </mesh>
       {kit &&
         ramps.map((r, i) => (
@@ -1075,21 +1043,21 @@ const BOOK_H = 0.19; // page depth (spine length)
 const BOOK_T = 0.011; // cover board thickness
 const BOOK_PT = 0.009; // page block thickness per half
 const BOOK_ANG = 0.14; // resting V of the halves once open: shallow, so both pages face you
-function BookHalf({ side, tex, lit }: { side: -1 | 1; tex: Texture | null; lit: LitLink }) {
+function BookHalf({ side, tex, lit, kit }: { side: -1 | 1; tex: Texture | null; lit: LitLink; kit: BooksKit }) {
   const { accentDeep } = useAccent();
   const x = (side * BOOK_W) / 4;
   return (
     <>
-      {/* cover board */}
-      <mesh position={[x, 0, 0]}>
-        <boxGeometry args={[BOOK_W / 2, BOOK_T, BOOK_H]} />
-        <meshStandardMaterial {...litMat(lit)} color={accentDeep} emissive={accentDeep} emissiveIntensity={0.16} roughness={0.5} />
-      </mesh>
-      {/* page block */}
-      <mesh position={[x, BOOK_T / 2 + BOOK_PT / 2, 0]}>
-        <boxGeometry args={[BOOK_W / 2 - 0.012, BOOK_PT, BOOK_H - 0.014]} />
-        <meshStandardMaterial {...litMat(lit)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.32} roughness={0.85} />
-      </mesh>
+      {/* the cover board, its outer corners rounded, and the page block on it
+          (build_books.py: one half, mirrored for the other) */}
+      <group scale={[side, 1, 1]}>
+        <mesh geometry={kit.zw_board}>
+          <meshStandardMaterial {...litMat(lit)} color={accentDeep} emissive={accentDeep} emissiveIntensity={0.16} roughness={0.5} />
+        </mesh>
+        <mesh geometry={kit.zw_block}>
+          <meshStandardMaterial {...litMat(lit)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.32} roughness={0.85} />
+        </mesh>
+      </group>
       {/* the printed page on top of the block */}
       <mesh position={[x, BOOK_T / 2 + BOOK_PT + 0.0008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[BOOK_W / 2 - 0.016, BOOK_H - 0.02]} />
@@ -1151,6 +1119,7 @@ function BookAR({ slug }: { slug: string }) {
 
 function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const { accent } = useAccent();
+  const kit = useBooksKit();
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const grp = useRef<Group>(null);
@@ -1210,13 +1179,9 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   return (
     <group ref={grp} position={position}>
       {/* back half — stays put, tilting into its side of the V */}
-      <group ref={backHinge}>
-        <BookHalf side={1} tex={texR} lit={lit} />
-      </group>
+      <group ref={backHinge}>{kit && <BookHalf side={1} tex={texR} lit={lit} kit={kit} />}</group>
       {/* front half — folded over when closed, swings open on select */}
-      <group ref={frontHinge}>
-        <BookHalf side={-1} tex={texL} lit={lit} />
-      </group>
+      <group ref={frontHinge}>{kit && <BookHalf side={-1} tex={texL} lit={lit} kit={kit} />}</group>
       {/* spine */}
       <mesh position={[0, -0.001, 0]}>
         <boxGeometry args={[0.015, BOOK_T + 0.003, BOOK_H]} />
@@ -1336,22 +1301,78 @@ function BookcaseMouse({ gap }: { gap: V3 }) {
   );
 }
 
+/* The shelved books: one hardcover from the kit (build_books.py, a typical
+   5 × 17 × 17 cm book), placed at each book's own size — its covers in the
+   book's value, its page block paper, the two bands across its spine in the
+   opposite value — and merged into one mesh per tone. */
+const KIT_BOOK: V3 = [0.05, 0.17, 0.17]; // the kit book's thickness, height, depth
+function ShelvedBooks({ kit, link, mats }: { kit: BooksKit; link: LitLink; mats: { current: (MeshStandardMaterial | null)[] } }) {
+  const books = useGeometry(() => {
+    const tone: Record<Tint, BufferGeometry[]> = { glass: [], deep: [], pale: [] };
+    const paper: BufferGeometry[] = [];
+    const light: BufferGeometry[] = [];
+    const dark: BufferGeometry[] = [];
+    const add = (c: Tint, at: V3, rot: V3, size: V3) => {
+      const sc: V3 = [size[0] / KIT_BOOK[0], size[1] / KIT_BOOK[1], size[2] / KIT_BOOK[2]];
+      tone[c].push(place(kit.book_cover.clone(), at, rot, sc));
+      paper.push(place(kit.book_pages.clone(), at, rot, sc));
+      (c === 'pale' ? dark : light).push(place(kit.book_bands.clone(), at, rot, sc));
+    };
+    BOOKS.forEach((bk, i) => {
+      const [w, h] = bk.s;
+      const d = 0.15 + ((i * 37) % 5) * 0.01; // 15–19 cm deep, spines flush
+      const top = SHELF_TOPS.reduce((a, b) => (Math.abs(b - (bk.p[1] - h / 2)) < Math.abs(a - (bk.p[1] - h / 2)) ? b : a));
+      // a leaning book keeps its place; an upright one stands on the shelf
+      add(bk.c, bk.r ? bk.p : [bk.p[0], top + h / 2, SPINE_Z - d / 2], bk.r ?? [0, 0, 0], [w, h, d]);
+    });
+    // the stack on the bottom shelf, lying down (spines still out), each a little askew
+    const stack: [number, number, number, number, Tint][] = [
+      [0.2, 0.03, 0.16, 0.02, 'deep'],
+      [0.19, 0.028, 0.152, -0.05, 'glass'],
+      [0.176, 0.026, 0.148, 0.07, 'pale'],
+    ];
+    let y = SHELF_TOPS[0];
+    for (const [len, thick, d, yaw, c] of stack) {
+      add(c, [0.19, y + thick / 2, 0.035], [0, yaw, Math.PI / 2], [thick, len, d]);
+      y += thick;
+    }
+    return { glass: merge(tone.glass), deep: merge(tone.deep), pale: merge(tone.pale), paper: merge(paper), light: merge(light), dark: merge(dark) };
+  }, [kit]);
+  return (
+    <>
+      {(['glass', 'deep', 'pale'] as const).map((c, i) => (
+        <mesh key={c} geometry={books[c]}>
+          <meshStandardMaterial ref={(m) => (mats.current[i] = m)} {...litMat(link)} color={SURFACE[c].color} emissive={SURFACE[c].color} emissiveIntensity={0.1} roughness={0.6} />
+        </mesh>
+      ))}
+      <mesh geometry={books.paper}>
+        <meshStandardMaterial {...litMat(link)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.2} roughness={0.85} />
+      </mesh>
+      <mesh geometry={books.light}>
+        <meshStandardMaterial {...litMat(link)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.16} roughness={0.5} />
+      </mesh>
+      <mesh geometry={books.dark}>
+        <meshStandardMaterial {...litMat(link)} color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.12} roughness={0.5} />
+      </mesh>
+    </>
+  );
+}
+
 /** The bookcase. Engaging the Zwijsen book "turns it on": the book spines glow,
  *  alongside the open spread lifting out to face the player.
  *
  *  Built like furniture: sides with a softened front edge, a top that
  *  overhangs as a cornice, a plinth set back as a toe kick, a thin back let
- *  into the frame, and shelves with a front lip. The books are rounded, sit
- *  ON their shelves (they used to float a few millimetres over them), run to
- *  different depths with their spines lined up at the front, and carry two
- *  bands near each end of the spine — the detail that makes a box read as a
- *  book. The stack lies a little askew, and the plant on top is a succulent
- *  in a turned pot. Each tone is one mesh: the case, three book values and
- *  the two band values, instead of a mesh per book. */
+ *  into the frame, and shelves with a front lip. The books are hardcovers
+ *  (ShelvedBooks): they sit ON their shelves, run to different depths with
+ *  their spines lined up at the front, a couple lean, and a stack lies a
+ *  little askew on the bottom shelf. The plant on top is a succulent in a
+ *  turned pot. */
 const SHELF_TOPS = [0.171, 0.431, 0.691];
 const SPINE_Z = 0.13; // where the spines line up, a little behind the lip
 function Bookcase({ position, rotation }: { position: V3; rotation: [number, number, number] }) {
   const { hovered, selected, visited } = useActive('zwijsen-ar-books');
+  const kit = useBooksKit();
   const bookMats = useRef<(MeshStandardMaterial | null)[]>([]);
   const lit = useRef(0);
   // the hover light (lit.tsx) for the shelved books and the plant; the books
@@ -1379,37 +1400,6 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
     }
     return merge(parts);
   });
-  const books = useGeometry(() => {
-    const tone: Record<Tint, BufferGeometry[]> = { glass: [], deep: [], pale: [] };
-    const light: BufferGeometry[] = [];
-    const dark: BufferGeometry[] = [];
-    BOOKS.forEach((bk, i) => {
-      const [w, h] = bk.s;
-      const d = 0.15 + ((i * 37) % 5) * 0.01; // 15–19 cm deep, spines flush
-      const top = SHELF_TOPS.reduce((a, b) => (Math.abs(b - (bk.p[1] - h / 2)) < Math.abs(a - (bk.p[1] - h / 2)) ? b : a));
-      // a leaning book keeps its place; an upright one stands on the shelf
-      const at: V3 = bk.r ? bk.p : [bk.p[0], top + h / 2, SPINE_Z - d / 2];
-      const rot = bk.r ?? [0, 0, 0];
-      tone[bk.c].push(place(softBox(w, h, d, 0.0035, { band: 1, mid: 1 }), at, rot)); // a 3.5 mm round needs one step
-      // two bands near each end of the spine, in the opposite value
-      for (const y of [h / 2 - 0.022, -h / 2 + 0.026]) {
-        const band = place(softBox(w + 0.0016, 0.006, d + 0.0016, 0.0025, { band: 1, mid: 1 }), [0, y, 0]);
-        (bk.c === 'pale' ? dark : light).push(place(band, at, rot));
-      }
-    });
-    // the stack on the bottom shelf, each a little askew
-    const stack: [number, number, number, number, Tint][] = [
-      [0.2, 0.03, 0.16, 0.02, 'deep'],
-      [0.19, 0.028, 0.152, -0.05, 'glass'],
-      [0.176, 0.026, 0.148, 0.07, 'pale'],
-    ];
-    let y = SHELF_TOPS[0];
-    for (const [w, h, d, yaw, c] of stack) {
-      tone[c].push(place(softBox(w, h, d, 0.004, { band: 1, mid: 1 }), [0.19, y + h / 2, 0.035], [0, yaw, 0]));
-      y += h;
-    }
-    return { glass: merge(tone.glass), deep: merge(tone.deep), pale: merge(tone.pale), light: merge(light), dark: merge(dark) };
-  });
   const plant = useGeometry(() => {
     const pot = lathe([[0, 0], [0.022, 0], [0.024, 0.004], [0.027, 0.03], [0.032, 0.035], [0.0325, 0.04], [0.0275, 0.039], [0.026, 0.034], [0, 0.032]], 24);
     const leaves: BufferGeometry[] = [];
@@ -1430,19 +1420,7 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
         <mesh geometry={frame}>
           <LiveGlassMat slug="zwijsen-ar-books" ghost={false} opacity={0.22} />
         </mesh>
-        <group ref={shelved}>
-          {(['glass', 'deep', 'pale'] as const).map((c, i) => (
-            <mesh key={c} geometry={books[c]}>
-              <meshStandardMaterial ref={(m) => (bookMats.current[i] = m)} {...litMat(link)} color={SURFACE[c].color} emissive={SURFACE[c].color} emissiveIntensity={0.1} roughness={0.6} />
-            </mesh>
-          ))}
-          <mesh geometry={books.light}>
-            <meshStandardMaterial {...litMat(link)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.16} roughness={0.5} />
-          </mesh>
-          <mesh geometry={books.dark}>
-            <meshStandardMaterial {...litMat(link)} color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.12} roughness={0.5} />
-          </mesh>
-        </group>
+        <group ref={shelved}>{kit && <ShelvedBooks kit={kit} link={link} mats={bookMats} />}</group>
         <group position={[0.25, 0.948, 0.05]}>
           <mesh geometry={plant.pot}>
             <GlassMat tint="deep" lit={link} />
