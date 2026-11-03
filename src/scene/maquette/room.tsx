@@ -12,7 +12,7 @@ import { useReducedMotion } from '../../lib/media';
 import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
-import { useBooksKit, useCarKit, useHeadsetKit, usePhoneKit, useTableKit, type BooksKit } from './kit';
+import { useBooksKit, useCarKit, useHeadsetKit, useMonitorKit, usePhoneKit, useTableKit, type BooksKit } from './kit';
 import { BlobShadow } from './backdrop';
 import { litMat, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
 import { hang, lathe, leaf, merge, place, softBox, softSeam, tube, useGeometry, type Soft } from './shapes';
@@ -1445,10 +1445,11 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
  *  A Scandinavian writing desk: a thin top with an eased edge, an apron with
  *  one drawer, and square legs that taper to the floor and splay a little.
  *  The top's surface is at 0.395, which the keyboard, mouse and cup sit on.
- *  The monitor is a thin panel with a rounded housing behind it, on a real
- *  stand — an oval foot, a flat neck and a hinge — where it used to be a 3 cm
- *  slab on a dowel; engaging it solidifies the desk, chair and plant with it
- *  (the life spreads). Everything structural stays behind the screen's plane
+ *  The monitor is a current slim one from Blender (build_monitor.py): the
+ *  picture almost to the edge in a thin bezel, a shallow housing on its back,
+ *  on an L stand — a flat base plate and one upright leaning up to a hinge.
+ *  Engaging it solidifies the desk, chair and plant with it (the life
+ *  spreads). Everything structural stays behind the screen's plane
  *  (z -0.125), so nothing crosses the picture. */
 function Desk({ brigade }: { brigade: LitLink }) {
   const g = useGeometry(() => {
@@ -1467,17 +1468,7 @@ function Desk({ brigade }: { brigade: LitLink }) {
     }
     return { wood: merge(wood), trim: merge(trim) };
   });
-  const m = useGeometry(() => {
-    const body: BufferGeometry[] = [];
-    // an oval foot, a flat neck rising behind the panel, and the hinge
-    body.push(place(lathe([[0, 0], [0.088, 0], [0.093, 0.004], [0.088, 0.009], [0, 0.009]], 36), [0, 0.395, -0.16], [0, 0, 0], [1, 1, 0.62]));
-    body.push(place(softBox(0.052, 0.2, 0.014, 0.006, { taper: 0.9 }), [0, 0.5, -0.172]));
-    body.push(place(lathe([[0, -0.034], [0.012, -0.034], [0.012, 0.034], [0, 0.034]], 16), [0, 0.598, -0.166], [0, 0, Math.PI / 2]));
-    // thin panel; the rounded housing behind it holds the electronics
-    body.push(place(softBox(0.54, 0.335, 0.018, 0.009), [0, 0.62, -0.134]));
-    body.push(place(softBox(0.36, 0.22, 0.02, 0.01, { bulgeBack: 0.008, mid: 4 }), [0, 0.612, -0.152]));
-    return merge(body);
-  });
+  const mon = useMonitorKit();
   return (
     <>
       <mesh geometry={g.wood}>
@@ -1487,10 +1478,19 @@ function Desk({ brigade }: { brigade: LitLink }) {
         <LiveGlassMat slug="virtuele-brigade" ghost={false} tint="pale" />
       </mesh>
       <LifeGroup slug="virtuele-brigade">
-        <mesh geometry={m}>
-          <LiveGlassMat slug="virtuele-brigade" opacity={0.2} />
-        </mesh>
-        <RoomScreen slug="virtuele-brigade" position={[0, 0.62, -0.122]} args={[0.48, 0.28, 0.008]} />
+        {mon && (
+          <>
+            <mesh geometry={mon.mon_panel}>
+              <LiveGlassMat slug="virtuele-brigade" opacity={0.2} />
+              <LiveEdges slug="virtuele-brigade" threshold={35} />
+            </mesh>
+            <mesh geometry={mon.mon_stand}>
+              <LiveGlassMat slug="virtuele-brigade" tint="pale" />
+            </mesh>
+          </>
+        )}
+        {/* the picture, edge to edge in the panel's thin bezel (build_monitor.py) */}
+        <RoomScreen slug="virtuele-brigade" position={[0, 0.63, -0.1255]} args={[0.542, 0.302, 0.002]} />
       </LifeGroup>
       {/* keyboard square in front of the monitor, mouse to its right; to its left
           the headset the project is for, put down facing the room with its strap

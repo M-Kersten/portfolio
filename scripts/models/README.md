@@ -57,6 +57,16 @@ model, with the shared helpers in `modelkit.py`:
   the halves of the Zwijsen picture book (a board with rounded outer corners,
   its page block), which OpenBook hinges open. It ships as
   `public/models/books.glb`.
+- `build_monitor.py`: the Virtuele Brigade monitor on the Room's desk, a
+  current slim monitor: the picture almost to the edge in a thin bezel, a
+  shallow housing on its back, on an L stand (a flat base plate and one
+  upright leaning up to a hinge). It ships as `public/models/monitor.glb`;
+  `room.tsx` (Desk) lays the screen into its bezel.
+- `build_trees.py`: the ARCam park's broadleaf trees, a lime (a tall,
+  egg-shaped crown) and a plane (a broader one): each crown the faceted hull
+  of a few overlapping lumps, over a trunk forking into it. One unit tall;
+  `city.tsx` (ParkTree) scales them and stands them among the pines it builds
+  itself. It ships as `public/models/trees.glb`.
 - `build_camera.py`: the Custom AR framework's camera on the chip layer, a
   bullet CCTV camera made in the chip kit's idiom (rounded housings, the kit
   bevel, deep bodies with pale fittings and a glass stand): a housing under a
@@ -103,7 +113,9 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   the camera's mount on the board's top at y 0 with its head in the ball
   joint's own frame, the phone centred on its own origin with its screen
   facing +Z, the shelved book standing centred on its origin with its spine
-  facing +Z, and the Zwijsen book's half lying in its hinge's frame. Each is authored around the
+  facing +Z, the Zwijsen book's half lying in its hinge's frame, the monitor
+  in the desk's frame with its screen facing +Z, and a tree one unit tall on
+  its own origin. Each is authored around the
   origin its JSX group already uses, and exported without axis conversion, so
   a part drops onto its slot with no offsets in code.
 - **One bevel.** Every hard edge gets the same round two-segment bevel. That
