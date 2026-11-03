@@ -1,10 +1,9 @@
 # The Lightship Drive table in the Room, after the show-floor setup in the
 # project's film: a low mid-century coffee table the game is played across,
-# and the light-blue faceted pieces scattered on its mat that the AR track
-# runs over (a kicker the cars jump off) and around (a crystal pyramid).
-# Exported as one glb of named parts for the site (src/scene/maquette/room.tsx,
-# CoffeeTableAR, which lays the mat, the track and the pieces out). See
-# README.md to rebuild.
+# and the light-blue faceted kicker set out on its mat (twice) for the cars to
+# jump off. Exported as one glb of named parts for the site
+# (src/scene/maquette/room.tsx, CoffeeTableAR, which lays out the mat, the
+# course and the kickers). See README.md to rebuild.
 #
 # Coordinates are each part's own (see modelkit.py): Y up, +Z to the room.
 #   tbl_frame  the table: a rounded top with an eased edge, an apron under it,
@@ -12,7 +11,6 @@
 #              surface at y TOP, its centre on the origin
 #   ramp       a kicker, standing on y 0 and centred on the origin, rising
 #              toward +Z (the way the cars drive over it); faceted, flat-shaded
-#   pyramid    a crystal-cut pyramid on a pentagon, standing on y 0
 import math
 import os
 import sys
@@ -32,9 +30,8 @@ LEG_AT = (0.29, 0.14)  # where the legs meet the apron's corners
 LEG_SPLAY = 0.12  # radians out from the vertical, each way
 LEG_R = (0.0085, 0.0135)  # foot, top
 
-# the kicker: length along the drive, width, height at its lip. Wider than the
-# AR track (74 mm, both lanes), so the track lies on its face and both cars
-# take off from it side by side.
+# the kicker: length along the drive, width, height at its lip. Wide enough
+# for both lanes, so the two cars take off from it side by side.
 RAMP_L, RAMP_W, RAMP_H = 0.08, 0.092, 0.03
 
 
@@ -105,20 +102,10 @@ def ramp():
     return K.finish(ob, 12)  # flat-shaded: every facet catches the light on its own
 
 
-def pyramid():
-    pts = [(0.03 * math.cos(a), 0.0, 0.03 * math.sin(a)) for a in [i * 2 * math.pi / 5 + 0.3 for i in range(5)]]
-    # a shoulder ring, turned against the base, and an apex off centre: cut
-    # like a crystal, not turned like a cone
-    pts += [(0.019 * math.cos(a), 0.016, 0.019 * math.sin(a)) for a in [i * 2 * math.pi / 5 + 0.3 + math.pi / 5 for i in range(5)]]
-    pts += [(0.004, 0.034, -0.003)]
-    ob = hull('pyramid', pts)
-    return K.finish(ob, 12)
-
-
 def main():
     K.reset()
     t0 = time.time()
-    parts = [(frame(), 'pale'), (ramp(), 'glass'), (pyramid(), 'glass')]
+    parts = [(frame(), 'pale'), (ramp(), 'glass')]
     for ob, _ in parts:
         print(f'  {ob.name:10s} {K.tris(ob):6d} tris')
     print(f'table: {len(parts)} meshes, {sum(K.tris(o) for o, _ in parts)} tris, {time.time() - t0:.1f}s')
@@ -127,10 +114,8 @@ def main():
     size = K.export(path, [o for o, _ in parts])
     print(f'exported {path} {size / 1024:.0f} KB')
     if '--preview' in sys.argv:
-        # the pieces stand on the table for the render
-        rp, py = parts[1][0], parts[2][0]
-        rp.data.transform(K.Matrix.Translation((-0.12, TOP, 0.04)))
-        py.data.transform(K.Matrix.Translation((0.14, TOP, -0.05)))
+        # the kicker stands on the table for the render
+        parts[1][0].data.transform(K.Matrix.Translation((-0.12, TOP, 0.04)))
         s = K.preview(os.path.join(OUT, 'prev-table.png'), parts, (0.75, 0.62, 0.95), (0, 0.12, 0), lens=55)
         print(f'preview {s:.1f}s')
 

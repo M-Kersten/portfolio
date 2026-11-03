@@ -370,28 +370,27 @@ function LeaderCrown() {
 
 /* ---------- The Lightship Drive table ----------
    After the show-floor setup in the project's film: a low table with a dark,
-   speckled mat on it, light-blue faceted pieces set out on the mat, and the AR
-   course the game draws over and around them. The cars follow that course
-   instead of circling a ring: down the front straight and off a kicker, braking
-   into the hairpin, a jog in round a pyramid, off the second kicker on the back
-   straight, and round the tighter sweeper home.
+   speckled mat on it and two light-blue kickers set out on the mat. The cars
+   follow a course over it instead of circling a ring: down the front straight
+   and off a kicker, braking into the hairpin, a jog in toward the middle, off
+   the second kicker on the back straight, and round the tighter sweeper home.
+   The course itself is only hinted at: faint arrows down its middle.
 
-   The table, the kicker and the pyramid are Blender models (build_table.py, via
-   kit.ts); the mat, the course and the race are laid out here. Table space: x
+   The table and the kicker are Blender models (build_table.py, via kit.ts);
+   the mat, the course and the race are laid out here. Table space: x
    along the table, y up, z across it, the front straight at +z. */
 const MAT = 0.19 + 0.0012; // the mat on the table's top (TOP in build_table.py): everything below stands on it
 const MAT_W = 0.7;
 const MAT_D = 0.36;
-const TW = 0.074; // the course's width: two cars abreast
-const LANE = 0.0185; // each car's line off the middle of it
+const LANE = 0.0185; // each car's line off the course's middle: two abreast, and the kickers are built wide enough for both
 const CAR_SCALE = 0.85; // the cars at this table's scale, so two fit abreast
 
 // The course, as a turtle drives it from the start of the front straight,
 // heading +x: straights and arcs, each (length, radians turned; right is
 // negative). Round the near end in a wide hairpin; then the back steps in toward
-// the middle (two 10 cm arcs), leaving a pocket between it and the mat's edge
-// for a pyramid; a short back straight; and a tighter sweeper home. It closes on
-// itself: the jog takes up the difference between the two ends' radii.
+// the middle (two 10 cm arcs); a short back straight; and a tighter sweeper
+// home. It closes on itself: the jog takes up the difference between the two
+// ends' radii.
 const JOG_R = 0.1;
 const JOG = Math.acos(1 - 0.05 / (2 * JOG_R)); // each arc of the 5 cm step in
 const LEGS: [number, number][] = [
@@ -528,50 +527,43 @@ const GRIP = (() => {
 })();
 const gripAt = (s: number) => GRIP[Math.floor((wrapS(s) / COURSE.L) * GRIP_N) % GRIP_N];
 
-/* The course as the game draws it: a purple band with yellow edges and pale
-   chevrons running the way the race goes. One tile of the pattern is one
-   chevron; the band's length is a whole number of them, so it closes without a
-   seam, and the chevrons stream by sliding the texture along it. */
-const CHEVRON = COURSE.L / Math.round(COURSE.L / 0.06);
-let courseTex: CanvasTexture | null = null;
-function courseTexture(): CanvasTexture {
-  if (courseTex) return courseTex;
+/* The course, hinted at: small, faint arrows down its middle, pointing the
+   way the race goes, and climbing the kickers with it. One tile of the strip's
+   texture is one arrow; the strip's length is a whole number of them, so it
+   closes without a seam. */
+const ARROW_W = 0.024; // the strip the arrows are drawn on: one arrow wide
+const ARROW_GAP = COURSE.L / Math.round(COURSE.L / 0.09); // from one arrow to the next
+let arrowTex: CanvasTexture | null = null;
+function arrowTexture(): CanvasTexture {
+  if (arrowTex) return arrowTex;
   const c = document.createElement('canvas');
-  c.width = 128;
-  c.height = Math.round((128 * CHEVRON) / TW); // square texels: TW across, one chevron along
+  c.width = 64;
+  c.height = Math.round((64 * ARROW_GAP) / ARROW_W); // square texels
   const g = c.getContext('2d');
   if (g) {
-    const { width: w, height: h } = c;
-    g.fillStyle = 'rgba(122, 44, 255, 0.62)';
-    g.fillRect(0, 0, w, h);
-    // the edges: a yellow kerb, a hairline of shadow inside it
-    g.fillStyle = '#ffd23f';
-    g.fillRect(0, 0, 9, h);
-    g.fillRect(w - 9, 0, 9, h);
-    g.fillStyle = 'rgba(40, 8, 90, 0.5)';
-    g.fillRect(9, 0, 3, h);
-    g.fillRect(w - 12, 0, 3, h);
-    // a chevron pointing up the texture, which the band's v runs along with the race
-    g.strokeStyle = 'rgba(255, 214, 245, 0.92)';
-    g.lineWidth = 11;
+    const { width: w } = c;
+    // an arrowhead pointing up the texture, which the strip's v runs along
+    // with the race; the rest of the tile is clear
+    g.strokeStyle = 'rgba(226, 214, 255, 1)';
+    g.lineWidth = 6;
     g.lineCap = 'round';
     g.lineJoin = 'round';
     g.beginPath();
-    g.moveTo(w * 0.3, h * 0.66);
-    g.lineTo(w * 0.5, h * 0.36);
-    g.lineTo(w * 0.7, h * 0.66);
+    g.moveTo(w * 0.18, w * 0.78);
+    g.lineTo(w * 0.5, w * 0.36);
+    g.lineTo(w * 0.82, w * 0.78);
     g.stroke();
   }
   const t = new CanvasTexture(c);
   t.colorSpace = SRGBColorSpace;
   t.wrapT = RepeatWrapping;
   t.anisotropy = 4;
-  return (courseTex = t);
+  return (arrowTex = t);
 }
 
-/** The band: a ribbon along the course, draped over the kickers, with v
- *  running along it in chevrons. */
-function courseGeometry(): BufferGeometry {
+/** The strip the arrows lie on: down the middle of the course, draped over the
+ *  kickers, with v running along it. */
+function arrowGeometry(): BufferGeometry {
   const N = 420;
   const pos = new Float32Array((N + 1) * 6);
   const uv = new Float32Array((N + 1) * 4);
@@ -584,12 +576,12 @@ function courseGeometry(): BufferGeometry {
     COURSE.curve.getTangentAt(u, t);
     const s = (i / N) * COURSE.L;
     const y = MAT + courseHeight(s) + 0.0007;
-    const nx = t.z * (TW / 2);
-    const nz = -t.x * (TW / 2);
+    const nx = t.z * (ARROW_W / 2);
+    const nz = -t.x * (ARROW_W / 2);
     pos.set([p.x + nx, y, p.z + nz, p.x - nx, y, p.z - nz], i * 6);
-    uv.set([0, s / CHEVRON, 1, s / CHEVRON], i * 4);
+    uv.set([0, s / ARROW_GAP, 1, s / ARROW_GAP], i * 4);
   }
-  // a quad per step, except down the steep back of a kicker: the band stops at
+  // a quad per step, except down the steep back of a kicker: the strip stops at
   // the lip and picks up again on the mat behind it, rather than hanging a wall
   for (let i = 0; i < N; i++) {
     if (Math.abs(pos[i * 6 + 1] - pos[(i + 1) * 6 + 1]) > 0.004) continue;
@@ -601,22 +593,6 @@ function courseGeometry(): BufferGeometry {
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
-}
-
-/** One edge of the band, as a closed line: `side` 1 is the inside of the loop. */
-function courseEdge(side: number): [number, number, number][] {
-  const out: [number, number, number][] = [];
-  const p = new Vector3();
-  const t = new Vector3();
-  const N = 240;
-  for (let i = 0; i <= N; i++) {
-    const u = (i % N) / N;
-    COURSE.curve.getPointAt(u, p);
-    COURSE.curve.getTangentAt(u, t);
-    const o = side * (TW / 2);
-    out.push([p.x + t.z * o, MAT + courseHeight(u * COURSE.L) + 0.001, p.z - t.x * o]);
-  }
-  return out;
 }
 
 /* The mat the game is played on, as in the film: deep indigo, flecked pink and
@@ -653,15 +629,7 @@ function matTexture(): CanvasTexture {
   return (matTex = t);
 }
 
-// The light-blue pieces on the mat: a crystal pyramid in the infield, one in
-// each bend, and one in the pocket the back steps in round. (x, z, scale, turn)
-const PYRAMIDS: [number, number, number, number][] = [
-  [0.04, 0.015, 1.1, 0.4],
-  [0.1755, 0.0, 0.8, 1.9],
-  [-0.2, 0.025, 0.85, 3.1],
-  [-0.1, -0.145, 0.8, 0.9],
-];
-const PIECE = '#74b6ff';
+const PIECE = '#74b6ff'; // the kickers' light blue, as in the film
 
 /* Two cars racing the course. Each runs its own lap, and three things make it a
    contest rather than a procession (simulated across wake phases: a pass every
@@ -689,7 +657,6 @@ const CATCH = 0.07; // how hard a dropped car pushes on, per radian of gap
 const CATCH_CAP = 6; // never let the band become a rocket if the gap ever runs away
 const LEAD_HYST = 0.07; // the crown won't change hands on a photo finish jitter
 const LAP_SPEED = (2 * Math.PI * 0.2) / COURSE.L; // laps (in radians) per metre-per-second at 0.2 m/s top speed
-const FLOW = 0.09; // m/s the chevrons stream at, once the course is on
 
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
@@ -703,11 +670,10 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const dist = useRef(CARS.map((c) => c.at));
   const pitch = useRef(CARS.map(() => 0));
   const lead = useRef(0);
-  const band = useGeometry(courseGeometry);
+  const arrows = useGeometry(arrowGeometry);
   const mat = useGeometry(() => roundedPlaneGeometry(MAT_W, MAT_D, 0.03));
-  const bandTex = useMemo(courseTexture, []);
+  const arrowMap = useMemo(arrowTexture, []);
   const matMap = useMemo(matTexture, []);
-  const edges = useMemo(() => [courseEdge(1), courseEdge(-1)], []);
   const ramps = useMemo(
     () =>
       COURSE.toes.map((toe) => {
@@ -727,7 +693,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     speed.current += (sT - speed.current) * 0.05;
     live.current += ((selected || visited ? 1 : 0) - live.current) * FX.engage;
     const t = s.clock.elapsedTime;
-    if (!reduced) bandTex.offset.y -= (FLOW * live.current * dt) / CHEVRON;
 
     // who's ahead, by laps covered; the dead band stops the crown flickering through a pass
     const d = dist.current[0] - dist.current[1];
@@ -778,26 +743,17 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
           <LiveEdges slug="lightship-drive" threshold={35} />
         </mesh>
       )}
-      {/* the mat, held just behind the band that lies on it */}
+      {/* the mat, held just behind the arrows that lie on it */}
       <mesh geometry={mat} position={[0, MAT, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <meshStandardMaterial map={matMap} roughness={0.9} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
       </mesh>
-      <mesh geometry={band} renderOrder={1}>
-        <meshBasicMaterial map={bandTex} transparent depthWrite={false} toneMapped={false} />
+      {/* faint: they show the way without drawing the eye off the cars */}
+      <mesh geometry={arrows} renderOrder={1}>
+        <meshBasicMaterial map={arrowMap} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
       </mesh>
-      {edges.map((pts, i) => (
-        <Line key={i} points={pts} color="#ffd23f" lineWidth={1.4} transparent opacity={0.85} />
-      ))}
       {kit &&
         ramps.map((r, i) => (
           <mesh key={i} geometry={kit.ramp} position={r.p} rotation={[0, r.yaw, 0]}>
-            <LiveGlassMat slug="lightship-drive" tint="pale" color={PIECE} />
-            <LiveEdges slug="lightship-drive" threshold={20} />
-          </mesh>
-        ))}
-      {kit &&
-        PYRAMIDS.map(([x, z, k, turn], i) => (
-          <mesh key={i} geometry={kit.pyramid} position={[x, MAT, z]} rotation={[0, turn, 0]} scale={k}>
             <LiveGlassMat slug="lightship-drive" tint="pale" color={PIECE} />
             <LiveEdges slug="lightship-drive" threshold={20} />
           </mesh>

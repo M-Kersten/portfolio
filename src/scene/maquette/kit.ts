@@ -48,8 +48,8 @@ const ROCKET_PARTS = [
 const CAR_PARTS = ['car_body', 'car_cabin', 'car_stripe', 'car_tyres', 'car_rims', 'crown'] as const;
 /** The VR headset on the Room's desk (a Quest): the visor, its sensor pills, the face pad, the strap. */
 const HEADSET_PARTS = ['hs_shell', 'hs_pods', 'hs_face', 'hs_strap'] as const;
-/** The Lightship Drive table in the Room: the table itself, and the kicker and crystal pyramid set out on its mat. */
-const TABLE_PARTS = ['tbl_frame', 'ramp', 'pyramid'] as const;
+/** The Lightship Drive table in the Room: the table itself, and the kicker set out on its mat. */
+const TABLE_PARTS = ['tbl_frame', 'ramp'] as const;
 /** The Custom AR framework's CCTV camera on the chip layer: its mount, and the head that nods on the ball. */
 const CAMERA_PARTS = ['cam_mount', 'cam_screws', 'cam_body', 'cam_visor', 'cam_front', 'cam_ir', 'cam_cable', 'cam_lens'] as const;
 /** The Popcore phone on the Room's couch: the handset, its keys, and the camera island on its back. */

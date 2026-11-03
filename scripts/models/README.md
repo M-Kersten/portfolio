@@ -44,12 +44,11 @@ model, with the shared helpers in `modelkit.py`:
 - `build_table.py`: the Lightship Drive table in the Room, after the show-floor
   setup in the project's film: a low mid-century table (a rounded top with an
   eased edge, an apron, four tapered legs splayed out to the floor), and the
-  light-blue faceted pieces set out on its mat, a kicker the cars jump off and
-  a crystal pyramid. It ships as `public/models/table.glb`; `room.tsx`
-  (CoffeeTableAR) lays out the mat, the AR course over the kicker and round
-  the pyramids, and the race on it. The course is draped over the kicker's
-  face, so a change to the kicker's size or facets has to be made in
-  `RAMP_FACE` there too.
+  light-blue faceted kicker set out on its mat for the cars to jump off. It
+  ships as `public/models/table.glb`; `room.tsx` (CoffeeTableAR) lays out the
+  mat, the course (two kickers, faint arrows down its middle) and the race on
+  it. The cars and the arrows ride over the kicker's face, so a change to its
+  size or facets has to be made in `RAMP_FACE` there too.
 - `build_camera.py`: the Custom AR framework's camera on the chip layer, a
   bullet CCTV camera made in the chip kit's idiom (rounded housings, the kit
   bevel, deep bodies with pale fittings and a glass stand): a housing under a
@@ -92,7 +91,7 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   skirt on the launch mount at y 0.09, the car on its wheels at y 0 nose to
   +Z, the crown standing on y 0, the headset resting on y 0 with its
   visor facing +Z, the table on the floor with its top's surface at y 0.19,
-  and the kicker and pyramid standing on y 0, the kicker rising toward +Z;
+  and the kicker standing on y 0, rising toward +Z;
   the camera's mount on the board's top at y 0 with its head in the ball
   joint's own frame, and the phone centred on its own origin with its screen
   facing +Z. Each is authored around the
