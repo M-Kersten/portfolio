@@ -118,6 +118,8 @@ src/
     Stage.tsx          lighting, fog, post-processing, scene root
     look.ts            the numbers behind the stage's look (LOOK)
     CameraRig.tsx      the opening dolly, the scroll journey, the fly-to
+    warm.ts            compiling shaders ahead of their first draw (for the
+                       composer's buffer, which is what the scene draws into)
     framing.ts         layer stack, hotspots, camera tuning (plain data, no
                        three.js: the page reads it on first paint)
     views.ts           the camera framings built from it, as three.js vectors
@@ -147,7 +149,8 @@ src/
       shared.tsx       palette, math helpers, useActive, fog-aware Line
       shapes.ts        the procedural geometry helpers
       launchSite.tsx   the pad: stacked piece by piece as projects wake, then
-                       the launch film (stages, fire, smoke, cameras)
+                       the launch film (stages, fire, smoke, cameras); its
+                       shaders compile while the page is idle (usePrewarm)
       launchComplex.tsx  its tower (lattice, chopsticks, ship arm) and mount
       launch.ts        the film's choreography: poses, shots, smoke, shake
       engineFire.tsx   plumes, a flame per engine, hot-staging jets

@@ -17,10 +17,25 @@
    inside, the slow climb past the tower, Max-Q, MECO and hot staging through
    the vented ring, the booster's boostback, and the booster coming home onto
    the chopsticks — while the ship flies on into the asteroids easter egg. */
-import { useContext, useMemo, useRef, type ElementRef } from 'react';
+import { useContext, useEffect, useMemo, useRef, type ElementRef, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { AdditiveBlending, Color, DoubleSide, MeshBasicMaterial, Quaternion, Vector3, type Group, type Mesh, type MeshStandardMaterial, type PointLight } from 'three';
+import {
+  AdditiveBlending,
+  Color,
+  DoubleSide,
+  MeshBasicMaterial,
+  PointLight,
+  Quaternion,
+  Scene,
+  Vector3,
+  type Group,
+  type Light,
+  type Material,
+  type Mesh,
+  type MeshStandardMaterial,
+  type Object3D,
+} from 'three';
 import { sceneStore, useSceneSelector } from '../store';
 import { HOTSPOTS, portraitMix } from '../framing';
 import { launchShot, launchTrack } from '../views';
@@ -35,6 +50,7 @@ import { BOOSTER_ENGINES, BOOSTER_RINGS, COUNT, SHIP_ENGINES, SHIP_RINGS, booste
 import { LaunchSmoke, type SmokeApi } from './smoke';
 import { Deluge, Nozzles, Plume, RingJets, VaporCone, glowMat, type LevelApi, type NozzlesApi, type PlumeApi } from './engineFire';
 import { LaunchMount, LaunchTower, type MountApi, type TowerApi } from './launchComplex';
+import { compileInBatches, whenQuiet } from '../warm';
 
 /** The launch site. Moved back from [0.85, 0, -0.52], where the apron overlapped
  *  the park's lawn — the pad was literally standing in the grass, which is what
@@ -148,6 +164,13 @@ export function NextProjectSite() {
   const groundFire = useRef<Mesh>(null);
   const delugeJets = useRef<LevelApi>(null);
   const groundFireMat = useMemo(() => glowMat(new Color('#ffb070').multiplyScalar(2.2), 0), []);
+  const site = useRef<Group>(null);
+  const complete = celebrateAt !== null;
+  const flying = launch !== 'idle';
+  // the flight's fire and smoke are there, hidden, from the moment the site is
+  // complete, so their shaders can be compiled before anyone opens the pad
+  const armed = complete || flying;
+  usePrewarm(site, complete);
 
   useFrame((s, delta) => {
     const realDt = Math.min(delta, 1 / 30);
@@ -433,7 +456,6 @@ export function NextProjectSite() {
     r.localToWorld(launchTrack.set(0, ROCKET_MID, 0));
   });
 
-  const complete = celebrateAt !== null;
   const mode = complete ? 'lit' : 'ghost';
   const engage = () => {
     // the launch is the 10/10 reward — while the vehicle is still being
@@ -442,9 +464,8 @@ export function NextProjectSite() {
     if (sceneStore.snapshot().launch === 'idle') sceneStore.setLaunch('pad');
   };
   const anim = !reduced; // assembly pieces rise in (Rise) unless reduced
-  const flying = launch !== 'idle';
   return (
-    <group position={SITE_POS} rotation={[0, 0.25, 0]}>
+    <group ref={site} position={SITE_POS} rotation={[0, 0.25, 0]}>
       {/* ---- the apron: surveyed from the very first scroll ---- */}
       <mesh position={[-0.02, 0.003, 0.03]}>
         <cylinderGeometry args={[0.2, 0.21, 0.006, 32]} />
@@ -490,7 +511,10 @@ export function NextProjectSite() {
           onPointerOut={() => (document.body.style.cursor = '')}
         >
           {/* Booster and ship in their own groups: the flight separates them
-              at staging. Each carries its own fire, turned with it. */}
+              at staging. Each carries its own fire, turned with it — hidden
+              until it burns, and never something the click lands on (hidden
+              meshes still catch the pointer: the staging flash alone is a
+              unit sphere). */}
           <group ref={booster}>
             <group rotation={[0, STACK_YAW, 0]}>
               <BoosterBody
@@ -503,14 +527,14 @@ export function NextProjectSite() {
                   ring: built >= BUILD.ring,
                 }}
               />
-              {flying && (
-                <>
+              {armed && (
+                <group raycast={noHit}>
                   <Nozzles ref={boosterNozzles} at={BOOSTER_NOZZLES} y={STACK_BASE + 0.0006} length={0.05} />
-                </>
+                </group>
               )}
             </group>
-            {flying && (
-              <>
+            {armed && (
+              <group raycast={noHit}>
                 <group position={[0, STACK_BASE + 0.003, 0]}>
                   <Plume ref={boosterPlume} radius={0.029} length={0.36} />
                 </group>
@@ -520,20 +544,20 @@ export function NextProjectSite() {
                   <meshBasicMaterial color={FIRE} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} side={DoubleSide} toneMapped={false} />
                 </mesh>
                 <RingJets ref={jets} y={(STAGING_Y + 0.49) / 2} r={0.029} />
-              </>
+              </group>
             )}
           </group>
           <group ref={ship}>
             <group rotation={[0, STACK_YAW, 0]}>
               {built >= BUILD.ship && <ShipBody mode={mode} assemble={anim} />}
-              {flying && (
-                <>
+              {armed && (
+                <group raycast={noHit}>
                   <Nozzles ref={shipNozzles} at={SHIP_NOZZLES} y={STAGING_Y + 0.0006} length={0.04} />
-                </>
+                </group>
               )}
             </group>
-            {flying && (
-              <>
+            {armed && (
+              <group raycast={noHit}>
                 <group position={[0, STAGING_Y + 0.003, 0]}>
                   <Plume ref={shipPlume} radius={0.021} length={0.26} diamonds={0} />
                 </group>
@@ -543,16 +567,18 @@ export function NextProjectSite() {
                 </mesh>
                 {/* Max-Q's vapour collar, round the ship's forward section */}
                 <VaporCone ref={vapor} y={0.71} r={0.03} />
-              </>
+              </group>
             )}
           </group>
         </group>
-        {/* the engines' light on the stack, the tower and the ground */}
+        {/* the engines' light on the stack, the tower and the ground — only
+            while the pad is open: a light in the scene costs every lit
+            material, every frame (its shaders are compiled ahead, usePrewarm) */}
         {flying && <pointLight ref={engineLight} color="#ffae6e" intensity={0} distance={3} decay={1.4} />}
-        {flying && <Deluge ref={delugeJets} />}
+        {armed && <Deluge ref={delugeJets} />}
         {/* the fire under the mount: the exhaust hitting the plate and
             spreading out under the steam */}
-        {flying && (
+        {armed && (
           <mesh ref={groundFire} position={[0, 0.012, 0]} material={groundFireMat} renderOrder={3} visible={false}>
             <sphereGeometry args={[1, 24, 12]} />
           </mesh>
@@ -587,6 +613,71 @@ export function NextProjectSite() {
   );
 }
 
+/** A raycast that also stops its children being hit (three skips the subtree
+ *  of an object whose raycast returns false). */
+const noHit = () => false;
+
+/* ---------- Compiled ahead ----------
+   The first time the pad opened, the page stalled: two lots of shader were
+   being compiled at that moment. The engine light is a
+   point light, and three builds a lit material's shader for the number of
+   lights in the scene, so when it joined, every lit material in view was
+   built again. The flight's fire and smoke drew for the first time too, a
+   few seconds later, in the middle of the count.
+
+   So once the site is complete, all of it is compiled while the page is
+   idle, a batch at a time (../warm.ts). WebGLRenderer.compile takes its
+   lights from the scene it's given, so it gets a stand-in: the scene's own
+   lights, fog and environment, plus one point light. A program comes out the
+   same as the one the pad will ask for, and by the time it does, the GPU has
+   long finished it. */
+const PREWARM_DELAY = 1200; // ms after the site completes (or the page loads complete; never during the opening dolly)
+const PREWARM_BATCH = 24; // objects per idle slice
+
+/** Whether three lights this material (its own materialNeedsLights). */
+function takesLight(m: Material) {
+  const x = m as Material & Partial<Record<'isMeshLambertMaterial' | 'isMeshToonMaterial' | 'isMeshPhongMaterial' | 'isMeshStandardMaterial' | 'isShadowMaterial' | 'isShaderMaterial' | 'lights', boolean>>;
+  return !!(x.isMeshLambertMaterial || x.isMeshToonMaterial || x.isMeshPhongMaterial || x.isMeshStandardMaterial || x.isShadowMaterial || (x.isShaderMaterial && x.lights));
+}
+
+function usePrewarm(site: RefObject<Group | null>, on: boolean) {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  useEffect(() => {
+    if (!on) return;
+    let batches = () => {};
+    const start = () => {
+      const root = site.current;
+      if (!root) return;
+      // the stand-in: the scene's lights and the engine's
+      const stand = new Scene();
+      stand.fog = scene.fog;
+      stand.environment = scene.environment;
+      scene.traverseVisible((o) => {
+        if ((o as Light).isLight) stand.add(o.clone());
+      });
+      stand.add(new PointLight());
+      // what to compile: the whole site, its hidden fire and smoke included,
+      // and every lit thing in view (whatever lights the engine light reaches)
+      const todo = new Set<Object3D>();
+      const drawn = (o: Object3D) => !!(o as Mesh).material;
+      root.traverse((o) => drawn(o) && todo.add(o));
+      scene.traverseVisible((o) => {
+        const raw = (o as Mesh).material as Material | Material[] | undefined;
+        if (raw && (Array.isArray(raw) ? raw : [raw]).some(takesLight)) todo.add(o);
+      });
+      batches = compileInBatches(gl, camera, [...todo], stand, PREWARM_BATCH);
+    };
+    const cancel = whenQuiet(start, PREWARM_DELAY);
+    return () => {
+      cancel();
+      batches();
+    };
+  }, [on, gl, scene, camera, site]);
+}
+
+
 /* ---------- The invitation ----------
    It floats in a row of its own above the city's marker line (MARKER_Y) and
    the names on it, straight over the tower with a thin line down to the
@@ -598,6 +689,7 @@ const INVITE_Y = 1.62; // over the marker line and its names
 const INVITE_Y_PORTRAIT = 1.08; // just over the beacon
 const INVITE_EDGE = 12; // px it keeps from the screen's sides
 const BEACON_Y = 0.99; // the tower top, where its line starts
+const AT = new Vector3();
 
 function LaunchInvite({ onEngage, flights }: { onEngage: () => void; flights: number | null }) {
   const { accent } = useAccent();
@@ -613,24 +705,45 @@ function LaunchInvite({ onEngage, flights }: { onEngage: () => void; flights: nu
     const m = l?.material as { userData: Record<string, unknown> } | undefined;
     if (m) Object.assign(m.userData, { lifeSkip: true, presenceOwn: true });
   };
+  const anchor = useRef<Group>(null);
+  const size = useThree((s) => s.size);
+  const camera = useThree((s) => s.camera);
+  // its width, from a ResizeObserver: read in the frame loop, the box's
+  // position forced the page through a layout pass every frame
+  const width = useRef(0);
+  useEffect(() => {
+    const el = box.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => (width.current = e.borderBoxSize?.[0]?.inlineSize ?? e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const shift = useRef(0);
+  const shown = useRef(-1);
   useFrame(() => {
     // on a receded floor it goes altogether rather than dimming (it's text)
     const show = Math.min(1, Math.max(0, (presence.current - 0.5) / 0.5));
     const lm = line.current?.material as { opacity: number } | undefined;
     if (lm) lm.opacity = 0.35 * show;
     const el = box.current;
-    if (!el) return;
-    el.style.opacity = String(show);
-    el.style.pointerEvents = show > 0.5 ? '' : 'none';
-    // kept on screen: where it would sit unshifted, nudged back in past an edge
-    const r = el.getBoundingClientRect();
-    const vw = document.documentElement.clientWidth;
-    const left = r.left - shift.current;
-    const right = r.right - shift.current;
+    const a = anchor.current;
+    if (!el || !a) return;
+    if (Math.abs(show - shown.current) > 0.002) {
+      shown.current = show;
+      el.style.opacity = String(show);
+      el.style.pointerEvents = show > 0.5 ? '' : 'none';
+    }
+    // kept on screen: where it would sit unshifted (centred on its point, as
+    // Html draws it), nudged back in past an edge of the canvas
+    const w = width.current;
+    if (!w) return;
+    const p = a.getWorldPosition(AT).project(camera);
+    const cx = size.left + ((p.x + 1) / 2) * size.width;
+    const lo = size.left + INVITE_EDGE;
+    const hi = size.left + size.width - INVITE_EDGE;
     let s = 0;
-    if (right > vw - INVITE_EDGE) s = vw - INVITE_EDGE - right;
-    if (left + s < INVITE_EDGE) s = INVITE_EDGE - left;
+    if (cx + w / 2 > hi) s = hi - (cx + w / 2);
+    if (cx - w / 2 + s < lo) s = lo - (cx - w / 2);
     if (Math.abs(s - shift.current) > 0.5) {
       shift.current = s;
       el.style.translate = `${Math.round(s)}px 0`;
@@ -639,6 +752,7 @@ function LaunchInvite({ onEngage, flights }: { onEngage: () => void; flights: nu
   return (
     <group position={[TOWER[0], 0, TOWER[2]]}>
       <Line ref={lineRef} points={[[0, BEACON_Y, 0], [0, y - 0.07, 0]]} color={accent} lineWidth={1} transparent opacity={0} />
+      <group ref={anchor} position={[0, y, 0]} />
       <Html position={[0, y, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
         <span ref={box} className="nextsite-wrap">
           <button type="button" className="nextsite" onClick={onEngage}>

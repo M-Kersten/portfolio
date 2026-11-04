@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
 import { Environment, Lightformer } from '@react-three/drei';
 import { EffectComposer, Bloom, BrightnessContrast, Vignette, Scanline } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Color, type DirectionalLight, type Fog, type HemisphereLight } from 'three';
+import { Color, type DirectionalLight, type Fog, type HemisphereLight, type Material, type Mesh, type Object3D } from 'three';
+import { BloomEffect, type EffectComposer as EffectComposerImpl } from 'postprocessing';
 import { useReducedMotion } from '../lib/media';
 import { isLiteDevice } from '../lib/media';
 import { useSceneSelector } from './store';
@@ -13,6 +14,8 @@ import { GHOST_FILL, GHOST_LINE } from './maquette/life';
 import { RIM, DOT_TUNE } from './maquette/materials';
 import { ShadeLight } from './maquette/lit';
 import { useLook } from './look';
+import { compileInBatches, whenQuiet } from './warm';
+import { maquetteLoaded } from './maquette/kit';
 import { LAYER_HEX } from '../content';
 
 // The layer accents — each layer has its own "air", and the whole stage washes
@@ -20,6 +23,13 @@ import { LAYER_HEX } from '../content';
 const LAYER_BY_STEP = ['city', 'room', 'chip'] as const;
 // phones and tablets: the launch's bloom at half resolution
 const LITE = isLiteDevice();
+/** The launch's bloom, and how long after the site completes it joins the
+ *  effect chain (at a quiet moment — see useBloom). */
+const BLOOM = 1.15;
+const BLOOM_JOIN = 1500;
+const noBlur = () => {};
+/** How long after the models are in before the not-yet-drawn is compiled. */
+const REST_WAIT = 2500;
 
 // Two coupled washes give the maquette its atmosphere:
 //   1. Air (by scroll): the fog, background and rim light ease toward the ACTIVE
@@ -100,7 +110,19 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
   const dir1 = useRef<DirectionalLight>(null);
   const dir2 = useRef<DirectionalLight>(null);
   const cfg = useLook();
-  const launchOn = useSceneSelector((s) => s.launch) !== 'idle';
+  // only whether a launch is on: the stage re-renders (and its effect chain is
+  // put together again) when that flips, not at every step of the count
+  const launchOn = useSceneSelector((s) => s.launch !== 'idle');
+  // No MSAA while the launch runs (its smoke's overdraw stalled GPUs into a
+  // lost context). Switched on the composer in place: as a prop it built a
+  // whole new composer, its passes and their shaders, the moment the pad
+  // opened and again when it closed.
+  const composer = useRef<EffectComposerImpl>(null);
+  useEffect(() => {
+    if (composer.current) composer.current.multisampling = launchOn ? 0 : 2;
+  }, [launchOn]);
+  const bloom = useBloom(launchOn);
+  useWarmRest();
 
   // The halftone's two knobs live on every compiled glass shader as the same
   // shared uniform objects (see DOT_TUNE) — mutate `.value` in place here on
@@ -142,15 +164,91 @@ export function Stage({ onActivate }: { onActivate: (h: Hotspot) => void }) {
           of the frame where the maquette lives, and a faint scanline. Bloom used
           to lead this chain; it had been tuned to nothing, so it built a mipmap
           blur every frame and composited black over the result. It's back for
-          the launch only, from the pad on (so its one-off setup lands while the
-          camera glides in, not at ignition): a high threshold, so only the fire
-          — drawn hotter than white — blooms. */}
-      <EffectComposer enableNormalPass={false} multisampling={launchOn ? 0 : 2}>
-        {launchOn ? <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.2} intensity={1.15} radius={0.72} resolutionScale={LITE ? 0.5 : 1} /> : <></>}
+          the launch (useBloom): a high threshold, so only the fire — drawn
+          hotter than white — blooms. */}
+      <EffectComposer ref={composer} enableNormalPass={false} multisampling={2}>
+        {/* (the wrapper types its ref as the class; what it hands over is the instance) */}
+        {bloom.on ? <Bloom ref={bloom.ref as unknown as Ref<typeof BloomEffect>} mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.2} intensity={BLOOM} radius={0.72} resolutionScale={LITE ? 0.5 : 1} /> : <></>}
         <BrightnessContrast contrast={cfg.contrast} />
         <Vignette eskil={false} offset={cfg.vignetteOffset} darkness={cfg.vignetteDarkness} />
         <Scanline density={cfg.scanlineDensity} opacity={cfg.scanlineOpacity} />
       </EffectComposer>
     </>
   );
+}
+
+/* The launch's bloom. Adding it to the chain builds the chain's shader again,
+   and its own blur shaders draw for the first time; done as the pad opened,
+   that was part of the first-launch stall. So it joins once the site is
+   complete, at a quiet moment, draws one frame (at no strength) to get its
+   shaders built, and then waits: between launches its blur isn't drawn and it
+   adds nothing to the picture. If a launch starts before then, it joins then. */
+function useBloom(launchOn: boolean) {
+  const complete = useSceneSelector((s) => s.celebrateAt !== null);
+  const [joined, setJoined] = useState(false);
+  useEffect(() => {
+    if (!complete) {
+      setJoined(false);
+      return;
+    }
+    return whenQuiet(() => setJoined(true), BLOOM_JOIN);
+  }, [complete]);
+  const on = joined || launchOn;
+  const ref = useRef<BloomEffect>(null);
+  const built = useRef<BloomEffect | null>(null); // the one whose shaders have been drawn with
+  // before the frame it's drawn in
+  useLayoutEffect(() => {
+    const b = ref.current;
+    if (!b) return;
+    if (launchOn) {
+      delete (b as { update?: unknown }).update; // its own again
+      b.intensity = BLOOM;
+      built.current = b;
+    } else {
+      b.intensity = 0;
+      b.update =
+        built.current === b
+          ? noBlur
+          : // one real pass, which builds its shaders, then none
+            (...args) => {
+              BloomEffect.prototype.update.apply(b, args);
+              b.update = noBlur;
+              built.current = b;
+            };
+    }
+  }, [launchOn, on]);
+  return { on, ref };
+}
+
+/* Whatever is in the scene but has never been drawn — the parts of an exhibit
+   that only show in its close-up, a model that arrived after the opening's
+   compile (CameraRig), everything on a phone, which has no opening dolly to
+   hide that compile behind — is compiled at its first draw: a stall at the
+   moment it appears. So once the models are in and the page is quiet, all of
+   it is compiled ahead, a batch per idle slice (warm.ts). */
+function useWarmRest() {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  useEffect(() => {
+    let live = true;
+    let cancel = () => {};
+    let batches = () => {};
+    maquetteLoaded().then(() => {
+      if (!live) return;
+      cancel = whenQuiet(() => {
+        const cold: Object3D[] = [];
+        scene.traverse((o) => {
+          const raw = (o as Mesh).material as Material | Material[] | undefined;
+          if (raw && (Array.isArray(raw) ? raw : [raw]).some((m) => !(gl.properties.get(m) as { programs?: unknown }).programs)) cold.push(o);
+        });
+        batches = compileInBatches(gl, camera, cold, scene);
+      }, REST_WAIT);
+    });
+    return () => {
+      live = false;
+      cancel();
+      batches();
+    };
+  }, [gl, scene, camera]);
 }

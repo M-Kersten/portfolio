@@ -5,6 +5,7 @@ import { useReducedMotion } from '../lib/media';
 import { spring, springVec } from '../lib/spring';
 import { opening, returning, sceneStore, useSceneSelector } from './store';
 import { maquetteLoaded } from './maquette/kit';
+import { compileForBuffer } from './warm';
 import { HOTSPOTS, fitScale, fitFov, layerGap, portraitMix, CAMERA, LAUNCH } from './framing';
 import { anchorWorld, journeyView, introView, nodeView, launchShot, launchTrack } from './views';
 import { viewFor } from '../dev/tuning';
@@ -165,11 +166,12 @@ export function CameraRig() {
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
           if (!live) return;
-          // Synchronous on purpose: compileAsync's readiness poll throws on a
-          // material that's been swapped out in the meantime, and then never
-          // resolves. The stall this costs lands on the parked shot.
+          // Synchronous on purpose (see warm.ts); the stall this costs lands on
+          // the parked shot. For the composer's buffer: compiled for the
+          // screen, every program here went unused and the first draw of
+          // anything hidden at load still stalled.
           try {
-            gl.compile(scene, camera);
+            compileForBuffer(gl, scene, camera);
           } catch {
             /* a shader that fails here fails on its first draw anyway */
           }
