@@ -513,13 +513,17 @@ const CAM_TRACK_GLIDE = 0.28;
 const CAM_TRACK_IDLE = 2.5; // s of a resting cursor before it lets go
 const CAM_LOCK = 0.9; // how near the cursor's ray has to pass a cube to lock on, in cube edges
 const CAM_SEE_FADE = 0.18; // s for a cube to light up or grey back
-// Each cube where the head's aim points when it has turned by (yaw, pitch), at
-// the beam's reach, its edge, and how it turns. The first is the hologram the
-// camera watches at rest; the other two come with the close-up.
+// Each cube where the head's aim points when it has turned by (yaw, pitch), how
+// far out along that aim (`reach`), its edge, and how it turns. The first is
+// the hologram the camera watches at rest, at the beam's end; the other two
+// come with the close-up, smaller and just inside the beam's reach. From where
+// the close-up looks, the head's turn mostly carries a cube toward you or away,
+// and its tilt up or down the screen, so they're set apart in tilt: one high
+// and back, one low and forward, a diagonal through the first.
 const CAM_CUBES = [
-  { yaw: 0, pitch: 0, size: CAM_CUBE, spin: 0.3, phase: 0 },
-  { yaw: 0.5, pitch: -0.2, size: 0.15, spin: -0.36, phase: 2.1 },
-  { yaw: -0.5, pitch: 0.16, size: 0.16, spin: 0.24, phase: 4.2 },
+  { yaw: 0, pitch: 0, reach: CAM_CUBE_Z, size: CAM_CUBE, spin: 0.3, phase: 0 },
+  { yaw: 0.55, pitch: -0.38, reach: 0.7, size: 0.13, spin: -0.36, phase: 2.1 },
+  { yaw: -0.45, pitch: 0.3, reach: 0.7, size: 0.14, spin: 0.24, phase: 4.2 },
 ];
 type CamGaze = { dir: Vector3; see: number; h: number; more: number };
 
@@ -609,7 +613,7 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
     <group rotation={[c.pitch, c.yaw, 0, 'YXZ']}>
       <group rotation={[aimPitch, 0, 0]}>
         <group ref={outer} visible={false} position={[0, CAM_HEAD_UP, 0]}>
-          <group ref={spin} position={[0, 0, CAM_CUBE_Z]}>
+          <group ref={spin} position={[0, 0, c.reach]}>
             <primitive object={parts.lines} />
             <mesh material={parts.fill}>
               <boxGeometry args={[c.size, c.size, c.size]} />
@@ -658,7 +662,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const lookAt = useMemo(() => new Vector3(0, CAM_HEAD_UP, CAM_CUBE_Z), []);
   const aimTilt = useMemo(() => new Euler(aimPitch, 0, 0), [aimPitch]);
   // each cube's middle in the pivot's frame, to lock on to
-  const cubeAt = useMemo(() => CAM_CUBES.map((c) => new Vector3(0, CAM_HEAD_UP, CAM_CUBE_Z).applyEuler(aimTilt).applyEuler(new Euler(c.pitch, c.yaw, 0, 'YXZ'))), [aimTilt]);
+  const cubeAt = useMemo(() => CAM_CUBES.map((c) => new Vector3(0, CAM_HEAD_UP, c.reach).applyEuler(aimTilt).applyEuler(new Euler(c.pitch, c.yaw, 0, 'YXZ'))), [aimTilt]);
 
   useFrame((s, delta) => {
     const t = s.clock.elapsedTime;

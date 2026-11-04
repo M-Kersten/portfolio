@@ -144,12 +144,17 @@ function Building({ i, kit, x, z, w, d, winMat, delay = 0 }: { i: number; kit: B
   useEffect(() => () => parts.windows.dispose(), [parts]);
   /* Each building's lights are its own, via its own clone of the window material:
      they come on when the grid's power reaches it (POWER, PowerGrid), not with
-     the rest of the skyline.
+     the rest of the skyline. Dark, the panes draw under the glass (see `parts`
+     above); lit, they draw after it, so they shine from the wall's face like
+     the occupied windows (OccupiedWindows) rather than glowing faintly through
+     the glass. The glass writes depth once the city is awake, so the far wall's
+     panes stay hidden behind it.
      Not per pane: every window in a building shares one material, so the only
      per-pane handle is its size — and easing that made the panes visibly grow,
      which is not what a light does. Per building costs six materials and leaves
      the panes exactly as they are, dark grid and all, at rest. */
   const mat = useMemo(() => winMat.clone(), [winMat]);
+  const panes = useRef<Mesh>(null);
   const reduced = useReducedMotion();
   useEffect(() => () => mat.dispose(), [mat]);
   // The body, its outline and its trim ride the city's staggered ramp, so a
@@ -165,13 +170,14 @@ function Building({ i, kit, x, z, w, d, winMat, delay = 0 }: { i: number; kit: B
     const on = first >= 0 && now >= first ? (reduced ? 1 : Math.min(1, (now - first) / LIGHT_ON)) : 0;
     const last = POWER.last[i] ?? -1;
     const lift = last >= 0 && now >= last && !reduced ? Math.exp(-(now - last) * 2.5) : 0;
-    mat.emissiveIntensity = on * 1.1 * flicker(on, now, delay * 9, reduced) + lift * 1.4;
-    mat.opacity = 0.08 + on * 0.6 + lift * 0.25;
+    mat.emissiveIntensity = on * WIN_LIT * flicker(on, now, delay * 9, reduced) + lift * WIN_FLASH;
+    mat.opacity = Math.min(0.95, 0.08 + on * 0.8 + lift * 0.3);
+    if (panes.current) panes.current.renderOrder = on > 0 || lift > 0.01 ? 1 : 0;
   });
   return (
     <group position={[x, 0, z]}>
       <BlobShadow position={[0, 0.004, 0]} radius={Math.max(w, d) * 0.95} opacity={0.4} />
-      <mesh geometry={parts.windows} material={mat} />
+      <mesh ref={panes} geometry={parts.windows} material={mat} />
       <mesh geometry={parts.body}>
         {/* ghost={false}: a building is dressing, not a hotspot ghost, so it rests
             as its own quiet glass and only hardens as the city comes live — then
@@ -1634,6 +1640,8 @@ const PULSE_AUTO = 0.8; // s between blocks when they come on by themselves
 const PULSE_CLOSE = 0.3; // … and when closing the close-up brings on the rest
 const PULSE_TAIL = [0.016, 0.032, 0.048]; // the pulse's trailing beads, behind it along the cable
 const LIGHT_ON = 0.45; // s for a block's lights to come up once power reaches it
+const WIN_LIT = 0.5; // a lit block's windows (an occupied window's glow, OccupiedWindows)
+const WIN_FLASH = 1.6; // and the flash as power arrives, on top
 const TRAFO_DEPTH = 0.15; // the house's footprint front to back, plinth included (build_trafo.py)
 const POWER = {
   first: [] as number[], // when power first reached each block (clock s); -1 while it's dark
