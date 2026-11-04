@@ -20,8 +20,9 @@ model, with the shared helpers in `modelkit.py`:
   It ships as `public/models/mill.glb`.
 - `build_trafo.py`: the transformer house in front of the tower, a Dutch
   compact substation with the blocks' rounded corners and plinth, an
-  overhanging roof, a louvred double door and three insulators on the roof,
-  where the tower's power line lands. It ships as `public/models/trafo.glb`.
+  overhanging roof, a louvred double door with the high-voltage sign, and a
+  vent in each flank. Its cables run underground (the site draws them), so
+  its roof is bare. It ships as `public/models/trafo.glb`.
 - `build_rocket.py`: the launch vehicle on the city's pad, a Starship stack:
   Super Heavy (33 engines in its skirt, chines, grid fins, the vented
   hot-staging ring) under Starship (its heat-shield half, forward and aft

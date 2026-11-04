@@ -4,16 +4,16 @@
 // constellation. CityRig at the bottom composes and places everything.
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, Shape, ShapeGeometry, TubeGeometry, Vector2, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, Shape, ShapeGeometry, Vector2, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useSceneSelector } from '../store';
-import { useReducedMotion } from '../../lib/media';
+import { isTouch, useReducedMotion } from '../../lib/media';
 import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
 import { PresenceCtx } from './presence';
 import { LIT_SOLID_OPACITY, litMat, litShade, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
-import { faceted, lathe, place, useGeometry } from './shapes';
+import { faceted, lathe, merge, place, tube, useGeometry } from './shapes';
 import { useLook } from '../look';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { NextProjectSite, SITE_POS } from './launchSite';
@@ -142,9 +142,9 @@ function Building({ i, kit, x, z, w, d, winMat, delay = 0 }: { i: number; kit: B
     return { body, trim: kit[`block${i}_trim`]!, windows };
   }, [kit, i]);
   useEffect(() => () => parts.windows.dispose(), [parts]);
-  /* Each building lights on its OWN slice of the city's ramp, via its own clone of
-     the window material. That's what makes the lights come up gradually instead of
-     the whole skyline switching at once.
+  /* Each building's lights are its own, via its own clone of the window material:
+     they come on when the grid's power reaches it (POWER, PowerGrid), not with
+     the rest of the skyline.
      Not per pane: every window in a building shares one material, so the only
      per-pane handle is its size — and easing that made the panes visibly grow,
      which is not what a light does. Per building costs six materials and leaves
@@ -152,17 +152,21 @@ function Building({ i, kit, x, z, w, d, winMat, delay = 0 }: { i: number; kit: B
   const mat = useMemo(() => winMat.clone(), [winMat]);
   const reduced = useReducedMotion();
   useEffect(() => () => mat.dispose(), [mat]);
-  // The body, its outline and its trim ride the same staggered ramp as this
-  // building's windows, so a block turns solid on the beat its own lights come
-  // up rather than the whole skyline hardening at once. Written every frame,
-  // read by LiveGlassMat/LiveEdges.
+  // The body, its outline and its trim ride the city's staggered ramp, so a
+  // block turns solid on its own beat as the city wakes rather than the whole
+  // skyline hardening at once. Written every frame, read by LiveGlassMat/LiveEdges.
   const wake = useRef(0);
   useFrame((s) => {
     wake.current = staggered(cityLevel.k, delay);
-    const g = wake.current;
-    const flick = flicker(g, s.clock.elapsedTime, delay * 9, reduced);
-    mat.emissiveIntensity = g * 1.1 * flick;
-    mat.opacity = 0.08 + g * 0.6;
+    // its lights: up over LIGHT_ON once power has reached it, flickering as they
+    // settle, and a little brighter for a moment each time power arrives again
+    const now = s.clock.elapsedTime;
+    const first = POWER.first[i] ?? -1;
+    const on = first >= 0 && now >= first ? (reduced ? 1 : Math.min(1, (now - first) / LIGHT_ON)) : 0;
+    const last = POWER.last[i] ?? -1;
+    const lift = last >= 0 && now >= last && !reduced ? Math.exp(-(now - last) * 2.5) : 0;
+    mat.emissiveIntensity = on * 1.1 * flicker(on, now, delay * 9, reduced) + lift * 1.4;
+    mat.opacity = 0.08 + on * 0.6 + lift * 0.25;
   });
   return (
     <group position={[x, 0, z]}>
@@ -748,26 +752,32 @@ function blobPts(r: number, wobble: number, seg = 48, seed = 7): V3[] {
  *  stood on the ground, scaled to viewer height — and keeps the behaviour of
  *  the old build: hidden until the ARCam hotspot is selected, then pops in
  *  with a spring and pans left↔right scanning the scene. Taking a picture
- *  flashes only the viewfinder screen: a separate plane parked on the model
- *  (tweak BINOS_SCREEN_* below to fit it to the display). */
+ *  lights the viewfinder screen: a separate plane set into the model's hood. */
 const BINOS_H = 0.22; // world height the model is normalised to
-// The screen plane, in the viewer's local space (feet at y=0, height BINOS_H).
-const BINOS_SCREEN_POS: V3 = [0, 0.15, -0.01];
-const BINOS_SCREEN_ROT: V3 = [0, 0, 0];
-const BINOS_SCREEN_SIZE: [number, number] = [0.07, 0.075];
+// The viewfinder, in the viewer's local space (feet at y=0, height BINOS_H). The
+// head is a hood open to the back (+z, the side you'd look in from); measured
+// off the model, the opening runs x −0.04…0.03, y 0.11…0.2, and its floor
+// curves from z −0.004 at the edges to −0.016 at the deepest. The screen sits
+// inside that, facing out of the hood, just clear of the floor everywhere, so
+// nothing cuts through it: it shows as a display at the back of the hood
+// rather than a slab sticking through the head.
+const BINOS_SCREEN_POS: V3 = [-0.005, 0.155, -0.003];
+const BINOS_SCREEN_SIZE: [number, number] = [0.056, 0.064];
 // A simple post the viewer stands on — raise BINOS_STAND_H to lift it higher.
 const BINOS_STAND_H = 0.14;
 /* In the park's close-up the viewer aims where you point on the park, swinging
    on its post as if you were lining up a shot, and takes the picture (its
-   viewfinder flares) once it has settled on a new spot. Let the cursor rest and
-   it goes back to its own sweep. */
+   viewfinder lights) once it has held a new spot for a moment. Let the cursor
+   rest and it goes back to its own sweep. */
 const AIM_REACH = 1.3; // how far it swings either way (rad)
 const AIM_GLIDE = 0.3;
-const AIM_SETTLE = 0.45; // s steady on a spot before it shoots
-const AIM_NEW = 0.12; // how far from its last shot a spot has to be (rad)
+const AIM_SETTLE = 0.8; // s steady on a spot before it shoots
+const AIM_NEW = 0.3; // how far from its last shot a spot has to be (rad)
 const BINOS_STAND_R = 0.02;
+const WHITE = new Color('#ffffff');
 function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rotationY?: number; slug?: string; lit: LitLink }) {
   const { accent } = useAccent();
+  const accentC = useMemo(() => new Color(accent), [accent]);
   const { selected, visited } = useActive(slug ?? '');
   const reduced = useReducedMotion();
   const popRef = useRef<Group>(null);
@@ -897,10 +907,14 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
     glass.depthWrite = wk > 0.5;
     body(lit.litU.value, wk > 0.5);
     flash.current = Math.max(0, flash.current - dt * 3.4);
-    // the viewfinder is a transparent glass panel at rest, flaring bright on a shot
-    if (screenMat.current) {
-      screenMat.current.emissiveIntensity = 0.15 + flash.current * 3.8;
-      screenMat.current.opacity = 0.18 + flash.current * 0.75;
+    // the viewfinder: a dim live screen at rest, lighting up white on a shot and
+    // fading back through the accent
+    const sm = screenMat.current;
+    if (sm) {
+      const f = flash.current;
+      sm.emissive.copy(accentC).lerp(WHITE, f * f * 0.7);
+      sm.emissiveIntensity = 0.3 + f * 1.6;
+      sm.opacity = 0.35 + f * 0.5;
     }
   });
 
@@ -915,21 +929,20 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
         {/* the viewer head, lifted onto the post; pans + snaps photos */}
         <group ref={headRef} position={[0, BINOS_STAND_H, 0]}>
           {model && <primitive object={model} />}
-          {/* the viewfinder screen — a transparent glass panel that flares on a shot */}
+          {/* the viewfinder screen, set into the hood: lights up on a shot */}
           {model && (
-            <mesh position={BINOS_SCREEN_POS} rotation={BINOS_SCREEN_ROT}>
+            <mesh position={BINOS_SCREEN_POS}>
               <planeGeometry args={BINOS_SCREEN_SIZE} />
               <meshStandardMaterial
                 ref={screenMat}
                 userData={{ lifeSkip: true }}
                 color={GLASS}
                 emissive={accent}
-                emissiveIntensity={0.15}
+                emissiveIntensity={0.3}
                 transparent
-                opacity={0.18}
+                opacity={0.35}
                 depthWrite={false}
                 toneMapped={false}
-                side={DoubleSide}
               />
             </mesh>
           )}
@@ -1116,19 +1129,10 @@ const towerTier = (y: number) => TOWER_TIERS.find((t) => y < t[2]) ?? TOWER_TIER
 // How far outside a tier's glass the light-band runs: clear of the ribs, which
 // stand 0.0095 proud of it, at every setback.
 const SURGE_CLEAR = 0.016;
-// Where a cable meets the tower: this far out from the glass, so the tube
-// overlaps the ribs' outer faces instead of hovering off them.
+// Where the station's cable leaves the tower: this far out from the glass, clear
+// of the ribs.
 const CABLE_CLEAR = 0.012;
 const BEACON_Y = 1.012; // sitting on the spire's tip at 1.0
-// The highest a cable attaches: on the top tier, a little under its setback at
-// 0.80, so every cable lands on the tower's face rather than on the crown steps.
-const HUB_HIGH = 0.74;
-// Beyond this horizontal distance a cable attaches high; nearer than it, the
-// attachment slides down the tower. A span to something standing at the tower's
-// own foot otherwise dropped almost vertically down the building's face, which
-// read as a cable stuck to it rather than a line running to it.
-const HUB_FAR = 0.9;
-const HUB_LOW = 0.22; // the lowest a cable will attach
 
 /** Distance from the centre to a rounded square's edge along a unit direction
  *  (dx, dz): where a cable heading that way leaves a tier. */
@@ -1147,7 +1151,7 @@ function rrectReach(hx: number, hz: number, r: number, dx: number, dz: number): 
   return t;
 }
 
-/** Where a cable meets the tower at height y, heading out along (dx, dz). */
+/** Where a cable leaves the tower at height y, heading out along (dx, dz). */
 function towerReach(y: number, dx: number, dz: number): number {
   const [w, , , r] = towerTier(y);
   return rrectReach(w / 2, w / 2, r, dx, dz) + CABLE_CLEAR;
@@ -1259,9 +1263,6 @@ function Skyscraper({ position, kit, winMat }: { position: V3; kit: TowerKit; wi
 }
 
 /* ---------- The transformer house — powers the city ---------- */
-/** Where the tower's power line lands: the middle insulator's cap, house-local,
- *  as CAP in scripts/models/build_trafo.py has it. */
-const TRAFO_CAP = { y: 0.147, z: -0.028 };
 /** Its footprint's longer side, roof overhang included, for the contact shadow. */
 const TRAFO_SPAN = 0.21;
 
@@ -1273,16 +1274,15 @@ loadTrafoKit().catch(() => {});
  *  down for the surrounding blocks, from its Blender model
  *  (scripts/models/build_trafo.py, shipped as public/models/trafo.glb): the
  *  blocks' rounded corners and plinth, an overhanging flat roof, a louvred
- *  double door on the street side with the high-voltage sign, a vent in each
- *  flank, and three ribbed insulators on the roof where the tower's power line
- *  comes in. A prop (not a hotspot), like the buildings, but it carries the
- *  city's power: the insulators' caps and the sign's bolt hum faintly at rest
- *  and brighten with the Alliander grid when the tower is engaged or the whole
- *  city goes live. */
+ *  double door on the street side with the high-voltage sign, and a vent in
+ *  each flank; its cables are under the ground (PowerGrid). A prop (not a
+ *  hotspot), like the buildings, but it carries the city's power: the sign's
+ *  bolt hums faintly at rest, brightens with the Alliander grid when the tower
+ *  is engaged or the whole city goes live, and flares as power passes through. */
 function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive('alliander-hololens');
-  // in the close-up, pointing at the house sends a bolt down the wires (GRID)
+  // in the close-up, pointing at the house powers the next block (sendPower)
   const close = useCloseUp('alliander-hololens');
   const houseRef = useRef<Group>(null);
   const ray = useMemo(() => new Ray(), []);
@@ -1294,8 +1294,8 @@ function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
   const complete = useSceneSelector((s) => s.completedAt !== null);
   const reduced = useReducedMotion();
   const accentC = useMemo(() => new Color(accent), [accent]);
-  // one shared emissive material for the caps and the bolt — the live "power". It
-  // opts out of the life system and drives its own ghost→accent glow, like the windows.
+  // the sign's bolt, the live "power": it opts out of the life system and drives
+  // its own ghost→accent glow, like the windows
   const capMat = useMemo(() => {
     const m = new MeshStandardMaterial({ color: GHOST_FILL, emissive: GHOST_FILL, emissiveIntensity: 0.3, roughness: 0.35, metalness: 0.2, toneMapped: false });
     m.userData.lifeSkip = true;
@@ -1322,11 +1322,11 @@ function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
     let over = false;
     if (close && houseRef.current && cursorRay(s, houseRef.current, ray)) {
       over = ray.intersectsBox(box);
-      if (over && !wasOver.current && now - GRID.boltAt > BOLT_REST) GRID.boltAt = now;
+      if (over && !wasOver.current && now - POWER.sentAt > 0.3) sendPower(now);
     }
     wasOver.current = over;
-    // the insulators flare as the bolt leaves them
-    const since = now - GRID.boltAt;
+    // the bolt flares as the power passes through the house
+    const since = now - (POWER.sentAt + PULSE_IN);
     const zap = since >= 0 && since < 1.2 ? Math.exp(-since * 4) * 4 : 0;
     capMat.emissiveIntensity = (0.3 + 2.6 * k.current) * hum + zap;
   });
@@ -1335,7 +1335,7 @@ function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
       <BlobShadow position={[0, 0.004, 0]} radius={TRAFO_SPAN * 0.75} opacity={0.42} />
       {/* The shell (plinth, walls and roof slab) is the glass that carries the
           outline, as the blocks' bodies do; the door leaves are the deep cut and
-          the louvres, vents, sign plate and insulators the pale one, neither
+          the louvres, vents, sign plate and roof rim the pale one, neither
           outlined, so at rest it's as sparse a drawing as the blocks round it. */}
       <mesh geometry={kit.trafo_body}>
         <LiveGlassMat slug="alliander-hololens" ghost={false} wake={wake} />
@@ -1607,118 +1607,247 @@ function Constellation({ anchor }: { anchor: V3 }) {
   );
 }
 
-/* The bolt: pointing at the transformer house in the Alliander close-up
-   (TransformerHouse) sends a bolt of electricity through the wires: up the
-   house's own line to the tower (BOLT_UP), then out along every other line to
-   the buildings at once (BOLT_OUT), each a crackling spark with a short tail,
-   while the wires flash. GRID carries the moment it was sent from the house to
-   the wires. */
-const GRID = { boltAt: -99 };
-const BOLT_UP = 0.35; // s from the house to the tower
-const BOLT_OUT = 0.5; // s from the tower out to the buildings
-const BOLT_REST = 1.1; // s before the house will send another
-const SPARK_TAIL = [0.035, 0.07, 0.105]; // the tail's beads, behind the spark (along the wire, 0–1)
+/* ---------- the grid: under the streets, from the station to the blocks ----------
+   The city's power runs underground, as a Dutch town's does. The tower in the
+   middle is the power station: one cable runs from its foot to the transformer
+   house, and from the transformer the cables run out under the avenues, one to
+   each block and in at its foot. They show faintly through the road, the way a
+   maquette draws what's buried.
 
-/** Power cables from the Alliander tower out to every building — thin emissive
- *  tubes (not lines) so they reliably bloom: dim blue at rest, ramping to a bright
- *  glowing blue when the tower is engaged, and staying lit once visited. All tubes
- *  share one material, animated in one place. */
-function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
-  const { accent } = useAccent();
-  const { hovered, selected, visited } = useActive('alliander-hololens');
-  const k = useRef(0);
-  const sparks = useRef<(Group | null)[]>([]);
-  const at = useMemo(() => new Vector3(), []);
-  const sparkMat = useMemo(() => {
-    const m = new MeshBasicMaterial({ color: '#eaf6ff', transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
-    m.userData.lifeSkip = true;
-    return m;
-  }, []);
-  useEffect(() => () => sparkMat.dispose(), [sparkMat]);
-  const curves = useMemo(
-    () =>
-      targets.map((t) => {
-        // Attach on the tower's OUTSIDE facing this target, not on its centre axis.
-        // Every span used to start at the same point on the centreline, so they all
-        // converged inside the tower and you could see the knot of them through the
-        // glass. On the outside they read as cables leaving the building, and the
-        // attachment slides down the tiers for anything standing close to its foot.
-        const dx = t[0] - from[0];
-        const dz = t[2] - from[2];
-        const horiz = Math.hypot(dx, dz) || 1;
-        const near = Math.min(1, horiz / HUB_FAR);
-        const ay = HUB_LOW + (HUB_HIGH - HUB_LOW) * near;
-        const r = towerReach(ay, dx / horiz, dz / horiz);
-        const ax = from[0] + (dx / horiz) * r;
-        const az = from[2] + (dz / horiz) * r;
-        const span = Math.hypot(t[0] - ax, t[2] - az);
-        const sag = 0.05 + span * 0.14; // longer spans droop more
-        const pts: Vector3[] = [];
-        for (let i = 0; i <= 12; i++) {
-          const u = i / 12;
-          pts.push(
-            new Vector3(
-              ax + (t[0] - ax) * u,
-              ay + (t[1] - ay) * u - sag * 4 * u * (1 - u),
-              az + (t[2] - az) * u,
-            ),
-          );
+   A block's lights are the grid's: it lights once power reaches it and stays
+   lit for the visit. In the Alliander close-up, each time you point at the
+   transformer house it powers the next block, nearest first: a pulse runs from
+   the station to the transformer (PULSE_IN), then out along that block's cable
+   (PULSE_OUT), and the block comes on as it arrives. Once they're all on, a
+   point sends the next round, and each block brightens as it's reached. With
+   no cursor to point with (a touch screen) they come on in turn by themselves
+   (PULSE_AUTO), under reduced motion all at once, and closing the close-up
+   brings on any still dark, so a city you've opened is a lit city, as it
+   always was. A returning visitor's city comes on with the old staggered
+   come-on instead of a cascade. */
+const CABLE_Y = -0.006; // under the road, whose surface is at 0.01
+const FEED_Y = -0.013; // the station's cable runs deeper, under the others
+const CABLE_R = 0.003;
+const PULSE_IN = 0.4; // s from the station to the transformer
+const PULSE_OUT = 0.6; // s from the transformer out to the block
+const PULSE_AUTO = 0.8; // s between blocks when they come on by themselves
+const PULSE_CLOSE = 0.3; // … and when closing the close-up brings on the rest
+const PULSE_TAIL = [0.016, 0.032, 0.048]; // the pulse's trailing beads, behind it along the cable
+const LIGHT_ON = 0.45; // s for a block's lights to come up once power reaches it
+const TRAFO_DEPTH = 0.15; // the house's footprint front to back, plinth included (build_trafo.py)
+const POWER = {
+  first: [] as number[], // when power first reached each block (clock s); -1 while it's dark
+  last: [] as number[], // when it last did, for the brightening
+  pulses: [] as { to: number; at: number }[], // on their way
+  sentAt: -99, // the last pulse's leaving, for the transformer's flare
+  round: 0, // where the next round starts, once every block is lit
+  order: [] as number[], // the blocks, nearest the transformer first
+  opened: false, // whether the close-up has been open this visit
+};
+
+/** Send power to the next block: TransformerHouse, when it's pointed at, and
+ *  PowerGrid, when the blocks come on by themselves. */
+function sendPower(now: number) {
+  const { order, first, pulses } = POWER;
+  if (!order.length) return;
+  const going = (i: number) => pulses.some((p) => p.to === i);
+  let to = order.find((i) => first[i] < 0 && !going(i));
+  if (to === undefined) to = order[POWER.round++ % order.length];
+  pulses.push({ to, at: now });
+  POWER.sentAt = now;
+}
+
+/** The grid's cables under the street plan (`ave`: where the avenues run).
+ *  `feed`: the station's, from the tower's foot to the back of the house.
+ *  `routes`: each block's whole way from the house, for its pulse: back to the
+ *  avenue in front of the tower, along the avenues, and in at the block's foot.
+ *  `runs`: what to draw, the routes merged where they share a street, so the
+ *  avenues carry one main each rather than a stack of cables. `order`: nearest
+ *  the house first. */
+function gridPlan(blocks: { x: number; z: number; w: number; d: number }[], trafo: V3, ave: number) {
+  const y = CABLE_Y;
+  const [tx, , tz] = trafo;
+  const back = tz - TRAFO_DEPTH / 2;
+  const start: V3 = [tx, y, back];
+  const j0: V3 = [tx, y, ave];
+  const station = towerReach(0.1, 0, 1); // the tower's face toward the house
+  const feed: V3[] = [
+    [tx - 0.03, FEED_Y, station],
+    [tx - 0.03, FEED_Y, back],
+  ];
+  const routes = blocks.map((b): V3[] => {
+    const side = Math.abs(b.x) < 0.2 ? 0 : Math.sign(b.x);
+    if (side !== 0) {
+      const ax = side * ave;
+      return [start, j0, [ax, y, ave], [ax, y, b.z], [b.x - (side * b.w) / 2, y, b.z]];
+    }
+    // the block behind the tower: round by the east avenue, in from the far one
+    return [start, j0, [ave, y, ave], [ave, y, -ave], [b.x, y, -ave], [b.x, y, b.z + b.d / 2]];
+  });
+  // merge every route's straight runs, per street: all of them are along x or
+  // along z, so a street is a line and its cables an interval on it
+  const lines = new Map<string, { axis: 'x' | 'z'; at: number; spans: [number, number][] }>();
+  for (const r of routes)
+    for (let i = 0; i < r.length - 1; i++) {
+      const [a, b] = [r[i], r[i + 1]];
+      const axis = Math.abs(a[2] - b[2]) < 1e-6 ? 'x' : 'z'; // along x when z holds
+      const at = axis === 'x' ? a[2] : a[0];
+      const lo = Math.min(axis === 'x' ? a[0] : a[2], axis === 'x' ? b[0] : b[2]);
+      const hi = Math.max(axis === 'x' ? a[0] : a[2], axis === 'x' ? b[0] : b[2]);
+      const key = `${axis}${at.toFixed(4)}`;
+      if (!lines.has(key)) lines.set(key, { axis, at, spans: [] });
+      lines.get(key)!.spans.push([lo, hi]);
+    }
+  const runs: V3[][] = [];
+  for (const { axis, at, spans } of lines.values()) {
+    spans.sort((p, q) => p[0] - q[0]);
+    let [lo, hi] = spans[0];
+    const flush = () => runs.push(axis === 'x' ? [[lo, y, at], [hi, y, at]] : [[at, y, lo], [at, y, hi]]);
+    for (const [a, b] of spans.slice(1)) {
+      if (a <= hi + 1e-6) hi = Math.max(hi, b);
+      else {
+        flush();
+        [lo, hi] = [a, b];
+      }
+    }
+    flush();
+  }
+  const length = (r: V3[]) => r.slice(1).reduce((n, p, i) => n + Math.hypot(p[0] - r[i][0], p[2] - r[i][2]), 0);
+  const order = blocks.map((_, i) => i).sort((p, q) => length(routes[p]) - length(routes[q]));
+  return { feed, routes, runs, order };
+}
+
+/** A polyline walked by distance along it: `at(u, out)` is the point a
+ *  fraction u of the way (0–1), and `len` how long it is. */
+function walker(pts: V3[]) {
+  const seg = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1], p[2] - pts[i][2]));
+  const len = seg.reduce((n, l) => n + l, 0);
+  return {
+    len,
+    at(u: number, out: Vector3) {
+      let d = Math.min(1, Math.max(0, u)) * len;
+      for (let i = 0; i < seg.length; i++) {
+        if (d <= seg[i] || i === seg.length - 1) {
+          const f = seg[i] > 0 ? Math.min(1, d / seg[i]) : 0;
+          const [a, b] = [pts[i], pts[i + 1]];
+          return out.set(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
         }
-        return new CatmullRomCurve3(pts);
-      }),
-    [from, targets],
-  );
-  const tubes = useMemo(() => curves.map((c) => new TubeGeometry(c, 14, 0.006, 5, false)), [curves]);
-  const mat = useMemo(() => {
-    const m = new MeshStandardMaterial({
-      color: SURFACE.deep.color,
-      emissive: accent,
-      emissiveIntensity: 0.12,
-      transparent: true,
-      opacity: 0.55,
-      roughness: 0.4,
-      toneMapped: false,
-    });
-    m.userData.lifeSkip = true; // animates its own opacity — presence stays out
-    return m;
-  }, []);
+        d -= seg[i];
+      }
+      return out.set(...pts[pts.length - 1]);
+    },
+  };
+}
+
+/** The grid's cables under the streets (gridPlan), and the pulses running
+ *  along them (POWER): thin tubes under the road, one shared material for the
+ *  blocks' cables and one for the station's, dim at rest and brighter while
+ *  the tower is engaged, each flaring as a pulse passes. A pulse is a short
+ *  string of bright beads. This is also where the blocks come on by
+ *  themselves (see the grid's note above), and where a pulse arriving lights
+ *  its block. */
+const PULSE_BEADS = 8; // pulses that can be on their way at once
+function PowerGrid({ feed, routes, runs, order, stagger }: { feed: V3[]; routes: V3[][]; runs: V3[][]; order: number[]; stagger: number[] }) {
+  const { accent } = useAccent();
+  const { hovered, selected, visited } = useActive(TOWER);
+  // open at all, the camera arrived or not (`selected` waits for it, and the
+  // visit is marked the moment it opens)
+  const open = useSceneSelector((s) => s.selectedSlug === TOWER);
+  const reduced = useReducedMotion();
+  const coarse = useMemo(isTouch, []);
+  const k = useRef(0);
+  const nextAuto = useRef(0);
+  const beads = useRef<(Group | null)[]>([]);
+  const at = useMemo(() => new Vector3(), []);
+  const ways = useMemo(() => ({ feed: walker(feed), routes: routes.map(walker) }), [feed, routes]);
+  const cables = useGeometry(() => merge(runs.map((r) => tube(r, CABLE_R, 5, 2))), [runs]);
+  const feedCable = useGeometry(() => tube(feed, CABLE_R * 1.4, 6, 2), [feed]);
+  const mats = useMemo(() => {
+    const mk = () => {
+      const m = new MeshStandardMaterial({ color: SURFACE.deep.color, emissive: accent, emissiveIntensity: 0.05, transparent: true, opacity: 0.5, roughness: 0.5, toneMapped: false });
+      m.userData.lifeSkip = true; // drives its own glow
+      return m;
+    };
+    const bead = new MeshBasicMaterial({ color: '#eaf6ff', transparent: true, opacity: 0.95, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
+    bead.userData.lifeSkip = true;
+    return { cable: mk(), feed: mk(), bead };
+  }, [accent]);
+  useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
+  // the blocks' places in POWER, kept across remounts (it's module-level, like the city's latch)
+  useMemo(() => {
+    POWER.order = order;
+    for (let i = 0; i < order.length; i++) {
+      POWER.first[i] ??= -1;
+      POWER.last[i] ??= -1;
+    }
+  }, [order]);
   useFrame((s) => {
-    const target = selected ? 1 : hovered ? 0.5 : visited ? 0.28 : 0;
-    k.current += (target - k.current) * 0.09;
-    const kk = k.current;
-    // the bolt: the house's own line (the last) carries it up, then the rest out
-    const since = s.clock.elapsedTime - GRID.boltAt;
-    const flash = since >= 0 && since < 1.5 ? Math.exp(-since * 3) * 3.2 : 0;
-    mat.emissiveIntensity = 0.12 + kk * 2.8 + flash; // toneMapped:false → blooms on select
-    mat.opacity = 0.5 + kk * 0.5;
-    const up = curves.length - 1;
-    for (let i = 0; i < curves.length; i++) {
-      const g = sparks.current[i];
+    const now = s.clock.elapsedTime;
+    const { first, last, pulses } = POWER;
+    if (open) POWER.opened = true;
+    // the blocks still dark, and nothing on its way to them
+    const dark = order.filter((i) => first[i] < 0 && !pulses.some((p) => p.to === i));
+    if (dark.length) {
+      if (selected && reduced) for (const i of dark) first[i] = last[i] = now;
+      else if (selected && coarse) {
+        if (now >= nextAuto.current) {
+          sendPower(now);
+          nextAuto.current = now + PULSE_AUTO;
+        }
+      } else if (!open && visited) {
+        // a returning visitor's city comes on as it always did; one you've just
+        // closed brings on its last blocks in a quick run
+        if (!POWER.opened || reduced) for (const i of dark) first[i] = now + stagger[i] * WIN_STAGGER * ON_SECONDS;
+        else if (now >= nextAuto.current) {
+          sendPower(now);
+          nextAuto.current = now + PULSE_CLOSE;
+        }
+      }
+    }
+    // the pulses: in along the station's cable, out along the block's
+    let flare = 0;
+    for (let n = 0; n < PULSE_BEADS; n++) {
+      const g = beads.current[n];
+      const p = pulses[n];
       if (!g) continue;
-      // where the spark is along its wire (0 tower → 1 the far end), and which way it runs
-      const u = i === up ? 1 - since / BOLT_UP : (since - BOLT_UP * 0.95) / BOLT_OUT;
-      const back = i === up ? 1 : -1;
-      g.visible = u >= 0 && u <= 1 && since >= 0;
-      if (!g.visible) continue;
+      g.visible = !!p && now >= p.at;
+      if (!g.visible || !p) continue;
+      const t = now - p.at;
+      const inbound = t < PULSE_IN;
+      const way = inbound ? ways.feed : ways.routes[p.to];
+      const u = inbound ? t / PULSE_IN : (t - PULSE_IN) / PULSE_OUT;
+      flare = Math.max(flare, 1 - Math.abs(u - 0.5));
       g.children.forEach((bead, j) => {
-        const uu = Math.min(1, Math.max(0, u + back * (j === 0 ? 0 : SPARK_TAIL[j - 1])));
-        curves[i].getPointAt(uu, at);
-        // it crackles: a jitter off the wire every frame
-        bead.position.set(at.x + (Math.random() - 0.5) * 0.01, at.y + (Math.random() - 0.5) * 0.01, at.z + (Math.random() - 0.5) * 0.01);
-        bead.scale.setScalar((1 - j * 0.24) * (0.8 + Math.random() * 0.4));
+        way.at(u - (j === 0 ? 0 : PULSE_TAIL[j - 1]) / way.len, at);
+        bead.position.copy(at);
+        bead.scale.setScalar(1 - j * 0.22);
       });
     }
+    // arrived: the block comes on (or brightens, if it's on already)
+    for (let n = pulses.length - 1; n >= 0; n--) {
+      const p = pulses[n];
+      if (now - p.at < PULSE_IN + PULSE_OUT) continue;
+      if (first[p.to] < 0) first[p.to] = now;
+      last[p.to] = now;
+      pulses.splice(n, 1);
+    }
+    const target = selected ? 1 : hovered ? 0.5 : visited ? 0.3 : 0.08;
+    k.current += (target - k.current) * 0.08;
+    const kk = k.current;
+    mats.cable.emissiveIntensity = 0.05 + kk * 0.9 + flare * 1.6;
+    mats.cable.opacity = 0.35 + kk * 0.45;
+    mats.feed.emissiveIntensity = 0.05 + kk * 1.1 + flare * 1.6;
+    mats.feed.opacity = 0.4 + kk * 0.45;
   });
   return (
     <group>
-      {tubes.map((g, i) => (
-        <mesh key={i} geometry={g} material={mat} />
-      ))}
-      {curves.map((_, i) => (
-        <group key={`spark${i}`} ref={(g) => (sparks.current[i] = g)} visible={false}>
+      <mesh geometry={cables} material={mats.cable} />
+      <mesh geometry={feedCable} material={mats.feed} />
+      {Array.from({ length: PULSE_BEADS }, (_, n) => (
+        <group key={n} ref={(g) => (beads.current[n] = g)} visible={false}>
           {[0, 1, 2, 3].map((j) => (
-            <mesh key={j} material={sparkMat}>
-              <sphereGeometry args={[0.011, 8, 6]} />
+            <mesh key={j} material={mats.bead}>
+              <sphereGeometry args={[0.008, 8, 6]} />
             </mesh>
           ))}
         </group>
@@ -2034,12 +2163,9 @@ export function CityRig() {
   // is dropped so the spot isn't doubled up). Drag City.Transformer in the dev
   // panel to move it to any of the 9 spots.
   const trafo = usePlacement('City.Transformer', { position: [0, 0, 0.55] });
-  // Power lines fan from the tower to every building AND to the transformer house,
-  // so it reads as part of the grid that powers the city.
-  const wireTargets = useMemo(
-    () => [...cluster.map((b) => [b.x, b.h, b.z] as V3), [trafo.position[0], trafo.position[1] + TRAFO_CAP.y, trafo.position[2] + TRAFO_CAP.z] as V3],
-    [cluster, trafo.position],
-  );
+  // The grid under the streets (PowerGrid): the station's cable from the tower
+  // to the transformer house, and the house's out to every block.
+  const grid = useMemo(() => gridPlan(cluster, trafo.position, AVE), [cluster, trafo.position]);
   return (
     <group>
       {/* every road, contoured into one surface */}
@@ -2069,9 +2195,9 @@ export function CityRig() {
       {/* the neighbourhood transformer house — the substation that powers the
           city, on the front-centre plot facing the camera */}
       {trafoKit && <TransformerHouse position={trafo.position} kit={trafoKit} />}
-      {/* power lines from the central tower to every building + the transformer —
-          glow blue on select */}
-      {towerKit && blocksKit && <PowerWires from={[0, 0.8, 0]} targets={wireTargets} />}
+      {/* the power, underground: the tower (the station) feeds the transformer
+          house, and the house each block, a block lighting as power reaches it */}
+      {towerKit && blocksKit && <PowerGrid feed={grid.feed} routes={grid.routes} runs={grid.runs} order={grid.order} stagger={lightOrder} />}
 
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}

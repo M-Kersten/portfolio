@@ -5,18 +5,17 @@
 # A Dutch compact substation (the neighbourhood "trafohuisje" that steps the
 # grid down for the blocks round it), drawn in the blocks' language: the same
 # rounded corners and plinth, an overhanging flat roof, a louvred double door
-# on the street side, a vent in each flank, and three ribbed insulators on the
-# roof where the tower's power lines come in. Coordinates are house-local (see
-# modelkit.py): Y up, the ground at y 0, the footprint centred on the origin,
-# the door facing +Z (the camera); city.tsx places the group on its plot.
+# on the street side and a vent in each flank. Its cables come and go under
+# the ground, as a real one's do (city.tsx, PowerGrid), so there's nothing on
+# the roof. Coordinates are house-local (see modelkit.py): Y up, the ground at
+# y 0, the footprint centred on the origin, the door facing +Z (the camera);
+# city.tsx places the group on its plot.
 #   trafo_body    plinth, walls and roof slab, one glass shell (outlined)
 #   trafo_doors   the door leaves in their recess (the deep cut, no outline)
-#   trafo_trim    louvres, vents, the sign plate and the insulators (pale, no
+#   trafo_trim    louvres, vents, the sign plate and the roof's rim (pale, no
 #                 outline)
-#   trafo_power   the insulators' caps and the bolt on the sign: the site's
-#                 power glow, faint at rest and bright when the grid is live
-# city.tsx keeps a copy of CAP (TRAFO_CAP): the power line lands on the
-# middle cap.
+#   trafo_power   the bolt on the sign: the site's power glow, faint at rest
+#                 and bright when the grid is live
 import math
 import os
 import sys
@@ -45,11 +44,6 @@ DOOR_W, DOOR_H, RECESS = 0.072, 0.07, 0.006
 SILL = PLINTH_H + 0.0012
 # The flank vents, high up, and their slats.
 VENT = (0.07, 0.024)
-# The insulators: three in a row across the roof, set back from the eaves.
-BUSH_X = (-0.05, 0.0, 0.05)
-BUSH_Z = -0.028
-BUSH_H = 0.032
-CAP = dict(y=TOP + BUSH_H + 0.005, z=BUSH_Z, r=0.0068)
 
 
 def body():
@@ -127,18 +121,6 @@ def triangle(name, side, pos, depth=0.0012):
     return ob
 
 
-def insulator(x):
-    """A porcelain bushing standing on the roof: a collar, then three sheds
-    tapering up the stem, ribbed the way the real ones are."""
-    prof = [(0.0, 0.0), (0.0095, 0.0), (0.0095, 0.004), (0.0048, 0.0055)]
-    y = 0.0055
-    for r in (0.0105, 0.0092, 0.008):
-        prof += [(r, y + 0.003), (r, y + 0.0048), (0.0045, y + 0.0078)]
-        y += 0.0078
-    prof += [(0.0042, BUSH_H - 0.001), (0.0, BUSH_H)]
-    return K.lathe('bushing', prof, seg=14, pos=(x, TOP - 0.001, BUSH_Z))
-
-
 def rim(name, w, d, r, t, y0, h, seg=8):
     """An upstand t thick round a rounded rectangle whose OUTER outline is w by
     d (radius r), standing on y0, h tall."""
@@ -190,14 +172,10 @@ def house():
     # the roof's edge trim, a low upstand just in from the eaves: the hero
     # looks down on this roof, and a bare slab reads as a lid
     trim.append(rim('rim', W + 2 * ROOF_OUT - 0.008, D + 2 * ROOF_OUT - 0.008, CORNER + ROOF_OUT - 0.004, 0.003, TOP - 0.0005, 0.0032))
-    # the insulators on the roof
-    trim += [insulator(x) for x in BUSH_X]
     tr = K.join('trafo_trim', trim)
     K.finish(tr, 50)
     parts.append((tr, 'pale'))
-    power = [K.sphere('cap', CAP['r'], pos=(x, CAP['y'], CAP['z']), seg=12, rings=8, scale=(1, 0.8, 1)) for x in BUSH_X]
-    power.append(bolt('bolt', 0.0105, (sign[0], sign[1] - 0.0012, sign[2] + 0.0012)))
-    pw = K.join('trafo_power', power)
+    pw = K.join('trafo_power', [bolt('bolt', 0.0105, (sign[0], sign[1] - 0.0012, sign[2] + 0.0012))])
     K.finish(pw, 50)
     parts.append((pw, 'mark'))
     return parts

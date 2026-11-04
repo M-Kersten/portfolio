@@ -407,7 +407,7 @@ function RaceCar({ livery, boost }: { livery: Livery; boost?: { current: number 
     if (!f) return;
     const k = boost ? Math.max(0, (boost.current - BOOST_FLASH) / (1 - BOOST_FLASH)) : 0;
     f.visible = k > 0;
-    (f.material as MeshBasicMaterial).opacity = k * k * 0.9;
+    (f.material as MeshBasicMaterial).opacity = k * k;
   });
   if (!kit) return null;
   paintStripe(kit.car_stripe);
@@ -430,7 +430,7 @@ function RaceCar({ livery, boost }: { livery: Livery; boost?: { current: number 
       <mesh geometry={kit.car_rims}>
         <meshStandardMaterial color={livery.rim} emissive={livery.rim} emissiveIntensity={1.1} roughness={0.35} toneMapped={false} />
       </mesh>
-      <mesh ref={flash} geometry={kit.car_body} scale={1.12} visible={false}>
+      <mesh ref={flash} geometry={kit.car_body} scale={1.3} visible={false}>
         <meshBasicMaterial color="#ffffff" transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} userData={{ lifeSkip: true }} />
       </mesh>
     </group>
@@ -711,7 +711,7 @@ const LAP_SPEED = (2 * Math.PI * 0.2) / COURSE.L; // laps (in radians) per metre
    BOOST_REST. */
 const BOOST = 0.9; // extra speed at the burst's peak
 const BOOST_FADE = 1.3; // s
-const BOOST_FLASH = 0.75; // the flash lasts while the boost fades from 1 to here (~0.3 s)
+const BOOST_FLASH = 0.7; // the flash lasts while the boost fades from 1 to here (~0.4 s)
 const BOOST_REST = 1.6; // s before the same car takes another
 const BOOST_REACH = 0.035; // how near the cursor's ray has to pass a car (m)
 

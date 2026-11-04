@@ -57,6 +57,7 @@ The things you're most likely to want to change, and the file they live in.
 | An exhibit's camera close-up | its `view` in `HOTSPOTS` (or the dev tools' Camera tab) |
 | An object's place in the model | the `usePlacement(...)` call in `src/scene/maquette/city.tsx` or `room.tsx` (or the dev tools' Objects tab) |
 | What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*` and `CAM_CUBES` in `chip.tsx`, `BOOST*` and `POP*` in `room.tsx`, `WIND_*` and `GUST*` in `city.tsx`) |
+| The city's underground power: where its cables run, how a pulse travels, when a block lights | `gridPlan`, `PowerGrid` and `PULSE_*` in `src/scene/maquette/city.tsx` |
 | The 3D stage's lighting, fog, palette, post-processing | `LOOK` in `src/scene/look.ts` (or the dev tools' Look tab) |
 | The timeline's spacing | `WALL` in `src/components/timeline/layout.ts` (or the dev tools' Timeline tab) |
 | Colours, type, spacing, motion for the whole site | `src/ui/tokens.css` |
