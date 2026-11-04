@@ -51,6 +51,17 @@ The film's countdown runs **9.6 s** from pressing LAUNCH to liftoff.
 | `comms-open` / `comms-close` | ground control starts / finishes a line | a radio squelch |
 | `comms-type` | as ground control's line types out | a soft blip, played every few characters |
 
+## The city's grid
+
+Pointing at the transformer house in the Alliander close-up sends power from
+the station (the tower) through the house to the next block.
+
+| File | When | Notes |
+| --- | --- | --- |
+| `grid-charge` | the station gathers charge, the moment you point | a rising whine, about 0.3 s |
+| `grid-zap` | the pulse passes through the transformer house | a short electric crackle; give it variants |
+| `grid-on` | a block's lights come on | a soft thunk of a big switch, with a low hum tail |
+
 ## Ambient
 
 One quiet bed per layer of the maquette, crossfading as you scroll; they

@@ -4,13 +4,13 @@
 // constellation. CityRig at the bottom composes and places everything.
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, Shape, ShapeGeometry, Vector2, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
+import { AdditiveBlending, Box3, BoxGeometry, BufferAttribute, BufferGeometry, Color, CurvePath, DoubleSide, Euler, InstancedMesh, LineCurve3, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, RingGeometry, Shape, ShapeGeometry, ShaderMaterial, TubeGeometry, Vector2, Vector3, type Group, type Mesh, type Points as ThreePoints, type Sprite } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useSceneSelector } from '../store';
 import { isTouch, useReducedMotion } from '../../lib/media';
 import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
-import { Crease, glassRim, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
+import { Crease, glassRim, GlassMat, glowTexture, GroundMat, LiveEdges, LiveGlassMat } from './materials';
 import { PresenceCtx } from './presence';
 import { LIT_SOLID_OPACITY, litMat, litShade, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
 import { faceted, lathe, merge, place, tube, useGeometry } from './shapes';
@@ -19,7 +19,9 @@ import { BlobShadow, blobShadowTexture } from './backdrop';
 import { NextProjectSite, SITE_POS } from './launchSite';
 import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
 import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
-import { spring } from '../../lib/spring';
+import { spring, wobble } from '../../lib/spring';
+import { bump, easeIn, easeOut, ring } from '../../lib/ease';
+import { play } from '../../lib/sound';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
  *  Building for both its windows and its body. A module-level box rather than
@@ -30,6 +32,14 @@ import { spring } from '../../lib/spring';
  *  also answered hover and the bodies did not. They have carried the same value
  *  since hover came out, so it is one number now. */
 const cityLevel = { k: 0 };
+// scratch for the instanced effects (the gust's streaks, the grid's beads)
+const _m = new Matrix4();
+const _q = new Quaternion();
+const _e = new Euler();
+const _s = new Vector3();
+const _v = new Vector3();
+const _c = new Color();
+const WHITE = new Color('#ffffff');
 /** How long the whole skyline takes to come on, in seconds, and how much of that
  *  is spent staggering. At 0.75 the last building starts at 0.75s and every one
  *  takes the remaining 0.25s to come up, so the city is fully lit at 1.0s and no
@@ -153,8 +163,36 @@ function Building({ i, kit, x, z, w, d, winMat, delay = 0 }: { i: number; kit: B
      per-pane handle is its size — and easing that made the panes visibly grow,
      which is not what a light does. Per building costs six materials and leaves
      the panes exactly as they are, dark grid and all, at rest. */
-  const mat = useMemo(() => winMat.clone(), [winMat]);
+  // As power arrives the floors light from the ground up (uReveal, in the
+  // block's own height) with a bright line riding up the facade ahead of them
+  // (uLine, uEdge); a later pulse sends just the line up the lit windows.
+  const reveal = useMemo(() => ({ uReveal: { value: 10 }, uLine: { value: -1 }, uEdge: { value: 0 } }), []);
+  const mat = useMemo(() => {
+    const m = winMat.clone();
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, reveal);
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float vH;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvH = position.y;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vH;\nuniform float uReveal;\nuniform float uLine;\nuniform float uEdge;')
+        .replace(
+          '#include <emissivemap_fragment>',
+          `#include <emissivemap_fragment>
+  float below = 1.0 - smoothstep(uReveal - 0.004, uReveal + 0.004, vH);
+  totalEmissiveRadiance *= below;
+  diffuseColor.a *= mix(0.12, 1.0, below);
+  totalEmissiveRadiance += vec3(0.8, 1.0, 1.0) * uEdge * exp(-pow((vH - uLine) / 0.014, 2.0));`,
+        );
+    };
+    return m;
+  }, [winMat, reveal]);
+  const tint = useMemo(() => mat.emissive.clone(), [mat]);
+  const height = useMemo(() => {
+    parts.windows.computeBoundingBox();
+    const b = parts.windows.boundingBox!;
+    return [b.min.y - 0.02, b.max.y + 0.02];
+  }, [parts]);
   const panes = useRef<Mesh>(null);
+  const group = useRef<Group>(null);
   const reduced = useReducedMotion();
   useEffect(() => () => mat.dispose(), [mat]);
   // The body, its outline and its trim ride the city's staggered ramp, so a
@@ -169,13 +207,26 @@ function Building({ i, kit, x, z, w, d, winMat, delay = 0 }: { i: number; kit: B
     const first = POWER.first[i] ?? -1;
     const on = first >= 0 && now >= first ? (reduced ? 1 : Math.min(1, (now - first) / LIGHT_ON)) : 0;
     const last = POWER.last[i] ?? -1;
-    const lift = last >= 0 && now >= last && !reduced ? Math.exp(-(now - last) * 2.5) : 0;
+    const after = now - last;
+    const struck = last >= 0 && after >= 0 && !reduced;
+    const lift = struck ? Math.exp(-after * 2.5) : 0;
+    // the floors, ground to roof, and the line riding up ahead of them
+    const [lo, hi] = height;
+    const sweep = easeOut(after / LIGHT_ON);
+    reveal.uReveal.value = struck && Math.abs(first - last) < 1e-6 && after < LIGHT_ON ? lo + (hi - lo) * sweep : 10;
+    reveal.uLine.value = lo + (hi - lo) * sweep;
+    reveal.uEdge.value = struck && after < LIGHT_ON * 1.5 ? 2 * (1 - after / (LIGHT_ON * 1.5)) : 0;
+    // a white-cyan flash as it's switched on, settling to the windows' glow
+    mat.emissive.copy(tint).lerp(WHITE, lift * 0.55);
     mat.emissiveIntensity = on * WIN_LIT * flicker(on, now, delay * 9, reduced) + lift * WIN_FLASH;
     mat.opacity = Math.min(0.95, 0.08 + on * 0.8 + lift * 0.3);
     if (panes.current) panes.current.renderOrder = on > 0 || lift > 0.01 ? 1 : 0;
+    // and a jolt: up, and ringing back down
+    const jolt = struck ? 0.018 * ring(after, 4, 6) : 0;
+    group.current?.scale.set(1 - jolt * 0.4, 1 + jolt, 1 - jolt * 0.4);
   });
   return (
-    <group position={[x, 0, z]}>
+    <group ref={group} position={[x, 0, z]}>
       <BlobShadow position={[0, 0.004, 0]} radius={Math.max(w, d) * 0.95} opacity={0.4} />
       <mesh ref={panes} geometry={parts.windows} material={mat} />
       <mesh geometry={parts.body}>
@@ -356,17 +407,25 @@ const MILL_HUB = { y: 0.7, z: 0.265, tilt: 0.12 };
 /* In the mill's close-up the cursor is the wind: the cap (and the sails on it)
    turns slowly round into the wind blowing from where the cursor is, as a mill
    is turned into the wind, and moving the mouse past it is a gust that spins
-   the sails up; they run down again when it stops. Both ease: the wind comes
-   from WIND_FROM out in front of the cursor, toward you, so the cap swings
-   round steadily as the cursor crosses the mill rather than flipping sides at
-   its middle, and the sails take a gust up over GUST_GLIDE, not in a jolt. */
+   the sails up; they coast down again when it stops. The wind comes from
+   WIND_FROM out in front of the cursor, toward you, so the cap swings round
+   steadily as the cursor crosses the mill rather than flipping sides at its
+   middle. The cap is heavy: it swings a little past the wind and settles back
+   (WIND_SWING). A gust kicks the sails up a little past its speed (GUST_KICK),
+   flaps their cloth (FLUTTER) and blows streaks in past them (GUST_STREAKS). */
 const WIND_TURN = 1.0; // how far the cap will turn either way (rad)
-const WIND_GLIDE = 1.3; // a heavy cap: slow round
+const WIND_SWING = { freq: 0.55, damping: 0.42 }; // the cap's springy turn (see wobble)
 const WIND_FROM = 0.8; // how far out toward you the wind blows from, past the cursor (mill units)
 const GUST = 2.6; // spin per unit of cursor travel (screen halves), rad/s
 const GUST_MAX = 6; // rad/s
-const GUST_FADE = 1.4; // s for a gust to die down
-const GUST_GLIDE = 0.5; // s for the sails to take a gust up
+const GUST_FADE = 2.2; // s for a gust to die down: the sails coast
+const GUST_KICK = { freq: 1.1, damping: 0.45 }; // the sails taking a gust up (see wobble)
+const FLUTTER = 3; // the gust (rad/s) at which the cloth flaps its most
+/** The gust's streaks: how many at once at most, each one's life (s), how
+ *  many a second per rad/s of gust, and where they start, out along the wind
+ *  from the mill (mill units). */
+const GUST_STREAKS = { count: 12, life: 0.5, rate: 3.5, from: 0.75 };
+type MillWindState = { yaw: number; toward: number; blowing: boolean; strength: number; gust: number; px: number; py: number; read: boolean };
 
 // Fetch the model with the tower's, as soon as the scene's code arrives.
 // A failure here is retried and reported by useMillKit.
@@ -418,6 +477,84 @@ function MillWind() {
   );
 }
 
+/** A gust made visible: while you blow on the mill, quick thin streaks run in
+ *  from where the wind comes from and on past the sails, more of them the
+ *  harder it blows (GUST_STREAKS). Each keeps the way the wind blew when it
+ *  set off. Reads the mill's wind (a frame late, which nobody sees). */
+function GustStreaks({ wind }: { wind: { current: MillWindState } }) {
+  const { accent } = useAccent();
+  const reduced = useReducedMotion();
+  const color = useMemo(() => new Color(accent).lerp(WHITE, 0.5), [accent]);
+  const ref = useRef<InstancedMesh>(null);
+  const geo = useMemo(() => new BoxGeometry(0.0035, 0.0035, 0.12), []);
+  const mat = useMemo(() => new MeshBasicMaterial({ color: '#ffffff', transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false }), []);
+  useEffect(
+    () => () => {
+      geo.dispose();
+      mat.dispose();
+    },
+    [geo, mat],
+  );
+  const pool = useMemo(() => Array.from({ length: GUST_STREAKS.count }, () => ({ born: -99, dir: 0, y: 0, side: 0, from: 0, speed: 0, len: 1, k: 0 })), []);
+  const spawn = useRef({ owed: 0, next: 0 });
+  const rnd = useMemo(() => makeRand(4721), []);
+  useLayoutEffect(() => {
+    const m = ref.current;
+    if (!m) return;
+    _c.setRGB(0, 0, 0);
+    for (let i = 0; i < GUST_STREAKS.count; i++) m.setColorAt(i, _c);
+    m.visible = false;
+  }, []);
+  useFrame((s, delta) => {
+    const m = ref.current;
+    if (!m) return;
+    const w = wind.current;
+    const t = s.clock.elapsedTime;
+    const sp = spawn.current;
+    if (!reduced && w.blowing) {
+      sp.owed += Math.min(delta, 1 / 30) * GUST_STREAKS.rate * w.strength;
+      for (; sp.owed >= 1; sp.owed--) {
+        const p = pool[sp.next];
+        sp.next = (sp.next + 1) % pool.length;
+        p.born = t;
+        p.dir = w.toward;
+        p.y = MILL_HUB.y + (rnd() - 0.5) * 0.55;
+        p.side = (rnd() - 0.5) * 0.7;
+        p.from = GUST_STREAKS.from + rnd() * 0.25;
+        p.speed = 1.2 + rnd() * 0.5;
+        p.len = 0.7 + rnd() * 0.7;
+        p.k = Math.min(1, 0.35 + w.strength / 3);
+      }
+    } else sp.owed = 0;
+    let any = false;
+    for (let i = 0; i < pool.length; i++) {
+      const p = pool[i];
+      const age = t - p.born;
+      const u = age / GUST_STREAKS.life;
+      if (u < 0 || u >= 1) {
+        _c.setRGB(0, 0, 0);
+        m.setColorAt(i, _c);
+        continue;
+      }
+      any = true;
+      // along the wind's way in, toward the mill and on past the sails
+      const along = p.from - p.speed * age;
+      const sx = Math.sin(p.dir);
+      const cz = Math.cos(p.dir);
+      _v.set(sx * along + cz * p.side, p.y, cz * along - sx * p.side);
+      _q.setFromEuler(_e.set(0, p.dir, 0));
+      // drawn out as it gets going
+      _s.set(1, 1, p.len * (0.4 + 0.6 * easeOut(u * 3)));
+      m.setMatrixAt(i, _m.compose(_v, _q, _s));
+      m.setColorAt(i, _c.copy(color).multiplyScalar(bump(u) * p.k));
+    }
+    m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    m.visible = any;
+  });
+  return <instancedMesh ref={ref} args={[geo, mat, GUST_STREAKS.count]} frustumCulled={false} />;
+}
+
 /** A Dutch stage mill (stellingmolen), from its Blender model
  *  (scripts/models/build_mill.py, shipped as public/models/mill.glb): an
  *  eight-sided thatched smock on a brick base, a stage round the base's top,
@@ -441,7 +578,7 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
   const close = useCloseUp(slug);
   const root = useRef<Group>(null);
   const cap = useRef<Group>(null);
-  const wind = useRef({ yaw: 0, strength: 0, gust: 0, px: 0, py: 0, read: false });
+  const wind = useRef<MillWindState>({ yaw: 0, toward: 0, blowing: false, strength: 0, gust: 0, px: 0, py: 0, read: false });
   const windVel = useRef({ v: 0 });
   const gustVel = useRef({ v: 0 });
   const ray = useMemo(() => new Ray(), []);
@@ -456,12 +593,15 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
     const blowing = close && !!root.current && !!cursorRay(s, root.current, ray) && !!cursorAtDepth(s, root.current, hub, from);
     if (blowing) from.addScaledVector(ray.direction, -WIND_FROM);
     const toward = blowing ? Math.max(-WIND_TURN, Math.min(WIND_TURN, Math.atan2(from.x, from.z))) : 0;
-    w.yaw = reduced ? 0 : spring(w.yaw, toward, windVel.current, dt, WIND_GLIDE);
+    w.toward = toward;
+    w.blowing = blowing;
+    // the heavy cap swings round, a little past the wind, and settles back
+    w.yaw = reduced ? 0 : wobble(w.yaw, toward, windVel.current, dt, WIND_SWING.freq, WIND_SWING.damping);
     if (cap.current) cap.current.rotation.y = w.yaw;
     // a gust: the cursor's travel since the last frame (from the second frame
     // it's blowing on, so coming back onto the model isn't itself a gust) feeds
-    // the wind's strength, which dies down over GUST_FADE; the sails take it up
-    // on a spring
+    // the wind's strength, which dies down over GUST_FADE; the sails kick up a
+    // little past it and coast down with it
     const at = blowing ? cursorNdc(s.size, pointer) : null;
     const travel = at && w.read ? Math.hypot(at.x - w.px, at.y - w.py) : 0;
     if (at) {
@@ -470,14 +610,27 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
     }
     w.read = !!at;
     w.strength = Math.min(GUST_MAX, w.strength * Math.exp(-dt / GUST_FADE) + travel * GUST);
-    w.gust = Math.max(0, spring(w.gust, w.strength, gustVel.current, dt, GUST_GLIDE));
+    w.gust = wobble(w.gust, w.strength, gustVel.current, dt, GUST_KICK.freq, GUST_KICK.damping);
+    if (w.gust < 0) {
+      // never turned backwards
+      w.gust = 0;
+      gustVel.current.v = Math.max(0, gustVel.current.v);
+    }
     const engaged = hovered || selected || visited;
     set.current += ((engaged ? 1 : 0) - set.current) * (reduced ? 1 : 0.05);
     // the sails only take the wind as their cloth fills
     const filled = Math.min(1, Math.max(0, (set.current - 0.45) / 0.45));
     spin.current += ((engaged ? 0.9 * filled : 0) - spin.current) * 0.04;
     if (sails.current && !reduced) sails.current.rotation.z += Math.min(delta, 0.1) * (spin.current + w.gust);
-    for (const c of cloths.current) if (c) c.scale.x = 0.07 + 0.93 * set.current;
+    // the cloth, set or furled, flaps in a gust: it swings off its whip (the
+    // free edge in and out) on two rhythms, so it doesn't tick like a clock
+    const flap = reduced ? 0 : Math.min(1, w.gust / FLUTTER) * set.current;
+    const t = s.clock.elapsedTime;
+    cloths.current.forEach((c, k) => {
+      if (!c) return;
+      c.scale.x = (0.07 + 0.93 * set.current) * (1 + 0.04 * flap * Math.sin(t * 23 + k * 1.7));
+      c.rotation.y = 0.12 * flap * (Math.sin(t * 17 + k * 2.3) + 0.4 * Math.sin(t * 31 + k * 1.1));
+    });
     // the windows light with the mill's life, from the ghost's grey
     life.current += ((selected || visited ? 1 : 0) - life.current) * 0.06;
     const m = windows.current;
@@ -545,6 +698,7 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
         </group>
       </group>
       <MillWind />
+      <GustStreaks wind={wind} />
     </group>
   );
 }
@@ -783,8 +937,13 @@ const AIM_REACH = 1.3; // how far it swings either way (rad)
 const AIM_GLIDE = 0.3;
 const AIM_SETTLE = 0.8; // s steady on a spot before it shoots
 const AIM_NEW = 0.3; // how far from its last shot a spot has to be (rad)
+/* A shot, aimed or on its sweep: the viewer steadies, its nose dipping a touch
+   (dip, rad) for `hold` s, then fires: its nose kicks up (kick, rad) and rings
+   down, a flash pops at the lenses (BINOS_LENS, `pop` s), and the viewfinder
+   holds the picture bright for `held` s before it fades back (`fade`). */
+const SHOT = { hold: 0.18, dip: -0.045, kick: 0.12, pop: 0.22, held: 0.35, fade: 0.22 };
+const BINOS_LENS: V3 = [-0.005, 0.155, -0.046]; // just in front of the lenses (the head's −z face)
 const BINOS_STAND_R = 0.02;
-const WHITE = new Color('#ffffff');
 function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rotationY?: number; slug?: string; lit: LitLink }) {
   const { accent } = useAccent();
   const accentC = useMemo(() => new Color(accent), [accent]);
@@ -794,7 +953,9 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
   const headRef = useRef<Group>(null);
   const k = useRef(0); // pop-in scale progress
   const vel = useRef(0);
-  const flash = useRef(0); // camera-flash level, decays each frame
+  const shot = useRef({ at: -99, fired: true, firedAt: -99 }); // see SHOT
+  const lensFlash = useRef<Sprite>(null);
+  const glow = useMemo(glowTexture, []);
   const lastShot = useRef(0);
   const wakeK = useRef(0); // 0 frosted glass -> 1 the awake, near-solid material
   const screenMat = useRef<MeshStandardMaterial>(null);
@@ -860,6 +1021,14 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
 
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
+    const t = s.clock.elapsedTime;
+    const sh = shot.current;
+    // press the shutter (see SHOT); not again before the last one's gone off
+    const takeShot = () => {
+      if (!sh.fired) return;
+      sh.at = t;
+      sh.fired = false;
+    };
     // Once brought to life it keeps working — it goes on panning and snapping
     // photos after you deselect it, for as long as it's "alive" this session.
     const live = selected || visited;
@@ -890,22 +1059,44 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
       a.steady = Math.abs(aimVel.current.v) < 0.12 ? a.steady + dt : 0;
       if (a.steady > AIM_SETTLE && Math.abs(a.yaw - a.shotYaw) > AIM_NEW) {
         a.shotYaw = a.yaw;
-        flash.current = 1;
+        takeShot();
       }
     }
     a.w += ((following ? 1 : 0) - a.w) * (1 - Math.exp(-dt * (following ? 4 : 1.5)));
     if (!reduced && live && k.current > 0.55) {
       // sweep left↔right; snap a photo at each extreme (unless it's yours to aim)
-      const ph = s.clock.elapsedTime * 0.95;
+      const ph = t * 0.95;
       if (head) head.rotation.y = Math.sin(ph) * 0.6 * (1 - a.w) + a.yaw * a.w;
-      const shot = Math.floor((ph - Math.PI / 2) / Math.PI);
-      if (shot !== lastShot.current) {
-        lastShot.current = shot;
-        if (a.w < 0.5) flash.current = 1;
+      const swing = Math.floor((ph - Math.PI / 2) / Math.PI);
+      if (swing !== lastShot.current) {
+        lastShot.current = swing;
+        if (a.w < 0.5) takeShot();
       }
     } else if (head) {
       head.rotation.y += (0 - head.rotation.y) * 0.1; // settle back to centre
     }
+    // the shot: steady (the dip), then the shutter
+    const since = t - sh.at;
+    if (!sh.fired && since >= SHOT.hold) {
+      sh.fired = true;
+      sh.firedAt = t;
+    }
+    const fired = t - sh.firedAt;
+    const steadying = sh.fired ? Math.exp(-fired * 14) : easeOut(since / SHOT.hold);
+    const kick = fired < 1.2 ? Math.exp(-7 * fired) * Math.sin(2 * Math.PI * 2.6 * fired) : 0;
+    if (head) head.rotation.x = reduced ? 0 : SHOT.dip * steadying + SHOT.kick * kick;
+    // the flash at the lenses, swelling as it fades
+    const fl = lensFlash.current;
+    if (fl) {
+      const u = fired / SHOT.pop;
+      fl.visible = !reduced && u < 1;
+      if (fl.visible) {
+        fl.scale.setScalar(0.05 + 0.17 * easeOut(u, 3));
+        fl.material.opacity = (1 - u) * (1 - u);
+      }
+    }
+    // the viewfinder holds the picture, then lets it go
+    const f = fired < SHOT.held ? 1 : Math.exp(-(fired - SHOT.held) / SHOT.fade);
     // The viewer only exists once it's been woken, so it should wear the awake
     // material the whole time it's on screen — as frosted glass it read as a
     // dormant ghost of itself. Solidifies as it springs in, on the same endpoints
@@ -916,14 +1107,13 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
     glass.roughness = cfg.roughnessBase - cfg.roughnessWakeDelta * wk;
     glass.depthWrite = wk > 0.5;
     body(lit.litU.value, wk > 0.5);
-    flash.current = Math.max(0, flash.current - dt * 3.4);
-    // the viewfinder: a dim live screen at rest, lighting up white on a shot and
-    // fading back through the accent
+    // the viewfinder: a dim live screen at rest that dims a touch as the viewer
+    // steadies, lights up white on the shot, holds, and fades back through the
+    // accent
     const sm = screenMat.current;
     if (sm) {
-      const f = flash.current;
       sm.emissive.copy(accentC).lerp(WHITE, f * f * 0.7);
-      sm.emissiveIntensity = 0.3 + f * 1.6;
+      sm.emissiveIntensity = 0.3 * (1 - 0.4 * (sh.fired ? 0 : steadying)) + f * 1.6;
       sm.opacity = 0.35 + f * 0.5;
     }
   });
@@ -936,9 +1126,16 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
           <cylinderGeometry args={[BINOS_STAND_R * 0.86, BINOS_STAND_R, BINOS_STAND_H, 20]} />
           <primitive object={glass} attach="material" />
         </mesh>
-        {/* the viewer head, lifted onto the post; pans + snaps photos */}
-        <group ref={headRef} position={[0, BINOS_STAND_H, 0]}>
+        {/* the viewer head, lifted onto the post; pans + snaps photos (turned
+            first, then tipped, so the shot's dip and kick stay a nod however
+            far round it's turned) */}
+        <group ref={headRef} position={[0, BINOS_STAND_H, 0]} rotation={[0, 0, 0, 'YXZ']}>
           {model && <primitive object={model} />}
+          {model && (
+            <sprite ref={lensFlash} position={BINOS_LENS} visible={false} renderOrder={2}>
+              <spriteMaterial map={glow} color={WHITE} transparent opacity={0} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+            </sprite>
+          )}
           {/* the viewfinder screen, set into the hood: lights up on a shot */}
           {model && (
             <mesh position={BINOS_SCREEN_POS}>
@@ -1216,14 +1413,31 @@ function Skyscraper({ position, kit, winMat }: { position: V3; kit: TowerKit; wi
       l.emissiveIntensity = 0.05 + k * (0.85 + 0.12 * Math.sin(t * 2.2));
     }
     // a light-band climbs the tiers while the tower is alive, energy rising to
-    // the crown; it steps in at each setback, the same distance off every tier
+    // the crown; it steps in at each setback, the same distance off every tier.
+    // Sending power (the grid), it drops fast to the tower's foot, gathering
+    // the charge, and flares out there as the pulse sets off.
     if (surge.current && surgeMat.current) {
       const p = reduced ? 0.5 : (t * FX.loopSpeed) % 1;
-      const y = y0 + p * (y1 - y0);
-      const sc = (towerTier(y)[0] / 2 + SURGE_CLEAR) / (w0 / 2 + SURGE_CLEAR);
+      let y = y0 + p * (y1 - y0);
+      let op = fxEnv(p) * FX.peak * k;
+      let grow = 1;
+      const sent = s.clock.elapsedTime - POWER.sentAt;
+      if (!reduced && sent >= 0 && sent < P_WIND + 0.3) {
+        if (sent < P_WIND) {
+          const c = easeIn(sent / P_WIND);
+          y += (y0 - y) * c;
+          op = Math.max(op, FX.peak * 1.6 * c);
+        } else {
+          const f = (sent - P_WIND) / 0.3;
+          y = y0;
+          grow = 1 + 0.5 * easeOut(f);
+          op = FX.peak * 1.8 * (1 - f);
+        }
+      }
+      const sc = ((towerTier(y)[0] / 2 + SURGE_CLEAR) / (w0 / 2 + SURGE_CLEAR)) * grow;
       surge.current.position.y = y;
       surge.current.scale.set(sc, 1, sc);
-      surgeMat.current.opacity = fxEnv(p) * FX.peak * k;
+      surgeMat.current.opacity = op;
     }
   });
   return (
@@ -1335,10 +1549,16 @@ function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
       if (over && !wasOver.current && now - POWER.sentAt > 0.3) sendPower(now);
     }
     wasOver.current = over;
-    // the bolt flares as the power passes through the house
-    const since = now - (POWER.sentAt + PULSE_IN);
-    const zap = since >= 0 && since < 1.2 ? Math.exp(-since * 4) * 4 : 0;
-    capMat.emissiveIntensity = (0.3 + 2.6 * k.current) * hum + zap;
+    // Sending power, the house presses down and springs back (the wind-up), its
+    // bolt sputtering while the station gathers; then it flares as the pulse
+    // passes through, holding bright for the beat before it lets go.
+    const sent = now - POWER.sentAt;
+    const press = reduced ? 0 : 0.05 * ring(sent, 3.2, 7);
+    houseRef.current?.scale.set(1 + press * 0.45, 1 - press, 1 + press * 0.45);
+    const sputter = !reduced && sent >= 0 && sent < P_WIND && Math.random() < 0.55 ? 2.2 : 0;
+    const through = sent - P_WIND - P_IN;
+    const zap = through < 0 || through > 1.4 ? 0 : through < P_HOLD ? 5 : 5 * Math.exp(-(through - P_HOLD) * 5);
+    capMat.emissiveIntensity = (0.3 + 2.6 * k.current) * hum + sputter + zap;
   });
   return (
     <group ref={houseRef} position={position}>
@@ -1627,8 +1847,8 @@ function Constellation({ anchor }: { anchor: V3 }) {
    A block's lights are the grid's: it lights once power reaches it and stays
    lit for the visit. In the Alliander close-up, each time you point at the
    transformer house it powers the next block, nearest first: a pulse runs from
-   the station to the transformer (PULSE_IN), then out along that block's cable
-   (PULSE_OUT), and the block comes on as it arrives. Once they're all on, a
+   the station to the transformer, then out along that block's cable (P_*
+   below), and the block comes on as it arrives. Once they're all on, a
    point sends the next round, and each block brightens as it's reached. With
    no cursor to point with (a touch screen) they come on in turn by themselves
    (PULSE_AUTO), under reduced motion all at once, and closing the close-up
@@ -1638,19 +1858,30 @@ function Constellation({ anchor }: { anchor: V3 }) {
 const CABLE_Y = -0.006; // under the road, whose surface is at 0.01
 const FEED_Y = -0.013; // the station's cable runs deeper, under the others
 const CABLE_R = 0.003;
-const PULSE_IN = 0.4; // s from the station to the transformer
-const PULSE_OUT = 0.6; // s from the transformer out to the block
-const PULSE_AUTO = 0.8; // s between blocks when they come on by themselves
-const PULSE_CLOSE = 0.3; // … and when closing the close-up brings on the rest
-const PULSE_TAIL = [0.016, 0.032, 0.048]; // the pulse's trailing beads, behind it along the cable
-const LIGHT_ON = 0.45; // s for a block's lights to come up once power reaches it
+/* A pulse's beats, in seconds from the point that sends it: the station
+   gathers charge (the transformer house presses down, the tower's light band
+   drops to its foot), the pulse sets off along the station's cable slowly and
+   gathers speed, holds a moment in the transformer house (which flares and
+   throws sparks), then kicks out along the block's cable faster than it came
+   in, easing into each bend and flashing at each junction, and lands with a
+   ring of light at the block's foot as its floors come on from the ground up. */
+const P_WIND = 0.28;
+const P_IN = 0.45;
+const P_HOLD = 0.16;
+const P_OUT = 0.6;
+const P_LEN = P_WIND + P_IN + P_HOLD + P_OUT;
+const PULSE_AUTO = 1.1; // s between blocks when they come on by themselves
+const PULSE_CLOSE = 0.35; // … and when closing the close-up brings on the rest
+const COMET = { beads: 10, gap: 0.011, head: 1.5 }; // the pulse: its head and the tail of beads behind it
+const WAKE = 0.2; // how far behind the head the cable glows, cooling as it goes
+const LIGHT_ON = 0.45; // s for a block's floors to light, ground to roof
 const WIN_LIT = 0.5; // a lit block's windows (an occupied window's glow, OccupiedWindows)
 const WIN_FLASH = 1.6; // and the flash as power arrives, on top
 const TRAFO_DEPTH = 0.15; // the house's footprint front to back, plinth included (build_trafo.py)
 const POWER = {
   first: [] as number[], // when power first reached each block (clock s); -1 while it's dark
   last: [] as number[], // when it last did, for the brightening
-  pulses: [] as { to: number; at: number }[], // on their way
+  pulses: [] as { to: number; at: number; k: number; zapped: boolean }[], // on their way (k: the next bend on its route)
   sentAt: -99, // the last pulse's leaving, for the transformer's flare
   round: 0, // where the next round starts, once every block is lit
   order: [] as number[], // the blocks, nearest the transformer first
@@ -1665,8 +1896,9 @@ function sendPower(now: number) {
   const going = (i: number) => pulses.some((p) => p.to === i);
   let to = order.find((i) => first[i] < 0 && !going(i));
   if (to === undefined) to = order[POWER.round++ % order.length];
-  pulses.push({ to, at: now });
+  pulses.push({ to, at: now, k: 1, zapped: false });
   POWER.sentAt = now;
+  play('grid-charge', { volume: 0.5 });
 }
 
 /** The grid's cables under the street plan (`ave`: where the avenues run).
@@ -1751,6 +1983,59 @@ function walker(pts: V3[]) {
   };
 }
 
+/** The out-run's pace along a route: a kick away from the house that fades,
+ *  and a dip into each bend, so the pulse takes the corners. `at(s)` maps the
+ *  run's time (0–1) to how far along the route it is (0–1); `bends` are the
+ *  route's corners, as fractions of it, for the junction flashes. */
+function runPace(pts: V3[]) {
+  const seg = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i][0], p[2] - pts[i][2]));
+  const len = seg.reduce((n, l) => n + l, 0) || 1;
+  const bends: number[] = [];
+  let acc = 0;
+  for (let i = 0; i < seg.length - 1; i++) bends.push((acc += seg[i]) / len);
+  const N = 240;
+  const time = new Float32Array(N + 1);
+  for (let k = 1; k <= N; k++) {
+    const d = ((k - 0.5) / N) * len;
+    const kick = 1 + 1.3 * Math.exp(-d / 0.12);
+    const dip = bends.reduce((m, b) => m * (1 - 0.55 * Math.exp(-(((d - b * len) / 0.03) ** 2))), 1);
+    time[k] = time[k - 1] + len / N / (kick * dip);
+  }
+  const total = time[N];
+  return {
+    bends,
+    at(s: number) {
+      const t = Math.min(1, Math.max(0, s)) * total;
+      let lo = 0;
+      let hi = N;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (time[mid] <= t) lo = mid;
+        else hi = mid;
+      }
+      return (lo + (t - time[lo]) / Math.max(1e-9, time[hi] - time[lo])) / N;
+    },
+  };
+}
+
+/** A cable as a tube whose u runs along it (0 → 1 by distance), for the glow
+ *  that follows a pulse (LIT_FRAG). */
+function pathTube(pts: V3[], r: number) {
+  const path = new CurvePath<Vector3>();
+  for (let i = 0; i < pts.length - 1; i++) path.add(new LineCurve3(new Vector3(...pts[i]), new Vector3(...pts[i + 1])));
+  return new TubeGeometry(path, Math.max(16, Math.ceil(path.getLength() / 0.006)), r, 6, false);
+}
+const LIT_VERT = `varying float vU;
+void main() { vU = uv.x; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+// lit behind the head and cooling with distance from it, brightest at the head
+const LIT_FRAG = `uniform float uHead; uniform float uTail; uniform float uFade; uniform vec3 uColor; varying float vU;
+void main() {
+  float b = uHead - vU;
+  float wake = b < 0.0 ? 0.0 : exp(-b / uTail);
+  float head = exp(-pow(b / (uTail * 0.22), 2.0));
+  gl_FragColor = vec4(uColor * (0.9 * wake + 1.8 * head) * uFade, 1.0);
+}`;
+
 /** The grid's cables under the streets (gridPlan), and the pulses running
  *  along them (POWER): thin tubes under the road, one shared material for the
  *  blocks' cables and one for the station's, dim at rest and brighter while
@@ -1758,8 +2043,11 @@ function walker(pts: V3[]) {
  *  string of bright beads. This is also where the blocks come on by
  *  themselves (see the grid's note above), and where a pulse arriving lights
  *  its block. */
-const PULSE_BEADS = 8; // pulses that can be on their way at once
-function PowerGrid({ feed, routes, runs, order, stagger }: { feed: V3[]; routes: V3[][]; runs: V3[][]; order: number[]; stagger: number[] }) {
+const PULSES = 6; // pulses drawn at once
+const SPARKS = 16;
+const FLASHES = 12;
+const FLAT = new Quaternion().setFromEuler(new Euler(-Math.PI / 2, 0, 0));
+function PowerGrid({ feed, routes, runs, order, stagger, house }: { feed: V3[]; routes: V3[][]; runs: V3[][]; order: number[]; stagger: number[]; house: V3 }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(TOWER);
   // open at all, the camera arrived or not (`selected` waits for it, and the
@@ -1769,22 +2057,64 @@ function PowerGrid({ feed, routes, runs, order, stagger }: { feed: V3[]; routes:
   const coarse = useMemo(isTouch, []);
   const k = useRef(0);
   const nextAuto = useRef(0);
-  const beads = useRef<(Group | null)[]>([]);
   const at = useMemo(() => new Vector3(), []);
   const ways = useMemo(() => ({ feed: walker(feed), routes: routes.map(walker) }), [feed, routes]);
+  const paces = useMemo(() => routes.map(runPace), [routes]);
   const cables = useGeometry(() => merge(runs.map((r) => tube(r, CABLE_R, 5, 2))), [runs]);
   const feedCable = useGeometry(() => tube(feed, CABLE_R * 1.4, 6, 2), [feed]);
+  // the glow that follows a pulse, one sheath per cable: the station's, then each block's
+  const sheaths = useGeometry(() => [feed, ...routes].map((r, i) => pathTube(r, CABLE_R * (i === 0 ? 2.2 : 1.8))).reduce((o, g, i) => ({ ...o, [i]: g }), {} as Record<string, BufferGeometry>), [feed, routes]);
+  const accentC = useMemo(() => new Color(accent), [accent]);
   const mats = useMemo(() => {
     const mk = () => {
       const m = new MeshStandardMaterial({ color: SURFACE.deep.color, emissive: accent, emissiveIntensity: 0.05, transparent: true, opacity: 0.5, roughness: 0.5, toneMapped: false });
       m.userData.lifeSkip = true; // drives its own glow
       return m;
     };
-    const bead = new MeshBasicMaterial({ color: '#eaf6ff', transparent: true, opacity: 0.95, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
-    bead.userData.lifeSkip = true;
-    return { cable: mk(), feed: mk(), bead };
-  }, [accent]);
-  useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
+    const glow = () => {
+      const m = new MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
+      m.userData.lifeSkip = true;
+      return m;
+    };
+    const lit = [feed, ...routes].map((r) => {
+      const len = r.slice(1).reduce((n, p, i) => n + Math.hypot(p[0] - r[i][0], p[2] - r[i][2]), 0) || 1;
+      const m = new ShaderMaterial({
+        uniforms: { uHead: { value: 0 }, uTail: { value: WAKE / len }, uFade: { value: 0 }, uColor: { value: new Color(accent).lerp(new Color('#ffffff'), 0.35) } },
+        vertexShader: LIT_VERT,
+        fragmentShader: LIT_FRAG,
+        transparent: true,
+        blending: AdditiveBlending,
+        depthWrite: false,
+      });
+      m.userData.lifeSkip = true;
+      return m;
+    });
+    return { cable: mk(), feed: mk(), beads: glow(), sparks: glow(), flashes: glow(), rings: glow(), lit };
+  }, [accent, feed, routes]);
+  useEffect(
+    () => () => {
+      for (const m of [mats.cable, mats.feed, mats.beads, mats.sparks, mats.flashes, mats.rings, ...mats.lit]) m.dispose();
+    },
+    [mats],
+  );
+  const ring = useGeometry(() => new RingGeometry(0.78, 1, 40));
+  // what's drawn: the comets' beads, the sparks, the junction flashes, the arrival rings
+  const beadsIM = useRef<InstancedMesh>(null);
+  const sparksIM = useRef<InstancedMesh>(null);
+  const flashesIM = useRef<InstancedMesh>(null);
+  const ringsIM = useRef<InstancedMesh>(null);
+  const sheathRefs = useRef<(Mesh | null)[]>([]);
+  // each cable's glow: how far along its last pulse got, and when it was last on it
+  const glows = useMemo(() => [feed, ...routes].map(() => ({ head: 0, at: -99 })), [feed, routes]);
+  const fx = useMemo(
+    () => ({
+      sparks: Array.from({ length: SPARKS }, () => ({ pos: new Vector3(), vel: new Vector3(), at: -99 })),
+      flashes: Array.from({ length: FLASHES }, () => ({ pos: new Vector3(), at: -99 })),
+      rings: Array.from({ length: PULSES }, () => ({ pos: new Vector3(), at: -99 })),
+      n: { spark: 0, flash: 0, ring: 0 },
+    }),
+    [],
+  );
   // the blocks' places in POWER, kept across remounts (it's module-level, like the city's latch)
   useMemo(() => {
     POWER.order = order;
@@ -1793,8 +2123,9 @@ function PowerGrid({ feed, routes, runs, order, stagger }: { feed: V3[]; routes:
       POWER.last[i] ??= -1;
     }
   }, [order]);
-  useFrame((s) => {
+  useFrame((s, delta) => {
     const now = s.clock.elapsedTime;
+    const dt = Math.min(delta, 1 / 30);
     const { first, last, pulses } = POWER;
     if (open) POWER.opened = true;
     // the blocks still dark, and nothing on its way to them
@@ -1816,54 +2147,158 @@ function PowerGrid({ feed, routes, runs, order, stagger }: { feed: V3[]; routes:
         }
       }
     }
-    // the pulses: in along the station's cable, out along the block's
-    let flare = 0;
-    for (let n = 0; n < PULSE_BEADS; n++) {
-      const g = beads.current[n];
-      const p = pulses[n];
-      if (!g) continue;
-      g.visible = !!p && now >= p.at;
-      if (!g.visible || !p) continue;
+    const beads = beadsIM.current;
+    let bead = 0;
+    let busy = 0;
+    for (const p of pulses) {
       const t = now - p.at;
-      const inbound = t < PULSE_IN;
-      const way = inbound ? ways.feed : ways.routes[p.to];
-      const u = inbound ? t / PULSE_IN : (t - PULSE_IN) / PULSE_OUT;
-      flare = Math.max(flare, 1 - Math.abs(u - 0.5));
-      g.children.forEach((bead, j) => {
-        way.at(u - (j === 0 ? 0 : PULSE_TAIL[j - 1]) / way.len, at);
-        bead.position.copy(at);
-        bead.scale.setScalar(1 - j * 0.22);
-      });
+      if (t < P_WIND) continue; // still gathering at the station (Skyscraper, TransformerHouse)
+      busy = 1;
+      let way;
+      let u;
+      if (t < P_WIND + P_IN) {
+        // off along the station's cable, slow and gathering speed
+        way = ways.feed;
+        u = easeIn((t - P_WIND) / P_IN, 2.2);
+        glows[0].head = Math.max(u, now - glows[0].at < 0.05 ? glows[0].head : 0);
+        glows[0].at = now;
+      } else if (t < P_WIND + P_IN + P_HOLD) {
+        // held in the house: it flares (TransformerHouse) and throws sparks
+        if (!p.zapped) {
+          p.zapped = true;
+          play('grid-zap', { volume: 0.55 });
+          for (let n = 0; n < 10; n++) {
+            const sp = fx.sparks[fx.n.spark++ % SPARKS];
+            const a = Math.random() * Math.PI * 2;
+            sp.pos.set(house[0] + Math.cos(a) * 0.07, 0.11, house[2] + Math.sin(a) * 0.055);
+            sp.vel.set(Math.cos(a) * (0.12 + Math.random() * 0.18), 0.25 + Math.random() * 0.3, Math.sin(a) * (0.12 + Math.random() * 0.18));
+            sp.at = now;
+          }
+        }
+        continue;
+      } else {
+        // out along the block's: a kick away from the house, easing into each bend
+        way = ways.routes[p.to];
+        const pace = paces[p.to];
+        u = pace.at((t - P_WIND - P_IN - P_HOLD) / P_OUT);
+        const g = glows[p.to + 1];
+        g.head = u;
+        g.at = now;
+        // a flash at each junction it passes
+        while (p.k - 1 < pace.bends.length && u >= pace.bends[p.k - 1]) {
+          const f = fx.flashes[fx.n.flash++ % FLASHES];
+          f.pos.set(...routes[p.to][p.k]);
+          f.at = now;
+          p.k++;
+        }
+      }
+      // the comet: a bright head and a tail of beads shrinking away behind it
+      if (beads && bead + COMET.beads <= PULSES * COMET.beads) {
+        for (let j = 0; j < COMET.beads; j++) {
+          way.at(u - (j * COMET.gap) / way.len, at);
+          const f = 1 - j / COMET.beads;
+          _s.setScalar((j === 0 ? COMET.head : 1) * (0.35 + 0.65 * f));
+          beads.setMatrixAt(bead, _m.compose(at, _q.identity(), _s));
+          beads.setColorAt(bead, _c.setScalar(0.25 + 0.75 * f * f));
+          bead++;
+        }
+      }
     }
-    // arrived: the block comes on (or brightens, if it's on already)
+    // arrived: a ring at the block's foot, and it comes on (or brightens, if it's on already)
     for (let n = pulses.length - 1; n >= 0; n--) {
       const p = pulses[n];
-      if (now - p.at < PULSE_IN + PULSE_OUT) continue;
+      if (now - p.at < P_LEN) continue;
       if (first[p.to] < 0) first[p.to] = now;
       last[p.to] = now;
+      const r = fx.rings[fx.n.ring++ % PULSES];
+      const end = routes[p.to][routes[p.to].length - 1];
+      r.pos.set(end[0], 0.013, end[2]);
+      r.at = now;
+      play('grid-on', { volume: 0.6 });
       pulses.splice(n, 1);
     }
+    if (beads) {
+      for (let j = bead; j < PULSES * COMET.beads; j++) beads.setMatrixAt(j, _m.makeScale(0, 0, 0));
+      beads.instanceMatrix.needsUpdate = true;
+      if (beads.instanceColor) beads.instanceColor.needsUpdate = true;
+    }
+    // the sparks: out of the house, up and falling, shrinking as they go
+    const sparks = sparksIM.current;
+    if (sparks) {
+      fx.sparks.forEach((sp, j) => {
+        const age = now - sp.at;
+        const life = age >= 0 && age < 0.55 ? 1 - age / 0.55 : 0;
+        if (life > 0) {
+          sp.vel.y -= 1.4 * dt;
+          sp.pos.addScaledVector(sp.vel, dt);
+        }
+        _s.setScalar(life);
+        sparks.setMatrixAt(j, _m.compose(sp.pos, _q.identity(), _s));
+        sparks.setColorAt(j, _c.copy(accentC).lerp(WHITE, 0.6).multiplyScalar(life));
+      });
+      sparks.instanceMatrix.needsUpdate = true;
+      if (sparks.instanceColor) sparks.instanceColor.needsUpdate = true;
+    }
+    // the junction flashes: a pop that swells and fades
+    const flashes = flashesIM.current;
+    if (flashes) {
+      fx.flashes.forEach((f, j) => {
+        const age = (now - f.at) / 0.3;
+        const on = age >= 0 && age < 1;
+        _s.setScalar(on ? 0.4 + 1.6 * easeOut(age) : 0);
+        flashes.setMatrixAt(j, _m.compose(f.pos, _q.identity(), _s));
+        flashes.setColorAt(j, _c.copy(accentC).lerp(WHITE, 0.5).multiplyScalar(on ? (1 - age) ** 2 : 0));
+      });
+      flashes.instanceMatrix.needsUpdate = true;
+      if (flashes.instanceColor) flashes.instanceColor.needsUpdate = true;
+    }
+    // the arrival rings, spreading over the ground
+    const rings = ringsIM.current;
+    if (rings) {
+      fx.rings.forEach((r, j) => {
+        const age = (now - r.at) / 0.7;
+        const on = age >= 0 && age < 1;
+        _s.setScalar(on ? 0.025 + 0.15 * easeOut(age, 3) : 0);
+        rings.setMatrixAt(j, _m.compose(r.pos, FLAT, _s));
+        rings.setColorAt(j, _c.copy(accentC).lerp(WHITE, 0.3).multiplyScalar(on ? 1.4 * (1 - age) : 0));
+      });
+      rings.instanceMatrix.needsUpdate = true;
+      if (rings.instanceColor) rings.instanceColor.needsUpdate = true;
+    }
+    // each cable's glow: on behind its pulse, cooling once the pulse has gone
+    glows.forEach((g, c) => {
+      const fade = Math.exp(-Math.max(0, now - g.at) / 0.35);
+      const m = mats.lit[c];
+      m.uniforms.uHead.value = g.head;
+      m.uniforms.uFade.value = fade;
+      const sh = sheathRefs.current[c];
+      if (sh) sh.visible = fade > 0.01;
+    });
     const target = selected ? 1 : hovered ? 0.5 : visited ? 0.3 : 0.08;
     k.current += (target - k.current) * 0.08;
     const kk = k.current;
-    mats.cable.emissiveIntensity = 0.05 + kk * 0.9 + flare * 1.6;
+    mats.cable.emissiveIntensity = 0.05 + kk * 0.9 + busy * 0.4;
     mats.cable.opacity = 0.35 + kk * 0.45;
-    mats.feed.emissiveIntensity = 0.05 + kk * 1.1 + flare * 1.6;
+    mats.feed.emissiveIntensity = 0.05 + kk * 1.1 + busy * 0.4;
     mats.feed.opacity = 0.4 + kk * 0.45;
   });
   return (
     <group>
       <mesh geometry={cables} material={mats.cable} />
       <mesh geometry={feedCable} material={mats.feed} />
-      {Array.from({ length: PULSE_BEADS }, (_, n) => (
-        <group key={n} ref={(g) => (beads.current[n] = g)} visible={false}>
-          {[0, 1, 2, 3].map((j) => (
-            <mesh key={j} material={mats.bead}>
-              <sphereGeometry args={[0.008, 8, 6]} />
-            </mesh>
-          ))}
-        </group>
+      {mats.lit.map((m, c) => (
+        <mesh key={c} ref={(r) => (sheathRefs.current[c] = r)} geometry={sheaths[c]} material={m} visible={false} />
       ))}
+      <instancedMesh ref={beadsIM} args={[undefined, mats.beads, PULSES * COMET.beads]} frustumCulled={false}>
+        <sphereGeometry args={[0.0075, 10, 8]} />
+      </instancedMesh>
+      <instancedMesh ref={sparksIM} args={[undefined, mats.sparks, SPARKS]} frustumCulled={false}>
+        <sphereGeometry args={[0.004, 6, 4]} />
+      </instancedMesh>
+      <instancedMesh ref={flashesIM} args={[undefined, mats.flashes, FLASHES]} frustumCulled={false}>
+        <sphereGeometry args={[0.01, 10, 8]} />
+      </instancedMesh>
+      <instancedMesh ref={ringsIM} args={[ring, mats.rings, PULSES]} frustumCulled={false} />
     </group>
   );
 }
@@ -2209,7 +2644,7 @@ export function CityRig() {
       {trafoKit && <TransformerHouse position={trafo.position} kit={trafoKit} />}
       {/* the power, underground: the tower (the station) feeds the transformer
           house, and the house each block, a block lighting as power reaches it */}
-      {towerKit && blocksKit && <PowerGrid feed={grid.feed} routes={grid.routes} runs={grid.runs} order={grid.order} stagger={lightOrder} />}
+      {towerKit && blocksKit && <PowerGrid feed={grid.feed} routes={grid.routes} runs={grid.runs} order={grid.order} stagger={lightOrder} house={trafo.position} />}
 
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}

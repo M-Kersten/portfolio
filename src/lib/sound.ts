@@ -45,6 +45,10 @@ export type SoundName =
   | 'comms-open'
   | 'comms-close'
   | 'comms-type'
+  // the city's grid: the station charging, the pulse through the transformer, a block coming on
+  | 'grid-charge'
+  | 'grid-zap'
+  | 'grid-on'
   // the ambient beds, one per layer of the maquette
   | 'ambient-city'
   | 'ambient-room'

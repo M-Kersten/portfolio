@@ -4,7 +4,7 @@
 import { forwardRef, useContext, useImperativeHandle, useLayoutEffect, useMemo, useRef, type ComponentPropsWithoutRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { type EdgesRef } from '@react-three/drei';
-import { Color, FrontSide, MathUtils, MeshStandardMaterial, Triangle, Vector3, type BufferGeometry, type Material, type Mesh, type Side } from 'three';
+import { CanvasTexture, Color, FrontSide, MathUtils, MeshStandardMaterial, Triangle, Vector3, type BufferGeometry, type Material, type Mesh, type Side } from 'three';
 import { useActive, GROUND, LINE_REST, NEUTRAL, SURFACE, SURFACE_AWAKE, SURFACE_GLOW, Line, type Tint } from './shared';
 import { GHOST_FILL } from './life';
 import { PresenceCtx } from './presence';
@@ -12,6 +12,26 @@ import { LIT_GLASS, LIT_PARS, LIT_SOLID_OPACITY, litUniforms, useLitBody, useLit
 import { LOOK, useLook } from '../look';
 
 /* ---------- materials ---------- */
+
+/** A soft rounded glow, white at its heart and gone by its edge, for additive
+ *  sprites: the light a face-down phone leaks out round its sides, the ARCam
+ *  viewer's flash. Made once, shared. */
+let glowTex: CanvasTexture | null = null;
+export function glowTexture(): CanvasTexture {
+  if (glowTex) return glowTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  if (g) {
+    const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, 'rgba(255,255,255,0.9)');
+    r.addColorStop(0.5, 'rgba(255,255,255,0.45)');
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, 64, 64);
+  }
+  return (glowTex = new CanvasTexture(c));
+}
 
 // A soft white-blue fresnel rim so the frosted-glass forms catch light along
 // their silhouettes (more premium, less flat plastic). Injected into the

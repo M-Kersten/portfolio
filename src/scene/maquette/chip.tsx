@@ -18,7 +18,8 @@ import { BlobShadow } from './backdrop';
 import { PresenceCtx } from './presence';
 import { useCameraKit, useChipKit, type ChipKit } from './kit';
 import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
-import { spring } from '../../lib/spring';
+import { wobble } from '../../lib/spring';
+import { bump, easeOutBack } from '../../lib/ease';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
 
@@ -59,7 +60,8 @@ function traceObject(points: V3[], hex: string) {
 /* In the monitor's close-up the heart rate rises as the cursor comes near the
    screen (HR_RISE more at its closest), and the alarm lamp flashes on every
    beat as it does; move away and it calms back down, gradually, as a pulse
-   does. */
+   does. Every beat thumps: the monitor swells a touch and its screen flares;
+   racing, the lamp flashes hard and the monitor shudders with each beat. */
 const HR_RISE = 1.4; // the sweep's extra speed with the cursor on the screen
 const HR_REACH = 0.85; // how far from the screen (in screen halves) the cursor starts to count
 const HR_SETTLE = 0.9; // s for the rate to follow
@@ -79,6 +81,8 @@ function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit
   const trailRefs = useRef<(Mesh | null)[]>([]); // phosphor beads lagging the sweep
   const live = useRef(0); // 0 dormant → 1 alive
   const k = useRef(0); // hover/select brightness
+  const head = useRef<Group>(null); // the monitor on its neck, for the thump
+  const beat = useRef({ was: false, at: -99 });
 
   // A patient monitor draws two traces at once, so they have to be told apart —
   // but by VALUE, not by a second hue: the accent and its pale sibling, exactly
@@ -140,13 +144,28 @@ function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit
     const sweep = reduced ? 0.66 : sweepAt.current;
     const x = -0.15 + sweep * 0.28;
     const spike = Math.min(1, Math.max(0, (yAtX(x) - 0.03) / 0.025)); // ~1 on the R peak
-    if (screenMat.current) screenMat.current.emissiveIntensity += spike * 0.22 * on; // the beep flash
-    // the alarm lamp: a dark strip at rest; alive, it flashes on every R-peak
+    // a beat: the R-peak's rising edge. It thumps (a swell and the screen
+    // flaring), and once the rate is racing the monitor shudders with it
+    const now = s.clock.elapsedTime;
+    const b = beat.current;
+    if (spike > 0.5 && !b.was && on > 0.5) b.at = now;
+    b.was = spike > 0.5;
+    const since = now - b.at;
+    const thump = reduced ? 0 : bump(since / 0.16);
+    const racing = Math.min(1, Math.max(0, (rate.current - 1.45) / 0.6));
+    if (head.current) {
+      head.current.scale.setScalar(1 + 0.022 * thump);
+      const shake = reduced ? 0 : racing * 0.0024 * Math.exp(-since * 9);
+      head.current.position.set(Math.sin(now * 97) * shake, 0.21 + Math.cos(now * 83) * shake * 0.6, 0);
+    }
+    if (screenMat.current) screenMat.current.emissiveIntensity += (spike * 0.22 + thump * 0.28) * on; // the beep flash
+    // the alarm lamp: a dark strip at rest; alive, it flashes on every R-peak,
+    // hard once the rate is racing
     const am = alarmMat.current;
     if (am) {
       am.color.copy(grey).lerp(green, on);
       am.emissive.copy(grey).lerp(green, on);
-      am.emissiveIntensity = 0.03 + on * (0.18 + spike * 1.5);
+      am.emissiveIntensity = 0.03 + on * (0.18 + spike * (1.5 + 3 * racing) + thump * racing * 2);
     }
     if (blip.current) {
       blip.current.visible = on > 0.05;
@@ -182,7 +201,7 @@ function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit
       </mesh>
       {/* the monitor, tilted to face up-and-forward. Its outline draws the ghost:
           the bezel, the handle loop, the screen's recess. */}
-      <group position={[0, 0.21, 0]} rotation={[-0.34, 0, 0]}>
+      <group ref={head} position={[0, 0.21, 0]} rotation={[-0.34, 0, 0]}>
         <mesh geometry={kit.mon_body}>
           <LiveGlassMat slug={slug} tint="deep" />
           <LiveEdges slug={slug} threshold={35} />
@@ -509,7 +528,6 @@ const FOCUS_SETTLE = 2.4; // s; past here the term is negligible, so stop evalua
    its own scan over the first cube. Quick but smooth: a servo, not a snap. */
 const CAM_TRACK_YAW = 0.75; // how far it will turn either way (rad)
 const CAM_TRACK_PITCH = [-0.4, 0.3]; // up (negative tips the aim up) … down
-const CAM_TRACK_GLIDE = 0.28;
 const CAM_TRACK_IDLE = 2.5; // s of a resting cursor before it lets go
 const CAM_LOCK = 0.9; // how near the cursor's ray has to pass a cube to lock on, in cube edges
 const CAM_SEE_FADE = 0.18; // s for a cube to light up or grey back
@@ -525,7 +543,7 @@ const CAM_CUBES = [
   { yaw: 0.55, pitch: -0.38, reach: 0.7, size: 0.13, spin: -0.36, phase: 2.1 },
   { yaw: -0.45, pitch: 0.3, reach: 0.7, size: 0.14, spin: 0.24, phase: 4.2 },
 ];
-type CamGaze = { dir: Vector3; see: number; h: number; more: number };
+type CamGaze = { dir: Vector3; see: number; h: number; more: number; lockAt: number };
 
 /** One of the hologram's cubes (CAM_CUBES), held in its place: a wireframe over
  *  a faint fill, its corners marked. While it's inside the camera's vision
@@ -540,6 +558,9 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
   const outer = useRef<Group>(null);
   const spin = useRef<Group>(null);
   const seen = useRef(0);
+  // locking on: when it came into the cone (the brackets snap in, the cube pops)
+  const lock = useRef({ in: false, at: -99, out: -99 });
+  const brackets = useRef<Group>(null);
   // the way the head looks when it looks straight at this cube
   const dir = useMemo(() => new Vector3(0, 0, 1).applyEuler(new Euler(aimPitch, 0, 0)).applyEuler(new Euler(c.pitch, c.yaw, 0, 'YXZ')), [aimPitch, c]);
   const grey = useMemo(() => new Color(NEUTRAL), []);
@@ -551,14 +572,30 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
     const wire = new LineBasicMaterial({ color: NEUTRAL, transparent: true, toneMapped: false, opacity: 0, depthWrite: false });
     const fill = new MeshStandardMaterial({ color: NEUTRAL, emissive: NEUTRAL, transparent: true, opacity: 0, toneMapped: false, depthWrite: false, side: DoubleSide });
     const dots = Array.from({ length: 8 }, () => new MeshStandardMaterial({ color: NEUTRAL, emissive: NEUTRAL, toneMapped: false }));
-    for (const m of [wire, fill, ...dots]) m.userData.lifeSkip = true;
-    return { geo, wire, fill, dots, lines: new LineSegments(geo, wire) };
+    // the targeting brackets: three short strokes off each corner, along its edges
+    const h = (c.size / 2) * 1.14;
+    const l = c.size * 0.28;
+    const pts: number[] = [];
+    for (const sx of [-1, 1])
+      for (const sy of [-1, 1])
+        for (const sz of [-1, 1]) {
+          pts.push(sx * h, sy * h, sz * h, sx * (h - l), sy * h, sz * h);
+          pts.push(sx * h, sy * h, sz * h, sx * h, sy * (h - l), sz * h);
+          pts.push(sx * h, sy * h, sz * h, sx * h, sy * h, sz * (h - l));
+        }
+    const bracketGeo = new BufferGeometry();
+    bracketGeo.setAttribute('position', new BufferAttribute(new Float32Array(pts), 3));
+    const bracket = new LineBasicMaterial({ color: NEUTRAL, transparent: true, toneMapped: false, opacity: 0, depthWrite: false });
+    for (const m of [wire, fill, bracket, ...dots]) m.userData.lifeSkip = true;
+    return { geo, wire, fill, dots, lines: new LineSegments(geo, wire), bracketGeo, bracket, bracketLines: new LineSegments(bracketGeo, bracket) };
   }, [c]);
   useEffect(
     () => () => {
       parts.geo.dispose();
       parts.wire.dispose();
       parts.fill.dispose();
+      parts.bracketGeo.dispose();
+      parts.bracket.dispose();
       for (const m of parts.dots) m.dispose();
     },
     [parts],
@@ -583,6 +620,22 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
     const inCone = Math.acos(Math.min(1, g.dir.dot(dir))) < g.see ? 1 : 0;
     seen.current += (inCone - seen.current) * (reduced ? 1 : 1 - Math.exp(-dt / CAM_SEE_FADE));
     const k = seen.current;
+    // locked on: the brackets snap in from outside, over the mark and back, the
+    // cube pops, and the camera's cone flickers (SecurityCamera reads lockAt);
+    // let go, the brackets drift back out as they fade
+    const lk = lock.current;
+    if (inCone && !lk.in && here > 0.5) {
+      lk.at = t;
+      g.lockAt = t;
+    }
+    if (!inCone && lk.in) lk.out = t;
+    lk.in = !!inCone;
+    const snap = reduced ? 1 : easeOutBack((t - lk.at) / 0.3, 2.4);
+    const drift = lk.in ? 0 : Math.min(1, (t - lk.out) / 0.35);
+    if (brackets.current) brackets.current.scale.setScalar((1.8 - 0.8 * snap) * (1 + 0.4 * drift));
+    parts.bracket.color.copy(lit);
+    parts.bracket.opacity = k * here * (1 - 0.6 * drift);
+    const pop = reduced ? 0 : 0.17 * bump((t - lk.at) / 0.32);
     parts.wire.color.copy(grey).lerp(pale, k);
     parts.wire.opacity = (0.4 + 0.5 * k) * here;
     parts.fill.color.copy(grey).lerp(lit, k);
@@ -602,11 +655,13 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
     }
     if (spin.current) {
       spin.current.rotation.x = 0.42;
+      spin.current.scale.setScalar(1 + pop);
       if (!reduced) {
         spin.current.rotation.y = t * c.spin + c.phase; // a gentle turn…
         spin.current.position.y = Math.sin(t * 1.4 + c.phase) * 0.02; // …and a soft bob
       }
     }
+    if (brackets.current && spin.current) brackets.current.position.y = spin.current.position.y;
   });
   // placed the way the head is turned to it, so its aim runs through the middle
   return (
@@ -623,6 +678,10 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
                 <sphereGeometry args={[0.006, 8, 8]} />
               </mesh>
             ))}
+          </group>
+          {/* the targeting brackets: square to the camera's aim, not turning with the cube */}
+          <group ref={brackets} position={[0, 0, c.reach]}>
+            <primitive object={parts.bracketLines} />
           </group>
         </group>
       </group>
@@ -655,8 +714,10 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const pivotRef = useRef<Group>(null);
   const track = useRef({ yaw: 0, pitch: 0, w: 0 });
   const trackVel = useRef({ yaw: { v: 0 }, pitch: { v: 0 } });
+  // the servo's wind-up: a small move the other way before a big turn
+  const servo = useRef({ yaw: 0, pitch: 0, until: -99, fromYaw: 0, fromPitch: 0, byYaw: 0, byPitch: 0 });
   const more = useRef(0); // the close-up's extra cubes, 0 → 1
-  const gaze = useRef<CamGaze>({ dir: new Vector3(0, 0, 1), see: 0, h: 0, more: 0 });
+  const gaze = useRef<CamGaze>({ dir: new Vector3(0, 0, 1), see: 0, h: 0, more: 0, lockAt: -99 });
   const ray = useMemo(() => new Ray(), []);
   const hit = useMemo(() => new Vector3(), []);
   const lookAt = useMemo(() => new Vector3(0, CAM_HEAD_UP, CAM_CUBE_Z), []);
@@ -690,8 +751,23 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         following = true;
       }
       if (following) {
-        tr.yaw = spring(tr.yaw, yaw, trackVel.current.yaw, dt, CAM_TRACK_GLIDE);
-        tr.pitch = spring(tr.pitch, pitch, trackVel.current.pitch, dt, CAM_TRACK_GLIDE);
+        // a servo: a big jump in where it should look (a lock-on, a quick flick)
+        // starts with a small move the other way, then it swings over the mark
+        // and settles back onto it
+        const sv = servo.current;
+        const jump = Math.hypot(yaw - sv.yaw, pitch - sv.pitch);
+        if (!reduced && jump > 0.25 && t > sv.until + 0.25) {
+          sv.until = t + 0.11;
+          sv.fromYaw = tr.yaw;
+          sv.fromPitch = tr.pitch;
+          sv.byYaw = -Math.sign(yaw - tr.yaw) * Math.min(0.07, Math.abs(yaw - tr.yaw) * 0.15);
+          sv.byPitch = -Math.sign(pitch - tr.pitch) * Math.min(0.05, Math.abs(pitch - tr.pitch) * 0.15);
+        }
+        sv.yaw = yaw;
+        sv.pitch = pitch;
+        const winding = t < sv.until;
+        tr.yaw = wobble(tr.yaw, winding ? sv.fromYaw + sv.byYaw : yaw, trackVel.current.yaw, dt, 1.9, 0.5);
+        tr.pitch = wobble(tr.pitch, winding ? sv.fromPitch + sv.byPitch : pitch, trackVel.current.pitch, dt, 1.9, 0.5);
       }
     }
     tr.w += ((following ? 1 : 0) - tr.w) * (1 - Math.exp(-dt * (following ? 5 : 1.6)));
@@ -741,7 +817,12 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
       beamRef.current.visible = h > 0.02;
       beamRef.current.scale.setScalar(h);
     }
-    if (coneMat.current) coneMat.current.opacity = 0.1 * h;
+    if (coneMat.current) {
+      // a lock-on (TrackedCube): the cone flickers, bright and dim, for a beat
+      const lk = t - gaze.current.lockAt;
+      const flick = !reduced && lk >= 0 && lk < 0.24 ? (Math.random() < 0.5 ? 2.6 : 0.5) : 1;
+      coneMat.current.opacity = 0.1 * h * flick;
+    }
     // the gaze, for the cubes to see whether they're in it
     const g = gaze.current;
     g.h = h;
@@ -923,9 +1004,16 @@ const TILE_N = 4;
 const WAVE_RATE = 0.62; // passes a second
 /* In the die's close-up a tile lights where the cursor passes over it, as if
    the chip is thinking about whatever you point at, and fades again over
-   TILE_COOL seconds, so a sweep across the die leaves a short trail. */
+   TILE_COOL seconds, so a sweep across the die leaves a short trail. Each tile
+   the cursor comes onto pops up, over its height and back, and the pop
+   ripples out to the tiles round it, a ring at a time (TILE_RIPPLE). */
 const TILE_COOL = 0.85;
 const TILE_HEAT = 1.25; // a pointed-at tile's extra brightness, over the wave
+const TILE_POP = 0.08; // the kick a tile gets (speed up, in the die's units a second)
+const TILE_RIPPLE = [
+  { after: 0.07, of: 0.55 }, // the tiles touching it
+  { after: 0.14, of: 0.28 }, // the ring beyond
+];
 function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: string; color: string }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
@@ -935,11 +1023,13 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
   const mesh = useRef<Mesh>(null);
   const hit = useMemo(() => new Vector3(), []);
   // which tile each vertex belongs to, read off its position on the die
-  const { geo, tile, colors, bb } = useMemo(() => {
+  const { geo, tile, colors, bb, baseY } = useMemo(() => {
     const g = geometry.clone();
     const pos = g.attributes.position;
     g.computeBoundingBox();
     const bb = g.boundingBox!;
+    const baseY = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i++) baseY[i] = pos.getY(i);
     const tile = new Uint8Array(pos.count);
     for (let i = 0; i < pos.count; i++) {
       const u = (pos.getX(i) - bb.min.x) / (bb.max.x - bb.min.x);
@@ -948,13 +1038,16 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
     }
     const colors = new Float32Array(pos.count * 3);
     g.setAttribute('color', new BufferAttribute(colors, 3));
-    return { geo: g, tile, colors, bb };
+    return { geo: g, tile, colors, bb, baseY };
   }, [geometry]);
   useEffect(() => () => geo.dispose(), [geo]);
   const base = useMemo(() => new Color(color), [color]);
   const tint = useMemo(() => new Color(), []);
   const level = useMemo(() => new Float32Array(TILE_N * TILE_N), []);
   const heat = useMemo(() => new Float32Array(TILE_N * TILE_N), []);
+  // each tile's pop: its height off the die, on a springy spring, and the kicks
+  // still to come from a ripple
+  const lift = useMemo(() => ({ y: new Float32Array(TILE_N * TILE_N), v: Array.from({ length: TILE_N * TILE_N }, () => ({ v: 0 })), kicks: [] as { i: number; at: number; of: number }[], last: -1 }), []);
   useFrame((s, delta) => {
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
     const on = k.current;
@@ -962,10 +1055,38 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
     // the tile under the cursor, if it's over the die
     const dt = Math.min(delta, 1 / 30);
     for (let i = 0; i < heat.length; i++) heat[i] = Math.max(0, heat[i] - dt / TILE_COOL);
+    let under = -1;
     if (close && mesh.current && cursorOnLevel(s, mesh.current, bb.max.y, hit)) {
       const u = (hit.x - bb.min.x) / (bb.max.x - bb.min.x);
       const v = (hit.z - bb.min.z) / (bb.max.z - bb.min.z);
-      if (u >= 0 && u < 1 && v >= 0 && v < 1) heat[Math.floor(v * TILE_N) * TILE_N + Math.floor(u * TILE_N)] = 1;
+      if (u >= 0 && u < 1 && v >= 0 && v < 1) heat[(under = Math.floor(v * TILE_N) * TILE_N + Math.floor(u * TILE_N))] = 1;
+    }
+    // onto a new tile: it pops, and the pop ripples out
+    if (under >= 0 && under !== lift.last && !reduced) {
+      lift.kicks.push({ i: under, at: t, of: 1 });
+      const ux = under % TILE_N;
+      const uz = Math.floor(under / TILE_N);
+      for (let j = 0; j < TILE_N * TILE_N; j++) {
+        const ring = Math.max(Math.abs((j % TILE_N) - ux), Math.abs(Math.floor(j / TILE_N) - uz));
+        if (ring >= 1 && ring <= TILE_RIPPLE.length) lift.kicks.push({ i: j, at: t + TILE_RIPPLE[ring - 1].after, of: TILE_RIPPLE[ring - 1].of });
+      }
+    }
+    lift.last = under;
+    for (let n = lift.kicks.length - 1; n >= 0; n--) {
+      const kk = lift.kicks[n];
+      if (t < kk.at) continue;
+      lift.v[kk.i].v += TILE_POP * kk.of;
+      lift.kicks.splice(n, 1);
+    }
+    let moving = false;
+    for (let i = 0; i < lift.y.length; i++) {
+      lift.y[i] = wobble(lift.y[i], 0, lift.v[i], dt, 3, 0.35);
+      if (Math.abs(lift.y[i]) > 1e-6 || Math.abs(lift.v[i].v) > 1e-5) moving = true;
+    }
+    if (moving || lift.kicks.length) {
+      const pos = geo.attributes.position;
+      for (let v = 0; v < tile.length; v++) pos.setY(v, baseY[v] + lift.y[tile[v]]);
+      pos.needsUpdate = true;
     }
     for (let i = 0; i < level.length; i++) {
       const diag = ((i % TILE_N) + Math.floor(i / TILE_N)) / (2 * TILE_N - 1);
