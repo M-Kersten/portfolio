@@ -11,7 +11,6 @@ import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, layerGap, type Hotspot
 import { useSceneSelector, bootAt, MAQUETTE_BOOT, opening } from '../store';
 import { AccentCtx, PALETTE } from './shared';
 import { DotFloor, SurveyMarks, PointCloud, DepthVeil, HoloFloor } from './backdrop';
-import { GalleryLights } from './gallery';
 import { PresenceGroup } from './presence';
 import { ShadowDots } from './lit';
 import { CityRig } from './city';
@@ -154,9 +153,6 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
                 {/* the lit objects' shadows, printed as halftone on the floor
                     (lit.tsx) — only the layer in focus can hold a lit object */}
                 <ShadowDots active={presenceLayer === id} />
-                {/* gallery light: a pool under each exhibit you've seen, a cone
-                    onto the one that's open (gallery.tsx) */}
-                <GalleryLights layer={id} active={presenceLayer === id} />
                 {/* Presence: the layer in focus keeps full brightness, the
                     others rest dimmed (see presence.tsx). Only the dressing —
                     the life system's objects are exempt inside. */}

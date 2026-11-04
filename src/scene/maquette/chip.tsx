@@ -7,7 +7,7 @@
 // here in the maquette's own materials. ChipRig composes and places everything.
 import { useContext, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
+import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, Vector2, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/media';
 import { SURFACE, NEUTRAL, LINE_REST, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
@@ -17,7 +17,7 @@ import { litMat, ShadowPrint, useLitLink } from './lit';
 import { BlobShadow } from './backdrop';
 import { PresenceCtx } from './presence';
 import { useCameraKit, useChipKit, type ChipKit } from './kit';
-import { cursorAtDepth, cursorIdle, cursorOnLevel, useCloseUp } from './closeup';
+import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, useCloseUp } from './closeup';
 import { spring } from '../../lib/spring';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
@@ -72,6 +72,7 @@ function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit
   const sweepAt = useRef(0); // the sweep's phase, 0 → 1 across the screen
   const rate = useRef(1);
   const screenAt = useMemo(() => new Vector3(), []);
+  const pointer = useMemo(() => new Vector2(), []);
   const screenMat = useRef<MeshStandardMaterial>(null);
   const alarmMat = useRef<MeshStandardMaterial>(null); // the lamp strip over the screen
   const blip = useRef<Mesh>(null);
@@ -120,9 +121,9 @@ function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit
     const dt = Math.min(delta, 1 / 30);
     // how near the cursor is to the screen, on screen: the rate follows it
     let near = 0;
-    if (close && root.current) {
+    if (close && root.current && cursorNdc(s.size, pointer)) {
       screenAt.set(0, 0.22, 0).applyMatrix4(root.current.matrixWorld).project(s.camera);
-      const d = Math.hypot((screenAt.x - s.pointer.x) * (s.size.width / s.size.height), screenAt.y - s.pointer.y);
+      const d = Math.hypot((screenAt.x - pointer.x) * (s.size.width / s.size.height), screenAt.y - pointer.y);
       near = Math.max(0, 1 - d / HR_REACH);
     }
     rate.current += (1 + HR_RISE * near * near - rate.current) * (1 - Math.exp(-dt / HR_SETTLE));
@@ -534,7 +535,6 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const holoAimRef = useRef<Group>(null); // turns the cube with the gaze while it tracks
   const track = useRef({ yaw: 0, pitch: 0, w: 0 });
   const trackVel = useRef({ yaw: { v: 0 }, pitch: { v: 0 } });
-  const rest = useRef({ x: 0, y: 0, idle: 99 });
   const hit = useMemo(() => new Vector3(), []);
   const lookAt = useMemo(() => new Vector3(0, CAM_HEAD_UP, CAM_CUBE_Z), []);
 
@@ -564,7 +564,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
     // where the cursor is, as a gaze: yaw and pitch from the head toward it
     const dt = Math.min(delta, 1 / 30);
     const tr = track.current;
-    const following = close && cursorIdle(s, rest.current, dt) < CAM_TRACK_IDLE && !!pivotRef.current && !!cursorAtDepth(s, pivotRef.current, lookAt, hit);
+    const following = close && cursorIdle() < CAM_TRACK_IDLE && !!pivotRef.current && !!cursorAtDepth(s, pivotRef.current, lookAt, hit);
     if (following) {
       const dx = hit.x;
       const dy = hit.y - CAM_HEAD_UP;

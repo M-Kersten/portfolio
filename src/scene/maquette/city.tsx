@@ -4,7 +4,7 @@
 // constellation. CityRig at the bottom composes and places everything.
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, Shape, ShapeGeometry, TubeGeometry, Vector2, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/media';
@@ -18,7 +18,7 @@ import { useLook } from '../look';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { NextProjectSite, SITE_POS } from './launchSite';
 import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
-import { cursorAtDepth, cursorIdle, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
+import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
 import { spring } from '../../lib/spring';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
@@ -426,9 +426,10 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
   const close = useCloseUp(slug);
   const root = useRef<Group>(null);
   const cap = useRef<Group>(null);
-  const wind = useRef({ yaw: 0, gust: 0, px: 0, py: 0 });
+  const wind = useRef({ yaw: 0, gust: 0, px: 0, py: 0, read: false });
   const windVel = useRef({ v: 0 });
   const from = useMemo(() => new Vector3(), []);
+  const pointer = useMemo(() => new Vector2(), []);
   const hub = useMemo(() => new Vector3(0, MILL_HUB.y, 0), []);
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
@@ -437,11 +438,16 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
     const toward = blowing ? Math.max(-WIND_TURN, Math.min(WIND_TURN, Math.atan2(from.x, from.z))) : 0;
     w.yaw = reduced ? 0 : spring(w.yaw, toward, windVel.current, dt, WIND_GLIDE);
     if (cap.current) cap.current.rotation.y = w.yaw;
-    // a gust: the cursor's travel since the last frame
-    const travel = Math.hypot(s.pointer.x - w.px, s.pointer.y - w.py);
-    w.px = s.pointer.x;
-    w.py = s.pointer.y;
-    w.gust = Math.min(GUST_MAX, w.gust * Math.exp(-dt / GUST_FADE) + (blowing ? travel * GUST : 0));
+    // a gust: the cursor's travel since the last frame (from the second frame
+    // it's blowing on, so coming back onto the model isn't itself a gust)
+    const at = blowing ? cursorNdc(s.size, pointer) : null;
+    const travel = at && w.read ? Math.hypot(at.x - w.px, at.y - w.py) : 0;
+    if (at) {
+      w.px = at.x;
+      w.py = at.y;
+    }
+    w.read = !!at;
+    w.gust = Math.min(GUST_MAX, w.gust * Math.exp(-dt / GUST_FADE) + travel * GUST);
     const engaged = hovered || selected || visited;
     set.current += ((engaged ? 1 : 0) - set.current) * (reduced ? 1 : 0.05);
     // the sails only take the wind as their cloth fills
@@ -767,7 +773,6 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
   const baseRef = useRef<Group>(null);
   const aim = useRef({ yaw: 0, w: 0, steady: 0, shotYaw: 99 });
   const aimVel = useRef({ v: 0 });
-  const still = useRef({ x: 0, y: 0, idle: 99 });
   const spot = useMemo(() => new Vector3(), []);
 
   // The frosted glass shared by the buildings + windmill — the model and the
@@ -844,7 +849,7 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
     // the cursor's spot on the park, as a heading for the lenses (they look
     // down the viewer's -z)
     const a = aim.current;
-    const following = close && live && k.current > 0.55 && cursorIdle(s, still.current, dt) < 2.5 && !!baseRef.current && !!cursorOnLevel(s, baseRef.current, 0, spot);
+    const following = close && live && k.current > 0.55 && cursorIdle() < 2.5 && !!baseRef.current && !!cursorOnLevel(s, baseRef.current, 0, spot);
     if (following) {
       const yaw = Math.max(-AIM_REACH, Math.min(AIM_REACH, Math.atan2(-spot.x, -spot.z)));
       a.yaw = spring(a.yaw, yaw, aimVel.current, dt, AIM_GLIDE);
@@ -1302,8 +1307,7 @@ function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
     capMat.emissive.copy(GHOST_FILL).lerp(accentC, k.current);
     const now = s.clock.elapsedTime;
     let over = false;
-    if (close && houseRef.current) {
-      cursorRay(s, houseRef.current, ray);
+    if (close && houseRef.current && cursorRay(s, houseRef.current, ray)) {
       over = ray.intersectsBox(box);
       if (over && !wasOver.current && now - GRID.boltAt > BOLT_REST) GRID.boltAt = now;
     }

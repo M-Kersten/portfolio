@@ -746,8 +746,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     const t = s.clock.elapsedTime;
 
     // a car the cursor points at takes a boost
-    const aiming = close && !!table.current;
-    if (aiming) cursorRay(s, table.current!, ray);
+    const aiming = close && !!table.current && !!cursorRay(s, table.current, ray);
     for (let i = 0; i < CARS.length; i++) {
       const b = boost[i];
       b.current = Math.max(0, b.current - dt / BOOST_FADE);
@@ -996,7 +995,6 @@ function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
   const close = useCloseUp(DESK_SLUG);
   const frame = useRef<Group>(null); // the desk's frame, to find the cursor in
   const notice = useRef({ t: -1, next: NOTICE_FIRST });
-  const still = useRef({ x: 0, y: 0, idle: 99 });
   const you = useMemo(() => new Vector3(), []);
   const depth = useMemo(() => new Vector3(...NOTICE_AT), []);
   const rigs = useRef<(Group | null)[]>([]);
@@ -1020,7 +1018,7 @@ function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
     const e = lift.current * lift.current * (3 - 2 * lift.current); // eased off the desk and back onto it
     // noticing you: when it's time, and only while the cursor's moving
     const nt = notice.current;
-    const moving = close && cursorIdle(s, still.current, dt) < 1.5;
+    const moving = close && cursorIdle() < 1.5;
     const seen = moving && !!frame.current && !!cursorAtDepth(s, frame.current, depth, you);
     if (!selected) Object.assign(nt, { t: -1, next: NOTICE_FIRST });
     else if (nt.t < 0 && seen && session.current >= nt.next) nt.t = 0;
@@ -1282,7 +1280,6 @@ function BookAR({ slug }: { slug: string }) {
   const { selected } = useActive(slug);
   const close = useCloseUp(slug);
   const root = useRef<Group>(null);
-  const still = useRef({ x: 0, y: 0, idle: 99 });
   const you = useMemo(() => new Vector3(), []);
   const over = useMemo(() => new Vector3(0, 0.12, 0), []);
   const drift = useMemo(() => [new Vector3(), new Vector3(), new Vector3()], []);
@@ -1302,7 +1299,7 @@ function BookAR({ slug }: { slug: string }) {
     glow.current += ((selected && !reduced ? 1 : 0) - glow.current) * FX.engage;
     const t = s.clock.elapsedTime;
     const dt = Math.min(delta, 1 / 30);
-    const toward = close && cursorIdle(s, still.current, dt) < 2.5 && !!root.current && !!cursorAtDepth(s, root.current, over, you);
+    const toward = close && cursorIdle() < 2.5 && !!root.current && !!cursorAtDepth(s, root.current, over, you);
     for (let i = 0; i < items.length; i++) {
       const g = refs.current[i];
       const m = mats.current[i];

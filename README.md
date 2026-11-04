@@ -56,7 +56,6 @@ The things you're most likely to want to change, and the file they live in.
 | Which projects are exhibits, and where their marker sits | `HOTSPOTS` in `src/scene/framing.ts` |
 | An exhibit's camera close-up | its `view` in `HOTSPOTS` (or the dev tools' Camera tab) |
 | An object's place in the model | the `usePlacement(...)` call in `src/scene/maquette/city.tsx` or `room.tsx` (or the dev tools' Objects tab) |
-| Where an exhibit's gallery light falls | `POOLS` in `src/scene/maquette/gallery.tsx` |
 | How far the close-up leans toward the cursor | `leanYaw`, `leanPitch`, `leanGlide` in `CAMERA`, `src/scene/framing.ts` |
 | What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*` in `chip.tsx`, `BOOST*` in `room.tsx`, `WIND_*` in `city.tsx`) |
 | The 3D stage's lighting, fog, palette, post-processing | `LOOK` in `src/scene/look.ts` (or the dev tools' Look tab) |
@@ -134,10 +133,10 @@ src/
       presence.tsx     active-layer focus: neighbour layers rest dimmed
       materials.tsx    holographic glass + rim shader, the shared materials
       lit.tsx          the hover light and its shadows
-      gallery.tsx      gallery light: a pool under each seen exhibit, a cone on
-                       the open one (edit POOLS for where the light falls)
-      closeup.ts       the close-up's cursor helpers; each exhibit's reaction
-                       lives with its object (the camera's in chip.tsx, …)
+      closeup.ts       the close-up's cursor, read from the window (the open
+                       exhibit covers the canvas), and its helpers; each
+                       exhibit's reaction lives with its object (the
+                       camera's in chip.tsx, …)
       backdrop.tsx     dot floors, point fields, depth veil, blob shadows
       shared.tsx       palette, math helpers, useActive, fog-aware Line
       shapes.ts        the procedural geometry helpers

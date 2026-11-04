@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Vector3, type PerspectiveCamera } from 'three';
+import { Vector2, Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/media';
 import { spring, springVec } from '../lib/spring';
 import { opening, returning, sceneStore, useSceneSelector } from './store';
 import { maquetteLoaded } from './maquette/kit';
+import { cursorNdc } from './maquette/closeup';
 import { HOTSPOTS, fitScale, fitFov, layerGap, portraitMix, CAMERA, LAUNCH } from './framing';
 import { anchorWorld, journeyView, introView, nodeView, launchShot, launchTrack } from './views';
 import { viewFor } from '../dev/tuning';
@@ -101,11 +102,11 @@ export function CameraRig() {
 
   const sway = useRef(0);
   const nodeAge = useRef(0); // seconds since the current node was selected
-  // the close-up's lean toward the cursor (CAMERA.lean*), and its spring
-  const pointer = useThree((s) => s.pointer);
+  // the close-up's lean toward the cursor (CAMERA.lean*): where it's heading, and its spring
   const coarse = useMemo(isTouch, []);
-  const lean = useRef({ yaw: 0, pitch: 0 });
+  const lean = useRef({ yaw: 0, pitch: 0, toYaw: 0, toPitch: 0 });
   const leanVel = useRef({ yaw: { v: 0 }, pitch: { v: 0 } });
+  const leanAt = useMemo(() => new Vector2(), []);
   const prevSel = useRef<string | null>(null);
   const shakeOff = useRef(new Vector3()); // last frame's positional jitter
   const shakeRight = useRef(new Vector3());
@@ -478,14 +479,23 @@ export function CameraRig() {
       const amp = (hotspot ? CAMERA.nodeOrbitAmp : CAMERA.idleSwayAmp) * ease;
       const speed = hotspot ? CAMERA.nodeOrbitSpeed : CAMERA.idleSwaySpeed;
       sway.current += dt * speed;
-      // Leaning on a close-up: toward the cursor's side and height, so the
-      // camera moves the way your head would (cursor right, it comes round to
-      // the right; up, it looks down over the object). Eased back to level the
-      // moment the close-up ends.
-      const leaning = !!framed && !coarse;
+      // Leaning on a close-up: toward the cursor's side and height, measured
+      // from the porthole's centre where the object sits, in half screen
+      // heights either way, so the camera moves the way your head would
+      // (cursor right of it, it comes round to the right; above it, it looks
+      // down over it). It holds while the cursor is off the model, on the
+      // label, say (closeup.ts), and eases back to level the moment the
+      // close-up ends.
       const ln = lean.current;
-      ln.yaw = spring(ln.yaw, leaning ? -pointer.x * CAMERA.leanYaw : 0, leanVel.current.yaw, dt, CAMERA.leanGlide);
-      ln.pitch = spring(ln.pitch, leaning ? pointer.y * CAMERA.leanPitch : 0, leanVel.current.pitch, dt, CAMERA.leanGlide);
+      if (!framed || coarse) ln.toYaw = ln.toPitch = 0;
+      else if (cursorNdc(size, leanAt)) {
+        const dx = Math.max(-1, Math.min(1, (leanAt.x - (porthole.x * 2 - 1)) * (size.width / size.height)));
+        const dy = Math.max(-1, Math.min(1, leanAt.y - (1 - porthole.y * 2)));
+        ln.toYaw = -dx * CAMERA.leanYaw;
+        ln.toPitch = dy * CAMERA.leanPitch;
+      }
+      ln.yaw = spring(ln.yaw, ln.toYaw, leanVel.current.yaw, dt, CAMERA.leanGlide);
+      ln.pitch = spring(ln.pitch, ln.toPitch, leanVel.current.pitch, dt, CAMERA.leanGlide);
       const a = Math.sin(sway.current) * amp + ln.yaw;
       const bob = hotspot ? Math.cos(sway.current) * CAMERA.nodeOrbitBob * ease : 0;
       // round the target by the pan and the lean's yaw, then up or down by its pitch
