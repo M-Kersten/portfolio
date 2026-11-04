@@ -4,11 +4,12 @@
 // openable Zwijsen book, plus lamp and plant props. RoomRig composes and places
 // everything.
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, Vector3, type Group, type Mesh, type MeshBasicMaterial, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
+import { spring } from '../../lib/spring';
 import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
@@ -741,96 +742,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   );
 }
 
-// The Virtuele Brigade monitor's link: an antenna telescopes up out of the case
-// when it's engaged and then tries to raise a connection — three arcs radiate off
-// the tip in sequence, go quiet, and try again. It never quite succeeds, which is
-// the joke and also how field kit actually behaves. Holds still under reduced
-// motion (mast deployed, no search).
-const ARCS = 3;
-const SEARCH_PERIOD = 2.3; // seconds per attempt: a burst of arcs, then a wait
-const ARC_STAGGER = 0.17; // seconds between one arc lighting and the next
-const ARC_LIFE = 0.5; // how long a single arc takes to swell and fade
-function BrigadeAntenna() {
-  const reduced = useReducedMotion();
-  const camera = useThree((st) => st.camera);
-  const { accent } = useAccent();
-  const { selected, visited } = useActive('virtuele-brigade');
-  const grp = useRef<Group>(null);
-  const mast = useRef<Group>(null);
-  const hail = useRef<Group>(null);
-  const tipMat = useRef<MeshStandardMaterial>(null);
-  const arcMats = useRef<(MeshStandardMaterial | null)[]>([]);
-  const glow = useRef(0);
-  useFrame((s) => {
-    glow.current += ((selected || visited ? 1 : 0) - glow.current) * FX.engage;
-    const g = glow.current;
-    const t = reduced ? 0 : s.clock.elapsedTime;
-    if (grp.current) grp.current.visible = g > 0.02;
-    // the mast telescopes up — length follows the engage ease, so it deploys
-    if (mast.current) {
-      mast.current.scale.y = Math.max(0.001, g);
-      mast.current.rotation.z = reduced ? 0 : Math.sin(t * 1.3) * 0.03; // a slight sway
-    }
-    // The arcs live outside the mast (which is scaled in Y as it deploys, and would
-    // squash them) and turn to face the camera. Flat rings read as a bare line from
-    // this node's viewing angle, which is where they were disappearing.
-    if (hail.current) {
-      hail.current.position.y = 0.19 * g;
-      hail.current.quaternion.copy(camera.quaternion);
-    }
-    const cycle = (t / SEARCH_PERIOD) % 1;
-    const elapsed = cycle * SEARCH_PERIOD;
-    for (let i = 0; i < ARCS; i++) {
-      const m = arcMats.current[i];
-      if (!m) continue;
-      const local = (elapsed - i * ARC_STAGGER) / ARC_LIFE;
-      m.opacity = local > 0 && local < 1 ? fxEnv(local) * FX.peak * g : 0;
-    }
-    // the tip pips once per attempt, brightest as the burst goes out
-    if (tipMat.current) {
-      tipMat.current.emissiveIntensity = (0.5 + (elapsed < 0.5 ? fxEnv(elapsed / 0.5) * 2.2 : 0)) * g;
-    }
-  });
-  // Sits on the monitor's top edge: the case is centred at y 0.62 and is 0.34
-  // tall, so its lid is at 0.79, and it stands at the screen's depth (z -0.13).
-  return (
-    <group ref={grp} position={[0, 0.78, -0.13]} visible={false}>
-      {/* the mast, scaled up from its base so it grows out of the case */}
-      <group ref={mast}>
-        <mesh position={[0, 0.09, 0]}>
-          <cylinderGeometry args={[0.0035, 0.005, 0.18, 6]} />
-          <meshStandardMaterial color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.25} roughness={0.5} />
-        </mesh>
-        {/* the emitter on top */}
-        <mesh position={[0, 0.19, 0]}>
-          <sphereGeometry args={[0.011, 10, 10]} />
-          <meshStandardMaterial ref={tipMat} color={accent} emissive={accent} emissiveIntensity={0.5} toneMapped={false} />
-        </mesh>
-      </group>
-      {/* the hail: arcs opening off the tip, lighting in sequence, camera-facing */}
-      <group ref={hail}>
-        {Array.from({ length: ARCS }, (_, i) => (
-          <mesh key={i}>
-            <ringGeometry args={[0.03 + i * 0.026, 0.036 + i * 0.026, 26, 1, Math.PI * 0.28, Math.PI * 0.44]} />
-            <meshStandardMaterial
-              ref={(m) => { arcMats.current[i] = m; }}
-              color={accent}
-              emissive={accent}
-              emissiveIntensity={1.3}
-              transparent
-              opacity={0}
-              blending={AdditiveBlending}
-              side={DoubleSide}
-              depthWrite={false}
-              toneMapped={false}
-            />
-          </mesh>
-        ))}
-      </group>
-    </group>
-  );
-}
-
 /* ---- the workstation's desk set (Virtuele Brigade) ----
    Keyboard, mouse and coffee cup. All three take the desk's own treatment —
    LiveGlassMat with ghost={false} — so they rest as plain authored glass and
@@ -884,15 +795,15 @@ function Mouse({ position, rotation }: { position: V3; rotation?: V3 }) {
   );
 }
 
-/** A VR headset put down on the desk, front to the room, after a Meta Quest: a
- *  soft white visor with three dark sensor pills down its front, the foam face
- *  pad behind it, and the fabric strap looped out the back. Modelled in Blender
- *  (scripts/models/build_headset.py). */
-function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
+/* A VR headset put down on the desk, front to the room, after a Meta Quest: a
+   soft white visor with three dark sensor pills down its front, the foam face
+   pad behind it, and the fabric strap looped out the back. Modelled in Blender
+   (scripts/models/build_headset.py). */
+function Headset() {
   const kit = useHeadsetKit();
   if (!kit) return null;
   return (
-    <group position={position} rotation={rotation}>
+    <>
       <mesh geometry={kit.hs_strap}>
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="glass" />
       </mesh>
@@ -906,7 +817,160 @@ function VRHeadset({ position, rotation }: { position: V3; rotation?: V3 }) {
       <mesh geometry={kit.hs_face}>
         <LiveGlassMat slug={DESK_SLUG} ghost={false} tint="deep" />
       </mesh>
-    </group>
+    </>
+  );
+}
+
+/* The Virtuele Brigade is played together, so open it and a session starts:
+   the headset on the desk lifts to a standing player's head height, a second
+   one joins beside the screen (it spawns in, the way a remote player appears),
+   and the two play a scene only they can see — worn by no one.
+
+   What makes it read as multiplayer is that they play it together, beat by
+   beat (BEATS): both on the same thing; one turning to the other, who turns
+   back, and a nod — talking it over; both leaning in over something on the
+   ground; a sound, and the second follows the first's turn a moment later; one
+   down behind cover while the other keeps watch above. Each beat gives each
+   player a point to look at (in the desk's frame: SCENE, or the other player),
+   which its head eases onto with the camera's spring (lib/spring.ts: a head
+   gathers speed and settles, it doesn't snap). The heads tip into their turns,
+   and a slow sway of breath and weight runs under all of it, out of step
+   between the two. Close the project and the second leaves, and the first
+   settles back where it was put down. Under reduced motion they take their
+   places and hold still. */
+const HS_PIVOT: V3 = [0, 0.036, -0.1]; // the middle of the wearer's head, in the headset's own frame
+const HS_LEVEL = 0.12; // pitched a little nose-down, which levels the strap round the head that isn't there
+// Where the two heads stand, desk frame: over the desk's left end and to the
+// right of the screen, both clear above it. The camera looks on from the front
+// left, so a look at SCENE.ahead shows it the visors, and a look at each other
+// shows them in profile.
+const PLAYERS: V3[] = [
+  [-0.32, 0.9, 0.1],
+  [0.42, 0.86, 0.14],
+];
+const SCENE: Record<'ahead' | 'ground' | 'left' | 'right' | 'up', V3> = {
+  ahead: [0.05, 0.75, 1.4],
+  ground: [0.05, 0.3, 0.7],
+  left: [-1.4, 0.85, 0.55],
+  right: [1.3, 0.8, 0.7],
+  up: [0.2, 1.7, 0.9],
+};
+type Aim = V3 | 'peer';
+const BEATS: { hold: number; glide: number; look: [Aim, Aim]; duck?: [number, number]; lean?: [number, number]; nod?: boolean; lag?: number }[] = [
+  { hold: 2.2, glide: 0.45, look: [SCENE.ahead, SCENE.ahead] }, // both on the same thing
+  { hold: 1.6, glide: 0.35, look: ['peer', SCENE.ahead] }, // one turns to the other…
+  { hold: 2.0, glide: 0.35, look: ['peer', 'peer'], nod: true }, // …who turns back: talking it over
+  { hold: 2.0, glide: 0.42, look: [SCENE.ground, SCENE.ground], lean: [0.035, -0.035] }, // both lean in over something
+  { hold: 1.5, glide: 0.16, look: [SCENE.left, SCENE.left], lag: 0.45 }, // a sound: one turns, the other a moment behind
+  { hold: 1.8, glide: 0.26, look: [SCENE.left, SCENE.up], duck: [0.075, 0] }, // one into cover, the other keeping watch
+  { hold: 1.4, glide: 0.35, look: ['peer', 'peer'], nod: true }, // a nod: clear
+  { hold: 1.9, glide: 0.4, look: [SCENE.right, SCENE.right], lag: 0.3 }, // on, together
+];
+const BEAT_LEN = BEATS.reduce((n, b) => n + b.hold, 0);
+const JOIN_DELAY = 0.7; // s after the first lifts that the second spawns in
+const JOIN_FLICKER = 0.3; // s of flicker as it arrives
+/** Which beat is playing `t` seconds into the session, and how long it has been on. */
+function beatAt(t: number): [number, number] {
+  let u = ((t % BEAT_LEN) + BEAT_LEN) % BEAT_LEN;
+  for (let i = 0; i < BEATS.length; i++) {
+    if (u < BEATS[i].hold) return [i, u];
+    u -= BEATS[i].hold;
+  }
+  return [0, 0];
+}
+function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
+  const { selected } = useActive(DESK_SLUG);
+  const reduced = useReducedMotion();
+  const rigs = useRef<(Group | null)[]>([]);
+  const lift = useRef(0); // 0 on the desk, 1 on the first player's head
+  const session = useRef(0); // seconds the session has been running
+  const heads = useRef(PLAYERS.map(() => ({ yaw: 0, pitch: 0, duck: 0, lean: 0 })));
+  const vels = useRef(PLAYERS.map(() => ({ yaw: { v: 0 }, pitch: { v: 0 }, duck: { v: 0 }, lean: { v: 0 } })));
+  const restYaw = rotation?.[1] ?? 0;
+  // where the first head's middle is while its headset lies on the desk
+  const rest = useMemo<V3>(() => {
+    const c = Math.cos(restYaw);
+    const sn = Math.sin(restYaw);
+    return [position[0] + HS_PIVOT[0] * c + HS_PIVOT[2] * sn, position[1] + HS_PIVOT[1], position[2] - HS_PIVOT[0] * sn + HS_PIVOT[2] * c];
+  }, [position, restYaw]);
+  useFrame((s, delta) => {
+    const dt = Math.min(delta, 1 / 30);
+    const t = s.clock.elapsedTime;
+    const on = selected ? 1 : 0;
+    lift.current = reduced ? on : lift.current + (on - lift.current) * (1 - Math.exp(-dt * 2.2));
+    session.current = selected ? session.current + dt : 0;
+    const e = lift.current * lift.current * (3 - 2 * lift.current); // eased off the desk and back onto it
+    // the second player: spawning in once the session's begun, gone when it ends
+    const since = session.current - JOIN_DELAY;
+    const joined = reduced ? on : selected ? Math.min(1, Math.max(0, since / 0.45)) : Math.max(0, Math.min(1, e * 1.4 - 0.4));
+    const flicker = !reduced && selected && since > 0 && since < JOIN_FLICKER && Math.sin(since * 90) < 0;
+    for (let p = 0; p < PLAYERS.length; p++) {
+      const g = rigs.current[p];
+      if (!g) continue;
+      const at = PLAYERS[p];
+      const peer = PLAYERS[1 - p];
+      // the beat this player is on: the second follows a beat's turn `lag` behind
+      let [bi] = beatAt(session.current);
+      if (p === 1) {
+        const [b2, into] = beatAt(session.current);
+        const lag = BEATS[b2].lag ?? 0;
+        bi = into < lag ? (b2 + BEATS.length - 1) % BEATS.length : b2;
+      }
+      const B = BEATS[bi];
+      const aim = B.look[p];
+      const to = aim === 'peer' ? peer : aim;
+      const dx = to[0] - at[0];
+      const dz = to[2] - at[2];
+      const yaw = Math.atan2(dx, dz);
+      const pitch = -Math.atan2(to[1] - at[1], Math.hypot(dx, dz)) + (B.nod && !reduced ? Math.max(0, Math.sin(session.current * 6 + p)) * 0.12 : 0);
+      const hd = heads.current[p];
+      const v = vels.current[p];
+      if (reduced) Object.assign(hd, { yaw: Math.atan2(SCENE.ahead[0] - at[0], SCENE.ahead[2] - at[2]), pitch: 0, duck: 0, lean: 0 });
+      else {
+        hd.yaw = spring(hd.yaw, yaw, v.yaw, dt, B.glide);
+        hd.pitch = spring(hd.pitch, pitch, v.pitch, dt, B.glide);
+        hd.duck = spring(hd.duck, (B.duck?.[p] ?? 0) * on, v.duck, dt, B.glide);
+        hd.lean = spring(hd.lean, (B.lean?.[p] ?? 0) * on, v.lean, dt, B.glide);
+      }
+      // breath and weight under it all, out of step between the two, and the
+      // head tipping into a turn
+      const k = p === 0 ? e : joined;
+      const sway = reduced ? 0 : k;
+      const ph = p * 2.1;
+      const roll = Math.max(-0.22, Math.min(0.22, -v.yaw.v * 0.07)) * sway + Math.sin(t * 0.8 + ph) * 0.03 * sway;
+      const x = at[0] + hd.lean + Math.sin(t * 0.7 + ph) * 0.008 * sway;
+      const y = at[1] - hd.duck + Math.sin(t * 1.6 + ph) * 0.005 * sway;
+      const z = at[2] + Math.sin(t * 0.55 + 1 + ph) * 0.006 * sway;
+      const rx = HS_LEVEL + hd.pitch;
+      const ry = hd.yaw + Math.sin(t * 0.9 + ph) * 0.03 * sway;
+      if (p === 0) {
+        // lifted off the desk and set back down on it
+        const mix = (a: number, b: number) => a + (b - a) * e;
+        g.position.set(mix(rest[0], x), mix(rest[1], y), mix(rest[2], z));
+        g.rotation.set(mix(0, rx), mix(restYaw, ry), mix(0, roll), 'YXZ');
+      } else {
+        // spawned in where it stands: out of nothing, a touch over size, settling
+        g.visible = joined > 0.001 && !flicker;
+        const pop = joined < 1 ? joined * (1 + 0.25 * Math.sin(joined * Math.PI)) : 1;
+        g.scale.setScalar(Math.max(0.001, pop));
+        g.position.set(x, y, z);
+        g.rotation.set(rx, ry, roll, 'YXZ');
+      }
+    }
+  });
+  return (
+    <>
+      <group ref={(g) => (rigs.current[0] = g)} position={rest} rotation={[0, restYaw, 0]}>
+        <group position={[-HS_PIVOT[0], -HS_PIVOT[1], -HS_PIVOT[2]]}>
+          <Headset />
+        </group>
+      </group>
+      <group ref={(g) => (rigs.current[1] = g)} position={PLAYERS[1]} visible={false}>
+        <group position={[-HS_PIVOT[0], -HS_PIVOT[1], -HS_PIVOT[2]]}>
+          <Headset />
+        </group>
+      </group>
+    </>
   );
 }
 
@@ -1498,9 +1562,7 @@ function Desk({ brigade }: { brigade: LitLink }) {
       <Keyboard position={[-0.02, 0.403, 0.06]} rotation={[0, 0.04, 0]} />
       <Mouse position={[0.235, 0.408, 0.055]} rotation={[0, -0.12, 0]} />
       <CoffeeCup position={[-0.4, 0.395, -0.13]} rotation={[0, -2.2, 0]} lit={brigade} />
-      <VRHeadset position={[-0.28, 0.395, 0.06]} rotation={[0, -0.35, 0]} />
-      {/* the antenna deploying out of the monitor, hailing for a link */}
-      <BrigadeAntenna />
+      <VRPlayers position={[-0.28, 0.395, 0.06]} rotation={[0, -0.35, 0]} />
     </>
   );
 }

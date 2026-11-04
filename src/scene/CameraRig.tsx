@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3, type PerspectiveCamera } from 'three';
 import { useReducedMotion } from '../lib/media';
+import { spring, springVec } from '../lib/spring';
 import { opening, returning, sceneStore, useSceneSelector } from './store';
 import { maquetteLoaded } from './maquette/kit';
 import { HOTSPOTS, fitScale, fitFov, layerGap, portraitMix, CAMERA, LAUNCH } from './framing';
@@ -79,32 +80,8 @@ const ZOOM_SETTLE = ACQUIRE_HOLD + 0.9;
 const HOP = { base: 0.95, perUnit: 0.32, min: 1.05, max: 1.7, liftPerUnit: 0.16, liftMin: 0.06, liftMax: 0.42, settle: 0.8 };
 const smootherstep = (u: number) => u * u * u * (u * (u * 6 - 15) + 10);
 
-// The camera's spring (CAMERA.glide): one step of a critically damped spring
-// toward `to` (the closed-form approximation game engines use for "smooth
-// damp", stable at any frame time), with its velocity carried in `vel`. Where
-// an exponential chase leaves at full speed the instant its goal changes, this
-// gathers speed and settles, and a new goal mid-move bends the path rather
-// than snapping its speed.
-function springFactor(dt: number, glide: number) {
-  const x = (2 / glide) * dt;
-  return { omega: 2 / glide, decay: 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x) };
-}
-function spring(cur: number, to: number, vel: { v: number }, dt: number, glide: number): number {
-  const { omega, decay } = springFactor(dt, glide);
-  const change = cur - to;
-  const temp = (vel.v + omega * change) * dt;
-  vel.v = (vel.v - omega * temp) * decay;
-  return to + (change + temp) * decay;
-}
-function springVec(cur: Vector3, to: Vector3, vel: Vector3, dt: number, glide: number) {
-  const { omega, decay } = springFactor(dt, glide);
-  for (const k of ['x', 'y', 'z'] as const) {
-    const change = cur[k] - to[k];
-    const temp = (vel[k] + omega * change) * dt;
-    vel[k] = (vel[k] - omega * temp) * decay;
-    cur[k] = to[k] + (change + temp) * decay;
-  }
-}
+// The camera's moves ride a critically damped spring (lib/spring.ts) at
+// CAMERA.glide.
 
 export function CameraRig() {
   const camera = useThree((s) => s.camera);

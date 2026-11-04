@@ -40,7 +40,8 @@ model, with the shared helpers in `modelkit.py`:
   with three dark sensor pills down its front, a foam face pad notched for the
   nose, short white arms, and a grey fabric strap put down behind it (a loop
   that drops from the arms to the desk, and a top strap). It ships as
-  `public/models/headset.glb`; `room.tsx` (VRHeadset) gives the parts their glass.
+  `public/models/headset.glb`; `room.tsx` (Headset, VRPlayers) gives the parts their
+  glass, and plays two of them in a session when the project is opened.
 - `build_table.py`: the Lightship Drive table in the Room, after the show-floor
   setup in the project's film: a low mid-century table (a rounded top with an
   eased edge, an apron, four tapered legs splayed out to the floor), and the
