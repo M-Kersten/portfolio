@@ -1005,11 +1005,13 @@ const WAVE_RATE = 0.62; // passes a second
 /* In the die's close-up a tile lights where the cursor passes over it, as if
    the chip is thinking about whatever you point at, and fades again over
    TILE_COOL seconds, so a sweep across the die leaves a short trail. Each tile
-   the cursor comes onto pops up, over its height and back, and the pop
-   ripples out to the tiles round it, a ring at a time (TILE_RIPPLE). */
+   the cursor comes onto pops up, past its height and back, brightening as it
+   lifts, and the pop ripples out to the tiles round it, a ring at a time
+   (TILE_RIPPLE). */
 const TILE_COOL = 0.85;
 const TILE_HEAT = 1.25; // a pointed-at tile's extra brightness, over the wave
-const TILE_POP = 0.08; // the kick a tile gets (speed up, in the die's units a second)
+const TILE_POP = 0.6; // the kick a tile gets (speed up, die units a second): it pops about 0.02 high, a quarter of its width
+const TILE_GLINT = 40; // and it brightens with its lift (per die unit: about 0.8 at the top of its pop), so the ripple shows as light
 const TILE_RIPPLE = [
   { after: 0.07, of: 0.55 }, // the tiles touching it
   { after: 0.14, of: 0.28 }, // the ring beyond
@@ -1085,7 +1087,9 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
     }
     if (moving || lift.kicks.length) {
       const pos = geo.attributes.position;
-      for (let v = 0; v < tile.length; v++) pos.setY(v, baseY[v] + lift.y[tile[v]]);
+      // (never below the die: on the spring's swing back it lands flush and
+      // bounces, like a key, rather than sinking into a hole)
+      for (let v = 0; v < tile.length; v++) pos.setY(v, baseY[v] + Math.max(0, lift.y[tile[v]]));
       pos.needsUpdate = true;
     }
     for (let i = 0; i < level.length; i++) {
@@ -1093,7 +1097,7 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
       let ph = (t * WAVE_RATE - diag) % 1;
       if (ph < 0) ph += 1;
       const wave = reduced ? 0.4 : Math.exp(-ph * 6); // bright at the front, trailing off
-      level[i] = 0.34 * (1 - on) + on * (0.62 + 1.1 * wave + TILE_HEAT * heat[i] * heat[i]);
+      level[i] = 0.34 * (1 - on) + on * (0.62 + 1.1 * wave + TILE_HEAT * heat[i] * heat[i] + TILE_GLINT * Math.max(0, lift.y[i]));
     }
     tint.copy(GHOST_FILL).lerp(base, on);
     const pf = presence.current;

@@ -352,7 +352,8 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
           </mesh>
         </group>
       ))}
-      <instancedMesh ref={ringsIM} args={[ringGeo, ringMat, RINGS]} frustumCulled={false} />
+      {/* (drawn after the cushion, or its glass covers them) */}
+      <instancedMesh ref={ringsIM} args={[ringGeo, ringMat, RINGS]} frustumCulled={false} renderOrder={2} />
     </group>
   );
 }
@@ -962,8 +963,8 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
           </group>
         </group>
       ))}
-      {/* the boosts' neon trails */}
-      <instancedMesh ref={trailIM} args={[undefined, trailMat, CARS.length * TRAIL.beads]} frustumCulled={false}>
+      {/* the boosts' neon trails (drawn after the mat, or its film covers them) */}
+      <instancedMesh ref={trailIM} args={[undefined, trailMat, CARS.length * TRAIL.beads]} frustumCulled={false} renderOrder={2}>
         <sphereGeometry args={[0.006, 8, 6]} />
       </instancedMesh>
       {/* the trophy over whoever is winning */}
@@ -1112,9 +1113,10 @@ const NOTICE_FIRST = 2.5; // s into the session before the first time
 const NOTICE_LEN = 2.8; // how long they look, double-take and all
 /** The double-take, in s into a player's notice: the glance (`of` the way
  *  round to you) until `glance`, back on the game until `back`, then the look;
- *  each on its own spring (`glides`, s), the look's head tipped `tilt` (rad;
- *  the two tip opposite ways). */
-const DOUBLE_TAKE = { glance: 0.28, back: 0.62, of: 0.45, glides: [0.16, 0.28, 0.42], tilt: 0.16 };
+ *  each on its own spring (`glides`, s: the glance and the snap back are
+ *  quick, the look takes its time), the look's head tipped `tilt` (rad; the
+ *  two tip opposite ways). */
+const DOUBLE_TAKE = { glance: 0.3, back: 0.65, of: 0.6, glides: [0.1, 0.2, 0.4], tilt: 0.16 };
 const NOTICE_EVERY = [6, 9]; // s from one time to the next, at random between
 const NOTICE_LAG = 0.25; // the second looks round this long after the first
 const NOTICE_AT: V3 = [0.05, 0.85, 0.6]; // the depth they look out to, desk frame: in front of them, toward you
@@ -1420,7 +1422,7 @@ function BookHalf({ side, tex, lit, kit }: { side: -1 | 1; tex: Texture | null; 
 // when it rests. The drift is springy (HOLO_SPRING): they reach a little past
 // and bob back. And they whirl as they reach you, up to HOLO_WHIRL times their
 // own turn, a touch bigger.
-const HOLO_PULL = 0.5;
+const HOLO_PULL = 0.75;
 const HOLO_REACH = 0.12;
 const HOLO_SPRING = { freq: 1.3, damping: 0.35 }; // see wobble
 const HOLO_WHIRL = 5;

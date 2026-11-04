@@ -420,12 +420,17 @@ const GUST = 2.6; // spin per unit of cursor travel (screen halves), rad/s
 const GUST_MAX = 6; // rad/s
 const GUST_FADE = 2.2; // s for a gust to die down: the sails coast
 const GUST_KICK = { freq: 1.1, damping: 0.45 }; // the sails taking a gust up (see wobble)
-const FLUTTER = 3; // the gust (rad/s) at which the cloth flaps its most
+const PUFF_FADE = 0.4; // s for the wind itself to drop once the cursor stops (the cloth, the streaks)
+const FLUTTER = 3; // the wind (as GUST) at which the cloth flaps its most
 /** The gust's streaks: how many at once at most, each one's life (s), how
  *  many a second per rad/s of gust, and where they start, out along the wind
  *  from the mill (mill units). */
 const GUST_STREAKS = { count: 12, life: 0.5, rate: 3.5, from: 0.75 };
-type MillWindState = { yaw: number; toward: number; blowing: boolean; strength: number; gust: number; px: number; py: number; read: boolean };
+/** The mill's wind, written by Windmill each frame: the cap's yaw, where the
+ *  wind blows from, the gust the sails feel (`strength`, slow to die, and
+ *  `gust`, the sails' extra turn) and the wind itself (`puff`, gone as soon
+ *  as the cursor stops), plus the cursor's last spot. */
+type MillWindState = { yaw: number; toward: number; blowing: boolean; strength: number; gust: number; puff: number; px: number; py: number; read: boolean };
 
 // Fetch the model with the tower's, as soon as the scene's code arrives.
 // A failure here is retried and reported by useMillKit.
@@ -479,8 +484,9 @@ function MillWind() {
 
 /** A gust made visible: while you blow on the mill, quick thin streaks run in
  *  from where the wind comes from and on past the sails, more of them the
- *  harder it blows (GUST_STREAKS). Each keeps the way the wind blew when it
- *  set off. Reads the mill's wind (a frame late, which nobody sees). */
+ *  harder it blows (GUST_STREAKS), and none once it drops. Each keeps the way
+ *  the wind blew when it set off. Reads the mill's wind (a frame late, which
+ *  nobody sees). */
 function GustStreaks({ wind }: { wind: { current: MillWindState } }) {
   const { accent } = useAccent();
   const reduced = useReducedMotion();
@@ -512,7 +518,7 @@ function GustStreaks({ wind }: { wind: { current: MillWindState } }) {
     const t = s.clock.elapsedTime;
     const sp = spawn.current;
     if (!reduced && w.blowing) {
-      sp.owed += Math.min(delta, 1 / 30) * GUST_STREAKS.rate * w.strength;
+      sp.owed += Math.min(delta, 1 / 30) * GUST_STREAKS.rate * w.puff;
       for (; sp.owed >= 1; sp.owed--) {
         const p = pool[sp.next];
         sp.next = (sp.next + 1) % pool.length;
@@ -523,7 +529,7 @@ function GustStreaks({ wind }: { wind: { current: MillWindState } }) {
         p.from = GUST_STREAKS.from + rnd() * 0.25;
         p.speed = 1.2 + rnd() * 0.5;
         p.len = 0.7 + rnd() * 0.7;
-        p.k = Math.min(1, 0.35 + w.strength / 3);
+        p.k = Math.min(1, 0.35 + w.puff / 3);
       }
     } else sp.owed = 0;
     let any = false;
@@ -552,7 +558,7 @@ function GustStreaks({ wind }: { wind: { current: MillWindState } }) {
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
     m.visible = any;
   });
-  return <instancedMesh ref={ref} args={[geo, mat, GUST_STREAKS.count]} frustumCulled={false} />;
+  return <instancedMesh ref={ref} args={[geo, mat, GUST_STREAKS.count]} frustumCulled={false} renderOrder={2} />;
 }
 
 /** A Dutch stage mill (stellingmolen), from its Blender model
@@ -578,7 +584,7 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
   const close = useCloseUp(slug);
   const root = useRef<Group>(null);
   const cap = useRef<Group>(null);
-  const wind = useRef<MillWindState>({ yaw: 0, toward: 0, blowing: false, strength: 0, gust: 0, px: 0, py: 0, read: false });
+  const wind = useRef<MillWindState>({ yaw: 0, toward: 0, blowing: false, strength: 0, gust: 0, puff: 0, px: 0, py: 0, read: false });
   const windVel = useRef({ v: 0 });
   const gustVel = useRef({ v: 0 });
   const ray = useMemo(() => new Ray(), []);
@@ -610,6 +616,7 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
     }
     w.read = !!at;
     w.strength = Math.min(GUST_MAX, w.strength * Math.exp(-dt / GUST_FADE) + travel * GUST);
+    w.puff = Math.min(GUST_MAX, w.puff * Math.exp(-dt / PUFF_FADE) + travel * GUST);
     w.gust = wobble(w.gust, w.strength, gustVel.current, dt, GUST_KICK.freq, GUST_KICK.damping);
     if (w.gust < 0) {
       // never turned backwards
@@ -622,9 +629,9 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
     const filled = Math.min(1, Math.max(0, (set.current - 0.45) / 0.45));
     spin.current += ((engaged ? 0.9 * filled : 0) - spin.current) * 0.04;
     if (sails.current && !reduced) sails.current.rotation.z += Math.min(delta, 0.1) * (spin.current + w.gust);
-    // the cloth, set or furled, flaps in a gust: it swings off its whip (the
-    // free edge in and out) on two rhythms, so it doesn't tick like a clock
-    const flap = reduced ? 0 : Math.min(1, w.gust / FLUTTER) * set.current;
+    // the cloth, once set, flaps while the wind blows: it swings off its whip
+    // (the free edge in and out) on two rhythms, so it doesn't tick like a clock
+    const flap = reduced ? 0 : Math.min(1, w.puff / FLUTTER) * set.current;
     const t = s.clock.elapsedTime;
     cloths.current.forEach((c, k) => {
       if (!c) return;
@@ -1489,6 +1496,10 @@ function Skyscraper({ position, kit, winMat }: { position: V3; kit: TowerKit; wi
 /* ---------- The transformer house — powers the city ---------- */
 /** Its footprint's longer side, roof overhang included, for the contact shadow. */
 const TRAFO_SPAN = 0.21;
+/** The house lit by power coming through: its glow over the shell (`over`
+ *  its size), how bright as the pulse comes in (`charge`) and at its height
+ *  (`peak`, an additive opacity), and how much it swells as the pulse lands. */
+const TRAFO_GLOW = { over: 1.05, charge: 0.35, peak: 0.5, swell: 0.035 };
 
 // Fetch the model with the tower's, as soon as the scene's code arrives.
 // A failure here is retried and reported by useTrafoKit.
@@ -1526,6 +1537,16 @@ function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
     return m;
   }, []);
   useEffect(() => () => capMat.dispose(), [capMat]);
+  // the house lighting up as power comes through: a glow just over its shell,
+  // added on, swelling from its middle (see TRAFO_GLOW)
+  const glowMat = useMemo(() => {
+    const m = new MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
+    m.userData.lifeSkip = true;
+    return m;
+  }, []);
+  useEffect(() => () => glowMat.dispose(), [glowMat]);
+  const glowAt = useMemo<V3>(() => box.getCenter(new Vector3()).multiplyScalar(1 - TRAFO_GLOW.over).toArray(), [box]);
+  const glowRef = useRef<Mesh>(null);
   const k = useRef(0.12);
   // The house solidifies with the city, on its own beat in the wave out from the
   // tower, exactly as the blocks do (its distance from the tower is the same
@@ -1550,15 +1571,25 @@ function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
     }
     wasOver.current = over;
     // Sending power, the house presses down and springs back (the wind-up), its
-    // bolt sputtering while the station gathers; then it flares as the pulse
-    // passes through, holding bright for the beat before it lets go.
+    // bolt sputtering while the station gathers. Then it charges up as the
+    // pulse comes in under the ground (out of sight behind the house from most
+    // of the close-up), swells and flares as it arrives, holding bright for the
+    // beat before it lets go.
     const sent = now - POWER.sentAt;
     const press = reduced ? 0 : 0.05 * ring(sent, 3.2, 7);
-    houseRef.current?.scale.set(1 + press * 0.45, 1 - press, 1 + press * 0.45);
-    const sputter = !reduced && sent >= 0 && sent < P_WIND && Math.random() < 0.55 ? 2.2 : 0;
     const through = sent - P_WIND - P_IN;
+    const swell = reduced || through < 0 ? 0 : TRAFO_GLOW.swell * bump(through / (P_HOLD + 0.12));
+    houseRef.current?.scale.set(1 + press * 0.45 + swell, 1 - press + swell, 1 + press * 0.45 + swell);
+    const sputter = !reduced && sent >= 0 && sent < P_WIND && Math.random() < 0.55 ? 2.2 : 0;
     const zap = through < 0 || through > 1.4 ? 0 : through < P_HOLD ? 5 : 5 * Math.exp(-(through - P_HOLD) * 5);
     capMat.emissiveIntensity = (0.3 + 2.6 * k.current) * hum + sputter + zap;
+    const coming = sent - P_WIND;
+    const charge = coming < 0 || coming >= P_IN ? 0 : TRAFO_GLOW.charge * easeIn(coming / P_IN, 2);
+    const flare = through < 0 ? 0 : through < P_HOLD ? 1 : Math.exp(-(through - P_HOLD) * 6);
+    const g = reduced ? 0 : Math.max(charge, flare) + (sputter ? 0.1 : 0);
+    glowMat.opacity = g * TRAFO_GLOW.peak;
+    if (glowRef.current) glowRef.current.visible = g > 0.002;
+    glowMat.color.copy(accentC).lerp(WHITE, 0.3 * flare);
   });
   return (
     <group ref={houseRef} position={position}>
@@ -1578,6 +1609,7 @@ function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
         <LiveGlassMat slug="alliander-hololens" ghost={false} tint="pale" wake={wake} />
       </mesh>
       <mesh geometry={kit.trafo_power} material={capMat} />
+      <mesh ref={glowRef} geometry={kit.trafo_body} material={glowMat} position={glowAt} scale={TRAFO_GLOW.over} renderOrder={2} visible={false} />
     </group>
   );
 }
@@ -2289,16 +2321,18 @@ function PowerGrid({ feed, routes, runs, order, stagger, house }: { feed: V3[]; 
       {mats.lit.map((m, c) => (
         <mesh key={c} ref={(r) => (sheathRefs.current[c] = r)} geometry={sheaths[c]} material={m} visible={false} />
       ))}
-      <instancedMesh ref={beadsIM} args={[undefined, mats.beads, PULSES * COMET.beads]} frustumCulled={false}>
+      {/* the pulses and their sparks, flashes and rings are drawn last, so the
+          ground's film never lies over them from one angle and not another */}
+      <instancedMesh ref={beadsIM} args={[undefined, mats.beads, PULSES * COMET.beads]} frustumCulled={false} renderOrder={2}>
         <sphereGeometry args={[0.0075, 10, 8]} />
       </instancedMesh>
-      <instancedMesh ref={sparksIM} args={[undefined, mats.sparks, SPARKS]} frustumCulled={false}>
+      <instancedMesh ref={sparksIM} args={[undefined, mats.sparks, SPARKS]} frustumCulled={false} renderOrder={2}>
         <sphereGeometry args={[0.004, 6, 4]} />
       </instancedMesh>
-      <instancedMesh ref={flashesIM} args={[undefined, mats.flashes, FLASHES]} frustumCulled={false}>
+      <instancedMesh ref={flashesIM} args={[undefined, mats.flashes, FLASHES]} frustumCulled={false} renderOrder={2}>
         <sphereGeometry args={[0.01, 10, 8]} />
       </instancedMesh>
-      <instancedMesh ref={ringsIM} args={[ring, mats.rings, PULSES]} frustumCulled={false} />
+      <instancedMesh ref={ringsIM} args={[ring, mats.rings, PULSES]} frustumCulled={false} renderOrder={2} />
     </group>
   );
 }

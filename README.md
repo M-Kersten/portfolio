@@ -56,8 +56,9 @@ The things you're most likely to want to change, and the file they live in.
 | Which projects are exhibits, and where their marker sits | `HOTSPOTS` in `src/scene/framing.ts` |
 | An exhibit's camera close-up | its `view` in `HOTSPOTS` (or the dev tools' Camera tab) |
 | An object's place in the model | the `usePlacement(...)` call in `src/scene/maquette/city.tsx` or `room.tsx` (or the dev tools' Objects tab) |
-| What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*` and `CAM_CUBES` in `chip.tsx`, `BOOST*` and `POP*` in `room.tsx`, `WIND_*` and `GUST*` in `city.tsx`) |
-| The city's underground power: where its cables run, how a pulse travels, when a block lights | `gridPlan`, `PowerGrid` and `PULSE_*` in `src/scene/maquette/city.tsx` |
+| What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*`, `CAM_CUBES` and `TILE_*` in `chip.tsx`, `BOOST*`, `POP*`, `DOUBLE_TAKE` and `HOLO_*` in `room.tsx`, `WIND_*`, `GUST*` and `SHOT` in `city.tsx`) |
+| How a close-up reaction moves: its wind-up, overshoot and settle | the curves in `src/lib/ease.ts` and the springs in `src/lib/spring.ts` (`spring` arrives without passing, `wobble` swings past and back) |
+| The city's underground power: where its cables run, how a pulse travels, when a block lights | `gridPlan`, `PowerGrid`, the pulse's beats `P_*` and `COMET`, and `TRAFO_GLOW` in `src/scene/maquette/city.tsx` |
 | The 3D stage's lighting, fog, palette, post-processing | `LOOK` in `src/scene/look.ts` (or the dev tools' Look tab) |
 | The timeline's spacing | `WALL` in `src/components/timeline/layout.ts` (or the dev tools' Timeline tab) |
 | Colours, type, spacing, motion for the whole site | `src/ui/tokens.css` |
@@ -152,7 +153,9 @@ src/
                        settings), sound.ts (the sound engine), youtube.ts,
                        motion.ts (the motion numbers for code), useReveal,
                        useFocusTrap, useSheetDrag (the label's touch handling),
-                       contours.ts (the timeline's canyon map)
+                       contours.ts (the timeline's canyon map), spring.ts
+                       (the camera's spring, and wobble, which overshoots),
+                       ease.ts (easing curves for the close-ups' beats)
   dev/                 the dev tools (dev only) and the tuning store they share
                        with the values above
   ui/                  tokens.css (design tokens) + one stylesheet per part of
