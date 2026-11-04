@@ -39,10 +39,12 @@ const JOURNEY_Y = [LAYER_Y.city, LAYER_Y.room, LAYER_Y.chip];
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const stepOf = (step: number) => Math.max(0, Math.min(2, step));
 
-/** The point the overview orbits: on the layer, offset sideways by the step's aim. */
+/** The point the overview orbits: on the layer, offset sideways by the step's
+ *  aim and raised by its rise. */
 function overviewPivot(step: number, gap: number, mix: number): Vector3 {
   const s = stepOf(step);
-  return new Vector3(lerp(CAMERA.stepAimX[s], CAMERA.portraitStepAimX[s], mix), (JOURNEY_Y[s] ?? 0) * gap, 0);
+  const rise = lerp(CAMERA.stepRise[s], CAMERA.portraitStepRise[s], mix);
+  return new Vector3(lerp(CAMERA.stepAimX[s], CAMERA.portraitStepAimX[s], mix), (JOURNEY_Y[s] ?? 0) * gap + rise, 0);
 }
 
 /** The overview of journey step `step` (0 City · 1 Room · 2 Chip) for a viewport

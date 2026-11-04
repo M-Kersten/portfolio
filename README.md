@@ -279,8 +279,8 @@ Section styling lives in the `src/ui/*.css` file named after the section;
 **Camera & layout of the 3D stack**: `src/scene/framing.ts` — layer heights
 (`LAYER_Y`), scales, each floor's marker height (`MARKER_Y`), the scroll
 journey's bands, and the three camera framings (home, journey, node close-up).
-Each journey step has its own aim and distance (`CAMERA.stepAimX` /
-`stepZoom`, and the `portraitStep…` pair for phones).
+Each journey step has its own aim, distance and height (`CAMERA.stepAimX` /
+`stepZoom` / `stepRise`, and the `portraitStep…` set for phones).
 
 ## Deploy
 

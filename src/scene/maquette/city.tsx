@@ -1810,7 +1810,7 @@ const DIPPER_MAG = [1, 0.7, 0.65, 0.8, 1, 0.85, 1]; // relative brightness → s
  *  in the sky row over the city's marker line and its names (with the launch
  *  invitation), not across them; on a phone, with no names on the line and the
  *  hero title above the city, it comes down beside the windmill. */
-const DIPPER_SKY = 1.47; // the asterism's centre over the windmill's foot…
+const DIPPER_SKY = 1.67; // the asterism's centre over the windmill's foot…
 const DIPPER_SKY_PORTRAIT = 1.0; // …and on a phone
 function Constellation({ anchor }: { anchor: V3 }) {
   const { selected, visited } = useActive('dtt-amsterdam');

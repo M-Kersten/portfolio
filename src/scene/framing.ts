@@ -125,6 +125,12 @@ export const CAMERA = {
   // the others take — the ladder still reads on the way down.
   stepAimX: [-0.34, 0, 0] as [number, number, number],
   stepZoom: [1, 1, 0.72] as [number, number, number],
+  // …and how far the whole framing rises (camera and aim together, so the angle
+  // holds), which sets the floor lower in the frame. The City's rises: its top
+  // lines up with the hero title's, and the room under it sinks to an edge
+  // behind the caption and the guide (the room's tall furniture otherwise
+  // reaches up into the frame from below).
+  stepRise: [0.28, 0, 0] as [number, number, number],
 
   // ---- Portrait (phones) ----
   // On a phone the title sits ABOVE the model rather than beside it, and the
@@ -146,6 +152,7 @@ export const CAMERA = {
   // nothing cut off at the edges
   portraitStepAimX: [0.1, 0.1, 0.1] as [number, number, number],
   portraitStepZoom: [1.1, 1.1, 1] as [number, number, number],
+  portraitStepRise: [0, 0, 0] as [number, number, number],
   portraitFrom: 1.0, // width:height where the portrait framing starts to blend in…
   portraitTo: 0.62, // …and where it has fully taken over
 
