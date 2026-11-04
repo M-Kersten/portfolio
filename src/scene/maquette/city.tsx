@@ -17,7 +17,7 @@ import { faceted, lathe, place, useGeometry } from './shapes';
 import { useLook } from '../look';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { NextProjectSite, SITE_POS } from './launchSite';
-import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, useTreesKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
+import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
  *  Building for both its windows and its body. A module-level box rather than
@@ -483,27 +483,21 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
   );
 }
 
-/** A park tree. A Dutch park is mostly broadleaf, so most are a lime (a tall,
- *  egg-shaped crown) or a plane (a broader, rounder one), from Blender
- *  (build_trees.py): a trunk forking into a faceted crown cut from the stock
- *  like everything else here. Between them stand a couple of pines, built
- *  here: three stacked faceted tiers over a short trunk stub (the stub ends
- *  below the lowest tier's skirt, so nothing shows through the leaves), each
- *  tier a skirted cone, a concave top that droops to its rim over a shallow
- *  underside, so it has a thickness; plain cones read as a stack of party
- *  hats. Neutral glass at rest, like the rest of the furniture; visiting the
- *  park breathes a quiet sea-green into the foliage — a hint of life, not a
- *  lawn-ornament green. */
+/** A stylised pine — three stacked faceted tiers over a short trunk stub (the
+ *  stub ends below the lowest tier's skirt, so nothing shows through the
+ *  leaves). Each tier is a skirted cone, a concave top that droops to its rim
+ *  over a shallow underside, so it has a thickness; plain cones read as a
+ *  stack of party hats. Neutral glass at rest, like the rest of the
+ *  furniture; visiting the park breathes a quiet sea-green into the foliage —
+ *  a hint of life, not a lawn-ornament green. */
 const PINE_TIERS: [number, number, number][] = [
   // y centre, radius, height — fractions of the tree height
   [0.3, 0.36, 0.44],
   [0.55, 0.27, 0.36],
   [0.78, 0.18, 0.3],
 ];
-type TreeKind = 'pine' | 'lime' | 'plane';
-function ParkTree({ position, h = 0.45, yaw = 0, kind = 'pine', slug, lit }: { position: V3; h?: number; yaw?: number; kind?: TreeKind; slug?: string; lit: LitLink }) {
+function ParkTree({ position, h = 0.45, yaw = 0, slug, lit }: { position: V3; h?: number; yaw?: number; slug?: string; lit: LitLink }) {
   const { selected, visited } = useActive(slug ?? '');
-  const kit = useTreesKit();
   const live = useRef(0);
   // At rest a pine has to read as the same drawing as everything else on this
   // layer. It didn't: the buildings are 0.30 glass WITH a wireframe outline,
@@ -530,7 +524,6 @@ function ParkTree({ position, h = 0.45, yaw = 0, kind = 'pine', slug, lit }: { p
   const tiers = useGeometry(() => {
     const rnd = makeRand(Math.round(Math.abs(position[0] * 9173 + position[2] * 7919)) + 3);
     const out: Record<string, BufferGeometry> = {};
-    if (kind !== 'pine') return out;
     PINE_TIERS.forEach(([y, r, th], i) => {
       const R = h * r * (0.93 + rnd() * 0.14);
       const T = h * th * (0.93 + rnd() * 0.14);
@@ -538,7 +531,7 @@ function ParkTree({ position, h = 0.45, yaw = 0, kind = 'pine', slug, lit }: { p
       out[i] = place(faceted(lathe(prof, 7)), [0, h * y - T / 2, 0], [(rnd() - 0.5) * 0.09, rnd() * Math.PI * 2, (rnd() - 0.5) * 0.09]);
     });
     return out;
-  }, [h, kind, position[0], position[2]]);
+  }, [h, position[0], position[2]]);
   useFrame(() => {
     if (!slug) return;
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
@@ -546,19 +539,6 @@ function ParkTree({ position, h = 0.45, yaw = 0, kind = 'pine', slug, lit }: { p
     mat.opacity = TREE_REST + live.current * 0.55; // the green + the body arrive together
     body(lit.litU.value, mat.opacity >= LIT_SOLID_OPACITY);
   });
-  if (kind !== 'pine') {
-    if (!kit) return null;
-    return (
-      <group position={position} rotation={[0, yaw, 0]} scale={h}>
-        <mesh geometry={kit.tree_trunk}>
-          <GlassMat tint="deep" lit={lit} />
-        </mesh>
-        <mesh geometry={kind === 'lime' ? kit.lime_crown : kit.plane_crown} material={mat}>
-          <LiveEdges slug={slug ?? ''} threshold={30} rest={0.42} />
-        </mesh>
-      </group>
-    );
-  }
   return (
     <group position={position} rotation={[0, yaw, 0]}>
       <mesh position={[0, h * 0.05, 0]}>
@@ -1013,11 +993,11 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
       </group>
       <ParkPath lit={lit} />
       {/* a small varied grove — each pine at its own height and turn */}
-      <ParkTree position={[0.2, 0, -0.18]} h={0.46} yaw={0.4} kind="lime" slug={slug} lit={lit} />
+      <ParkTree position={[0.2, 0, -0.18]} h={0.46} yaw={0.4} slug={slug} lit={lit} />
       <ParkTree position={[0.24, 0, 0.22]} h={0.34} yaw={2.1} slug={slug} lit={lit} />
-      <ParkTree position={[-0.22, 0, -0.24]} h={0.4} yaw={1.2} kind="plane" slug={slug} lit={lit} />
+      <ParkTree position={[-0.22, 0, -0.24]} h={0.4} yaw={1.2} slug={slug} lit={lit} />
       <ParkTree position={[0.4, 0, 0.04]} h={0.3} yaw={3.6} slug={slug} lit={lit} />
-      <ParkTree position={[-0.04, 0, -0.42]} h={0.36} yaw={5.1} kind="lime" slug={slug} lit={lit} />
+      <ParkTree position={[-0.04, 0, -0.42]} h={0.36} yaw={5.1} slug={slug} lit={lit} />
       {/* fireflies wandering between the trees */}
       <Fireflies slug={slug} />
       {/* the ARCam tower viewer — pops in and scans when the hotspot is selected;
