@@ -346,12 +346,17 @@ const MILL_HUB = { y: 0.7, z: 0.265, tilt: 0.12 };
 /* In the mill's close-up the cursor is the wind: the cap (and the sails on it)
    turns slowly round into the wind blowing from where the cursor is, as a mill
    is turned into the wind, and moving the mouse past it is a gust that spins
-   the sails up; they run down again when it stops. */
+   the sails up; they run down again when it stops. Both ease: the wind comes
+   from WIND_FROM out in front of the cursor, toward you, so the cap swings
+   round steadily as the cursor crosses the mill rather than flipping sides at
+   its middle, and the sails take a gust up over GUST_GLIDE, not in a jolt. */
 const WIND_TURN = 1.0; // how far the cap will turn either way (rad)
-const WIND_GLIDE = 1.1; // a heavy cap: slow round
+const WIND_GLIDE = 1.3; // a heavy cap: slow round
+const WIND_FROM = 0.8; // how far out toward you the wind blows from, past the cursor (mill units)
 const GUST = 2.6; // spin per unit of cursor travel (screen halves), rad/s
-const GUST_MAX = 7; // rad/s
+const GUST_MAX = 6; // rad/s
 const GUST_FADE = 1.4; // s for a gust to die down
+const GUST_GLIDE = 0.5; // s for the sails to take a gust up
 
 // Fetch the model with the tower's, as soon as the scene's code arrives.
 // A failure here is retried and reported by useMillKit.
@@ -426,20 +431,27 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
   const close = useCloseUp(slug);
   const root = useRef<Group>(null);
   const cap = useRef<Group>(null);
-  const wind = useRef({ yaw: 0, gust: 0, px: 0, py: 0, read: false });
+  const wind = useRef({ yaw: 0, strength: 0, gust: 0, px: 0, py: 0, read: false });
   const windVel = useRef({ v: 0 });
+  const gustVel = useRef({ v: 0 });
+  const ray = useMemo(() => new Ray(), []);
   const from = useMemo(() => new Vector3(), []);
   const pointer = useMemo(() => new Vector2(), []);
   const hub = useMemo(() => new Vector3(0, MILL_HUB.y, 0), []);
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
     const w = wind.current;
-    const blowing = close && !!root.current && !!cursorAtDepth(s, root.current, hub, from);
+    // where the wind blows from: the cursor's spot at the hub's depth, carried
+    // out toward you by WIND_FROM (the ray's way back)
+    const blowing = close && !!root.current && !!cursorRay(s, root.current, ray) && !!cursorAtDepth(s, root.current, hub, from);
+    if (blowing) from.addScaledVector(ray.direction, -WIND_FROM);
     const toward = blowing ? Math.max(-WIND_TURN, Math.min(WIND_TURN, Math.atan2(from.x, from.z))) : 0;
     w.yaw = reduced ? 0 : spring(w.yaw, toward, windVel.current, dt, WIND_GLIDE);
     if (cap.current) cap.current.rotation.y = w.yaw;
     // a gust: the cursor's travel since the last frame (from the second frame
-    // it's blowing on, so coming back onto the model isn't itself a gust)
+    // it's blowing on, so coming back onto the model isn't itself a gust) feeds
+    // the wind's strength, which dies down over GUST_FADE; the sails take it up
+    // on a spring
     const at = blowing ? cursorNdc(s.size, pointer) : null;
     const travel = at && w.read ? Math.hypot(at.x - w.px, at.y - w.py) : 0;
     if (at) {
@@ -447,13 +459,14 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
       w.py = at.y;
     }
     w.read = !!at;
-    w.gust = Math.min(GUST_MAX, w.gust * Math.exp(-dt / GUST_FADE) + travel * GUST);
+    w.strength = Math.min(GUST_MAX, w.strength * Math.exp(-dt / GUST_FADE) + travel * GUST);
+    w.gust = Math.max(0, spring(w.gust, w.strength, gustVel.current, dt, GUST_GLIDE));
     const engaged = hovered || selected || visited;
     set.current += ((engaged ? 1 : 0) - set.current) * (reduced ? 1 : 0.05);
     // the sails only take the wind as their cloth fills
     const filled = Math.min(1, Math.max(0, (set.current - 0.45) / 0.45));
     spin.current += ((engaged ? 0.9 * filled : 0) - spin.current) * 0.04;
-    if (sails.current && !reduced) sails.current.rotation.z += delta * (spin.current + w.gust);
+    if (sails.current && !reduced) sails.current.rotation.z += Math.min(delta, 0.1) * (spin.current + w.gust);
     for (const c of cloths.current) if (c) c.scale.x = 0.07 + 0.93 * set.current;
     // the windows light with the mill's life, from the ghost's grey
     life.current += ((selected || visited ? 1 : 0) - life.current) * 0.06;

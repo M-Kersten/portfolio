@@ -7,7 +7,7 @@
 // here in the maquette's own materials. ChipRig composes and places everything.
 import { useContext, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, Vector2, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
+import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Euler, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, Ray, Vector2, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/media';
 import { SURFACE, NEUTRAL, LINE_REST, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
@@ -17,7 +17,7 @@ import { litMat, ShadowPrint, useLitLink } from './lit';
 import { BlobShadow } from './backdrop';
 import { PresenceCtx } from './presence';
 import { useCameraKit, useChipKit, type ChipKit } from './kit';
-import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, useCloseUp } from './closeup';
+import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
 import { spring } from '../../lib/spring';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
@@ -464,7 +464,8 @@ function landTrace(e: number, pin: number, bx: number, bz: number, y: number): V
  *  the board. Selecting it racks the lens for focus and spawns the hologram: a
  *  clean cone of light onto a wireframe cube that bobs and turns in the beam.
  *  Once alive it keeps looking the cube up and down, selected or not (visited
- *  things stay awake), and its IR ring stays lit. */
+ *  things stay awake), and its IR ring stays lit. In its close-up two more
+ *  cubes appear and it looks where you point (CAM_TRACK_*, CAM_CUBES). */
 const CAM_PIVOT_Y = 0.17; // the ball joint's centre over the board (PIVOT_Y in build_camera.py)
 const CAM_HEAD_UP = 0.075; // the housing's axis over the ball (HEAD_UP)
 const CAM_LENS_AT = 0.094; // the lens dome's base in the bezel, along the aim
@@ -499,15 +500,134 @@ const FOCUS_DOLLY = 0.012; // lens travel along the aim; ~0.008 on the first swi
 const FOCUS_CONE = 0.31; // cone radius swing; ~20% tighter on the first swing
 const FOCUS_SETTLE = 2.4; // s; past here the term is negligible, so stop evaluating
 /* In its close-up the camera follows the cursor: it turns to look where you
-   point, as a tracking camera does, and the beam and the hologram cube go with
-   its gaze. Let the cursor rest (CAM_TRACK_IDLE) and it lets go, back to its
-   own scan, the cube back in its place. Quick but smooth: a servo, not a snap. */
+   point, as a tracking camera does, its beam going with its gaze, while the
+   hologram's cubes hold their places in the air. Two more cubes come with the
+   close-up (CAM_CUBES), to be found; point at one and the camera locks on to
+   it. Whatever cube is inside the vision cone is being tracked: it takes the
+   accent and its corners light in a chase; once the gaze moves off, it greys
+   back. Let the cursor rest (CAM_TRACK_IDLE) and the camera lets go, back to
+   its own scan over the first cube. Quick but smooth: a servo, not a snap. */
 const CAM_TRACK_YAW = 0.75; // how far it will turn either way (rad)
 const CAM_TRACK_PITCH = [-0.4, 0.3]; // up (negative tips the aim up) … down
 const CAM_TRACK_GLIDE = 0.28;
 const CAM_TRACK_IDLE = 2.5; // s of a resting cursor before it lets go
-function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
+const CAM_LOCK = 0.9; // how near the cursor's ray has to pass a cube to lock on, in cube edges
+const CAM_SEE_FADE = 0.18; // s for a cube to light up or grey back
+// Each cube where the head's aim points when it has turned by (yaw, pitch), at
+// the beam's reach, its edge, and how it turns. The first is the hologram the
+// camera watches at rest; the other two come with the close-up.
+const CAM_CUBES = [
+  { yaw: 0, pitch: 0, size: CAM_CUBE, spin: 0.3, phase: 0 },
+  { yaw: 0.5, pitch: -0.2, size: 0.15, spin: -0.36, phase: 2.1 },
+  { yaw: -0.5, pitch: 0.16, size: 0.16, spin: 0.24, phase: 4.2 },
+];
+type CamGaze = { dir: Vector3; see: number; h: number; more: number };
+
+/** One of the hologram's cubes (CAM_CUBES), held in its place: a wireframe over
+ *  a faint fill, its corners marked. While it's inside the camera's vision
+ *  cone it's tracked, in the accent, its corners chasing (the camera reading
+ *  it); out of the cone it greys back. `gaze` is the camera's, written each
+ *  frame by SecurityCamera: where it looks, the cone's half-angle, and how far
+ *  the hologram (`h`) and the close-up's extra cubes (`more`) are in. */
+function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze: { current: CamGaze } }) {
+  const c = CAM_CUBES[i];
   const { accent, accentPale } = useAccent();
+  const reduced = useReducedMotion();
+  const outer = useRef<Group>(null);
+  const spin = useRef<Group>(null);
+  const seen = useRef(0);
+  // the way the head looks when it looks straight at this cube
+  const dir = useMemo(() => new Vector3(0, 0, 1).applyEuler(new Euler(aimPitch, 0, 0)).applyEuler(new Euler(c.pitch, c.yaw, 0, 'YXZ')), [aimPitch, c]);
+  const grey = useMemo(() => new Color(NEUTRAL), []);
+  const lit = useMemo(() => new Color(accent), [accent]);
+  const pale = useMemo(() => new Color(accentPale), [accentPale]);
+  // owned materials, opted out of ghosting: this drives its own colour
+  const parts = useMemo(() => {
+    const geo = new EdgesGeometry(new BoxGeometry(c.size, c.size, c.size));
+    const wire = new LineBasicMaterial({ color: NEUTRAL, transparent: true, toneMapped: false, opacity: 0, depthWrite: false });
+    const fill = new MeshStandardMaterial({ color: NEUTRAL, emissive: NEUTRAL, transparent: true, opacity: 0, toneMapped: false, depthWrite: false, side: DoubleSide });
+    const dots = Array.from({ length: 8 }, () => new MeshStandardMaterial({ color: NEUTRAL, emissive: NEUTRAL, toneMapped: false }));
+    for (const m of [wire, fill, ...dots]) m.userData.lifeSkip = true;
+    return { geo, wire, fill, dots, lines: new LineSegments(geo, wire) };
+  }, [c]);
+  useEffect(
+    () => () => {
+      parts.geo.dispose();
+      parts.wire.dispose();
+      parts.fill.dispose();
+      for (const m of parts.dots) m.dispose();
+    },
+    [parts],
+  );
+  const corners = useMemo<V3[]>(() => {
+    const out: V3[] = [];
+    const h = c.size / 2;
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) out.push([sx * h, sy * h, sz * h]);
+    return out;
+  }, [c]);
+  useFrame((s, delta) => {
+    const g = gaze.current;
+    const dt = Math.min(delta, 1 / 30);
+    const t = s.clock.elapsedTime;
+    // it materialises out of the lens with the hologram; the extra ones with the close-up
+    const here = i === 0 ? g.h : g.h * g.more;
+    if (outer.current) {
+      outer.current.visible = here > 0.02;
+      outer.current.scale.setScalar(here);
+    }
+    // inside the cone: tracked
+    const inCone = Math.acos(Math.min(1, g.dir.dot(dir))) < g.see ? 1 : 0;
+    seen.current += (inCone - seen.current) * (reduced ? 1 : 1 - Math.exp(-dt / CAM_SEE_FADE));
+    const k = seen.current;
+    parts.wire.color.copy(grey).lerp(pale, k);
+    parts.wire.opacity = (0.4 + 0.5 * k) * here;
+    parts.fill.color.copy(grey).lerp(lit, k);
+    parts.fill.emissive.copy(grey).lerp(lit, k);
+    parts.fill.emissiveIntensity = 0.12 + 0.25 * k;
+    parts.fill.opacity = (0.03 + 0.05 * k) * here;
+    // (the corners light in a chase while it's tracked: the camera reading it)
+    const lead = reduced ? -1 : (t * 1.5 + c.phase) % 8;
+    for (let n = 0; n < 8; n++) {
+      let d = Math.abs(n - lead);
+      d = Math.min(d, 8 - d);
+      const pulse = reduced ? 1 : Math.max(0.25, 1 - d * 0.5);
+      const m = parts.dots[n];
+      m.color.copy(grey).lerp(pale, k);
+      m.emissive.copy(grey).lerp(lit, k);
+      m.emissiveIntensity = (0.2 + k * (0.1 + 1.5 * pulse)) * here;
+    }
+    if (spin.current) {
+      spin.current.rotation.x = 0.42;
+      if (!reduced) {
+        spin.current.rotation.y = t * c.spin + c.phase; // a gentle turn…
+        spin.current.position.y = Math.sin(t * 1.4 + c.phase) * 0.02; // …and a soft bob
+      }
+    }
+  });
+  // placed the way the head is turned to it, so its aim runs through the middle
+  return (
+    <group rotation={[c.pitch, c.yaw, 0, 'YXZ']}>
+      <group rotation={[aimPitch, 0, 0]}>
+        <group ref={outer} visible={false} position={[0, CAM_HEAD_UP, 0]}>
+          <group ref={spin} position={[0, 0, CAM_CUBE_Z]}>
+            <primitive object={parts.lines} />
+            <mesh material={parts.fill}>
+              <boxGeometry args={[c.size, c.size, c.size]} />
+            </mesh>
+            {corners.map((p, n) => (
+              <mesh key={n} position={p} material={parts.dots[n]}>
+                <sphereGeometry args={[0.006, 8, 8]} />
+              </mesh>
+            ))}
+          </group>
+        </group>
+      </group>
+    </group>
+  );
+}
+
+function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
+  const { accent } = useAccent();
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const kit = useCameraKit();
@@ -516,10 +636,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const lensMat = useRef<MeshStandardMaterial>(null);
   const irMat = useRef<MeshStandardMaterial>(null);
   const coneMat = useRef<MeshBasicMaterial>(null);
-  const holoRef = useRef<Group>(null); // the cube hologram, fixed on the aim axis
   const beamRef = useRef<Group>(null); // the cone + rim, attached to the lens
-  const cubeRef = useRef<Group>(null);
-  const cornerMats = useRef<(MeshStandardMaterial | null)[]>([]); // the tracked corners
   const k = useRef(0); // lens power
   const holo = useRef(0); // hologram presence
   const scanW = useRef(0); // continuous look-around weight (alive)
@@ -529,50 +646,49 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const wasSel = useRef(false);
   const lensC = useMemo(() => new Color(accent), [accent]);
   const presence = useContext(PresenceCtx);
-  // following the cursor (see CAM_TRACK_*)
+  // following the cursor (see CAM_TRACK_*), and the gaze the cubes read
   const close = useCloseUp(slug);
   const pivotRef = useRef<Group>(null);
-  const holoAimRef = useRef<Group>(null); // turns the cube with the gaze while it tracks
   const track = useRef({ yaw: 0, pitch: 0, w: 0 });
   const trackVel = useRef({ yaw: { v: 0 }, pitch: { v: 0 } });
+  const more = useRef(0); // the close-up's extra cubes, 0 → 1
+  const gaze = useRef<CamGaze>({ dir: new Vector3(0, 0, 1), see: 0, h: 0, more: 0 });
+  const ray = useMemo(() => new Ray(), []);
   const hit = useMemo(() => new Vector3(), []);
   const lookAt = useMemo(() => new Vector3(0, CAM_HEAD_UP, CAM_CUBE_Z), []);
-
-  // the tracked cube's wireframe, on an owned material (opted out of ghosting)
-  const cube = useMemo(() => {
-    const geo = new EdgesGeometry(new BoxGeometry(CAM_CUBE, CAM_CUBE, CAM_CUBE));
-    const mat = new LineBasicMaterial({ color: new Color(accentPale), transparent: true, toneMapped: false, opacity: 0.9, depthWrite: false });
-    mat.userData.lifeSkip = true;
-    return { obj: new LineSegments(geo, mat), mat, geo };
-  }, []);
-  useEffect(() => () => {
-    cube.geo.dispose();
-    cube.mat.dispose();
-  }, [cube]);
-
-  const corners = useMemo<V3[]>(() => {
-    const c: V3[] = [];
-    const h = CAM_CUBE / 2;
-    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) c.push([sx * h, sy * h, sz * h]);
-    return c;
-  }, []);
+  const aimTilt = useMemo(() => new Euler(aimPitch, 0, 0), [aimPitch]);
+  // each cube's middle in the pivot's frame, to lock on to
+  const cubeAt = useMemo(() => CAM_CUBES.map((c) => new Vector3(0, CAM_HEAD_UP, CAM_CUBE_Z).applyEuler(aimTilt).applyEuler(new Euler(c.pitch, c.yaw, 0, 'YXZ'))), [aimTilt]);
 
   useFrame((s, delta) => {
     const t = s.clock.elapsedTime;
     const alive = selected || visited ? 1 : 0;
     k.current += (alive - k.current) * 0.12;
-    // where the cursor is, as a gaze: yaw and pitch from the head toward it
     const dt = Math.min(delta, 1 / 30);
+    more.current += ((close ? 1 : 0) - more.current) * (1 - Math.exp(-dt * 2.5));
+    // where it should look: a cube the cursor points at locks it on; anywhere
+    // else, the cursor's spot at the cubes' depth, as a yaw and pitch from the head
     const tr = track.current;
-    const following = close && cursorIdle() < CAM_TRACK_IDLE && !!pivotRef.current && !!cursorAtDepth(s, pivotRef.current, lookAt, hit);
-    if (following) {
-      const dx = hit.x;
-      const dy = hit.y - CAM_HEAD_UP;
-      const dz = hit.z;
-      const yaw = Math.max(-CAM_TRACK_YAW, Math.min(CAM_TRACK_YAW, Math.atan2(dx, dz)));
-      const pitch = Math.max(CAM_TRACK_PITCH[0], Math.min(CAM_TRACK_PITCH[1], -Math.atan2(dy, Math.hypot(dx, dz)) - aimPitch));
-      tr.yaw = spring(tr.yaw, yaw, trackVel.current.yaw, dt, CAM_TRACK_GLIDE);
-      tr.pitch = spring(tr.pitch, pitch, trackVel.current.pitch, dt, CAM_TRACK_GLIDE);
+    let following = false;
+    if (close && cursorIdle() < CAM_TRACK_IDLE && pivotRef.current && cursorRay(s, pivotRef.current, ray)) {
+      let yaw = 0;
+      let pitch = 0;
+      const lock = cubeAt.findIndex((p, n) => (n === 0 || more.current > 0.5) && ray.distanceSqToPoint(p) < (CAM_CUBES[n].size * CAM_LOCK) ** 2);
+      if (lock >= 0) {
+        ({ yaw, pitch } = CAM_CUBES[lock]);
+        following = true;
+      } else if (cursorAtDepth(s, pivotRef.current, lookAt, hit)) {
+        const dx = hit.x;
+        const dy = hit.y - CAM_HEAD_UP;
+        const dz = hit.z;
+        yaw = Math.max(-CAM_TRACK_YAW, Math.min(CAM_TRACK_YAW, Math.atan2(dx, dz)));
+        pitch = Math.max(CAM_TRACK_PITCH[0], Math.min(CAM_TRACK_PITCH[1], -Math.atan2(dy, Math.hypot(dx, dz)) - aimPitch));
+        following = true;
+      }
+      if (following) {
+        tr.yaw = spring(tr.yaw, yaw, trackVel.current.yaw, dt, CAM_TRACK_GLIDE);
+        tr.pitch = spring(tr.pitch, pitch, trackVel.current.pitch, dt, CAM_TRACK_GLIDE);
+      }
     }
     tr.w += ((following ? 1 : 0) - tr.w) * (1 - Math.exp(-dt * (following ? 5 : 1.6)));
     // selecting spawns the hologram — and it stays once visited (life mechanic)
@@ -601,52 +717,33 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
       irMat.current.emissiveIntensity = (0.04 + on * (0.45 + 1.6 * Math.abs(rack))) * presence.current;
       irMat.current.opacity = (0.35 + 0.6 * on) * presence.current;
     }
-    // The idle: a steady up-and-down look over the cube. The cube holds its spot
-    // (it lives outside headRef), so the beam sweeps across the tracked target as
-    // the head nods — the nod amplitude is sized to keep the cube inside the cone
-    // at the extremes. The head turns about the ball, which holds still.
+    // The idle: a steady up-and-down look over the first cube. The cubes hold
+    // their spots (they live outside headRef), so the beam sweeps across the
+    // tracked target as the head nods — the nod amplitude is sized to keep the
+    // cube inside the cone at the extremes. The head turns about the ball, which
+    // holds still.
     if (headRef.current && !reduced) {
       const w = tr.w;
       headRef.current.rotation.order = 'YXZ'; // turn, then tip: a pan-tilt head
       headRef.current.rotation.x = scanW.current * Math.sin(t * CAM_NOD_RATE) * CAM_NOD * (1 - w) + tr.pitch * w;
       headRef.current.rotation.y = scanW.current * Math.sin(t * CAM_PAN_RATE) * CAM_PAN * (1 - w) + tr.yaw * w;
     }
-    // the cube goes where it looks while it tracks, and back to its spot after
-    if (holoAimRef.current) holoAimRef.current.rotation.set(tr.pitch * tr.w, tr.yaw * tr.w, 0, 'YXZ');
     if (lensRef.current) lensRef.current.position.z = CAM_LENS_AT + FOCUS_DOLLY * rack;
-    if (coneRef.current) {
-      const w = 1 - FOCUS_CONE * rack; // scaled across the beam only, so its reach holds
-      coneRef.current.scale.set(w, w, 1);
-    }
+    const across = 1 - FOCUS_CONE * rack; // the cone, scaled across the beam only, so its reach holds
+    if (coneRef.current) coneRef.current.scale.set(across, across, 1);
     // the projected hologram materialises out of the lens
     const h = holo.current;
-    if (holoRef.current) {
-      holoRef.current.visible = h > 0.02;
-      holoRef.current.scale.setScalar(h);
-    }
     if (beamRef.current) {
       beamRef.current.visible = h > 0.02;
       beamRef.current.scale.setScalar(h);
     }
-    cube.mat.opacity = 0.85 * h;
     if (coneMat.current) coneMat.current.opacity = 0.1 * h;
-    if (cubeRef.current) {
-      cubeRef.current.rotation.x = 0.42;
-      if (!reduced) {
-        cubeRef.current.rotation.y = t * 0.3; // a gentle turn…
-        cubeRef.current.position.y = Math.sin(t * 1.4) * 0.02; // …and a soft bob
-      }
-    }
-    // (the cube's corners light in a chase — the camera "reading" the hologram)
-    const lead = reduced ? -1 : (t * 1.5) % corners.length;
-    for (let i = 0; i < cornerMats.current.length; i++) {
-      const m = cornerMats.current[i];
-      if (!m) continue;
-      let d = Math.abs(i - lead);
-      d = Math.min(d, corners.length - d);
-      const pulse = reduced ? 1 : Math.max(0.25, 1 - d * 0.5);
-      m.emissiveIntensity = (0.3 + 1.5 * pulse) * h;
-    }
+    // the gaze, for the cubes to see whether they're in it
+    const g = gaze.current;
+    g.h = h;
+    g.more = more.current;
+    g.see = Math.atan((CAM_CONE_R * across) / (CAM_CUBE_Z - CAM_LENS_Z));
+    if (headRef.current) g.dir.set(0, 0, 1).applyEuler(aimTilt).applyEuler(headRef.current.rotation);
   });
 
   return (
@@ -665,28 +762,11 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
         </>
       )}
       <group ref={pivotRef} position={[0, CAM_PIVOT_Y, 0]}>
-        {/* the hologram cube holds its spot on the aim axis while the camera
-            scans around it — so the beam plays over the tracked target (and
-            goes with the gaze while the camera follows the cursor) */}
-        <group ref={holoAimRef}>
-          <group rotation={[aimPitch, 0, 0]}>
-            <group ref={holoRef} visible={false} position={[0, CAM_HEAD_UP, 0]}>
-              <group ref={cubeRef} position={[0, 0, CAM_CUBE_Z]}>
-                <primitive object={cube.obj} />
-                <mesh>
-                  <boxGeometry args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
-                  <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
-                </mesh>
-                {corners.map((c, i) => (
-                  <mesh key={i} position={c}>
-                    <sphereGeometry args={[0.006, 8, 8]} />
-                    <meshStandardMaterial ref={(r) => (cornerMats.current[i] = r)} color={accentPale} emissive={accent} emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
-                  </mesh>
-                ))}
-              </group>
-            </group>
-          </group>
-        </group>
+        {/* the hologram's cubes hold their places while the camera looks round
+            them, so the beam plays over whichever one it's tracking */}
+        {CAM_CUBES.map((_, i) => (
+          <TrackedCube key={i} i={i} aimPitch={aimPitch} gaze={gaze} />
+        ))}
         <group ref={headRef}>
           <group rotation={[aimPitch, 0, 0]}>
             {kit && (

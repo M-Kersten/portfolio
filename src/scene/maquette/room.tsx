@@ -10,7 +10,7 @@ import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, Catmu
 import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
 import { spring } from '../../lib/spring';
-import { cursorAtDepth, cursorIdle, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
+import { cursorAtDepth, cursorIdle, cursorRay, useCloseUp } from './closeup';
 import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
@@ -25,12 +25,14 @@ const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
 const PHONE_W = 0.075;
 const PHONE_H = 0.155;
 const PHONE_T = 0.0075;
-/* The balls, once out, roll about the cushions: in the close-up the cursor
-   pushes them (a ball near it rolls away from it), they roll to a stop, bounce
+/* The balls, once out, lie about the cushions: in the close-up, hover over one
+   and it pops up into the air, lands with a bounce or two and rolls to a stop,
    off the cushions' edges and off each other. A tiny game, Popcore's trade. */
 const SEAT = { x: [-0.35, 0.35], z: [-0.08, 0.2] }; // where a ball can roll, couch frame
-const PUSH_R = 0.06; // how close the cursor has to come
-const PUSH = 3.2; // how hard it pushes (m/s², at its closest)
+const POP = 0.7; // the pop's upward speed (m/s): a hop of ~9 cm under the cushion's gravity
+const POP_DRIFT = 0.07; // and a little sideways, at random, so it lands somewhere new
+const POP_REACH = 1.8; // how near the cursor's ray has to pass a ball, in ball radii
+const POP_REST = 0.25; // s on the cushion before the same ball pops again
 const ROLL_DRAG = 2.2; // the cushion's friction (1/s)
 /** The phone on the couch (Popcore), a Blender model (build_phone.py). It lies
  *  face down, the way a phone is left on a cushion, so what you see from across
@@ -46,7 +48,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
   const reduced = useReducedMotion();
   const close = useCloseUp(slug);
   const frame = useRef<Group>(null); // the couch's frame, to find the cursor in
-  const hand = useMemo(() => new Vector3(), []);
+  const ray = useMemo(() => new Ray(), []);
   const kit = usePhoneKit();
   const rigRef = useRef<Group>(null);
   const mat = useRef<MeshStandardMaterial>(null);
@@ -65,7 +67,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
   // Ping-pong balls — each carries its own little bit of physics, fired once on
   // the first open. Held as plain objects (mutated in useFrame, not React state).
   const balls = useMemo(
-    () => Array.from({ length: PHONE_BALLS }, () => ({ mesh: null as Mesh | null, vel: new Vector3(), delay: 0 })),
+    () => Array.from({ length: PHONE_BALLS }, () => ({ mesh: null as Mesh | null, vel: new Vector3(), delay: 0, rest: 0 })),
     [],
   );
   const R = 0.015; // ball radius
@@ -152,8 +154,8 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
     // --- integrate the balls: launch, arc under gravity, bounce, then roll ---
     if (fired.current && !reduced) {
       const restY = COUCH_SEAT_Y + R;
-      // the cursor on the cushions, where it can push a ball
-      const pushing = close && !!frame.current && !!cursorOnLevel(s, frame.current, restY, hand);
+      // the cursor over the couch, to pop a ball it passes over
+      const pointing = close && !!frame.current && !!cursorRay(s, frame.current, ray);
       for (const b of balls) {
         if (!b.mesh) continue;
         if (b.delay > 0) {
@@ -163,18 +165,16 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
         b.mesh.visible = true;
         const p = b.mesh.position;
         const rolling = p.y <= restY + 1e-4 && b.vel.y === 0;
-        if (!rolling) b.vel.y -= 2.6 * dt; // gravity
-        else {
-          if (pushing) {
-            const dx = p.x - hand.x;
-            const dz = p.z - hand.z;
-            const d = Math.hypot(dx, dz);
-            if (d < PUSH_R && d > 1e-5) {
-              const a = PUSH * (1 - d / PUSH_R) * dt;
-              b.vel.x += (dx / d) * a;
-              b.vel.z += (dz / d) * a;
-            }
+        if (rolling) {
+          b.rest += dt;
+          // hovered: it pops up
+          if (pointing && b.rest > POP_REST && ray.distanceSqToPoint(p) < (R * POP_REACH) ** 2) {
+            b.vel.set((Math.random() - 0.5) * 2 * POP_DRIFT, POP * (0.9 + 0.2 * Math.random()), (Math.random() - 0.5) * 2 * POP_DRIFT);
+            b.rest = 0;
           }
+        }
+        if (b.vel.y !== 0 || !rolling) b.vel.y -= 2.6 * dt; // gravity
+        else {
           const drag = Math.exp(-dt * ROLL_DRAG);
           b.vel.x *= drag;
           b.vel.z *= drag;
@@ -399,10 +399,15 @@ function paintStripe(g: BufferGeometry) {
 
 function RaceCar({ livery, boost }: { livery: Livery; boost?: { current: number } }) {
   const kit = useCarKit();
-  const rims = useRef<MeshStandardMaterial>(null);
-  // a boost lights the rims up (CoffeeTableAR, BOOST)
+  const flash = useRef<Mesh>(null);
+  // a boost flashes the car (CoffeeTableAR, BOOST_FLASH): a white shell over
+  // the body, bright as it takes the boost and gone again in a third of a second
   useFrame(() => {
-    if (rims.current && boost) rims.current.emissiveIntensity = 1.1 + 2.6 * boost.current;
+    const f = flash.current;
+    if (!f) return;
+    const k = boost ? Math.max(0, (boost.current - BOOST_FLASH) / (1 - BOOST_FLASH)) : 0;
+    f.visible = k > 0;
+    (f.material as MeshBasicMaterial).opacity = k * k * 0.9;
   });
   if (!kit) return null;
   paintStripe(kit.car_stripe);
@@ -423,7 +428,10 @@ function RaceCar({ livery, boost }: { livery: Livery; boost?: { current: number 
         <meshStandardMaterial color="#15121c" roughness={0.8} />
       </mesh>
       <mesh geometry={kit.car_rims}>
-        <meshStandardMaterial ref={rims} color={livery.rim} emissive={livery.rim} emissiveIntensity={1.1} roughness={0.35} toneMapped={false} />
+        <meshStandardMaterial color={livery.rim} emissive={livery.rim} emissiveIntensity={1.1} roughness={0.35} toneMapped={false} />
+      </mesh>
+      <mesh ref={flash} geometry={kit.car_body} scale={1.12} visible={false}>
+        <meshBasicMaterial color="#ffffff" transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} userData={{ lifeSkip: true }} />
       </mesh>
     </group>
   );
@@ -697,11 +705,13 @@ const CATCH = 0.07; // how hard a dropped car pushes on, per radian of gap
 const CATCH_CAP = 6; // never let the band become a rocket if the gap ever runs away
 const LEAD_HYST = 0.07; // the crown won't change hands on a photo finish jitter
 const LAP_SPEED = (2 * Math.PI * 0.2) / COURSE.L; // laps (in radians) per metre-per-second at 0.2 m/s top speed
-/* In the table's close-up, point at a car and it gets a boost: a burst of
-   speed that fades over BOOST_FADE, its rims flaring and its nose lifting as it
-   goes, so you can help one into the lead. One boost per car per BOOST_REST. */
+/* In the table's close-up, point at a car and it gets a boost: it flashes
+   white, then a burst of speed that fades over BOOST_FADE with its nose lifting
+   as it goes, so you can help one into the lead. One boost per car per
+   BOOST_REST. */
 const BOOST = 0.9; // extra speed at the burst's peak
 const BOOST_FADE = 1.3; // s
+const BOOST_FLASH = 0.75; // the flash lasts while the boost fades from 1 to here (~0.3 s)
 const BOOST_REST = 1.6; // s before the same car takes another
 const BOOST_REACH = 0.035; // how near the cursor's ray has to pass a car (m)
 
@@ -958,15 +968,17 @@ const SCENE: Record<'ahead' | 'ground' | 'left' | 'right' | 'up', V3> = {
   up: [0.2, 1.7, 0.9],
 };
 type Aim = V3 | 'peer';
+// (`glide`, the head's spring, is kept long: a head that whips round reads as
+// a puppet, one that gathers speed and eases in as someone looking)
 const BEATS: { hold: number; glide: number; look: [Aim, Aim]; duck?: [number, number]; lean?: [number, number]; nod?: boolean; lag?: number }[] = [
-  { hold: 2.2, glide: 0.45, look: [SCENE.ahead, SCENE.ahead] }, // both on the same thing
-  { hold: 1.6, glide: 0.35, look: ['peer', SCENE.ahead] }, // one turns to the other…
-  { hold: 2.0, glide: 0.35, look: ['peer', 'peer'], nod: true }, // …who turns back: talking it over
-  { hold: 2.0, glide: 0.42, look: [SCENE.ground, SCENE.ground], lean: [0.035, -0.035] }, // both lean in over something
-  { hold: 1.5, glide: 0.16, look: [SCENE.left, SCENE.left], lag: 0.45 }, // a sound: one turns, the other a moment behind
-  { hold: 1.8, glide: 0.26, look: [SCENE.left, SCENE.up], duck: [0.075, 0] }, // one into cover, the other keeping watch
-  { hold: 1.4, glide: 0.35, look: ['peer', 'peer'], nod: true }, // a nod: clear
-  { hold: 1.9, glide: 0.4, look: [SCENE.right, SCENE.right], lag: 0.3 }, // on, together
+  { hold: 2.6, glide: 0.8, look: [SCENE.ahead, SCENE.ahead] }, // both on the same thing
+  { hold: 2.0, glide: 0.65, look: ['peer', SCENE.ahead] }, // one turns to the other…
+  { hold: 2.4, glide: 0.65, look: ['peer', 'peer'], nod: true }, // …who turns back: talking it over
+  { hold: 2.4, glide: 0.75, look: [SCENE.ground, SCENE.ground], lean: [0.035, -0.035] }, // both lean in over something
+  { hold: 1.9, glide: 0.45, look: [SCENE.left, SCENE.left], lag: 0.45 }, // a sound: one turns, the other a moment behind
+  { hold: 2.2, glide: 0.55, look: [SCENE.left, SCENE.up], duck: [0.075, 0] }, // one into cover, the other keeping watch
+  { hold: 1.8, glide: 0.65, look: ['peer', 'peer'], nod: true }, // a nod: clear
+  { hold: 2.3, glide: 0.7, look: [SCENE.right, SCENE.right], lag: 0.3 }, // on, together
 ];
 const BEAT_LEN = BEATS.reduce((n, b) => n + b.hold, 0);
 const JOIN_DELAY = 0.7; // s after the first lifts that the second spawns in
@@ -975,7 +987,7 @@ const JOIN_DELAY = 0.7; // s after the first lifts that the second spawns in
    player had just joined the session, and after a moment go back to their game.
    Only while the cursor's moving; never more often than every NOTICE_EVERY. */
 const NOTICE_FIRST = 2.5; // s into the session before the first time
-const NOTICE_LEN = 1.8; // how long they look
+const NOTICE_LEN = 2.2; // how long they look
 const NOTICE_EVERY = [6, 9]; // s from one time to the next, at random between
 const NOTICE_LAG = 0.25; // the second looks round this long after the first
 const NOTICE_AT: V3 = [0.05, 0.85, 0.6]; // the depth they look out to, desk frame: in front of them, toward you
@@ -1053,8 +1065,9 @@ function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
       const dx = to[0] - at[0];
       const dz = to[2] - at[2];
       const yaw = Math.atan2(dx, dz);
-      const pitch = -Math.atan2(to[1] - at[1], Math.hypot(dx, dz)) + (B.nod && !looking && !reduced ? Math.max(0, Math.sin(session.current * 6 + p)) * 0.12 : 0);
-      const glide = looking ? 0.22 : B.glide;
+      const nod = B.nod && !looking && !reduced ? 0.05 * (1 - Math.cos(session.current * 5 + p)) : 0;
+      const pitch = -Math.atan2(to[1] - at[1], Math.hypot(dx, dz)) + nod;
+      const glide = looking ? 0.5 : B.glide;
       const hd = heads.current[p];
       const v = vels.current[p];
       if (reduced) Object.assign(hd, { yaw: Math.atan2(SCENE.ahead[0] - at[0], SCENE.ahead[2] - at[2]), pitch: 0, duck: 0, lean: 0 });
@@ -1069,7 +1082,7 @@ function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
       const k = p === 0 ? e : joined;
       const sway = reduced ? 0 : k;
       const ph = p * 2.1;
-      const roll = Math.max(-0.22, Math.min(0.22, -v.yaw.v * 0.07)) * sway + Math.sin(t * 0.8 + ph) * 0.03 * sway;
+      const roll = 0.18 * Math.tanh((-v.yaw.v * 0.07) / 0.18) * sway + Math.sin(t * 0.8 + ph) * 0.03 * sway;
       const x = at[0] + hd.lean + Math.sin(t * 0.7 + ph) * 0.008 * sway;
       const y = at[1] - hd.duck + Math.sin(t * 1.6 + ph) * 0.005 * sway;
       const z = at[2] + Math.sin(t * 0.55 + 1 + ph) * 0.006 * sway;

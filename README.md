@@ -56,8 +56,7 @@ The things you're most likely to want to change, and the file they live in.
 | Which projects are exhibits, and where their marker sits | `HOTSPOTS` in `src/scene/framing.ts` |
 | An exhibit's camera close-up | its `view` in `HOTSPOTS` (or the dev tools' Camera tab) |
 | An object's place in the model | the `usePlacement(...)` call in `src/scene/maquette/city.tsx` or `room.tsx` (or the dev tools' Objects tab) |
-| How far the close-up leans toward the cursor | `leanYaw`, `leanPitch`, `leanGlide` in `CAMERA`, `src/scene/framing.ts` |
-| What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*` in `chip.tsx`, `BOOST*` in `room.tsx`, `WIND_*` in `city.tsx`) |
+| What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*` and `CAM_CUBES` in `chip.tsx`, `BOOST*` and `POP*` in `room.tsx`, `WIND_*` and `GUST*` in `city.tsx`) |
 | The 3D stage's lighting, fog, palette, post-processing | `LOOK` in `src/scene/look.ts` (or the dev tools' Look tab) |
 | The timeline's spacing | `WALL` in `src/components/timeline/layout.ts` (or the dev tools' Timeline tab) |
 | Colours, type, spacing, motion for the whole site | `src/ui/tokens.css` |
