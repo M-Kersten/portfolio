@@ -159,9 +159,9 @@ interface ChipNode { x: number; z: number; edge: number; pin: number }
 const CHIP_NODES: ChipNode[] = [
   // corners — the units, each leaving the edge it sits counter-clockwise from
   { x: CORNER, z: -CORNER, edge: 3, pin: 8 }, // custom-ar camera (back-right)
-  { x: -CORNER, z: -CORNER, edge: 2, pin: 8 }, // philips heart projector (back-left)
+  { x: -CORNER, z: -CORNER, edge: 2, pin: 8 }, // heatsink (back-left)
   { x: CORNER, z: CORNER, edge: 0, pin: 8 }, // database stack (front-right)
-  { x: -CORNER, z: CORNER, edge: 1, pin: 8 }, // heatsink (front-left)
+  { x: -CORNER, z: CORNER, edge: 1, pin: 8 }, // philips heart projector (front-left)
   // edge midpoints — the small parts, straight out of the centre land
   { x: EDGE, z: 0, edge: 0, pin: 4 }, // small QFN (right)
   { x: 0, z: EDGE, edge: 1, pin: 4 }, // box header (front)
@@ -188,8 +188,8 @@ function ChipTrace({ points, target, color }: { points: V3[]; target: number; co
     const ca = new BufferAttribute(cols, 3);
     g.setAttribute('color', ca);
     const m = new LineBasicMaterial({ vertexColors: true, transparent: true, toneMapped: false, depthWrite: false, blending: AdditiveBlending });
-    // this drives its own brightness per vertex every frame; presence must not also
-    // scale it, or the routing dims out from under the animation
+    // this drives its own brightness per vertex every frame, so it stays out of
+    // the dimmer's opacity walk; a receded layer fades it at draw time (presence.tsx)
     m.userData.lifeSkip = true;
     return { obj: new ThreeLine(g, m), colorAttr: ca, colors: cols };
   }, [points]);
@@ -266,8 +266,10 @@ function landTrace(e: number, pin: number, bx: number, bz: number, y: number): V
  *  CCTV camera on a post (scripts/models/build_camera.py), in the chip kit's
  *  idiom — a deep housing under a pale sun visor, a dark front panel with a
  *  ring of IR LEDs round the lens, a cable gland on the back, and a ball joint
- *  on the post that the head nods and pans on. It looks out past the back of
- *  the board. Selecting it racks the lens for focus and spawns the hologram: a
+ *  on the post that the head nods and pans on. From its back corner it looks in
+ *  across the board (CAM_AIM), so the hologram hangs over the board rather
+ *  than out past its edge, where it stuck out of the chip's frame and off a
+ *  phone's screen. Selecting it racks the lens for focus and spawns the hologram: a
  *  clean cone of light onto a wireframe cube that bobs and turns in the beam.
  *  Once alive it keeps looking the cube up and down, selected or not (visited
  *  things stay awake), and its IR ring stays lit. In its close-up two more
@@ -279,6 +281,7 @@ const CAM_LENS_Z = 0.105; // cone apex, just past the dome
 const CAM_CUBE_Z = 0.78; // hologram centre, out in front of the lens
 const CAM_CUBE = 0.22; // hologram cube edge length
 const CAM_CONE_R = 0.22; // vision-cone radius where it meets the cube
+const CAM_AIM = -0.35; // the head's heading on the board, rad (0 = toward the front): in, across the board
 
 /* The head's motion. It sits on the ball with the lens aimed +z, so a positive
    rotation.x tips that aim DOWN — pitch is the whole performance here and
@@ -476,7 +479,7 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
   );
 }
 
-function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
+function SecurityCamera({ slug, position, aimYaw = CAM_AIM, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
   const { accent } = useAccent();
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
@@ -656,7 +659,7 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
                   <meshStandardMaterial {...litMat(lit)} color={SURFACE.deep.color} roughness={0.25} metalness={0.3} />
                 </mesh>
                 <mesh geometry={kit.cam_ir}>
-                  <meshStandardMaterial ref={irMat} userData={{ lifeSkip: true }} color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.04} transparent opacity={0.35} roughness={0.3} toneMapped={false} />
+                  <meshStandardMaterial ref={irMat} userData={{ lifeSkip: true, presenceOwn: true }} color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.04} transparent opacity={0.35} roughness={0.3} toneMapped={false} />
                 </mesh>
                 <mesh geometry={kit.cam_cable}>
                   <LiveGlassMat slug={slug} tint="deep" />
@@ -777,7 +780,7 @@ function KitGlow({ geometry, slug, rest, peak, color }: { geometry: BufferGeomet
   });
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial ref={mat} userData={{ lifeSkip: true }} color={color} emissive={color} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
+      <meshStandardMaterial ref={mat} userData={{ lifeSkip: true, presenceOwn: true }} color={color} emissive={color} emissiveIntensity={rest} roughness={0.4} toneMapped={false} />
     </mesh>
   );
 }
@@ -898,7 +901,7 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
   });
   return (
     <mesh ref={mesh} geometry={geo}>
-      <meshBasicMaterial vertexColors toneMapped={false} userData={{ lifeSkip: true }} />
+      <meshBasicMaterial vertexColors toneMapped={false} userData={{ lifeSkip: true, presenceOwn: true }} />
     </mesh>
   );
 }
@@ -991,10 +994,10 @@ export function ChipRig() {
 
       {/* soft pads under the raised parts, so they sit ON the board (one per slot) */}
       <BlobShadow position={[0, 0.024, 0]} radius={0.68} opacity={0.26} />
-      <BlobShadow position={[-CORNER, 0.024, CORNER]} radius={0.2} opacity={0.3} />
+      <BlobShadow position={[-CORNER, 0.024, CORNER]} radius={0.15} opacity={0.3} />
       <BlobShadow position={[CORNER, 0.024, CORNER]} radius={0.18} opacity={0.3} />
       <BlobShadow position={[CORNER, 0.024, -CORNER]} radius={0.13} opacity={0.3} />
-      <BlobShadow position={[-CORNER, 0.024, -CORNER]} radius={0.15} opacity={0.3} />
+      <BlobShadow position={[-CORNER, 0.024, -CORNER]} radius={0.2} opacity={0.3} />
       <BlobShadow position={[0, 0.024, EDGE]} radius={0.18} aspect={0.5} opacity={0.28} />
       <BlobShadow position={[-EDGE, 0.024, 0]} radius={0.09} opacity={0.3} />
       <BlobShadow position={[0, 0.024, -EDGE]} radius={0.09} opacity={0.3} />
@@ -1061,13 +1064,15 @@ export function ChipRig() {
       </group>
 
       {/* the cooler (secondary IC, heatsink, fan) and the box header fill the board out */}
-      <Heatsink position={[-CORNER, 0, CORNER]} kit={kit} energy={energy} />
+      <Heatsink position={[-CORNER, 0, -CORNER]} kit={kit} energy={energy} />
       <PinHeader position={[0, 0, EDGE]} kit={kit} />
 
       {/* Philips medical XR & AI — a chip projecting a holographic heart, a
-          catheter threading into it (back-left corner slot) */}
+          catheter threading into it (front-left corner slot: with the die in
+          the middle and the camera back-right, the three exhibits stand in
+          even columns across the screen) */}
       <LifeGroup slug="philips-medical-xr">
-        <HeartHologram slug="philips-medical-xr" position={[-CORNER, 0, -CORNER]} kit={kit} />
+        <HeartHologram slug="philips-medical-xr" position={[-CORNER, 0, CORNER]} kit={kit} />
       </LifeGroup>
     </group>
   );

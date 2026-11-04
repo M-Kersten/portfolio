@@ -2,10 +2,11 @@
 // drifting point field, the soft radial veil that grounds the stack, and the
 // blob shadows that ground each object cluster onto its floor.
 import { useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { AdditiveBlending, CanvasTexture, Color, type Mesh, type Points as ThreePoints, type PointsMaterial } from 'three';
 import { useReducedMotion } from '../../lib/media';
 import { useSceneSelector } from '../store';
+import { LAYER_Y, layerGap } from '../framing';
 import { BG, GROUND, NEUTRAL, makeRand, useAccent, type V3 } from './shared';
 
 /** The holo-table: a soft luminous plate under the active layer's objects, so
@@ -254,7 +255,10 @@ export function DepthVeil() {
   const reduced = useReducedMotion();
   const ref = useRef<Mesh>(null);
   const tex = useMemo(() => radialVeilTexture(), []);
-  const targetY = ([1.32, 0, -1.32][journeyStep] ?? 1.32) - 0.34;
+  // under the floor in focus, wherever the floors stand (spread apart on tall
+  // screens, as the layers are — see layerGap)
+  const gap = layerGap(useThree((s) => s.size.width / s.size.height));
+  const targetY = ([LAYER_Y.city, LAYER_Y.room, LAYER_Y.chip][journeyStep] ?? LAYER_Y.city) * gap - 0.34;
   useFrame(() => {
     if (!ref.current) return;
     ref.current.position.y = reduced ? targetY : ref.current.position.y + (targetY - ref.current.position.y) * 0.08;

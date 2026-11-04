@@ -3,10 +3,11 @@
 // central skyscraper (Alliander), plus roads, power lines, ducks and a
 // constellation. CityRig at the bottom composes and places everything.
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { AdditiveBlending, Box3, BoxGeometry, BufferAttribute, BufferGeometry, Color, CurvePath, DoubleSide, Euler, InstancedMesh, LineCurve3, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, RingGeometry, Shape, ShapeGeometry, ShaderMaterial, TubeGeometry, Vector2, Vector3, type Group, type Mesh, type Points as ThreePoints, type Sprite } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useSceneSelector } from '../store';
+import { portraitMix } from '../framing';
 import { isTouch, useReducedMotion } from '../../lib/media';
 import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
@@ -385,7 +386,7 @@ function Outskirts({ clear, blocks }: { clear: V3[][]; blocks: { x: number; z: n
     <group ref={group} visible={false}>
       <instancedMesh ref={shadows} args={[undefined, undefined, plots.length]} renderOrder={-1}>
         <circleGeometry args={[1, 20]} />
-        <meshBasicMaterial ref={shadowMat} userData={{ lifeSkip: true }} map={shadowTex} transparent opacity={0} depthWrite={false} />
+        <meshBasicMaterial ref={shadowMat} userData={{ lifeSkip: true, presenceOwn: true }} map={shadowTex} transparent opacity={0} depthWrite={false} />
       </instancedMesh>
       {/* opacity={0} at rest: with ghost={false} that's LiveGlassMat's floor, so
           the boxes ramp from nothing to solid instead of fading up from a ghost
@@ -993,6 +994,7 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
       depthWrite: false,
     });
     m.userData.lifeSkip = true;
+    m.userData.presenceOwn = true; // multiplied in below
     Object.assign(m.userData, lit); // lights with the park (lit.tsx)
     m.onBeforeCompile = glassRim;
     return m;
@@ -1804,7 +1806,12 @@ const DIPPER_LINKS: [number, number][] = [
 const DIPPER_MAG = [1, 0.7, 0.65, 0.8, 1, 0.85, 1]; // relative brightness → star size
 
 /** A star constellation (the Big Dipper) that fades in behind the windmill while
- *  it's selected, its stars twinkling and blooming against the night. */
+ *  it's selected, its stars twinkling and blooming against the night. It hangs
+ *  in the sky row over the city's marker line and its names (with the launch
+ *  invitation), not across them; on a phone, with no names on the line and the
+ *  hero title above the city, it comes down beside the windmill. */
+const DIPPER_SKY = 1.47; // the asterism's centre over the windmill's foot…
+const DIPPER_SKY_PORTRAIT = 1.0; // …and on a phone
 function Constellation({ anchor }: { anchor: V3 }) {
   const { selected, visited } = useActive('dtt-amsterdam');
   const reduced = useReducedMotion();
@@ -1813,10 +1820,11 @@ function Constellation({ anchor }: { anchor: V3 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lineRef = useRef<any>(null);
   const k = useRef(0);
+  const sky = DIPPER_SKY + (DIPPER_SKY_PORTRAIT - DIPPER_SKY) * portraitMix(useThree((s) => s.size.width / s.size.height));
   const stars = useMemo(() => {
     const cx = DIPPER.reduce((a, s) => a + s[0], 0) / DIPPER.length;
     const cy = DIPPER.reduce((a, s) => a + s[1], 0) / DIPPER.length;
-    const S = 0.26; // asterism scale
+    const S = 0.2; // asterism scale: fits the sky row between the names and the top of the frame
     return DIPPER.map(([x, y]) => [(x - cx) * S, (y - cy) * S, 0] as V3);
   }, []);
   const segs = useMemo(() => DIPPER_LINKS.flatMap(([a, b]) => [stars[a], stars[b]]), [stars]);
@@ -1837,7 +1845,7 @@ function Constellation({ anchor }: { anchor: V3 }) {
     });
     const lm = lineRef.current?.material;
     if (lm) {
-      lm.userData.lifeSkip = true; // self-animated — presence stays out
+      lm.userData.lifeSkip = true; // self-animated (a receded city fades it at draw time — presence.tsx)
       // A star chart's lines: faint, so the stars are what you see and the
       // links between them are read, not looked at.
       const op = kk * 0.55;
@@ -1846,7 +1854,7 @@ function Constellation({ anchor }: { anchor: V3 }) {
     }
   });
   return (
-    <group ref={grp} position={[anchor[0] + 0.1, anchor[1] + 1.0, anchor[2] - 0.7]} rotation={[0.05, 0.4, 0]} visible={false}>
+    <group ref={grp} position={[anchor[0] + 0.1, anchor[1] + sky, anchor[2] - 0.7]} rotation={[0.05, 0.4, 0]} visible={false}>
       <Line ref={lineRef} segments points={segs} color={NEUTRAL} lineWidth={1.5} transparent opacity={0} />
       {stars.map((p, i) => (
         <mesh key={i} position={p}>
@@ -2513,9 +2521,11 @@ export function CityRig() {
   const AVE = 0.3;
   // The bypass, and the town's southern edge in one road. It passes THROUGH the
   // foot of both N-S avenues — those two points are control points, so the curve
-  // interpolates them exactly.
+  // interpolates them exactly. Its west end turns the corner into the front
+  // avenue's tail rather than running on out of town: from the overview that
+  // stretch ran out from behind the hero's subtitle.
   const curveB = useMemo(
-    () => smoothCurve([[-1.9, 0.01, 0.3], [-1.05, 0.01, 0.62], [-AVE, 0.01, 0.8], [AVE, 0.01, 0.82], [1.05, 0.01, 0.64], [1.8, 0.01, 0.32]]),
+    () => smoothCurve([[-1.05, 0.01, 0.62], [-AVE, 0.01, 0.8], [AVE, 0.01, 0.82], [1.05, 0.01, 0.64], [1.8, 0.01, 0.32]]),
     [],
   );
   // Every road as a centre-line, handed to RoadNetwork as one set. There is no

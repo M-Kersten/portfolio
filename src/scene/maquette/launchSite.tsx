@@ -17,16 +17,17 @@
    inside, the slow climb past the tower, Max-Q, MECO and hot staging through
    the vented ring, the booster's boostback, and the booster coming home onto
    the chopsticks — while the ship flies on into the asteroids easter egg. */
-import { useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useContext, useMemo, useRef, type ElementRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { AdditiveBlending, Color, DoubleSide, MeshBasicMaterial, Quaternion, Vector3, type Group, type Mesh, type MeshStandardMaterial, type PointLight } from 'three';
 import { sceneStore, useSceneSelector } from '../store';
-import { HOTSPOTS } from '../framing';
+import { HOTSPOTS, portraitMix } from '../framing';
 import { launchShot, launchTrack } from '../views';
 import { useReducedMotion } from '../../lib/media';
 import { recordLaunch, useLaunchCount } from '../../lib/launches';
-import { FIRE, useAccent, type V3 } from './shared';
+import { FIRE, Line, useAccent, type V3 } from './shared';
+import { PresenceCtx } from './presence';
 import { GHOST_FILL, GHOST_LINE } from './life';
 import { BoosterBody, ROCKET_MID, ShipBody, STACK_BASE, STAGING_Y } from './rocket';
 import { BOOSTER_MID, T, bqd, deluge as flightDeluge, chopsticks, plumeAir, qdArm, shake as flightShake, shot as flightShot, smoke as flightSmoke, stages as flightStages, staging } from './launch';
@@ -581,9 +582,66 @@ export function NextProjectSite() {
       </group>
 
       {/* the invitation — the completed site's reward; engages the pad camera */}
-      {complete && launch === 'idle' && (
-        <Html position={[-0.12, 1.08, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
-          <button type="button" className="nextsite" onClick={engage}>
+      {complete && launch === 'idle' && <LaunchInvite onEngage={engage} flights={flights} />}
+    </group>
+  );
+}
+
+/* ---------- The invitation ----------
+   It floats in a row of its own above the city's marker line (MARKER_Y) and
+   the names on it, straight over the tower with a thin line down to the
+   beacon, so it never lands on an exhibit's name. A phone has no names on the
+   marker line and the hero title above the city, so there it comes down to
+   just over the tower top. Either way it's kept inside the screen, and it goes
+   when the city isn't the floor in focus — it used to hang over the room. */
+const INVITE_Y = 1.62; // over the marker line and its names
+const INVITE_Y_PORTRAIT = 1.08; // just over the beacon
+const INVITE_EDGE = 12; // px it keeps from the screen's sides
+const BEACON_Y = 0.99; // the tower top, where its line starts
+
+function LaunchInvite({ onEngage, flights }: { onEngage: () => void; flights: number | null }) {
+  const { accent } = useAccent();
+  const presence = useContext(PresenceCtx);
+  const aspect = useThree((s) => s.size.width / s.size.height);
+  const y = INVITE_Y + (INVITE_Y_PORTRAIT - INVITE_Y) * portraitMix(aspect);
+  const box = useRef<HTMLSpanElement>(null);
+  const line = useRef<ElementRef<typeof Line> | null>(null);
+  // flagged from the start, so the presence dimmer never takes it over: its
+  // fade is this component's own (below)
+  const lineRef = (l: ElementRef<typeof Line> | null) => {
+    line.current = l;
+    const m = l?.material as { userData: Record<string, unknown> } | undefined;
+    if (m) Object.assign(m.userData, { lifeSkip: true, presenceOwn: true });
+  };
+  const shift = useRef(0);
+  useFrame(() => {
+    // on a receded floor it goes altogether rather than dimming (it's text)
+    const show = Math.min(1, Math.max(0, (presence.current - 0.5) / 0.5));
+    const lm = line.current?.material as { opacity: number } | undefined;
+    if (lm) lm.opacity = 0.35 * show;
+    const el = box.current;
+    if (!el) return;
+    el.style.opacity = String(show);
+    el.style.pointerEvents = show > 0.5 ? '' : 'none';
+    // kept on screen: where it would sit unshifted, nudged back in past an edge
+    const r = el.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const left = r.left - shift.current;
+    const right = r.right - shift.current;
+    let s = 0;
+    if (right > vw - INVITE_EDGE) s = vw - INVITE_EDGE - right;
+    if (left + s < INVITE_EDGE) s = INVITE_EDGE - left;
+    if (Math.abs(s - shift.current) > 0.5) {
+      shift.current = s;
+      el.style.translate = `${Math.round(s)}px 0`;
+    }
+  });
+  return (
+    <group position={[TOWER[0], 0, TOWER[2]]}>
+      <Line ref={lineRef} points={[[0, BEACON_Y, 0], [0, y - 0.07, 0]]} color={accent} lineWidth={1} transparent opacity={0} />
+      <Html position={[0, y, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
+        <span ref={box} className="nextsite-wrap">
+          <button type="button" className="nextsite" onClick={onEngage}>
             <b>my next launch</b> — let's build it together
             {flights != null && (
               <span className="nextsite__tally">
@@ -591,8 +649,8 @@ export function NextProjectSite() {
               </span>
             )}
           </button>
-        </Html>
-      )}
+        </span>
+      </Html>
     </group>
   );
 }

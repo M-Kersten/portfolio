@@ -169,7 +169,7 @@ export function LiveGlassMat({ slug, tint = 'glass', color, opacity, ghost = tru
   return (
     <meshStandardMaterial
       ref={mat}
-      userData={{ lifeSkip: true, ...lit }}
+      userData={{ lifeSkip: true, presenceOwn: true, ...lit }}
       color={fill}
       transparent
       opacity={restOpacity}
@@ -305,6 +305,7 @@ export function LiveEdges({ slug, threshold = 20, rest = LINE_REST, wake }: { sl
     if (!mat) return;
     if (!mat.userData.lifeSkip) {
       mat.userData.lifeSkip = true;
+      mat.userData.presenceOwn = true; // multiplied in below
       mat.transparent = true;
       // A line's default depthWrite is true, which was fine while it stayed
       // bright — but retiring it to invisible doesn't stop it writing depth.

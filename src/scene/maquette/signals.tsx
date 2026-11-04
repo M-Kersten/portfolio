@@ -15,7 +15,7 @@ import { Html, Line as DreiLine } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, CatmullRomCurve3, Color, Vector3, type Points as ThreePoints } from 'three';
 
 import { useReducedMotion } from '../../lib/media';
-import { HOTSPOTS, layerGap, type Hotspot } from '../framing';
+import { HOTSPOTS, LAYER_SCALE, LAYER_Y, MAQUETTE_LAYERS, MARKER_Y, layerGap, type Hotspot, type LayerId } from '../framing';
 import { anchorWorld } from '../views';
 import { PALETTE, useActive } from './shared';
 import { useSceneSelector } from '../store';
@@ -24,6 +24,18 @@ import { useSceneSelector } from '../store';
 // a layer more than one step from the centred one is hidden, so a thread into it
 // would route to an empty spot — we hide the whole thread in that case.
 const LAYER_STEP: Record<string, number> = { city: 0, room: 1, chip: 2 };
+
+/** How high a thread's name hangs: in the open gap between two floors — the
+ *  gap it climbs out of at its lower end — halfway from the lower floor's
+ *  marker line to the floor above. Never on a floor, where it landed on an
+ *  exhibit (the chip-to-city thread used to name itself in the middle of the
+ *  room). */
+function tagHeight(a: LayerId, b: LayerId, gap: number): number {
+  const lower = LAYER_STEP[a] > LAYER_STEP[b] ? a : b; // the higher step is the lower floor
+  const above = MAQUETTE_LAYERS[MAQUETTE_LAYERS.indexOf(lower) + 1] ?? lower; // listed bottom → top
+  const top = LAYER_Y[lower] * gap + MARKER_Y[lower] * LAYER_SCALE[lower];
+  return (top + LAYER_Y[above] * gap) / 2;
+}
 
 /* ---------- Cross-layer signal lines ----------
    Related projects on different layers are wired together like a tidy run of
@@ -139,7 +151,7 @@ export function SignalLine({ thread, from, to, color }: Relation) {
     Math.abs(LAYER_STEP[HOTSPOT_BY_SLUG[to].layer] - journeyStep) <= 1;
 
   // The cable route + a curve along it for sampling the flowing packets. The
-  // label sits beside the vertical riser, the most "between-layers" point.
+  // label sits on the vertical riser, in the gap between floors (tagHeight).
   // Recomputed when the layer spacing changes (see layerGap) so the ends stay
   // pinned to their nodes on tall screens.
   const gap = layerGap(useThree((s) => s.size.width / s.size.height));
@@ -148,7 +160,8 @@ export function SignalLine({ thread, from, to, color }: Relation) {
     const pB = anchorWorld(HOTSPOT_BY_SLUG[to], gap);
     const { points: route, riser } = pipeRoute(pA, pB, from + to);
     const c = new CatmullRomCurve3(route, false, 'catmullrom', 0);
-    return { curve: c, points: route, apex: riser.add(new Vector3(0, 0.1, 0)) };
+    const tagY = tagHeight(HOTSPOT_BY_SLUG[from].layer, HOTSPOT_BY_SLUG[to].layer, gap);
+    return { curve: c, points: route, apex: new Vector3(riser.x, tagY, riser.z) };
   }, [from, to, gap]);
 
   const lineRef = useRef<any>(null);

@@ -358,8 +358,8 @@ BUILDERS = {'board': board, 'silk': silk, 'pkg': package, 'cap': cap, 'hrt': pro
 
 CORNER, EDGE = 0.75, 0.85
 SLOTS = {  # name prefix → (x, y, z, yaw[, tilt]): where ChipRig puts each part
-    'hrt_': (-CORNER, 0, -CORNER, 0),
-    'hs_': (-CORNER, 0, CORNER, 0),
+    'hrt_': (-CORNER, 0, CORNER, 0),
+    'hs_': (-CORNER, 0, -CORNER, 0),
     'ic_': (EDGE, 0, 0, 0),
     'hdr_': (0, 0, EDGE, 0),
 }

@@ -15,7 +15,7 @@ export interface Framing {
  *  the layers vertically on tall screens (see layerGap) — scales only the layer's
  *  Y offset, not the local anchor within the layer. */
 export function anchorWorld(h: Hotspot, gap = 1): Vector3 {
-  const a = h.anchor ?? h.position;
+  const a = h.anchor;
   const s = LAYER_SCALE[h.layer];
   return new Vector3(a[0] * s, LAYER_Y[h.layer] * gap + a[1] * s, a[2] * s);
 }
@@ -23,37 +23,42 @@ export function anchorWorld(h: Hotspot, gap = 1): Vector3 {
 /** Establishing three-quarter view used as the camera's initial pose. */
 // Open framed on the City layer (top) rather than the whole stack.
 export const MAQUETTE_HOME: Framing = {
-  pos: new Vector3(3.1, 2.6, 4.2),
-  target: new Vector3(0, 1.32, 0),
+  pos: new Vector3(3.1, LAYER_Y.city + 1.28, 4.2),
+  target: new Vector3(0, LAYER_Y.city, 0),
 };
 
 // Scroll journey: step 0 = City (top), 1 = Room, 2 = Chip (bottom). The camera
-// glides straight down the stack, one layer centred per snap stop. A constant
-// frame means the per-layer scale difference actually reads on screen.
-const JOURNEY_Y = [1.32, 0, -1.32];
+// glides straight down the stack, one layer centred per snap stop, framed per
+// step (CAMERA.stepAimX / stepZoom): the City clears the title, the Chip comes
+// closer to its smaller board.
+const JOURNEY_Y = [LAYER_Y.city, LAYER_Y.room, LAYER_Y.chip];
 
-// The overview's aim and offset (CAMERA.overviewAim / overviewOffset — see
-// framing.ts for why it looks a little left of and above the layer), blended
-// toward the portrait framing as the screen turns tall (portraitMix). Both are
-// read per call, so the dev tooling can tune them live.
+// The overview's aim and offset (see CAMERA in framing.ts for the why), blended
+// toward the portrait framing as the screen turns tall (portraitMix). Read per
+// call, so the dev tooling can tune them live.
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const stepOf = (step: number) => Math.max(0, Math.min(2, step));
 
-/** The point the overview orbits: on the layer, offset sideways by the aim. */
+/** The point the overview orbits: on the layer, offset sideways by the step's aim. */
 function overviewPivot(step: number, gap: number, mix: number): Vector3 {
-  const y = (JOURNEY_Y[Math.max(0, Math.min(2, step))] ?? 0) * gap;
-  return new Vector3(lerp(CAMERA.overviewAim[0], CAMERA.portraitAim[0], mix), y, 0);
+  const s = stepOf(step);
+  return new Vector3(lerp(CAMERA.stepAimX[s], CAMERA.portraitStepAimX[s], mix), (JOURNEY_Y[s] ?? 0) * gap, 0);
 }
 
 /** The overview of journey step `step` (0 City · 1 Room · 2 Chip) for a viewport
- *  of the given aspect; the default is the desktop framing. */
+ *  of the given aspect; the default is the desktop framing. The step's zoom
+ *  scales the whole framing about the floor, the lift included, so a closer
+ *  step keeps the same composition. */
 export function journeyView(step: number, gap = 1, aspect = CAMERA.baseAspect): Framing {
   const mix = portraitMix(aspect);
-  const pivot = overviewPivot(step, gap, mix);
+  const s = stepOf(step);
+  const pivot = overviewPivot(s, gap, mix);
   const o = CAMERA.overviewOffset;
   const po = CAMERA.portraitOffset;
+  const z = lerp(CAMERA.stepZoom[s], CAMERA.portraitStepZoom[s], mix);
   return {
-    pos: pivot.clone().add(new Vector3(lerp(o[0], po[0], mix), lerp(o[1], po[1], mix), lerp(o[2], po[2], mix))),
-    target: pivot.clone().add(new Vector3(0, lerp(CAMERA.overviewAim[1], CAMERA.portraitAim[1], mix), 0)),
+    pos: pivot.clone().add(new Vector3(lerp(o[0], po[0], mix), lerp(o[1], po[1], mix), lerp(o[2], po[2], mix)).multiplyScalar(z)),
+    target: pivot.clone().add(new Vector3(0, lerp(CAMERA.overviewLift, CAMERA.portraitLift, mix) * z, 0)),
   };
 }
 
@@ -65,7 +70,7 @@ export function journeyView(step: number, gap = 1, aspect = CAMERA.baseAspect): 
 export function introView(gap = 1): Framing {
   const home = journeyView(0, gap);
   // Off the PIVOT, not off the aim point — the aim sits above the layer
-  // (overviewAim), and measuring the dolly direction from there would tilt the
+  // (overviewLift), and measuring the dolly direction from there would tilt the
   // establishing shot as a side effect of a framing change. (Desktop framing:
   // the intro never plays on a phone.)
   const dir = new Vector3(...CAMERA.overviewOffset);

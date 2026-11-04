@@ -46,7 +46,7 @@ export function HotspotMarker({
   // brighter once the object it points to has been brought alive. While ANY
   // node is open the markers all vanish, so the HUD gets a clean stage.
   const alive = selected || visited;
-  const anchor: V3 = hotspot.anchor ?? [hotspot.position[0], 0, hotspot.position[2]];
+  const anchor: V3 = hotspot.anchor;
   // the leader line and the ring fade with the crosshair rather than popping
   const reduced = useReducedMotion();
   const lineRef = useRef<ElementRef<typeof Line>>(null);
@@ -78,7 +78,6 @@ export function HotspotMarker({
           data-alive={alive || undefined}
           data-hidden={hidden || undefined}
           data-cue={cue}
-          data-side={hotspot.labelSide}
           style={{ '--hot': color, '--phase': phase } as CSSProperties}
         >
           <button

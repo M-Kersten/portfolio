@@ -4,7 +4,7 @@
 // and the subject of the project's film). A catheter comes up out of the chip,
 // up the aorta and over its arch to the root, where the heart's arteries leave;
 // two of them are narrowed. In the close-up you steer it. The shape is
-// heartShape.ts; ChipRig puts it in the back-left slot.
+// heartShape.ts; ChipRig puts it in the front-left slot.
 import { useContext, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, BufferAttribute, CapsuleGeometry, Color, CylinderGeometry, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, ShaderMaterial, SphereGeometry, TorusGeometry, Vector3, type Group, type Mesh, type Sprite } from 'three';
@@ -199,6 +199,9 @@ export function HeartHologram({ slug, position, kit }: { slug: string; position:
       stents: BRANCHES.map(() => add(accent)),
     };
     for (const m of [out.body, out.vessels, out.lens, out.beam, out.cath, out.tip, ...out.arteries, ...out.markers, ...out.balloons, ...out.stents]) m.userData.lifeSkip = true;
+    // these take the layer's presence in the frame loop; the lens and the
+    // balloons are left to the draw-time fade (presence.tsx)
+    for (const m of [out.body, out.vessels, out.beam, out.cath, out.tip, ...out.arteries, ...out.markers, ...out.stents]) m.userData.presenceOwn = true;
     return out;
   }, [accent, accentPale]);
   useEffect(

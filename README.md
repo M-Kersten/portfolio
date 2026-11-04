@@ -53,7 +53,7 @@ The things you're most likely to want to change, and the file they live in.
 | A sound effect or ambient bed | `src/assets/sound/` (its README lists every name) |
 | A poster or share card | `public/posters/<slug>.jpg`, then `npm run og` |
 | The CV | `src/content/cv.json` / `cv.nl.json`, then `npm run cv` |
-| Which projects are exhibits, and where their marker sits | `HOTSPOTS` in `src/scene/framing.ts` |
+| Which projects are exhibits, and what each one's marker points at | `HOTSPOTS` in `src/scene/framing.ts` (its `anchor`; the marker floats straight above it at its floor's `MARKER_Y`) |
 | An exhibit's camera close-up | its `view` in `HOTSPOTS` (or the dev tools' Camera tab) |
 | An object's place in the model | the `usePlacement(...)` call in `src/scene/maquette/city.tsx` or `room.tsx` (or the dev tools' Objects tab) |
 | What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*`, `CAM_CUBES` and `TILE_*` in `chip.tsx`, `BOOST*`, `POP*`, `DOUBLE_TAKE` and `HOLO_*` in `room.tsx`, `WIND_*`, `GUST*` and `SHOT` in `city.tsx`) |
@@ -135,7 +135,8 @@ src/
       hotspots.tsx     the floating crosshair markers
       signals.tsx      cross-layer relation cables (edit RELATIONS here)
       life.tsx         the ghost → alive life system (LifeGroup)
-      presence.tsx     active-layer focus: neighbour layers rest dimmed
+      presence.tsx     active-layer focus: neighbour layers rest dimmed (self-
+                       animating materials too, faded at draw time)
       materials.tsx    holographic glass + rim shader, the shared materials
       lit.tsx          the hover light and its shadows
       closeup.ts       the close-up's cursor, read from the window (the open
@@ -246,9 +247,12 @@ Safari and older browsers need themselves. When you add CSS:
 - `types.ts` documents every field.
 
 **Adding a project to the 3D scene**: add the case to `cases.json`, then add a
-hotspot for it in `src/scene/framing.ts` (`HOTSPOTS` — positions are local to
-the layer), and give it an object in that layer's rig
-(`scene/maquette/city|room|chip.tsx`). Wrap the object in
+hotspot for it in `src/scene/framing.ts` (`HOTSPOTS` — its `anchor` is the
+point on the object, local to the layer; the marker stands straight above it on
+the floor's marker line, `MARKER_Y`), and give it an object in that layer's rig
+(`scene/maquette/city|room|chip.tsx`). Seen from the overview, each exhibit on a
+floor wants a column of its own across the screen, or the names on the marker
+line run into each other. Wrap the object in
 `<LifeGroup slug="...">` so it ghosts until visited. Link related projects in
 `scene/maquette/signals.tsx` (`RELATIONS`).
 
@@ -272,9 +276,11 @@ the whole grid derives from `--container`). A new headline face is a change to
 Section styling lives in the `src/ui/*.css` file named after the section;
 `DESIGN.md` has the rules they follow.
 
-**Camera & layout of the 3D stack**: `src/scene/framing.ts` — layer heights,
-scales, the scroll journey's bands, and the three camera framings (home,
-journey, node close-up).
+**Camera & layout of the 3D stack**: `src/scene/framing.ts` — layer heights
+(`LAYER_Y`), scales, each floor's marker height (`MARKER_Y`), the scroll
+journey's bands, and the three camera framings (home, journey, node close-up).
+Each journey step has its own aim and distance (`CAMERA.stepAimX` /
+`stepZoom`, and the `portraitStep…` pair for phones).
 
 ## Deploy
 

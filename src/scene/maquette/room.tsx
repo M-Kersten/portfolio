@@ -2002,13 +2002,18 @@ function Couch() {
 export function RoomRig() {
   const { accent } = useAccent();
   const brigade = useLitLink('virtuele-brigade'); // the coffee's light (lit.tsx)
-  // placeable by eye from the dev tools in `npm run dev` (dev/tuning.ts)
-  const desk = usePlacement('Room.Desk', { position: [-1.2, 0, 0.18], rotationY: 1.76 });
-  const couch = usePlacement('Room.Couch', { position: [0.12, 0, -0.22], rotationY: -0.16 });
-  const table = usePlacement('Room.AR table', { position: [0, 0, 0.52] });
-  const shelf = usePlacement('Room.Bookcase', { position: [1, 0, -1.06], rotationY: -0.27 });
-  const plant = usePlacement('Room.Plant', { position: [-1.23, 0, 0.9] });
-  const lamp = usePlacement('Room.Floor lamp', { position: [-0.32, 0, -1.57] });
+  // placeable by eye from the dev tools in `npm run dev` (dev/tuning.ts).
+  // The four exhibits run on a diagonal from the front-left to the back-right
+  // — desk, table, couch, shelf — so from the overview each stands in its own
+  // column and the names on the marker line keep apart (the table and the
+  // couch used to stand one behind the other, their names running together).
+  // Move one and its anchor in scene/framing.ts HOTSPOTS has to follow.
+  const desk = usePlacement('Room.Desk', { position: [-1.0, 0, 0.18], rotationY: 1.76 });
+  const couch = usePlacement('Room.Couch', { position: [0.12, 0, -0.42], rotationY: -0.16 });
+  const table = usePlacement('Room.AR table', { position: [0, 0, 0.68] });
+  const shelf = usePlacement('Room.Bookcase', { position: [0.9, 0, -1.0], rotationY: -0.27 });
+  const plant = usePlacement('Room.Plant', { position: [-1.15, 0, -0.95] });
+  const lamp = usePlacement('Room.Floor lamp', { position: [-0.5, 0, -0.6] });
   return (
     <group>
       {/* round rug centred on the scene — lined up with the chip die below it.
@@ -2023,9 +2028,10 @@ export function RoomRig() {
       <Line points={circlePts(1.05)} position={[0, 0.024, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.2} />
       <Line points={circlePts(0.78)} position={[0, 0.026, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.1} />
 
-      {/* workstation (desk + monitor + chair) — front-left by the plant, angled
-          toward the centre; the monitor flickers on hover. Engaging the monitor
-          solidifies the desk, chair + plant with it (the life spreads). */}
+      {/* workstation (desk + monitor + chair) — on the left, angled toward the
+          centre, the plant in the corner behind it; the monitor flickers on
+          hover. Engaging the monitor solidifies the desk, chair + plant with it
+          (the life spreads). */}
       <group position={desk.position} rotation={[0, desk.rotationY, 0]}>
         <BlobShadow position={[0, 0.004, -0.16]} radius={0.6} aspect={0.72} opacity={0.38} />
         <group position={[0, 0, -0.3]}>
@@ -2063,8 +2069,8 @@ export function RoomRig() {
         <CoffeeTableAR position={table.position} hoverSlug="lightship-drive" />
       </LifeGroup>
 
-      {/* fill the diorama out, balanced around the centre; the plant belongs to
-          the workstation corner, so it wakes with the monitor */}
+      {/* the plant and the lamp fill the back-left, which stood empty; the
+          plant belongs to the workstation corner, so it wakes with the monitor */}
       <PottedPlant position={plant.position} liveSlug="virtuele-brigade" />
       <FloorLamp position={lamp.position} />
     </group>

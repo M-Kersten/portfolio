@@ -13,9 +13,20 @@ export type LayerId = 'chip' | 'room' | 'city';
 // A scale ladder, bottom → top (small → large): the chip, the room, the city.
 export const MAQUETTE_LAYERS: LayerId[] = ['chip', 'room', 'city'];
 
-export const LAYER_Y: Record<LayerId, number> = { city: 1.32, room: 0, chip: -1.32 };
-// Sized so the scale ladder reads — City largest, Chip smallest.
+/** How high each floor stands. Far enough apart that at each step of the
+ *  journey the floors above and below show only as a thin edge of the frame:
+ *  enough to say there's more up or down, never enough to compete with the
+ *  floor you're on. (At 1.32 apart they each took about a third of it.) */
+export const LAYER_Y: Record<LayerId, number> = { city: 2.0, room: 0, chip: -2.0 };
+// Sized so the scale ladder reads on the way down: City largest, Chip smallest.
+// At rest each step is framed to the same share of the screen (CAMERA.stepZoom),
+// so the chip doesn't sit small in an empty frame.
 export const LAYER_SCALE: Record<LayerId, number> = { city: 1.15, room: 1.0, chip: 0.82 };
+
+/** The one height every marker on a floor floats at (layer-local), clear of the
+ *  tallest thing on it, so a floor's markers read as one line with their names
+ *  in a row. Each stands straight above its anchor (see HOTSPOTS). */
+export const MARKER_Y: Record<LayerId, number> = { city: 1.15, room: 1.15, chip: 0.66 };
 
 /** The scroll journey down the hero: City at the top (step 0), Room in the
  *  middle (1), Chip at the bottom (2). */
@@ -30,13 +41,12 @@ export const STEP_CENTRE = [0.125, 0.5, 0.875];
 export interface Hotspot {
   slug: string;
   layer: LayerId;
-  /** Floating marker (dot) position, LOCAL to the layer group. */
+  /** The point ON the object (local to the layer group): the marker's leader
+   *  line drops straight down to it, and its close-up frames it. */
+  anchor: [number, number, number];
+  /** The marker itself: straight above the anchor, at its floor's marker
+   *  height (MARKER_Y). Worked out from the anchor, never written by hand. */
   position: [number, number, number];
-  /** Point ON the object the leader line points down to (local). */
-  anchor?: [number, number, number];
-  /** Which side of the marker its name reads on (right if left out): left for
-   *  one whose name would otherwise run into a neighbour's marker. */
-  labelSide?: 'left';
   /** Per-hotspot close-up framing. Any field left out falls back to the global
    *  CAMERA defaults — so you only override what a given object needs. Tune it
    *  live in the dev tools' Camera tab (open an exhibit in `npm run dev`) and
@@ -60,26 +70,31 @@ export interface HotspotView {
   mobileZoom?: number;
 }
 
-// Each hotspot is a dot floating clear of the diorama with a leader line down to
-// the object it belongs to (anchor). Positions are local to the layer group
-// (placed at LAYER_Y and scaled).
-export const HOTSPOTS: Hotspot[] = [
-  // Chip — the die sits centre; parts fan outwards
-  { slug: 'amsterdam-ai', layer: 'chip', position: [0.03, 0.49, 0], anchor: [0, 0.16, 0], view: { offset: [0.35, 1.75, 1.85], aimDown: 0.62, fovZoom: 14 } }, // the die
-  // The two chip hotspots sit on the board's back corner slots (chip.tsx CORNER),
-  // so their anchors track those slots — move a slot and the crosshair follows.
-  { slug: 'custom-ar-framework', layer: 'chip', position: [0.7, 0.54, -0.75], anchor: [0.75, 0, -0.75], view: { offset: [2.2, 0.8, 1.8], aimDown: 0.3, fovZoom: -2.5 } }, // the CV camera (back-right slot)
-  { slug: 'philips-medical-xr', layer: 'chip', position: [-0.77, 0.63, -0.75], anchor: [-0.75, 0.16, -0.75], view: { offset: [0.36, 0.4, 0.9], aimDown: 0.2, fovZoom: 19.5 } }, // the heart projector (back-left slot); the anchor sits in the beam under the heart, clear of where the catheter works
-  // Room — spread into a corner diorama
-  { slug: 'virtuele-brigade', layer: 'room', position: [-1.83, 0.95, 0.14], anchor: [-1.8, 0.65, 0.14], view: { offset: [2.05, 0.2, 0.3], aimDown: 0.45, fovZoom: 0.5 } }, // the monitor
-  { slug: 'popcore-games', layer: 'room', position: [0.25, 0.62, -0.14], anchor: [0.23, 0.22, -0.14], view: { offset: [0.6, 0.55, 0.95], aimDown: 0.05, fovZoom: 19.5 } }, // phone on the couch
-  { slug: 'lightship-drive', layer: 'room', position: [-0.03, 0.52, 0.52], anchor: [0, 0.2, 0.52], view: { offset: [0.95, 0.5, 0.75], aimDown: 0.25, fovZoom: 30 } }, // the AR race table
-  { slug: 'zwijsen-ar-books', layer: 'room', position: [1.2, 1.15, -0.28], anchor: [1.02, 0.4, -1.13], view: { offset: [-0.1, 0.9, 1.35], aimDown: 0.35, fovZoom: 16, mobileZoom: 1.45 } }, // the orange book on the shelf
+// Each hotspot marks one object: a crosshair on its floor's marker line, with a
+// leader dropping straight down to the point on the object (anchor). Anchors are
+// local to the layer group (placed at LAYER_Y and scaled). The exhibits on a
+// floor are laid out so that, seen from the overview, they stand in their own
+// columns across the screen — that's what keeps the names on the line apart.
+const SPOTS: Omit<Hotspot, 'position'>[] = [
+  // Chip — the die in the middle, the heart and the camera on opposite corner
+  // slots (chip.tsx CORNER): three even columns. Move a slot and its anchor
+  // here has to follow.
+  { slug: 'amsterdam-ai', layer: 'chip', anchor: [0, 0.16, 0], view: { offset: [0.35, 1.75, 1.85], aimDown: 0.62, fovZoom: 14 } }, // the die
+  { slug: 'custom-ar-framework', layer: 'chip', anchor: [0.75, 0, -0.75], view: { offset: [2.2, 0.8, 1.8], aimDown: 0.3, fovZoom: -2.5 } }, // the CV camera (back-right slot)
+  { slug: 'philips-medical-xr', layer: 'chip', anchor: [-0.75, 0.16, 0.75], view: { offset: [0.36, 0.4, 0.9], aimDown: 0.2, fovZoom: 19.5 } }, // the heart projector (front-left slot); the anchor sits in the beam under the heart, clear of where the catheter works
+  // Room — four exhibits on a diagonal from the front-left to the back-right,
+  // so from the overview each has its own column: desk, table, couch, shelf
+  // (room.tsx RoomRig)
+  { slug: 'virtuele-brigade', layer: 'room', anchor: [-1.6, 0.65, 0.14], view: { offset: [2.05, 0.2, 0.3], aimDown: 0.45, fovZoom: 0.5 } }, // the monitor
+  { slug: 'popcore-games', layer: 'room', anchor: [0.23, 0.22, -0.34], view: { offset: [0.6, 0.55, 0.95], aimDown: 0.05, fovZoom: 19.5 } }, // phone on the couch
+  { slug: 'lightship-drive', layer: 'room', anchor: [0, 0.2, 0.68], view: { offset: [0.95, 0.5, 0.75], aimDown: 0.25, fovZoom: 30 } }, // the AR race table
+  { slug: 'zwijsen-ar-books', layer: 'room', anchor: [0.92, 0.4, -1.07], view: { offset: [-0.1, 0.9, 1.35], aimDown: 0.35, fovZoom: 16, mobileZoom: 1.45 } }, // the orange book on the shelf
   // City — GIS / location work
-  { slug: 'arcam', layer: 'city', position: [1.15, 0.66, -0.32], anchor: [1.25, 0.0, -0.22], view: { offset: [1.45, 1.15, 2.1], aimDown: 0.3, fovZoom: 17 } }, // the park
-  { slug: 'alliander-hololens', layer: 'city', position: [.05, 1.15, 0], anchor: [0, 0.77, 0], view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26 } }, // the skyscraper (skyline peak)
-  { slug: 'dtt-amsterdam', layer: 'city', position: [-0.55, 1.15, 0.4], anchor: [-1.2, 0.58, -0.06], labelSide: 'left', view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19 } }, // the windmill
+  { slug: 'arcam', layer: 'city', anchor: [1.2, 0.3, 0.11], view: { offset: [1.51, 0.8, 1.72], aimDown: 0.3, fovZoom: 17 } }, // the park's AR viewer (city.tsx Park → Binoculars)
+  { slug: 'alliander-hololens', layer: 'city', anchor: [0, 0.77, 0], view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26 } }, // the skyscraper (skyline peak)
+  { slug: 'dtt-amsterdam', layer: 'city', anchor: [-1.2, 0.58, -0.06], view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19 } }, // the windmill
 ];
+export const HOTSPOTS: Hotspot[] = SPOTS.map((h) => ({ ...h, position: [h.anchor[0], MARKER_Y[h.layer], h.anchor[2]] }));
 
 type Vec3 = [number, number, number];
 
@@ -99,11 +114,17 @@ export const CAMERA = {
   // `centred-layer + overviewOffset`, read as [right, up, back] in world units.
   // Scale all three UP together to dolly out (smaller maquette), DOWN to zoom in.
   overviewOffset: [2.8, 1.15, 3.8] as Vec3,
-  // Where on the layer the overview looks, [x, y] off its centre. A little LEFT
-  // pushes the maquette right on screen, clear of the hero title beside it; a
-  // little ABOVE drops the layer in focus to the middle of the frame, so the
-  // layers below fall away toward the bottom edge instead of filling it.
-  overviewAim: [-0.34, 0.34] as [number, number],
+  // How far ABOVE the layer the overview looks: drops the floor in focus to the
+  // middle of the frame, so the one below falls away toward the bottom edge.
+  overviewLift: 0.34,
+  // Per journey step (City, Room, Chip): how far to the side of the floor the
+  // overview looks, and how far out it stands (× overviewOffset). Only the City
+  // has the hero title beside it: looking a little LEFT pushes it right on
+  // screen, clear of the title. The Room and the Chip centre. The Chip's board
+  // is the smallest floor, so its step comes closer, to the share of the screen
+  // the others take — the ladder still reads on the way down.
+  stepAimX: [-0.34, 0, 0] as [number, number, number],
+  stepZoom: [1, 1, 0.72] as [number, number, number],
 
   // ---- Portrait (phones) ----
   // On a phone the title sits ABOVE the model rather than beside it, and the
@@ -120,7 +141,11 @@ export const CAMERA = {
   // aspects below (portraitMix), so a tablet or a narrow window lands in
   // between rather than on a breakpoint.
   portraitOffset: [3.3, 2.57, 1.91] as Vec3, // 60° round, 34° up, 4.6 out
-  portraitAim: [0.1, 0.3] as [number, number],
+  portraitLift: 0.3,
+  // per step, as stepAimX / stepZoom: each floor fitted to the screen's width,
+  // nothing cut off at the edges
+  portraitStepAimX: [0.1, 0.1, 0.1] as [number, number, number],
+  portraitStepZoom: [1.1, 1.1, 1] as [number, number, number],
   portraitFrom: 1.0, // width:height where the portrait framing starts to blend in…
   portraitTo: 0.62, // …and where it has fully taken over
 

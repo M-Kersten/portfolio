@@ -125,8 +125,8 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
       {MAQUETTE_LAYERS.map((id) => {
         const Rig = RIGS[id];
         // Only the active layer and its immediate neighbour draw their full
-        // geometry. A layer two steps away sits ~2.6 units deeper in the fog and
-        // never reads on screen, so its ~140 meshes are pure waste — hiding it
+        // geometry. A layer two steps away sits 4 units off (LAYER_Y) and never
+        // reads on screen, so its ~140 meshes are pure waste — hiding it
         // roughly halves the draw calls at the City/Chip ends.
         //
         // Crucially this is a `visible` toggle, NOT a mount/unmount: three.js

@@ -160,10 +160,12 @@
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   border-color: color-mix(in srgb, var(--hotc) 45%, var(--line));
 }
+/* the first-visit tag, beside the crosshair (the name is above it) */
 .hotspot__cue {
   position: absolute;
   left: calc(100% + 0.55em);
-  top: calc(50% + 1.3em);
+  top: 50%;
+  margin-top: -0.75em;
   padding-inline: 0.7em;
   white-space: nowrap;
   font-size: var(--step--2);
@@ -178,14 +180,6 @@
   from {
     opacity: 0;
     transform: translateY(calc(var(--rise-in) / -2));
-  }
-}
-/* Phones drop the names (below), so the tag takes the name's place. */
-@media (max-width: 760px) {
-  .hotspot__cue {
-    top: 50%;
-    transform: translateY(-50%);
-    animation: none;
   }
 }
 /* Reduced motion: no pings anywhere. The lead keeps its locked brackets, its
@@ -231,11 +225,14 @@
   --hotc: color-mix(in srgb, var(--hot, var(--accent)) 90%, white 10%);
 }
 /* Labels read by default (light caption) so it's obvious the marks are named,
-   clickable things; on hover/open they gain a solid chip. */
+   clickable things; on hover/open they gain a solid chip. Each sits centred
+   above its crosshair, so a floor's markers — all at one height (MARKER_Y in
+   scene/framing.ts) — carry their names in one row, each needing only half its
+   width of room either side. */
 .hotspot__label {
   position: absolute;
-  left: calc(100% + 0.55em);
-  top: 50%;
+  left: 50%;
+  bottom: calc(100% + 0.25em);
   white-space: nowrap;
   font-size: var(--step--1);
   letter-spacing: 0.04em;
@@ -244,9 +241,9 @@
   padding: 0.3em 0.65em;
   border-radius: var(--radius-s);
   opacity: 0.62;
-  /* the name is a target too, not just the mark beside it */
+  /* the name is a target too, not just the mark under it */
   pointer-events: auto;
-  transform: translate(0, -50%);
+  transform: translateX(-50%);
   transition: opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .hotspot__dot:hover .hotspot__label,
@@ -255,19 +252,13 @@
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   border-color: var(--line);
 }
-/* a name that would run into its neighbour's marker reads to the left of its
-   own (the windmill's, beside the tower's) */
-.hotspot[data-side='left'] .hotspot__label,
-.hotspot[data-side='left'] .hotspot__cue {
-  left: auto;
-  right: calc(100% + 0.55em);
-}
 /* selecting hides the name — the title now lives in the HUD card */
 .hotspot[data-open='true'] .hotspot__label {
   opacity: 0;
 }
-/* On phones there's no room for the resting name beside the marker (it would
-   run off the right edge and crowd the hero title), and no hover to reveal it.
+/* On phones there's no room for the resting names over the markers (a row of
+   them across a narrow screen runs together and into the hero title), and no
+   hover to reveal one.
    Drop the label — the pulsing crosshair is the tap target, and a tap opens the
    HUD where the full title lives. Tablets/desktop keep the labels. */
 @media (max-width: 760px) {
@@ -362,6 +353,20 @@
 .nextsite b {
   font-weight: 700;
   color: var(--accent-ink);
+}
+/* the invitation's frame: faded with its floor and nudged back inside the
+   screen from scene/maquette/launchSite.tsx (LaunchInvite) */
+.nextsite-wrap {
+  display: inline-block;
+}
+/* On a phone it wraps to a narrow block instead of one long line, so it fits
+   beside the tower inside the screen. */
+@media (max-width: 760px) {
+  .nextsite {
+    white-space: normal;
+    max-width: 13.5em;
+    text-align: center;
+  }
 }
 /* the global odometer under the invitation — only renders once the count
    arrives (see lib/launches.ts); the label reads fine without it. The count
