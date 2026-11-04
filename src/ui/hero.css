@@ -392,20 +392,10 @@
   color: var(--accent-ink);
   margin-bottom: 0.55rem;
 }
-/* the name and the way to fold it away on the first line, the count under them */
-.guide__head {
-  flex-wrap: wrap;
-  row-gap: 0.2rem;
-}
+/* the name and the way to fold it away (the count is on the cover, not in here) */
 .guide__head b {
   flex: 1 1 0;
   min-width: 0;
-}
-.guide__head span {
-  order: 3;
-  flex: 1 0 100%;
-  color: var(--ink-40);
-  letter-spacing: 0.12em;
 }
 .guide__close {
   position: relative;
@@ -487,55 +477,63 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* an exhibit not yet lit: its name is there, in dim letters, and dim it stays
-   until you've been */
-.guide__dark {
+/* an exhibit not seen yet: its name is there, in dim letters, and dim it stays
+   until you've been (pointing at it brightens it a little: it's a way there).
+   Said as the row's own button, or the list's rule above would outrank it. */
+.guide__dark,
+.guide__layer li button.guide__dark {
   color: var(--ink-40);
-}
-.guide__layer i {
-  flex: 0 0 auto;
-  width: 5px;
-  height: 5px;
-  background: color-mix(in srgb, var(--ink) 22%, transparent);
-}
-.guide__layer i[data-on] {
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent-glow);
-}
-.guide__dark {
   cursor: pointer;
 }
 .guide__dark:hover,
-.guide__dark:focus-visible {
+.guide__dark:focus-visible,
+.guide__layer li button.guide__dark:hover,
+.guide__layer li button.guide__dark:focus-visible {
   background: var(--surface-2);
   color: var(--ink-60);
 }
-/* its way there replaces nothing: it sits over the end of the name, which dims
-   under it */
-.guide__dark .guide__go {
-  position: absolute;
-  right: 0.3em;
-  padding-left: 1.2em;
-  background: linear-gradient(to right, transparent, var(--surface-2) 40%);
+/* The margin the visitor marks: a tick against each exhibit they've seen, as
+   if with their own pen, so it stands a little off the print's straight lines. */
+.guide__mark {
+  flex: 0 0 1.15em;
+  display: grid;
+  place-items: center;
+  height: 1em;
 }
-.guide__layer li button {
-  position: relative;
+.guide__tick {
+  width: 1.2em;
+  height: 1.05em;
+  overflow: visible;
+  fill: none;
+  stroke: var(--accent-ink);
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  rotate: -5deg;
+  translate: 0 -0.08em;
 }
-/* a dark project's way there, shown as you point at it */
+/* one seen since the guide was last open writes itself in, a stroke at a
+   time, once the leaflet has swung open */
+.guide__tick[data-fresh] path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: guide-tick 0.32s cubic-bezier(0.5, 0, 0.3, 1) forwards;
+  animation-delay: calc(0.9s + var(--i, 0) * 0.14s);
+}
+@keyframes guide-tick {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide__tick[data-fresh] path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
 .guide__go {
   margin-left: auto;
   color: var(--accent-ink);
-  opacity: 0;
-  transition: opacity var(--t-fast) var(--ease);
-}
-.guide__dark:hover .guide__go,
-.guide__dark:focus-visible .guide__go {
-  opacity: 1;
-}
-@media (hover: none) {
-  .guide__go {
-    opacity: 0.7;
-  }
 }
 .guide__reset {
   margin-top: 0.35rem;
@@ -551,14 +549,6 @@
 .guide__reset:hover,
 .guide__reset:focus-visible {
   color: var(--ink);
-}
-.guide__no {
-  min-width: 1.6em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-40);
-}
-.guide__layer li button:not(.guide__dark) .guide__no {
-  color: var(--accent-ink);
 }
 /* exhibit 11, in the Passion colour once it's ready */
 .guide__next button,
@@ -582,14 +572,8 @@
   color: var(--ink);
   cursor: pointer;
 }
-.guide__next button i[data-on] {
-  background: var(--pink);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--pink) 60%, transparent);
-}
-.guide__next button .guide__no,
 .guide__next button .guide__go {
   color: var(--pink);
-  opacity: 1;
 }
 .guide__next button:hover,
 .guide__next button:focus-visible {
@@ -607,7 +591,7 @@
 .guide__next button .guide__go {
   flex-basis: 100%;
   margin-left: 0;
-  padding-left: calc(5px + 1.6em + 1.1em);
+  padding-left: calc(1.15em + 0.55em);
 }
 .guide__more {
   display: block;
@@ -693,15 +677,11 @@
   .guide__cover-note {
     display: none;
   }
-  /* and narrow panels: a name wraps rather than trailing off, and a dark one's
-     way there is the tap itself */
+  /* and narrow panels: a name wraps rather than trailing off */
   .guide__name {
     overflow: visible;
     text-overflow: clip;
     white-space: normal;
-  }
-  .guide__dark .guide__go {
-    display: none;
   }
   /* let the narration wrap within the viewport instead of running off the edge;
      the tally above leaves room for up to two lines */

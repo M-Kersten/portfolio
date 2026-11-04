@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { caseBySlug, cases } from '../../content';
-import { EXHIBITS, NEXT_LAUNCH_NO, exhibitNo, pad2 } from '../../content/exhibits';
+import { EXHIBITS } from '../../content/exhibits';
 import { HOTSPOTS } from '../../scene/framing';
 import { sceneStore } from '../../scene/store';
 
@@ -10,10 +10,13 @@ import { sceneStore } from '../../scene/store';
 // the door, with its cover showing the count (4/10 lit) over the model: the
 // tally IS the guide's cover. Pulling it out slides it up into the frame, and
 // its cover swings open to the left onto the inside (hero.css): the ten
-// exhibits by layer, numbered, a lit one named and bright, one still dark named
-// too but in dim letters (it flies you there); then exhibit 11, the next launch
-// (it lights at ten and then takes you onto the pad), the way to the rest of
-// the collection, and "start the tour over". Folding it shut slides it back in.
+// exhibits by layer, the way a printed leaflet lists them, and the visitor's
+// own pen marks in its margin, a tick against each one they've seen (the tick
+// for one seen since the guide was last open writes itself in as it opens). One
+// not seen yet is in dim letters, and is a way there: the camera flies to it.
+// Then the next launch (it lights at ten and then takes you onto the pad), the
+// way to the rest of the collection, and "start the tour over". Folding it shut
+// slides it back in, and so does a click anywhere outside it.
 
 const LAYERS = ['city', 'room', 'chip'] as const;
 const TOTAL = HOTSPOTS.length;
@@ -60,7 +63,32 @@ export function ExhibitionGuide({
   const navigate = useNavigate();
   const found = visited.filter((slug) => HOTSPOTS.some((h) => h.slug === slug)).length;
   const t = tally(revealed, cue);
+  const rootRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  // The ticks already in the margin: the ones there when the page loaded (the
+  // model as you left it) and every one shown since. A tick that isn't, on an
+  // exhibit seen since the guide was last open, is written in as it opens.
+  // Settled once per opening, so a render while it's open can't cut a stroke short.
+  const marked = useRef<Set<string> | null>(null);
+  if (!marked.current) marked.current = new Set(visited);
+  const freshAtOpen = useRef<string[]>([]);
+  const wasOpen = useRef(false);
+  if (state === 'open' && !wasOpen.current) {
+    freshAtOpen.current = visited.filter((slug) => !marked.current!.has(slug));
+    for (const slug of visited) marked.current.add(slug);
+  }
+  wasOpen.current = state === 'open';
+  const fresh = state === 'open' ? freshAtOpen.current : [];
+  // open, a press anywhere outside the leaflet folds it away (and still does
+  // whatever that press was for)
+  useEffect(() => {
+    if (state !== 'open') return;
+    const away = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('pointerdown', away, true);
+    return () => document.removeEventListener('pointerdown', away, true);
+  }, [state, onClose]);
   const closeRef = useRef<HTMLButtonElement>(null);
   const peekRef = useRef<HTMLButtonElement>(null);
   const pulled = useRef(false);
@@ -82,32 +110,29 @@ export function ExhibitionGuide({
     onClose();
     navigate(`/work/${slug}`);
   };
+  let ticks = 0; // the fresh ticks' order, so they write themselves in one after another
   const layer = (l: (typeof LAYERS)[number]) => (
     <div key={l} className="guide__layer">
       <span className="guide__index">{l}</span>
       <ul>
         {HOTSPOTS.filter((h) => h.layer === l).map((h) => {
-          const c = caseBySlug(h.slug);
+          const title = caseBySlug(h.slug)?.title ?? h.slug;
           const on = visited.includes(h.slug);
-          const no = pad2(exhibitNo(h.slug) ?? 0);
+          const isFresh = fresh.includes(h.slug);
           return (
             <li key={h.slug}>
-              {/* a lit exhibit opens; one still dark is named too, but dim, and
-                  is a way there: the camera flies to it and it lights up */}
+              {/* one you've seen opens; one not seen yet is named too, but dim,
+                  and is a way there: the camera flies to it and it lights up */}
               <button
                 type="button"
                 className={on ? undefined : 'guide__dark'}
                 onClick={() => open(h.slug)}
-                aria-label={on ? undefined : `Fly to exhibit ${no}, ${c?.title ?? h.slug}, still dark`}
+                aria-label={on ? `${title}, seen` : `Fly to ${title}, not seen yet`}
               >
-                <i data-on={on || undefined} />
-                <span className="guide__no">{no}</span>
-                <span className="guide__name">{c?.title ?? h.slug}</span>
-                {!on && (
-                  <span className="guide__go" aria-hidden="true">
-                    fly there →
-                  </span>
-                )}
+                <span className="guide__mark" aria-hidden="true">
+                  {on && <PenTick fresh={isFresh} order={isFresh ? ticks++ : 0} />}
+                </span>
+                <span className="guide__name">{title}</span>
               </button>
             </li>
           );
@@ -116,7 +141,7 @@ export function ExhibitionGuide({
     </div>
   );
   return (
-    <div className="guide" role="group" aria-label="Exhibition guide" data-state={state}>
+    <div className="guide" ref={rootRef} role="group" aria-label="Exhibition guide" data-state={state}>
       {/* the tab you take it by while it's pushed in: the cover's whole face */}
       <button
         ref={peekRef}
@@ -133,7 +158,6 @@ export function ExhibitionGuide({
           <div className="guide__face guide__face--front">
             <div className="guide__head">
               <b>exhibition guide</b>
-              <span>{t.count}</span>
               <button ref={closeRef} type="button" className="guide__close" onClick={onClose} aria-label="Fold the guide away">
                 <span aria-hidden="true">✕</span>
               </button>
@@ -180,15 +204,13 @@ export function ExhibitionGuide({
                     onOpenPad();
                   }}
                 >
-                  <i data-on="" />
-                  <span className="guide__no">{NEXT_LAUNCH_NO}</span>
+                  <span className="guide__mark" aria-hidden="true" />
                   <span className="guide__name">The next launch</span>
                   <span className="guide__go">on the pad →</span>
                 </button>
               ) : (
                 <span className="guide__dark">
-                  <i />
-                  <span className="guide__no">{NEXT_LAUNCH_NO}</span>
+                  <span className="guide__mark" aria-hidden="true" />
                   <span className="guide__name">The next launch</span>
                   <span className="guide__when">lights at {TOTAL}</span>
                 </span>
@@ -213,5 +235,17 @@ export function ExhibitionGuide({
         </section>
       </div>
     </div>
+  );
+}
+
+/** A tick in the margin, as a visitor marks off what they've seen with a
+ *  pen: one quick stroke, down and then up and away, a little uneven. `fresh`
+ *  writes it in (hero.css), after the leaflet has opened, one after another
+ *  in `order`. */
+function PenTick({ fresh, order }: { fresh: boolean; order: number }) {
+  return (
+    <svg className="guide__tick" viewBox="0 0 18 16" data-fresh={fresh || undefined} style={fresh ? ({ '--i': order } as CSSProperties) : undefined}>
+      <path d="M2.2 8.9C3.7 10 5 11.6 6 13.9C7.9 9.2 11.4 4.6 16.2 1.8" pathLength={1} />
+    </svg>
   );
 }
