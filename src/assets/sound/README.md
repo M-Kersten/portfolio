@@ -62,6 +62,16 @@ the station (the tower) through the house to the next block.
 | `grid-zap` | the pulse passes through the transformer house | a short electric crackle; give it variants |
 | `grid-on` | a block's lights come on | a soft thunk of a big switch, with a low hum tail |
 
+## The heart
+
+In the Philips close-up you steer a catheter into the heart's arteries and
+open the two narrowed ones.
+
+| File | When | Notes |
+| --- | --- | --- |
+| `cath-inflate` | the balloon goes up in a narrowing | a soft rising squeeze, about 0.5 s |
+| `cath-clear` | the narrowing opens and the blood rushes through | a whoosh with a bright tail, two notes of the signature |
+
 ## Ambient
 
 One quiet bed per layer of the maquette, crossfading as you scroll; they

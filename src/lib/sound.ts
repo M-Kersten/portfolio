@@ -49,6 +49,9 @@ export type SoundName =
   | 'grid-charge'
   | 'grid-zap'
   | 'grid-on'
+  // the heart: the catheter's balloon going up, and a narrowing opening
+  | 'cath-inflate'
+  | 'cath-clear'
   // the ambient beds, one per layer of the maquette
   | 'ambient-city'
   | 'ambient-room'

@@ -58,6 +58,8 @@ The things you're most likely to want to change, and the file they live in.
 | An object's place in the model | the `usePlacement(...)` call in `src/scene/maquette/city.tsx` or `room.tsx` (or the dev tools' Objects tab) |
 | What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*`, `CAM_CUBES` and `TILE_*` in `chip.tsx`, `BOOST*`, `POP*`, `DOUBLE_TAKE` and `HOLO_*` in `room.tsx`, `WIND_*`, `GUST*` and `SHOT` in `city.tsx`) |
 | How a close-up reaction moves: its wind-up, overshoot and settle | the curves in `src/lib/ease.ts` and the springs in `src/lib/spring.ts` (`spring` arrives without passing, `wobble` swings past and back) |
+| The Philips heart: its shape and where its vessels run | `LOBES`, `TRUNK` and `BRANCHES` (with each narrowing's place) in `src/scene/maquette/heartShape.ts` |
+| How the heart beats, and how the catheter steers and treats a narrowing | `BEAT`, `FLOW`, `CATH` and `TREAT` in `src/scene/maquette/heart.tsx` |
 | The city's underground power: where its cables run, how a pulse travels, when a block lights | `gridPlan`, `PowerGrid`, the pulse's beats `P_*` and `COMET`, and `TRAFO_GLOW` in `src/scene/maquette/city.tsx` |
 | The 3D stage's lighting, fog, palette, post-processing | `LOOK` in `src/scene/look.ts` (or the dev tools' Look tab) |
 | The timeline's spacing | `WALL` in `src/components/timeline/layout.ts` (or the dev tools' Timeline tab) |
@@ -126,7 +128,9 @@ src/
       index.tsx        composition root: stacks the layers, culls the far one
       city.tsx         City rig: skyline, windmill, park + ARCam, the tower
       room.tsx         Room rig: desk/monitor, couch + phone, AR table, bookcase
-      chip.tsx         Chip rig: board, accelerator, camera, monitor, traces
+      chip.tsx         Chip rig: board, accelerator, camera, heart projector, traces
+      heart.tsx        the Philips heart: the hologram, its beat, the catheter
+      heartShape.ts    the heart's shape and the paths of its vessels
       kit.ts           loads the Blender models (public/models)
       hotspots.tsx     the floating crosshair markers
       signals.tsx      cross-layer relation cables (edit RELATIONS here)

@@ -1,13 +1,13 @@
 // The CHIP layer (bottom) — tools, CV & data. A circuit board carrying an AI
 // accelerator package (Amsterdam AI), a security/CV camera projecting a tracked
-// hologram cube (custom AR framework) and the Philips bedside patient monitor,
-// wired together with animated traces that surge while a chip project is
-// engaged. The board and most of its parts are Blender models, loaded from
+// hologram cube (custom AR framework) and a chip projecting a holographic heart
+// (Philips medical XR, heart.tsx), wired together with animated traces that
+// surge while a chip project is engaged. The board and most of its parts are Blender models, loaded from
 // public/models/chip.glb (kit.ts; the source is in scripts/models) and dressed
 // here in the maquette's own materials. ChipRig composes and places everything.
 import { useContext, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Euler, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, Ray, Vector2, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
+import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Euler, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, Ray, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/media';
 import { SURFACE, NEUTRAL, LINE_REST, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
@@ -17,225 +17,12 @@ import { litMat, ShadowPrint, useLitLink } from './lit';
 import { BlobShadow } from './backdrop';
 import { PresenceCtx } from './presence';
 import { useCameraKit, useChipKit, type ChipKit } from './kit';
-import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
+import { HeartHologram } from './heart';
+import { cursorAtDepth, cursorIdle, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
 import { wobble } from '../../lib/spring';
 import { bump, easeOutBack } from '../../lib/ease';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
-
-/* ---- Philips medical XR & AI — a bedside patient monitor ----
-   A slim bezel round the screen, a carry handle through the top, the alarm lamp
-   over the screen, three keys and a knob on the chin, standing on a tilting neck
-   over an IC-style foot whose gull-wing legs solder it to the board. A dark,
-   ghosted screen at rest; once engaged it powers on to just two clean traces: a
-   green ECG swept by a bright blip, and a cyan SpO₂ pleth below — and the alarm
-   lamp flashes on every beat. */
-
-// One PQRST heartbeat, laid out left→right from x0 (screen-local units).
-const ecgBeat = (x0: number): V3[] => [
-  [x0 + 0.0, 0, 0], [x0 + 0.02, 0, 0],
-  [x0 + 0.028, 0.012, 0], [x0 + 0.037, 0, 0], // P
-  [x0 + 0.05, 0, 0],
-  [x0 + 0.056, -0.014, 0], [x0 + 0.062, 0.055, 0], [x0 + 0.069, -0.02, 0], [x0 + 0.075, 0, 0], // QRS
-  [x0 + 0.092, 0, 0], [x0 + 0.106, 0.02, 0], [x0 + 0.12, 0, 0], // T
-  [x0 + 0.14, 0, 0],
-];
-
-// A raw additive line for a glowing screen trace, its material opted out of the
-// life-system ghosting (we drive its colour/opacity ourselves).
-function traceObject(points: V3[], hex: string) {
-  const pos = new Float32Array(points.length * 3);
-  points.forEach((p, i) => {
-    pos[i * 3] = p[0];
-    pos[i * 3 + 1] = p[1];
-    pos[i * 3 + 2] = p[2];
-  });
-  const g = new BufferGeometry();
-  g.setAttribute('position', new BufferAttribute(pos, 3));
-  const m = new LineBasicMaterial({ color: new Color(hex), transparent: true, toneMapped: false, opacity: 0.9, depthWrite: false, blending: AdditiveBlending });
-  m.userData.lifeSkip = true;
-  return { line: new ThreeLine(g, m), mat: m };
-}
-
-/* In the monitor's close-up the heart rate rises as the cursor comes near the
-   screen (HR_RISE more at its closest), and the alarm lamp flashes on every
-   beat as it does; move away and it calms back down, gradually, as a pulse
-   does. Every beat thumps: the monitor swells a touch and its screen flares;
-   racing, the lamp flashes hard and the monitor shudders with each beat. */
-const HR_RISE = 1.4; // the sweep's extra speed with the cursor on the screen
-const HR_REACH = 0.85; // how far from the screen (in screen halves) the cursor starts to count
-const HR_SETTLE = 0.9; // s for the rate to follow
-function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit: ChipKit }) {
-  const { accent, accentPale } = useAccent();
-  const { hovered, selected, visited } = useActive(slug);
-  const reduced = useReducedMotion();
-  const close = useCloseUp(slug);
-  const root = useRef<Group>(null);
-  const sweepAt = useRef(0); // the sweep's phase, 0 → 1 across the screen
-  const rate = useRef(1);
-  const screenAt = useMemo(() => new Vector3(), []);
-  const pointer = useMemo(() => new Vector2(), []);
-  const screenMat = useRef<MeshStandardMaterial>(null);
-  const alarmMat = useRef<MeshStandardMaterial>(null); // the lamp strip over the screen
-  const blip = useRef<Mesh>(null);
-  const trailRefs = useRef<(Mesh | null)[]>([]); // phosphor beads lagging the sweep
-  const live = useRef(0); // 0 dormant → 1 alive
-  const k = useRef(0); // hover/select brightness
-  const head = useRef<Group>(null); // the monitor on its neck, for the thump
-  const beat = useRef({ was: false, at: -99 });
-
-  // A patient monitor draws two traces at once, so they have to be told apart —
-  // but by VALUE, not by a second hue: the accent and its pale sibling, exactly
-  // how the room separates a car body from its livery. `grey` is the dead screen.
-  const grey = useMemo(() => new Color(NEUTRAL), []);
-  const green = useMemo(() => new Color(accent), [accent]);
-  const cyan = useMemo(() => new Color(accentPale), [accentPale]);
-
-  const ecg = useMemo<V3[]>(() => [...ecgBeat(-0.15), ...ecgBeat(-0.008)], []);
-  const pleth = useMemo<V3[]>(() => {
-    const p: V3[] = [];
-    for (let i = 0; i <= 64; i++) {
-      const x = -0.15 + (i / 64) * 0.29;
-      p.push([x, Math.pow(Math.max(0, Math.sin((x + 0.15) * 34)), 1.6) * 0.02, 0]);
-    }
-    return p;
-  }, []);
-  const ecgObj = useMemo(() => traceObject(ecg, accent), [ecg, accent]);
-  const plethObj = useMemo(() => traceObject(pleth, accentPale), [pleth, accentPale]);
-  useEffect(
-    () => () => {
-      ecgObj.line.geometry.dispose();
-      ecgObj.mat.dispose();
-      plethObj.line.geometry.dispose();
-      plethObj.mat.dispose();
-    },
-    [ecgObj, plethObj],
-  );
-
-  const yAtX = (x: number) => {
-    for (let i = 0; i < ecg.length - 1; i++) {
-      const [x0, y0] = ecg[i];
-      const [x1, y1] = ecg[i + 1];
-      if ((x >= x0 && x <= x1) || (x >= x1 && x <= x0)) return y0 + (y1 - y0) * (x1 === x0 ? 0 : (x - x0) / (x1 - x0));
-    }
-    return 0;
-  };
-
-  useFrame((s, delta) => {
-    const dt = Math.min(delta, 1 / 30);
-    // how near the cursor is to the screen, on screen: the rate follows it
-    let near = 0;
-    if (close && root.current && cursorNdc(s.size, pointer)) {
-      screenAt.set(0, 0.22, 0).applyMatrix4(root.current.matrixWorld).project(s.camera);
-      const d = Math.hypot((screenAt.x - pointer.x) * (s.size.width / s.size.height), screenAt.y - pointer.y);
-      near = Math.max(0, 1 - d / HR_REACH);
-    }
-    rate.current += (1 + HR_RISE * near * near - rate.current) * (1 - Math.exp(-dt / HR_SETTLE));
-    sweepAt.current = (sweepAt.current + dt * 0.7 * rate.current) % 1;
-    k.current += ((hovered || selected ? 1 : visited ? 0.5 : 0) - k.current) * 0.12;
-    live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
-    const on = live.current;
-    if (screenMat.current) screenMat.current.emissiveIntensity = 0.05 + 0.14 * on + 0.05 * k.current;
-    ecgObj.mat.color.copy(grey).lerp(green, on);
-    ecgObj.mat.opacity = 0.4 + 0.5 * on;
-    plethObj.mat.color.copy(grey).lerp(cyan, on);
-    plethObj.mat.opacity = 0.24 + 0.42 * on;
-    // the sweeping blip + a beat-flash as it crosses the tall R-spike of the QRS
-    const sweep = reduced ? 0.66 : sweepAt.current;
-    const x = -0.15 + sweep * 0.28;
-    const spike = Math.min(1, Math.max(0, (yAtX(x) - 0.03) / 0.025)); // ~1 on the R peak
-    // a beat: the R-peak's rising edge. It thumps (a swell and the screen
-    // flaring), and once the rate is racing the monitor shudders with it
-    const now = s.clock.elapsedTime;
-    const b = beat.current;
-    if (spike > 0.5 && !b.was && on > 0.5) b.at = now;
-    b.was = spike > 0.5;
-    const since = now - b.at;
-    const thump = reduced ? 0 : bump(since / 0.16);
-    const racing = Math.min(1, Math.max(0, (rate.current - 1.45) / 0.6));
-    if (head.current) {
-      head.current.scale.setScalar(1 + 0.022 * thump);
-      const shake = reduced ? 0 : racing * 0.0024 * Math.exp(-since * 9);
-      head.current.position.set(Math.sin(now * 97) * shake, 0.21 + Math.cos(now * 83) * shake * 0.6, 0);
-    }
-    if (screenMat.current) screenMat.current.emissiveIntensity += (spike * 0.22 + thump * 0.28) * on; // the beep flash
-    // the alarm lamp: a dark strip at rest; alive, it flashes on every R-peak,
-    // hard once the rate is racing
-    const am = alarmMat.current;
-    if (am) {
-      am.color.copy(grey).lerp(green, on);
-      am.emissive.copy(grey).lerp(green, on);
-      am.emissiveIntensity = 0.03 + on * (0.18 + spike * (1.5 + 3 * racing) + thump * racing * 2);
-    }
-    if (blip.current) {
-      blip.current.visible = on > 0.05;
-      blip.current.position.set(x, 0.035 + yAtX(x), 0.004);
-      blip.current.scale.setScalar((0.55 + 0.7 * on) * (1 + spike * 0.9));
-      const bm = blip.current.material as MeshStandardMaterial;
-      bm.color.copy(grey).lerp(green, on);
-      bm.emissive.copy(grey).lerp(green, on);
-    }
-    // phosphor trail: a few dimming beads lagging the sweep, like a CRT afterglow
-    for (let i = 0; i < trailRefs.current.length; i++) {
-      const tm = trailRefs.current[i];
-      if (!tm) continue;
-      const tx = x - (i + 1) * 0.014;
-      const vis = on > 0.05 && tx >= -0.15 && !reduced;
-      tm.visible = vis;
-      if (!vis) continue;
-      tm.position.set(tx, 0.035 + yAtX(tx), 0.003);
-      const fade = 1 - (i + 1) / (trailRefs.current.length + 1);
-      tm.scale.setScalar(0.5 * fade);
-      (tm.material as MeshStandardMaterial).opacity = FX.peak * fade * on;
-    }
-  });
-
-  return (
-    <group ref={root} position={position}>
-      {/* the stand, whose legs are part of the object: it wakes with the monitor */}
-      <mesh geometry={kit.mon_stand}>
-        <LiveGlassMat slug={slug} tint="glass" />
-      </mesh>
-      <mesh geometry={kit.mon_legs}>
-        <LiveGlassMat slug={slug} tint="pale" />
-      </mesh>
-      {/* the monitor, tilted to face up-and-forward. Its outline draws the ghost:
-          the bezel, the handle loop, the screen's recess. */}
-      <group ref={head} position={[0, 0.21, 0]} rotation={[-0.34, 0, 0]}>
-        <mesh geometry={kit.mon_body}>
-          <LiveGlassMat slug={slug} tint="deep" />
-          <LiveEdges slug={slug} threshold={35} />
-        </mesh>
-        <mesh geometry={kit.mon_controls}>
-          <LiveGlassMat slug={slug} tint="pale" />
-        </mesh>
-        <mesh geometry={kit.mon_alarm}>
-          <meshStandardMaterial ref={alarmMat} userData={{ lifeSkip: true }} color={NEUTRAL} emissive={NEUTRAL} emissiveIntensity={0.03} roughness={0.3} toneMapped={false} />
-        </mesh>
-        {/* dark screen (drives its own glow), lying in the bezel's recess */}
-        <mesh position={[0, 0.012, 0.027]}>
-          <planeGeometry args={[0.35, 0.22]} />
-          <meshStandardMaterial ref={screenMat} userData={{ lifeSkip: true }} color={SURFACE.deep.color} emissive={SURFACE.deep.color} emissiveIntensity={0.06} roughness={0.5} toneMapped={false} />
-        </mesh>
-        {/* screen contents — just the two traces, sitting proud of the panel */}
-        <group position={[0, 0.012, 0.03]}>
-          <primitive object={ecgObj.line} position={[0, 0.035, 0.001]} />
-          <primitive object={plethObj.line} position={[0, -0.045, 0.001]} />
-          <mesh ref={blip} visible={false}>
-            <sphereGeometry args={[0.009, 12, 12]} />
-            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.8} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
-          </mesh>
-          {[0, 1, 2].map((i) => (
-            <mesh key={i} ref={(r) => (trailRefs.current[i] = r)} visible={false}>
-              <sphereGeometry args={[0.009, 10, 10]} />
-              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.5} transparent opacity={0} roughness={0.3} toneMapped={false} userData={{ lifeSkip: true }} />
-            </mesh>
-          ))}
-        </group>
-      </group>
-    </group>
-  );
-}
 
 /** The dressing's outline: a plain part on the board (no project behind it),
  *  drawn at the line's resting strength like every other outline in the
@@ -372,7 +159,7 @@ interface ChipNode { x: number; z: number; edge: number; pin: number }
 const CHIP_NODES: ChipNode[] = [
   // corners — the units, each leaving the edge it sits counter-clockwise from
   { x: CORNER, z: -CORNER, edge: 3, pin: 8 }, // custom-ar camera (back-right)
-  { x: -CORNER, z: -CORNER, edge: 2, pin: 8 }, // philips monitor (back-left)
+  { x: -CORNER, z: -CORNER, edge: 2, pin: 8 }, // philips heart projector (back-left)
   { x: CORNER, z: CORNER, edge: 0, pin: 8 }, // database stack (front-right)
   { x: -CORNER, z: CORNER, edge: 1, pin: 8 }, // heatsink (front-left)
   // edge midpoints — the small parts, straight out of the centre land
@@ -1207,7 +994,7 @@ export function ChipRig() {
       <BlobShadow position={[-CORNER, 0.024, CORNER]} radius={0.2} opacity={0.3} />
       <BlobShadow position={[CORNER, 0.024, CORNER]} radius={0.18} opacity={0.3} />
       <BlobShadow position={[CORNER, 0.024, -CORNER]} radius={0.13} opacity={0.3} />
-      <BlobShadow position={[-CORNER, 0.024, -CORNER]} radius={0.22} aspect={0.72} opacity={0.3} />
+      <BlobShadow position={[-CORNER, 0.024, -CORNER]} radius={0.15} opacity={0.3} />
       <BlobShadow position={[0, 0.024, EDGE]} radius={0.18} aspect={0.5} opacity={0.28} />
       <BlobShadow position={[-EDGE, 0.024, 0]} radius={0.09} opacity={0.3} />
       <BlobShadow position={[0, 0.024, -EDGE]} radius={0.09} opacity={0.3} />
@@ -1277,9 +1064,10 @@ export function ChipRig() {
       <Heatsink position={[-CORNER, 0, CORNER]} kit={kit} energy={energy} />
       <PinHeader position={[0, 0, EDGE]} kit={kit} />
 
-      {/* Philips medical XR & AI — a bedside patient monitor (back-left corner slot) */}
+      {/* Philips medical XR & AI — a chip projecting a holographic heart, a
+          catheter threading into it (back-left corner slot) */}
       <LifeGroup slug="philips-medical-xr">
-        <HeartMonitor slug="philips-medical-xr" position={[-CORNER, 0, -CORNER]} kit={kit} />
+        <HeartHologram slug="philips-medical-xr" position={[-CORNER, 0, -CORNER]} kit={kit} />
       </LifeGroup>
     </group>
   );

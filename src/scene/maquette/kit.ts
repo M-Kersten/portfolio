@@ -26,7 +26,7 @@ import { asset } from '../../lib/asset';
 const CHIP_PARTS = [
   'board', 'board_rings', 'board_silk',
   'pkg_sub', 'pkg_frame', 'pkg_ip', 'pkg_hbm', 'pkg_balls', 'pkg_die', 'pkg_tiles',
-  'mon_stand', 'mon_legs', 'mon_body', 'mon_controls', 'mon_alarm',
+  'hrt_body', 'hrt_ring', 'hrt_lens', 'hrt_legs',
   'hs_chip', 'hs_pads', 'hs_sink', 'hs_fan', 'hs_rotor',
   'cap_can', 'cap_stripe', 'cap_bung',
   'hdr_body', 'hdr_pins',

@@ -6,7 +6,7 @@
 # already uses, so it drops onto the existing slot unchanged:
 #   board_*  the PCB and its silkscreen ...... ChipRig origin (board centre)
 #   pkg_*    the accelerator package ......... ChipRig origin
-#   mon_*    the patient monitor ............. HeartMonitor group / its monitor frame
+#   hrt_*    the heart's projector chip ...... HeartHologram group (its slot centre)
 #   hs_*     QFN, heatsink and fan ........... its slot centre
 #   cap_*    radial electrolytic ............. its slot centre (placed twice)
 #   hdr_*    shrouded box header ............. its slot centre
@@ -215,73 +215,33 @@ def cap():
     return [(body, 'glass'), (stripe, 'pale'), (bung, 'deep')]
 
 
-# ============================================================== patient monitor
-
-AX_X = (0, 0, math.pi / 2)  # rotate a +Y-built part onto the X axis
-AX_Z = (math.pi / 2, 0, 0)  # …onto the Z axis
-
-MON_Y = 0.21  # the monitor frame: HeartMonitor's inner group, tilted back
-MON_TILT = -0.34
+# ============================================================== heart projector
 
 
-def monitor():
-    """A bedside patient monitor: a slim bezel around the screen recess, a
-    rounded back, a carry handle through the top, the alarm-lamp strip over the
-    screen, three keys and a rotary knob on the chin — on a tilting neck over an
-    IC-style foot whose gull-wing legs solder it to the board. The screen itself
-    stays the site's (the traces are drawn live)."""
+def projector():
+    """The Philips module: a square IC-style package soldered to the board by
+    gull-wing legs down all four sides, carrying a round emitter (a raised
+    collar round a domed lens). The site projects its holographic heart out
+    of the lens, and the catheter comes up out of its middle (HeartHologram)."""
     out = []
-    # ---- body, in the monitor frame (screen facing +Z; screen plane at z 0.027)
-    front = K.rbox('mf', (0.42, 0.3, 0.042), 0.024, pos=(0, 0, 0.009), axis='z', seg=8)
-    hump = K.rbox('mh', (0.33, 0.21, 0.04), 0.03, pos=(0, -0.01, -0.028), axis='z', seg=8)
-    K.union(front, hump)
-    handle = K.rbox('hd', (0.25, 0.062, 0.03), 0.022, pos=(0, 0.162, 0.003), axis='z', seg=8)
-    grip = K.rbox('gr', (0.19, 0.026, 0.08), 0.012, pos=(0, 0.17, 0.003), axis='z', seg=6)
-    K.cut(handle, grip)
-    K.union(front, handle)
-    recess = K.rbox('rc', (0.362, 0.234, 0.03), 0.012, pos=(0, 0.012, 0.0405), axis='z', seg=6)
-    slot = K.rbox('as', (0.13, 0.0095, 0.03), 0.004, pos=(0, 0.1405, 0.0435), axis='z', seg=4)
-    K.cut(front, recess, slot)
-    K.bevel(front, BEV_M, now=True)
-    vesa = K.rbox('vs', (0.08, 0.07, 0.014), 0.008, pos=(0, -0.02, -0.052), axis='z', bev=0.002)
-    body = K.join('mon_body', [front, vesa])
+    body = K.rbox('hrt_body', (0.2, 0.024, 0.2), 0.022, pos=(0, Y0 + 0.012, 0), axis='y', seg=8, bev=BEV_M)
     out.append((body, 'deep'))
-    keys = []
-    for kx in (-0.165, -0.137, -0.109):
-        keys.append(K.lathe('key', [(0, 0.0365), (0.005, 0.0362), (0.0082, 0.0345), (0.009, 0.0315), (0.009, 0.029), (0, 0.029)], seg=24, pos=(kx, -0.127, 0), rot=AX_Z))
-    knob = K.knurl('kn', 0.0165, 0.0012, 0.029, 0.04, n=30)
-    K.xf(knob, pos=(0.163, -0.127, 0))
-    cap = K.lathe('kc', [(0, 0.0445), (0.009, 0.0442), (0.0135, 0.0425), (0.014, 0.04), (0, 0.04)], seg=30, pos=(0.163, -0.127, 0), rot=AX_Z)
-    tick = K.box('tk', (0.0022, 0.009, 0.004), pos=(0.163, -0.1215, 0.0452))
-    K.cut(cap, tick)
-    pale = K.join('mon_controls', keys + [knob, cap])
-    K.finish(pale, 50)
-    out.append((pale, 'pale'))
-    alarm = K.rbox('mon_alarm', (0.124, 0.0072, 0.004), 0.0034, pos=(0, 0.1405, 0.0292), axis='z', seg=4)
-    K.finish(alarm, 60)
-    out.append((alarm, 'mark'))
-
-    # ---- stand, in the HeartMonitor group frame (board top at y 0.02)
-    foot = K.rbox('ft', (0.3, 0.016, 0.16), 0.035, pos=(0, Y0 + 0.008, 0), axis='y', seg=8, bev=BEV_M)
-    # hinge: monitor-local (0, -0.02, -0.066), carried out to the group frame
-    c, s_ = math.cos(MON_TILT), math.sin(MON_TILT)
-    hy = MON_Y + (-0.02) * c - (-0.066) * s_
-    hz = (-0.02) * s_ + (-0.066) * c
-    hinge = K.cyl('hg', 0.015, 0.072, pos=(0, hy, hz), rot=AX_X, seg=28, bev=0.002)
-    ny0, nz0 = Y0 + 0.016, -0.034
-    L = math.hypot(hy - ny0, hz - nz0)
-    tilt = math.atan2(hz - nz0, hy - ny0)
-    neck = K.rbox('nk', (0.044, L, 0.022), 0.008, pos=(0, (hy + ny0) / 2, (hz + nz0) / 2), rot=(tilt, 0, 0), axis='y', seg=4, bev=0.003)
-    collar = K.rbox('cl', (0.07, 0.01, 0.04), 0.01, pos=(0, Y0 + 0.021, nz0), axis='y', seg=4, bev=0.002)
-    stand = K.join('mon_stand', [foot, hinge, neck, collar])
-    out.append((stand, 'glass'))
+    top = Y0 + 0.024
+    ring = K.lathe('hrt_ring', K.rounded_profile([(0.05, top), (0.072, top), (0.072, top + 0.014), (0.05, top + 0.014)], [0, 0.003, 0.004, 0]), seg=40, closed=True)
+    K.finish(ring, 35)
+    out.append((ring, 'pale'))
+    lens = K.lathe('hrt_lens', [(0, top + 0.012), (0.022, top + 0.0115), (0.04, top + 0.009), (0.05, top + 0.005), (0.05, top + 0.002), (0, top + 0.002)], seg=40)
+    K.finish(lens, 60)
+    out.append((lens, 'mark'))
     legs = []
-    for i in range(6):
-        x = -0.125 + i * 0.05
-        for sz in (1, -1):
-            path = [(0.029, sz * 0.072), (0.029, sz * 0.086), (Y0 + 0.0022, sz * 0.095), (Y0 + 0.0022, sz * 0.106)]
-            legs.append(K.strip('lg', path, 0.0042, x - 0.0065, x + 0.0065, 'x'))
-    lm = K.join('mon_legs', legs)
+    for i in range(4):
+        t = -0.054 + i * 0.036
+        for s_ in (1, -1):
+            # down the two z sides: the outline in (y, z), swept along x
+            legs.append(K.strip('lg', [(0.032, s_ * 0.092), (0.032, s_ * 0.106), (Y0 + 0.0022, s_ * 0.115), (Y0 + 0.0022, s_ * 0.126)], 0.0042, t - 0.0065, t + 0.0065, 'x'))
+            # and the two x sides: in (x, y), swept along z
+            legs.append(K.strip('lg', [(s_ * 0.092, 0.032), (s_ * 0.106, 0.032), (s_ * 0.115, Y0 + 0.0022), (s_ * 0.126, Y0 + 0.0022)], 0.0042, t - 0.0065, t + 0.0065, 'z'))
+    lm = K.join('hrt_legs', legs)
     K.finish(lm, 50)
     out.append((lm, 'metal'))
     return out
@@ -389,23 +349,16 @@ def small_ic():
     return [(body, 'glass'), (lm, 'metal')]
 
 
-# where the site's JSX hangs the monitor's tilted frame (single-part previews)
-PREVIEW_OFFSETS = {
-    'mon_body': ('mon', MON_Y, MON_TILT),
-    'mon_controls': ('mon', MON_Y, MON_TILT),
-    'mon_alarm': ('mon', MON_Y, MON_TILT),
-}
+# where the site's JSX hangs a part that isn't on its slot's origin (single-part
+# previews); none at the moment
+PREVIEW_OFFSETS = {}
 
-BUILDERS = {'board': board, 'silk': silk, 'pkg': package, 'cap': cap, 'mon': monitor, 'hs': heatsink, 'hdr': header, 'ic': small_ic}
+BUILDERS = {'board': board, 'silk': silk, 'pkg': package, 'cap': cap, 'hrt': projector, 'hs': heatsink, 'hdr': header, 'ic': small_ic}
 
 
 CORNER, EDGE = 0.75, 0.85
 SLOTS = {  # name prefix → (x, y, z, yaw[, tilt]): where ChipRig puts each part
-    'mon_stand': (-CORNER, 0, -CORNER, 0),
-    'mon_legs': (-CORNER, 0, -CORNER, 0),
-    'mon_body': (-CORNER, MON_Y, -CORNER, 0, MON_TILT),
-    'mon_controls': (-CORNER, MON_Y, -CORNER, 0, MON_TILT),
-    'mon_alarm': (-CORNER, MON_Y, -CORNER, 0, MON_TILT),
+    'hrt_': (-CORNER, 0, -CORNER, 0),
     'hs_': (-CORNER, 0, CORNER, 0),
     'ic_': (EDGE, 0, 0, 0),
     'hdr_': (0, 0, EDGE, 0),
@@ -468,11 +421,7 @@ def main():
         for ob, _ in ([] if '--board' in sys.argv else everything):
             for pre, off in PREVIEW_OFFSETS.items():
                 if ob.name.startswith(pre):
-                    if off[0] == 'mon':  # the monitor frame: raised and tilted back
-                        ob.location = (0, off[1], 0)
-                        ob.rotation_euler = (off[2], 0, 0)
-                    else:
-                        ob.location = off  # in the rig's (three) space
+                    ob.location = off  # in the rig's (three) space
         s = K.preview(os.path.join(OUT, f'prev-{tag}.png'), everything, cam, target, lens=lens)
         print(f'preview {s:.1f}s')
 

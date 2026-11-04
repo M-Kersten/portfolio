@@ -4,9 +4,10 @@ Some of the maquette's models are built in Blender from a script, one file per
 model, with the shared helpers in `modelkit.py`:
 
 - `build_chip.py`: the chip layer's parts (the board and its silkscreen, the
-  accelerator package, the patient monitor, the heatsink and fan, and the
-  small parts). They ship as `public/models/chip.glb`, and `chip.tsx` dresses
-  them.
+  accelerator package, the projector chip the Philips heart rises out of, the
+  heatsink and fan, and the small parts). They ship as
+  `public/models/chip.glb`, and `chip.tsx` dresses them; the heart itself is
+  built in code (`heart.tsx`, `heartShape.ts`).
 - `build_tower.py`: the city's Alliander tower, a stepped setback tower with a
   lit lantern and a spire. It ships as `public/models/tower.glb`, and
   `city.tsx` dresses it.
