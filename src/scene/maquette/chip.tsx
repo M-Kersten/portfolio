@@ -7,7 +7,7 @@
 // here in the maquette's own materials. ChipRig composes and places everything.
 import { useContext, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, type Group, type Mesh, type MeshBasicMaterial } from 'three';
+import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/media';
 import { SURFACE, NEUTRAL, LINE_REST, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
@@ -17,6 +17,8 @@ import { litMat, ShadowPrint, useLitLink } from './lit';
 import { BlobShadow } from './backdrop';
 import { PresenceCtx } from './presence';
 import { useCameraKit, useChipKit, type ChipKit } from './kit';
+import { cursorAtDepth, cursorIdle, cursorOnLevel, useCloseUp } from './closeup';
+import { spring } from '../../lib/spring';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
 
@@ -54,10 +56,22 @@ function traceObject(points: V3[], hex: string) {
   return { line: new ThreeLine(g, m), mat: m };
 }
 
+/* In the monitor's close-up the heart rate rises as the cursor comes near the
+   screen (HR_RISE more at its closest), and the alarm lamp flashes on every
+   beat as it does; move away and it calms back down, gradually, as a pulse
+   does. */
+const HR_RISE = 1.4; // the sweep's extra speed with the cursor on the screen
+const HR_REACH = 0.85; // how far from the screen (in screen halves) the cursor starts to count
+const HR_SETTLE = 0.9; // s for the rate to follow
 function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit: ChipKit }) {
   const { accent, accentPale } = useAccent();
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
+  const close = useCloseUp(slug);
+  const root = useRef<Group>(null);
+  const sweepAt = useRef(0); // the sweep's phase, 0 → 1 across the screen
+  const rate = useRef(1);
+  const screenAt = useMemo(() => new Vector3(), []);
   const screenMat = useRef<MeshStandardMaterial>(null);
   const alarmMat = useRef<MeshStandardMaterial>(null); // the lamp strip over the screen
   const blip = useRef<Mesh>(null);
@@ -102,8 +116,17 @@ function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit
     return 0;
   };
 
-  useFrame((s) => {
-    const t = s.clock.elapsedTime;
+  useFrame((s, delta) => {
+    const dt = Math.min(delta, 1 / 30);
+    // how near the cursor is to the screen, on screen: the rate follows it
+    let near = 0;
+    if (close && root.current) {
+      screenAt.set(0, 0.22, 0).applyMatrix4(root.current.matrixWorld).project(s.camera);
+      const d = Math.hypot((screenAt.x - s.pointer.x) * (s.size.width / s.size.height), screenAt.y - s.pointer.y);
+      near = Math.max(0, 1 - d / HR_REACH);
+    }
+    rate.current += (1 + HR_RISE * near * near - rate.current) * (1 - Math.exp(-dt / HR_SETTLE));
+    sweepAt.current = (sweepAt.current + dt * 0.7 * rate.current) % 1;
     k.current += ((hovered || selected ? 1 : visited ? 0.5 : 0) - k.current) * 0.12;
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.07;
     const on = live.current;
@@ -113,7 +136,7 @@ function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit
     plethObj.mat.color.copy(grey).lerp(cyan, on);
     plethObj.mat.opacity = 0.24 + 0.42 * on;
     // the sweeping blip + a beat-flash as it crosses the tall R-spike of the QRS
-    const sweep = reduced ? 0.66 : (t * 0.7) % 1;
+    const sweep = reduced ? 0.66 : sweepAt.current;
     const x = -0.15 + sweep * 0.28;
     const spike = Math.min(1, Math.max(0, (yAtX(x) - 0.03) / 0.025)); // ~1 on the R peak
     if (screenMat.current) screenMat.current.emissiveIntensity += spike * 0.22 * on; // the beep flash
@@ -148,7 +171,7 @@ function HeartMonitor({ position, slug, kit }: { position: V3; slug: string; kit
   });
 
   return (
-    <group position={position}>
+    <group ref={root} position={position}>
       {/* the stand, whose legs are part of the object: it wakes with the monitor */}
       <mesh geometry={kit.mon_stand}>
         <LiveGlassMat slug={slug} tint="glass" />
@@ -474,6 +497,14 @@ const FOCUS_DAMP = 2.2; // ~three clear in-out swings before it locks
 const FOCUS_DOLLY = 0.012; // lens travel along the aim; ~0.008 on the first swing, inside the bezel
 const FOCUS_CONE = 0.31; // cone radius swing; ~20% tighter on the first swing
 const FOCUS_SETTLE = 2.4; // s; past here the term is negligible, so stop evaluating
+/* In its close-up the camera follows the cursor: it turns to look where you
+   point, as a tracking camera does, and the beam and the hologram cube go with
+   its gaze. Let the cursor rest (CAM_TRACK_IDLE) and it lets go, back to its
+   own scan, the cube back in its place. Quick but smooth: a servo, not a snap. */
+const CAM_TRACK_YAW = 0.75; // how far it will turn either way (rad)
+const CAM_TRACK_PITCH = [-0.4, 0.3]; // up (negative tips the aim up) … down
+const CAM_TRACK_GLIDE = 0.28;
+const CAM_TRACK_IDLE = 2.5; // s of a resting cursor before it lets go
 function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { slug: string; position: V3; aimYaw?: number; aimPitch?: number }) {
   const { accent, accentPale } = useAccent();
   const { selected, visited } = useActive(slug);
@@ -497,6 +528,15 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
   const wasSel = useRef(false);
   const lensC = useMemo(() => new Color(accent), [accent]);
   const presence = useContext(PresenceCtx);
+  // following the cursor (see CAM_TRACK_*)
+  const close = useCloseUp(slug);
+  const pivotRef = useRef<Group>(null);
+  const holoAimRef = useRef<Group>(null); // turns the cube with the gaze while it tracks
+  const track = useRef({ yaw: 0, pitch: 0, w: 0 });
+  const trackVel = useRef({ yaw: { v: 0 }, pitch: { v: 0 } });
+  const rest = useRef({ x: 0, y: 0, idle: 99 });
+  const hit = useMemo(() => new Vector3(), []);
+  const lookAt = useMemo(() => new Vector3(0, CAM_HEAD_UP, CAM_CUBE_Z), []);
 
   // the tracked cube's wireframe, on an owned material (opted out of ghosting)
   const cube = useMemo(() => {
@@ -521,6 +561,20 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
     const t = s.clock.elapsedTime;
     const alive = selected || visited ? 1 : 0;
     k.current += (alive - k.current) * 0.12;
+    // where the cursor is, as a gaze: yaw and pitch from the head toward it
+    const dt = Math.min(delta, 1 / 30);
+    const tr = track.current;
+    const following = close && cursorIdle(s, rest.current, dt) < CAM_TRACK_IDLE && !!pivotRef.current && !!cursorAtDepth(s, pivotRef.current, lookAt, hit);
+    if (following) {
+      const dx = hit.x;
+      const dy = hit.y - CAM_HEAD_UP;
+      const dz = hit.z;
+      const yaw = Math.max(-CAM_TRACK_YAW, Math.min(CAM_TRACK_YAW, Math.atan2(dx, dz)));
+      const pitch = Math.max(CAM_TRACK_PITCH[0], Math.min(CAM_TRACK_PITCH[1], -Math.atan2(dy, Math.hypot(dx, dz)) - aimPitch));
+      tr.yaw = spring(tr.yaw, yaw, trackVel.current.yaw, dt, CAM_TRACK_GLIDE);
+      tr.pitch = spring(tr.pitch, pitch, trackVel.current.pitch, dt, CAM_TRACK_GLIDE);
+    }
+    tr.w += ((following ? 1 : 0) - tr.w) * (1 - Math.exp(-dt * (following ? 5 : 1.6)));
     // selecting spawns the hologram — and it stays once visited (life mechanic)
     holo.current += (alive - holo.current) * (reduced ? 1 : 0.09);
     scanW.current += (alive - scanW.current) * 0.04;
@@ -552,9 +606,13 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
     // the head nods — the nod amplitude is sized to keep the cube inside the cone
     // at the extremes. The head turns about the ball, which holds still.
     if (headRef.current && !reduced) {
-      headRef.current.rotation.x = scanW.current * Math.sin(t * CAM_NOD_RATE) * CAM_NOD;
-      headRef.current.rotation.y = scanW.current * Math.sin(t * CAM_PAN_RATE) * CAM_PAN;
+      const w = tr.w;
+      headRef.current.rotation.order = 'YXZ'; // turn, then tip: a pan-tilt head
+      headRef.current.rotation.x = scanW.current * Math.sin(t * CAM_NOD_RATE) * CAM_NOD * (1 - w) + tr.pitch * w;
+      headRef.current.rotation.y = scanW.current * Math.sin(t * CAM_PAN_RATE) * CAM_PAN * (1 - w) + tr.yaw * w;
     }
+    // the cube goes where it looks while it tracks, and back to its spot after
+    if (holoAimRef.current) holoAimRef.current.rotation.set(tr.pitch * tr.w, tr.yaw * tr.w, 0, 'YXZ');
     if (lensRef.current) lensRef.current.position.z = CAM_LENS_AT + FOCUS_DOLLY * rack;
     if (coneRef.current) {
       const w = 1 - FOCUS_CONE * rack; // scaled across the beam only, so its reach holds
@@ -606,23 +664,26 @@ function SecurityCamera({ slug, position, aimYaw = 2.35, aimPitch = -0.05 }: { s
           </mesh>
         </>
       )}
-      <group position={[0, CAM_PIVOT_Y, 0]}>
+      <group ref={pivotRef} position={[0, CAM_PIVOT_Y, 0]}>
         {/* the hologram cube holds its spot on the aim axis while the camera
-            scans around it — so the beam plays over the tracked target */}
-        <group rotation={[aimPitch, 0, 0]}>
-          <group ref={holoRef} visible={false} position={[0, CAM_HEAD_UP, 0]}>
-            <group ref={cubeRef} position={[0, 0, CAM_CUBE_Z]}>
-              <primitive object={cube.obj} />
-              <mesh>
-                <boxGeometry args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
-                <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
-              </mesh>
-              {corners.map((c, i) => (
-                <mesh key={i} position={c}>
-                  <sphereGeometry args={[0.006, 8, 8]} />
-                  <meshStandardMaterial ref={(r) => (cornerMats.current[i] = r)} color={accentPale} emissive={accent} emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
+            scans around it — so the beam plays over the tracked target (and
+            goes with the gaze while the camera follows the cursor) */}
+        <group ref={holoAimRef}>
+          <group rotation={[aimPitch, 0, 0]}>
+            <group ref={holoRef} visible={false} position={[0, CAM_HEAD_UP, 0]}>
+              <group ref={cubeRef} position={[0, 0, CAM_CUBE_Z]}>
+                <primitive object={cube.obj} />
+                <mesh>
+                  <boxGeometry args={[CAM_CUBE, CAM_CUBE, CAM_CUBE]} />
+                  <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.35} transparent opacity={0.08} toneMapped={false} depthWrite={false} side={DoubleSide} userData={{ lifeSkip: true }} />
                 </mesh>
-              ))}
+                {corners.map((c, i) => (
+                  <mesh key={i} position={c}>
+                    <sphereGeometry args={[0.006, 8, 8]} />
+                    <meshStandardMaterial ref={(r) => (cornerMats.current[i] = r)} color={accentPale} emissive={accent} emissiveIntensity={1.4} toneMapped={false} userData={{ lifeSkip: true }} />
+                  </mesh>
+                ))}
+              </group>
             </group>
           </group>
         </group>
@@ -776,13 +837,21 @@ function KitGlow({ geometry, slug, rest, peak, color }: { geometry: BufferGeomet
  *  the front; at rest they're the ghost's pale grid. */
 const TILE_N = 4;
 const WAVE_RATE = 0.62; // passes a second
+/* In the die's close-up a tile lights where the cursor passes over it, as if
+   the chip is thinking about whatever you point at, and fades again over
+   TILE_COOL seconds, so a sweep across the die leaves a short trail. */
+const TILE_COOL = 0.85;
+const TILE_HEAT = 1.25; // a pointed-at tile's extra brightness, over the wave
 function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: string; color: string }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const presence = useContext(PresenceCtx);
   const k = useRef(0);
+  const close = useCloseUp(slug);
+  const mesh = useRef<Mesh>(null);
+  const hit = useMemo(() => new Vector3(), []);
   // which tile each vertex belongs to, read off its position on the die
-  const { geo, tile, colors } = useMemo(() => {
+  const { geo, tile, colors, bb } = useMemo(() => {
     const g = geometry.clone();
     const pos = g.attributes.position;
     g.computeBoundingBox();
@@ -795,22 +864,31 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
     }
     const colors = new Float32Array(pos.count * 3);
     g.setAttribute('color', new BufferAttribute(colors, 3));
-    return { geo: g, tile, colors };
+    return { geo: g, tile, colors, bb };
   }, [geometry]);
   useEffect(() => () => geo.dispose(), [geo]);
   const base = useMemo(() => new Color(color), [color]);
   const tint = useMemo(() => new Color(), []);
   const level = useMemo(() => new Float32Array(TILE_N * TILE_N), []);
-  useFrame((s) => {
+  const heat = useMemo(() => new Float32Array(TILE_N * TILE_N), []);
+  useFrame((s, delta) => {
     k.current += ((selected || visited ? 1 : 0) - k.current) * 0.12;
     const on = k.current;
     const t = s.clock.elapsedTime;
+    // the tile under the cursor, if it's over the die
+    const dt = Math.min(delta, 1 / 30);
+    for (let i = 0; i < heat.length; i++) heat[i] = Math.max(0, heat[i] - dt / TILE_COOL);
+    if (close && mesh.current && cursorOnLevel(s, mesh.current, bb.max.y, hit)) {
+      const u = (hit.x - bb.min.x) / (bb.max.x - bb.min.x);
+      const v = (hit.z - bb.min.z) / (bb.max.z - bb.min.z);
+      if (u >= 0 && u < 1 && v >= 0 && v < 1) heat[Math.floor(v * TILE_N) * TILE_N + Math.floor(u * TILE_N)] = 1;
+    }
     for (let i = 0; i < level.length; i++) {
       const diag = ((i % TILE_N) + Math.floor(i / TILE_N)) / (2 * TILE_N - 1);
       let ph = (t * WAVE_RATE - diag) % 1;
       if (ph < 0) ph += 1;
       const wave = reduced ? 0.4 : Math.exp(-ph * 6); // bright at the front, trailing off
-      level[i] = 0.34 * (1 - on) + on * (0.62 + 1.1 * wave);
+      level[i] = 0.34 * (1 - on) + on * (0.62 + 1.1 * wave + TILE_HEAT * heat[i] * heat[i]);
     }
     tint.copy(GHOST_FILL).lerp(base, on);
     const pf = presence.current;
@@ -823,7 +901,7 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
     geo.attributes.color.needsUpdate = true;
   });
   return (
-    <mesh geometry={geo}>
+    <mesh ref={mesh} geometry={geo}>
       <meshBasicMaterial vertexColors toneMapped={false} userData={{ lifeSkip: true }} />
     </mesh>
   );

@@ -165,6 +165,13 @@ export const CAMERA = {
   nodeOrbitRamp: 1.6, // seconds over which the pan eases up to full amplitude
   idleSwayAmp: 0.07, // the overview idle sway (unchanged feel)
   idleSwaySpeed: 0.25,
+  // Leaning: on a close-up the camera turns a few degrees round the object
+  // toward the cursor, the way you'd lean to see into a vitrine, on a softer
+  // spring than the camera's own (leanGlide, seconds). Only with a fine
+  // pointer; the overview has its own tilt (Parallax, maquette/index.tsx).
+  leanYaw: 0.075, // radians either way (~4°)
+  leanPitch: 0.045, // up and down (~2.5°)
+  leanGlide: 0.55,
   // The lens breathes with the zoom: on a node close-up the FOV eases WIDER by
   // this many degrees (paired with the dolly-in — an exaggerated-perspective
   // push). The camera pulls in to match so the node keeps its framing whatever

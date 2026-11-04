@@ -4,7 +4,7 @@
 // constellation. CityRig at the bottom composes and places everything.
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, Shape, ShapeGeometry, TubeGeometry, Vector3, type Group, type Mesh, type Points as ThreePoints } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/media';
@@ -18,6 +18,8 @@ import { useLook } from '../look';
 import { BlobShadow, blobShadowTexture } from './backdrop';
 import { NextProjectSite, SITE_POS } from './launchSite';
 import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
+import { cursorAtDepth, cursorIdle, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
+import { spring } from '../../lib/spring';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
  *  Building for both its windows and its body. A module-level box rather than
@@ -341,6 +343,15 @@ function Outskirts({ clear, blocks }: { clear: V3[][]; blocks: { x: number; z: n
  *  of the smock it stands, and the windshaft's tilt (up at the front, as a
  *  real one's is). */
 const MILL_HUB = { y: 0.7, z: 0.265, tilt: 0.12 };
+/* In the mill's close-up the cursor is the wind: the cap (and the sails on it)
+   turns slowly round into the wind blowing from where the cursor is, as a mill
+   is turned into the wind, and moving the mouse past it is a gust that spins
+   the sails up; they run down again when it stops. */
+const WIND_TURN = 1.0; // how far the cap will turn either way (rad)
+const WIND_GLIDE = 1.1; // a heavy cap: slow round
+const GUST = 2.6; // spin per unit of cursor travel (screen halves), rad/s
+const GUST_MAX = 7; // rad/s
+const GUST_FADE = 1.4; // s for a gust to die down
 
 // Fetch the model with the tower's, as soon as the scene's code arrives.
 // A failure here is retried and reported by useMillKit.
@@ -411,13 +422,32 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
   const set = useRef(0); // the cloth: 0 furled along the whips → 1 set across the ladders
   const spin = useRef(0);
   const life = useRef(0);
-  useFrame((_s, delta) => {
+  // the wind from the cursor (see WIND_*, GUST*)
+  const close = useCloseUp(slug);
+  const root = useRef<Group>(null);
+  const cap = useRef<Group>(null);
+  const wind = useRef({ yaw: 0, gust: 0, px: 0, py: 0 });
+  const windVel = useRef({ v: 0 });
+  const from = useMemo(() => new Vector3(), []);
+  const hub = useMemo(() => new Vector3(0, MILL_HUB.y, 0), []);
+  useFrame((s, delta) => {
+    const dt = Math.min(delta, 1 / 30);
+    const w = wind.current;
+    const blowing = close && !!root.current && !!cursorAtDepth(s, root.current, hub, from);
+    const toward = blowing ? Math.max(-WIND_TURN, Math.min(WIND_TURN, Math.atan2(from.x, from.z))) : 0;
+    w.yaw = reduced ? 0 : spring(w.yaw, toward, windVel.current, dt, WIND_GLIDE);
+    if (cap.current) cap.current.rotation.y = w.yaw;
+    // a gust: the cursor's travel since the last frame
+    const travel = Math.hypot(s.pointer.x - w.px, s.pointer.y - w.py);
+    w.px = s.pointer.x;
+    w.py = s.pointer.y;
+    w.gust = Math.min(GUST_MAX, w.gust * Math.exp(-dt / GUST_FADE) + (blowing ? travel * GUST : 0));
     const engaged = hovered || selected || visited;
     set.current += ((engaged ? 1 : 0) - set.current) * (reduced ? 1 : 0.05);
     // the sails only take the wind as their cloth fills
     const filled = Math.min(1, Math.max(0, (set.current - 0.45) / 0.45));
     spin.current += ((engaged ? 0.9 * filled : 0) - spin.current) * 0.04;
-    if (sails.current && !reduced) sails.current.rotation.z += delta * spin.current;
+    if (sails.current && !reduced) sails.current.rotation.z += delta * (spin.current + w.gust);
     for (const c of cloths.current) if (c) c.scale.x = 0.07 + 0.93 * set.current;
     // the windows light with the mill's life, from the ghost's grey
     life.current += ((selected || visited ? 1 : 0) - life.current) * 0.06;
@@ -429,7 +459,7 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
     }
   });
   return (
-    <group position={position}>
+    <group ref={root} position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.42} opacity={0.38} />
       {/* Every part of the mill uses LiveGlassMat, not GlassMat: waking the
           windmill has to solidify all of it, or the silhouette still reads as a
@@ -448,34 +478,37 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
         <LiveGlassMat slug={slug} />
         <LiveEdges slug={slug} threshold={35} />
       </mesh>
-      <mesh geometry={kit.mill_cap}>
-        <LiveGlassMat slug={slug} tint="pale" />
-        <LiveEdges slug={slug} threshold={35} />
-      </mesh>
       <mesh geometry={kit.mill_trim}>
         <LiveGlassMat slug={slug} tint="pale" />
       </mesh>
       <mesh geometry={kit.mill_windows}>
         <meshStandardMaterial ref={windows} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.05} roughness={0.4} toneMapped={false} />
       </mesh>
-      <group position={[0, MILL_HUB.y, MILL_HUB.z]} rotation={[-MILL_HUB.tilt, 0, 0]}>
-        <group ref={sails}>
-          <mesh geometry={kit.mill_sails}>
-            <LiveGlassMat slug={slug} tint="pale" />
-          </mesh>
-          {[0, 1, 2, 3].map((k) => (
-            <group key={k} rotation={[0, 0, (k * Math.PI) / 2]}>
-              {/* Each sail's one outline is its cloth's, with a dimmer idle cap
-                  than the body's: four long thin shapes standing alone against
-                  open sky read as a bold cross of lines at full brightness,
-                  much more attention-grabbing than the same outline wrapping a
-                  bulky building. Translucent once set, so the ladder shows. */}
-              <mesh ref={(r) => (cloths.current[k] = r)} geometry={kit.mill_cloth} scale={[0.07, 1, 1]}>
-                <LiveGlassMat slug={slug} tint="pale" solid={0.55} />
-                <LiveEdges slug={slug} threshold={35} rest={0.4} />
-              </mesh>
-            </group>
-          ))}
+      {/* the cap and the sails it carries turn together, into the wind */}
+      <group ref={cap}>
+        <mesh geometry={kit.mill_cap}>
+          <LiveGlassMat slug={slug} tint="pale" />
+          <LiveEdges slug={slug} threshold={35} />
+        </mesh>
+        <group position={[0, MILL_HUB.y, MILL_HUB.z]} rotation={[-MILL_HUB.tilt, 0, 0]}>
+          <group ref={sails}>
+            <mesh geometry={kit.mill_sails}>
+              <LiveGlassMat slug={slug} tint="pale" />
+            </mesh>
+            {[0, 1, 2, 3].map((k) => (
+              <group key={k} rotation={[0, 0, (k * Math.PI) / 2]}>
+                {/* Each sail's one outline is its cloth's, with a dimmer idle cap
+                    than the body's: four long thin shapes standing alone against
+                    open sky read as a bold cross of lines at full brightness,
+                    much more attention-grabbing than the same outline wrapping a
+                    bulky building. Translucent once set, so the ladder shows. */}
+                <mesh ref={(r) => (cloths.current[k] = r)} geometry={kit.mill_cloth} scale={[0.07, 1, 1]}>
+                  <LiveGlassMat slug={slug} tint="pale" solid={0.55} />
+                  <LiveEdges slug={slug} threshold={35} rest={0.4} />
+                </mesh>
+              </group>
+            ))}
+          </group>
         </group>
       </group>
       <MillWind />
@@ -705,6 +738,14 @@ const BINOS_SCREEN_ROT: V3 = [0, 0, 0];
 const BINOS_SCREEN_SIZE: [number, number] = [0.07, 0.075];
 // A simple post the viewer stands on — raise BINOS_STAND_H to lift it higher.
 const BINOS_STAND_H = 0.14;
+/* In the park's close-up the viewer aims where you point on the park, swinging
+   on its post as if you were lining up a shot, and takes the picture (its
+   viewfinder flares) once it has settled on a new spot. Let the cursor rest and
+   it goes back to its own sweep. */
+const AIM_REACH = 1.3; // how far it swings either way (rad)
+const AIM_GLIDE = 0.3;
+const AIM_SETTLE = 0.45; // s steady on a spot before it shoots
+const AIM_NEW = 0.12; // how far from its last shot a spot has to be (rad)
 const BINOS_STAND_R = 0.02;
 function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rotationY?: number; slug?: string; lit: LitLink }) {
   const { accent } = useAccent();
@@ -721,6 +762,13 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
   const [model, setModel] = useState<Group | null>(null);
   const presence = useContext(PresenceCtx);
   const cfg = useLook();
+  // aiming at the cursor (see AIM_*)
+  const close = useCloseUp(slug ?? '');
+  const baseRef = useRef<Group>(null);
+  const aim = useRef({ yaw: 0, w: 0, steady: 0, shotYaw: 99 });
+  const aimVel = useRef({ v: 0 });
+  const still = useRef({ x: 0, y: 0, idle: 99 });
+  const spot = useMemo(() => new Vector3(), []);
 
   // The frosted glass shared by the buildings + windmill — the model and the
   // post it stands on both wear it, so they read as one object. It's assigned
@@ -793,14 +841,29 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
       pop.visible = sc > 0.002;
     }
     const head = headRef.current;
+    // the cursor's spot on the park, as a heading for the lenses (they look
+    // down the viewer's -z)
+    const a = aim.current;
+    const following = close && live && k.current > 0.55 && cursorIdle(s, still.current, dt) < 2.5 && !!baseRef.current && !!cursorOnLevel(s, baseRef.current, 0, spot);
+    if (following) {
+      const yaw = Math.max(-AIM_REACH, Math.min(AIM_REACH, Math.atan2(-spot.x, -spot.z)));
+      a.yaw = spring(a.yaw, yaw, aimVel.current, dt, AIM_GLIDE);
+      // steady on a new spot: the shot
+      a.steady = Math.abs(aimVel.current.v) < 0.12 ? a.steady + dt : 0;
+      if (a.steady > AIM_SETTLE && Math.abs(a.yaw - a.shotYaw) > AIM_NEW) {
+        a.shotYaw = a.yaw;
+        flash.current = 1;
+      }
+    }
+    a.w += ((following ? 1 : 0) - a.w) * (1 - Math.exp(-dt * (following ? 4 : 1.5)));
     if (!reduced && live && k.current > 0.55) {
-      // sweep left↔right; snap a photo at each extreme
+      // sweep left↔right; snap a photo at each extreme (unless it's yours to aim)
       const ph = s.clock.elapsedTime * 0.95;
-      if (head) head.rotation.y = Math.sin(ph) * 0.6;
+      if (head) head.rotation.y = Math.sin(ph) * 0.6 * (1 - a.w) + a.yaw * a.w;
       const shot = Math.floor((ph - Math.PI / 2) / Math.PI);
       if (shot !== lastShot.current) {
         lastShot.current = shot;
-        flash.current = 1;
+        if (a.w < 0.5) flash.current = 1;
       }
     } else if (head) {
       head.rotation.y += (0 - head.rotation.y) * 0.1; // settle back to centre
@@ -824,7 +887,7 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
   });
 
   return (
-    <group position={position} rotation={[0, rotationY, 0]}>
+    <group ref={baseRef} position={position} rotation={[0, rotationY, 0]}>
       <group ref={popRef} visible={false}>
         {/* the frosted-glass post it stands on (doesn't pan with the head) */}
         <mesh position={[0, BINOS_STAND_H / 2, 0]}>
@@ -1201,6 +1264,15 @@ loadTrafoKit().catch(() => {});
 function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive('alliander-hololens');
+  // in the close-up, pointing at the house sends a bolt down the wires (GRID)
+  const close = useCloseUp('alliander-hololens');
+  const houseRef = useRef<Group>(null);
+  const ray = useMemo(() => new Ray(), []);
+  const box = useMemo(() => {
+    kit.trafo_body.computeBoundingBox();
+    return kit.trafo_body.boundingBox!.clone();
+  }, [kit]);
+  const wasOver = useRef(false);
   const complete = useSceneSelector((s) => s.completedAt !== null);
   const reduced = useReducedMotion();
   const accentC = useMemo(() => new Color(accent), [accent]);
@@ -1228,10 +1300,21 @@ function TransformerHouse({ position, kit }: { position: V3; kit: TrafoKit }) {
     const hum = reduced ? 1 : 0.82 + 0.18 * Math.sin(t * 3.2); // a faint electrical hum
     capMat.color.copy(GHOST_FILL).lerp(accentC, k.current);
     capMat.emissive.copy(GHOST_FILL).lerp(accentC, k.current);
-    capMat.emissiveIntensity = (0.3 + 2.6 * k.current) * hum;
+    const now = s.clock.elapsedTime;
+    let over = false;
+    if (close && houseRef.current) {
+      cursorRay(s, houseRef.current, ray);
+      over = ray.intersectsBox(box);
+      if (over && !wasOver.current && now - GRID.boltAt > BOLT_REST) GRID.boltAt = now;
+    }
+    wasOver.current = over;
+    // the insulators flare as the bolt leaves them
+    const since = now - GRID.boltAt;
+    const zap = since >= 0 && since < 1.2 ? Math.exp(-since * 4) * 4 : 0;
+    capMat.emissiveIntensity = (0.3 + 2.6 * k.current) * hum + zap;
   });
   return (
-    <group position={position}>
+    <group ref={houseRef} position={position}>
       <BlobShadow position={[0, 0.004, 0]} radius={TRAFO_SPAN * 0.75} opacity={0.42} />
       {/* The shell (plinth, walls and roof slab) is the glass that carries the
           outline, as the blocks' bodies do; the door leaves are the deep cut and
@@ -1507,6 +1590,18 @@ function Constellation({ anchor }: { anchor: V3 }) {
   );
 }
 
+/* The bolt: pointing at the transformer house in the Alliander close-up
+   (TransformerHouse) sends a bolt of electricity through the wires: up the
+   house's own line to the tower (BOLT_UP), then out along every other line to
+   the buildings at once (BOLT_OUT), each a crackling spark with a short tail,
+   while the wires flash. GRID carries the moment it was sent from the house to
+   the wires. */
+const GRID = { boltAt: -99 };
+const BOLT_UP = 0.35; // s from the house to the tower
+const BOLT_OUT = 0.5; // s from the tower out to the buildings
+const BOLT_REST = 1.1; // s before the house will send another
+const SPARK_TAIL = [0.035, 0.07, 0.105]; // the tail's beads, behind the spark (along the wire, 0–1)
+
 /** Power cables from the Alliander tower out to every building — thin emissive
  *  tubes (not lines) so they reliably bloom: dim blue at rest, ramping to a bright
  *  glowing blue when the tower is engaged, and staying lit once visited. All tubes
@@ -1515,7 +1610,15 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive('alliander-hololens');
   const k = useRef(0);
-  const tubes = useMemo(
+  const sparks = useRef<(Group | null)[]>([]);
+  const at = useMemo(() => new Vector3(), []);
+  const sparkMat = useMemo(() => {
+    const m = new MeshBasicMaterial({ color: '#eaf6ff', transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
+    m.userData.lifeSkip = true;
+    return m;
+  }, []);
+  useEffect(() => () => sparkMat.dispose(), [sparkMat]);
+  const curves = useMemo(
     () =>
       targets.map((t) => {
         // Attach on the tower's OUTSIDE facing this target, not on its centre axis.
@@ -1544,10 +1647,11 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
             ),
           );
         }
-        return new TubeGeometry(new CatmullRomCurve3(pts), 14, 0.006, 5, false);
+        return new CatmullRomCurve3(pts);
       }),
     [from, targets],
   );
+  const tubes = useMemo(() => curves.map((c) => new TubeGeometry(c, 14, 0.006, 5, false)), [curves]);
   const mat = useMemo(() => {
     const m = new MeshStandardMaterial({
       color: SURFACE.deep.color,
@@ -1561,17 +1665,46 @@ function PowerWires({ from, targets }: { from: V3; targets: V3[] }) {
     m.userData.lifeSkip = true; // animates its own opacity — presence stays out
     return m;
   }, []);
-  useFrame(() => {
+  useFrame((s) => {
     const target = selected ? 1 : hovered ? 0.5 : visited ? 0.28 : 0;
     k.current += (target - k.current) * 0.09;
     const kk = k.current;
-    mat.emissiveIntensity = 0.12 + kk * 2.8; // toneMapped:false → blooms on select
+    // the bolt: the house's own line (the last) carries it up, then the rest out
+    const since = s.clock.elapsedTime - GRID.boltAt;
+    const flash = since >= 0 && since < 1.5 ? Math.exp(-since * 3) * 3.2 : 0;
+    mat.emissiveIntensity = 0.12 + kk * 2.8 + flash; // toneMapped:false → blooms on select
     mat.opacity = 0.5 + kk * 0.5;
+    const up = curves.length - 1;
+    for (let i = 0; i < curves.length; i++) {
+      const g = sparks.current[i];
+      if (!g) continue;
+      // where the spark is along its wire (0 tower → 1 the far end), and which way it runs
+      const u = i === up ? 1 - since / BOLT_UP : (since - BOLT_UP * 0.95) / BOLT_OUT;
+      const back = i === up ? 1 : -1;
+      g.visible = u >= 0 && u <= 1 && since >= 0;
+      if (!g.visible) continue;
+      g.children.forEach((bead, j) => {
+        const uu = Math.min(1, Math.max(0, u + back * (j === 0 ? 0 : SPARK_TAIL[j - 1])));
+        curves[i].getPointAt(uu, at);
+        // it crackles: a jitter off the wire every frame
+        bead.position.set(at.x + (Math.random() - 0.5) * 0.01, at.y + (Math.random() - 0.5) * 0.01, at.z + (Math.random() - 0.5) * 0.01);
+        bead.scale.setScalar((1 - j * 0.24) * (0.8 + Math.random() * 0.4));
+      });
+    }
   });
   return (
     <group>
       {tubes.map((g, i) => (
         <mesh key={i} geometry={g} material={mat} />
+      ))}
+      {curves.map((_, i) => (
+        <group key={`spark${i}`} ref={(g) => (sparks.current[i] = g)} visible={false}>
+          {[0, 1, 2, 3].map((j) => (
+            <mesh key={j} material={sparkMat}>
+              <sphereGeometry args={[0.011, 8, 6]} />
+            </mesh>
+          ))}
+        </group>
       ))}
     </group>
   );

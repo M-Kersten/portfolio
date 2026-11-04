@@ -6,10 +6,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, Vector3, type Group, type Mesh, type MeshBasicMaterial, type Texture } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, MeshStandardMaterial, Ray, RepeatWrapping, SRGBColorSpace, Vector3, type Group, type Mesh, type MeshBasicMaterial, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
 import { spring } from '../../lib/spring';
+import { cursorAtDepth, cursorIdle, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
 import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat } from './materials';
@@ -24,6 +25,13 @@ const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
 const PHONE_W = 0.075;
 const PHONE_H = 0.155;
 const PHONE_T = 0.0075;
+/* The balls, once out, roll about the cushions: in the close-up the cursor
+   pushes them (a ball near it rolls away from it), they roll to a stop, bounce
+   off the cushions' edges and off each other. A tiny game, Popcore's trade. */
+const SEAT = { x: [-0.35, 0.35], z: [-0.08, 0.2] }; // where a ball can roll, couch frame
+const PUSH_R = 0.06; // how close the cursor has to come
+const PUSH = 3.2; // how hard it pushes (m/s², at its closest)
+const ROLL_DRAG = 2.2; // the cushion's friction (1/s)
 /** The phone on the couch (Popcore), a Blender model (build_phone.py). It lies
  *  face down, the way a phone is left on a cushion, so what you see from across
  *  the room is its back, and the camera island on it is what says "phone". It
@@ -36,6 +44,9 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
+  const close = useCloseUp(slug);
+  const frame = useRef<Group>(null); // the couch's frame, to find the cursor in
+  const hand = useMemo(() => new Vector3(), []);
   const kit = usePhoneKit();
   const rigRef = useRef<Group>(null);
   const mat = useRef<MeshStandardMaterial>(null);
@@ -138,9 +149,11 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
       });
     }
 
-    // --- integrate the balls: launch, arc under gravity, bounce, settle ---
+    // --- integrate the balls: launch, arc under gravity, bounce, then roll ---
     if (fired.current && !reduced) {
       const restY = COUCH_SEAT_Y + R;
+      // the cursor on the cushions, where it can push a ball
+      const pushing = close && !!frame.current && !!cursorOnLevel(s, frame.current, restY, hand);
       for (const b of balls) {
         if (!b.mesh) continue;
         if (b.delay > 0) {
@@ -148,15 +161,70 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
           continue;
         }
         b.mesh.visible = true;
-        b.vel.y -= 2.6 * dt; // gravity
-        b.mesh.position.addScaledVector(b.vel, dt);
-        if (b.mesh.position.y <= restY) {
-          b.mesh.position.y = restY;
-          if (Math.abs(b.vel.y) < 0.14) b.vel.set(0, 0, 0); // settled
+        const p = b.mesh.position;
+        const rolling = p.y <= restY + 1e-4 && b.vel.y === 0;
+        if (!rolling) b.vel.y -= 2.6 * dt; // gravity
+        else {
+          if (pushing) {
+            const dx = p.x - hand.x;
+            const dz = p.z - hand.z;
+            const d = Math.hypot(dx, dz);
+            if (d < PUSH_R && d > 1e-5) {
+              const a = PUSH * (1 - d / PUSH_R) * dt;
+              b.vel.x += (dx / d) * a;
+              b.vel.z += (dz / d) * a;
+            }
+          }
+          const drag = Math.exp(-dt * ROLL_DRAG);
+          b.vel.x *= drag;
+          b.vel.z *= drag;
+        }
+        p.addScaledVector(b.vel, dt);
+        if (p.y <= restY && !rolling) {
+          p.y = restY;
+          if (Math.abs(b.vel.y) < 0.14) b.vel.y = 0; // landed: it rolls from here
           else {
             b.vel.y = -b.vel.y * 0.5; // bounce
             b.vel.x *= 0.72;
             b.vel.z *= 0.72;
+          }
+        }
+        // the cushions' edges, once it's down on them
+        if (p.y <= restY + 0.02) {
+          for (const [k, [lo, hi]] of [['x', SEAT.x], ['z', SEAT.z]] as const) {
+            if (p[k] < lo || p[k] > hi) {
+              p[k] = Math.min(hi, Math.max(lo, p[k]));
+              b.vel[k] *= -0.5;
+            }
+          }
+        }
+      }
+      // and each other: apart along the line between them, trading that speed
+      for (let i = 0; i < balls.length; i++) {
+        const a = balls[i].mesh;
+        if (!a?.visible) continue;
+        for (let j = i + 1; j < balls.length; j++) {
+          const c = balls[j].mesh;
+          if (!c?.visible) continue;
+          const dx = c.position.x - a.position.x;
+          const dz = c.position.z - a.position.z;
+          const d = Math.hypot(dx, dz);
+          if (d >= 2 * R || d < 1e-6 || Math.abs(c.position.y - a.position.y) > R) continue;
+          const nx = dx / d;
+          const nz = dz / d;
+          const over = (2 * R - d) / 2;
+          a.position.x -= nx * over;
+          a.position.z -= nz * over;
+          c.position.x += nx * over;
+          c.position.z += nz * over;
+          const va = balls[i].vel.x * nx + balls[i].vel.z * nz;
+          const vc = balls[j].vel.x * nx + balls[j].vel.z * nz;
+          if (va - vc > 0) {
+            const swap = (va - vc) * 0.9;
+            balls[i].vel.x -= nx * swap;
+            balls[i].vel.z -= nz * swap;
+            balls[j].vel.x += nx * swap;
+            balls[j].vel.z += nz * swap;
           }
         }
       }
@@ -164,7 +232,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
   });
 
   return (
-    <>
+    <group ref={frame}>
       {/* the light the face-down screen leaks onto the cushion when it buzzes,
           lying under the phone at its resting turn */}
       <group position={[position[0], COUCH_SEAT_Y + 0.004, position[2]]} rotation={[0, -0.3, 0]}>
@@ -219,7 +287,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
           <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.3} roughness={0.45} toneMapped={false} />
         </mesh>
       ))}
-    </>
+    </group>
   );
 }
 
@@ -329,8 +397,13 @@ function paintStripe(g: BufferGeometry) {
   g.setAttribute('color', new BufferAttribute(col, 3));
 }
 
-function RaceCar({ livery }: { livery: Livery }) {
+function RaceCar({ livery, boost }: { livery: Livery; boost?: { current: number } }) {
   const kit = useCarKit();
+  const rims = useRef<MeshStandardMaterial>(null);
+  // a boost lights the rims up (CoffeeTableAR, BOOST)
+  useFrame(() => {
+    if (rims.current && boost) rims.current.emissiveIntensity = 1.1 + 2.6 * boost.current;
+  });
   if (!kit) return null;
   paintStripe(kit.car_stripe);
   return (
@@ -350,7 +423,7 @@ function RaceCar({ livery }: { livery: Livery }) {
         <meshStandardMaterial color="#15121c" roughness={0.8} />
       </mesh>
       <mesh geometry={kit.car_rims}>
-        <meshStandardMaterial color={livery.rim} emissive={livery.rim} emissiveIntensity={1.1} roughness={0.35} toneMapped={false} />
+        <meshStandardMaterial ref={rims} color={livery.rim} emissive={livery.rim} emissiveIntensity={1.1} roughness={0.35} toneMapped={false} />
       </mesh>
     </group>
   );
@@ -624,6 +697,13 @@ const CATCH = 0.07; // how hard a dropped car pushes on, per radian of gap
 const CATCH_CAP = 6; // never let the band become a rocket if the gap ever runs away
 const LEAD_HYST = 0.07; // the crown won't change hands on a photo finish jitter
 const LAP_SPEED = (2 * Math.PI * 0.2) / COURSE.L; // laps (in radians) per metre-per-second at 0.2 m/s top speed
+/* In the table's close-up, point at a car and it gets a boost: a burst of
+   speed that fades over BOOST_FADE, its rims flaring and its nose lifting as it
+   goes, so you can help one into the lead. One boost per car per BOOST_REST. */
+const BOOST = 0.9; // extra speed at the burst's peak
+const BOOST_FADE = 1.3; // s
+const BOOST_REST = 1.6; // s before the same car takes another
+const BOOST_REACH = 0.035; // how near the cursor's ray has to pass a car (m)
 
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
@@ -637,6 +717,11 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const dist = useRef(CARS.map((c) => c.at));
   const pitch = useRef(CARS.map(() => 0));
   const lead = useRef(0);
+  const close = useCloseUp(hoverSlug ?? '');
+  const table = useRef<Group>(null);
+  const boost = useMemo(() => CARS.map(() => ({ current: 0, rest: 0 })), []);
+  const ray = useMemo(() => new Ray(), []);
+  const carAt = useMemo(() => new Vector3(), []);
   const arrows = useGeometry(arrowGeometry);
   const mat = useGeometry(() => roundedPlaneGeometry(MAT_W, MAT_D, 0.03));
   const arrowMap = useMemo(arrowTexture, []);
@@ -660,6 +745,23 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     live.current += ((selected || visited ? 1 : 0) - live.current) * FX.engage;
     const t = s.clock.elapsedTime;
 
+    // a car the cursor points at takes a boost
+    const aiming = close && !!table.current;
+    if (aiming) cursorRay(s, table.current!, ray);
+    for (let i = 0; i < CARS.length; i++) {
+      const b = boost[i];
+      b.current = Math.max(0, b.current - dt / BOOST_FADE);
+      b.rest = Math.max(0, b.rest - dt);
+      const g = cars.current[i];
+      if (aiming && g && b.rest === 0) {
+        carAt.copy(g.position).y += 0.015;
+        if (ray.distanceSqToPoint(carAt) < BOOST_REACH * BOOST_REACH) {
+          b.current = 1;
+          b.rest = BOOST_REST;
+        }
+      }
+    }
+
     // who's ahead, by laps covered; the dead band stops the crown flickering through a pass
     const d = dist.current[0] - dist.current[1];
     if (d > LEAD_HYST) lead.current = 0;
@@ -675,6 +777,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
           const gap = Math.min(CATCH_CAP, Math.max(0, dist.current[lead.current] - dist.current[i]));
           v *= 1 + CATCH * gap;
         }
+        v *= 1 + BOOST * boost[i].current;
         dist.current[i] += v * dt * LAP_SPEED;
       }
       const g = cars.current[i];
@@ -687,7 +790,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       const aim = -Math.atan(slope);
       pitch.current[i] = reduced ? aim : pitch.current[i] + (aim - pitch.current[i]) * (1 - Math.exp(-dt * 16));
       g.position.set(p.x + tan.z * c.lane, MAT + y, p.z - tan.x * c.lane);
-      g.rotation.set(pitch.current[i], Math.atan2(tan.x, tan.z), 0, 'YXZ');
+      g.rotation.set(pitch.current[i] - 0.07 * boost[i].current, Math.atan2(tan.x, tan.z), 0, 'YXZ');
     }
 
     // the crown rides whoever is ahead, and hops across the moment that changes
@@ -701,7 +804,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     }
   });
   return (
-    <group position={position} rotation={[0, -0.16, 0]}>
+    <group ref={table} position={position} rotation={[0, -0.16, 0]}>
       <BlobShadow position={[0, 0.004, 0]} radius={0.48} aspect={0.62} opacity={0.4} />
       {kit && (
         <mesh geometry={kit.tbl_frame}>
@@ -730,7 +833,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       {CARS.map((c, i) => (
         <group key={i} ref={(g) => (cars.current[i] = g)}>
           <group scale={CAR_SCALE}>
-            <RaceCar livery={c.livery} />
+            <RaceCar livery={c.livery} boost={boost[i]} />
           </group>
         </group>
       ))}
@@ -868,6 +971,15 @@ const BEATS: { hold: number; glide: number; look: [Aim, Aim]; duck?: [number, nu
 ];
 const BEAT_LEN = BEATS.reduce((n, b) => n + b.hold, 0);
 const JOIN_DELAY = 0.7; // s after the first lifts that the second spawns in
+/* In the close-up, now and then, the two notice you: between their beats they
+   turn to look at the cursor, the first and then the second, as if a third
+   player had just joined the session, and after a moment go back to their game.
+   Only while the cursor's moving; never more often than every NOTICE_EVERY. */
+const NOTICE_FIRST = 2.5; // s into the session before the first time
+const NOTICE_LEN = 1.8; // how long they look
+const NOTICE_EVERY = [6, 9]; // s from one time to the next, at random between
+const NOTICE_LAG = 0.25; // the second looks round this long after the first
+const NOTICE_AT: V3 = [0.05, 0.85, 0.6]; // the depth they look out to, desk frame: in front of them, toward you
 const JOIN_FLICKER = 0.3; // s of flicker as it arrives
 /** Which beat is playing `t` seconds into the session, and how long it has been on. */
 function beatAt(t: number): [number, number] {
@@ -881,6 +993,12 @@ function beatAt(t: number): [number, number] {
 function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
   const { selected } = useActive(DESK_SLUG);
   const reduced = useReducedMotion();
+  const close = useCloseUp(DESK_SLUG);
+  const frame = useRef<Group>(null); // the desk's frame, to find the cursor in
+  const notice = useRef({ t: -1, next: NOTICE_FIRST });
+  const still = useRef({ x: 0, y: 0, idle: 99 });
+  const you = useMemo(() => new Vector3(), []);
+  const depth = useMemo(() => new Vector3(...NOTICE_AT), []);
   const rigs = useRef<(Group | null)[]>([]);
   const lift = useRef(0); // 0 on the desk, 1 on the first player's head
   const session = useRef(0); // seconds the session has been running
@@ -900,6 +1018,19 @@ function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
     lift.current = reduced ? on : lift.current + (on - lift.current) * (1 - Math.exp(-dt * 2.2));
     session.current = selected ? session.current + dt : 0;
     const e = lift.current * lift.current * (3 - 2 * lift.current); // eased off the desk and back onto it
+    // noticing you: when it's time, and only while the cursor's moving
+    const nt = notice.current;
+    const moving = close && cursorIdle(s, still.current, dt) < 1.5;
+    const seen = moving && !!frame.current && !!cursorAtDepth(s, frame.current, depth, you);
+    if (!selected) Object.assign(nt, { t: -1, next: NOTICE_FIRST });
+    else if (nt.t < 0 && seen && session.current >= nt.next) nt.t = 0;
+    else if (nt.t >= 0) {
+      nt.t += dt;
+      if (nt.t > NOTICE_LEN + NOTICE_LAG) {
+        nt.t = -1;
+        nt.next = session.current + NOTICE_EVERY[0] + Math.random() * (NOTICE_EVERY[1] - NOTICE_EVERY[0]);
+      }
+    }
     // the second player: spawning in once the session's begun, gone when it ends
     const since = session.current - JOIN_DELAY;
     const joined = reduced ? on : selected ? Math.min(1, Math.max(0, since / 0.45)) : Math.max(0, Math.min(1, e * 1.4 - 0.4));
@@ -918,17 +1049,20 @@ function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
       }
       const B = BEATS[bi];
       const aim = B.look[p];
-      const to = aim === 'peer' ? peer : aim;
+      // noticing you overrides the beat while it lasts
+      const looking = nt.t >= p * NOTICE_LAG && nt.t <= NOTICE_LEN + p * NOTICE_LAG && seen;
+      const to: V3 = looking ? [you.x, you.y, you.z] : aim === 'peer' ? peer : aim;
       const dx = to[0] - at[0];
       const dz = to[2] - at[2];
       const yaw = Math.atan2(dx, dz);
-      const pitch = -Math.atan2(to[1] - at[1], Math.hypot(dx, dz)) + (B.nod && !reduced ? Math.max(0, Math.sin(session.current * 6 + p)) * 0.12 : 0);
+      const pitch = -Math.atan2(to[1] - at[1], Math.hypot(dx, dz)) + (B.nod && !looking && !reduced ? Math.max(0, Math.sin(session.current * 6 + p)) * 0.12 : 0);
+      const glide = looking ? 0.22 : B.glide;
       const hd = heads.current[p];
       const v = vels.current[p];
       if (reduced) Object.assign(hd, { yaw: Math.atan2(SCENE.ahead[0] - at[0], SCENE.ahead[2] - at[2]), pitch: 0, duck: 0, lean: 0 });
       else {
-        hd.yaw = spring(hd.yaw, yaw, v.yaw, dt, B.glide);
-        hd.pitch = spring(hd.pitch, pitch, v.pitch, dt, B.glide);
+        hd.yaw = spring(hd.yaw, yaw, v.yaw, dt, glide);
+        hd.pitch = spring(hd.pitch, pitch, v.pitch, dt, glide);
         hd.duck = spring(hd.duck, (B.duck?.[p] ?? 0) * on, v.duck, dt, B.glide);
         hd.lean = spring(hd.lean, (B.lean?.[p] ?? 0) * on, v.lean, dt, B.glide);
       }
@@ -959,7 +1093,7 @@ function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
     }
   });
   return (
-    <>
+    <group ref={frame}>
       <group ref={(g) => (rigs.current[0] = g)} position={rest} rotation={[0, restYaw, 0]}>
         <group position={[-HS_PIVOT[0], -HS_PIVOT[1], -HS_PIVOT[2]]}>
           <Headset />
@@ -970,7 +1104,7 @@ function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
           <Headset />
         </group>
       </group>
-    </>
+    </group>
   );
 }
 
@@ -1137,10 +1271,22 @@ function BookHalf({ side, tex, lit, kit }: { side: -1 | 1; tex: Texture | null; 
 // Holographic content lifting off the open page — a few small wireframe glyphs
 // that rise, turn and fade above the spread while the book is open. The AR the
 // Zwijsen books are about, made literal; off under reduced motion.
+// In the book's close-up they drift toward the cursor as they rise (the more
+// the higher they are, up to HOLO_REACH from where they'd be), and float back
+// when it rests.
+const HOLO_PULL = 0.5;
+const HOLO_REACH = 0.12;
 function BookAR({ slug }: { slug: string }) {
   const reduced = useReducedMotion();
   const { accent } = useAccent();
   const { selected } = useActive(slug);
+  const close = useCloseUp(slug);
+  const root = useRef<Group>(null);
+  const still = useRef({ x: 0, y: 0, idle: 99 });
+  const you = useMemo(() => new Vector3(), []);
+  const over = useMemo(() => new Vector3(0, 0.12, 0), []);
+  const drift = useMemo(() => [new Vector3(), new Vector3(), new Vector3()], []);
+  const pull = useMemo(() => new Vector3(), []);
   const refs = useRef<(Group | null)[]>([]);
   const mats = useRef<(MeshStandardMaterial | null)[]>([]);
   const glow = useRef(0);
@@ -1152,23 +1298,32 @@ function BookAR({ slug }: { slug: string }) {
     ],
     [],
   );
-  useFrame((s) => {
+  useFrame((s, delta) => {
     glow.current += ((selected && !reduced ? 1 : 0) - glow.current) * FX.engage;
     const t = s.clock.elapsedTime;
+    const dt = Math.min(delta, 1 / 30);
+    const toward = close && cursorIdle(s, still.current, dt) < 2.5 && !!root.current && !!cursorAtDepth(s, root.current, over, you);
     for (let i = 0; i < items.length; i++) {
       const g = refs.current[i];
       const m = mats.current[i];
       const it = items[i];
       if (!g) continue;
       const p = (t * it.spd + it.ph) % 1;
-      g.position.set(it.x, 0.03 + p * 0.16, it.z); // rise off the page
+      const y = 0.03 + p * 0.16;
+      // toward the cursor, the further the higher it has risen, within reach
+      if (toward) {
+        pull.set(you.x - it.x, you.y - y, you.z - it.z).multiplyScalar(HOLO_PULL * p);
+        if (pull.length() > HOLO_REACH) pull.setLength(HOLO_REACH);
+      } else pull.set(0, 0, 0);
+      drift[i].lerp(pull, 1 - Math.exp(-dt * 3));
+      g.position.set(it.x + drift[i].x, y + drift[i].y, it.z + drift[i].z); // rise off the page
       g.rotation.set(t * 0.5, t * 0.8 + it.ph * 6, 0);
       g.scale.setScalar(0.55 + 0.45 * Math.sin(p * Math.PI));
       if (m) m.opacity = fxEnv(p) * FX.peak * glow.current;
     }
   });
   return (
-    <group>
+    <group ref={root}>
       {items.map((it, i) => (
         <group key={i} ref={(r) => (refs.current[i] = r)}>
           <mesh>
