@@ -41,9 +41,14 @@ export const STEP_CENTRE = [0.125, 0.5, 0.875];
 export interface Hotspot {
   slug: string;
   layer: LayerId;
-  /** The point ON the object (local to the layer group): the marker's leader
-   *  line drops straight down to it, and its close-up frames it. */
+  /** The point ON the object (local to the layer group) its close-up frames
+   *  and its cables run to. The marker stands straight above it. */
   anchor: [number, number, number];
+  /** How high the object's top is under the marker (layer-local): the leader
+   *  drops to it and its ring sits on it, so the line lands on the object
+   *  rather than ending in the air beside it or inside it. Measured by casting
+   *  straight down from the marker into the layer. */
+  foot: number;
   /** The marker itself: straight above the anchor, at its floor's marker
    *  height (MARKER_Y). Worked out from the anchor, never written by hand. */
   position: [number, number, number];
@@ -71,7 +76,7 @@ export interface HotspotView {
 }
 
 // Each hotspot marks one object: a crosshair on its floor's marker line, with a
-// leader dropping straight down to the point on the object (anchor). Anchors are
+// leader dropping straight down onto the object's top (foot). Anchors are
 // local to the layer group (placed at LAYER_Y and scaled). The exhibits on a
 // floor are laid out so that, seen from the overview, they stand in their own
 // columns across the screen — that's what keeps the names on the line apart.
@@ -79,20 +84,20 @@ const SPOTS: Omit<Hotspot, 'position'>[] = [
   // Chip — the die in the middle, the heart and the camera on opposite corner
   // slots (chip.tsx CORNER): three even columns. Move a slot and its anchor
   // here has to follow.
-  { slug: 'amsterdam-ai', layer: 'chip', anchor: [0, 0.16, 0], view: { offset: [0.35, 1.75, 1.85], aimDown: 0.62, fovZoom: 14 } }, // the die
-  { slug: 'custom-ar-framework', layer: 'chip', anchor: [0.75, 0, -0.75], view: { offset: [2.2, 0.8, 1.8], aimDown: 0.3, fovZoom: -2.5 } }, // the CV camera (back-right slot)
-  { slug: 'philips-medical-xr', layer: 'chip', anchor: [-0.75, 0.16, 0.75], view: { offset: [0.36, 0.4, 0.9], aimDown: 0.2, fovZoom: 19.5 } }, // the heart projector (front-left slot); the anchor sits in the beam under the heart, clear of where the catheter works
+  { slug: 'amsterdam-ai', layer: 'chip', anchor: [0, 0.16, 0], foot: 0.125, view: { offset: [0.35, 1.75, 1.85], aimDown: 0.62, fovZoom: 14 } }, // the die
+  { slug: 'custom-ar-framework', layer: 'chip', anchor: [0.75, 0, -0.75], foot: 0.33, view: { offset: [2.2, 0.8, 1.8], aimDown: 0.3, fovZoom: -2.5 } }, // the CV camera (back-right slot)
+  { slug: 'philips-medical-xr', layer: 'chip', anchor: [-0.75, 0.16, 0.75], foot: 0.47, view: { offset: [0.36, 0.4, 0.9], aimDown: 0.2, fovZoom: 19.5 } }, // the heart projector (front-left slot); the anchor sits in the beam under the heart, clear of where the catheter works
   // Room — four exhibits on a diagonal from the front-left to the back-right,
   // so from the overview each has its own column: desk, table, couch, shelf
   // (room.tsx RoomRig)
-  { slug: 'virtuele-brigade', layer: 'room', anchor: [-1.6, 0.65, 0.14], view: { offset: [2.05, 0.2, 0.3], aimDown: 0.45, fovZoom: 0.5 } }, // the monitor
-  { slug: 'popcore-games', layer: 'room', anchor: [0.23, 0.22, -0.34], view: { offset: [0.6, 0.55, 0.95], aimDown: 0.05, fovZoom: 19.5 } }, // phone on the couch
-  { slug: 'lightship-drive', layer: 'room', anchor: [0, 0.2, 0.68], view: { offset: [0.95, 0.5, 0.75], aimDown: 0.25, fovZoom: 30 } }, // the AR race table
-  { slug: 'zwijsen-ar-books', layer: 'room', anchor: [0.92, 0.4, -1.07], view: { offset: [-0.1, 0.9, 1.35], aimDown: 0.35, fovZoom: 16, mobileZoom: 1.45 } }, // the orange book on the shelf
+  { slug: 'virtuele-brigade', layer: 'room', anchor: [-1.42, 0.65, 0.26], foot: 0.79, view: { offset: [1.87, 0.2, 0.18], aimDown: 0.45, fovZoom: 0.5 } }, // the monitor's screen (room.tsx Desk, in the desk group)
+  { slug: 'popcore-games', layer: 'room', anchor: [0.23, 0.22, -0.34], foot: 0.21, view: { offset: [0.6, 0.55, 0.95], aimDown: 0.05, fovZoom: 19.5 } }, // phone on the couch
+  { slug: 'lightship-drive', layer: 'room', anchor: [0, 0.2, 0.68], foot: 0.19, view: { offset: [0.95, 0.5, 0.75], aimDown: 0.25, fovZoom: 30 } }, // the AR race table
+  { slug: 'zwijsen-ar-books', layer: 'room', anchor: [0.92, 0.4, -1.07], foot: 0.95, view: { offset: [-0.1, 0.9, 1.35], aimDown: 0.35, fovZoom: 16, mobileZoom: 1.45 } }, // the orange book on the shelf; the marker stands on the bookcase's top
   // City — GIS / location work
-  { slug: 'arcam', layer: 'city', anchor: [1.2, 0.3, 0.11], view: { offset: [1.51, 0.8, 1.72], aimDown: 0.3, fovZoom: 17 } }, // the park's AR viewer (city.tsx Park → Binoculars)
-  { slug: 'alliander-hololens', layer: 'city', anchor: [0, 0.77, 0], view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26 } }, // the skyscraper (skyline peak)
-  { slug: 'dtt-amsterdam', layer: 'city', anchor: [-1.2, 0.58, -0.06], view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19 } }, // the windmill
+  { slug: 'arcam', layer: 'city', anchor: [1.2, 0.3, 0.11], foot: 0.36, view: { offset: [1.51, 0.8, 1.72], aimDown: 0.3, fovZoom: 17 } }, // the park's AR viewer (city.tsx Park → Binoculars)
+  { slug: 'alliander-hololens', layer: 'city', anchor: [0, 0.77, 0], foot: 1.03, view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26 } }, // the skyscraper (skyline peak)
+  { slug: 'dtt-amsterdam', layer: 'city', anchor: [-1.2, 0.58, -0.06], foot: 0.75, view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19 } }, // the windmill
 ];
 export const HOTSPOTS: Hotspot[] = SPOTS.map((h) => ({ ...h, position: [h.anchor[0], MARKER_Y[h.layer], h.anchor[2]] }));
 

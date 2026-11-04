@@ -360,11 +360,12 @@
   display: inline-block;
 }
 /* On a phone it wraps to a narrow block instead of one long line, so it fits
-   beside the tower inside the screen. */
+   beside the tower inside the screen. A set width, not a cap: near the
+   screen's edge a shrink-to-fit box squeezed it to a word a line. */
 @media (max-width: 760px) {
   .nextsite {
     white-space: normal;
-    max-width: 13.5em;
+    width: 12em;
     text-align: center;
   }
 }

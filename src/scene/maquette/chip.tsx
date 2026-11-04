@@ -266,10 +266,8 @@ function landTrace(e: number, pin: number, bx: number, bz: number, y: number): V
  *  CCTV camera on a post (scripts/models/build_camera.py), in the chip kit's
  *  idiom — a deep housing under a pale sun visor, a dark front panel with a
  *  ring of IR LEDs round the lens, a cable gland on the back, and a ball joint
- *  on the post that the head nods and pans on. From its back corner it looks in
- *  across the board (CAM_AIM), so the hologram hangs over the board rather
- *  than out past its edge, where it stuck out of the chip's frame and off a
- *  phone's screen. Selecting it racks the lens for focus and spawns the hologram: a
+ *  on the post that the head nods and pans on. It looks out past the back of
+ *  the board (CAM_AIM). Selecting it racks the lens for focus and spawns the hologram: a
  *  clean cone of light onto a wireframe cube that bobs and turns in the beam.
  *  Once alive it keeps looking the cube up and down, selected or not (visited
  *  things stay awake), and its IR ring stays lit. In its close-up two more
@@ -281,7 +279,7 @@ const CAM_LENS_Z = 0.105; // cone apex, just past the dome
 const CAM_CUBE_Z = 0.78; // hologram centre, out in front of the lens
 const CAM_CUBE = 0.22; // hologram cube edge length
 const CAM_CONE_R = 0.22; // vision-cone radius where it meets the cube
-const CAM_AIM = -0.35; // the head's heading on the board, rad (0 = toward the front): in, across the board
+const CAM_AIM = 2.35; // the head's heading on the board, rad (0 = toward the front): out past the back-right
 
 /* The head's motion. It sits on the ball with the lens aimed +z, so a positive
    rotation.x tips that aim DOWN — pitch is the whole performance here and

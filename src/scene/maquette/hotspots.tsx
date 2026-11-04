@@ -46,7 +46,8 @@ export function HotspotMarker({
   // brighter once the object it points to has been brought alive. While ANY
   // node is open the markers all vanish, so the HUD gets a clean stage.
   const alive = selected || visited;
-  const anchor: V3 = hotspot.anchor;
+  // the leader drops straight down onto the object's top (Hotspot.foot)
+  const foot: V3 = [hotspot.position[0], hotspot.foot, hotspot.position[2]];
   // the leader line and the ring fade with the crosshair rather than popping
   const reduced = useReducedMotion();
   const lineRef = useRef<ElementRef<typeof Line>>(null);
@@ -65,9 +66,9 @@ export function HotspotMarker({
   return (
     <group>
       {/* leader line from the object up to the floating crosshair */}
-      <Line ref={lineRef} points={[anchor, hotspot.position]} color={color} lineWidth={1} transparent opacity={0} />
-      {/* a ring marking the exact spot on the object */}
-      <mesh position={anchor} rotation={[-Math.PI / 2, 0, 0]}>
+      <Line ref={lineRef} points={[foot, hotspot.position]} color={color} lineWidth={1} transparent opacity={0} />
+      {/* a ring where the line meets the object */}
+      <mesh position={[foot[0], foot[1] + 0.003, foot[2]]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.016, 0.027, 20]} />
         <meshBasicMaterial ref={ringMat} color={color} transparent opacity={0} side={2} toneMapped={false} />
       </mesh>
