@@ -69,6 +69,9 @@ export interface PlacementEntry extends Placement {
 /** Every object that asked to be placeable, by name ("Room.Desk"). */
 export const PLACEMENTS = tunable<Record<string, PlacementEntry>>({});
 
+/** Each placement as written in the source, by name (see usePlacement). */
+const SEEDED = new Map<string, Placement>();
+
 /** An object's position (and turn), placeable by eye from the dev tools.
  *  Production returns the seed as written. In dev, drag it about in the panel
  *  and copy the JSX props it prints back into the source. Objects anchored to a
@@ -89,7 +92,12 @@ export function usePlacement(name: string, seed: { position: V3; rotationY?: num
     const live = useSyncExternalStore(PLACEMENTS.subscribe, () => PLACEMENTS.get()[name]);
     if (live) return live;
   }
-  return { position: seed.position, rotationY: seed.rotationY ?? 0 };
+  // the same object every render: the seed is written inline at the call, so
+  // a fresh one each time made everything memoised on it (the city's power
+  // grid) build itself again whenever its rig re-rendered
+  let placed = SEEDED.get(name);
+  if (!placed) SEEDED.set(name, (placed = { position: seed.position, rotationY: seed.rotationY ?? 0 }));
+  return placed;
 }
 
 /* ---------- the camera's close-up on each exhibit ---------- */

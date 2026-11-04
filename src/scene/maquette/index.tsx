@@ -3,7 +3,7 @@
 // is a dot floor + point field + one rig of objects, stacked at LAYER_Y and
 // scaled by LAYER_SCALE (see ../framing.ts, where the hotspots are authored
 // too). The per-layer content lives in city.tsx / room.tsx / chip.tsx.
-import { useMemo, useRef, type ReactNode } from 'react';
+import { memo, useMemo, useRef, type ComponentType, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { type Group } from 'three';
 import { isTouch, useReducedMotion } from '../../lib/media';
@@ -19,7 +19,12 @@ import { ChipRig } from './chip';
 import { HotspotMarker } from './hotspots';
 import { SignalLine, RELATIONS } from './signals';
 
-const RIGS: Record<LayerId, () => JSX.Element | null> = { city: CityRig, room: RoomRig, chip: ChipRig };
+// Memoised: a rig takes no props and subscribes to what it needs itself, so
+// it has no reason to re-render with the maquette — at every floor crossed,
+// every exhibit opened, the pad opening. Each of those used to re-render all
+// three rigs and everything in them, and anything a rig had memoised on a
+// value that came out new every time was built again.
+const RIGS: Record<LayerId, ComponentType> = { city: memo(CityRig), room: memo(RoomRig), chip: memo(ChipRig) };
 const SEED: Record<LayerId, number> = { city: 11, room: 29, chip: 53 };
 // journeyStep index per layer (0 = City at top … 2 = Chip at bottom).
 const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };
