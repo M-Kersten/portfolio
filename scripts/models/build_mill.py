@@ -12,7 +12,9 @@
 #   mill_ground   the paved yard it stands on
 #   mill_body     base and smock, one glass shell (outlined)
 #   mill_cap      the boat-shaped cap (outlined)
-#   mill_trim     stage, struts, railing and the beard board (no outline)
+#   mill_trim     stage, struts and railing (no outline)
+#   mill_beard    the beard board under the cap's nose, which turns with the
+#                 cap (no outline)
 #   mill_windows  the four windows that light when the mill is woken
 #   mill_sails    the four sails' ladders and the windshaft's head, in hub
 #                 space — they turn together and carry no outline
@@ -192,11 +194,15 @@ def mill():
     # and a mid rail) the railing was a dotted double ring, the busiest line
     # on the layer
     trim += railing(deck_out - 0.006, STAGE_Y + 0.012, 0.042, 8, mid=False)
-    # the beard board under the cap's nose
-    trim.append(K.rbox('beard', (0.2, 0.032, 0.008), 0.01, pos=(0, TOP + 0.012, 0.176), axis='z', seg=4, bev=0.0015))
     tr = K.join('mill_trim', trim)
     K.finish(tr, 50)
     out.append((tr, 'pale'))
+    # the beard board under the cap's nose: part of the cap, so its own part,
+    # for the site to turn with the cap (it's the trim's cut, no outline)
+    beard = K.rbox('beard', (0.2, 0.032, 0.008), 0.01, pos=(0, TOP + 0.012, 0.176), axis='z', seg=4, bev=0.0015)
+    bd = K.join('mill_beard', [beard])
+    K.finish(bd, 50)
+    out.append((bd, 'pale'))
     # the windows: the base's two, set into their openings, and two up the smock
     wins = []
     apo = math.cos(math.pi / 8)  # an octagon's flat, as a fraction of its corner radius

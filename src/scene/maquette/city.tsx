@@ -513,11 +513,15 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
       <mesh geometry={kit.mill_windows}>
         <meshStandardMaterial ref={windows} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.05} roughness={0.4} toneMapped={false} />
       </mesh>
-      {/* the cap and the sails it carries turn together, into the wind */}
+      {/* the cap, the beard board under its nose and the sails it carries turn
+          together, into the wind */}
       <group ref={cap}>
         <mesh geometry={kit.mill_cap}>
           <LiveGlassMat slug={slug} tint="pale" />
           <LiveEdges slug={slug} threshold={35} />
+        </mesh>
+        <mesh geometry={kit.mill_beard}>
+          <LiveGlassMat slug={slug} tint="pale" />
         </mesh>
         <group position={[0, MILL_HUB.y, MILL_HUB.z]} rotation={[-MILL_HUB.tilt, 0, 0]}>
           <group ref={sails}>
