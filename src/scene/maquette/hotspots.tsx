@@ -67,7 +67,9 @@ function obstacles(): Box[] {
 export function useNameRows(layer: string) {
   useEffect(() => {
     const tick = () => {
-      if (document.hidden) return;
+      // (not while the tab is hidden, nor once the page has scrolled on past
+      // the model: the hero is 1.4 screens tall)
+      if (document.hidden || window.scrollY > window.innerHeight * 1.6) return;
       const names = [...document.querySelectorAll<HTMLElement>('.hotspot')].flatMap((el) => {
         const mark = el.querySelector('.hotspot__mark');
         const name = el.querySelector<HTMLElement>('.hotspot__label-fill');
