@@ -181,11 +181,11 @@ export function Label({
             <h2 className="xl__title">{reduced ? study.title : <Scramble text={study.title} delay={MOTION.fast} wrap />}</h2>
             <p className="xl__outcome">{study.outcome}</p>
           </div>
-          {/* as a museum label has it: the credit line and the year, then the
-              field and my part in it (what it's made in is in the book) */}
+          {/* who it was for (or where it was made) and the year, then the
+              field and my part in it (what it's made with is in the book) */}
           <div className="xl__facts">
             {/* (the year kept on the line with the credit's last word) */}
-            <p className="xl__meta">{[creditLine(study), year].filter(Boolean).join(' · ')}</p>
+            <p className="xl__meta">{[creditLine(study), year].filter(Boolean).join('\u00a0·\u00a0')}</p>
             {second && <p className="xl__materials">{second}</p>}
           </div>
           <p className="xl__note">{note}</p>

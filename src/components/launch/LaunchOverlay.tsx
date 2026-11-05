@@ -26,7 +26,7 @@ const AsteroidsGame = lazy(() => import('./AsteroidsGame').then((m) => ({ defaul
 // before it (Exhibit.tsx): the visitor's own project, not built yet. Its audio
 // guide is my countdown (src/assets/voice/next-launch.*, when it's recorded),
 // and it has two ways on: fly it now, in the simulator, or come and build it
-// (the workshop, which is the contact section).
+// (the contact desk).
 
 export function LaunchOverlay() {
   const launch = useSceneSelector((s) => s.launch);
@@ -71,7 +71,7 @@ export function LaunchOverlay() {
       document.body,
     );
 
-  // "Let’s build it": off the pad and down to the workshop (the contact section)
+  // "Let's build it": off the pad and down to the contact desk
   const toDesk = () => {
     sceneStore.setLaunch('idle');
     requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById('contact')?.scrollIntoView({ block: 'start' })));
@@ -106,7 +106,7 @@ export function LaunchOverlay() {
           <p className="launch__story">
             Every exhibit in this model was launched once: a careful countdown, a clean lift-off, then the problems every project runs into. I follow
             spaceflight closely and watch every launch I have time for, so that’s how I build. This one is still on the pad. Fly it in the
-            simulator to see how it would go, or let’s build it in the workshop and give it a place in the collection.
+            simulator to see how it would go, or let’s build it and give it a place in the collection.
           </p>
           <VoiceNote slug="next-launch" title="The next launch" no={String(NEXT_LAUNCH_NO)} label="Audio tour · the countdown" />
           <div className="launch__row">

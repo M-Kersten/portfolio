@@ -1,17 +1,16 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { caseBySlug } from '../../content';
-import { DEPOT_COUNT, EXHIBITION, GALLERIES, galleryName } from '../../content/exhibits';
+import { DEPOT_COUNT, EXHIBITION } from '../../content/exhibits';
 import { HOTSPOTS } from '../../scene/framing';
 import { sceneStore } from '../../scene/store';
 
 // The exhibition guide: the leaflet the visitor is handed. It stands pushed
 // into the bottom edge of the screen, folded in half like the one you take at
 // the door, and its cover is the one sign down there: how many of the ten
-// you've seen (4 of 10 seen) and, under it, the gallery you're standing in
-// (Gallery 1 · City · 1:5000), or for a moment a returning visitor's greeting.
+// you've seen (4 of 10 seen), and for a moment a returning visitor's greeting.
 // Pulling it out slides it up into the frame, and its cover swings open to the
-// left onto the inside (hero.css): the ten exhibits by gallery, the way a
+// left onto the inside (hero.css): the ten exhibits by floor, the way a
 // printed leaflet lists them, and the visitor's own pen marks in its margin, a
 // tick against each one they've seen (the tick for one seen since the guide
 // was last open writes itself in as it opens). One not seen yet is in dim
@@ -28,8 +27,8 @@ const TOTAL = HOTSPOTS.length;
  *  they've seen. A gallery keeps its objects in low light and brings it up as
  *  someone walks in, and that's all the count is keeping track of: no goal in
  *  front of it (what the ten add up to is waiting at the end, in the guide).
- *  At ten it's "all 10 seen", which is also the one that fits the cover. */
-const tally = (n: number) => (n >= TOTAL ? `all ${TOTAL} seen` : `${n} of ${TOTAL} seen`);
+ *  At ten it's "All 10 seen", which is also the one that fits the cover. */
+const tally = (n: number) => (n >= TOTAL ? `All ${TOTAL} seen` : `${n} of ${TOTAL} seen`);
 
 export type GuideState = 'closed' | 'open' | 'closing';
 
@@ -47,7 +46,7 @@ export function ExhibitionGuide({
   visited: string[];
   /** how many the model shows lit (it trails `visited`: the tally steps when the model does) */
   revealed: number;
-  /** the line under the count: the gallery you're in, or a greeting */
+  /** under the count, for a moment: a returning visitor's greeting */
   here: ReactNode;
   /** bumped whenever the count steps, to restart its flash */
   flashKey: number;
@@ -108,9 +107,7 @@ export function ExhibitionGuide({
   let ticks = 0; // the fresh ticks' order, so they write themselves in one after another
   const layer = (l: (typeof LAYERS)[number]) => (
     <div key={l} className="guide__layer">
-      <span className="guide__index">
-        {galleryName(l)} · {GALLERIES[l].name}
-      </span>
+      <span className="guide__index">{l}</span>
       <ul>
         {HOTSPOTS.filter((h) => h.layer === l).map((h) => {
           const title = caseBySlug(h.slug)?.title ?? h.slug;
@@ -210,13 +207,13 @@ export function ExhibitionGuide({
                 <span className="guide__dark">
                   <span className="guide__mark" aria-hidden="true" />
                   <span className="guide__name">Flight simulator</span>
-                  <span className="guide__when">opens when all {TOTAL} are seen</span>
+                  <span className="guide__when">opens once you’ve seen all {TOTAL}</span>
                 </span>
               )}
             </div>
             <Link className="guide__more" to="/projects" onClick={onClose}>
               {/* (the arrow kept with the last word on a narrow panel) */}
-              {DEPOT_COUNT} more in the depot{' '}
+              {DEPOT_COUNT} more in the depot{'\u00a0'}
               <span aria-hidden="true">→</span>
             </Link>
             {found > 0 && (

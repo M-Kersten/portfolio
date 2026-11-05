@@ -71,15 +71,13 @@ The things you're most likely to want to change, and the file they live in.
 
 | Where on the site | File |
 | --- | --- |
-| The title wall, the gallery sign and the welcome back line | `components/hero/HeroStage.tsx` |
+| The welcome back line | `components/hero/HeroStage.tsx` |
 | The exhibition guide, and the "4 of 10 seen" count on its cover | `components/hero/ExhibitionGuide.tsx` |
-| The exhibition's name, the galleries and their scales, the depot, the inventory numbers | `content/exhibits.ts` |
+| The exhibition's name, "On display" / "In the depot" | `content/exhibits.ts` |
 | The label beside an exhibit ("Read the full story", "Watch the film") | `components/exhibit/Label.tsx` |
 | The book ("The problem", "See also", "Ask me about it") | `components/exhibit/Book.tsx` |
 | The collection's title and line (its counts come from the content) | `components/pages/ProjectsPage.tsx` |
 | The launch pad's panel (exhibit 11) | `components/launch/LaunchOverlay.tsx` |
-| The artist's wall text under "About the artist" | `components/home/About.tsx` |
-| The workshop's "Commissions open from …" (from the career's last end date) | `components/home/Contact.tsx` |
 | The "not open yet" page | `components/shell/NotFound.tsx` |
 | The timeline's "scroll through time", "now →", "The collection" | `components/timeline/Timeline.tsx` |
 
@@ -219,10 +217,9 @@ Safari and older browsers need themselves. When you add CSS:
 - **The exhibits** — the ten projects with an object in the maquette
   (`HOTSPOTS` in `src/scene/framing.ts`) are numbered 01–10, city then room
   then chip; every other project is in the depot. Exhibit 11 is the next
-  launch on the pad. A project's `credit` is the credit line on its label and
-  in its book ("Commissioned by Niantic, made at Wonderment"); without one
-  they show its client. Its inventory number ("MK.2022.1") is worked out from
-  the dates.
+  launch on the pad. A project's `credit` says who it was for, or where it
+  was made ("For Niantic, at Wonderment"), on its label next to the year;
+  without one the label shows its client.
 - **Film loops** — a silent 6–10 s clip per project in
   `src/assets/loops/<slug>.mp4` plays at the top of its label (the README
   there has the format). Without one, the project's own YouTube film plays

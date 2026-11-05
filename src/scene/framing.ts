@@ -165,13 +165,13 @@ export const CAMERA = {
   portraitTo: 0.62, // …and where it has fully taken over
   // Every phone held upright gets the same framing (the lens and the distance
   // stop changing below portraitTo), so the City's top marker sits at the same
-  // share of the screen's height on each, but the title wall above it is the
+  // share of the screen's height on each, but the hero title above it is the
   // same height in pixels: on a shorter screen — most phones once a browser's
   // bars have taken their share — it reaches further down. So on the City step
   // the framing rises by up to this much more (as portraitStepRise), from none
   // on a tall phone (portraitShortFrom) to all of it on a short one
   // (portraitShortTo), and gone again by the time the screen is a tablet's.
-  portraitShortRise: 0.7,
+  portraitShortRise: 0.4,
   portraitShortFrom: 0.47,
   portraitShortTo: 0.6,
 

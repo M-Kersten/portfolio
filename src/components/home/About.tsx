@@ -345,24 +345,13 @@ function AboutLead({ text }: { text: string }) {
   );
 }
 
-/** The artist's wall text, as a museum sets it by the work: the name, the
- *  year of birth, and where they live and work ("Merijn Kersten (b. 1997).
- *  Lives and works in Utrecht."), from the content: the birth date the
- *  chronology starts at, and the "based in" fact. */
-function wallText(): string {
-  const born = site.spawn?.slice(0, 4);
-  const based = site.about.facts.find((f) => /^based in$/i.test(f.label))?.value.split(',')[0].trim();
-  const name = born ? `${site.hero.name} (b. ${born}).` : `${site.hero.name}.`;
-  return based ? `${name} Lives and works in ${based}.` : name;
-}
-
 export function About() {
   const a = site.about;
   return (
     <section id="about" className="section section--instrument">
       <div className="container">
         {/* the note is where "based in" puts him on a map */}
-        <SectionHead id="about" title={a.title} lead={wallText()} note="52.09° N · 5.12° E" />
+        <SectionHead id="about" title={a.title} note="52.09° N · 5.12° E" />
         <div className="about__grid">
           <div className="about__main">
             <AboutLead text={a.lead} />

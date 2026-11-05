@@ -41,7 +41,7 @@ const stepOf = (step: number) => Math.max(0, Math.min(2, step));
 
 /** The point the overview orbits: on the layer, offset sideways by the step's
  *  aim and raised by its rise (the City's a little more on a short phone,
- *  under the title wall: shortRise). */
+ *  under the hero title: shortRise). */
 function overviewPivot(step: number, gap: number, aspect: number): Vector3 {
   const mix = portraitMix(aspect);
   const s = stepOf(step);

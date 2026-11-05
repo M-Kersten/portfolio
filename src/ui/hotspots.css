@@ -131,10 +131,9 @@
 
 /* ---- The first-visit cue (Maquette's CUE_LEAD) ----
    Until a first project is opened, one crosshair per layer is the invitation:
-   its brackets lock on, its name sits on a chip, a stronger ping runs out
-   from it on a quicker beat, and a "click to wake" tag decodes in under the
-   name. The layer's other markers hold their pulse for it, so it is the one
-   thing in the model that moves. It arrives after the boot and retires, for
+   its brackets lock on, its name sits on a chip, and a stronger ping runs out
+   from it on a quicker beat. The layer's other markers hold their pulse for
+   it, so it is the one thing in the model that moves. It arrives after the boot and retires, for
    good, on the first open (see the store's `cue`). */
 .hotspot[data-cue='hold'] .hotspot__mark::before {
   animation: none;
@@ -160,37 +159,14 @@
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   border-color: color-mix(in srgb, var(--hotc) 45%, var(--line));
 }
-/* the first-visit tag, beside the crosshair (the name is above it) */
-.hotspot__cue {
-  position: absolute;
-  left: calc(100% + 0.55em);
-  top: 50%;
-  margin-top: -0.75em;
-  padding-inline: 0.7em;
-  white-space: nowrap;
-  font-size: var(--step--2);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--hotc);
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
-  pointer-events: none;
-  animation: hotspot-cue-in var(--t-slow) var(--ease) both;
-}
-@keyframes hotspot-cue-in {
-  from {
-    opacity: 0;
-    transform: translateY(calc(var(--rise-in) / -2));
-  }
-}
-/* Reduced motion: no pings anywhere. The lead keeps its locked brackets, its
-   chip and its tag, which say the same thing without moving. (Selectors as
-   specific as the rules that start the pings, so these win.) */
+/* Reduced motion: no pings anywhere. The lead keeps its locked brackets and
+   its chip, which say the same thing without moving. (Selectors as specific
+   as the rules that start the pings, so these win.) */
 @media (prefers-reduced-motion: reduce) {
   .hotspot:not([data-alive]) .hotspot__mark::before,
   .hotspot:not([data-alive]) .hotspot__mark::after,
   .hotspot[data-cue] .hotspot__mark::before,
-  .hotspot[data-cue] .hotspot__mark::after,
-  .hotspot__cue {
+  .hotspot[data-cue] .hotspot__mark::after {
     animation: none;
   }
 }

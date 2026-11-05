@@ -8,21 +8,17 @@ import { Html } from '@react-three/drei';
 import { type MeshBasicMaterial } from 'three';
 import { sceneStore } from '../store';
 import { caseBySlug } from '../../content';
-import { Scramble } from '../../components/shell/Scramble';
 import { type Hotspot } from '../framing';
 import { useReducedMotion } from '../../lib/media';
 import { Line, useActive, type V3 } from './shared';
 
-// The museum's own invitation, the sign on a hands-on exhibit: it says the same
-// thing to a mouse and a finger, and the title wall says it first.
-const CUE_TEXT = 'please touch';
 // Closing an exhibit, the markers come back once the camera has mostly pulled
 // out, not while it's still flying (the crosshairs wait the same in
 // hotspots.css); they go at once.
 const SHOW_DELAY = 0.4;
 
 // A floor's names stand in one row over their crosshairs (hotspots.css) until
-// two would run into each other, or one into the title wall's lines or the
+// two would run into each other, or one into the hero title's lines or the
 // flight simulator's sign over the pad: then the one further right moves up a
 // row, or two, to wherever it clears what's already there (and where nothing
 // clears, to wherever it overlaps least). Worked out from the screen a few
@@ -36,9 +32,9 @@ const NAME_TICK_MS = 300;
 
 type Box = { l: number; r: number; t: number; b: number };
 
-/** What else is on screen for the names to keep clear of: the title wall's
+/** What else is on screen for the names to keep clear of: the hero title's
  *  lines of text while it shows (the line boxes of its words, not the boxes of
- *  the elements holding them: a heading's box runs the wall's full width), and
+ *  the elements holding them: a heading's box runs the title's full width), and
  *  the flight simulator's sign while it's up. */
 function obstacles(): Box[] {
   const lines: Box[] = [];
@@ -53,7 +49,7 @@ function obstacles(): Box[] {
   const words = document.createTreeWalker(title, NodeFilter.SHOW_TEXT);
   for (let t = words.nextNode(); t; t = words.nextNode()) {
     // (not the copy kept for screen readers: off screen, it measures as one
-    // long line across the wall)
+    // long line across the title)
     if (!t.textContent?.trim() || t.parentElement?.closest('.visually-hidden')) continue;
     range.selectNodeContents(t);
     for (const r of range.getClientRects()) if (r.width > 0) lines.push({ l: r.left, r: r.right, t: r.top, b: r.bottom });
@@ -62,7 +58,7 @@ function obstacles(): Box[] {
 }
 
 /** Keeps the shown floor's marker names out of each other's way, and out of
- *  the title wall and the simulator's sign (see ROWS); phones show no names,
+ *  the hero title and the simulator's sign (see ROWS); phones show no names,
  *  and then there's nothing to do. */
 export function useNameRows(layer: string) {
   useEffect(() => {
@@ -202,13 +198,6 @@ export function HotspotMarker({
             <span className="hotspot__label">
               <span className="hotspot__label-fill">{label}</span>
             </span>
-            {/* The first-visit cue's tag, decoding in under the name. Decoration:
-                the button already says which exhibit it opens. */}
-            {cue === 'lead' && (
-              <span className="hotspot__cue" aria-hidden="true">
-                <Scramble text={CUE_TEXT} delay={240} />
-              </span>
-            )}
           </button>
         </span>
       </Html>

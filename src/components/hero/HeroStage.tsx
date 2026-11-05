@@ -1,31 +1,23 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { LAYER_VAR, site } from '../../content';
+import { useEffect, useRef, useState } from 'react';
+import { site } from '../../content';
 import { returning, sceneStore, useSceneSelector } from '../../scene/store';
-import { HOTSPOTS, MAQUETTE_LAYERS, stepAt } from '../../scene/framing';
+import { HOTSPOTS, stepAt } from '../../scene/framing';
 import { useReducedMotion } from '../../lib/media';
 import { useEscape } from '../../lib/page';
 import { Scramble } from '../shell/Scramble';
-import { EXHIBITION, EXHIBIT_COUNT, GALLERIES, GALLERY_COUNT, countWord, galleryName } from '../../content/exhibits';
 import { ExhibitionGuide } from './ExhibitionGuide';
 
 // Three invisible scroll panels give the camera journey its length and drive
-// `journeyStep` (0 City · 1 Room · 2 Chip). The title wall lives only on the
-// City layer and clears the moment you scroll down (or inspect a node).
+// `journeyStep` (0 City · 1 Room · 2 Chip). The title (the name and the line
+// under it) lives only on the City layer and clears the moment you scroll down
+// (or inspect a node).
 
 const STEPS = [0, 1, 2];
-/** The gallery each step of the journey stands in front of (top down). */
-const STEP_LAYER = [...MAQUETTE_LAYERS].reverse();
-
-/** How big the visit is, as the title wall says it: "Three floors · ten exhibits". */
-const VISIT = (() => {
-  const s = `${countWord(GALLERY_COUNT)} floors · ${countWord(EXHIBIT_COUNT)} exhibits`;
-  return s[0].toUpperCase() + s.slice(1);
-})();
 
 // Every object in the maquette is a project, an exhibit numbered 01–10, kept
 // in low light until it's visited (as a gallery does), then lit for good. The
-// one sign along the bottom is the exhibition guide's cover: how many of the
-// ten you've seen, and the gallery you're standing in. The count steps once a
+// one sign along the bottom is the exhibition guide's cover, with how many of
+// the ten you've seen printed on it. The count steps once a
 // hotspot's HUD closes and the zoom-out has settled, not the instant it opens,
 // so the visitor watches the model fill in rather than seeing the number jump
 // while still looking at a close-up. 10/10 triggers the world's completion
@@ -39,21 +31,14 @@ const TOTAL = HOTSPOTS.length;
 // model again, rather than jumping the instant they open a project, while
 // they're still looking at the close-up and never see the model fill in.
 const TALLY_SETTLE_MS = 900;
-// Back from an exhibit, the hero's chrome (the title, the caption, the guide)
-// waits this long before it fades back, so it returns over the model rather
+// Back from an exhibit, the hero's chrome (the title and the guide) waits
+// this long before it fades back, so it returns over the model rather
 // than over the close-up the camera is still pulling out of (the markers wait
 // the same, hotspots.tsx).
 const RETURN_MS = 400;
-/** What a returning visitor is greeted with, on the guide's cover under the
- *  count (in the gallery sign's place, for a moment). The count above it
- *  already says how far they got, so the rest only says where they stand; a
- *  phone's narrow cover keeps just the greeting (hero.css). */
-function welcomeRest(n: number): string {
-  if (n >= TOTAL) return 'simulator open';
-  if (n > 0) return 'as you left it';
-  return '';
-}
-// how long the greeting stays up once the boot has played, and its fade out
+// A returning visitor is greeted on the guide's cover, under the count, for a
+// few seconds: just "Welcome back" (the count above it already says how far
+// they got). How long it stays up once the boot has played, and its fade out:
 const WELCOME_MS = 6500;
 const WELCOME_FADE_MS = 600;
 
@@ -71,9 +56,9 @@ export function HeroStage() {
   // Whether the hero itself is on screen — guards against `journeyStep` going
   // stale (e.g. an anchor jump straight to the wall never crosses a panel).
   const [heroInView, setHeroInView] = useState(true);
-  // Whether the hero still owns the bottom edge of the viewport. The caption +
-  // model tally live down there, so they clear as soon as the capabilities
-  // section scrolls up over that spot instead of lingering on top of it.
+  // Whether the hero still owns the bottom edge of the viewport. The guide's
+  // cover lives down there, so it clears as soon as the capabilities section
+  // scrolls up over that spot instead of lingering on top of it.
   const [heroOwnsBottom, setHeroOwnsBottom] = useState(true);
   const reduced = useReducedMotion();
   // the guide is a leaflet pushed into the screen's edge: 'closing' is it folding shut and sliding back in
@@ -85,14 +70,14 @@ export function HeroStage() {
     const t = window.setTimeout(() => setGuide('closed'), reduced ? 0 : 880);
     return () => clearTimeout(t);
   }, [guide, reduced]);
-  // Load boot sequence: the bottom instrument line (layer caption + model tally)
-  // is the LAST beat — it's held until the hero text has decoded in and the
+  // Load boot sequence: the guide's cover along the bottom is the LAST beat —
+  // it's held until the hero text has decoded in and the
   // maquette has powered on, so the boot reads as one thing at a time. Instant
   // under reduced motion.
   const [booted, setBooted] = useState(reduced);
   // A returning visitor (the opening has played in this browser before) is
-  // greeted for a few seconds on the guide's cover as it comes up, then the
-  // gallery sign takes the line back. Opening anything ends it.
+  // greeted for a few seconds on the guide's cover as it comes up. Opening
+  // anything ends it.
   const [welcome, setWelcome] = useState<'on' | 'leaving' | 'off'>(returning ? 'on' : 'off');
 
   // The scroll journey and the "is the hero on screen?" flag are both derived
@@ -212,21 +197,13 @@ export function HeroStage() {
   // The guide's cover rides the whole journey, clearing with the HUD and the
   // moment the next section takes over the bottom of the screen.
   const overlayOpacity = away || !heroOwnsBottom ? 0 : 1;
-  const layer = STEP_LAYER[journeyStep] ?? STEP_LAYER[0];
-  // the line under the count: for a moment a returning visitor's greeting,
-  // otherwise the gallery you're standing in, as its sign gives it
+  // under the count, for a moment: a returning visitor's greeting
   const here =
     welcome !== 'off' && booted && !guideOpen ? (
-      <span className="guide__cover-here guide__cover-here--welcome" data-leaving={welcome === 'leaving' || undefined}>
+      <span className="guide__cover-here" data-leaving={welcome === 'leaving' || undefined}>
         Welcome back
-        {welcomeRest(revealed) && <span className="guide__cover-rest"> · {welcomeRest(revealed)}</span>}
       </span>
-    ) : (
-      <span key={layer} className="guide__cover-here" style={{ '--here': LAYER_VAR[layer] } as CSSProperties}>
-        <b>{galleryName(layer)}</b> · {GALLERIES[layer].name}
-        <span className="guide__cover-scale"> · {GALLERIES[layer].scale}</span>
-      </span>
-    );
+    ) : null;
   // out of sight (a label opened, the page scrolled on): the leaflet goes back in, so an unseen sheet never catches a click
   useEffect(() => {
     if (!overlayOpacity) setGuide('closed');
@@ -247,28 +224,18 @@ export function HeroStage() {
           silently at load behind the card. */}
       {introOver && (
         <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
-          {/* The title wall at the entrance, the way an exhibition opens: its
-              name, whose work it is, what that work is, and how big the visit
-              is and how to behave in it. Upright (a phone, which never sees
-              the intro card, or a tablet) it's the first three: the model
-              needs the height (hero.css). */}
-          <p className="hero__kicker">{EXHIBITION}</p>
           <h1 className="hero__name">
             <Scramble text={site.hero.name} delay={380} wrap />
           </h1>
           <p className="hero__sub">{site.hero.subheading}</p>
-          <p className="hero__visit">
-            {VISIT} · <b>please touch</b>
-          </p>
         </div>
       )}
 
       {/* The one sign along the bottom: the exhibition guide's cover, with
-          the count and the gallery you're in printed on it. Pressing it pulls
-          the guide out. (The cover is decoration to a screen reader, so the
-          greeting is said from here.) */}
+          the count printed on it. Pressing it pulls the guide out. (The cover
+          is decoration to a screen reader, so the greeting is said from here.) */}
       <p className="visually-hidden" role="status">
-        {welcome === 'on' && booted ? ['Welcome back', welcomeRest(revealed)].filter(Boolean).join(', ') : ''}
+        {welcome === 'on' && booted ? 'Welcome back' : ''}
       </p>
       <div
         className="hero__signals"

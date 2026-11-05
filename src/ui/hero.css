@@ -42,25 +42,6 @@
   .hero__title {
     padding-top: calc(var(--header-h) + var(--space-m));
   }
-  /* …and the wall is the exhibition, the artist and the work: the visit's
-     size and its "please touch" are said by the guide's count and the cue on
-     the first exhibit, both on screen right under it, and the model gets the
-     height (with the floor's names a row above it where two meet) */
-  .hero__visit {
-    display: none;
-  }
-}
-/* The exhibition's name over the artist's, the way a title wall heads a
-   show: small, spaced capitals in the accent, like the banner over the door. */
-.hero__kicker {
-  margin: 0 0 0.85rem;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--accent-ink);
-  /* Load boot — beat 1: it lands just before the name decodes under it */
-  animation: hero-sub-in var(--t-base) var(--ease) 0.15s both;
 }
 .hero__name {
   /* the display voice (base.css), drawn a touch tighter at this size */
@@ -85,21 +66,6 @@
   /* Load boot — beat 3: rises in after the name has finished decoding (~0.93s). */
   animation: hero-sub-in var(--t-base) var(--ease) 1.05s both;
 }
-/* How big the visit is and how to behave in it, in the wall's small print;
-   "please touch" in the accent, the one thing on it that's an invitation */
-.hero__visit {
-  margin: 1.1rem 0 0;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.08em;
-  color: var(--ink-40);
-  /* Load boot — beat 4: after the line above has risen in */
-  animation: hero-sub-in var(--t-base) var(--ease) 1.35s both;
-}
-.hero__visit b {
-  font-weight: 400;
-  color: var(--accent-ink);
-}
 @keyframes hero-name-in {
   from {
     opacity: 0;
@@ -113,10 +79,8 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero__kicker,
   .hero__name,
   .hero__sub,
-  .hero__visit,
   .guide__cover-here,
   .guide__cover-count--flash {
     animation: none;
@@ -124,9 +88,8 @@
 }
 /* The one sign along the bottom: the cover of the exhibition guide. The guide
    is a leaflet pushed into the bottom edge of the screen, bottom-right, and
-   what shows of it is its cover: pips that fill as exhibits are seen, the
-   count (4 of 10 seen), and under it the gallery you're standing in. Pulling
-   it out opens it (see .guide below). At 10/10 the cover's readout takes the
+   what shows of it is its cover: pips that fill as exhibits are seen, and the
+   count (4 of 10 seen). Pulling it out opens it (see .guide below). At 10/10 the cover's readout takes the
    accent and the scene's completion state does the real celebrating. This box
    is only as tall as what shows of the cover (--peek); the rest of the leaflet
    hangs below the screen's edge. */
@@ -317,9 +280,9 @@
   gap: 0.3rem 0.55em;
 }
 .guide__cover-count {
+  /* said, not stamped: in sentence case */
   font-size: var(--step--1);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   transition: color var(--t-base) var(--ease);
@@ -334,32 +297,17 @@
 .guide__cover-count--flash {
   animation: cover-flash 0.9s var(--ease);
 }
-/* under the count: the gallery you're standing in, as its sign gives it (the
-   number in that floor's colour), stepping in fresh as the journey moves on;
-   or for a moment a returning visitor's greeting, which then lets it go */
+/* under the count, for a moment: a returning visitor's greeting, which then
+   fades */
 .guide__cover-here {
   font-size: var(--step--2);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--ink-60);
-  animation: cover-here-in var(--t-slow) var(--ease);
-}
-.guide__cover-here b {
-  font-weight: 700;
-  color: var(--here, var(--accent-ink));
-}
-.guide__cover-scale,
-.guide__cover-rest {
-  color: var(--ink-40);
-}
-.guide__cover-here--welcome {
-  text-transform: none;
   letter-spacing: 0.04em;
+  white-space: nowrap;
   color: color-mix(in srgb, var(--ink) 74%, transparent);
+  animation: cover-here-in var(--t-slow) var(--ease);
   transition: opacity 0.6s var(--ease);
 }
-.guide__cover-here--welcome[data-leaving] {
+.guide__cover-here[data-leaving] {
   opacity: 0;
 }
 @keyframes cover-here-in {
@@ -659,12 +607,6 @@
     font-size: var(--step-0);
     max-width: none;
   }
-  /* the wall's small print stays small: the model needs the height (and
-     upright, the visit line is off: see the portrait rule above) */
-  .hero__kicker {
-    margin-bottom: 0.45rem;
-    font-size: var(--step--2);
-  }
   /* the leaflet's cover keeps the bottom-right corner on a phone too, its
      pips a little smaller */
   .hero__signals-pips {
@@ -674,9 +616,9 @@
     width: 4px;
     height: 4px;
   }
-  /* a narrow cover: the name on one line, the pips over the count, and the
-     gallery without its scale (a greeting without its second half); four
-     lines, so a little more of it shows and they sit closer */
+  /* a narrow cover: the name on one line, the pips over the count, and room
+     under it for a returning visitor's greeting, so a little more of it shows
+     and its lines sit closer */
   .hero__signals {
     --peek: 6.4rem;
   }
@@ -689,18 +631,7 @@
   .guide__cover-kicker {
     letter-spacing: 0.12em;
   }
-  .guide__cover-scale,
-  .guide__cover-rest {
-    display: none;
-  }
-  .guide__cover-here {
-    letter-spacing: 0.06em;
-  }
-  /* and narrow panels: a gallery's sign keeps to one line, and a name wraps
-     rather than trailing off */
-  .guide__index {
-    letter-spacing: 0.08em;
-  }
+  /* and narrow panels: a name wraps rather than trailing off */
   .guide__name {
     overflow: visible;
     text-overflow: clip;

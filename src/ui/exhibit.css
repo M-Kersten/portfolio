@@ -665,14 +665,6 @@
 .xb__tomb-wide {
   grid-column: span 2;
 }
-.xb__tomb-full {
-  grid-column: 1 / -1;
-}
-/* the inventory number set like the one on a collection's index card */
-.xb__tomb-inv dd {
-  font-family: var(--font-mono);
-  letter-spacing: 0.04em;
-}
 .xb__tomb dt {
   font-family: var(--font-mono);
   font-size: var(--step--2);

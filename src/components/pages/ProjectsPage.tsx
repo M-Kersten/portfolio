@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { byDate, cases, caseBySlug, site } from '../../content';
-import { DEPOT_COUNT, EXHIBIT_COUNT, countWord } from '../../content/exhibits';
 import { Exhibit } from '../exhibit/Exhibit';
 import { useDocumentTitle } from '../../lib/page';
 import { Footer } from '../shell/Footer';
@@ -18,10 +17,9 @@ import { SectionHead } from '../shell/SectionHead';
 //
 // The heading lives here rather than in site.json: the CMS round-trips that
 // file against a fixed model, and a key it doesn't know would be dropped on the
-// next publish. The lead counts what's in the collection from the content, the
-// way a museum's says how much of it hangs and how much is in the depot.
+// next publish.
 const TITLE = 'The collection';
-const LEAD = `All ${countWord(cases.length)} projects: the ${countWord(EXHIBIT_COUNT)} on display in the model, and ${countWord(DEPOT_COUNT)} more from the depot.`;
+const LEAD = 'Here’s where I keep all my projects.';
 
 export function ProjectsPage() {
   const [open, setOpen] = useState<string | null>(null);

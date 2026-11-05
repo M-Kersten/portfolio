@@ -91,7 +91,8 @@ export function IntroCard() {
       <p className="intro-card__title">
         <Scramble text={intro.title} delay={reduced ? 0 : showDelay.current} wrap />
       </p>
-      <p className="intro-card__body">{intro.body}</p>
+      {/* (a second line only when there's something it needs to add) */}
+      {intro.body && <p className="intro-card__body">{intro.body}</p>}
     </div>
   );
 }

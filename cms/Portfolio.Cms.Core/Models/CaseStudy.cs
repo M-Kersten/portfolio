@@ -43,10 +43,9 @@ public sealed class CaseStudy
     public required string Client { get; set; }
 
     /// <summary>
-    /// The credit line, as a museum prints it under a work: who it was made
-    /// for or with, in a sentence ("Commissioned by Niantic, made at
-    /// Wonderment", "A passion project"). Shown on the exhibit's label and in
-    /// its book; the site falls back to <see cref="Client"/> when it's absent.
+    /// Who it was for, or where it was made, said plainly ("For Niantic, at
+    /// Wonderment", "Passion project"). Shown on the exhibit's label with the
+    /// year; the site falls back to <see cref="Client"/> when it's absent.
     /// </summary>
     [JsonPropertyOrder(6), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Credit { get; set; }
