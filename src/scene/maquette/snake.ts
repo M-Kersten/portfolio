@@ -1,10 +1,12 @@
 // Snake, as the AI accelerator's die plays it (chip.tsx DieSnake draws it):
 // the game on its own, apart from how it's drawn. A board of N×N cells, three
-// to a side of each of the die's sixteen tiles. The snake follows the cell the
-// cursor points at; once it's there it carries straight on, turning off a wall
-// or its own body rather than into it, so it only ever crashes when it has
-// boxed itself in. With no cursor on the die it plays itself: the chip's own
-// player goes for the food, looking far enough ahead not to trap itself.
+// to a side of each of the die's sixteen tiles. The snake goes to the cell the
+// cursor points at and waits there, its head on the cursor, until the cursor
+// moves on (so it can be led about, and stops when the cursor does). On its
+// way it turns off a wall or its own body rather than into it, so it only ever
+// crashes when it has boxed itself in. With no cursor on the die it plays
+// itself: the chip's own player goes for the food, looking far enough ahead
+// not to trap itself.
 //
 // Cells are numbered row by row: cell = z * N + x, x to the right and z toward
 // the viewer (the die's far edge is row 0).
@@ -22,13 +24,10 @@ export interface Snake {
   food: number;
   /** how many it has eaten: the score */
   eaten: number;
-  /** the cell the cursor is sending it to (-1: none, it's playing itself),
-   *  and whether it has got there (it then carries straight on) */
-  aim: number;
-  there: boolean;
 }
 
-export type Step = 'move' | 'eat' | 'crash';
+/** What a step did: moved on, ate, waited on the cursor, or ran out of room. */
+export type Step = 'move' | 'eat' | 'stay' | 'crash';
 
 const START = 4; // cells long at the start
 
@@ -36,7 +35,7 @@ export function newGame(rand: () => number = Math.random): Snake {
   const z = N >> 1;
   const x0 = (N >> 1) - 1;
   const body = Array.from({ length: START }, (_, i) => z * N + (x0 - i));
-  const s: Snake = { body, dir: 0, food: -1, eaten: 0, aim: -1, there: false };
+  const s: Snake = { body, dir: 0, food: -1, eaten: 0 };
   s.food = placeFood(s, rand);
   return s;
 }
@@ -102,20 +101,14 @@ function room(s: Snake, from: number, growing: boolean): number {
 
 /** Steered by the cursor's cell: the free move that brings the head nearest
  *  it (as the crow flies, so a target behind it turns it round rather than
- *  sending it off straight), straight on once it's there, and off whatever is
- *  in its way toward the side with more room. */
+ *  sending it off straight), going straight on where two are as near. */
 function steer(s: Snake, target: number, opts: { d: Dir; c: number }[]): Dir {
-  if (s.body[0] === target) s.there = true;
   const tx = xOf(target);
   const tz = zOf(target);
-  const there = s.there;
   let best = opts[0];
   let score = Infinity;
   for (const o of opts) {
-    const straight = o.d === s.dir;
-    const k = there
-      ? (straight ? 0 : 1) - room(s, o.c, o.c === s.food) * 1e-3 // carry on; when it can't, the roomier side
-      : Math.hypot(xOf(o.c) - tx, zOf(o.c) - tz) + (straight ? 0 : 1e-3);
+    const k = Math.hypot(xOf(o.c) - tx, zOf(o.c) - tz) + (o.d === s.dir ? 0 : 1e-3);
     if (k < score) {
       score = k;
       best = o;
@@ -163,13 +156,10 @@ function autopilot(s: Snake, opts: { d: Dir; c: number }[]): Dir {
 /** One step of the game, toward `target` (a cell the cursor points at) or,
  *  with none, as the chip plays it itself. */
 export function step(s: Snake, target: number | null, rand: () => number = Math.random): Step {
+  // there already, or the cursor on its own body: it waits for the cursor
+  if (target !== null && s.body.includes(target)) return 'stay';
   const opts = moves(s);
   if (!opts.length) return 'crash';
-  // a new cell to go to (or none): it hasn't got there yet
-  if ((target ?? -1) !== s.aim) {
-    s.aim = target ?? -1;
-    s.there = false;
-  }
   s.dir = target === null ? autopilot(s, opts) : steer(s, target, opts);
   const head = next(s.body[0], s.dir);
   s.body.unshift(head);

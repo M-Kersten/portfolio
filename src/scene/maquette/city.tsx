@@ -20,6 +20,7 @@ import { BlobShadow, blobShadowTexture } from './backdrop';
 import { NextProjectSite, SITE_POS } from './launchSite';
 import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
 import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
+import { ParkCritters, SAFARI, VIEWER } from './critters';
 import { spring, wobble } from '../../lib/spring';
 import { bump, easeIn, easeOut, ring } from '../../lib/ease';
 import { play } from '../../lib/sound';
@@ -418,7 +419,7 @@ const WIND_TURN = 1.0; // how far the cap will turn either way (rad)
 const WIND_SWING = { freq: 0.55, damping: 0.42 }; // the cap's springy turn (see wobble)
 const WIND_FROM = 0.8; // how far out toward you the wind blows from, past the cursor (mill units)
 const GUST = 2.6; // spin per unit of cursor travel (screen halves), rad/s
-const GUST_MAX = 6; // rad/s
+const GUST_MAX = 8; // rad/s
 const GUST_FADE = 2.2; // s for a gust to die down: the sails coast
 const GUST_KICK = { freq: 1.1, damping: 0.45 }; // the sails taking a gust up (see wobble)
 const PUFF_FADE = 0.4; // s for the wind itself to drop once the cursor stops (the cloth, the streaks)
@@ -427,6 +428,22 @@ const FLUTTER = 3; // the wind (as GUST) at which the cloth flaps its most
  *  many a second per rad/s of gust, and where they start, out along the wind
  *  from the mill (mill units). */
 const GUST_STREAKS = { count: 12, life: 0.5, rate: 3.5, from: 0.75 };
+/* The mill at work, and the game in its close-up. Left to itself the mill
+   turns slowly (SPIN_REST), as a working mill in a light breeze does. Blow on
+   it hard enough, moving the cursor and keeping it moving, and the sails spin
+   up past POWER_FROM: then they make power, more the faster they turn, and it
+   runs along a cable under the road to the tower in the middle (MillLine). The
+   tower fills with it, its light-band rising with the charge; let the sails
+   slow and it drains back. Once it's full the tower is powered for the visit
+   (Skyscraper reads MILL). */
+const SPIN_REST = 0.15; // rad/s, the sails left to themselves
+const POWER_FROM = 2.4; // rad/s the sails have to beat to make power…
+const POWER_RATE = 0.065; // …and the tower's charge a second for every rad/s over it (full in about 5 s of hard blowing)
+const POWER_DRAIN = 0.05; // the charge a second it loses while they aren't making any (until it's full)
+/** What the mill sends the tower, written by Windmill each frame: how hard
+ *  power is flowing down the cable (0–1), how full the tower is (0–1), and when
+ *  it was first full (the clock's s; -1 not yet), after which it stays powered. */
+const MILL = { flow: 0, charge: 0, poweredAt: -1 };
 /** The mill's wind, written by Windmill each frame: the cap's yaw, where the
  *  wind blows from, the gust the sails feel (`strength`, slow to die, and
  *  `gust`, the sails' extra turn) and the wind itself (`puff`, gone as soon
@@ -628,8 +645,19 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
     set.current += ((engaged ? 1 : 0) - set.current) * (reduced ? 1 : 0.05);
     // the sails only take the wind as their cloth fills
     const filled = Math.min(1, Math.max(0, (set.current - 0.45) / 0.45));
-    spin.current += ((engaged ? 0.9 * filled : 0) - spin.current) * 0.04;
-    if (sails.current && !reduced) sails.current.rotation.z += Math.min(delta, 0.1) * (spin.current + w.gust);
+    spin.current += ((engaged ? SPIN_REST * filled : 0) - spin.current) * 0.04;
+    const speed = spin.current + w.gust; // rad/s
+    if (sails.current && !reduced) sails.current.rotation.z += Math.min(delta, 0.1) * speed;
+    // the power it makes, spun up past POWER_FROM (see MILL)
+    const making = close ? Math.max(0, speed - POWER_FROM) : 0;
+    MILL.flow += ((making > 0 ? Math.min(1, 0.35 + making / 4) : 0) - MILL.flow) * (1 - Math.exp(-dt * 3));
+    if (MILL.poweredAt < 0) {
+      MILL.charge = Math.max(0, Math.min(1, MILL.charge + (making > 0 ? making * POWER_RATE : -POWER_DRAIN) * dt));
+      if (MILL.charge >= 1) {
+        MILL.poweredAt = s.clock.elapsedTime;
+        play('mill-power', { volume: 0.6 });
+      }
+    }
     // the cloth, once set, flaps while the wind blows: it swings off its whip
     // (the free edge in and out) on two rhythms, so it doesn't tick like a clock
     const flap = reduced ? 0 : Math.min(1, w.puff / FLUTTER) * set.current;
@@ -961,7 +989,7 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
   const headRef = useRef<Group>(null);
   const k = useRef(0); // pop-in scale progress
   const vel = useRef(0);
-  const shot = useRef({ at: -99, fired: true, firedAt: -99 }); // see SHOT
+  const shot = useRef({ at: -99, fired: true, firedAt: -99, big: false }); // see SHOT
   const lensFlash = useRef<Sprite>(null);
   const glow = useMemo(glowTexture, []);
   const lastShot = useRef(0);
@@ -1033,10 +1061,11 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
     const t = s.clock.elapsedTime;
     const sh = shot.current;
     // press the shutter (see SHOT); not again before the last one's gone off
-    const takeShot = () => {
+    const takeShot = (big = false) => {
       if (!sh.fired) return;
       sh.at = t;
       sh.fired = false;
+      sh.big = big;
     };
     // Once brought to life it keeps working — it goes on panning and snapping
     // photos after you deselect it, for as long as it's "alive" this session.
@@ -1061,7 +1090,13 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
     // down the viewer's -z)
     const a = aim.current;
     const following = close && live && k.current > 0.55 && cursorIdle() < 2.5 && !!baseRef.current && !!cursorOnLevel(s, baseRef.current, 0, spot);
-    if (following) {
+    // the park's animals (critters.tsx) can ask it to swing to one of them and
+    // to take the picture: the lock on one you're pointing at, the group photo
+    const want = live && k.current > 0.55 ? SAFARI.want : null;
+    if (want !== null) {
+      a.yaw = spring(a.yaw, want, aimVel.current, dt, AIM_GLIDE);
+      a.steady = 0;
+    } else if (following) {
       const yaw = Math.max(-AIM_REACH, Math.min(AIM_REACH, Math.atan2(-spot.x, -spot.z)));
       a.yaw = spring(a.yaw, yaw, aimVel.current, dt, AIM_GLIDE);
       // steady on a new spot: the shot
@@ -1071,7 +1106,12 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
         takeShot();
       }
     }
-    a.w += ((following ? 1 : 0) - a.w) * (1 - Math.exp(-dt * (following ? 4 : 1.5)));
+    const aiming = following || want !== null;
+    a.w += ((aiming ? 1 : 0) - a.w) * (1 - Math.exp(-dt * (aiming ? 4 : 1.5)));
+    if (SAFARI.shoot && live && sh.fired) {
+      takeShot(SAFARI.shoot === 2);
+      SAFARI.shoot = 0;
+    }
     if (!reduced && live && k.current > 0.55) {
       // sweep left↔right; snap a photo at each extreme (unless it's yours to aim)
       const ph = t * 0.95;
@@ -1084,11 +1124,16 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
     } else if (head) {
       head.rotation.y += (0 - head.rotation.y) * 0.1; // settle back to centre
     }
+    if (slug) {
+      SAFARI.yaw = head ? head.rotation.y : 0;
+      SAFARI.aiming = a.w > 0.85;
+    }
     // the shot: steady (the dip), then the shutter
     const since = t - sh.at;
     if (!sh.fired && since >= SHOT.hold) {
       sh.fired = true;
       sh.firedAt = t;
+      SAFARI.fired++;
     }
     const fired = t - sh.firedAt;
     const steadying = sh.fired ? Math.exp(-fired * 14) : easeOut(since / SHOT.hold);
@@ -1100,7 +1145,7 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
       const u = fired / SHOT.pop;
       fl.visible = !reduced && u < 1;
       if (fl.visible) {
-        fl.scale.setScalar(0.05 + 0.17 * easeOut(u, 3));
+        fl.scale.setScalar((0.05 + 0.17 * easeOut(u, 3)) * (sh.big ? 2.2 : 1));
         fl.material.opacity = (1 - u) * (1 - u);
       }
     }
@@ -1312,7 +1357,9 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
       <Fireflies slug={slug} />
       {/* the ARCam tower viewer — pops in and scans when the hotspot is selected;
           stands on its post (raise BINOS_STAND_H to lift it higher) */}
-      <Binoculars position={[-0.1, 0, 0.34]} rotationY={-0.35} slug={slug} lit={lit} />
+      <Binoculars position={VIEWER.pos} rotationY={VIEWER.yaw} slug={slug} lit={lit} />
+      {/* and the animals it photographs, in the close-up (critters.tsx) */}
+      {slug && <ParkCritters slug={slug} />}
       </group>
     </group>
   );
@@ -1408,18 +1455,25 @@ function Skyscraper({ position, kit, winMat }: { position: V3; kit: TowerKit; wi
     // colour once the visitor has brought the tower to life, and the lantern
     // powers on with it
     lifeK.current += ((selected || visited ? 1 : 0) - lifeK.current) * 0.08;
-    const k = lifeK.current;
+    // the mill's power (MILL): filling it, its lantern and beacon come up with
+    // the charge; once it's full they're lit as a woken tower's are, for the
+    // visit, and it flares as the last of it arrives
+    const now = s.clock.elapsedTime;
+    const powered = MILL.poweredAt >= 0 ? 1 : 0;
+    const charge = powered ? 1 : MILL.charge;
+    const flare = powered && !reduced ? bump((now - MILL.poweredAt) / 0.9) : 0;
+    const k = Math.max(lifeK.current, powered, charge * 0.8);
     const b = beacon.current;
     if (b) {
       b.color.copy(GHOST_FILL).lerp(accentC, k);
       b.emissive.copy(GHOST_FILL).lerp(accentC, k);
-      b.emissiveIntensity = (0.45 + 0.55 * Math.abs(Math.sin(t * 2.1))) * (0.14 + 0.86 * k);
+      b.emissiveIntensity = (0.45 + 0.55 * Math.abs(Math.sin(t * 2.1))) * (0.14 + 0.86 * k) + 2.5 * flare;
     }
     const l = lamp.current;
     if (l) {
       l.color.copy(GHOST_FILL).lerp(accentC, k);
       l.emissive.copy(GHOST_FILL).lerp(accentC, k);
-      l.emissiveIntensity = 0.05 + k * (0.85 + 0.12 * Math.sin(t * 2.2));
+      l.emissiveIntensity = 0.05 + k * (0.85 + 0.12 * Math.sin(t * 2.2)) + 1.6 * flare;
     }
     // a light-band climbs the tiers while the tower is alive, energy rising to
     // the crown; it steps in at each setback, the same distance off every tier.
@@ -1430,6 +1484,18 @@ function Skyscraper({ position, kit, winMat }: { position: V3; kit: TowerKit; wi
       let y = y0 + p * (y1 - y0);
       let op = fxEnv(p) * FX.peak * k;
       let grow = 1;
+      // filling from the mill, before it's full: the band stands at the charge's
+      // level, a gauge, brighter while power is coming in; full, it runs up
+      // past the crown in one sweep
+      if (!powered && charge > 0.01) {
+        y = y0 + charge * (y1 - y0);
+        op = FX.peak * (0.8 + 0.6 * MILL.flow + (reduced ? 0 : 0.2 * Math.sin(now * 7)));
+      } else if (flare > 0) {
+        const u = Math.min(1, (now - MILL.poweredAt) / 0.9);
+        y = y0 + easeOut(u) * (y1 - y0);
+        op = FX.peak * 2 * (1 - u * 0.6);
+        grow = 1 + 0.35 * u;
+      }
       const sent = s.clock.elapsedTime - POWER.sentAt;
       if (!reduced && sent >= 0 && sent < P_WIND + 0.3) {
         if (sent < P_WIND) {
@@ -2345,6 +2411,82 @@ function PowerGrid({ feed, routes, runs, order, stagger, house }: { feed: V3[]; 
   );
 }
 
+/* ---------- the mill's line to the tower ----------
+   The cable the mill's power runs along (see MILL): laid under the road like
+   the grid's, from the mill's yard along its lane, the north avenue and the
+   west one, and in at the tower's foot. It shows faintly through the road;
+   while the sails are making power, beads of light run along it toward the
+   tower, faster and brighter the harder they turn. */
+const MILL_BEADS = 24;
+const MILL_AVE = 0.3; // the avenues' offset (CityRig's AVE)
+function MillLine({ from }: { from: V3 }) {
+  const { accent } = useAccent();
+  const reduced = useReducedMotion();
+  const path = useMemo<V3[]>(() => {
+    const y = CABLE_Y;
+    const [mx, , mz] = from;
+    return [
+      [mx + 0.16, y, mz],
+      [-0.94, y, mz],
+      [-0.92, y, -0.2],
+      [-0.86, y, -MILL_AVE],
+      [-MILL_AVE, y, -MILL_AVE],
+      [-MILL_AVE, y, 0],
+      [-towerReach(0.06, -1, 0), y, 0],
+    ];
+  }, [from]);
+  const way = useMemo(() => walker(path), [path]);
+  const cable = useGeometry(() => tube(path, CABLE_R, 5, 2), [path]);
+  const mats = useMemo(() => {
+    const line = new MeshStandardMaterial({ color: SURFACE.deep.color, emissive: accent, emissiveIntensity: 0.05, transparent: true, opacity: 0.5, roughness: 0.5, toneMapped: false });
+    const bead = new MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
+    line.userData.lifeSkip = true;
+    bead.userData.lifeSkip = true;
+    return { line, bead };
+  }, [accent]);
+  useEffect(
+    () => () => {
+      mats.line.dispose();
+      mats.bead.dispose();
+    },
+    [mats],
+  );
+  const beads = useRef<InstancedMesh>(null);
+  const col = useMemo(() => new Color(accent).lerp(WHITE, 0.3), [accent]);
+  const run = useRef(0);
+  useFrame((_, delta) => {
+    const im = beads.current;
+    if (!im) return;
+    const dt = Math.min(delta, 1 / 30);
+    const f = reduced ? 0 : MILL.flow;
+    // the cable warms with the flow
+    mats.line.emissiveIntensity = 0.05 + 0.5 * f;
+    im.visible = f > 0.01;
+    if (!im.visible) return;
+    // the beads' travel, in cable lengths: about a second end to end at full flow
+    run.current += (dt * (0.35 + 0.9 * f) * 1.6) / way.len;
+    for (let i = 0; i < MILL_BEADS; i++) {
+      const u = (i / MILL_BEADS + run.current) % 1;
+      way.at(u, _v);
+      // in out of the mill's yard and into the tower's foot rather than popping
+      const k = f * Math.min(1, u / 0.06, (1 - u) / 0.06);
+      _s.setScalar(0.005 + 0.005 * f);
+      im.setMatrixAt(i, _m.compose(_v, _q.identity(), _s));
+      im.setColorAt(i, _c.copy(col).multiplyScalar(1.6 * k));
+    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  });
+  return (
+    <group>
+      <mesh geometry={cable} material={mats.line} />
+      <instancedMesh ref={beads} args={[undefined, mats.bead, MILL_BEADS]} frustumCulled={false} renderOrder={2} visible={false}>
+        <sphereGeometry args={[1, 10, 8]} />
+      </instancedMesh>
+    </group>
+  );
+}
+
 /* A one-shot drift of accent-coloured sparks over the city — fired at the
    homecoming (celebrateAt), gone within ~3s. A quiet glass-raise, not
    fireworks. */
@@ -2689,6 +2831,8 @@ export function CityRig() {
       {/* the power, underground: the tower (the station) feeds the transformer
           house, and the house each block, a block lighting as power reaches it */}
       {towerKit && blocksKit && <PowerGrid feed={grid.feed} routes={grid.routes} runs={grid.runs} order={grid.order} stagger={lightOrder} house={trafo.position} />}
+      {/* the mill's cable to the tower, for the power its sails make (MILL) */}
+      {towerKit && <MillLine from={mill.position} />}
 
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}

@@ -6,11 +6,12 @@
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, RepeatWrapping, RingGeometry, SRGBColorSpace, Vector3, type Group, type Mesh, type Texture } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, RepeatWrapping, RingGeometry, SRGBColorSpace, TorusGeometry, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
+import { play } from '../../lib/sound';
 import { spring, wobble } from '../../lib/spring';
-import { bump, easeOut, ring } from '../../lib/ease';
+import { bump, easeIn, easeInOut, easeOut, ring } from '../../lib/ease';
 import { cursorAtDepth, cursorIdle, cursorRay, useCloseUp } from './closeup';
 import { Callouts, newCallLink, ROUND_LEN, type CallLink } from './callouts';
 import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
@@ -27,17 +28,88 @@ const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
 const PHONE_W = 0.075;
 const PHONE_H = 0.155;
 const PHONE_T = 0.0075;
-/* The balls, once out, lie about the cushions: in the close-up, hover over one
-   and it pops up into the air, lands with a bounce or two and rolls to a stop,
-   off the cushions' edges and off each other. A tiny game, Popcore's trade. */
-const SEAT = { x: [-0.35, 0.35], z: [-0.08, 0.2] }; // where a ball can roll, couch frame
-const POP = 0.7; // the pop's upward speed (m/s): a hop of ~9 cm under the cushion's gravity
-const POP_DRIFT = 0.07; // and a little sideways, at random, so it lands somewhere new
-const POP_REACH = 1.8; // how near the cursor's ray has to pass a ball, in ball radii
-const POP_REST = 0.25; // s on the cushion before the same ball pops again
-const POP_CHARGE = 0.09; // s it sinks into the cushion, gathering itself, before it goes
-const POP_COMBO = { window: 0.9, step: 0.2, max: 4 }; // pops this close together go higher, a step each
-const ROLL_DRAG = 2.2; // the cushion's friction (1/s)
+/* The balls, once out, lie about the cushions. In the close-up, hover over one
+   and it sinks into the cushion, gathering itself, and shoots for the bin beside
+   the couch: up over the arm and down through the rim, or off it. A miss lies
+   on the floor a moment, then hops back onto the seat (hover it to send it at
+   once). Six in and the bin is full: it rocks, falls over and spills them, gets
+   back up, and they hop back for another round. A tiny game, Popcore's trade.
+   All of it in the couch's frame. */
+const BALL_R = 0.015;
+const BALL_G = 2.6; // gravity on the balls, at the maquette's slower pace (m/s²)
+const SEAT = { x: [-0.33, 0.33], z: [-0.08, 0.2] }; // where a ball rolls on the seat
+const SEAT_REST = COUCH_SEAT_Y + BALL_R; // a ball's centre, resting on it
+// the right-hand arm, the bin's side: from its inside to its outside, its top,
+// and how round its top edges are
+const ARM = { x: [0.375, 0.46], top: 0.262, round: 0.03 };
+const COUCH_Z = [-0.22, 0.22]; // the couch's depth
+const FLOOR_Y = 0.022; // the rug's top, which the bin stands on
+const FLOOR = { x: [-0.2, 0.95], z: [-0.3, 0.5] }; // as far as a ball on the floor rolls
+// the bin: where it stands, its cup (radius at the base and at the rim, height,
+// the floor inside it), and which way it falls over (a turn about y: the front)
+const BIN = { x: 0.6, z: 0.1, r0: 0.032, r1: 0.044, h: 0.085, floor: 0.004, yaw: -Math.PI / 2 };
+const RIM = { y: FLOOR_Y + BIN.h, r: BIN.r1 - 0.002 }; // the circle a ball has to drop through
+// full, it rocks (wait), falls over (fall) onto its rim (angle), spilling the
+// balls once it's past `spill`, lies there (lie) and gets back up (up); seconds
+const BIN_TIP = { wait: 0.5, fall: 0.55, angle: Math.PI / 2 + Math.atan((BIN.r1 - BIN.r0) / BIN.h), spill: 0.95, lie: 1.4, up: 0.8 };
+// where the balls sit in it, in its own frame: pairs, each across the groove
+// of the one below, so six fill it to just under the rim
+const BIN_SLOTS = Array.from({ length: PHONE_BALLS }, (_, i) => {
+  const layer = Math.floor(i / 2);
+  const a = (i % 2) * Math.PI + layer * (Math.PI / 2) + 0.3;
+  return new Vector3(Math.cos(a) * BALL_R, BIN.floor + BALL_R + layer * BALL_R * Math.SQRT2, Math.sin(a) * BALL_R);
+});
+const SHOT_ERR = [0.04, 0.024]; // how far off a throw can drop (a disc's radius): a base, and per unit of distance
+const SHOT_REACH = 1.8; // how near the cursor's ray has to pass a ball, in ball radii
+const SHOT_REST = 0.25; // s a ball lies still before it can go again
+const SHOT_CHARGE = 0.09; // s it sinks into the cushion, gathering itself, before it goes
+const FLOOR_BACK = 2.5; // s a ball lies off the seat (the floor, an arm) before it hops back onto it
+const DRAG = { seat: 2.2, floor: 3.2 }; // the cushion's friction, and the rug's (1/s)
+interface Ball { mesh: Group | null; body: Mesh | null; vel: Vector3; delay: number; rest: number; charge: number; landAt: number; impact: number; slot: number; backAt: number; rattle: boolean }
+type BinPhase = 'up' | 'full' | 'tip' | 'lying' | 'righting';
+
+/** How high a ball's centre sits over (x, z): on the seat, on the floor, or
+ *  on an arm, whose top edges are rounded the way the couch's are. Where it
+ *  rises more than a little above a ball, it's a wall to it. */
+function restAt(x: number, z: number) {
+  const floor = FLOOR_Y + BALL_R;
+  if (z < COUCH_Z[0] - BALL_R || z > COUCH_Z[1] + BALL_R) return floor;
+  const ax = Math.abs(x);
+  const under = ax < ARM.x[0] ? SEAT_REST : floor;
+  if (ax <= ARM.x[0] - BALL_R || ax >= ARM.x[1] + BALL_R) return under;
+  // the arm grown by a ball's radius: flat on top, a quarter round at each edge
+  const dx = ax - Math.max(ARM.x[0] + ARM.round, Math.min(ARM.x[1] - ARM.round, ax));
+  const r = ARM.round + BALL_R;
+  return Math.max(under, ARM.top - ARM.round + Math.sqrt(Math.max(0, r * r - dx * dx)));
+}
+
+/** Sends a ball from `p` to `to` on an arc: taking `t0` seconds, or longer
+ *  (so higher) where it has to clear something on the way, the arm above all.
+ *  At f of the way the arc stands ½g·T²·f(1−f) over the straight line. */
+function throwTo(b: Ball, p: Vector3, to: Vector3, t0: number) {
+  let T = t0;
+  const mid = (ARM.x[0] + ARM.x[1]) / 2;
+  const fa = (Math.sign(to.x || 1) * mid - p.x) / (to.x - p.x); // where it passes over the arm's middle
+  for (let j = 0; j <= 24; j++) {
+    const f = j === 24 ? fa : (j + 0.5) / 24;
+    if (!(f > 0 && f < 1)) continue;
+    const need = restAt(p.x + f * (to.x - p.x), p.z + f * (to.z - p.z)) + 0.008 - (p.y + f * (to.y - p.y));
+    if (need > 0) T = Math.max(T, Math.sqrt(need / (0.5 * BALL_G * f * (1 - f))));
+  }
+  b.vel.set((to.x - p.x) / T, (to.y - p.y) / T + 0.5 * BALL_G * T, (to.z - p.z) / T);
+}
+
+/** A point in the bin's own frame (its base's centre at the origin, upright)
+ *  in the couch's, with the bin tipped `angle` over the edge it falls across. */
+function binPoint(q: Vector3, angle: number, out: Vector3) {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const x = (q.x - BIN.r0) * c + q.y * s + BIN.r0;
+  const y = -(q.x - BIN.r0) * s + q.y * c;
+  const cy = Math.cos(BIN.yaw);
+  const sy = Math.sin(BIN.yaw);
+  return out.set(BIN.x + x * cy + q.z * sy, FLOOR_Y + y, BIN.z - x * sy + q.z * cy);
+}
 // shared scratch for the instanced rings, flat on the surface they spread over
 const _m4 = new Matrix4();
 const _q4 = new Quaternion();
@@ -45,6 +117,12 @@ const _v3 = new Vector3();
 const _c3 = new Color();
 const FLAT = new Quaternion().setFromEuler(new Euler(-Math.PI / 2, 0, 0));
 const RINGS = 6;
+// …and for the balls
+const UP = new Vector3(0, 1, 0);
+const ORIGIN = new Vector3();
+const _at = new Vector3();
+const _to = new Vector3();
+const _dir = new Vector3();
 /** The phone on the couch (Popcore), a Blender model (build_phone.py). It lies
  *  face down, the way a phone is left on a cushion, so what you see from across
  *  the room is its back, and the camera island on it is what says "phone". It
@@ -77,17 +155,56 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
 
   // Ping-pong balls — each carries its own little bit of physics, fired once on
   // the first open. Held as plain objects (mutated in useFrame, not React state).
-  const balls = useMemo(
-    () => Array.from({ length: PHONE_BALLS }, () => ({ mesh: null as Group | null, body: null as Mesh | null, vel: new Vector3(), delay: 0, rest: 0, charge: -1, landAt: -99, impact: 0 })),
+  // `slot` is its place in the bin (−1: out), `backAt` when one lying off the
+  // seat hops back onto it, `rattle` that it's coming down again off the rim.
+  const balls = useMemo<Ball[]>(
+    () => Array.from({ length: PHONE_BALLS }, () => ({ mesh: null, body: null, vel: new Vector3(), delay: 0, rest: 0, charge: -1, landAt: -99, impact: 0, slot: -1, backAt: -1, rattle: false })),
     [],
   );
-  const R = 0.015; // ball radius
+  const R = BALL_R;
   const fired = useRef(false);
-  const combo = useRef({ n: 0, at: -99 });
-  // a ring on the cushion where a ball takes off
+  // the game's own clock: frame time, so a slow frame slows the game down
+  // rather than jumping it (a throw through the rim between two frames)
+  const clock = useRef(0);
+  // the bin: how many are in, what it's doing and since when, how far it's
+  // tipped, and when a ball last dropped in or hit the rim
+  const bin = useRef({ n: 0, phase: 'up' as BinPhase, at: -99, angle: 0, inAt: -99, rimAt: -99 });
+  const binPivot = useRef<Group>(null);
+  const binBody = useRef<Group>(null);
+  // a tapered cup with its wall's top rolled into a rim (the welt's pale)
+  const binGeo = useGeometry(() => ({
+    cup: lathe([[0, 0], [BIN.r0, 0], [BIN.r1 - 0.0005, BIN.h - 0.004], [BIN.r1 - 0.0035, BIN.h - 0.002], [BIN.r0 - 0.003, BIN.floor], [0, BIN.floor]], 40),
+    rim: new TorusGeometry(RIM.r, 0.0024, 6, 48).rotateX(-Math.PI / 2).translate(0, BIN.h - 0.0015, 0),
+  }));
+  // a ring on the cushion where a ball takes off, and round the rim as one drops in
   const ringsIM = useRef<InstancedMesh>(null);
-  const rings = useMemo(() => Array.from({ length: RINGS }, () => ({ pos: new Vector3(), at: -99 })), []);
+  const rings = useMemo(() => Array.from({ length: RINGS }, () => ({ pos: new Vector3(), at: -99, r0: 0, r1: 0 })), []);
   const ringN = useRef(0);
+  const flash = (x: number, y: number, z: number, r0: number, r1: number, now: number) => {
+    const r = rings[ringN.current++ % RINGS];
+    r.pos.set(x, y, z);
+    r.at = now;
+    r.r0 = r0;
+    r.r1 = r1;
+  };
+  // A ball's shape: squashed into the cushion as it gathers, stretched along
+  // its flight, squashed as it lands and springing back round, its bottom kept
+  // on whatever it's sitting on while it's squashed.
+  const shape = (b: Ball, sitting: boolean, now: number) => {
+    const m = b.body;
+    if (!m) return;
+    let sy = 1;
+    m.quaternion.identity();
+    if (b.charge >= 0) sy = 1 - 0.38 * easeOut((now - b.charge) / SHOT_CHARGE);
+    else if (!sitting) {
+      const sp = b.vel.length();
+      if (sp > 1e-3) m.quaternion.setFromUnitVectors(UP, _dir.copy(b.vel).divideScalar(sp));
+      sy = 1 + Math.min(0.25, sp * 0.16);
+    } else sy = 1 - 0.3 * b.impact * ring(now - b.landAt, 5, 10);
+    const sxz = 1 / Math.sqrt(Math.max(0.4, sy));
+    m.scale.set(sxz, sy, sxz);
+    m.position.y = sitting ? -(1 - sy) * R : 0;
+  };
   const ringGeo = useGeometry(() => new RingGeometry(0.72, 1, 32));
   const ringMat = useMemo(() => {
     const m = new MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
@@ -106,6 +223,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
     const t = s.clock.elapsedTime;
+    const now = (clock.current += dt);
     body(lit.litU.value, selected || visited);
 
     // --- lift and turn over toward the user on select; buzz on hover while resting ---
@@ -118,8 +236,9 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
       const tr = tt * tt;
       buzz.current += ((hovered || selected ? 1 : 0) - buzz.current) * 0.2;
       const a = reduced ? 0 : buzz.current * (1 - tt); // buzz fades as it stands up
-      // turned a little toward the camera's side once up, so the screen faces the view
-      const YAW_OFFSET = 0.38;
+      // turned a little toward the camera's side once up, so the screen faces
+      // the view (the close-up looks from the couch's front-left: framing.ts)
+      const YAW_OFFSET = -0.15;
       rig.rotation.set(mix(Math.PI / 2, -0.15, tr), mix(0, YAW_OFFSET, tr) + Math.sin(t * 45) * 0.022 * a, mix(0.3, 0.0, tr));
       rig.position.set(position[0] + Math.sin(t * 50) * 0.005 * a, position[1] + tt * 0.14, position[2] + Math.cos(t * 58) * 0.005 * a);
       rig.scale.setScalar(mix(1, 1.35, tt));
@@ -162,7 +281,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
         if (reduced) {
           // no launch — just scatter them at rest on the cushion around the phone
           const ang = (i / PHONE_BALLS) * Math.PI * 2;
-          b.mesh.position.set(position[0] + Math.cos(ang) * 0.07, COUCH_SEAT_Y + R, position[2] + Math.sin(ang) * 0.05);
+          b.mesh.position.set(position[0] + Math.cos(ang) * 0.07, SEAT_REST, position[2] + Math.sin(ang) * 0.05);
           b.mesh.visible = true;
         } else {
           const ang = (i / PHONE_BALLS) * Math.PI * 2 + 0.6;
@@ -174,13 +293,13 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
       });
     }
 
-    // --- the take-off rings, spreading over the cushion ---
+    // --- the rings: off the cushion where a ball takes off, round the rim as one drops in ---
     const rim = ringsIM.current;
     if (rim) {
       rings.forEach((r, j) => {
-        const age = (t - r.at) / 0.4;
+        const age = (now - r.at) / 0.4;
         const on = age >= 0 && age < 1;
-        _v3.setScalar(on ? 0.012 + 0.04 * easeOut(age) : 0);
+        _v3.setScalar(on ? r.r0 + (r.r1 - r.r0) * easeOut(age) : 0);
         rim.setMatrixAt(j, _m4.compose(r.pos, FLAT, _v3));
         rim.setColorAt(j, _c3.setScalar(on ? 0.9 * (1 - age) : 0));
       });
@@ -188,84 +307,247 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
       if (rim.instanceColor) rim.instanceColor.needsUpdate = true;
     }
 
-    // --- integrate the balls: launch, arc under gravity, bounce, then roll ---
+    // --- the bin: full, it rocks, falls over, lies there a moment and gets back up ---
+    const B = bin.current;
+    const u = now - B.at;
+    if (B.phase === 'up' && B.n >= PHONE_BALLS && balls.every((b) => b.slot >= 0 && b.vel.y === 0)) {
+      B.phase = 'full';
+      B.at = now;
+    } else if (B.phase === 'full' && u > BIN_TIP.wait) {
+      B.phase = 'tip';
+      B.at = now;
+    } else if (B.phase === 'tip' && u > BIN_TIP.fall) {
+      B.phase = 'lying';
+      B.at = now;
+      play('bin-tip');
+    } else if (B.phase === 'lying' && u > BIN_TIP.lie) {
+      B.phase = 'righting';
+      B.at = now;
+    } else if (B.phase === 'righting' && u > BIN_TIP.up) {
+      B.phase = 'up';
+      B.at = now;
+      B.n = 0;
+      // and the balls it spilled hop back onto the seat, one after another
+      balls.forEach((b, i) => {
+        if (b.slot < 0) b.backAt = now + 0.15 + i * 0.16;
+      });
+    }
+    const v = now - B.at;
+    B.angle =
+      B.phase === 'full'
+        ? 0.05 * easeIn(v / BIN_TIP.wait) * (0.5 - 0.5 * Math.cos(v * 34))
+        : B.phase === 'tip'
+          ? BIN_TIP.angle * easeIn(v / BIN_TIP.fall, 2.4)
+          : B.phase === 'lying'
+            ? BIN_TIP.angle - 0.12 * Math.exp(-6 * v) * Math.abs(Math.sin(v * 15)) // a bounce off its rim
+            : B.phase === 'righting'
+              ? BIN_TIP.angle * (1 - easeInOut(v / BIN_TIP.up))
+              : 0.06 * Math.exp(-7 * v) * Math.abs(Math.sin(v * 14)); // up: settling, once it's back
+    if (binPivot.current) binPivot.current.rotation.z = -B.angle;
+    if (binBody.current) {
+      // it gives as one drops in, and a little when one hits the rim
+      const q = 0.07 * ring(now - B.inAt, 3.5, 9) + 0.03 * ring(now - B.rimAt, 5, 12);
+      binBody.current.scale.set(1 + q * 0.6, 1 - q, 1 + q * 0.6);
+    }
+
+    // --- the balls: thrown, arcing under gravity, bouncing and rolling; in the bin or not ---
     if (fired.current && !reduced) {
-      const restY = COUCH_SEAT_Y + R;
-      // the cursor over the couch, to pop a ball it passes over
+      // the cursor over the couch, to find the ball it passes over
       const pointing = close && !!frame.current && !!cursorRay(s, frame.current, ray);
-      for (const b of balls) {
-        if (!b.mesh) continue;
+      const open = B.phase === 'up';
+      balls.forEach((b) => {
+        if (!b.mesh) return;
         if (b.delay > 0) {
           b.delay -= dt;
-          continue;
+          return;
         }
         b.mesh.visible = true;
         const p = b.mesh.position;
-        const rolling = p.y <= restY + 1e-4 && b.vel.y === 0;
-        if (rolling) {
+
+        // in the bin: dropping into its place, or carried along as the bin goes over
+        if (b.slot >= 0) {
+          binPoint(BIN_SLOTS[b.slot], B.angle, _at);
+          if (B.phase === 'up') {
+            const k = Math.min(1, dt * 14);
+            p.x += (_at.x - p.x) * k;
+            p.z += (_at.z - p.z) * k;
+            if (b.vel.y !== 0 || p.y > _at.y) {
+              p.y += (b.vel.y - 0.5 * BALL_G * dt) * dt;
+              b.vel.y -= BALL_G * dt;
+              if (p.y <= _at.y) {
+                p.y = _at.y;
+                b.landAt = now;
+                b.impact = Math.min(1, -b.vel.y / 0.7);
+                b.vel.y = b.vel.y < -0.3 ? -b.vel.y * 0.25 : 0;
+              }
+            }
+            shape(b, p.y <= _at.y + 1e-4, now);
+            return;
+          }
+          p.copy(_at);
+          if (B.phase !== 'tip' || B.angle < BIN_TIP.spill) {
+            b.vel.set(0, 0, 0);
+            shape(b, true, now);
+            return;
+          }
+          // far enough over: out of its mouth, the way it's falling, and free
+          binPoint(UP, B.angle, _dir).sub(binPoint(ORIGIN, B.angle, _to));
+          b.vel.copy(_dir).multiplyScalar(0.26 + 0.2 * Math.random());
+          b.vel.x += (Math.random() - 0.5) * 0.12;
+          b.vel.z += (Math.random() - 0.5) * 0.12;
+          b.slot = -1;
+          b.rest = 0;
+        }
+
+        const g = restAt(p.x, p.z);
+        const down = p.y <= g + 1e-4 && b.vel.y === 0;
+        if (down) {
           b.rest += dt;
-          // hovered: it sinks into the cushion, gathering itself, then pops; one
-          // popped soon after another goes higher, a step a time (POP_COMBO)
-          if (b.charge < 0 && pointing && b.rest > POP_REST && ray.distanceSqToPoint(p) < (R * POP_REACH) ** 2) b.charge = t;
-          if (b.charge >= 0 && t - b.charge >= POP_CHARGE) {
-            const c = combo.current;
-            c.n = t - c.at < POP_COMBO.window ? Math.min(POP_COMBO.max, c.n + 1) : 0;
-            c.at = t;
-            b.vel.set((Math.random() - 0.5) * 2 * POP_DRIFT, POP * (1 + POP_COMBO.step * c.n) * (0.9 + 0.2 * Math.random()), (Math.random() - 0.5) * 2 * POP_DRIFT);
+          const onSeat = g === SEAT_REST;
+          if (onSeat) b.backAt = -1;
+          else if (b.backAt < 0) b.backAt = now + FLOOR_BACK;
+          const near = pointing && b.charge < 0 && b.rest > SHOT_REST && ray.distanceSqToPoint(p) < (R * SHOT_REACH) ** 2;
+          if (onSeat) {
+            // hovered: it sinks into the cushion, gathering itself, then goes for
+            // the bin, aimed at its rim and off by a little more from further away
+            if (near && open) b.charge = now;
+            if (b.charge >= 0 && now - b.charge >= SHOT_CHARGE) {
+              b.charge = -1;
+              b.rest = 0;
+              const d = Math.hypot(BIN.x - p.x, BIN.z - p.z);
+              const e = (SHOT_ERR[0] + SHOT_ERR[1] * d) * Math.sqrt(Math.random());
+              const a = Math.random() * Math.PI * 2;
+              throwTo(b, p, _to.set(BIN.x + Math.cos(a) * e, RIM.y, BIN.z + Math.sin(a) * e), 0.5 + 0.35 * d);
+              flash(p.x, g - R + 0.002, p.z, 0.012, 0.052, now);
+            }
+          } else if (near || now > b.backAt) {
+            // off the seat (a miss, a spill): back up onto it, somewhere free
             b.rest = 0;
-            b.charge = -1;
-            const r = rings[ringN.current++ % RINGS];
-            r.pos.set(p.x, restY - R + 0.002, p.z);
-            r.at = t;
+            b.backAt = -1;
+            _to.set(SEAT.x[0] + 0.03 + Math.random() * (SEAT.x[1] - SEAT.x[0] - 0.06), SEAT_REST, SEAT.z[0] + 0.03 + Math.random() * (SEAT.z[1] - SEAT.z[0] - 0.06));
+            throwTo(b, p, _to, 0.6 + 0.3 * Math.hypot(_to.x - p.x, _to.z - p.z));
+            flash(p.x, g - R + 0.002, p.z, 0.012, 0.04, now);
           }
         }
-        if (b.vel.y !== 0 || !rolling) b.vel.y -= 2.6 * dt; // gravity
-        else {
-          const drag = Math.exp(-dt * ROLL_DRAG);
+        // gravity in the air (stepped exactly, so a throw follows the arc it
+        // was aimed on at any frame rate); on a surface, friction, and on an
+        // arm's crowned top a lean toward its nearer edge, so it rolls off
+        const fall = b.vel.y !== 0 || !down ? BALL_G : 0;
+        if (!fall) {
+          const drag = Math.exp(-dt * (g === SEAT_REST ? DRAG.seat : DRAG.floor));
           b.vel.x *= drag;
           b.vel.z *= drag;
+          if (g > SEAT_REST + 1e-3) b.vel.x += Math.sign(p.x) * Math.sign(Math.abs(p.x) - (ARM.x[0] + ARM.x[1]) / 2 || 1) * 0.8 * dt;
         }
+        const x0 = p.x;
+        const y0 = p.y;
+        const z0 = p.z;
+        const vy0 = b.vel.y;
         p.addScaledVector(b.vel, dt);
-        if (p.y <= restY && !rolling) {
-          p.y = restY;
-          b.landAt = t;
-          b.impact = Math.min(1, Math.abs(b.vel.y) / 0.7);
-          if (Math.abs(b.vel.y) < 0.14) b.vel.y = 0; // landed: it rolls from here
-          else {
-            b.vel.y = -b.vel.y * 0.5; // bounce
-            b.vel.x *= 0.72;
-            b.vel.z *= 0.72;
-          }
+        p.y -= 0.5 * fall * dt * dt;
+        b.vel.y -= fall * dt;
+        // something taller in the way (the arm, the couch's side, the seat's front): off it
+        if (restAt(p.x, z0) > p.y + 0.012) {
+          p.x = x0;
+          b.vel.x *= -0.4;
         }
-        // the cushions' edges, once it's down on them
-        if (p.y <= restY + 0.02) {
-          for (const [k, [lo, hi]] of [['x', SEAT.x], ['z', SEAT.z]] as const) {
-            if (p[k] < lo || p[k] > hi) {
-              p[k] = Math.min(hi, Math.max(lo, p[k]));
-              b.vel[k] *= -0.5;
+        if (restAt(p.x, p.z) > p.y + 0.012) {
+          p.z = z0;
+          b.vel.z *= -0.4;
+        }
+        // down onto something: a bounce or two, then it rolls. It hits at the
+        // speed it had as it reached the surface (not where the step left it,
+        // below it), or a slow frame would keep it hopping.
+        const floor = restAt(p.x, p.z);
+        if (p.y <= floor) {
+          if (!down && b.vel.y <= 0) {
+            const hit = Math.sqrt(vy0 * vy0 + 2 * fall * Math.max(0, y0 - floor));
+            b.landAt = now;
+            b.impact = Math.min(1, hit / 0.7);
+            if (hit < 0.14) b.vel.y = 0;
+            else {
+              b.vel.y = hit * 0.5;
+              b.vel.x *= 0.72;
+              b.vel.z *= 0.72;
+            }
+          }
+          p.y = floor;
+        }
+
+        // the bin, standing: down through its rim is in, the rim itself rattles
+        // it in or bounces it out, and its outside wall turns a ball away
+        if (B.phase === 'up' || B.phase === 'full') {
+          if (b.vel.y < 0 && y0 > RIM.y && p.y <= RIM.y) {
+            const f = (y0 - RIM.y) / (y0 - p.y);
+            const cx = x0 + (p.x - x0) * f;
+            const cz = z0 + (p.z - z0) * f;
+            const dh = Math.hypot(cx - BIN.x, cz - BIN.z);
+            if (B.n < PHONE_BALLS && (dh < RIM.r - R * 0.9 || (b.rattle && dh < RIM.r + R))) {
+              b.slot = B.n++;
+              b.rattle = false;
+              b.vel.x = 0;
+              b.vel.z = 0;
+              p.set(cx, RIM.y, cz);
+              B.inAt = now;
+              flash(BIN.x, RIM.y + 0.003, BIN.z, RIM.r, RIM.r * 1.8, now);
+              play('ball-in', { rate: 0.94 + 0.06 * B.n });
+            } else if (dh < RIM.r + R * 0.9) {
+              const up = 0.24 + 0.12 * Math.random();
+              const T = (2 * up) / BALL_G;
+              p.set(cx, RIM.y + 0.002, cz);
+              if (dh < RIM.r) {
+                // on the rim's inside: up, and down again into the middle
+                b.vel.set(((BIN.x - cx) / T) * 0.9, up, ((BIN.z - cz) / T) * 0.9);
+                b.rattle = true;
+              } else {
+                // on its outside: off and away
+                const out = 0.2 + 0.15 * Math.random();
+                b.vel.set(((cx - BIN.x) / dh) * out + b.vel.x * 0.15, up, ((cz - BIN.z) / dh) * out + b.vel.z * 0.15);
+              }
+              B.rimAt = now;
+              play('ball-rim', { rate: 0.9 + 0.2 * Math.random() });
+            }
+          }
+          if (b.slot < 0 && p.y < RIM.y) {
+            const dx = p.x - BIN.x;
+            const dz = p.z - BIN.z;
+            const dh = Math.hypot(dx, dz);
+            const wall = BIN.r0 + (BIN.r1 - BIN.r0) * Math.min(1, Math.max(0, (p.y - FLOOR_Y) / BIN.h)) + R;
+            if (dh < wall && dh > 1e-6) {
+              p.x = BIN.x + (dx / dh) * wall;
+              p.z = BIN.z + (dz / dh) * wall;
+              const vr = (b.vel.x * dx + b.vel.z * dz) / dh;
+              if (vr < 0) {
+                b.vel.x -= (1.4 * vr * dx) / dh;
+                b.vel.z -= (1.4 * vr * dz) / dh;
+              }
             }
           }
         }
-        // its shape: squashed into the cushion as it gathers, stretched as it
-        // flies, squashed as it lands and springing back round; its bottom stays
-        // on the cushion while it's squashed
-        let sy = 1;
-        if (b.charge >= 0) sy = 1 - 0.38 * easeOut((t - b.charge) / POP_CHARGE);
-        else if (p.y > restY + 1e-4) sy = 1 + Math.min(0.3, Math.abs(b.vel.y) * 0.45);
-        else sy = 1 - 0.3 * b.impact * ring(t - b.landAt, 5, 10);
-        const sxz = 1 / Math.sqrt(Math.max(0.4, sy));
-        if (b.body) {
-          b.body.scale.set(sxz, sy, sxz);
-          b.body.position.y = p.y <= restY + 1e-4 ? -(1 - sy) * R : 0;
+
+        // the seat's edges hold a ball rolling (or coming down) on it; the
+        // floor's keep one near the bin
+        const on = restAt(p.x, p.z);
+        if (b.slot < 0 && p.y <= on + 0.02 && b.vel.y <= 0) {
+          const box = on === SEAT_REST ? SEAT : on === FLOOR_Y + R ? FLOOR : null;
+          if (box) {
+            for (const [ax, [lo, hi]] of [['x', box.x], ['z', box.z]] as const) {
+              if (p[ax] < lo || p[ax] > hi) {
+                p[ax] = Math.min(hi, Math.max(lo, p[ax]));
+                b.vel[ax] *= -0.5;
+              }
+            }
+          }
         }
-      }
+        shape(b, b.slot < 0 && p.y <= on + 1e-4, now);
+      });
       // and each other: apart along the line between them, trading that speed
       for (let i = 0; i < balls.length; i++) {
         const a = balls[i].mesh;
-        if (!a?.visible) continue;
+        if (!a?.visible || balls[i].slot >= 0) continue;
         for (let j = i + 1; j < balls.length; j++) {
           const c = balls[j].mesh;
-          if (!c?.visible) continue;
+          if (!c?.visible || balls[j].slot >= 0) continue;
           const dx = c.position.x - a.position.x;
           const dz = c.position.z - a.position.z;
           const d = Math.hypot(dx, dz);
@@ -353,6 +635,22 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
           </mesh>
         </group>
       ))}
+      {/* the bin beside the couch: placed and turned toward the way it falls,
+          the pivot on the edge it falls over, and the cup itself */}
+      <group position={[BIN.x, FLOOR_Y, BIN.z]} rotation={[0, BIN.yaw, 0]}>
+        <group ref={binPivot} position={[BIN.r0, 0, 0]}>
+          <group ref={binBody} position={[-BIN.r0, 0, 0]}>
+            {/* glass that stays clear when the exhibit wakes, so the balls in it show */}
+            <mesh geometry={binGeo.cup}>
+              <LiveGlassMat slug={slug} ghost={false} opacity={0.3} solid={0.34} />
+              <LiveEdges slug={slug} threshold={35} />
+            </mesh>
+            <mesh geometry={binGeo.rim}>
+              <LiveGlassMat slug={slug} ghost={false} tint="pale" />
+            </mesh>
+          </group>
+        </group>
+      </group>
       {/* (drawn after the cushion, or its glass covers them) */}
       <instancedMesh ref={ringsIM} args={[ringGeo, ringMat, RINGS]} frustumCulled={false} renderOrder={2} />
     </group>

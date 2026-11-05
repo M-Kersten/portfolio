@@ -87,14 +87,14 @@ const SPOTS: Omit<Hotspot, 'position'>[] = [
   // Chip — the die in the middle, the heart and the camera on opposite corner
   // slots (chip.tsx CORNER): three even columns. Move a slot and its anchor
   // here has to follow.
-  { slug: 'amsterdam-ai', layer: 'chip', anchor: [0, 0.16, 0], foot: 0.125, view: { offset: [0.22, 1.25, 1.15], aimDown: 0.3, fovZoom: 6 } }, // the die: close and steep, so its game of Snake reads (chip.tsx DieSnake)
+  { slug: 'amsterdam-ai', layer: 'chip', anchor: [0, 0.16, 0], foot: 0.125, view: { offset: [0.17, 0.94, 0.885], aimDown: 0.25, fovZoom: 6 } }, // the die: close and steep, so its game of Snake reads (chip.tsx DieSnake)
   { slug: 'custom-ar-framework', layer: 'chip', anchor: [0.75, 0, -0.75], foot: 0.33, view: { offset: [2.2, 0.8, 1.8], aimDown: 0.3, fovZoom: -2.5 } }, // the CV camera (back-right slot)
   { slug: 'philips-medical-xr', layer: 'chip', anchor: [-0.75, 0.16, 0.75], foot: 0.47, view: { offset: [0.36, 0.4, 0.9], aimDown: 0.2, fovZoom: 19.5 } }, // the heart projector (front-left slot); the anchor sits in the beam under the heart, clear of where the catheter works
   // Room — four exhibits on a diagonal from the front-left to the back-right,
   // so from the overview each has its own column: desk, table, couch, shelf
   // (room.tsx RoomRig)
   { slug: 'virtuele-brigade', layer: 'room', anchor: [-1.42, 0.65, 0.26], foot: 0.79, view: { offset: [1.87, 0.2, 0.18], aimDown: 0.45, fovZoom: 0.5 } }, // the monitor's screen (room.tsx Desk, in the desk group)
-  { slug: 'popcore-games', layer: 'room', anchor: [0.23, 0.22, -0.34], foot: 0.21, view: { offset: [0.6, 0.55, 0.95], aimDown: 0.05, fovZoom: 19.5 } }, // phone on the couch
+  { slug: 'popcore-games', layer: 'room', anchor: [0.23, 0.22, -0.34], foot: 0.21, view: { offset: [-0.4, 0.85, 1.2], aimDown: 0.05, fovZoom: 19.5 } }, // phone on the couch; from the front-left and up, so the bin beside the right arm (room.tsx Phone) is in the shot
   { slug: 'lightship-drive', layer: 'room', anchor: [0, 0.2, 0.68], foot: 0.19, view: { offset: [0.95, 0.5, 0.75], aimDown: 0.25, fovZoom: 30 } }, // the AR race table
   { slug: 'zwijsen-ar-books', layer: 'room', anchor: [0.92, 0.4, -1.07], foot: 0.95, view: { offset: [-0.1, 0.9, 1.35], aimDown: 0.35, fovZoom: 16, mobileZoom: 1.45 } }, // the orange book on the shelf; the marker stands on the bookcase's top
   // City — GIS / location work

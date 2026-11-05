@@ -49,16 +49,29 @@ export type SoundName =
   | 'grid-charge'
   | 'grid-zap'
   | 'grid-on'
+  // the windmill's power reaching the tower: it's full, and powered for the visit
+  | 'mill-power'
   // the heart: the catheter's balloon going up, and a narrowing opening
   | 'cath-inflate'
   | 'cath-clear'
   // Snake on the die: a food eaten, and a crash (only while the visitor steers)
   | 'snake-eat'
   | 'snake-crash'
+  // the AR framework's camera: a cube anchored, and all of them merging into one
+  | 'cube-anchor'
+  | 'cube-merge'
   // the Virtuele Brigade's call-outs: one called out, cleared, and one slipping away
   | 'call-out'
   | 'call-clear'
   | 'call-miss'
+  // Popcore's bin: a ball dropping in, one off the rim, and the full bin going over
+  | 'ball-in'
+  | 'ball-rim'
+  | 'bin-tip'
+  // ARCam's park: an animal dropping in by AR, one photographed, and the group photo
+  | 'critter-in'
+  | 'critter-snap'
+  | 'critter-group'
   // the ambient beds, one per layer of the maquette
   | 'ambient-city'
   | 'ambient-room'

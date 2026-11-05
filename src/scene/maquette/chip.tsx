@@ -22,7 +22,7 @@ import { cursorAtDepth, cursorIdle, cursorOnLevel, cursorRay, useCloseUp } from 
 import { wobble } from '../../lib/spring';
 import { play } from '../../lib/sound';
 import { figure, newGame, step, N as SNAKE_N } from './snake';
-import { bump, easeOutBack } from '../../lib/ease';
+import { bump, easeInOut, easeOut, easeOutBack } from '../../lib/ease';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
 
@@ -324,16 +324,57 @@ const CAM_SEE_FADE = 0.18; // s for a cube to light up or grey back
 // Each cube where the head's aim points when it has turned by (yaw, pitch), how
 // far out along that aim (`reach`), its edge, and how it turns. The first is
 // the hologram the camera watches at rest, at the beam's end; the other two
-// come with the close-up, smaller and just inside the beam's reach. From where
-// the close-up looks, the head's turn mostly carries a cube toward you or away,
-// and its tilt up or down the screen, so they're set apart in tilt: one high
-// and back, one low and forward, a diagonal through the first.
+// come with the close-up, smaller and just inside the beam's reach (the last
+// two only for its game, ANCHOR_HOLD). From where the close-up looks, the
+// head's turn mostly carries a cube toward you or away, its tilt up or down
+// the screen, and its reach along the beam across it, so they're set apart in
+// tilt and reach: one high and back, one low and forward, one in close by the
+// lens and one high beside the first.
 const CAM_CUBES = [
   { yaw: 0, pitch: 0, reach: CAM_CUBE_Z, size: CAM_CUBE, spin: 0.3, phase: 0 },
   { yaw: 0.55, pitch: -0.38, reach: 0.7, size: 0.13, spin: -0.36, phase: 2.1 },
   { yaw: -0.45, pitch: 0.3, reach: 0.7, size: 0.14, spin: 0.24, phase: 4.2 },
+  { yaw: 0.3, pitch: 0.05, reach: 0.42, size: 0.09, spin: 0.42, phase: 1.1 },
+  { yaw: -0.15, pitch: -0.32, reach: 0.82, size: 0.1, spin: -0.3, phase: 3.3 },
 ];
-type CamGaze = { dir: Vector3; see: number; h: number; more: number; lockAt: number };
+/* The game in the close-up: anchor the cubes, one after another, in the order
+   the camera asks for. The one it wants next has its brackets beating; look
+   at it (point at it, so the camera locks on and holds it in its cone for
+   ANCHOR_HOLD) and it's anchored: it pops and stays lit. Looking at the others
+   tracks them as it always did, but only the one asked for anchors. With all
+   of them anchored the camera has the whole scene: the cubes fly together into
+   the first and merge into one bigger, brighter cube (two platforms in one
+   tidy API, as the project put it), which holds a while, then they part and
+   it asks again, in a new order. */
+const ANCHOR_HOLD = 0.4; // s the asked-for cube has to stay locked on
+const MERGE_IN = 0.9; // s for them to fly together
+const MERGE_HOLD = 3.6; // s it holds as one
+const MERGE_OUT = 0.8; // s for them to part again
+type CamGaze = {
+  dir: Vector3;
+  see: number;
+  h: number;
+  more: number;
+  lockAt: number;
+  /** the game: the order the cubes are asked for, how far along it, which are
+   *  anchored (and when), the cube asked for now (-1: none), and when the
+   *  merge began and when they parted again (the clock's s; -1 not yet) */
+  order: number[];
+  step: number;
+  anchored: number[];
+  target: number;
+  mergeAt: number;
+  splitAt: number;
+};
+/** A fresh order: the cubes, shuffled. */
+const camOrder = () => {
+  const o = CAM_CUBES.map((_, i) => i);
+  for (let i = o.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [o[i], o[j]] = [o[j], o[i]];
+  }
+  return o;
+};
 
 /** One of the hologram's cubes (CAM_CUBES), held in its place: a wireframe over
  *  a faint fill, its corners marked. While it's inside the camera's vision
@@ -353,6 +394,13 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
   const brackets = useRef<Group>(null);
   // the way the head looks when it looks straight at this cube
   const dir = useMemo(() => new Vector3(0, 0, 1).applyEuler(new Euler(aimPitch, 0, 0)).applyEuler(new Euler(c.pitch, c.yaw, 0, 'YXZ')), [aimPitch, c]);
+  // the way to the first cube's middle, in this one's turned frame: the merge
+  // carries it there (see ANCHOR_HOLD)
+  const toFirst = useMemo(() => {
+    const at = (cc: (typeof CAM_CUBES)[number]) => new Vector3(0, CAM_HEAD_UP, cc.reach).applyEuler(new Euler(aimPitch, 0, 0)).applyEuler(new Euler(cc.pitch, cc.yaw, 0, 'YXZ'));
+    const turn = new Quaternion().setFromEuler(new Euler(c.pitch, c.yaw, 0, 'YXZ')).multiply(new Quaternion().setFromEuler(new Euler(aimPitch, 0, 0)));
+    return at(CAM_CUBES[0]).sub(at(c)).applyQuaternion(turn.invert());
+  }, [aimPitch, c]);
   const grey = useMemo(() => new Color(NEUTRAL), []);
   const lit = useMemo(() => new Color(accent), [accent]);
   const pale = useMemo(() => new Color(accentPale), [accentPale]);
@@ -406,10 +454,15 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
       outer.current.visible = here > 0.02;
       outer.current.scale.setScalar(here);
     }
+    // the game (see ANCHOR_HOLD): asked for, anchored, and the merge, in which
+    // the others fly into the first and it grows
+    const asked = g.target === i;
+    const anchored = g.anchored[i] >= 0;
+    const merge = g.mergeAt < 0 ? 0 : g.splitAt >= 0 ? 1 - easeOut(Math.min(1, (t - g.splitAt) / MERGE_OUT)) : easeInOut(Math.min(1, (t - g.mergeAt) / MERGE_IN));
     // inside the cone: tracked
     const inCone = Math.acos(Math.min(1, g.dir.dot(dir))) < g.see ? 1 : 0;
     seen.current += (inCone - seen.current) * (reduced ? 1 : 1 - Math.exp(-dt / CAM_SEE_FADE));
-    const k = seen.current;
+    const k = Math.max(seen.current, anchored ? 1 : 0, i === 0 ? merge : 0);
     // locked on: the brackets snap in from outside, over the mark and back, the
     // cube pops, and the camera's cone flickers (SecurityCamera reads lockAt);
     // let go, the brackets drift back out as they fade
@@ -421,11 +474,14 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
     if (!inCone && lk.in) lk.out = t;
     lk.in = !!inCone;
     const snap = reduced ? 1 : easeOutBack((t - lk.at) / 0.3, 2.4);
-    const drift = lk.in ? 0 : Math.min(1, (t - lk.out) / 0.35);
-    if (brackets.current) brackets.current.scale.setScalar((1.8 - 0.8 * snap) * (1 + 0.4 * drift));
+    const drift = lk.in || anchored ? 0 : Math.min(1, (t - lk.out) / 0.35);
+    // the one asked for: its brackets beat, wide of it, until it's anchored
+    const beat = asked && !reduced ? 0.5 + 0.5 * Math.sin(t * 7) : 0;
+    if (brackets.current) brackets.current.scale.setScalar(asked && !lk.in ? 1.35 + 0.2 * beat : (1.8 - 0.8 * snap) * (1 + 0.4 * drift));
     parts.bracket.color.copy(lit);
-    parts.bracket.opacity = k * here * (1 - 0.6 * drift);
-    const pop = reduced ? 0 : 0.17 * bump((t - lk.at) / 0.32);
+    parts.bracket.opacity = Math.max(k * (1 - 0.6 * drift), asked ? 0.45 + 0.55 * beat : 0) * here * (1 - (i > 0 ? merge : 0));
+    // anchoring pops it, as a lock-on does
+    const pop = reduced ? 0 : 0.17 * bump((t - lk.at) / 0.32) + 0.3 * bump((t - g.anchored[i]) / 0.4);
     parts.wire.color.copy(grey).lerp(pale, k);
     parts.wire.opacity = (0.4 + 0.5 * k) * here;
     parts.fill.color.copy(grey).lerp(lit, k);
@@ -445,13 +501,16 @@ function TrackedCube({ i, aimPitch, gaze }: { i: number; aimPitch: number; gaze:
     }
     if (spin.current) {
       spin.current.rotation.x = 0.42;
-      spin.current.scale.setScalar(1 + pop);
+      // merging: the others fly into the first and go into it; it grows
+      spin.current.scale.setScalar((1 + pop) * (i === 0 ? 1 + 0.45 * merge : 1 - merge));
+      spin.current.position.set(toFirst.x * (i === 0 ? 0 : merge), 0, c.reach + toFirst.z * (i === 0 ? 0 : merge));
       if (!reduced) {
-        spin.current.rotation.y = t * c.spin + c.phase; // a gentle turn…
+        spin.current.rotation.y = t * c.spin * (1 + 3 * (i === 0 ? merge : 0)) + c.phase; // a gentle turn (quicker, merged)…
         spin.current.position.y = Math.sin(t * 1.4 + c.phase) * 0.02; // …and a soft bob
       }
+      spin.current.position.y += toFirst.y * (i === 0 ? 0 : merge);
     }
-    if (brackets.current && spin.current) brackets.current.position.y = spin.current.position.y;
+    if (brackets.current && spin.current) brackets.current.position.copy(spin.current.position);
   });
   // placed the way the head is turned to it, so its aim runs through the middle
   return (
@@ -507,7 +566,10 @@ function SecurityCamera({ slug, position, aimYaw = CAM_AIM, aimPitch = -0.05 }: 
   // the servo's wind-up: a small move the other way before a big turn
   const servo = useRef({ yaw: 0, pitch: 0, until: -99, fromYaw: 0, fromPitch: 0, byYaw: 0, byPitch: 0 });
   const more = useRef(0); // the close-up's extra cubes, 0 → 1
-  const gaze = useRef<CamGaze>({ dir: new Vector3(0, 0, 1), see: 0, h: 0, more: 0, lockAt: -99 });
+  const gaze = useRef<CamGaze>({ dir: new Vector3(0, 0, 1), see: 0, h: 0, more: 0, lockAt: -99, order: camOrder(), step: 0, anchored: CAM_CUBES.map(() => -1), target: -1, mergeAt: -1, splitAt: -1 });
+  const hold = useRef(0); // how long the asked-for cube has been held (ANCHOR_HOLD)
+  // the way the head looks to look straight at each cube
+  const cubeDir = useMemo(() => CAM_CUBES.map((c) => new Vector3(0, 0, 1).applyEuler(new Euler(aimPitch, 0, 0)).applyEuler(new Euler(c.pitch, c.yaw, 0, 'YXZ'))), [aimPitch]);
   const ray = useMemo(() => new Ray(), []);
   const hit = useMemo(() => new Vector3(), []);
   const lookAt = useMemo(() => new Vector3(0, CAM_HEAD_UP, CAM_CUBE_Z), []);
@@ -525,14 +587,18 @@ function SecurityCamera({ slug, position, aimYaw = CAM_AIM, aimPitch = -0.05 }: 
     // else, the cursor's spot at the cubes' depth, as a yaw and pitch from the head
     const tr = track.current;
     let following = false;
-    if (close && cursorIdle() < CAM_TRACK_IDLE && pivotRef.current && cursorRay(s, pivotRef.current, ray)) {
+    let locked = -1; // the cube the cursor has it locked on to
+    // merged (the game's end), it looks at the one cube they've become
+    const merged = close && gaze.current.mergeAt >= 0 && gaze.current.splitAt < 0;
+    if (merged || (close && cursorIdle() < CAM_TRACK_IDLE && pivotRef.current && cursorRay(s, pivotRef.current, ray))) {
       let yaw = 0;
       let pitch = 0;
-      const lock = cubeAt.findIndex((p, n) => (n === 0 || more.current > 0.5) && ray.distanceSqToPoint(p) < (CAM_CUBES[n].size * CAM_LOCK) ** 2);
+      const lock = merged ? 0 : cubeAt.findIndex((p, n) => (n === 0 || more.current > 0.5) && ray.distanceSqToPoint(p) < (CAM_CUBES[n].size * CAM_LOCK) ** 2);
       if (lock >= 0) {
         ({ yaw, pitch } = CAM_CUBES[lock]);
         following = true;
-      } else if (cursorAtDepth(s, pivotRef.current, lookAt, hit)) {
+        locked = merged ? -1 : lock;
+      } else if (pivotRef.current && cursorAtDepth(s, pivotRef.current, lookAt, hit)) {
         const dx = hit.x;
         const dy = hit.y - CAM_HEAD_UP;
         const dz = hit.z;
@@ -608,10 +674,11 @@ function SecurityCamera({ slug, position, aimYaw = CAM_AIM, aimPitch = -0.05 }: 
       beamRef.current.scale.setScalar(h);
     }
     if (coneMat.current) {
-      // a lock-on (TrackedCube): the cone flickers, bright and dim, for a beat
+      // a lock-on (TrackedCube): the cone flickers, bright and dim, for a beat;
+      // merged, it burns steady and bright on the one cube
       const lk = t - gaze.current.lockAt;
       const flick = !reduced && lk >= 0 && lk < 0.24 ? (Math.random() < 0.5 ? 2.6 : 0.5) : 1;
-      coneMat.current.opacity = 0.1 * h * flick;
+      coneMat.current.opacity = 0.1 * h * flick * (merged ? 2.2 : 1);
     }
     // the gaze, for the cubes to see whether they're in it
     const g = gaze.current;
@@ -619,6 +686,31 @@ function SecurityCamera({ slug, position, aimYaw = CAM_AIM, aimPitch = -0.05 }: 
     g.more = more.current;
     g.see = Math.atan((CAM_CONE_R * across) / (CAM_CUBE_Z - CAM_LENS_Z));
     if (headRef.current) g.dir.set(0, 0, 1).applyEuler(aimTilt).applyEuler(headRef.current.rotation);
+    // ---- the game (see ANCHOR_HOLD) ----
+    if (!close) {
+      // closed: a fresh order for next time
+      if (g.step > 0 || g.mergeAt >= 0) Object.assign(g, { order: camOrder(), step: 0, anchored: CAM_CUBES.map(() => -1), mergeAt: -1, splitAt: -1 });
+      g.target = -1;
+      hold.current = 0;
+    } else if (g.mergeAt < 0) {
+      g.target = more.current > 0.5 ? g.order[g.step] : -1;
+      // the one asked for, locked on and in the cone
+      const held = g.target >= 0 && locked === g.target && Math.acos(Math.min(1, g.dir.dot(cubeDir[g.target]))) < g.see;
+      hold.current = held ? hold.current + dt : 0;
+      if (hold.current > ANCHOR_HOLD) {
+        g.anchored[g.target] = t;
+        g.lockAt = t;
+        g.step++;
+        hold.current = 0;
+        if (g.step >= CAM_CUBES.length) {
+          g.mergeAt = t;
+          g.target = -1;
+          play('cube-merge', { volume: 0.6 });
+        } else play('cube-anchor', { volume: 0.45, rate: 1 + 0.06 * g.step }); // a step up the scale each one
+      }
+    } else if (g.splitAt < 0) {
+      if (t - g.mergeAt > MERGE_IN + MERGE_HOLD) g.splitAt = t;
+    } else if (t - g.splitAt > MERGE_OUT) Object.assign(g, { order: camOrder(), step: 0, anchored: CAM_CUBES.map(() => -1), mergeAt: -1, splitAt: -1 });
   });
 
   return (
@@ -913,14 +1005,14 @@ function KitTiles({ geometry, slug, color, game }: { geometry: BufferGeometry; s
    board of twelve cells a side over the sixteen tiles, three to a side of a
    tile, lit the way the tiles are. With no cursor on the die, or one resting
    there, the chip plays it itself, which is how a visitor sees it's a game;
-   point at the die and the snake goes where you point. Eating pops the cell
+   point at the die and the snake goes where you point and waits there with
+   its head on the cursor, so it can be led about. Eating pops the cell
    and ripples out, as a tile does; a crash flashes, comes apart from the tail
    and shows the score in the cells, then a new board sweeps on. Only with a
    cursor (useCloseUp): a touch screen and reduced motion keep the waves. */
-const SNAKE_RATE = 7; // cells a second at the start…
-const SNAKE_RAMP = 0.15; // …faster by this much for every food…
-const SNAKE_MAX = 10.5; // …up to this
-const SNAKE_LETGO = 2.5; // s of a resting cursor before the chip plays itself again
+const SNAKE_RATE = 5; // cells a second at the start…
+const SNAKE_RAMP = 0.1; // …faster by this much for every food…
+const SNAKE_MAX = 7.5; // …up to this
 const SNAKE_MARGIN = 1.5; // cells off the die's edge that a cursor still steers from (held to the edge)
 const SNAKE_CRASH = 1.0; // s of a crash: it flashes, then comes apart from the tail
 const SNAKE_SCORE = 1.9; // s the score shows
@@ -1004,9 +1096,9 @@ function DieSnake({ geometry, game }: { geometry: BufferGeometry; game: { on: nu
     }
     r.fresh = false;
     const now = st.clock.elapsedTime;
-    // the cell the cursor points at, if it's on the die (or just off it) and moving
+    // the cell the cursor points at, if it's on the die (or just off it)
     let target: number | null = null;
-    if (close && cursorIdle() < SNAKE_LETGO && cursorOnLevel(st, im, top, hit)) {
+    if (close && cursorOnLevel(st, im, top, hit)) {
       const u = ((hit.x - board.bb.min.x) / (board.bb.max.x - board.bb.min.x)) * SNAKE_N;
       const v = ((hit.z - board.bb.min.z) / (board.bb.max.z - board.bb.min.z)) * SNAKE_N;
       const edge = (k: number) => Math.min(SNAKE_N - 1, Math.max(0, Math.floor(k)));

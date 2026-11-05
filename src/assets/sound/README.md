@@ -93,6 +93,44 @@ look at.
 | `call-clear` | they've looked: it's cleared | a soft two-note confirm |
 | `call-miss` | a marker slips away before it's called | a muted low blip |
 
+## The windmill
+
+In the DTT close-up, blowing on the mill hard enough powers the tower in the
+middle of the city.
+
+| File | When | Notes |
+| --- | --- | --- |
+| `mill-power` | the tower is full and powers on | a big switch thrown, with a rising hum |
+
+## Anchors
+
+In the Custom AR Framework close-up the camera asks for its cubes in order.
+
+| File | When | Notes |
+| --- | --- | --- |
+| `cube-anchor` | the cube asked for is anchored | a short glass tap, pitched up a step each time |
+| `cube-merge` | all of them fly together into one | a soft rising shimmer, about 1 s |
+
+## The bin
+
+In the Popcore close-up the ping-pong balls go for the bin beside the couch.
+
+| File | When | Notes |
+| --- | --- | --- |
+| `ball-in` | a ball drops into the bin | a light hollow plonk; played a little higher for each ball in |
+| `ball-rim` | a ball hits the rim | a short bright tick; give it variants |
+| `bin-tip` | the full bin falls over | a hollow clatter of the bin and the balls |
+
+## Photo safari
+
+In the ARCam close-up you photograph the park's animals as they turn up.
+
+| File | When | Notes |
+| --- | --- | --- |
+| `critter-in` | an animal drops in by AR | a soft digital shimmer, short |
+| `critter-snap` | the shutter goes on one: it's photographed | a camera shutter with a small bright chime |
+| `critter-group` | the group photo is taken and the print comes out | a bigger shutter, then a printer's whirr |
+
 ## Ambient
 
 One quiet bed per layer of the maquette, crossfading as you scroll; they
