@@ -56,6 +56,11 @@ export interface CaseStudy {
   /** Exactly one layer tag per case (§7). */
   layer: Layer;
   client: string;
+  /** The credit line, as a museum prints it under a work: who it was made for
+   *  or with, in a sentence ("Commissioned by Niantic, made at Wonderment",
+   *  "A passion project"). Shown on the label and in the book; a project
+   *  without one shows its client. */
+  credit?: string;
   sector: string;
   /** At least one discipline — the /projects index filters on these. */
   discipline: Discipline[];

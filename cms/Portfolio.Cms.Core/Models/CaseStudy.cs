@@ -43,36 +43,45 @@ public sealed class CaseStudy
     public required string Client { get; set; }
 
     /// <summary>
+    /// The credit line, as a museum prints it under a work: who it was made
+    /// for or with, in a sentence ("Commissioned by Niantic, made at
+    /// Wonderment", "A passion project"). Shown on the exhibit's label and in
+    /// its book; the site falls back to <see cref="Client"/> when it's absent.
+    /// </summary>
+    [JsonPropertyOrder(6), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Credit { get; set; }
+
+    /// <summary>
     /// Flags independent work so the waypoint tag reads "Freelance" / "Passion"
     /// in its own colour instead of a client company. Should be one of
     /// <see cref="CaseKind.Known"/>; kept as a string because the existing
     /// content holds three values that aren't, and the validator warns rather
     /// than refusing to load them. See <see cref="CaseKind"/>.
     /// </summary>
-    [JsonPropertyOrder(6), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(7), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Kind { get; set; }
 
-    [JsonPropertyOrder(7)]
+    [JsonPropertyOrder(8)]
     public required string Sector { get; set; }
 
     /// <summary>At least one — /projects filters on these and a case with an
     /// empty list can never be reached by any filter.</summary>
-    [JsonPropertyOrder(8)]
+    [JsonPropertyOrder(9)]
     public List<Discipline> Discipline { get; set; } = [];
 
     /// <summary>The story, told in three beats — these carry the case dialogs.</summary>
-    [JsonPropertyOrder(9)]
+    [JsonPropertyOrder(10)]
     public required string Problem { get; set; }
 
-    [JsonPropertyOrder(10)]
+    [JsonPropertyOrder(11)]
     public required string Approach { get; set; }
 
     /// <summary>Exactly one hard outcome metric per case — the big summary line.</summary>
-    [JsonPropertyOrder(11)]
+    [JsonPropertyOrder(12)]
     public required string Outcome { get; set; }
 
     /// <summary>Tech stack, shown as tags in the case dialog.</summary>
-    [JsonPropertyOrder(12), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(13), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? Tech { get; set; }
 
     /// <summary>
@@ -80,11 +89,11 @@ public sealed class CaseStudy
     /// and the reverse ("led to →") is derived, so this one field threads the
     /// cases into walkable storylines. Must point at a real slug.
     /// </summary>
-    [JsonPropertyOrder(13), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(14), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Follows { get; set; }
 
     /// <summary>The third beat — optional, but almost always worth it.</summary>
-    [JsonPropertyOrder(14), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(15), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Lesson { get; set; }
 
     /// <summary>
@@ -92,21 +101,21 @@ public sealed class CaseStudy
     /// tile and places it on the timeline. Optional when <see cref="Archive"/>
     /// is set, since an archive entry reaches neither.
     /// </summary>
-    [JsonPropertyOrder(15), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(16), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Year { get; set; }
 
     /// <summary>A YouTube URL — embedded in the node HUD and map card popup.</summary>
-    [JsonPropertyOrder(16), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(17), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Video { get; set; }
 
     /// <summary>
     /// Outbound links — write-ups, talks, press, demo films. Rendered as
     /// buttons in the case dialogs, in the order given, each with its own
-    /// label. Took over slot 17 from the single <c>article</c> string it
+    /// label. Took over the slot of the single <c>article</c> string it
     /// replaced, so the JSON key lands in the same place and the round-trip
     /// stays byte-identical.
     /// </summary>
-    [JsonPropertyOrder(17), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(18), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<CaseLink>? Links { get; set; }
 
     /// <summary>
@@ -115,7 +124,7 @@ public sealed class CaseStudy
     /// `false` and absent mean the same thing to the site, this stays nullable
     /// so an unset flag never appears in the JSON.
     /// </summary>
-    [JsonPropertyOrder(18), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(19), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? Archive { get; set; }
 
     /// <summary>
@@ -130,6 +139,6 @@ public sealed class CaseStudy
     /// pure addition rather than a reshuffle of all sixteen cases.
     /// </para>
     /// </summary>
-    [JsonPropertyOrder(19), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(20), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<GalleryImage>? Gallery { get; set; }
 }

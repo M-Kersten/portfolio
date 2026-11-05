@@ -4,6 +4,7 @@
     "title": "Preekstof",
     "layer": "room",
     "client": "Nieuwe Kerk Utrecht",
+    "credit": "A passion project for Nieuwe Kerk Utrecht",
     "kind": "passion",
     "sector": "Church media · App",
     "discipline": [
@@ -41,6 +42,7 @@
     "tag": "Marechaussee (Via Rebels)",
     "layer": "room",
     "client": "Royal Netherlands Marechaussee (Via Rebels)",
+    "credit": "Commissioned by the Royal Netherlands Marechaussee, via Rebels",
     "sector": "Training · VR",
     "discipline": [
       "VR"
@@ -70,6 +72,7 @@
     "title": "Alliander HoloLens suite",
     "layer": "city",
     "client": "Alliander (Via Rebels)",
+    "credit": "Commissioned by Alliander, via Rebels",
     "sector": "Energy · AR",
     "discipline": [
       "AR",
@@ -100,6 +103,7 @@
     "title": "Alliander digital twin",
     "layer": "city",
     "client": "Alliander (Via Rebels)",
+    "credit": "Commissioned by Alliander, via Rebels",
     "sector": "Energy · web 3D",
     "discipline": [
       "Geo"
@@ -127,6 +131,7 @@
     "title": "ARCam",
     "layer": "city",
     "client": "Wonderment",
+    "credit": "Commissioned by Niantic, made at Wonderment",
     "sector": "Location-based AR · Installation",
     "discipline": [
       "AR",
@@ -158,6 +163,7 @@
     "title": "Wonderment location XR experiments",
     "layer": "city",
     "client": "Wonderment",
+    "credit": "Made at Wonderment",
     "sector": "Location-based · R&D",
     "discipline": [
       "AR",
@@ -188,6 +194,7 @@
     "title": "DTT Projects",
     "layer": "city",
     "client": "DTT",
+    "credit": "Made at DTT",
     "sector": "Apps · AR/VR",
     "discipline": [
       "AR",
@@ -218,6 +225,7 @@
     "title": "Lightship Drive",
     "layer": "room",
     "client": "Niantic",
+    "credit": "Commissioned by Niantic",
     "sector": "Games · multiplayer AR",
     "discipline": [
       "AR",
@@ -248,6 +256,7 @@
     "title": "Zwijsen AR books",
     "layer": "room",
     "client": "Zwijsen",
+    "credit": "Commissioned by Zwijsen, as a freelancer",
     "kind": "Freelance",
     "sector": "Education · mobile AR",
     "discipline": [
@@ -277,6 +286,7 @@
     "title": "Popcore games",
     "layer": "room",
     "client": "Popcore",
+    "credit": "Made at Popcore",
     "sector": "Mobile games",
     "discipline": [
       "Games"
@@ -306,6 +316,7 @@
     "title": "Philips medical XR & AI",
     "layer": "chip",
     "client": "Philips (Via Rebels)",
+    "credit": "Commissioned by Philips, via Rebels",
     "sector": "Healthcare · R&D",
     "discipline": [
       "AR",
@@ -336,6 +347,7 @@
     "title": "Amsterdam AI guides",
     "layer": "chip",
     "client": "Rebels",
+    "credit": "Research at Rebels",
     "kind": "Research",
     "sector": "AI · AR",
     "discipline": [
@@ -368,6 +380,7 @@
     "title": "Custom AR framework",
     "layer": "chip",
     "client": "Saxion",
+    "credit": "A graduation project at Saxion",
     "kind": "graduation",
     "sector": "R&D · tooling",
     "discipline": [
@@ -397,6 +410,7 @@
     "title": "Kastwezens",
     "layer": "city",
     "client": "Freelance",
+    "credit": "A freelance project",
     "kind": "freelance",
     "sector": "Interactive installation · projection mapping",
     "discipline": [
@@ -421,6 +435,7 @@
     "title": "Land of the Midnight Sun",
     "layer": "room",
     "client": "OAMK",
+    "credit": "A student project at OAMK",
     "sector": "Games · team lead",
     "discipline": [
       "Games"
@@ -443,6 +458,7 @@
     "title": "Sol.AR",
     "layer": "room",
     "client": "Passion project",
+    "credit": "A passion project",
     "kind": "passion",
     "sector": "Space · mobile AR",
     "discipline": [
@@ -466,6 +482,7 @@
     "title": "Amsterdam Underground",
     "layer": "room",
     "client": "Municipality of Amsterdam (Via Rebels)",
+    "credit": "Commissioned by the Municipality of Amsterdam, via Rebels",
     "sector": "Multiplayer VR · rebuild",
     "discipline": [
       "VR"
@@ -489,6 +506,7 @@
     "title": "Nieuwe Kerk Utrecht",
     "layer": "room",
     "client": "Nieuwe Kerk Utrecht",
+    "credit": "A passion project for Nieuwe Kerk Utrecht",
     "kind": "passion",
     "sector": "Visual identity & communication",
     "discipline": [
