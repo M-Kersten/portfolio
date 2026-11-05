@@ -9,19 +9,19 @@
   ],
   "hero": {
     "name": "Merijn Kersten",
-    "subheading": "Connecting dots until things get interesting",
+    "subheading": "Creative technology, 2016–now: XR, AR, games and the tools behind them.",
     "intro": {
       "title": "Hi, I'm Merijn and this is my work in miniature.",
-      "body": "Light all ten projects to launch the next one."
+      "body": "Ten projects on three floors, from a whole city down to a single chip."
     }
   },
   "capabilitiesIntro": {
-    "title": "Everything is connected \nif you zoom out enough",
-    "lead": "I enjoy connecting the pieces"
+    "title": "Three floors,\nthree scales",
+    "lead": "Everything is connected if you zoom out enough. The model stacks the three scales I work at, from a whole city down to a single chip."
   },
   "workIntro": {
-    "title": "From shaders \nto screws",
-    "lead": "A bunch of projects from over the years. Some ended up on thousands of devices, some were failures, but all of them taught me something."
+    "title": "Chronology",
+    "lead": "From shaders to screws: a bunch of projects from over the years. Some ended up on thousands of devices, some were failures, but all of them taught me something."
   },
   "spawn": "1997-03-16",
   "career": [
@@ -38,7 +38,7 @@
   ],
   "about": {
     "title": "About the artist",
-    "lead": "I’m a creative technologist from Utrecht. For almost a decade I’ve been chasing the same little moment, when a piece of technology stops feeling like technology and starts feeling like *a small magic trick*. I’m not bored of it yet.",
+    "lead": "I’m a creative technologist. For almost a decade I’ve been chasing the same little moment, when a piece of technology stops feeling like technology and starts feeling like *a small magic trick*. I’m not bored of it yet.",
     "body": [
       "Most of my work happens somewhere between the screen and the real world. I’ve put virtual objects in public spaces, turned children’s books into AR seek-and-find games and had strangers racing tiny AR cars across the same table. I like being close to the machine, down in the pixels, the code and the hardware, but I care just as much about the people holding it and *what happens when it all has to connect*.",
       "A lot of what I know came from breaking things, sometimes on purpose. I like getting my hands on technology early, while the documentation is half written and nobody is sure yet what it can do. For my graduation I built a framework to get ARKit and ARCore working together, back when they were two separate worlds. Everyone is pretending until they figure it out, me included, and the unfinished parts are usually *where the interesting questions are*.",
@@ -53,8 +53,8 @@
     ]
   },
   "contact": {
-    "title": "Let’s build something cool together",
-    "lead": "I’m always up for a chat, hit me up.",
+    "title": "The workshop",
+    "lead": "Where the next pieces get made: XR, AR, games and the tools behind them. Got one in mind? I’m always up for a chat, hit me up.",
     "email": "info@merijnkersten.nl",
     "links": [
       { "href": "https://www.linkedin.com/in/merijn-kersten/", "label": "LinkedIn" },

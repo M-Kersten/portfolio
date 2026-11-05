@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { DISCIPLINES, LAYER_LABEL, LAYER_VAR, type CaseStudy, type Discipline } from '../../content';
 import { asset } from '../../lib/asset';
 import { noteCaseOrigin } from '../../lib/caseOrigin';
-import { exhibitMark } from '../../content/exhibits';
+import { exhibitMark, exhibitNo } from '../../content/exhibits';
 
 // The /projects index — every project (highlights + the long tail) as a
 // scannable card grid. This is the one page a visitor arrives at with a
@@ -142,8 +142,8 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
                   {/* `year` may carry a month for timeline placement; the card
                       only ever stamps the year itself. */}
                   <span className="pi-card__yr">{c.year?.slice(0, 4) ?? '—'}</span>
-                  {/* in the model, or in the collection */}
-                  <span className="pi-card__ex" data-collection={exhibitMark(c.slug) === 'Collection' || undefined}>
+                  {/* on display in the model, or in the depot */}
+                  <span className="pi-card__ex" data-depot={exhibitNo(c.slug) === null || undefined}>
                     {exhibitMark(c.slug)}
                   </span>
                 </span>

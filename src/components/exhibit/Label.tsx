@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react';
 import { roleFor, type CaseStudy } from '../../content';
-import { EXHIBIT_COUNT, exhibitNo, pad2, splitHook } from '../../content/exhibits';
+import { EXHIBIT_COUNT, creditLine, exhibitNo, pad2, splitHook } from '../../content/exhibits';
 import { loopFor } from '../../content/media';
 import { asset } from '../../lib/asset';
 import { MOTION } from '../../lib/motion';
@@ -15,7 +15,7 @@ const PREVIEW_SECONDS = 14;
 
 // The label, in the maquette: it opens beside the porthole once the camera has
 // reached the object, with a line drawn from the object to it. The film at the
-// top, the number, the title and what it achieved, who it was for, one
+// top, the number, the title and what it achieved, its credit line, one
 // sentence of curator's note, the audio tour, and "Read the full story".
 
 /** Read a length custom property off :root as px (a % of the viewport's width
@@ -172,7 +172,7 @@ export function Label({
                   <b>{pad2(no)}</b> of {EXHIBIT_COUNT} in the model
                 </span>
               ) : (
-                <span className="xl__no">In the collection</span>
+                <span className="xl__no">In the depot</span>
               )}
               <button ref={closeRef} type="button" className="xl__close" onClick={onClose} aria-label="Close">
                 <span aria-hidden="true">✕</span>
@@ -181,9 +181,11 @@ export function Label({
             <h2 className="xl__title">{reduced ? study.title : <Scramble text={study.title} delay={MOTION.fast} wrap />}</h2>
             <p className="xl__outcome">{study.outcome}</p>
           </div>
-          {/* who it was for, and my part in it (what it's made of is in the book) */}
+          {/* as a museum label has it: the credit line and the year, then the
+              field and my part in it (what it's made in is in the book) */}
           <div className="xl__facts">
-            <p className="xl__meta">{[study.client, year].filter(Boolean).join(', ')}</p>
+            {/* (the year kept on the line with the credit's last word) */}
+            <p className="xl__meta">{[creditLine(study), year].filter(Boolean).join(' · ')}</p>
             {second && <p className="xl__materials">{second}</p>}
           </div>
           <p className="xl__note">{note}</p>

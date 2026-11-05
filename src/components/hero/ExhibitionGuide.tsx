@@ -1,40 +1,35 @@
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { caseBySlug, cases } from '../../content';
-import { EXHIBITS } from '../../content/exhibits';
+import { caseBySlug } from '../../content';
+import { DEPOT_COUNT, EXHIBITION, GALLERIES, galleryName } from '../../content/exhibits';
 import { HOTSPOTS } from '../../scene/framing';
 import { sceneStore } from '../../scene/store';
 
 // The exhibition guide: the leaflet the visitor is handed. It stands pushed
 // into the bottom edge of the screen, folded in half like the one you take at
-// the door, with its cover showing the count (4/10 lit) over the model: the
-// tally IS the guide's cover. Pulling it out slides it up into the frame, and
-// its cover swings open to the left onto the inside (hero.css): the ten
-// exhibits by layer, the way a printed leaflet lists them, and the visitor's
-// own pen marks in its margin, a tick against each one they've seen (the tick
-// for one seen since the guide was last open writes itself in as it opens). One
-// not seen yet is in dim letters, and is a way there: the camera flies to it.
-// Then the next launch (it lights at ten and then takes you onto the pad), the
-// way to the rest of the collection, and "start the tour over". Folding it shut
-// slides it back in, and so does a click anywhere outside it.
+// the door, and its cover is the one sign down there: how many of the ten
+// you've seen (4 of 10 seen) and, under it, the gallery you're standing in
+// (Gallery 1 · City · 1:5000), or for a moment a returning visitor's greeting.
+// Pulling it out slides it up into the frame, and its cover swings open to the
+// left onto the inside (hero.css): the ten exhibits by gallery, the way a
+// printed leaflet lists them, and the visitor's own pen marks in its margin, a
+// tick against each one they've seen (the tick for one seen since the guide
+// was last open writes itself in as it opens). One not seen yet is in dim
+// letters, and is a way there: the camera flies to it. Then the flight
+// simulator, the ride at the end of the visit (it opens at ten and then takes
+// you onto the pad, to fly the next launch), the way into the depot (the rest
+// of the collection), and "start the tour over". Folding it shut slides it
+// back in, and so does a click anywhere outside it.
 
 const LAYERS = ['city', 'room', 'chip'] as const;
 const TOTAL = HOTSPOTS.length;
-/** The projects that aren't in the model: on the timeline and /projects. */
-const IN_COLLECTION = cases.filter((c) => !EXHIBITS.includes(c.slug)).length;
 
-/** The tally's words on the cover: the count, and what it's counting toward.
- *  The model assembles the next launch as exhibits light up, so the note names
- *  that goal from the first glance, counts down the last two, and says when
- *  it's ready. */
-function tally(n: number, cue: boolean): { count: string; note?: string } {
-  const count = `${n}/${TOTAL} lit`;
-  if (n >= TOTAL) return { count, note: 'ready to launch' };
-  // while the first-visit hint above it says the goal, the cover doesn't repeat it
-  if (n === 0) return { count, note: cue ? undefined : `light all ${TOTAL} to launch` };
-  if (n >= TOTAL - 2) return { count, note: `${TOTAL - n} to go` };
-  return { count, note: 'stacking the next launch' };
-}
+/** The count on the cover, said the way a visitor would: how many of the ten
+ *  they've seen. A gallery keeps its objects in low light and brings it up as
+ *  someone walks in, and that's all the count is keeping track of: no goal in
+ *  front of it (what the ten add up to is waiting at the end, in the guide).
+ *  At ten it's "all 10 seen", which is also the one that fits the cover. */
+const tally = (n: number) => (n >= TOTAL ? `all ${TOTAL} seen` : `${n} of ${TOTAL} seen`);
 
 export type GuideState = 'closed' | 'open' | 'closing';
 
@@ -42,7 +37,7 @@ export function ExhibitionGuide({
   state,
   visited,
   revealed,
-  cue,
+  here,
   flashKey,
   onOpen,
   onClose,
@@ -52,8 +47,8 @@ export function ExhibitionGuide({
   visited: string[];
   /** how many the model shows lit (it trails `visited`: the tally steps when the model does) */
   revealed: number;
-  /** the first-visit hint is up, which already says what the count is for */
-  cue: boolean;
+  /** the line under the count: the gallery you're in, or a greeting */
+  here: ReactNode;
   /** bumped whenever the count steps, to restart its flash */
   flashKey: number;
   onOpen: () => void;
@@ -62,7 +57,7 @@ export function ExhibitionGuide({
 }) {
   const navigate = useNavigate();
   const found = visited.filter((slug) => HOTSPOTS.some((h) => h.slug === slug)).length;
-  const t = tally(revealed, cue);
+  const count = tally(revealed);
   const rootRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   // The ticks already in the margin: the ones there when the page loaded (the
@@ -113,7 +108,9 @@ export function ExhibitionGuide({
   let ticks = 0; // the fresh ticks' order, so they write themselves in one after another
   const layer = (l: (typeof LAYERS)[number]) => (
     <div key={l} className="guide__layer">
-      <span className="guide__index">{l}</span>
+      <span className="guide__index">
+        {galleryName(l)} · {GALLERIES[l].name}
+      </span>
       <ul>
         {HOTSPOTS.filter((h) => h.layer === l).map((h) => {
           const title = caseBySlug(h.slug)?.title ?? h.slug;
@@ -149,7 +146,7 @@ export function ExhibitionGuide({
         className="guide__peek"
         onClick={onOpen}
         aria-expanded={state === 'open'}
-        aria-label={`Exhibition guide, ${t.count}${t.note ? `, ${t.note}` : ''}`}
+        aria-label={`Exhibition guide, ${count}`}
         tabIndex={state === 'closed' ? 0 : -1}
       />
       <div className="guide__sheet" ref={sheetRef} role="dialog" aria-label="Exhibition guide" aria-hidden={state === 'closed' || undefined}>
@@ -184,17 +181,18 @@ export function ExhibitionGuide({
                 )}
               </span>
               <span key={flashKey} className={flashKey > 0 ? 'guide__cover-count guide__cover-count--flash' : 'guide__cover-count'}>
-                {t.count}
+                {count}
               </span>
             </span>
-            {t.note && <span className="guide__cover-note">{t.note}</span>}
-            <span className="guide__cover-title">Work in miniature</span>
+            {here}
+            <span className="guide__cover-title">{EXHIBITION}</span>
           </div>
         </section>
         <section className="guide__half guide__half--right">
           <div className="guide__face guide__face--front">
             {layer('chip')}
-            {/* exhibit 11: what the ten add up to */}
+            {/* the ride at the end of the visit: the flight simulator, which
+                flies exhibit 11 (the next launch) once all ten are seen */}
             <div className="guide__layer guide__next">
               {found === TOTAL ? (
                 <button
@@ -205,19 +203,21 @@ export function ExhibitionGuide({
                   }}
                 >
                   <span className="guide__mark" aria-hidden="true" />
-                  <span className="guide__name">The next launch</span>
-                  <span className="guide__go">on the pad →</span>
+                  <span className="guide__name">Flight simulator</span>
+                  <span className="guide__go">fly the next launch →</span>
                 </button>
               ) : (
                 <span className="guide__dark">
                   <span className="guide__mark" aria-hidden="true" />
-                  <span className="guide__name">The next launch</span>
-                  <span className="guide__when">lights at {TOTAL}</span>
+                  <span className="guide__name">Flight simulator</span>
+                  <span className="guide__when">opens when all {TOTAL} are seen</span>
                 </span>
               )}
             </div>
             <Link className="guide__more" to="/projects" onClick={onClose}>
-              {IN_COLLECTION} more in the collection <span aria-hidden="true">→</span>
+              {/* (the arrow kept with the last word on a narrow panel) */}
+              {DEPOT_COUNT} more in the depot{' '}
+              <span aria-hidden="true">→</span>
             </Link>
             {found > 0 && (
               <button

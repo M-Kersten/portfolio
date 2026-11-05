@@ -1,35 +1,36 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { site } from '../../content';
+import { LAYER_VAR, site } from '../../content';
 import { returning, sceneStore, useSceneSelector } from '../../scene/store';
-import { HOTSPOTS, stepAt } from '../../scene/framing';
-import { PRESS, useReducedMotion } from '../../lib/media';
+import { HOTSPOTS, MAQUETTE_LAYERS, stepAt } from '../../scene/framing';
+import { useReducedMotion } from '../../lib/media';
 import { useEscape } from '../../lib/page';
 import { Scramble } from '../shell/Scramble';
+import { EXHIBITION, EXHIBIT_COUNT, GALLERIES, GALLERY_COUNT, countWord, galleryName } from '../../content/exhibits';
 import { ExhibitionGuide } from './ExhibitionGuide';
 
 // Three invisible scroll panels give the camera journey its length and drive
-// `journeyStep` (0 City · 1 Room · 2 Chip). The minimal title lives only on
-// the City layer and clears the moment you scroll down (or inspect a node).
+// `journeyStep` (0 City · 1 Room · 2 Chip). The title wall lives only on the
+// City layer and clears the moment you scroll down (or inspect a node).
 
 const STEPS = [0, 1, 2];
+/** The gallery each step of the journey stands in front of (top down). */
+const STEP_LAYER = [...MAQUETTE_LAYERS].reverse();
 
-// One line of narration per layer, so the descent reads as a told story
-// instead of a silent slideshow. The layer's name carries its accent.
-const CAPTIONS = [
-  { name: 'city', blurb: 'at the scale of streets', accent: 'var(--cyan)' },
-  { name: 'room', blurb: 'the things you pick up and use', accent: 'var(--coral)' },
-  { name: 'chip', blurb: 'the tools supporting it all', accent: 'var(--lime)' },
-];
+/** How big the visit is, as the title wall says it: "Three floors · ten exhibits". */
+const VISIT = (() => {
+  const s = `${countWord(GALLERY_COUNT)} floors · ${countWord(EXHIBIT_COUNT)} exhibits`;
+  return s[0].toUpperCase() + s.slice(1);
+})();
 
-// The exploration game: every object in the maquette IS a project, an exhibit
-// numbered 01–10 — click one and it lights up. The tally is quiet instrument
-// chrome that doubles as the exhibition guide (which exhibit stands where,
-// which are still dark, and exhibit 11, the launch they add up to); it steps
-// once a hotspot's HUD closes and the zoom-out has settled, not the instant it
-// opens, so the visitor watches the model fill in rather than seeing the
-// number jump while still looking at a close-up. 10/10 triggers the world's
-// completion state (see scene/maquette) — the rocket at NextProjectSite goes
-// from ghost to lit, and the tally's own label says so.
+// Every object in the maquette is a project, an exhibit numbered 01–10, kept
+// in low light until it's visited (as a gallery does), then lit for good. The
+// one sign along the bottom is the exhibition guide's cover: how many of the
+// ten you've seen, and the gallery you're standing in. The count steps once a
+// hotspot's HUD closes and the zoom-out has settled, not the instant it opens,
+// so the visitor watches the model fill in rather than seeing the number jump
+// while still looking at a close-up. 10/10 triggers the world's completion
+// state (see scene/maquette): the rocket at NextProjectSite goes from ghost to
+// lit.
 const TOTAL = HOTSPOTS.length;
 // How long the ambient tally waits, after a hotspot's HUD closes, before it
 // steps to the new count. Roughly how long CameraRig's zoom-out takes to
@@ -43,12 +44,14 @@ const TALLY_SETTLE_MS = 900;
 // than over the close-up the camera is still pulling out of (the markers wait
 // the same, hotspots.tsx).
 const RETURN_MS = 400;
-/** The line a returning visitor is greeted with, above the tally. The tally
- *  beside it already has the count, so this only says where they stand. */
-function welcomeLine(n: number): string {
-  if (n >= TOTAL) return 'Welcome back — the next launch is still on the pad';
-  if (n > 0) return 'Welcome back — the model is as you left it';
-  return 'Welcome back';
+/** What a returning visitor is greeted with, on the guide's cover under the
+ *  count (in the gallery sign's place, for a moment). The count above it
+ *  already says how far they got, so the rest only says where they stand; a
+ *  phone's narrow cover keeps just the greeting (hero.css). */
+function welcomeRest(n: number): string {
+  if (n >= TOTAL) return 'simulator open';
+  if (n > 0) return 'as you left it';
+  return '';
 }
 // how long the greeting stays up once the boot has played, and its fade out
 const WELCOME_MS = 6500;
@@ -87,13 +90,9 @@ export function HeroStage() {
   // maquette has powered on, so the boot reads as one thing at a time. Instant
   // under reduced motion.
   const [booted, setBooted] = useState(reduced);
-  // First-visit cue (scene store): with the instrument line, one line that
-  // states the premise, while a crosshair in the model asks to be clicked;
-  // both retire for good the moment a first project is opened.
-  const cue = useSceneSelector((s) => s.cue);
   // A returning visitor (the opening has played in this browser before) is
-  // greeted for a few seconds as the instrument line comes up; the first-visit
-  // cue, if it still applies, takes the spot after it. Opening anything ends it.
+  // greeted for a few seconds on the guide's cover as it comes up, then the
+  // gallery sign takes the line back. Opening anything ends it.
   const [welcome, setWelcome] = useState<'on' | 'leaving' | 'off'>(returning ? 'on' : 'off');
 
   // The scroll journey and the "is the hero on screen?" flag are both derived
@@ -210,10 +209,24 @@ export function HeroStage() {
   // it clears the moment you scroll to Room or leave the hero entirely.
   const away = Boolean(selectedSlug) || launching || returningFrom;
   const opacity = away ? 0 : heroInView && journeyStep === 0 ? 1 : 0;
-  // The caption + model tally ride the whole journey, clearing with the HUD
-  // and the moment the next section takes over the bottom of the screen.
+  // The guide's cover rides the whole journey, clearing with the HUD and the
+  // moment the next section takes over the bottom of the screen.
   const overlayOpacity = away || !heroOwnsBottom ? 0 : 1;
-  const caption = CAPTIONS[journeyStep] ?? CAPTIONS[0];
+  const layer = STEP_LAYER[journeyStep] ?? STEP_LAYER[0];
+  // the line under the count: for a moment a returning visitor's greeting,
+  // otherwise the gallery you're standing in, as its sign gives it
+  const here =
+    welcome !== 'off' && booted && !guideOpen ? (
+      <span className="guide__cover-here guide__cover-here--welcome" data-leaving={welcome === 'leaving' || undefined}>
+        Welcome back
+        {welcomeRest(revealed) && <span className="guide__cover-rest"> · {welcomeRest(revealed)}</span>}
+      </span>
+    ) : (
+      <span key={layer} className="guide__cover-here" style={{ '--here': LAYER_VAR[layer] } as CSSProperties}>
+        <b>{galleryName(layer)}</b> · {GALLERIES[layer].name}
+        <span className="guide__cover-scale"> · {GALLERIES[layer].scale}</span>
+      </span>
+    );
   // out of sight (a label opened, the page scrolled on): the leaflet goes back in, so an unseen sheet never catches a click
   useEffect(() => {
     if (!overlayOpacity) setGuide('closed');
@@ -234,48 +247,39 @@ export function HeroStage() {
           silently at load behind the card. */}
       {introOver && (
         <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
+          {/* The title wall at the entrance, the way an exhibition opens: its
+              name, whose work it is, what that work is, and how big the visit
+              is and how to behave in it. Upright (a phone, which never sees
+              the intro card, or a tablet) it's the first three: the model
+              needs the height (hero.css). */}
+          <p className="hero__kicker">{EXHIBITION}</p>
           <h1 className="hero__name">
             <Scramble text={site.hero.name} delay={380} wrap />
           </h1>
           <p className="hero__sub">{site.hero.subheading}</p>
+          <p className="hero__visit">
+            {VISIT} · <b>please touch</b>
+          </p>
         </div>
       )}
 
-      {/* Layer narration — remounts per step so the line slides in fresh. */}
-      <div
-        key={journeyStep}
-        className="hero__caption"
-        style={{ opacity: overlayOpacity * (booted ? 1 : 0), '--cap-accent': caption.accent } as CSSProperties}
-        aria-hidden="true"
-      >
-        <b>{caption.name}</b> <span>— {caption.blurb}</span>
-      </div>
-
-      {/* The model tally — every object in the maquette is a project; this is
-          the running count, and clicking it opens the exhibition guide. */}
+      {/* The one sign along the bottom: the exhibition guide's cover, with
+          the count and the gallery you're in printed on it. Pressing it pulls
+          the guide out. (The cover is decoration to a screen reader, so the
+          greeting is said from here.) */}
+      <p className="visually-hidden" role="status">
+        {welcome === 'on' && booted ? ['Welcome back', welcomeRest(revealed)].filter(Boolean).join(', ') : ''}
+      </p>
       <div
         className="hero__signals"
         style={{ opacity: overlayOpacity * (booted ? 1 : 0), pointerEvents: overlayOpacity && booted ? undefined : 'none' }}
         data-complete={complete || undefined}
       >
-        {welcome !== 'off'
-          ? booted &&
-            !guideOpen && (
-              <p className="hero__hint hero__hint--welcome" data-leaving={welcome === 'leaving' || undefined} role="status">
-                {welcomeLine(revealed)}
-              </p>
-            )
-          : cue &&
-            !guideOpen && (
-              <p className="hero__hint" aria-hidden="true">
-                {PRESS} an exhibit to light it — all ten launch the next one
-              </p>
-            )}
         <ExhibitionGuide
           state={guide}
           visited={visited}
           revealed={revealed}
-          cue={cue}
+          here={here}
           flashKey={flashKey}
           onOpen={() => setGuide('open')}
           onClose={closeGuide}

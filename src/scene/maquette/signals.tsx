@@ -1,6 +1,6 @@
 // Cross-layer signal threads: related projects on different layers are wired
 // together like a tidy run of cable, with a label that fades in while either
-// end is hovered/selected. Edit RELATIONS to change which projects are linked
+// end is open (its close-up). Edit RELATIONS to change which projects are linked
 // and what the thread is called.
 //
 // Packets only ever travel once: the "connect-made" sweep that plays after a
@@ -42,9 +42,10 @@ function tagHeight(a: LayerId, b: LayerId, gap: number): number {
    cable: orthogonal segments with rounded pipe-bends that lead out of one node,
    drop a vertical riser in the margin, and lead into the other. The cables sit
    in the scene at rest (dim, neutral — unhighlighted); touching either endpoint
-   lights that run up in its thread colour and sends data packets flowing through
-   it, with a small label naming the thread. They live in world space because
-   they bridge the differently-scaled layer groups. */
+   lights that run up in its thread colour, and the first visit to an end sends
+   data packets along it once. A small label names the thread in the close-up
+   of either end. They live in world space because they bridge the
+   differently-scaled layer groups. */
 interface Relation {
   thread: string; // shown as a faint label on the link
   from: string; // slug — packets flow from → to
@@ -271,10 +272,11 @@ export function SignalLine({ thread, from, to, color }: Relation) {
       }
     }
 
-    // Label on-demand only (hover/select or during the sweep) so a fully woken web
-    // doesn't clutter with every thread's name at rest.
+    // The thread's name only in the close-up of one of its ends: the overview
+    // has one sign along the bottom and the markers' names, and a tag naming
+    // a cable on every hover (and every sweep) was one more thing to read.
     if (labelRef.current) {
-      const showLabel = bothVisible && (selA || selB || hovA || hovB || drawing);
+      const showLabel = bothVisible && (selA || selB);
       labelRef.current.style.opacity = String(showLabel ? Math.min(1, kk * 1.25) : 0);
     }
   });

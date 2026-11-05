@@ -1,5 +1,6 @@
-/* ---------- The completion reward: the next launch ----------
-   "Let's build it together", literally. The quiet lot between the city blocks
+/* ---------- The ride at the end of the visit: the flight simulator ----------
+   It flies the next launch, exhibit 11, which is also the invitation: "let's
+   build it together", literally. The quiet lot between the city blocks
    and the park starts as a bare surveyed apron, and every project the visitor
    wakes adds a piece: the launch mount, the tower (lower, then upper), then
    the vehicle itself, stacked the way Starship is (the booster's engines, the
@@ -17,7 +18,7 @@
    inside, the slow climb past the tower, Max-Q, MECO and hot staging through
    the vented ring, the booster's boostback, and the booster coming home onto
    the chopsticks — while the ship flies on into the asteroids easter egg. */
-import { useContext, useEffect, useMemo, useRef, type ElementRef, type RefObject } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, type ElementRef, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import {
@@ -679,15 +680,20 @@ function usePrewarm(site: RefObject<Group | null>, on: boolean) {
 
 
 /* ---------- The invitation ----------
+   The sign at the flight simulator's door, once all ten are seen: "flight
+   simulator — fly the next launch", and how many visitors have flown it.
    It floats in a row of its own above the city's marker line (MARKER_Y) and
-   the names on it, straight over the tower with a thin line down to the
-   beacon, so it never lands on an exhibit's name. A phone has no names on the
-   marker line and the hero title above the city, so there it comes down to
-   just over the tower top. Either way it's kept inside the screen, and it goes
-   when the city isn't the floor in focus — it used to hang over the room. */
+   the names on it, over the tower with a thin line down to the beacon, and
+   hangs off that line like a flag: out to the right, away from the names,
+   which stand left of the tower (and treat it as something to keep clear of:
+   useNameRows). A phone has no names on the marker line and the hero title
+   above the city, so there it comes down to just over the tower top. Either
+   way it's kept inside the screen, and it goes when the city isn't the floor
+   in focus — it used to hang over the room. */
 const INVITE_Y = 1.62; // over the marker line and its names
 const INVITE_Y_PORTRAIT = 1.08; // just over the beacon
 const INVITE_EDGE = 12; // px it keeps from the screen's sides
+const INVITE_FLAG = 16; // px in from its left edge, where the line meets it
 const BEACON_Y = 0.99; // the tower top, where its line starts
 const AT = new Vector3();
 
@@ -696,7 +702,7 @@ function LaunchInvite({ onEngage, flights }: { onEngage: () => void; flights: nu
   const presence = useContext(PresenceCtx);
   const aspect = useThree((s) => s.size.width / s.size.height);
   const y = INVITE_Y + (INVITE_Y_PORTRAIT - INVITE_Y) * portraitMix(aspect);
-  const box = useRef<HTMLSpanElement>(null);
+  const box = useRef<HTMLSpanElement | null>(null);
   const line = useRef<ElementRef<typeof Line> | null>(null);
   // flagged from the start, so the presence dimmer never takes it over: its
   // fade is this component's own (below)
@@ -709,14 +715,18 @@ function LaunchInvite({ onEngage, flights }: { onEngage: () => void; flights: nu
   const size = useThree((s) => s.size);
   const camera = useThree((s) => s.camera);
   // its width, from a ResizeObserver: read in the frame loop, the box's
-  // position forced the page through a layout pass every frame
+  // position forced the page through a layout pass every frame. Watched from
+  // the moment the box mounts (a callback ref): drei's Html draws it a beat
+  // after this component, so an effect here found no box and never watched.
   const width = useRef(0);
-  useEffect(() => {
-    const el = box.current;
+  const watch = useRef<ResizeObserver | null>(null);
+  const boxRef = useCallback((el: HTMLSpanElement | null) => {
+    watch.current?.disconnect();
+    watch.current = null;
+    box.current = el;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(([e]) => (width.current = e.borderBoxSize?.[0]?.inlineSize ?? e.contentRect.width));
-    ro.observe(el);
-    return () => ro.disconnect();
+    watch.current = new ResizeObserver(([e]) => (width.current = e.borderBoxSize?.[0]?.inlineSize ?? e.contentRect.width));
+    watch.current.observe(el);
   }, []);
   const shift = useRef(0);
   const shown = useRef(-1);
@@ -733,16 +743,17 @@ function LaunchInvite({ onEngage, flights }: { onEngage: () => void; flights: nu
       el.style.opacity = String(show);
       el.style.pointerEvents = show > 0.5 ? '' : 'none';
     }
-    // kept on screen: where it would sit unshifted (centred on its point, as
-    // Html draws it), nudged back in past an edge of the canvas
+    // a flag on the line: Html centres it on its point, so it moves right by
+    // half its width (less the bit left of the line), then back in past an
+    // edge of the canvas
     const w = width.current;
     if (!w) return;
     const p = a.getWorldPosition(AT).project(camera);
     const cx = size.left + ((p.x + 1) / 2) * size.width;
     const lo = size.left + INVITE_EDGE;
     const hi = size.left + size.width - INVITE_EDGE;
-    let s = 0;
-    if (cx + w / 2 > hi) s = hi - (cx + w / 2);
+    let s = w / 2 - INVITE_FLAG;
+    if (cx + w / 2 + s > hi) s = hi - (cx + w / 2);
     if (cx - w / 2 + s < lo) s = lo - (cx - w / 2);
     if (Math.abs(s - shift.current) > 0.5) {
       shift.current = s;
@@ -754,12 +765,12 @@ function LaunchInvite({ onEngage, flights }: { onEngage: () => void; flights: nu
       <Line ref={lineRef} points={[[0, BEACON_Y, 0], [0, y - 0.07, 0]]} color={accent} lineWidth={1} transparent opacity={0} />
       <group ref={anchor} position={[0, y, 0]} />
       <Html position={[0, y, 0]} center zIndexRange={[18, 0]} className="hotspot-wrap">
-        <span ref={box} className="nextsite-wrap">
+        <span ref={boxRef} className="nextsite-wrap">
           <button type="button" className="nextsite" onClick={onEngage}>
-            <b>my next launch</b> — let's build it together
+            <b>flight simulator</b> — fly the next launch
             {flights != null && (
               <span className="nextsite__tally">
-                <b>{String(flights).padStart(4, '0')}</b> launches by visitors so far
+                <b>{String(flights).padStart(4, '0')}</b> flights by visitors so far
               </span>
             )}
           </button>

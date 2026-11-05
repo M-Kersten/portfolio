@@ -281,7 +281,7 @@
   text-transform: uppercase;
   color: var(--c, var(--accent-ink));
 }
-.pi-card__ex[data-collection] {
+.pi-card__ex[data-depot] {
   color: var(--ink-40);
 }
 .pi-card__yr {

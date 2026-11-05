@@ -39,5 +39,3 @@ export const isMobileViewport = () => matches(PHONE);
 export const isLiteDevice = () => matches(`${PHONE}, (pointer: coarse)`);
 /** A touch screen, which has no hover. */
 export const isTouch = () => matches(TOUCH);
-/** What the finger or the pointer does to press something: "tap" or "click". */
-export const PRESS = isTouch() ? 'tap' : 'click';

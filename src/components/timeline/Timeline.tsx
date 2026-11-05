@@ -421,12 +421,13 @@ export function Timeline() {
             ))}
             {site.spawn && (
               <Fragment>
-                {/* A playful origin point — birth — with a compressed, not-to-
-                    scale lead-in to where the career proper begins. */}
+                {/* Where a chronology wall starts: the artist's birth, with a
+                    compressed, not-to-scale lead-in to where the career proper
+                    begins. */}
                 <div className="tl-leadin" aria-hidden="true" style={{ left: `${spawnX}px`, width: `${timeline.routeLeft - spawnX}px` }} />
                 <span className="tl-spawn" aria-hidden="true" style={{ left: `${spawnX}px` }} />
                 <span className="tl-spawn__label" style={{ left: `${spawnX}px` }}>
-                  <b>spawn</b>
+                  <b>born</b>
                   <span>{formatDate(site.spawn)}</span>
                 </span>
               </Fragment>

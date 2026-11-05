@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { CAMERA, LAYER_SCALE, LAYER_Y, hotspotView, portraitMix, type Hotspot, type HotspotView } from './framing';
+import { CAMERA, LAYER_SCALE, LAYER_Y, hotspotView, portraitMix, shortRise, type Hotspot, type HotspotView } from './framing';
 
 // The camera's framings of the maquette as three.js vectors, built from the
 // plain layout and tuning in framing.ts. Kept apart from it so that file stays
@@ -40,10 +40,12 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const stepOf = (step: number) => Math.max(0, Math.min(2, step));
 
 /** The point the overview orbits: on the layer, offset sideways by the step's
- *  aim and raised by its rise. */
-function overviewPivot(step: number, gap: number, mix: number): Vector3 {
+ *  aim and raised by its rise (the City's a little more on a short phone,
+ *  under the title wall: shortRise). */
+function overviewPivot(step: number, gap: number, aspect: number): Vector3 {
+  const mix = portraitMix(aspect);
   const s = stepOf(step);
-  const rise = lerp(CAMERA.stepRise[s], CAMERA.portraitStepRise[s], mix);
+  const rise = lerp(CAMERA.stepRise[s], CAMERA.portraitStepRise[s], mix) + (s === 0 ? shortRise(aspect) : 0);
   return new Vector3(lerp(CAMERA.stepAimX[s], CAMERA.portraitStepAimX[s], mix), (JOURNEY_Y[s] ?? 0) * gap + rise, 0);
 }
 
@@ -54,7 +56,7 @@ function overviewPivot(step: number, gap: number, mix: number): Vector3 {
 export function journeyView(step: number, gap = 1, aspect = CAMERA.baseAspect): Framing {
   const mix = portraitMix(aspect);
   const s = stepOf(step);
-  const pivot = overviewPivot(s, gap, mix);
+  const pivot = overviewPivot(s, gap, aspect);
   const o = CAMERA.overviewOffset;
   const po = CAMERA.portraitOffset;
   const z = lerp(CAMERA.stepZoom[s], CAMERA.portraitStepZoom[s], mix);
@@ -76,7 +78,7 @@ export function introView(gap = 1): Framing {
   // establishing shot as a side effect of a framing change. (Desktop framing:
   // the intro never plays on a phone.)
   const dir = new Vector3(...CAMERA.overviewOffset);
-  const pos = overviewPivot(0, gap, 0)
+  const pos = overviewPivot(0, gap, CAMERA.baseAspect)
     .clone()
     .add(dir.multiplyScalar(1.95)) // ~2x further out — a wide establishing shot…
     .add(new Vector3(0.4, -1.35, 0.5)); // …dropped low + a hair right, to rise past the park

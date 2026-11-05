@@ -79,7 +79,10 @@ export interface HotspotView {
 // leader dropping straight down onto the object's top (foot). Anchors are
 // local to the layer group (placed at LAYER_Y and scaled). The exhibits on a
 // floor are laid out so that, seen from the overview, they stand in their own
-// columns across the screen — that's what keeps the names on the line apart.
+// columns across the screen — that's what keeps the names on the line apart,
+// mostly: where two names still meet (a column is narrower than the longer
+// names, on a tablet most of all), one of them moves up a row (useNameRows in
+// maquette/hotspots.tsx).
 const SPOTS: Omit<Hotspot, 'position'>[] = [
   // Chip — the die in the middle, the heart and the camera on opposite corner
   // slots (chip.tsx CORNER): three even columns. Move a slot and its anchor
@@ -160,6 +163,17 @@ export const CAMERA = {
   portraitStepRise: [0, 0, 0] as [number, number, number],
   portraitFrom: 1.0, // width:height where the portrait framing starts to blend in…
   portraitTo: 0.62, // …and where it has fully taken over
+  // Every phone held upright gets the same framing (the lens and the distance
+  // stop changing below portraitTo), so the City's top marker sits at the same
+  // share of the screen's height on each, but the title wall above it is the
+  // same height in pixels: on a shorter screen — most phones once a browser's
+  // bars have taken their share — it reaches further down. So on the City step
+  // the framing rises by up to this much more (as portraitStepRise), from none
+  // on a tall phone (portraitShortFrom) to all of it on a short one
+  // (portraitShortTo), and gone again by the time the screen is a tablet's.
+  portraitShortRise: 0.7,
+  portraitShortFrom: 0.47,
+  portraitShortTo: 0.6,
 
   // Close-up framing when a project node is opened. Shorter = tighter on the node.
   nodeOffset: [1.55, 1.15, 2.55] as Vec3,
@@ -235,6 +249,14 @@ export function portraitMix(aspect: number): number {
 }
 
 const mixed = (a: number, b: number, aspect: number) => a + (b - a) * portraitMix(aspect);
+
+/** How much further the City's overview rises on a short phone screen (see
+ *  CAMERA.portraitShortRise): up from portraitShortFrom to portraitShortTo,
+ *  held to portraitTo, then gone by 0.68, before a tablet's aspect. */
+export function shortRise(aspect: number): number {
+  const ramp = (a: number, b: number) => Math.min(Math.max((aspect - a) / (b - a), 0), 1);
+  return CAMERA.portraitShortRise * ramp(CAMERA.portraitShortFrom, CAMERA.portraitShortTo) * ramp(0.68, CAMERA.portraitTo);
+}
 
 /** Modest pull-back for narrow/tall viewports (paired with fitFov). 1 on desktop. */
 export function fitScale(aspect: number): number {

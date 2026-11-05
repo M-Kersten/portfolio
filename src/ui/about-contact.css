@@ -475,6 +475,30 @@
 /* Hierarchy ladder: the display title (SectionHead, on the centre line) →
    the lead → the email at step 3 (the call to action) → quiet mono buttons,
    with the gaps widening down the ladder. */
+/* The sign on the workshop's door, under its name: when it takes on new work,
+   with a lamp that's on. */
+.contact__open {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.7em;
+  /* the full width, so it's centred like the rest (a paragraph's measure
+     would hold it to the left) */
+  max-width: none;
+  margin: var(--space-m) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+.contact__open i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
 /* The page's one call to action: a quiet rule under it at rest, and on hover a
    solid accent rule sweeps in over it, left to right. */
 .contact__email {

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { caseWhen, roleFor, site, type CaseStudy } from '../../content';
-import { EXHIBIT_COUNT, exhibitNo, pad2, paragraphs, seeAlso } from '../../content/exhibits';
+import { EXHIBITION, EXHIBIT_COUNT, creditLine, exhibitNo, inventoryNo, pad2, paragraphs, seeAlso } from '../../content/exhibits';
 import { filmCaption } from '../../content/films';
 import { asset } from '../../lib/asset';
 import { EASE, MOTION } from '../../lib/motion';
@@ -55,6 +55,7 @@ export function Book({
   const no = exhibitNo(study.slug);
   const role = roleFor(study);
   const when = caseWhen(study);
+  const inv = inventoryNo(study.slug);
   const [imgOk, setImgOk] = useState(true);
   // the film plays on if it was playing in the label; otherwise it waits to be pressed
   const [playing, setPlaying] = useState(Boolean(embed && film?.playing));
@@ -167,8 +168,8 @@ export function Book({
       {/* the left page: the chapter opener and the plate */}
       <section className="xb__verso">
         <header className="xb__run" data-after="">
-          <span>Work in miniature</span>
-          <span>{no !== null ? `Exhibit ${pad2(no)}` : 'The collection'}</span>
+          <span>{EXHIBITION}</span>
+          <span>{no !== null ? `Exhibit ${pad2(no)}` : 'From the depot'}</span>
         </header>
         <div className="xb__chapter">
           <div ref={openerRef} className="xb__opener">
@@ -178,7 +179,7 @@ export function Book({
                   <b>{pad2(no)}</b> of {EXHIBIT_COUNT} in the model
                 </>
               ) : (
-                'In the collection'
+                'In the depot'
               )}
             </p>
             <h2 className="xb__title">{study.title}</h2>
@@ -223,12 +224,18 @@ export function Book({
         <header className="xb__run xb__run--recto">
           <span>{study.title}</span>
         </header>
-        {/* the tombstone: what a museum prints under a work's title */}
+        {/* the tombstone: what a museum prints under a work's title — its
+            credit line and date, my part in it, its field, its number in the
+            collection, and what it's made in */}
         <dl className="xb__tomb">
-          {study.client && (
+          <div className="xb__tomb-wide">
+            <dt>Credit</dt>
+            <dd>{creditLine(study)}</dd>
+          </div>
+          {when && (
             <div>
-              <dt>Client</dt>
-              <dd>{study.client}</dd>
+              <dt>Date</dt>
+              <dd>{when}</dd>
             </div>
           )}
           {role && (
@@ -237,21 +244,21 @@ export function Book({
               <dd>{role}</dd>
             </div>
           )}
-          {when && (
-            <div>
-              <dt>When</dt>
-              <dd>{when}</dd>
-            </div>
-          )}
           {study.sector && (
             <div>
               <dt>Sector</dt>
               <dd>{study.sector}</dd>
             </div>
           )}
+          {inv && (
+            <div className="xb__tomb-inv">
+              <dt>Inv. no.</dt>
+              <dd>{inv}</dd>
+            </div>
+          )}
           {study.tech?.length ? (
-            <div className="xb__tomb-wide">
-              <dt>Made with</dt>
+            <div className="xb__tomb-full">
+              <dt>Medium</dt>
               <dd>{study.tech.join(', ')}</dd>
             </div>
           ) : null}

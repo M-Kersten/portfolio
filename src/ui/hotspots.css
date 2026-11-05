@@ -227,8 +227,9 @@
 /* Labels read by default (light caption) so it's obvious the marks are named,
    clickable things; on hover/open they gain a solid chip. Each sits centred
    above its crosshair, so a floor's markers — all at one height (MARKER_Y in
-   scene/framing.ts) — carry their names in one row, each needing only half its
-   width of room either side. */
+   scene/framing.ts) — carry their names in a row, each needing only half its
+   width of room either side. Where two would still meet, one moves up a row
+   (--row, set by useNameRows in maquette/hotspots.tsx). */
 .hotspot__label {
   position: absolute;
   left: 50%;
@@ -244,7 +245,10 @@
   /* the name is a target too, not just the mark under it */
   pointer-events: auto;
   transform: translateX(-50%);
-  transition: opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  /* a row up is 1.5em (the same lift useNameRows measures with) */
+  translate: 0 calc(var(--row, 0) * -1.5em);
+  transition: opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+    translate var(--t-base) var(--ease);
 }
 .hotspot__dot:hover .hotspot__label,
 .hotspot__dot:focus-visible .hotspot__label {
@@ -359,10 +363,12 @@
 .nextsite-wrap {
   display: inline-block;
 }
-/* On a phone it wraps to a narrow block instead of one long line, so it fits
-   beside the tower inside the screen. A set width, not a cap: near the
-   screen's edge a shrink-to-fit box squeezed it to a word a line. */
-@media (max-width: 760px) {
+/* On a phone, and on any screen held upright, it wraps to a narrow block
+   instead of one long line, so it fits beside the tower inside the screen
+   (on an upright tablet the one long line ran back over the crosshairs). A
+   set width, not a cap: near the screen's edge a shrink-to-fit box squeezed
+   it to a word a line. */
+@media (max-width: 760px), (orientation: portrait) {
   .nextsite {
     white-space: normal;
     width: 12em;

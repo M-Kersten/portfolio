@@ -2,7 +2,7 @@
 // part (crosshair, brackets, label) lives in a drei <Html>; the leader line and
 // anchor ring are real scene geometry so they sit in the fog like everything
 // else. Styling lives in src/ui (search ".hotspot").
-import { useRef, type CSSProperties, type ElementRef } from 'react';
+import { useEffect, useRef, type CSSProperties, type ElementRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { type MeshBasicMaterial } from 'three';
@@ -10,15 +10,110 @@ import { sceneStore } from '../store';
 import { caseBySlug } from '../../content';
 import { Scramble } from '../../components/shell/Scramble';
 import { type Hotspot } from '../framing';
-import { PRESS, useReducedMotion } from '../../lib/media';
+import { useReducedMotion } from '../../lib/media';
 import { Line, useActive, type V3 } from './shared';
 
-// Touch has no hover and no click, so the cue says what the finger does.
-const CUE_TEXT = `${PRESS} to light it`;
+// The museum's own invitation, the sign on a hands-on exhibit: it says the same
+// thing to a mouse and a finger, and the title wall says it first.
+const CUE_TEXT = 'please touch';
 // Closing an exhibit, the markers come back once the camera has mostly pulled
 // out, not while it's still flying (the crosshairs wait the same in
 // hotspots.css); they go at once.
 const SHOW_DELAY = 0.4;
+
+// A floor's names stand in one row over their crosshairs (hotspots.css) until
+// two would run into each other, or one into the title wall's lines or the
+// flight simulator's sign over the pad: then the one further right moves up a
+// row, or two, to wherever it clears what's already there (and where nothing
+// clears, to wherever it overlaps least). Worked out from the screen a few
+// times a second, since where the crosshairs land changes with the window and
+// the floor; a name only comes back down once there's clear room for it, so
+// the camera's idle sway can't set it flickering between rows.
+const ROWS = 3;
+const GAP = 6; // px kept clear between two names in a row
+const DOWN_GAP = 16; // …and the room a raised name wants before it comes back down
+const NAME_TICK_MS = 300;
+
+type Box = { l: number; r: number; t: number; b: number };
+
+/** What else is on screen for the names to keep clear of: the title wall's
+ *  lines of text while it shows (the line boxes of its words, not the boxes of
+ *  the elements holding them: a heading's box runs the wall's full width), and
+ *  the flight simulator's sign while it's up. */
+function obstacles(): Box[] {
+  const lines: Box[] = [];
+  const sign = document.querySelector<HTMLElement>('.nextsite-wrap');
+  if (sign && parseFloat(sign.style.opacity || '0') > 0.5) {
+    const r = sign.getBoundingClientRect();
+    lines.push({ l: r.left, r: r.right, t: r.top, b: r.bottom });
+  }
+  const title = document.querySelector<HTMLElement>('.hero__title');
+  if (!title || parseFloat(getComputedStyle(title).opacity) < 0.05) return lines;
+  const range = document.createRange();
+  const words = document.createTreeWalker(title, NodeFilter.SHOW_TEXT);
+  for (let t = words.nextNode(); t; t = words.nextNode()) {
+    // (not the copy kept for screen readers: off screen, it measures as one
+    // long line across the wall)
+    if (!t.textContent?.trim() || t.parentElement?.closest('.visually-hidden')) continue;
+    range.selectNodeContents(t);
+    for (const r of range.getClientRects()) if (r.width > 0) lines.push({ l: r.left, r: r.right, t: r.top, b: r.bottom });
+  }
+  return lines;
+}
+
+/** Keeps the shown floor's marker names out of each other's way, and out of
+ *  the title wall and the simulator's sign (see ROWS); phones show no names,
+ *  and then there's nothing to do. */
+export function useNameRows(layer: string) {
+  useEffect(() => {
+    const tick = () => {
+      if (document.hidden) return;
+      const names = [...document.querySelectorAll<HTMLElement>('.hotspot')].flatMap((el) => {
+        const mark = el.querySelector('.hotspot__mark');
+        const name = el.querySelector<HTMLElement>('.hotspot__label-fill');
+        if (!mark || !name?.offsetWidth) return [];
+        // measured off the crosshair, which a raised name doesn't move: every
+        // name sits the same way over its own, so that offset drops out
+        const m = mark.getBoundingClientRect();
+        const em = parseFloat(getComputedStyle(name).fontSize);
+        // a row up is 1.5em (hotspots.css); the letters themselves take about
+        // 1.15em of it, which is what mustn't touch
+        return [{ el, x: m.left + m.width / 2, y: m.top, w: name.offsetWidth, h: 1.15 * em, lift: 1.5 * em, row: Number(el.dataset.row ?? 0) }];
+      });
+      if (!names.length) return;
+      names.sort((a, b) => a.x - b.x);
+      const placed: Box[] = obstacles();
+      for (const n of names) {
+        const at = (row: number): Box => ({ l: n.x - n.w / 2, r: n.x + n.w / 2, t: n.y - row * n.lift - n.h, b: n.y - row * n.lift });
+        // how much a name in this row would cover of what's there already
+        const hit = (row: number, gap: number) => {
+          const box = at(row);
+          return placed.reduce((sum, p) => {
+            const x = Math.min(box.r + gap, p.r) - Math.max(box.l - gap, p.l);
+            const y = Math.min(box.b + 2, p.b) - Math.max(box.t - 2, p.t);
+            return x > 0 && y > 0 ? sum + x * y : sum;
+          }, 0);
+        };
+        let row = 0;
+        while (row < ROWS && hit(row, row < n.row ? DOWN_GAP : GAP) > 0) row++;
+        if (row === ROWS) {
+          // nowhere clear: wherever it covers least, staying put on a tie
+          let best = n.row;
+          for (let r = 0; r < ROWS; r++) if (hit(r, GAP) < hit(best, GAP)) best = r;
+          row = best;
+        }
+        placed.push(at(row));
+        if (row !== n.row) {
+          n.el.dataset.row = String(row);
+          n.el.style.setProperty('--row', String(row));
+        }
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, NAME_TICK_MS);
+    return () => window.clearInterval(id);
+  }, [layer]);
+}
 
 export function HotspotMarker({
   hotspot,

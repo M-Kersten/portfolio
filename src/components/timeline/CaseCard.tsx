@@ -64,7 +64,7 @@ export function CaseCard({
           <div className="worktile__ph" aria-hidden="true" />
           {imgOk && <img className="worktile__img" src={src} alt="" loading="lazy" decoding="async" onError={() => setImgOk(false)} />}
           <div className="worktile__scrim" aria-hidden="true" />
-          {/* in the model (its exhibit number), or in the collection */}
+          {/* on display in the model (and which gallery), or in the depot */}
           <span className="worktile__ex">{exhibitMark(study.slug)}</span>
         </div>
         <div className="worktile__body">

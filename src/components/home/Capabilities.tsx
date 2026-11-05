@@ -6,13 +6,19 @@ import { ScaleMotif } from './ScaleMotif';
 import { CapBandMotif } from './CapBandMotif';
 import { Scramble } from '../shell/Scramble';
 import { SectionHead } from '../shell/SectionHead';
+import { GALLERIES, galleryName } from '../../content/exhibits';
 
 
 // The written content, shared by the desktop band columns and the mobile
-// cards. The title decodes in (scrambled → clear) when it scrolls into view.
+// cards: an entry in the floor directory, under the gallery's sign (its number
+// and the scale its work happens at). The title decodes in (scrambled → clear)
+// when it scrolls into view.
 function CapText({ c, delay = 0 }: { c: Capability; delay?: number }) {
   return (
     <>
+      <p className="capc__gallery">
+        <b>{galleryName(c.layer)}</b> · {GALLERIES[c.layer].scale}
+      </p>
       <h3 className="capc__title">
         {/* Wrapping, not clipping. These titles are authored in the CMS and run
             to a full sentence ("City: maps & the real world"), so at any width
@@ -30,10 +36,12 @@ function CapText({ c, delay = 0 }: { c: Capability; delay?: number }) {
   );
 }
 
-// The three scales as one full-bleed band (§3 — mirrors the hero's three
-// layers), sheared into slanted regions by two diagonal seams. One canvas paints
-// all three live motifs behind the copy; hovering a region focuses it and dims
-// the rest. Narrow screens fall back to three stacked cards.
+// The floor directory, the board in the lobby: the model's three floors, one
+// gallery each, at the three scales the work happens at. As one full-bleed
+// band (§3 — mirrors the hero's three layers), sheared into slanted regions by
+// two diagonal seams. One canvas paints all three live motifs behind the copy;
+// hovering a region focuses it and dims the rest. Narrow screens fall back to
+// three stacked cards.
 export function Capabilities() {
   const { capabilitiesIntro } = site;
   const [active, setActive] = useState<Layer | null>(null);

@@ -16,7 +16,7 @@ import { ShadowDots } from './lit';
 import { CityRig } from './city';
 import { RoomRig } from './room';
 import { ChipRig } from './chip';
-import { HotspotMarker } from './hotspots';
+import { HotspotMarker, useNameRows } from './hotspots';
 import { SignalLine, RELATIONS } from './signals';
 
 // Memoised: a rig takes no props and subscribes to what it needs itself, so
@@ -122,6 +122,8 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
   // Spread the layers vertically on tall/narrow screens (matched by the camera
   // targets + hotspot anchors in ../framing, so everything stays aligned).
   const gap = layerGap(useThree((s) => s.size.width / s.size.height));
+  // the shown floor's marker names, kept out of each other's way
+  useNameRows(activeLayer);
 
   return (
     <Parallax>
