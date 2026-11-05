@@ -33,7 +33,8 @@ Useful while developing:
   its label opens beside it; `/work/:slug?entry` opens straight onto the book
   (the full entry). The build writes each one a page of its own, so a shared
   link previews with the project's card (`public/og/<slug>.jpg`)
-- `/projects` — the collection: every project, the ten exhibits and the rest
+- `/projects` — the collection: every project, the ten on display in the
+  model and the rest from the depot
 - anything else — a closed room: "This part of the exhibition isn't open yet"
 - `/cv` — the CV as a web page; `npm run cv` prints it to `public/cv.pdf`
 - add `?nogl` to any URL to preview the **no-WebGL static fallback**
@@ -70,12 +71,15 @@ The things you're most likely to want to change, and the file they live in.
 
 | Where on the site | File |
 | --- | --- |
-| The welcome back line and the first-visit hint | `components/hero/HeroStage.tsx` |
-| The exhibition guide, and the "n/10 lit" counter on its cover | `components/hero/ExhibitionGuide.tsx` |
+| The title wall, the gallery sign and the welcome back line | `components/hero/HeroStage.tsx` |
+| The exhibition guide, and the "4 of 10 seen" count on its cover | `components/hero/ExhibitionGuide.tsx` |
+| The exhibition's name, the galleries and their scales, the depot, the inventory numbers | `content/exhibits.ts` |
 | The label beside an exhibit ("Read the full story", "Watch the film") | `components/exhibit/Label.tsx` |
 | The book ("The problem", "See also", "Ask me about it") | `components/exhibit/Book.tsx` |
-| The collection's title and line | `components/pages/ProjectsPage.tsx` |
+| The collection's title and line (its counts come from the content) | `components/pages/ProjectsPage.tsx` |
 | The launch pad's panel (exhibit 11) | `components/launch/LaunchOverlay.tsx` |
+| The artist's wall text under "About the artist" | `components/home/About.tsx` |
+| The workshop's "Commissions open from …" (from the career's last end date) | `components/home/Contact.tsx` |
 | The "not open yet" page | `components/shell/NotFound.tsx` |
 | The timeline's "scroll through time", "now →", "The collection" | `components/timeline/Timeline.tsx` |
 
@@ -100,8 +104,8 @@ src/
                        Search, SoundToggle), Footer, SectionHead, Scramble
                        (the text decode), BootVeil, ScrollToHash, NotFound
     hero/              the maquette's page: SceneCanvas (the lazy 3D boundary
-                       and its no-WebGL poster), HeroStage (the title, the
-                       layer captions, the counter), ExhibitionGuide,
+                       and its no-WebGL poster), HeroStage (the title
+                       wall, the guide's cover), ExhibitionGuide,
                        IntroCard, FocusReticle (the porthole), SoundScape
     home/              the home page's sections: HomeLayout (their order),
                        Capabilities, About, Contact, and their canvas motifs
@@ -214,8 +218,11 @@ Safari and older browsers need themselves. When you add CSS:
   or `CHROME_PATH`) and commit them.
 - **The exhibits** — the ten projects with an object in the maquette
   (`HOTSPOTS` in `src/scene/framing.ts`) are numbered 01–10, city then room
-  then chip; every other project is "in the collection". Exhibit 11 is the
-  next launch on the pad.
+  then chip; every other project is in the depot. Exhibit 11 is the next
+  launch on the pad. A project's `credit` is the credit line on its label and
+  in its book ("Commissioned by Niantic, made at Wonderment"); without one
+  they show its client. Its inventory number ("MK.2022.1") is worked out from
+  the dates.
 - **Film loops** — a silent 6–10 s clip per project in
   `src/assets/loops/<slug>.mp4` plays at the top of its label (the README
   there has the format). Without one, the project's own YouTube film plays
