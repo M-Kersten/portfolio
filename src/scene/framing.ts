@@ -171,7 +171,7 @@ export const CAMERA = {
   // the framing rises by up to this much more (as portraitStepRise), from none
   // on a tall phone (portraitShortFrom) to all of it on a short one
   // (portraitShortTo), and gone again by the time the screen is a tablet's.
-  portraitShortRise: 0.4,
+  portraitShortRise: 0.7,
   portraitShortFrom: 0.47,
   portraitShortTo: 0.6,
 

@@ -4,11 +4,15 @@
 // and what the thread is called.
 //
 // Packets only ever travel once: the "connect-made" sweep that plays after a
-// first-visited node's HUD closes and the camera has settled back on the
-// overview. Highlighting a hotspot lights the cable itself (its colour/opacity/
-// width below) but nothing runs along it — that used to double as a steady
-// flow, which put a moving light on screen the instant you so much as hovered
-// a node, competing with the thing you were actually looking at.
+// node is opened for the first time, once its HUD has closed and the camera
+// has settled back on the overview with the whole cable in view. Not for a node
+// that was already seen when the page loaded, and not later on, while scrolling,
+// for one whose cable wasn't in view when it closed. Resting on a hotspot for a
+// moment lights the cable itself (its colour/opacity/width below), but sweeping
+// the pointer across the markers doesn't, and nothing runs along it — that used
+// to double as a steady flow, which put a moving light on screen the instant you
+// so much as hovered a node, competing with the thing you were actually looking
+// at.
 import { useMemo, useRef, type CSSProperties } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html, Line as DreiLine } from '@react-three/drei';
@@ -41,10 +45,11 @@ function tagHeight(a: LayerId, b: LayerId, gap: number): number {
    Related projects on different layers are wired together like a tidy run of
    cable: orthogonal segments with rounded pipe-bends that lead out of one node,
    drop a vertical riser in the margin, and lead into the other. The cables sit
-   in the scene at rest (dim, neutral — unhighlighted); touching either endpoint
-   lights that run up in its thread colour, and the first visit to an end sends
-   data packets along it once. A small label names the thread in the close-up
-   of either end. They live in world space because they bridge the
+   in the scene at rest (dim, neutral — unhighlighted); opening either endpoint,
+   or resting the pointer on it, lights that run up in its thread colour, and
+   the first visit to an end sends data packets along it once (see the top of
+   the file for when). A small label names the thread in the close-up of
+   either end. They live in world space because they bridge the
    differently-scaled layer groups. */
 interface Relation {
   thread: string; // shown as a faint label on the link
@@ -81,6 +86,8 @@ const _sv = new Vector3(); // scratch for sampling the curve each frame
 const _pc = new Color(); // scratch for the packets' colour each frame
 const DRAW_DUR = 1.1; // seconds for the "connection made" sweep to travel the wire
 const DRAW_DELAY = 0.45; // beat to wait after focus returns to the overview before it draws
+const HOVER_DWELL = 0.35; // seconds a pointer rests on an end before its cable lights
+const DROP_AFTER = 1.5; // seconds back on the overview, without the whole cable in view, before a sweep is dropped
 
 // A stable outward direction for links whose endpoints both sit on the spine.
 function hashDir(s: string): Vector3 {
@@ -145,8 +152,11 @@ export function SignalLine({ thread, from, to, color }: Relation) {
   // otherwise it would trail off to where a hidden layer's node used to be.
   const journeyStep = useSceneSelector((s) => s.journeyStep);
   // Whether ANY node is open (the user is in a close-up) — the connect-sweep waits
-  // for this to clear (back on the overview) before it plays.
-  const anySelected = useSceneSelector((s) => s.selectedSlug) !== null;
+  // for this to clear (back on the overview) before it plays — and whether it's
+  // one of this cable's ends (walked on to another, its sweep is dropped).
+  const selectedSlug = useSceneSelector((s) => s.selectedSlug);
+  const anySelected = selectedSlug !== null;
+  const ownOpen = selectedSlug === from || selectedSlug === to;
   const bothVisible =
     Math.abs(LAYER_STEP[HOTSPOT_BY_SLUG[from].layer] - journeyStep) <= 1 &&
     Math.abs(LAYER_STEP[HOTSPOT_BY_SLUG[to].layer] - journeyStep) <= 1;
@@ -178,14 +188,21 @@ export function SignalLine({ thread, from, to, color }: Relation) {
   // armed that draws from the just-woken node toward its partner — tempting the
   // eye toward the still-unexplored project. Deferred until focus is back on the
   // overview so the whole span is actually in view.
-  const wasFirst = useRef(false); // was either endpoint awake last frame
+  // was either endpoint awake last frame: starts as it is on mount, so the ends
+  // a returning visitor saw before don't all sweep again as the page loads
+  const wasFirst = useRef(visA || visB);
   const pending = useRef(false); // a link waiting to play its one-shot sweep
+  const restFrom = useRef(-1); // when the pointer came to rest on an end (performance.now), -1: it isn't on one
   const drawDir = useRef(1); // +1 = from→to · −1 = to→from (leads with the just-woken end)
-  const armT = useRef(0); // delay counter once conditions to draw are met
+  const backFrom = useRef(-1); // when the visitor was back on the overview with a sweep waiting, -1: not yet
   const drawT = useRef(-1); // <0 idle; else 0..1 sweep progress
 
   useFrame((_s, delta) => {
     const dt = Math.min(delta, 1 / 30);
+    // the waits below (before a sweep, before it's dropped, a pointer's rest)
+    // are timed from when they began, on the clock: a slow frame holds the
+    // motion back (dt), it doesn't stretch or shorten a wait
+    const now = performance.now();
 
     // Rising edge of the first wake: ARM the sweep (don't play it yet — the camera
     // has just dived onto the node and its HUD owns the eye). Lead from whichever
@@ -194,15 +211,30 @@ export function SignalLine({ thread, from, to, color }: Relation) {
     if (firstAwake && !wasFirst.current) {
       pending.current = true;
       drawDir.current = visA ? 1 : -1;
-      armT.current = 0;
+      backFrom.current = -1;
     }
     wasFirst.current = firstAwake;
 
     // Play it once the user is back on the overview and the whole span is on
-    // visible layers — after a short beat so the camera has finished pulling back.
-    if (pending.current && drawT.current < 0 && !reduced && !anySelected && bothVisible) {
-      armT.current += dt;
-      if (armT.current > DRAW_DELAY) drawT.current = 0;
+    // visible layers — after a short beat so the camera has finished pulling
+    // back. Back on an overview that can't show the whole span (an end on a
+    // floor out of view, once the page has settled on its floor), it's dropped
+    // rather than kept for later: kept, it went off by itself as the visitor
+    // scrolled on, long after the visit. So is one whose end the visitor walked
+    // on from to another exhibit (the label's walk): coming back out after a
+    // walk past five, only the last one's cables sweep, not all of theirs at
+    // once.
+    if (pending.current && drawT.current < 0) {
+      if (anySelected) {
+        backFrom.current = -1;
+        if (!ownOpen) pending.current = false;
+      } else if (reduced) pending.current = false;
+      else {
+        if (backFrom.current < 0) backFrom.current = now;
+        const back = (now - backFrom.current) / 1000;
+        if (bothVisible && back > DRAW_DELAY) drawT.current = 0;
+        else if (!bothVisible && back > DROP_AFTER) pending.current = false;
+      }
     }
     if (drawT.current >= 0) {
       drawT.current += dt / DRAW_DUR;
@@ -214,9 +246,13 @@ export function SignalLine({ thread, from, to, color }: Relation) {
     const drawing = drawT.current >= 0;
 
     // The cable rests DORMANT GREY (neutral, unlit) so the woken web never competes
-    // with reading the scene; it lights in its thread colour only on hover/select,
-    // or briefly as the connect-sweep draws it — then eases back to grey.
-    const target = selA || selB ? 1 : hovA || hovB ? 0.6 : drawing ? 0.9 : 0;
+    // with reading the scene; it lights in its thread colour only on select, on a
+    // hover that rests (HOVER_DWELL), or briefly as the connect-sweep draws it —
+    // then eases back to grey.
+    if (!(hovA || hovB)) restFrom.current = -1;
+    else if (restFrom.current < 0) restFrom.current = now;
+    const resting = restFrom.current >= 0 && now - restFrom.current > HOVER_DWELL * 1000;
+    const target = selA || selB ? 1 : resting ? 0.6 : drawing ? 0.9 : 0;
     k.current += (target - k.current) * 0.12;
     const kk = k.current;
 

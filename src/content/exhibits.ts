@@ -14,7 +14,8 @@ import { byDate, cases, caseBySlug, type CaseStudy } from './index';
 
 const LAYER_ORDER = ['city', 'room', 'chip'] as const;
 
-/** The exhibition's name: on the guide's cover and the book's running head. */
+/** The exhibition's name: over yours at the entrance, on the guide's cover
+ *  and in the book's running head. */
 export const EXHIBITION = 'Work in miniature';
 
 /** The exhibits, in order: index 0 is exhibit 01. */

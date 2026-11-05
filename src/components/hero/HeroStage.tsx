@@ -5,19 +5,21 @@ import { HOTSPOTS, stepAt } from '../../scene/framing';
 import { useReducedMotion } from '../../lib/media';
 import { useEscape } from '../../lib/page';
 import { Scramble } from '../shell/Scramble';
+import { EXHIBITION } from '../../content/exhibits';
 import { ExhibitionGuide } from './ExhibitionGuide';
 
 // Three invisible scroll panels give the camera journey its length and drive
-// `journeyStep` (0 City · 1 Room · 2 Chip). The title (the name and the line
-// under it) lives only on the City layer and clears the moment you scroll down
-// (or inspect a node).
+// `journeyStep` (0 City · 1 Room · 2 Chip). The title (the exhibition's name,
+// yours under it, and the line under that) lives only on the City layer and
+// clears the moment you scroll down (or inspect a node).
 
 const STEPS = [0, 1, 2];
 
 // Every object in the maquette is a project, an exhibit numbered 01–10, kept
 // in low light until it's visited (as a gallery does), then lit for good. The
 // one sign along the bottom is the exhibition guide's cover, with how many of
-// the ten you've seen printed on it. The count steps once a
+// the ten you've seen printed on it, and what they add up to (the launch). The
+// count steps once a
 // hotspot's HUD closes and the zoom-out has settled, not the instant it opens,
 // so the visitor watches the model fill in rather than seeing the number jump
 // while still looking at a close-up. 10/10 triggers the world's completion
@@ -224,6 +226,7 @@ export function HeroStage() {
           silently at load behind the card. */}
       {introOver && (
         <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
+          <p className="hero__kicker">{EXHIBITION}</p>
           <h1 className="hero__name">
             <Scramble text={site.hero.name} delay={380} wrap />
           </h1>

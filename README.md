@@ -72,7 +72,8 @@ The things you're most likely to want to change, and the file they live in.
 | Where on the site | File |
 | --- | --- |
 | The welcome back line | `components/hero/HeroStage.tsx` |
-| The exhibition guide, and the "4 of 10 seen" count on its cover | `components/hero/ExhibitionGuide.tsx` |
+| The exhibition guide, and the "4 of 10 seen" count on its cover with its note ("Launch at ten", "Two more to launch") | `components/hero/ExhibitionGuide.tsx` (`tally`, `ahead`) |
+| How the pad gets ready as the count climbs (which piece arrives when, the beacon, the vapour) | `BUILD` and the frame loop in `src/scene/maquette/launchSite.tsx` |
 | The exhibition's name, "On display" / "In the depot" | `content/exhibits.ts` |
 | The label beside an exhibit ("Read the full story", "Watch the film") | `components/exhibit/Label.tsx` |
 | The book ("The problem", "See also", "Ask me about it") | `components/exhibit/Book.tsx` |

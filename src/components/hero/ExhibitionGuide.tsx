@@ -8,7 +8,8 @@ import { sceneStore } from '../../scene/store';
 // The exhibition guide: the leaflet the visitor is handed. It stands pushed
 // into the bottom edge of the screen, folded in half like the one you take at
 // the door, and its cover is the one sign down there: how many of the ten
-// you've seen (4 of 10 seen), and for a moment a returning visitor's greeting.
+// you've seen (4 of 10 seen), what they add up to (launch at ten, counted
+// down at the end), and for a moment a returning visitor's greeting.
 // Pulling it out slides it up into the frame, and its cover swings open to the
 // left onto the inside (hero.css): the ten exhibits by floor, the way a
 // printed leaflet lists them, and the visitor's own pen marks in its margin, a
@@ -29,6 +30,20 @@ const TOTAL = HOTSPOTS.length;
  *  front of it (what the ten add up to is waiting at the end, in the guide).
  *  At ten it's "All 10 seen", which is also the one that fits the cover. */
 const tally = (n: number) => (n >= TOTAL ? `All ${TOTAL} seen` : `${n} of ${TOTAL} seen`);
+
+const WORD = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+
+/** Under the count, what it adds up to: the next launch, which the pad in
+ *  the city stacks a piece at a time as exhibits are seen. So a visitor knows
+ *  it's coming, it's said from the first glance, the last two are counted
+ *  down, and it says when the pad is ready. (Short enough for a phone's
+ *  narrow cover; the opening card says it in full.) */
+function ahead(n: number) {
+  if (n >= TOTAL) return 'Ready to launch';
+  if (n === TOTAL - 1) return 'One more to launch';
+  if (n === TOTAL - 2) return 'Two more to launch';
+  return `Launch at ${WORD[TOTAL] ?? TOTAL}`;
+}
 
 export type GuideState = 'closed' | 'open' | 'closing';
 
@@ -57,6 +72,7 @@ export function ExhibitionGuide({
   const navigate = useNavigate();
   const found = visited.filter((slug) => HOTSPOTS.some((h) => h.slug === slug)).length;
   const count = tally(revealed);
+  const note = ahead(revealed);
   const rootRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   // The ticks already in the margin: the ones there when the page loaded (the
@@ -143,7 +159,7 @@ export function ExhibitionGuide({
         className="guide__peek"
         onClick={onOpen}
         aria-expanded={state === 'open'}
-        aria-label={`Exhibition guide, ${count}`}
+        aria-label={`Exhibition guide, ${count}. ${note}`}
         tabIndex={state === 'closed' ? 0 : -1}
       />
       <div className="guide__sheet" ref={sheetRef} role="dialog" aria-label="Exhibition guide" aria-hidden={state === 'closed' || undefined}>
@@ -170,7 +186,14 @@ export function ExhibitionGuide({
                     <i key={h.slug} data-on={i < revealed || undefined} />
                   ) : (
                     // the last one is what the ten add up to: the rocket
-                    <svg key={h.slug} className="hero__signals-rocket" viewBox="0 0 8 12" data-on={i < revealed || undefined}>
+                    // (with one to go, it breathes, like the pad's beacon)
+                    <svg
+                      key={h.slug}
+                      className="hero__signals-rocket"
+                      viewBox="0 0 8 12"
+                      data-on={i < revealed || undefined}
+                      data-next={i === revealed || undefined}
+                    >
                       <path d="M4 0.6C5.6 2.2 6 4.4 6 6.6V9H2V6.6C2 4.4 2.4 2.2 4 0.6Z" />
                       <path d="M2 7.2 0.6 9.6V10.6L2 9.8ZM6 7.2 7.4 9.6V10.6L6 9.8Z" />
                     </svg>
@@ -181,7 +204,13 @@ export function ExhibitionGuide({
                 {count}
               </span>
             </span>
-            {here}
+            {/* (a returning visitor's greeting takes its place for a moment;
+                a new note comes in with the count that brings it) */}
+            {here ?? (
+              <span key={note} className="guide__cover-note" data-close={revealed >= TOTAL - 2 || undefined}>
+                {note}
+              </span>
+            )}
             <span className="guide__cover-title">{EXHIBITION}</span>
           </div>
         </section>

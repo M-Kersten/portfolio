@@ -5,8 +5,11 @@
    wakes adds a piece: the launch mount, the tower (lower, then upper), then
    the vehicle itself, stacked the way Starship is (the booster's engines, the
    booster, its grid fins, the hot-staging ring), the chopsticks and the ship's
-   arm, and the ship itself last, in one piece. The 10th project powers the
-   site on: the beacon starts blinking, the celebration fires (NodeHud pulls
+   arm, and the ship itself last, in one piece. With two to go the tower's
+   beacon starts a slow blink, and with the ship on, one to go, it blinks
+   quicker and the stack breathes vapour off its tanks: it's being fuelled.
+   (The guide's cover counts the same last two down.) The 10th project powers
+   the site on: the beacon starts blinking, the celebration fires (NodeHud pulls
    the journey home so it plays in view) and the invitation appears; the
    complex turns to steel, the vehicle stays the only ghost-free thing that
    hasn't flown. Clicking it moves the camera to the pad and offers a LAUNCH
@@ -166,6 +169,8 @@ export function NextProjectSite() {
   const delugeJets = useRef<LevelApi>(null);
   const groundFireMat = useMemo(() => glowMat(new Color('#ffb070').multiplyScalar(2.2), 0), []);
   const site = useRef<Group>(null);
+  // whether the city is the floor in focus (the stack's vapour waits for it)
+  const presence = useContext(PresenceCtx);
   const complete = celebrateAt !== null;
   const flying = launch !== 'idle';
   // the flight's fire and smoke are there, hidden, from the moment the site is
@@ -178,15 +183,17 @@ export function NextProjectSite() {
     // the beacon powers on with the 10th project (the site is complete) — a
     // faint standby ember while the vehicle is still being assembled
     // …and with two to go it starts to blink, slowly: the pad is nearly ready
+    // (with one to go, quicker and brighter: the count on the guide's cover
+    // says the same)
     if (beaconMat.current) {
-      const nearly = built >= HOTSPOTS.length - 2;
+      const toGo = HOTSPOTS.length - built;
       beaconMat.current.emissiveIntensity =
         celebrateAt !== null
           ? reduced
             ? 0.8
             : 0.3 + (Math.sin(s.clock.elapsedTime * 2.4) > 0.7 ? 1.6 : 0)
-          : nearly && !reduced
-            ? 0.06 + (Math.sin(s.clock.elapsedTime * 1.3) > 0.82 ? 0.7 : 0)
+          : toGo <= 2 && !reduced
+            ? 0.06 + (Math.sin(s.clock.elapsedTime * (toGo === 1 ? 2 : 1.3)) > 0.82 ? (toGo === 1 ? 1 : 0.7) : 0)
             : 0.06;
     }
     // the apron's ping as a piece arrives: a ring running out across the plot
@@ -240,9 +247,13 @@ export function NextProjectSite() {
       launchShot.active = false;
     }
 
-    // ---- on the pad: fuelled, breathing vapour off its tanks ----
-    if (launch === 'pad') {
-      if (!reduced && puffs) vent(puffs, realDt * 4, o);
+    // ---- fuelled, breathing vapour off its tanks: on the pad, and before
+    // that from the moment the stack is whole (one more to go), so the
+    // overview shows it's nearly ready (while the city is the floor in focus:
+    // the vapour isn't dimmed with a receding floor, it's just not made) ----
+    if (!reduced && puffs) {
+      if (launch === 'pad') vent(puffs, realDt * 4, o);
+      else if (launch === 'idle' && built >= BUILD.ship && presence.current > 0.5) vent(puffs, realDt * 3, o, true);
     }
 
     // ---- the film ----
@@ -781,16 +792,20 @@ function LaunchInvite({ onEngage, flights }: { onEngage: () => void; flights: nu
 }
 
 /** Vapour boiling off the cryogenic tanks: wisps off the ship's tanks and the
- *  booster's skirt, falling as they go (cold vapour sinks). */
-function vent(puffs: SmokeApi, n: number, o: { vent: number }) {
+ *  booster's skirt, falling as they go (cold vapour sinks). `far`, for the
+ *  overview, where the pad's camera isn't standing right by the stack: they
+ *  stream further out, bigger and a little denser, so they read against the
+ *  sky beside it (pale vapour over the pale steel doesn't). */
+function vent(puffs: SmokeApi, n: number, o: { vent: number }, far = false) {
   o.vent += n;
   while (o.vent >= 1) {
     o.vent -= 1;
     const a = Math.random() * Math.PI * 2;
     const high = Math.random() < 0.45;
     const y = high ? STAGING_Y + (Math.random() - 0.3) * 0.06 : STACK_BASE + 0.015 + Math.random() * 0.05;
-    puffs.puff(Math.sin(a) * 0.033, y, Math.cos(a) * 0.033, Math.sin(a) * 0.045, -0.025, Math.cos(a) * 0.045, {
-      size0: 0.014, size1: 0.085, life: 1.4 + Math.random(), alpha: 0.2, warm: 0, drag: 1.6, rise: -0.01,
-    });
+    const s = far ? 0.15 + Math.random() * 0.08 : 0.045;
+    puffs.puff(Math.sin(a) * 0.033, y, Math.cos(a) * 0.033, Math.sin(a) * s, -0.025, Math.cos(a) * s, far
+      ? { size0: 0.02, size1: 0.13 + Math.random() * 0.05, life: 2.2 + Math.random(), alpha: 0.3, warm: 0, drag: 1, rise: -0.015 }
+      : { size0: 0.014, size1: 0.085, life: 1.4 + Math.random(), alpha: 0.2, warm: 0, drag: 1.6, rise: -0.01 });
   }
 }

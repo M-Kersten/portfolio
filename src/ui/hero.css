@@ -43,6 +43,17 @@
     padding-top: calc(var(--header-h) + var(--space-m));
   }
 }
+/* The exhibition's name over yours, small and spaced in the accent */
+.hero__kicker {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  /* Load boot — beat 1: it lands just before the name decodes under it */
+  animation: hero-sub-in var(--t-base) var(--ease) 0.15s both;
+}
 .hero__name {
   /* the display voice (base.css), drawn a touch tighter at this size */
   font-size: calc(var(--step-6) * var(--display-scale));
@@ -79,10 +90,13 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .hero__kicker,
   .hero__name,
   .hero__sub,
   .guide__cover-here,
-  .guide__cover-count--flash {
+  .guide__cover-note,
+  .guide__cover-count--flash,
+  .hero__signals-rocket[data-next] {
     animation: none;
   }
 }
@@ -94,7 +108,8 @@
    is only as tall as what shows of the cover (--peek); the rest of the leaflet
    hangs below the screen's edge. */
 .hero__signals {
-  --peek: 5.75rem;
+  /* (with a little air under the note, the last line that shows) */
+  --peek: 6.1rem;
   position: fixed;
   right: max(var(--space-m), calc((var(--page-w) - var(--container)) / 2 + var(--space-m)));
   bottom: 0;
@@ -309,6 +324,19 @@
 }
 .guide__cover-here[data-leaving] {
   opacity: 0;
+}
+/* …and the rest of the time, what the count adds up to: the launch, said
+   quietly until the last two, when it takes the accent (in the city, the
+   pad's beacon starts blinking then too) */
+.guide__cover-note {
+  font-size: var(--step--2);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--ink) 62%, transparent);
+  animation: cover-here-in var(--t-slow) var(--ease);
+}
+.guide__cover-note[data-close] {
+  color: var(--accent-ink);
 }
 @keyframes cover-here-in {
   from {
@@ -597,6 +625,18 @@
   fill: var(--accent);
   stroke: var(--accent);
 }
+/* one to go: it breathes, like the pad's beacon (from a clear fill, so the
+   fill can be eased) */
+.hero__signals-rocket[data-next] {
+  fill: transparent;
+  stroke: var(--accent);
+  animation: rocket-next 2.4s ease-in-out infinite;
+}
+@keyframes rocket-next {
+  50% {
+    fill: color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+}
 @media (max-width: 760px) {
   .hero__name {
     font-size: calc(var(--step-5) * var(--display-scale));
@@ -606,6 +646,11 @@
   .hero__sub {
     font-size: var(--step-0);
     max-width: none;
+  }
+  /* the exhibition's name stays small: the model needs the height */
+  .hero__kicker {
+    margin-bottom: 0.45rem;
+    font-size: var(--step--2);
   }
   /* the leaflet's cover keeps the bottom-right corner on a phone too, its
      pips a little smaller */
@@ -639,11 +684,16 @@
   }
 }
 
-/* the narrowest phones (320): the cover's name still fits on one line */
+/* the narrowest phones (320): the cover's name still fits on one line, and
+   so does its note */
 @media (max-width: 360px) {
   .guide__cover-kicker {
     font-size: 0.625rem;
     letter-spacing: 0.04em;
+  }
+  .guide__cover-note {
+    font-size: 0.6rem;
+    letter-spacing: 0;
   }
 }
 
