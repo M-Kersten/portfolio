@@ -87,7 +87,7 @@ const SPOTS: Omit<Hotspot, 'position'>[] = [
   // Chip — the die in the middle, the heart and the camera on opposite corner
   // slots (chip.tsx CORNER): three even columns. Move a slot and its anchor
   // here has to follow.
-  { slug: 'amsterdam-ai', layer: 'chip', anchor: [0, 0.16, 0], foot: 0.125, view: { offset: [0.35, 1.75, 1.85], aimDown: 0.62, fovZoom: 14 } }, // the die
+  { slug: 'amsterdam-ai', layer: 'chip', anchor: [0, 0.16, 0], foot: 0.125, view: { offset: [0.22, 1.25, 1.15], aimDown: 0.3, fovZoom: 6 } }, // the die: close and steep, so its game of Snake reads (chip.tsx DieSnake)
   { slug: 'custom-ar-framework', layer: 'chip', anchor: [0.75, 0, -0.75], foot: 0.33, view: { offset: [2.2, 0.8, 1.8], aimDown: 0.3, fovZoom: -2.5 } }, // the CV camera (back-right slot)
   { slug: 'philips-medical-xr', layer: 'chip', anchor: [-0.75, 0.16, 0.75], foot: 0.47, view: { offset: [0.36, 0.4, 0.9], aimDown: 0.2, fovZoom: 19.5 } }, // the heart projector (front-left slot); the anchor sits in the beam under the heart, clear of where the catheter works
   // Room — four exhibits on a diagonal from the front-left to the back-right,

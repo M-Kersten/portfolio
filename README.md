@@ -58,6 +58,8 @@ The things you're most likely to want to change, and the file they live in.
 | An exhibit's camera close-up | its `view` in `HOTSPOTS` (or the dev tools' Camera tab) |
 | An object's place in the model | the `usePlacement(...)` call in `src/scene/maquette/city.tsx` or `room.tsx` (or the dev tools' Objects tab) |
 | What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*`, `CAM_CUBES` and `TILE_*` in `chip.tsx`, `BOOST*`, `POP*`, `DOUBLE_TAKE` and `HOLO_*` in `room.tsx`, `WIND_*`, `GUST*` and `SHOT` in `city.tsx`) |
+| The die's game of Snake: speed, when the chip takes over, the crash and the score | `SNAKE_*` in `src/scene/maquette/chip.tsx`; the rules (board size, steering, the chip's player) in `snake.ts` |
+| The Virtuele Brigade's call-outs: where markers turn up, how long they wait, the row | `SPOTS`, `LIFE*`, `GAP`, `DWELL`, `ROW` in `src/scene/maquette/callouts.tsx` |
 | How a close-up reaction moves: its wind-up, overshoot and settle | the curves in `src/lib/ease.ts` and the springs in `src/lib/spring.ts` (`spring` arrives without passing, `wobble` swings past and back) |
 | The Philips heart: its shape and where its vessels run | `LOBES`, `TRUNK` and `BRANCHES` (with each narrowing's place) in `src/scene/maquette/heartShape.ts` |
 | How the heart beats, and how the catheter steers and treats a narrowing | `BEAT`, `FLOW`, `CATH` and `TREAT` in `src/scene/maquette/heart.tsx` |
@@ -136,6 +138,11 @@ src/
       chip.tsx         Chip rig: board, accelerator, camera, heart projector, traces
       heart.tsx        the Philips heart: the hologram, its beat, the catheter
       heartShape.ts    the heart's shape and the paths of its vessels
+      snake.ts         Snake as the AI die plays it: the board, steering by
+                       the cursor, the chip's own player, the score's figures
+                       (drawn by DieSnake in chip.tsx)
+      callouts.tsx     the Virtuele Brigade's call-outs game: the markers, the
+                       pips on the monitor, and what it tells the two players
       kit.ts           loads the Blender models (public/models)
       hotspots.tsx     the floating crosshair markers
       signals.tsx      cross-layer relation cables (edit RELATIONS here)

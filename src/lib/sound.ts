@@ -52,6 +52,13 @@ export type SoundName =
   // the heart: the catheter's balloon going up, and a narrowing opening
   | 'cath-inflate'
   | 'cath-clear'
+  // Snake on the die: a food eaten, and a crash (only while the visitor steers)
+  | 'snake-eat'
+  | 'snake-crash'
+  // the Virtuele Brigade's call-outs: one called out, cleared, and one slipping away
+  | 'call-out'
+  | 'call-clear'
+  | 'call-miss'
   // the ambient beds, one per layer of the maquette
   | 'ambient-city'
   | 'ambient-room'

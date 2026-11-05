@@ -72,6 +72,27 @@ open the two narrowed ones.
 | `cath-inflate` | the balloon goes up in a narrowing | a soft rising squeeze, about 0.5 s |
 | `cath-clear` | the narrowing opens and the blood rushes through | a whoosh with a bright tail, two notes of the signature |
 
+## Snake
+
+In the Amsterdam AI close-up the die plays Snake; these sound only while the
+visitor steers (not while the chip plays itself).
+
+| File | When | Notes |
+| --- | --- | --- |
+| `snake-eat` | the snake eats | a short bright blip, under 0.1 s; give it variants |
+| `snake-crash` | the snake runs out of room | a low buzz falling away, about 0.4 s |
+
+## Call-outs
+
+In the Virtuele Brigade close-up you call out what the two players should
+look at.
+
+| File | When | Notes |
+| --- | --- | --- |
+| `call-out` | a marker is called out and the players turn | a short radio click |
+| `call-clear` | they've looked: it's cleared | a soft two-note confirm |
+| `call-miss` | a marker slips away before it's called | a muted low blip |
+
 ## Ambient
 
 One quiet bed per layer of the maquette, crossfading as you scroll; they

@@ -5,9 +5,9 @@
 // surge while a chip project is engaged. The board and most of its parts are Blender models, loaded from
 // public/models/chip.glb (kit.ts; the source is in scripts/models) and dressed
 // here in the maquette's own materials. ChipRig composes and places everything.
-import { useContext, useEffect, useMemo, useRef } from 'react';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Euler, Line as ThreeLine, LineBasicMaterial, LineSegments, MeshStandardMaterial, Ray, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
+import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Euler, Line as ThreeLine, LineBasicMaterial, LineSegments, Matrix4, MeshStandardMaterial, Quaternion, Ray, Vector3, type Group, type InstancedMesh, type Mesh, type MeshBasicMaterial } from 'three';
 import { useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/media';
 import { SURFACE, NEUTRAL, LINE_REST, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
@@ -20,6 +20,8 @@ import { useCameraKit, useChipKit, type ChipKit } from './kit';
 import { HeartHologram } from './heart';
 import { cursorAtDepth, cursorIdle, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
 import { wobble } from '../../lib/spring';
+import { play } from '../../lib/sound';
+import { figure, newGame, step, N as SNAKE_N } from './snake';
 import { bump, easeOutBack } from '../../lib/ease';
 
 /* ---------- Chip — tools, CV & data (bottom) ---------- */
@@ -804,7 +806,7 @@ const TILE_RIPPLE = [
   { after: 0.07, of: 0.55 }, // the tiles touching it
   { after: 0.14, of: 0.28 }, // the ring beyond
 ];
-function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: string; color: string }) {
+function KitTiles({ geometry, slug, color, game }: { geometry: BufferGeometry; slug: string; color: string; game: { on: number } }) {
   const { selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const presence = useContext(PresenceCtx);
@@ -846,7 +848,8 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
     const dt = Math.min(delta, 1 / 30);
     for (let i = 0; i < heat.length; i++) heat[i] = Math.max(0, heat[i] - dt / TILE_COOL);
     let under = -1;
-    if (close && mesh.current && cursorOnLevel(s, mesh.current, bb.max.y, hit)) {
+    // (while the die plays Snake, the cursor steers the snake instead: DieSnake)
+    if (close && game.on < 0.5 && mesh.current && cursorOnLevel(s, mesh.current, bb.max.y, hit)) {
       const u = (hit.x - bb.min.x) / (bb.max.x - bb.min.x);
       const v = (hit.z - bb.min.z) / (bb.max.z - bb.min.z);
       if (u >= 0 && u < 1 && v >= 0 && v < 1) heat[(under = Math.floor(v * TILE_N) * TILE_N + Math.floor(u * TILE_N))] = 1;
@@ -885,7 +888,8 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
       let ph = (t * WAVE_RATE - diag) % 1;
       if (ph < 0) ph += 1;
       const wave = reduced ? 0.4 : Math.exp(-ph * 6); // bright at the front, trailing off
-      level[i] = 0.34 * (1 - on) + on * (0.62 + 1.1 * wave + TILE_HEAT * heat[i] * heat[i] + TILE_GLINT * Math.max(0, lift.y[i]));
+      // (dimmed to a dark screen under the game of Snake, when it's on)
+      level[i] = (0.34 * (1 - on) + on * (0.62 + 1.1 * wave * (1 - game.on) + TILE_HEAT * heat[i] * heat[i] + TILE_GLINT * Math.max(0, lift.y[i]))) * (1 - 0.75 * game.on);
     }
     tint.copy(GHOST_FILL).lerp(base, on);
     const pf = presence.current;
@@ -904,10 +908,220 @@ function KitTiles({ geometry, slug, color }: { geometry: BufferGeometry; slug: s
   );
 }
 
+/* ---- Snake on the die ----
+   In the die's close-up the accelerator plays Snake (the game is snake.ts): a
+   board of twelve cells a side over the sixteen tiles, three to a side of a
+   tile, lit the way the tiles are. With no cursor on the die, or one resting
+   there, the chip plays it itself, which is how a visitor sees it's a game;
+   point at the die and the snake goes where you point. Eating pops the cell
+   and ripples out, as a tile does; a crash flashes, comes apart from the tail
+   and shows the score in the cells, then a new board sweeps on. Only with a
+   cursor (useCloseUp): a touch screen and reduced motion keep the waves. */
+const SNAKE_RATE = 7; // cells a second at the start…
+const SNAKE_RAMP = 0.15; // …faster by this much for every food…
+const SNAKE_MAX = 10.5; // …up to this
+const SNAKE_LETGO = 2.5; // s of a resting cursor before the chip plays itself again
+const SNAKE_MARGIN = 1.5; // cells off the die's edge that a cursor still steers from (held to the edge)
+const SNAKE_CRASH = 1.0; // s of a crash: it flashes, then comes apart from the tail
+const SNAKE_SCORE = 1.9; // s the score shows
+const SNAKE_BOOT = 0.55; // s for a new board to sweep on
+const SNAKE_UNLIT = 0.12; // an empty cell's glow: the board shows, faintly
+
+type SnakePhase = 'play' | 'crash' | 'score';
+
+/** Where each of the board's cells lies on the die: three to a side of each
+ *  tile, measured off the tiles themselves (so the gaps between them stay). */
+function layoutCells(geometry: BufferGeometry) {
+  const pos = geometry.attributes.position;
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  const bb = geometry.boundingBox!.clone();
+  const lo = Array.from({ length: TILE_N * TILE_N }, () => [Infinity, Infinity]);
+  const hi = Array.from({ length: TILE_N * TILE_N }, () => [-Infinity, -Infinity]);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const u = (x - bb.min.x) / (bb.max.x - bb.min.x);
+    const v = (z - bb.min.z) / (bb.max.z - bb.min.z);
+    const t = Math.min(TILE_N - 1, Math.floor(v * TILE_N)) * TILE_N + Math.min(TILE_N - 1, Math.floor(u * TILE_N));
+    lo[t] = [Math.min(lo[t][0], x), Math.min(lo[t][1], z)];
+    hi[t] = [Math.max(hi[t][0], x), Math.max(hi[t][1], z)];
+  }
+  const per = SNAKE_N / TILE_N;
+  const cells = Array.from({ length: SNAKE_N * SNAKE_N }, (_, c) => {
+    const cx = c % SNAKE_N;
+    const cz = Math.floor(c / SNAKE_N);
+    const t = Math.floor(cz / per) * TILE_N + Math.floor(cx / per);
+    const w = (hi[t][0] - lo[t][0]) / per;
+    const d = (hi[t][1] - lo[t][1]) / per;
+    return { x: lo[t][0] + ((cx % per) + 0.5) * w, z: lo[t][1] + ((cz % per) + 0.5) * d, w, d };
+  });
+  return { cells, bb };
+}
+
+function DieSnake({ geometry, game }: { geometry: BufferGeometry; game: { on: number } }) {
+  const slug = 'amsterdam-ai';
+  const close = useCloseUp(slug);
+  const { accent, accentPale, accentDeep } = useAccent();
+  const presence = useContext(PresenceCtx);
+  const mesh = useRef<InstancedMesh>(null);
+  const hit = useMemo(() => new Vector3(), []);
+  const board = useMemo(() => layoutCells(geometry), [geometry]);
+  const run = useRef({ s: newGame(), phase: 'play' as SnakePhase, t: 0, acc: 0, boot: 0, fresh: true, best: 0, newBest: false, shown: new Set<number>() });
+  // each cell's pop, as the tiles' (KitTiles): a height on a springy spring, and the kicks still to come
+  const lift = useMemo(() => ({ y: new Float32Array(SNAKE_N * SNAKE_N), v: Array.from({ length: SNAKE_N * SNAKE_N }, () => ({ v: 0 })), kicks: [] as { i: number; at: number; of: number }[] }), []);
+  const ink = useMemo(() => ({ body: new Color(accent), food: new Color(accentPale), unlit: new Color(accentDeep), c: new Color() }), [accent, accentPale, accentDeep]);
+  const order = useMemo(() => new Int16Array(SNAKE_N * SNAKE_N), []);
+  const pose = useMemo(() => ({ m: new Matrix4(), p: new Vector3(), q: new Quaternion().setFromEuler(new Euler(-Math.PI / 2, 0, 0)), s: new Vector3() }), []);
+  const top = board.bb.max.y + 0.0012; // just over the tiles
+  const place = (im: InstancedMesh, c: number) => {
+    const cell = board.cells[c];
+    pose.p.set(cell.x, top + Math.max(0, lift.y[c]), cell.z);
+    pose.s.set(cell.w * 0.78, cell.d * 0.78, 1);
+    im.setMatrixAt(c, pose.m.compose(pose.p, pose.q, pose.s));
+  };
+  useLayoutEffect(() => {
+    const im = mesh.current;
+    if (!im) return;
+    for (let c = 0; c < SNAKE_N * SNAKE_N; c++) {
+      place(im, c);
+      im.setColorAt(c, ink.c.setRGB(0, 0, 0));
+    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board]);
+  useFrame((st, delta) => {
+    const im = mesh.current;
+    if (!im) return;
+    const dt = Math.min(delta, 1 / 30);
+    const r = run.current;
+    game.on = close ? Math.min(1, game.on + dt / 0.35) : Math.max(0, game.on - dt / 0.3);
+    im.visible = game.on > 0.001;
+    if (!im.visible) {
+      // closed: a fresh board for the next time it's opened
+      if (!r.fresh) Object.assign(r, { s: newGame(), phase: 'play', t: 0, acc: 0, boot: 0, fresh: true });
+      return;
+    }
+    r.fresh = false;
+    const now = st.clock.elapsedTime;
+    // the cell the cursor points at, if it's on the die (or just off it) and moving
+    let target: number | null = null;
+    if (close && cursorIdle() < SNAKE_LETGO && cursorOnLevel(st, im, top, hit)) {
+      const u = ((hit.x - board.bb.min.x) / (board.bb.max.x - board.bb.min.x)) * SNAKE_N;
+      const v = ((hit.z - board.bb.min.z) / (board.bb.max.z - board.bb.min.z)) * SNAKE_N;
+      const edge = (k: number) => Math.min(SNAKE_N - 1, Math.max(0, Math.floor(k)));
+      if (u > -SNAKE_MARGIN && u < SNAKE_N + SNAKE_MARGIN && v > -SNAKE_MARGIN && v < SNAKE_N + SNAKE_MARGIN) target = edge(v) * SNAKE_N + edge(u);
+    }
+    // the game's clock
+    r.t += dt;
+    if (r.phase === 'play') {
+      r.boot += dt;
+      if (r.boot > SNAKE_BOOT * 0.7) {
+        r.acc += dt * Math.min(SNAKE_MAX, SNAKE_RATE + SNAKE_RAMP * r.s.eaten);
+        while (r.acc >= 1) {
+          r.acc -= 1;
+          const food = r.s.food;
+          const res = step(r.s, target);
+          if (res === 'eat') {
+            // the cell pops, and the pop ripples out a ring at a time
+            lift.kicks.push({ i: food, at: now, of: 1 });
+            const fx = food % SNAKE_N;
+            const fz = Math.floor(food / SNAKE_N);
+            for (let j = 0; j < SNAKE_N * SNAKE_N; j++) {
+              const ring = Math.max(Math.abs((j % SNAKE_N) - fx), Math.abs(Math.floor(j / SNAKE_N) - fz));
+              if (ring >= 1 && ring <= 2) lift.kicks.push({ i: j, at: now + ring * 0.06, of: ring === 1 ? 0.5 : 0.25 });
+            }
+            if (target !== null) play('snake-eat', { volume: 0.4 });
+          } else if (res === 'crash') {
+            r.phase = 'crash';
+            r.t = 0;
+            if (target !== null) play('snake-crash', { volume: 0.5 });
+            break;
+          }
+        }
+      }
+    } else if (r.phase === 'crash' && r.t > SNAKE_CRASH) {
+      r.newBest = r.s.eaten > r.best && r.best > 0;
+      r.best = Math.max(r.best, r.s.eaten);
+      r.shown = figure(r.s.eaten);
+      r.phase = 'score';
+      r.t = 0;
+    } else if (r.phase === 'score' && r.t > SNAKE_SCORE) {
+      Object.assign(r, { s: newGame(), phase: 'play', t: 0, acc: 0, boot: 0 });
+    }
+    // the pops
+    for (let n = lift.kicks.length - 1; n >= 0; n--) {
+      const k = lift.kicks[n];
+      if (now < k.at) continue;
+      lift.v[k.i].v += TILE_POP * 0.6 * k.of;
+      lift.kicks.splice(n, 1);
+    }
+    let moving = false;
+    for (let c = 0; c < lift.y.length; c++) {
+      if (lift.y[c] === 0 && lift.v[c].v === 0) continue;
+      lift.y[c] = wobble(lift.y[c], 0, lift.v[c], dt, 3, 0.35);
+      if (Math.abs(lift.y[c]) < 1e-6 && Math.abs(lift.v[c].v) < 1e-5) {
+        lift.y[c] = 0;
+        lift.v[c].v = 0;
+      }
+      place(im, c);
+      moving = true;
+    }
+    if (moving) im.instanceMatrix.needsUpdate = true;
+    // the cells' light: the snake (its head brightest), the food, the score
+    order.fill(-1);
+    r.s.body.forEach((c, i) => (order[c] = i));
+    const len = r.s.body.length;
+    const fade = game.on * presence.current;
+    for (let c = 0; c < SNAKE_N * SNAKE_N; c++) {
+      let L = SNAKE_UNLIT;
+      let col = ink.unlit;
+      const i = order[c];
+      if (r.phase === 'score') {
+        if (r.shown.has(c)) {
+          col = ink.body;
+          L = 1.5 * easeOutBack(r.t / 0.25) * (r.newBest && r.t < 1.2 && Math.floor(r.t * 6) % 2 ? 0.35 : 1);
+        } else L = SNAKE_UNLIT * 0.7;
+      } else if (i >= 0) {
+        col = ink.body;
+        L = i === 0 ? 1.75 : 1.15 - 0.55 * (i / len);
+        if (r.phase === 'crash') {
+          if (r.t < 0.45) {
+            col = ink.food;
+            L *= Math.floor(r.t * 10) % 2 ? 0.35 : 1.5;
+          } else if ((len - 1 - i) / len < (r.t - 0.45) / (SNAKE_CRASH - 0.45)) {
+            col = ink.unlit;
+            L = SNAKE_UNLIT;
+          }
+        }
+      } else if (c === r.s.food && r.phase === 'play') {
+        col = ink.food;
+        L = 1.25 + 0.55 * Math.sin(now * 9);
+      }
+      // the board sweeping on, corner to corner
+      if (r.phase === 'play' && r.boot < SNAKE_BOOT * 1.4) {
+        const d = ((c % SNAKE_N) + Math.floor(c / SNAKE_N)) / (2 * SNAKE_N - 2);
+        L += 1.1 * bump((r.boot / SNAKE_BOOT - d) * 2.5);
+      }
+      L += TILE_GLINT * 0.6 * Math.max(0, lift.y[c]);
+      im.setColorAt(c, ink.c.copy(col).multiplyScalar(L * fade));
+    }
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  });
+  return (
+    <instancedMesh ref={mesh} args={[undefined, undefined, SNAKE_N * SNAKE_N]} frustumCulled={false} visible={false} renderOrder={2}>
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial toneMapped={false} transparent depthWrite={false} blending={AdditiveBlending} userData={{ lifeSkip: true, presenceOwn: true }} />
+    </instancedMesh>
+  );
+}
+
 function Package({ kit }: { kit: ChipKit }) {
   const { accent, accentDeep } = useAccent();
   const slug = 'amsterdam-ai';
   const lit = useLitLink(slug); // the solder balls light with the glass (lit.tsx)
+  // how far the die has turned into a game of Snake (DieSnake writes it, the tiles dim under it)
+  const game = useMemo(() => ({ on: 0 }), []);
   return (
     <group>
       {/* Values do the separating, as everywhere in the maquette: the substrate
@@ -935,7 +1149,8 @@ function Package({ kit }: { kit: ChipKit }) {
       </mesh>
       {/* the silicon under the tiles glows low, the tiles themselves carry the light */}
       <KitGlow geometry={kit.pkg_die} slug={slug} rest={0.12} peak={0.35} color={accentDeep} />
-      <KitTiles geometry={kit.pkg_tiles} slug={slug} color={accent} />
+      <KitTiles geometry={kit.pkg_tiles} slug={slug} color={accent} game={game} />
+      <DieSnake geometry={kit.pkg_tiles} game={game} />
     </group>
   );
 }

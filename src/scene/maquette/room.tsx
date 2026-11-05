@@ -3,15 +3,16 @@
 // phone (Popcore), the AR race table (Lightship Drive) and the bookcase with the
 // openable Zwijsen book, plus lamp and plant props. RoomRig composes and places
 // everything.
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, RepeatWrapping, RingGeometry, SRGBColorSpace, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
 import { spring, wobble } from '../../lib/spring';
-import { easeOut, ring } from '../../lib/ease';
+import { bump, easeOut, ring } from '../../lib/ease';
 import { cursorAtDepth, cursorIdle, cursorRay, useCloseUp } from './closeup';
+import { Callouts, newCallLink, ROUND_LEN, type CallLink } from './callouts';
 import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat, glowTexture } from './materials';
@@ -1130,7 +1131,7 @@ function beatAt(t: number): [number, number] {
   }
   return [0, 0];
 }
-function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
+function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; link: MutableRefObject<CallLink> }) {
   const { selected } = useActive(DESK_SLUG);
   const reduced = useReducedMotion();
   const close = useCloseUp(DESK_SLUG);
@@ -1157,10 +1158,16 @@ function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
     lift.current = reduced ? on : lift.current + (on - lift.current) * (1 - Math.exp(-dt * 2.2));
     session.current = selected ? session.current + dt : 0;
     const e = lift.current * lift.current * (3 - 2 * lift.current); // eased off the desk and back onto it
-    // noticing you: when it's time, and only while the cursor's moving
+    // noticing you: when it's time, and only while the cursor's moving (not
+    // while you're playing call-outs with them: then they look where you call)
     const nt = notice.current;
-    const moving = close && cursorIdle() < 1.5;
+    const L = link.current;
+    const moving = close && cursorIdle() < 1.5 && !L.on;
     const seen = moving && !!frame.current && !!cursorAtDepth(s, frame.current, depth, you);
+    // call-outs (callouts.tsx): what you've called, the nod once they've seen
+    // it, and a full row's huddle, turned to each other
+    const huddle = L.roundAt >= 0 && t >= L.roundAt && t - L.roundAt < ROUND_LEN;
+    const told = !huddle && L.look ? L.look : null;
     if (!selected) Object.assign(nt, { t: -1, next: NOTICE_FIRST });
     else if (nt.t < 0 && seen && session.current >= nt.next) nt.t = 0;
     else if (nt.t >= 0) {
@@ -1195,13 +1202,21 @@ function VRPlayers({ position, rotation }: { position: V3; rotation?: V3 }) {
       const noticing = nt.t >= 0 && into >= 0 && into <= NOTICE_LEN && seen;
       const take = !noticing ? -1 : into < DOUBLE_TAKE.glance ? 0 : into < DOUBLE_TAKE.back ? 1 : 2;
       const of = take === 0 ? DOUBLE_TAKE.of : take === 2 ? 1 : 0;
-      const to: V3 = [game[0] + (you.x - game[0]) * of, game[1] + (you.y - game[1]) * of, game[2] + (you.z - game[2]) * of];
+      const to: V3 = huddle
+        ? peer
+        : told
+          ? [told.x, told.y, told.z]
+          : [game[0] + (you.x - game[0]) * of, game[1] + (you.y - game[1]) * of, game[2] + (you.z - game[2]) * of];
       const dx = to[0] - at[0];
       const dz = to[2] - at[2];
       const yaw = Math.atan2(dx, dz);
-      const nod = B.nod && !noticing && !reduced ? 0.05 * (1 - Math.cos(session.current * 5 + p)) : 0;
-      const pitch = -Math.atan2(to[1] - at[1], Math.hypot(dx, dz)) + nod;
-      const glide = take < 0 ? B.glide : DOUBLE_TAKE.glides[take];
+      const beatNod = B.nod && !noticing && !told && !huddle && !reduced ? 0.05 * (1 - Math.cos(session.current * 5 + p)) : 0;
+      // a cleared call: one firm nod each, the second a beat after the first; a full row: nodding together
+      const callNod = L.nodAt >= 0 ? 0.12 * bump((t - L.nodAt - p * 0.12) / 0.45) : 0;
+      const rowNod = huddle ? 0.06 * (1 - Math.cos((t - L.roundAt) * 9 + p)) : 0;
+      const pitch = -Math.atan2(to[1] - at[1], Math.hypot(dx, dz)) + beatNod + callNod + rowNod;
+      // (called, they turn quickly, the second a little slower: it's following the first's lead)
+      const glide = huddle ? 0.45 : told ? (p === 0 ? 0.26 : 0.38) : take < 0 ? B.glide : DOUBLE_TAKE.glides[take];
       const hd = heads.current[p];
       const v = vels.current[p];
       if (reduced) Object.assign(hd, { yaw: Math.atan2(SCENE.ahead[0] - at[0], SCENE.ahead[2] - at[2]), pitch: 0, duck: 0, lean: 0, tilt: 0 });
@@ -1852,6 +1867,8 @@ function Desk({ brigade }: { brigade: LitLink }) {
     return { wood: merge(wood), trim: merge(trim) };
   });
   const mon = useMonitorKit();
+  // what the call-outs game tells the two players (callouts.tsx)
+  const call = useRef(newCallLink());
   return (
     <>
       <mesh geometry={g.wood}>
@@ -1881,7 +1898,9 @@ function Desk({ brigade }: { brigade: LitLink }) {
       <Keyboard position={[-0.02, 0.403, 0.06]} rotation={[0, 0.04, 0]} />
       <Mouse position={[0.235, 0.408, 0.055]} rotation={[0, -0.12, 0]} />
       <CoffeeCup position={[-0.4, 0.395, -0.13]} rotation={[0, -2.2, 0]} lit={brigade} />
-      <VRPlayers position={[-0.28, 0.395, 0.06]} rotation={[0, -0.35, 0]} />
+      <VRPlayers position={[-0.28, 0.395, 0.06]} rotation={[0, -0.35, 0]} link={call} />
+      {/* with a cursor, a game for three: you call out what they should look at */}
+      <Callouts slug="virtuele-brigade" link={call} />
     </>
   );
 }
