@@ -98,7 +98,7 @@ const SPOTS: Omit<Hotspot, 'position'>[] = [
   { slug: 'lightship-drive', layer: 'room', anchor: [0, 0.2, 0.68], foot: 0.19, view: { offset: [0.95, 0.5, 0.75], aimDown: 0.25, fovZoom: 30 } }, // the AR race table
   { slug: 'zwijsen-ar-books', layer: 'room', anchor: [0.92, 0.4, -1.07], foot: 0.95, view: { offset: [-0.1, 0.9, 1.35], aimDown: 0.35, fovZoom: 16, mobileZoom: 1.45 } }, // the orange book on the shelf; the marker stands on the bookcase's top
   // City — GIS / location work
-  { slug: 'arcam', layer: 'city', anchor: [1.2, 0.3, 0.11], foot: 0.36, view: { offset: [1.51, 0.8, 1.72], aimDown: 0.3, fovZoom: 17 } }, // the park's AR viewer (city.tsx Park → Binoculars)
+  { slug: 'arcam', layer: 'city', anchor: [1.2, 0.3, 0.11], foot: 0.36, view: { offset: [1.28, 0.68, 1.46], aimDown: 0.3, fovZoom: 17 } }, // the park's AR viewer (city.tsx Park → Binoculars)
   { slug: 'alliander-hololens', layer: 'city', anchor: [0, 0.77, 0], foot: 1.03, view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26 } }, // the skyscraper (skyline peak)
   { slug: 'dtt-amsterdam', layer: 'city', anchor: [-1.2, 0.58, -0.06], foot: 0.75, view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19 } }, // the windmill
 ];

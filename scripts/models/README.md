@@ -77,6 +77,19 @@ model, with the shared helpers in `modelkit.py`:
   lies face down, so the island is what reads as a phone from across the room.
   It ships as `public/models/phone.glb`; `room.tsx` (Phone) draws the screen
   over its front and turns it over when it's opened.
+- `build_creatures.py`, with its own kit in `creature_kit.py`: the creatures
+  of the ARCam park's photo game, each made out of one of the projects. They
+  are soft toys rather than the kit's bevelled parts: metaball bodies, tubes
+  for limbs and tails, big glossy eyes. Each one is painted instead of given a
+  material, its colours baked into the mesh as vertex colours (their alpha is
+  how much a part glows); the Doodlefly's wings are cut out of a crayon drawing,
+  `tex/doodlefly.png`. A part that moves on its own is a piece apart: the
+  Doodlefly's wings (`doodlefly_wing0`, `doodlefly_wing1`), Pinboo's dot on the
+  map (`pinboo_dot`) and the ramp Jerboost jumps (`jerboost_ramp`). It ships as
+  `public/models/creatures.glb`, which loads when the ARCam close-up first
+  opens; `critters.tsx` drops them into the park and turns them real. Name
+  creatures after the script to build only those while you work on them
+  (`build_creatures.py pinboo`), but ship the file with all ten.
 
 `src/scene/maquette/kit.ts` loads the files, and the layers give every part
 the site's own materials.
@@ -93,7 +106,8 @@ PYTHON=.venv-bpy/bin/python scripts/models/build.sh tower    # just one
 
 Each script writes its raw export to `scripts/models/out/` (not committed), and
 `build.sh` then compresses it with meshopt into `public/models/`. Add
-`--preview` to a script for a clay render in `out/`. `build_chip.py` also takes
+`--preview` to a script for a clay render in `out/` (all but the creatures').
+`build_chip.py` also takes
 part names to build only those (`build_chip.py pkg mon`); `--board` lays every
 part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
 
@@ -112,7 +126,9 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   joint's own frame, the phone centred on its own origin with its screen
   facing +Z, the shelved book standing centred on its origin with its spine
   facing +Z, the Zwijsen book's half lying in its hinge's frame, and the
-  monitor in the desk's frame with its screen facing +Z. Each is authored around the
+  monitor in the desk's frame with its screen facing +Z, and each creature
+  centred on its body's footprint with its feet (the eel: its water line) at
+  y 0, facing +X. Each is authored around the
   origin its JSX group already uses, and exported without axis conversion, so
   a part drops onto its slot with no offsets in code.
 - **One bevel.** Every hard edge gets the same round two-segment bevel. That
@@ -126,4 +142,7 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   the glass rather than drawn as a line.
 - **Names, not materials.** Each piece is named for what it is
   (`pkg_hbm`, `tower_ribs`, `block3_trim`); the site decides how it's drawn.
-  Rename a piece and `kit.ts` and its layer have to follow.
+  Rename a piece and `kit.ts` and its layer have to follow. The creatures are
+  the one exception: their colours come with them, and the site only decides
+  how much of them shows (none while one is still AR, all of them once it's
+  captured).

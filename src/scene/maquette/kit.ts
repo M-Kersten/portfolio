@@ -10,6 +10,7 @@
 //   trafo.glb   the transformer house in front of the tower (city.tsx)
 //   rocket.glb  the Starship stack on the launch pad (rocket.tsx)
 //   car.glb     the Lightship Drive cars and their crown (room.tsx)
+//   creatures.glb  the park's creatures, for ARCam's photo game (critters.tsx)
 // (and binoculars.gltf, the park's AR viewer, a whole scene rather than parts)
 //
 // maquetteLoaded() is all of them arriving: the opening dolly waits for it, so
@@ -58,6 +59,13 @@ const PHONE_PARTS = ['ph_body', 'ph_keys', 'ph_island', 'ph_lens', 'ph_glass', '
 const BOOK_PARTS = ['book_cover', 'book_pages', 'book_bands', 'zw_board', 'zw_block'] as const;
 /** The Virtuele Brigade monitor on the Room's desk: the panel with its housing, and the L stand. */
 const MONITOR_PARTS = ['mon_panel', 'mon_stand'] as const;
+/** The park's creatures (build_creatures.py): each one whole, and the pieces
+ *  that move apart from it (the butterfly's wings, the pin's map dot, the
+ *  jerboa's ramp). Painted in vertex colours. */
+const CREATURE_PARTS = [
+  'doodlefly', 'doodlefly_wing0', 'doodlefly_wing1', 'ampeel', 'pingpillar', 'orbitot', 'pinboo', 'pinboo_dot',
+  'cameleon', 'moletage', 'driftnot', 'chatterkeet', 'jerboost', 'jerboost_ramp',
+] as const;
 export type ChipKit = Record<(typeof CHIP_PARTS)[number], BufferGeometry>;
 export type TowerKit = Record<(typeof TOWER_PARTS)[number], BufferGeometry>;
 export type BlocksKit = Record<string, BufferGeometry | undefined>;
@@ -71,6 +79,7 @@ export type CameraKit = Record<(typeof CAMERA_PARTS)[number], BufferGeometry>;
 export type PhoneKit = Record<(typeof PHONE_PARTS)[number], BufferGeometry>;
 export type BooksKit = Record<(typeof BOOK_PARTS)[number], BufferGeometry>;
 export type MonitorKit = Record<(typeof MONITOR_PARTS)[number], BufferGeometry>;
+export type CreatureKit = Record<(typeof CREATURE_PARTS)[number], BufferGeometry>;
 
 /** gltfpack stores positions and normals as quantized integers and parks the
  *  scale that undoes it on the piece's node. Bake that back into plain floats
@@ -144,10 +153,12 @@ function modelFile<P extends string>(file: string, parts: readonly P[], what: st
     return pending;
   }
   /** The parts once they've arrived — null until then. One retry after a
-   *  failure (a blip on the network), then the layer stays without them. */
-  function useKit(): Kit | null {
+   *  failure (a blip on the network), then the layer stays without them.
+   *  `wanted` false holds the load off until something needs it. */
+  function useKit(wanted = true): Kit | null {
     const [kit, setKit] = useState<Kit | null>(null);
     useEffect(() => {
+      if (!wanted) return;
       let live = true;
       let timer = 0;
       const attempt = (retries: number) =>
@@ -166,7 +177,7 @@ function modelFile<P extends string>(file: string, parts: readonly P[], what: st
         live = false;
         clearTimeout(timer);
       };
-    }, []);
+    }, [wanted]);
     return kit;
   }
   return { get, useKit };
@@ -185,6 +196,8 @@ const camera = modelFile('camera.glb', CAMERA_PARTS, 'CV camera');
 const phone = modelFile('phone.glb', PHONE_PARTS, 'phone');
 const books = modelFile('books.glb', BOOK_PARTS, 'books');
 const monitor = modelFile('monitor.glb', MONITOR_PARTS, 'monitor');
+// not part of maquetteLoaded(): nobody sees them before ARCam's close-up asks
+const creatures = modelFile('creatures.glb', CREATURE_PARTS, 'park creatures');
 
 /** The park's AR viewer (city.tsx): one self-contained glTF scene, loaded once.
  *  Each user takes a clone, since it re-materials and re-scales what it gets. */
@@ -225,3 +238,4 @@ export const useCameraKit = camera.useKit;
 export const usePhoneKit = phone.useKit;
 export const useBooksKit = books.useKit;
 export const useMonitorKit = monitor.useKit;
+export const useCreatureKit = creatures.useKit;

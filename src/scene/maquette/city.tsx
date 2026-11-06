@@ -1090,7 +1090,7 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
     // down the viewer's -z)
     const a = aim.current;
     const following = close && live && k.current > 0.55 && cursorIdle() < 2.5 && !!baseRef.current && !!cursorOnLevel(s, baseRef.current, 0, spot);
-    // the park's animals (critters.tsx) can ask it to swing to one of them and
+    // the park's creatures (critters.tsx) can ask it to swing to one of them and
     // to take the picture: the lock on one you're pointing at, the group photo
     const want = live && k.current > 0.55 ? SAFARI.want : null;
     if (want !== null) {
@@ -1358,7 +1358,7 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
       {/* the ARCam tower viewer — pops in and scans when the hotspot is selected;
           stands on its post (raise BINOS_STAND_H to lift it higher) */}
       <Binoculars position={VIEWER.pos} rotationY={VIEWER.yaw} slug={slug} lit={lit} />
-      {/* and the animals it photographs, in the close-up (critters.tsx) */}
+      {/* and the creatures it photographs, in the close-up (critters.tsx) */}
       {slug && <ParkCritters slug={slug} />}
       </group>
     </group>

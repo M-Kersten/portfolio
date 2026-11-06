@@ -312,6 +312,72 @@
   will-change: opacity;
 }
 
+/* "<name> captured": the bubble over a park creature ARCam's shutter just
+   caught (critters.tsx). The signal labels' type on a paper bubble with a tail
+   down to it; it pops up, stays a moment and goes (data-on restarts it). */
+.critter-said-wrap {
+  pointer-events: none;
+}
+.critter-said {
+  --said: var(--sig, var(--accent));
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--paper) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--said) 60%, transparent);
+  border-radius: var(--radius-s);
+  padding: 0.32em 0.7em;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--said) 30%, transparent);
+  opacity: 0;
+  transform: translateY(-50%);
+}
+.critter-said b {
+  font-weight: inherit;
+  color: var(--said);
+  text-shadow: 0 0 9px color-mix(in srgb, var(--said) 60%, transparent);
+}
+.critter-said::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 0.5em;
+  height: 0.5em;
+  background: color-mix(in srgb, var(--paper) 84%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--said) 60%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--said) 60%, transparent);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.critter-said[data-on] {
+  animation: critter-said 2.4s var(--ease) both;
+}
+@keyframes critter-said {
+  0% {
+    opacity: 0;
+    transform: translateY(-15%) scale(0.85);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-62%) scale(1.04);
+  }
+  18% {
+    transform: translateY(-55%) scale(1);
+  }
+  84% {
+    opacity: 1;
+    transform: translateY(-58%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-72%) scale(1);
+  }
+}
+
 
 /* The "next project" invitation on the completion site — kin to the hotspot
    labels but an open door rather than a data point. Appears with the ghost

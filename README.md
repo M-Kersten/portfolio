@@ -61,7 +61,7 @@ The things you're most likely to want to change, and the file they live in.
 | The camera's anchors: how long a cube is held to anchor it, the merge | `ANCHOR_HOLD` and `MERGE_*` in `src/scene/maquette/chip.tsx` |
 | Popcore's bin: where it stands, how true a shot flies, the fall | `BIN`, `BIN_TIP`, `SHOT_*` and `FLOOR_BACK` in `src/scene/maquette/room.tsx` |
 | The windmill's power for the tower: how hard to blow, how fast it fills | `SPIN_REST` and `POWER_*` in `src/scene/maquette/city.tsx` (the cable: `MillLine`) |
-| ARCam's photo safari: the animals and their spots, how long one stays, the lock, the group photo | `ANIMALS`, `STAY`, `GAP`, `LOCK`, `GROUP` and `FINALE` in `src/scene/maquette/critters.tsx` |
+| ARCam's photo safari: the creatures, their names and spots, how long one stays, the lock, the "captured" bubble, the group photo | `CREATURES`, `LAWN`, `LAKE`, `STAY`, `GAP`, `LOCK`, `SAID`, `GROUP` and `FINALE` in `src/scene/maquette/critters.tsx` (the bubble's look: `.critter-said` in `src/ui/hotspots.css`; their models: `scripts/models/build_creatures.py`) |
 | The die's game of Snake: speed, when the chip takes over, the crash and the score | `SNAKE_*` in `src/scene/maquette/chip.tsx`; the rules (board size, steering, the chip's player) in `snake.ts` |
 | The Virtuele Brigade's call-outs: where markers turn up, how long they wait, the row | `SPOTS`, `LIFE*`, `GAP`, `DWELL`, `ROW` in `src/scene/maquette/callouts.tsx` |
 | How a close-up reaction moves: its wind-up, overshoot and settle | the curves in `src/lib/ease.ts` and the springs in `src/lib/spring.ts` (`spring` arrives without passing, `wobble` swings past and back) |
@@ -147,9 +147,9 @@ src/
                        (drawn by DieSnake in chip.tsx)
       callouts.tsx     the Virtuele Brigade's call-outs game: the markers, the
                        pips on the monitor, and what it tells the two players
-      critters.tsx     ARCam's photo safari: the park's animals, the lock on
-                       one, the group photo and its print (the viewer that
-                       takes them is in city.tsx)
+      critters.tsx     ARCam's photo safari: the park's creatures, the lock on
+                       one, the "captured" bubble, the group photo and its
+                       print (the viewer that takes them is in city.tsx)
       kit.ts           loads the Blender models (public/models)
       hotspots.tsx     the floating crosshair markers
       signals.tsx      cross-layer relation cables (edit RELATIONS here)
