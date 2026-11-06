@@ -1,21 +1,20 @@
 # The creatures of the ARCam park's photo game, each out of one of Merijn's
 # projects: soft toys with big glossy eyes and one thing each that says what
-# it is. Each has a home in the park, where it pops up (the site's game, in
-# src/scene/maquette/critters.tsx). Exported as one glb of named pieces: each
-# creature, and its home apart, which stays put. See README.md to rebuild.
+# it is. They turn up anywhere on the park's lawn and move about it (the
+# site's game, in src/scene/maquette/critters.tsx), and four bring a prop.
+# Exported as one glb of named pieces: each creature, and its prop apart. See
+# README.md to rebuild.
 #
 # Each is modelled in toy units facing +X (creature_kit.py), painted in vertex
-# colours (their alpha is how much a part glows), thinned for the web, then
-# centred on its body's footprint and scaled into the park's units: its feet
-# (or the water it rises out of) at y 0, facing +X.
-#   orbitot           a little Saturn, rings and all, a moon on a dotted orbit
-#                     (Sol.AR); its home is the lake, so it has no piece of its own
+# colours (the site reads them as light and dark; their alpha is how much a
+# part glows), thinned for the web, then centred on its body's footprint and
+# scaled into the park's units: its feet at y 0, facing +X.
+#   orbitot           a little Saturn, rings and all, a moon on a dotted orbit (Sol.AR)
 #   pinboo            a map pin turned ghost, its white dot one big eye; and
-#                     pinboo_dot, the spot the map says it's at, a step to its
-#                     left, with the track it took away from it (GPS drifts)
+#                     pinboo_dot, the spot the map says it's at, which it
+#                     drifts off (GPS drifts)
 #   cameleon          a chameleon in pixel camouflage, camera lenses for eyes, a
-#                     flash on its crest (ARCam); and cameleon_root, the old root
-#                     it walks
+#                     flash on its crest (ARCam)
 #   moletage          a mole in a high-vis vest, holding up a cable it dug out
 #                     from under the street (Amsterdam Underground); and
 #                     moletage_hill, the molehill it sits in, with its bricks
@@ -23,10 +22,9 @@
 #   driftnot          a cloud on a chain (cloud anchors); and driftnot_anchor,
 #                     the anchor dug into the lawn, in its AR ring
 #   chatterkeet       a ring-necked parakeet, a reply always being typed (the
-#                     Amsterdam AI guides); and chatterkeet_post, the
-#                     Amsterdammertje it perches on
+#                     Amsterdam AI guides)
 #   jerboost          a jerboa in mid-leap, the crown on, a chequered flag at the
-#                     end of its tail; and jerboost_ramp, the ramp it jumps (Lightship Drive)
+#                     end of its tail; and jerboost_ramp, the ramp it jumps off (Lightship Drive)
 import math
 import os
 import sys
@@ -99,7 +97,8 @@ def orbitot():
 
 def pinboo():
     """A map pin turned ghost, its white dot one big eye: it never sits where
-    the map says it is. The dot it should be on is its own piece."""
+    the map says it is. The dot it should be on is its own piece (the site
+    drops the pin on it and lets it drift off)."""
     f, u, s = facing((1, 0, 0))
     H = Vector((0, 3.3, 0))
     R = 1.2
@@ -141,12 +140,6 @@ def pinboo():
     dot = [put(torus('halo_rim', 1.3, 0.035, pos=(G.x, 0.02, G.z), seg=64, ring=5), Flat(CYAN, glow=0.5)),
            put(torus('dot_rim', 0.26, 0.06, pos=(G.x, 0.05, G.z), seg=32, ring=6), Flat('#ffffff')),
            put(K.sphere('dot', 0.24, (G.x, 0.05, G.z), 20, 8, scale=(1, 0.3, 1)), Flat(CYAN, glow=0.9))]
-    # and the track it took to get away from there
-    tip = min(body.data.vertices, key=lambda v: v.co.y).co.copy()
-    for k in range(6):
-        t = (k + 1) / 7
-        q = G.lerp(Vector((tip.x, 0, tip.z)), t) + left.cross(Vector((0, 1, 0))) * (0.35 * math.sin(math.pi * t))
-        dot.append(put(K.sphere(f'trk{k}', 0.08 - 0.007 * k, (q.x, 0.03, q.z), 10, 6, scale=(1, 0.35, 1)), Flat('#ff9068', glow=0.4)))
     return parts + dot, {'pieces': {'dot': dot}}
 
 
@@ -182,23 +175,9 @@ def lens_eye(name, base, aim, up, skin_p):
 
 def cameleon():
     """A chameleon in pixel camouflage, its turret eyes camera lenses, a flash
-    on its crest and a shutter button on top, walking an old root. The root is
-    its own piece: its home, where it shows itself."""
+    on its crest and a shutter button on top, creeping along on its own feet."""
     face_az = cam_az() - 0.9
     cam_local = (Matrix.Rotation(face_az, 4, 'Y') @ C.CAM).normalized()
-    br_pts = [(-2.7, -0.1, -0.45), (-2.3, 1.15, -0.3), (-1.5, 1.8, -0.12), (-0.3, 1.86, 0.0), (0.95, 1.8, 0.08), (1.85, 1.2, 0.2), (2.35, -0.1, 0.3)]
-    br = catmull(br_pts, 8)
-    radii = [0.27 - 0.08 * math.sin(math.pi * i / (len(br) - 1)) for i in range(len(br))]
-    wood = Flat('#6e4b33')
-    root = [put(skin('branch', [tuple(p) for p in br], radii), wood)]
-    root.append(put(skin('twig', [(1.25, 1.68, 0.1), (1.62, 2.18, 0.3), (1.82, 2.52, 0.32)], [0.09, 0.06, 0.04]), wood))
-    for k, (p, d) in enumerate([((1.87, 2.6, 0.33), (0.6, 0.7, 0.3)), ((1.67, 2.32, 0.42), (0.9, 0.1, 0.6))]):
-        leaf = K.sphere(f'leaf{k}', 1.0, (0, 0, 0), 16, 8)
-        dd = Vector(d).normalized()
-        sd = dd.cross(Vector((0, 1, 0))).normalized()
-        nn = sd.cross(dd).normalized()
-        leaf.data.transform(basis(dd * 0.32, sd * 0.15, nn * 0.04, Vector(p) + dd * 0.28))
-        root.append(put(smooth(leaf), Flat('#7cc95a')))
     Hc = Vector((1.05, 3.7, 0))
     CQ = Vector((0.55, 4.4, 0))
     el = [
@@ -217,7 +196,7 @@ def cameleon():
         el.append(ell(tuple(foot + Vector((0, 0.02, 0))), 0.17, (1.3, 0.75, 1.25)))
     body = blobs('cham', el, res=0.04)
     skin_p = Pixels([(0.0, '#1d8f86'), (0.3, '#27a898'), (0.62, '#36c0a6'), (0.9, '#8fd96a')], '#cdf3df', cell=0.2)
-    parts = [put(body, skin_p)]
+    parts = [put(body, skin_p)]  # (it was posed on a root: its feet are at y 2.03, set down below)
     parts += [put(lg, skin_p) for lg in legs]
     c = Vector((-2.25, 2.62, 0))
     tail = [Vector((-1.35, 3.2, 0.0))]
@@ -246,8 +225,9 @@ def cameleon():
     parts.append(patch('flash', p, n, up, 0.14, 0.08, 0.05, Flat('#f4fbff', glow=0.35), sink=0.1))
     p2, n2 = land(tree, CQ, Vector((-0.2, 1.0, 0)))
     parts.append(put(K.cyl('shutter', 0.15, 0.13, pos=tuple(p2 + n2 * 0.04), seg=16, bev=0.03), Flat('#ff4a3d')))
-    turn_to(parts + root, face_az)
-    return parts + root, {'pieces': {'root': root}}
+    turn_to(parts, face_az)
+    xform(parts, Matrix.Translation((0, -2.03, 0)))  # down on its feet
+    return parts, {}
 
 
 # ------------------------------------------------------------- Moletage
@@ -466,15 +446,10 @@ def driftnot():
 # ------------------------------------------------------------- Chatterkeet
 
 def chatterkeet():
-    """One of Amsterdam's green parakeets on an Amsterdammertje, a reply always
-    on its way. The bollard is its own piece: its home, where it lands."""
+    """One of Amsterdam's green parakeets, down on the grass, a reply always on
+    its way. The speech bubble is its own piece, so the site can keep it
+    turned to you whichever way the bird hops."""
     f, u, s = facing((1, 0, 0))
-    bollard = K.lathe('bollard', [(0.0, 0.0), (0.34, 0.0), (0.34, 0.08), (0.29, 0.14), (0.26, 1.6), (0.3, 1.66), (0.3, 1.74), (0.26, 1.8), (0.24, 1.95), (0.18, 2.06), (0.08, 2.12), (0.0, 2.13)], seg=24)
-    post = [put(smooth(bollard), Flat('#5a2a24'))]
-    for k, y in enumerate((0.72, 1.02, 1.32)):
-        r = 0.26 + 0.004 * (1.6 - y)
-        for sd in (-1, 1):
-            post.append(put(K.rbox(f'x{k}{sd}', (0.05, 0.28, 0.08), 0.02, pos=(r, y, 0), rot=(sd * 0.785, 0, 0), bev=0.01), Flat('#efe3cf')))
     turn = rot_about('Y', -0.5, (0.1, 3.3, 0))
     fh = (turn.to_3x3() @ f).normalized()
     sh = (turn.to_3x3() @ s).normalized()
@@ -486,7 +461,8 @@ def chatterkeet():
     for sd in (-1, 1):
         parts.append(put(blobs(f'pwing{sd}', [ell((-0.12, 2.78, sd * 0.55), 0.4, (1.5, 0.7, 0.35), (0, sd * 0.1, -0.55)), ell((-0.5, 2.38, sd * 0.45), 0.3, (1.7, 0.5, 0.3), (0, sd * 0.1, -0.8))], res=0.03), wing_p))
     for sd in (-1, 1):
-        parts.append(put(skin(f'ptail{sd}', [(-0.42, 2.45, sd * 0.05), (-0.68, 1.85, sd * 0.09), (-0.84, 1.15, sd * 0.07), (-0.9, 0.62, sd * 0.02)], [0.13, 0.1, 0.06, 0.02], flat=0.4), Flat('#2f9a86')))
+        # the long tail, slanting back over the grass
+        parts.append(put(skin(f'ptail{sd}', [(-0.42, 2.45, sd * 0.05), (-0.95, 2.28, sd * 0.09), (-1.45, 2.16, sd * 0.07), (-1.85, 2.12, sd * 0.02)], [0.13, 0.1, 0.06, 0.02], flat=0.4), Flat('#2f9a86')))
     parts.append(ring_on('collar_k', tree, turn @ Vector((0.12, 3.18, 0)), 0.45, 0.05, Flat('#16181a'), n=24))
     parts.append(ring_on('collar_r', tree, turn @ Vector((0.05, 3.3, 0)), 0.3, 0.04, Flat('#f08aa8'), n=24))
     p, n = land(tree, Hb, toward(0.0, -0.1, fh, u, sh))
@@ -501,12 +477,12 @@ def chatterkeet():
     for sd in (-1, 1):
         for dx in (1, -1):
             for dz in (-0.05, 0.05):
-                a = Vector((0.0, 2.16, sd * 0.17 + dz))
-                b = Vector((dx * 0.17, 2.1, sd * 0.19 + dz * 1.4))
-                c = Vector((dx * 0.24, 2.0, sd * 0.2 + dz * 1.6))
+                a = Vector((0.0, 2.12, sd * 0.17 + dz))
+                b = Vector((dx * 0.17, 2.07, sd * 0.19 + dz * 1.4))
+                c = Vector((dx * 0.26, 2.06, sd * 0.2 + dz * 1.6))
                 parts.append(put(skin(f'toe{sd}{dx}{dz}', [tuple(a), tuple(b), tuple(c)], [0.05, 0.045, 0.035], sub=1), toe))
     az = cam_az() - 0.7
-    turn_to(parts + post, az)
+    turn_to(parts, az)
     # a speech bubble by its head, facing the way it's seen from, a reply being typed
     camv = C.CAM.normalized()
     right = Vector((camv.z, 0, -camv.x)).normalized()
@@ -515,15 +491,16 @@ def chatterkeet():
     bc = head_w + right * 1.25 + Vector((0, 0.72, 0))
     q = basis(right, upw, camv, (0, 0, 0)).to_quaternion()
     white = Flat('#ffffff')
-    parts.append(put(blobs('bubble', [{'type': 'ELLIPSOID', 'co': tuple(bc), 'r': 0.36 / MB, 'size': (1.95, 1.0, 0.42), 'quat': q},
-                                      {'type': 'ELLIPSOID', 'co': tuple(bc - right * 0.42 - upw * 0.3), 'r': 0.12 / MB, 'size': (1.0, 1.0, 0.6), 'quat': q}], res=0.03), white))
+    bubble = [put(blobs('bubble', [{'type': 'ELLIPSOID', 'co': tuple(bc), 'r': 0.36 / MB, 'size': (1.95, 1.0, 0.42), 'quat': q},
+                                      {'type': 'ELLIPSOID', 'co': tuple(bc - right * 0.42 - upw * 0.3), 'r': 0.12 / MB, 'size': (1.0, 1.0, 0.6), 'quat': q}], res=0.03), white)]
     tail = K.cyl('bubble_tail', 0.1, 0.32, r2=0.0, seg=10)
     tq = Vector((0, 1, 0)).rotation_difference((-right * 0.8 - upw * 0.6).normalized())
     tail.data.transform(Matrix.Translation(bc - right * 0.5 - upw * 0.38) @ tq.to_matrix().to_4x4() @ Matrix.Diagonal((1, 1, 0.5, 1)))
-    parts.append(put(smooth(tail), white))
+    bubble.append(put(smooth(tail), white))
     for k, (dx, g) in enumerate([(-0.27, 1.0), (0.0, 0.65), (0.27, 0.35)]):
-        parts.append(put(K.sphere(f'dot{k}', 0.085, tuple(bc + right * dx + camv * 0.16), 12, 8), Flat(CYAN, glow=g)))
-    return parts + post, {'pieces': {'post': post}}
+        bubble.append(put(K.sphere(f'dot{k}', 0.085, tuple(bc + right * dx + camv * 0.16), 12, 8), Flat(CYAN, glow=g)))
+    xform(parts + bubble, Matrix.Translation((0, -2.05, 0)))  # down on the grass
+    return parts + bubble, {'pieces': {'bubble': bubble}}
 
 
 # ------------------------------------------------------------- Jerboost

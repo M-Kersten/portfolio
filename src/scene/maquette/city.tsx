@@ -20,7 +20,7 @@ import { BlobShadow, blobShadowTexture } from './backdrop';
 import { NextProjectSite, SITE_POS } from './launchSite';
 import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
 import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
-import { ParkCritters, SAFARI, VIEWER } from './critters';
+import { PINES, ParkCritters, SAFARI, VIEWER } from './critters';
 import { spring, wobble } from '../../lib/spring';
 import { bump, easeIn, easeOut, ring } from '../../lib/ease';
 import { play } from '../../lib/sound';
@@ -1348,13 +1348,11 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
       </group>
       <ParkPath lit={lit} />
       {/* a small varied grove along the far edge, each pine at its own height
-          and turn, so the close-up's camera sees the whole lawn: the
-          creatures' homes are on it (critters.tsx) */}
-      <ParkTree position={[0.17, 0, -0.37]} h={0.46} yaw={0.4} slug={slug} lit={lit} />
-      <ParkTree position={[0.33, 0, -0.25]} h={0.34} yaw={2.1} slug={slug} lit={lit} />
-      <ParkTree position={[-0.22, 0, -0.24]} h={0.4} yaw={1.2} slug={slug} lit={lit} />
-      <ParkTree position={[0.43, 0, -0.07]} h={0.3} yaw={3.6} slug={slug} lit={lit} />
-      <ParkTree position={[-0.04, 0, -0.42]} h={0.36} yaw={5.1} slug={slug} lit={lit} />
+          and turn, so the close-up's camera sees the whole lawn the creatures
+          roam (critters.tsx keeps them clear of the pines, from the same list) */}
+      {PINES.map((p, i) => (
+        <ParkTree key={i} position={p.pos} h={p.h} yaw={p.yaw} slug={slug} lit={lit} />
+      ))}
       {/* fireflies wandering between the trees */}
       <Fireflies slug={slug} />
       {/* the ARCam tower viewer — pops in and scans when the hotspot is selected;

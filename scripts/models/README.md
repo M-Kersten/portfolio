@@ -81,18 +81,17 @@ model, with the shared helpers in `modelkit.py`:
   of the ARCam park's photo game, each made out of one of the projects. They
   are soft toys rather than the kit's bevelled parts: metaball bodies, tubes
   for limbs and tails, big glossy eyes. Each one is painted instead of given a
-  material, its colours baked into the mesh as vertex colours (their alpha is
-  how much a part glows). Each comes with its home, a piece apart that stays
-  put while the creature comes and goes: Pinboo's dot on the map
-  (`pinboo_dot`), Cameleon's root (`cameleon_root`), Moletage's molehill and
-  its street works (`moletage_hill`; the mole sits down the hole), Driftnot's
-  anchor (`driftnot_anchor`), Chatterkeet's Amsterdammertje
-  (`chatterkeet_post`) and Jerboost's ramp (`jerboost_ramp`); Orbitot's home
-  is the lake. It ships as `public/models/creatures.glb`, which loads when the
-  ARCam close-up first opens; `critters.tsx` sets the homes out in the park
-  and runs the game. Name creatures after the script to build only those
-  while you work on them (`build_creatures.py pinboo`), but ship the file
-  with all seven.
+  material, its colours baked into the mesh as vertex colours (the site reads
+  them as light and dark; their alpha is how much a part glows). Four bring a
+  prop, a piece apart: Pinboo's dot on the map (`pinboo_dot`), Moletage's
+  molehill and its street works (`moletage_hill`; the mole sits down the
+  hole), Driftnot's anchor (`driftnot_anchor`) and the ramp Jerboost jumps off
+  (`jerboost_ramp`); and Chatterkeet's speech bubble is apart too
+  (`chatterkeet_bubble`), so the site can keep it turned to you. It ships as
+  `public/models/creatures.glb`, which loads when the ARCam close-up first
+  opens; `critters.tsx` runs the game. Name creatures after the script to
+  build only those while you work on them (`build_creatures.py pinboo`), but
+  ship the file with all seven.
 
 `src/scene/maquette/kit.ts` loads the files, and the layers give every part
 the site's own materials.
@@ -130,8 +129,8 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   facing +Z, the shelved book standing centred on its origin with its spine
   facing +Z, the Zwijsen book's half lying in its hinge's frame, and the
   monitor in the desk's frame with its screen facing +Z, and each creature
-  centred on its body's footprint with its feet (the eel: its water line) at
-  y 0, facing +X. Each is authored around the
+  centred on its body's footprint with its feet at y 0, facing +X. Each is
+  authored around the
   origin its JSX group already uses, and exported without axis conversion, so
   a part drops onto its slot with no offsets in code.
 - **One bevel.** Every hard edge gets the same round two-segment bevel. That
@@ -145,7 +144,6 @@ part out on its slot, and `--cam=x,y,z --target=x,y,z --lens=mm` aim the render.
   the glass rather than drawn as a line.
 - **Names, not materials.** Each piece is named for what it is
   (`pkg_hbm`, `tower_ribs`, `block3_trim`); the site decides how it's drawn.
-  Rename a piece and `kit.ts` and its layer have to follow. The creatures are
-  the one exception: their colours come with them, and the site only decides
-  how much of them shows (none while one is still AR, all of them once it's
-  captured).
+  Rename a piece and `kit.ts` and its layer have to follow. The creatures
+  carry colours, but only as values: the site draws them in its own accent or
+  stock, light where they're light, dark where they're dark.

@@ -59,12 +59,13 @@ const PHONE_PARTS = ['ph_body', 'ph_keys', 'ph_island', 'ph_lens', 'ph_glass', '
 const BOOK_PARTS = ['book_cover', 'book_pages', 'book_bands', 'zw_board', 'zw_block'] as const;
 /** The Virtuele Brigade monitor on the Room's desk: the panel with its housing, and the L stand. */
 const MONITOR_PARTS = ['mon_panel', 'mon_stand'] as const;
-/** The park's creatures (build_creatures.py): each one, and the home it pops
- *  up at, which stays put (the little Saturn's home is the lake, so it has
- *  none). Painted in vertex colours. */
+/** The park's creatures (build_creatures.py): each one, and the props some
+ *  bring along (the pin's map dot, the mole's molehill, the cloud's anchor,
+ *  the jerboa's ramp, the parakeet's speech bubble). Painted in vertex colours,
+ *  which the site reads as light and dark. */
 const CREATURE_PARTS = [
-  'orbitot', 'pinboo', 'pinboo_dot', 'cameleon', 'cameleon_root', 'moletage', 'moletage_hill',
-  'driftnot', 'driftnot_anchor', 'chatterkeet', 'chatterkeet_post', 'jerboost', 'jerboost_ramp',
+  'orbitot', 'pinboo', 'pinboo_dot', 'cameleon', 'moletage', 'moletage_hill',
+  'driftnot', 'driftnot_anchor', 'chatterkeet', 'chatterkeet_bubble', 'jerboost', 'jerboost_ramp',
 ] as const;
 export type ChipKit = Record<(typeof CHIP_PARTS)[number], BufferGeometry>;
 export type TowerKit = Record<(typeof TOWER_PARTS)[number], BufferGeometry>;

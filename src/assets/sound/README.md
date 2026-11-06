@@ -123,14 +123,14 @@ In the Popcore close-up the ping-pong balls go for the bin beside the couch.
 
 ## Photo safari
 
-In the ARCam close-up you photograph the park's creatures as they come out
-at their homes, one at a time and not for long.
+In the ARCam close-up you photograph the park's creatures as they turn up,
+one at a time, anywhere on the lawn, and not for long.
 
 | File | When | Notes |
 | --- | --- | --- |
-| `critter-peek` | a home stirs: someone's about to come out | a tiny rustle or tick, very short, so you look |
-| `critter-in` | a creature comes out | a soft digital shimmer, short |
-| `critter-away` | one goes back in before you've photographed it | a short falling blip, light, not a fail sound |
+| `critter-peek` | the AR ping where one's about to turn up | a tiny tick or blip, very short, so you look |
+| `critter-in` | a creature turns up | a soft digital shimmer, short |
+| `critter-away` | one goes before you've photographed it | a short falling blip, light, not a fail sound |
 | `critter-snap` | the shutter goes on one: it's captured | a camera shutter with a small bright chime |
 | `critter-group` | the group photo is taken and the print comes out (the roll call before it uses `critter-snap`'s shutter, quieter) | a bigger shutter, then a printer's whirr |
 
