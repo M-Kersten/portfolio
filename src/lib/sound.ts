@@ -60,10 +60,11 @@ export type SoundName =
   // the AR framework's camera: a cube anchored, and all of them merging into one
   | 'cube-anchor'
   | 'cube-merge'
-  // the Virtuele Brigade's call-outs: one called out, cleared, and one slipping away
-  | 'call-out'
-  | 'call-clear'
-  | 'call-miss'
+  // the Virtuele Brigade's scenario: something put down, spotted, dealt with, and one slipping away
+  | 'cue-drop'
+  | 'cue-seen'
+  | 'cue-clear'
+  | 'cue-miss'
   // Popcore's bin: a ball dropping in, one off the rim, and the full bin going over
   | 'ball-in'
   | 'ball-rim'

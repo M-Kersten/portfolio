@@ -82,16 +82,17 @@ visitor steers (not while the chip plays itself).
 | `snake-eat` | the snake eats | a short bright blip, under 0.1 s; give it variants |
 | `snake-crash` | the snake runs out of room | a low buzz falling away, about 0.4 s |
 
-## Call-outs
+## The scenario
 
-In the Virtuele Brigade close-up you call out what the two players should
-look at.
+In the Virtuele Brigade close-up you run the scenario the two in VR are in,
+from the editor: you put things down, they spot them and deal with them.
 
 | File | When | Notes |
 | --- | --- | --- |
-| `call-out` | a marker is called out and the players turn | a short radio click |
-| `call-clear` | they've looked: it's cleared | a soft two-note confirm |
-| `call-miss` | a marker slips away before it's called | a muted low blip |
+| `cue-drop` | something's put down: on the map and in VR at once | a short sync blip, digital |
+| `cue-seen` | one of them spots it (or both hear it) and tells the other | a short radio click |
+| `cue-clear` | they've dealt with it: a pip lights | a soft two-note confirm |
+| `cue-miss` | it slips away before either spots it | a muted low blip |
 
 ## The windmill
 

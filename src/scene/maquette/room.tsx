@@ -13,7 +13,7 @@ import { play } from '../../lib/sound';
 import { spring, wobble } from '../../lib/spring';
 import { bump, easeIn, easeInOut, easeOut, ring } from '../../lib/ease';
 import { cursorAtDepth, cursorIdle, cursorRay, useCloseUp } from './closeup';
-import { Callouts, newCallLink, ROUND_LEN, type CallLink } from './callouts';
+import { POSTS, ROUND_LEN, Scenario, newSessionLink, type SessionLink } from './scenario';
 import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
 import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat, glowTexture } from './materials';
@@ -660,7 +660,8 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
 /** The room monitor. At rest it's a dim screen that flickers on as you hover;
  *  once visited it switches to a real screenshot (drop a JPG at
  *  public/textures/room-screen.jpg). Until that file exists it falls back to the
- *  plain lit screen, so nothing breaks. */
+ *  plain lit screen, so nothing breaks. In the close-up with a cursor the
+ *  scenario's editor covers it (scenario.tsx). */
 function RoomScreen({ slug, position, rotation, args }: { slug: string; position: V3; rotation?: V3; args: V3 }) {
   const { accent } = useAccent();
   const { hovered, selected, visited } = useActive(slug);
@@ -1369,17 +1370,16 @@ function Headset() {
    and a slow sway of breath and weight runs under all of it, out of step
    between the two. Close the project and the second leaves, and the first
    settles back where it was put down. Under reduced motion they take their
-   places and hold still. */
+   places and hold still.
+
+   In the close-up with a cursor you run the scenario they're in, from the
+   editor (scenario.tsx): then that says where each stands and looks, they
+   walk where it sends them, and they tell it back where they are and which
+   way they face, for its map. */
 const HS_PIVOT: V3 = [0, 0.036, -0.1]; // the middle of the wearer's head, in the headset's own frame
 const HS_LEVEL = 0.12; // pitched a little nose-down, which levels the strap round the head that isn't there
-// Where the two heads stand, desk frame: over the desk's left end and to the
-// right of the screen, both clear above it. The camera looks on from the front
-// left, so a look at SCENE.ahead shows it the visors, and a look at each other
-// shows them in profile.
-const PLAYERS: V3[] = [
-  [-0.32, 0.9, 0.1],
-  [0.42, 0.86, 0.14],
-];
+const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+// (where the two heads stand to begin with: POSTS, in scenario.tsx)
 const SCENE: Record<'ahead' | 'ground' | 'left' | 'right' | 'up', V3> = {
   ahead: [0.05, 0.75, 1.4],
   ground: [0.05, 0.3, 0.7],
@@ -1429,7 +1429,7 @@ function beatAt(t: number): [number, number] {
   }
   return [0, 0];
 }
-function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; link: MutableRefObject<CallLink> }) {
+function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; link: MutableRefObject<SessionLink> }) {
   const { selected } = useActive(DESK_SLUG);
   const reduced = useReducedMotion();
   const close = useCloseUp(DESK_SLUG);
@@ -1440,8 +1440,10 @@ function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; 
   const rigs = useRef<(Group | null)[]>([]);
   const lift = useRef(0); // 0 on the desk, 1 on the first player's head
   const session = useRef(0); // seconds the session has been running
-  const heads = useRef(PLAYERS.map(() => ({ yaw: 0, pitch: 0, duck: 0, lean: 0, tilt: 0 })));
-  const vels = useRef(PLAYERS.map(() => ({ yaw: { v: 0 }, pitch: { v: 0 }, duck: { v: 0 }, lean: { v: 0 }, tilt: { v: 0 } })));
+  // each head: where it is (it can walk, in the scenario) and how it's turned
+  const heads = useRef(POSTS.map(([x, y, z]) => ({ x, y, z, yaw: 0, pitch: 0, duck: 0, lean: 0, tilt: 0 })));
+  const vels = useRef(POSTS.map(() => ({ x: { v: 0 }, y: { v: 0 }, z: { v: 0 }, yaw: { v: 0 }, pitch: { v: 0 }, duck: { v: 0 }, lean: { v: 0 }, tilt: { v: 0 } })));
+  const post = useMemo(() => new Vector3(), []);
   const restYaw = rotation?.[1] ?? 0;
   // where the first head's middle is while its headset lies on the desk
   const rest = useMemo<V3>(() => {
@@ -1457,15 +1459,14 @@ function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; 
     session.current = selected ? session.current + dt : 0;
     const e = lift.current * lift.current * (3 - 2 * lift.current); // eased off the desk and back onto it
     // noticing you: when it's time, and only while the cursor's moving (not
-    // while you're playing call-outs with them: then they look where you call)
+    // while you're running the scenario: then they're busy in it)
     const nt = notice.current;
     const L = link.current;
     const moving = close && cursorIdle() < 1.5 && !L.on;
     const seen = moving && !!frame.current && !!cursorAtDepth(s, frame.current, depth, you);
-    // call-outs (callouts.tsx): what you've called, the nod once they've seen
-    // it, and a full row's huddle, turned to each other
+    // the scenario (scenario.tsx): a nod for each thing dealt with, and a full
+    // row's huddle, turned to each other
     const huddle = L.roundAt >= 0 && t >= L.roundAt && t - L.roundAt < ROUND_LEN;
-    const told = !huddle && L.look ? L.look : null;
     if (!selected) Object.assign(nt, { t: -1, next: NOTICE_FIRST });
     else if (nt.t < 0 && seen && session.current >= nt.next) nt.t = 0;
     else if (nt.t >= 0) {
@@ -1479,11 +1480,22 @@ function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; 
     const since = session.current - JOIN_DELAY;
     const joined = reduced ? on : selected ? Math.min(1, Math.max(0, since / 0.45)) : Math.max(0, Math.min(1, e * 1.4 - 0.4));
     const flicker = !reduced && selected && since > 0 && since < JOIN_FLICKER && Math.sin(since * 90) < 0;
-    for (let p = 0; p < PLAYERS.length; p++) {
+    for (let p = 0; p < POSTS.length; p++) {
       const g = rigs.current[p];
       if (!g) continue;
-      const at = PLAYERS[p];
-      const peer = PLAYERS[1 - p];
+      const hd = heads.current[p];
+      const v = vels.current[p];
+      // where it stands: where the scenario has it while it runs (it walks
+      // there itself, so this only smooths it), otherwise its own place
+      const W = L.on ? L.want[p] : null;
+      const to0 = W ? W.at : post.set(...POSTS[p]);
+      const pg = W ? 0.15 : 0.8;
+      hd.x = spring(hd.x, to0.x, v.x, dt, pg);
+      hd.y = spring(hd.y, to0.y, v.y, dt, pg);
+      hd.z = spring(hd.z, to0.z, v.z, dt, pg);
+      const at: V3 = [hd.x, hd.y, hd.z];
+      const o = heads.current[1 - p];
+      const peer: V3 = [o.x, o.y, o.z];
       // the beat this player is on: the second follows a beat's turn `lag` behind
       let [bi] = beatAt(session.current);
       if (p === 1) {
@@ -1502,38 +1514,44 @@ function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; 
       const of = take === 0 ? DOUBLE_TAKE.of : take === 2 ? 1 : 0;
       const to: V3 = huddle
         ? peer
-        : told
-          ? [told.x, told.y, told.z]
+        : W
+          ? [W.look.x, W.look.y, W.look.z]
           : [game[0] + (you.x - game[0]) * of, game[1] + (you.y - game[1]) * of, game[2] + (you.z - game[2]) * of];
       const dx = to[0] - at[0];
       const dz = to[2] - at[2];
-      const yaw = Math.atan2(dx, dz);
-      const beatNod = B.nod && !noticing && !told && !huddle && !reduced ? 0.05 * (1 - Math.cos(session.current * 5 + p)) : 0;
-      // a cleared call: one firm nod each, the second a beat after the first; a full row: nodding together
+      // (the short way round: a look over the shoulder crosses behind)
+      const yaw = hd.yaw + wrapAngle(Math.atan2(dx, dz) - hd.yaw);
+      const beatNod = B.nod && !noticing && !W && !huddle && !reduced ? 0.05 * (1 - Math.cos(session.current * 5 + p)) : 0;
+      // one dealt with: a firm nod each, the second a beat after the first; a full row: nodding together
       const callNod = L.nodAt >= 0 ? 0.12 * bump((t - L.nodAt - p * 0.12) / 0.45) : 0;
       const rowNod = huddle ? 0.06 * (1 - Math.cos((t - L.roundAt) * 9 + p)) : 0;
       const pitch = -Math.atan2(to[1] - at[1], Math.hypot(dx, dz)) + beatNod + callNod + rowNod;
-      // (called, they turn quickly, the second a little slower: it's following the first's lead)
-      const glide = huddle ? 0.45 : told ? (p === 0 ? 0.26 : 0.38) : take < 0 ? B.glide : DOUBLE_TAKE.glides[take];
-      const hd = heads.current[p];
-      const v = vels.current[p];
+      const glide = huddle ? 0.45 : W ? W.glide : take < 0 ? B.glide : DOUBLE_TAKE.glides[take];
       if (reduced) Object.assign(hd, { yaw: Math.atan2(SCENE.ahead[0] - at[0], SCENE.ahead[2] - at[2]), pitch: 0, duck: 0, lean: 0, tilt: 0 });
       else {
         hd.yaw = spring(hd.yaw, yaw, v.yaw, dt, glide);
         hd.pitch = spring(hd.pitch, pitch, v.pitch, dt, glide);
-        hd.duck = spring(hd.duck, (B.duck?.[p] ?? 0) * on, v.duck, dt, B.glide);
-        hd.lean = spring(hd.lean, (B.lean?.[p] ?? 0) * on, v.lean, dt, B.glide);
+        hd.duck = spring(hd.duck, (W ? W.duck : B.duck?.[p] ?? 0) * on, v.duck, dt, W ? 0.3 : B.glide);
+        hd.lean = spring(hd.lean, W ? 0 : (B.lean?.[p] ?? 0) * on, v.lean, dt, B.glide);
         hd.tilt = spring(hd.tilt, take === 2 ? (p === 0 ? 1 : -1) * DOUBLE_TAKE.tilt : 0, v.tilt, dt, 0.35);
       }
       // breath and weight under it all, out of step between the two, the head
-      // tipping into a turn, and tipped while it looks at you
+      // tipping into a turn, and tipped while it looks at you; a step's bob
+      // while it walks
       const k = p === 0 ? e : joined;
       const sway = reduced ? 0 : k;
       const ph = p * 2.1;
+      const pace = reduced ? 0 : Math.min(1, Math.hypot(v.x.v, v.z.v) / 0.25);
       const roll = 0.18 * Math.tanh((-v.yaw.v * 0.07) / 0.18) * sway + Math.sin(t * 0.8 + ph) * 0.03 * sway + hd.tilt * sway;
       const x = at[0] + hd.lean + Math.sin(t * 0.7 + ph) * 0.008 * sway;
-      const y = at[1] - hd.duck + Math.sin(t * 1.6 + ph) * 0.005 * sway;
+      const y = at[1] - hd.duck + Math.sin(t * 1.6 + ph) * 0.005 * sway + Math.abs(Math.sin(t * 5.5 + ph)) * 0.006 * pace;
       const z = at[2] + Math.sin(t * 0.55 + 1 + ph) * 0.006 * sway;
+      // told back to the scenario: where it is, which way it faces, whether it's in yet
+      const hb = L.heads[p];
+      hb.x = x;
+      hb.z = z;
+      hb.yaw = hd.yaw;
+      hb.joined = k;
       const rx = HS_LEVEL + hd.pitch;
       const ry = hd.yaw + Math.sin(t * 0.9 + ph) * 0.03 * sway;
       if (p === 0) {
@@ -1558,7 +1576,7 @@ function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; 
           <Headset />
         </group>
       </group>
-      <group ref={(g) => (rigs.current[1] = g)} position={PLAYERS[1]} visible={false}>
+      <group ref={(g) => (rigs.current[1] = g)} position={POSTS[1]} visible={false}>
         <group position={[-HS_PIVOT[0], -HS_PIVOT[1], -HS_PIVOT[2]]}>
           <Headset />
         </group>
@@ -2165,8 +2183,8 @@ function Desk({ brigade }: { brigade: LitLink }) {
     return { wood: merge(wood), trim: merge(trim) };
   });
   const mon = useMonitorKit();
-  // what the call-outs game tells the two players (callouts.tsx)
-  const call = useRef(newCallLink());
+  // what the scenario and the two in VR tell each other (scenario.tsx)
+  const session = useRef(newSessionLink());
   return (
     <>
       <mesh geometry={g.wood}>
@@ -2196,9 +2214,9 @@ function Desk({ brigade }: { brigade: LitLink }) {
       <Keyboard position={[-0.02, 0.403, 0.06]} rotation={[0, 0.04, 0]} />
       <Mouse position={[0.235, 0.408, 0.055]} rotation={[0, -0.12, 0]} />
       <CoffeeCup position={[-0.4, 0.395, -0.13]} rotation={[0, -2.2, 0]} lit={brigade} />
-      <VRPlayers position={[-0.28, 0.395, 0.06]} rotation={[0, -0.35, 0]} link={call} />
-      {/* with a cursor, a game for three: you call out what they should look at */}
-      <Callouts slug="virtuele-brigade" link={call} />
+      <VRPlayers position={[-0.28, 0.395, 0.06]} rotation={[0, -0.35, 0]} link={session} />
+      {/* with a cursor, you run the scenario they're in, from the editor */}
+      <Scenario slug="virtuele-brigade" link={session} />
     </>
   );
 }
