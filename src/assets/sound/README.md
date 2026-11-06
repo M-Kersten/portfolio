@@ -121,18 +121,18 @@ In the Popcore close-up the ping-pong balls go for the bin beside the couch.
 | `ball-rim` | a ball hits the rim | a short bright tick; give it variants |
 | `bin-tip` | the full bin falls over | a hollow clatter of the bin and the balls |
 
-## Photo safari
+## Scavenger hunt
 
-In the ARCam close-up you photograph the park's creatures as they turn up,
-one at a time, anywhere on the lawn, and not for long.
+In the ARCam close-up the park's creatures hide behind its pines and under its
+lake. One at a time, one shows itself for a few seconds, and you photograph it.
 
 | File | When | Notes |
 | --- | --- | --- |
-| `critter-peek` | the AR ping where one's about to turn up | a tiny tick or blip, very short, so you look |
-| `critter-in` | a creature turns up | a soft digital shimmer, short |
-| `critter-away` | one goes before you've photographed it | a short falling blip, light, not a fail sound |
-| `critter-snap` | the shutter goes on one: it's captured | a camera shutter with a small bright chime |
-| `critter-group` | the group photo is taken and the print comes out (the roll call before it uses `critter-snap`'s shutter, quieter) | a bigger shutter, then a printer's whirr |
+| `critter-peek` | a pine rustles, or the lake ripples, where one's about to come out | a tiny rustle or blip, very short, so you look |
+| `critter-in` | it comes out | a soft digital shimmer, short |
+| `critter-away` | it hides again before you've photographed it | a short falling blip, light, not a fail sound |
+| `critter-snap` | the shutter goes on one: it's found | a camera shutter with a small bright chime |
+| `critter-group` | all seven together: the group photo is taken and the print comes out | a bigger shutter, then a printer's whirr |
 
 ## Ambient
 

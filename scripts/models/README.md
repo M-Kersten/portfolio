@@ -78,16 +78,16 @@ model, with the shared helpers in `modelkit.py`:
   It ships as `public/models/phone.glb`; `room.tsx` (Phone) draws the screen
   over its front and turns it over when it's opened.
 - `build_creatures.py`, with its own kit in `creature_kit.py`: the creatures
-  of the ARCam park's photo game, each made out of one of the projects. They
+  of the ARCam park's scavenger hunt, each made out of one of the projects. They
   are soft toys rather than the kit's bevelled parts: metaball bodies, tubes
   for limbs and tails, big glossy eyes. Each one is painted instead of given a
   material, its colours baked into the mesh as vertex colours (the site reads
-  them as light and dark; their alpha is how much a part glows). Four bring a
+  them as light and dark; their alpha is how much a part glows). Three bring a
   prop, a piece apart: Pinboo's dot on the map (`pinboo_dot`), Moletage's
   molehill and its street works (`moletage_hill`; the mole sits down the
-  hole), Driftnot's anchor (`driftnot_anchor`) and the ramp Jerboost jumps off
-  (`jerboost_ramp`); and Chatterkeet's speech bubble is apart too
-  (`chatterkeet_bubble`), so the site can keep it turned to you. It ships as
+  hole) and Driftnot's anchor (`driftnot_anchor`); and Chatterkeet's speech
+  bubble is apart too (`chatterkeet_bubble`), so the site can show it over a
+  pine before the parakeet comes out, and keep it turned to you. It ships as
   `public/models/creatures.glb`, which loads when the ARCam close-up first
   opens; `critters.tsx` runs the game. Name creatures after the script to
   build only those while you work on them (`build_creatures.py pinboo`), but

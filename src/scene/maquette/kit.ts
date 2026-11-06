@@ -61,11 +61,11 @@ const BOOK_PARTS = ['book_cover', 'book_pages', 'book_bands', 'zw_board', 'zw_bl
 const MONITOR_PARTS = ['mon_panel', 'mon_stand'] as const;
 /** The park's creatures (build_creatures.py): each one, and the props some
  *  bring along (the pin's map dot, the mole's molehill, the cloud's anchor,
- *  the jerboa's ramp, the parakeet's speech bubble). Painted in vertex colours,
- *  which the site reads as light and dark. */
+ *  the parakeet's speech bubble). Painted in vertex colours, which the site
+ *  reads as light and dark. */
 const CREATURE_PARTS = [
   'orbitot', 'pinboo', 'pinboo_dot', 'cameleon', 'moletage', 'moletage_hill',
-  'driftnot', 'driftnot_anchor', 'chatterkeet', 'chatterkeet_bubble', 'jerboost', 'jerboost_ramp',
+  'driftnot', 'driftnot_anchor', 'chatterkeet', 'chatterkeet_bubble', 'jerboost',
 ] as const;
 export type ChipKit = Record<(typeof CHIP_PARTS)[number], BufferGeometry>;
 export type TowerKit = Record<(typeof TOWER_PARTS)[number], BufferGeometry>;

@@ -1,7 +1,7 @@
-# The creatures of the ARCam park's photo game, each out of one of Merijn's
+# The creatures of the ARCam park's scavenger hunt, each out of one of Merijn's
 # projects: soft toys with big glossy eyes and one thing each that says what
-# it is. They turn up anywhere on the park's lawn and move about it (the
-# site's game, in src/scene/maquette/critters.tsx), and four bring a prop.
+# it is. They hide in the park and pop out (the site's game, in
+# src/scene/maquette/critters.tsx), and three bring a prop.
 # Exported as one glb of named pieces: each creature, and its prop apart. See
 # README.md to rebuild.
 #
@@ -23,8 +23,8 @@
 #                     the anchor dug into the lawn, in its AR ring
 #   chatterkeet       a ring-necked parakeet, a reply always being typed (the
 #                     Amsterdam AI guides)
-#   jerboost          a jerboa in mid-leap, the crown on, a chequered flag at the
-#                     end of its tail; and jerboost_ramp, the ramp it jumps off (Lightship Drive)
+#   jerboost          a jerboa ready to spring, the crown on, a chequered flag at
+#                     the end of its tail (Lightship Drive)
 import math
 import os
 import sys
@@ -506,17 +506,9 @@ def chatterkeet():
 # ------------------------------------------------------------- Jerboost
 
 def jerboost():
-    """A jerboa in mid-leap off a ramp, the crown on, a chequered flag at the
-    end of its tail. The ramp is its own piece."""
+    """A jerboa ready to spring, the crown on, a chequered flag at the end of
+    its tail. (Posed in mid-leap; set down below so its toes touch the grass.)"""
     f, u, s = facing((1, 0, 0))
-    ramp = K.prism_ax('ramp', [(-1.0, 0.0), (0.6, 0.0), (0.6, 0.55), (0.5, 0.58)], -0.48, 0.48, axis='z')
-    K.bevel(ramp, 0.03, 2, now=True)
-    ramp_parts = [put(ramp, Flat('#ff8a3d'))]
-    slope = math.atan2(0.58, 1.5)
-    for k in range(3):
-        x = -0.55 + 0.42 * k
-        y = (x + 1.0) * 0.58 / 1.5 + 0.012
-        ramp_parts.append(put(K.box(f'chev{k}', (0.16, 0.015, 0.7), (x, y, 0), (0, 0, slope)), Flat('#fff6ea')))
     Bj = Vector((1.35, 1.78, 0))
     turn = rot_about('Y', -0.55, Bj + Vector((0.3, 0.3, 0)))
     fh = (turn.to_3x3() @ f).normalized()
@@ -570,8 +562,10 @@ def jerboost():
     crown = [put(smooth(o), gold) for o in crown]
     xform(crown, Matrix.Translation(Hj + u * 0.47 - fh * 0.06) @ Matrix.Rotation(0.32, 4, 'Z') @ Matrix.Rotation(0.12, 4, 'X') @ Matrix.Scale(1.45, 4))
     parts += crown
-    turn_to(parts + ramp_parts, cam_az() - 1.15)
-    return parts + ramp_parts, {'pieces': {'ramp': ramp_parts}}
+    turn_to(parts, cam_az() - 1.15)
+    low = min(v.co.y for o in parts for v in o.data.vertices)
+    xform(parts, Matrix.Translation((0, -low, 0)))  # down on its toes
+    return parts, {}
 
 
 # ------------------------------------------------------------- export

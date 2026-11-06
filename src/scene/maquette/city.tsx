@@ -20,7 +20,7 @@ import { BlobShadow, blobShadowTexture } from './backdrop';
 import { NextProjectSite, SITE_POS } from './launchSite';
 import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit, useBlocksKit, useMillKit, useTowerKit, useTrafoKit, type BlocksKit, type MillKit, type TowerKit, type TrafoKit } from './kit';
 import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
-import { PINES, ParkCritters, SAFARI, VIEWER } from './critters';
+import { PINES, PINE_RUSTLE, ParkCritters, SAFARI, VIEWER } from './critters';
 import { spring, wobble } from '../../lib/spring';
 import { bump, easeIn, easeOut, ring } from '../../lib/ease';
 import { play } from '../../lib/sound';
@@ -752,9 +752,10 @@ const PINE_TIERS: [number, number, number][] = [
   [0.55, 0.27, 0.36],
   [0.78, 0.18, 0.3],
 ];
-function ParkTree({ position, h = 0.45, yaw = 0, slug, lit }: { position: V3; h?: number; yaw?: number; slug?: string; lit: LitLink }) {
+function ParkTree({ position, h = 0.45, yaw = 0, slug, lit, rustle }: { position: V3; h?: number; yaw?: number; slug?: string; lit: LitLink; rustle?: number }) {
   const { selected, visited } = useActive(slug ?? '');
   const live = useRef(0);
+  const shake = useRef<Group>(null); // a creature in it or behind it (critters.tsx PINE_RUSTLE)
   // At rest a pine has to read as the same drawing as everything else on this
   // layer. It didn't: the buildings are 0.30 glass WITH a wireframe outline,
   // while these were 0.40 flat-shaded cones with no outline at all — and
@@ -788,7 +789,11 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug, lit }: { position: V3; h?
     });
     return out;
   }, [h, position[0], position[2]]);
-  useFrame(() => {
+  useFrame((st) => {
+    // it rustles: a quick shiver from the foot up, as hard as it's told
+    const r = rustle === undefined ? 0 : PINE_RUSTLE[rustle];
+    const t = st.clock.elapsedTime;
+    if (shake.current) shake.current.rotation.set(0.04 * r * Math.sin(t * 31), 0, 0.05 * r * Math.sin(t * 25 + 1));
     if (!slug) return;
     live.current += ((selected || visited ? 1 : 0) - live.current) * 0.06;
     mat.color.copy(restCol).lerp(vivid, live.current);
@@ -797,26 +802,28 @@ function ParkTree({ position, h = 0.45, yaw = 0, slug, lit }: { position: V3; h?
   });
   return (
     <group position={position} rotation={[0, yaw, 0]}>
-      <mesh position={[0, h * 0.05, 0]}>
-        <cylinderGeometry args={[h * 0.022, h * 0.03, h * 0.1, 6]} />
-        <GlassMat tint="deep" lit={lit} />
-      </mesh>
-      {PINE_TIERS.map((_t, i) => (
-        <mesh key={i} geometry={tiers[i]} material={mat}>
-          {/* The wireframe every other object on this layer has at rest — but
-              LiveEdges, not a plain <Edges>. A plain one was here once, and it
-              was WRONG twice over: with no lifeSkip flag its material falls to
-              LifeGroup's generic line treatment, which never drops opacity
-              below half of its authored value even at full life — so selecting
-              the park made the wireframe MORE visible, the opposite of retiring
-              to the solid tree. LiveEdges owns its own material (flags
-              lifeSkip) and fades it to nothing as `live` below rises.
-              Held to less than a building's weight at rest: a grove of five
-              trees is a lot of linework, and full strength made the park the
-              busiest corner in frame. */}
-          <LiveEdges slug={slug ?? ''} threshold={30} rest={0.42} />
+      <group ref={shake}>
+        <mesh position={[0, h * 0.05, 0]}>
+          <cylinderGeometry args={[h * 0.022, h * 0.03, h * 0.1, 6]} />
+          <GlassMat tint="deep" lit={lit} />
         </mesh>
-      ))}
+        {PINE_TIERS.map((_t, i) => (
+          <mesh key={i} geometry={tiers[i]} material={mat}>
+            {/* The wireframe every other object on this layer has at rest — but
+                LiveEdges, not a plain <Edges>. A plain one was here once, and it
+                was WRONG twice over: with no lifeSkip flag its material falls to
+                LifeGroup's generic line treatment, which never drops opacity
+                below half of its authored value even at full life — so selecting
+                the park made the wireframe MORE visible, the opposite of retiring
+                to the solid tree. LiveEdges owns its own material (flags
+                lifeSkip) and fades it to nothing as `live` below rises.
+                Held to less than a building's weight at rest: a grove is a lot
+                of linework, and full strength made the park the busiest
+                corner in frame. */}
+            <LiveEdges slug={slug ?? ''} threshold={30} rest={0.42} />
+          </mesh>
+        ))}
+      </group>
     </group>
   );
 }
@@ -1347,11 +1354,11 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
         <LakeDucks lit={lit} />
       </group>
       <ParkPath lit={lit} />
-      {/* a small varied grove along the far edge, each pine at its own height
-          and turn, so the close-up's camera sees the whole lawn the creatures
-          roam (critters.tsx keeps them clear of the pines, from the same list) */}
+      {/* a scattered grove of small pines, each at its own height and turn,
+          with a clearing or two between: the creatures hide behind them
+          (critters.tsx, from the same list), and rustle them */}
       {PINES.map((p, i) => (
-        <ParkTree key={i} position={p.pos} h={p.h} yaw={p.yaw} slug={slug} lit={lit} />
+        <ParkTree key={i} position={p.pos} h={p.h} yaw={p.yaw} slug={slug} lit={lit} rustle={i} />
       ))}
       {/* fireflies wandering between the trees */}
       <Fireflies slug={slug} />
