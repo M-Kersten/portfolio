@@ -1,23 +1,28 @@
 // ARCam's game, in the park (city.tsx Park). ARCam dropped characters into a
-// show floor through a viewfinder, for a photo with them; here it's the park's
-// own creatures, each made out of one of the projects (modelled in Blender:
-// scripts/models/build_creatures.py), dropped in by AR one at a time, somewhere
-// in the park, for a few seconds each. In the close-up, point at one: the
-// viewer locks on and swings to it, a ring round it fills while you hold it,
-// and the shutter goes. Photographed, it's captured, and a bubble over it says
-// so: it's real from then on, in its own colours, staying in the park and going
-// about its business. All ten, and they come together in front of the viewer
-// for a group photo, the print rises out of it, and a while later the park lets
+// show floor through a viewfinder, for a photo with them. Here the park has
+// seven creatures of its own, each made out of one of the projects (modelled
+// in Blender: scripts/models/build_creatures.py), and each with a home in the
+// park: a molehill, a bollard, an old root, an anchor in the lawn, a dot on
+// the map, a ramp on the path, the lake. In the close-up they come out one at
+// a time, each at its own home and in its own way, and not for long: the home
+// stirs, out it comes, glowing in the accent, and a few seconds later it's
+// gone again (sooner, the more of them you've caught), so you have to keep an
+// eye on the whole park. Point at it and the viewer swings to it, and a ring
+// round it fills while you hold it there (it waits for you while you do);
+// then the shutter goes. Photographed, it's captured, and a bubble over it
+// says so: it's real from then on, in its own colours, and stays out at its
+// home. All seven, and the viewer takes a picture of each in turn, then one
+// of them all, and the print rises out of it; a while later the park lets
 // them go and it starts again. Desktop only (a cursor to point with): phones
 // and reduced motion keep the viewer's own sweep (city.tsx Binoculars).
 import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { AdditiveBlending, CanvasTexture, Color, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, Quaternion, RingGeometry, SRGBColorSpace, Vector3, type Group, type Mesh } from 'three';
+import { AdditiveBlending, CanvasTexture, Color, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, Plane, Quaternion, RingGeometry, SRGBColorSpace, Vector3, type Group, type Mesh } from 'three';
 import { play } from '../../lib/sound';
 import { bump, easeIn, easeOut, easeOutBack } from '../../lib/ease';
 import { cursorAtDepth, useCloseUp } from './closeup';
-import { useCreatureKit } from './kit';
+import { useCreatureKit, type CreatureKit } from './kit';
 import { useAccent, type V3 } from './shared';
 import { useGeometry } from './shapes';
 
@@ -43,54 +48,198 @@ export function bearing(x: number, z: number) {
 }
 
 const GROUND = 0.024; // the park's lawn (its plot's top, a hair over), and the lake's surface
-const IN = 0.45; // s to drop in (or blink out: OUT)
-const OUT = 0.35;
-const STAY = 6; // s one stays out before it's gone again
-const GAP = [1.1, 2.2]; // s between one going and the next coming (at random within)
+const TELL = 0.6; // s a home stirs before its creature comes out
+const UP = [3.2, 1.9]; // s one stays out: with none caught yet, and with all but one (in step between)
+const GAP = [0.8, 1.8]; // s from one going back in to the next home stirring (at random within)
 // the cursor within `reach` of it (or of its own size, if that's more), the
 // viewer within `tol` rad of it: held `hold` s, the shot
-const LOCK = { reach: 0.035, tol: 0.09, hold: 0.7 };
-// the finale: they gather (a stagger each), pose, the group photo, the print, and the reset
-const FINALE = { wait: 1.2, stagger: 0.12, pose: 1.2, print: 6 };
+const LOCK = { reach: 0.035, tol: 0.1, hold: 0.45 };
+// all of them caught: a beat, the viewer's roll call (a picture of each, `each`
+// s apart), a pose, the group photo, and the print, up for `print` s
+const FINALE = { wait: 1.4, each: 0.62, pose: 0.8, print: 6 };
 const SAID = 2.4; // s the bubble says one's been captured
+const MOLE_RIM = 0.012; // the molehill's rim: what of the mole is lower than this is down the hole
 
-type Id = 'doodlefly' | 'ampeel' | 'pingpillar' | 'orbitot' | 'pinboo' | 'cameleon' | 'moletage' | 'driftnot' | 'chatterkeet' | 'jerboost';
+type Id = 'orbitot' | 'pinboo' | 'cameleon' | 'moletage' | 'driftnot' | 'chatterkeet' | 'jerboost';
 /** Each creature: its name, the side of it you see (how far it turns from
- *  facing the camera, as it was posed in its portrait), whether it lives in the
- *  lake, and two of its colours for the group photo's print. */
-const CREATURES: { id: Id; name: string; view: number; water?: boolean; print: [string, string] }[] = [
-  { id: 'doodlefly', name: 'Doodlefly', view: 1.25, print: ['#f2b98a', '#a99ae0'] }, // Kastwezens: a child's crayon butterfly
-  { id: 'ampeel', name: 'Ampeel', view: 0.97, water: true, print: ['#2f6f7a', '#27e8f2'] }, // Alliander: the grid's eel
-  { id: 'pingpillar', name: 'Pingpillar', view: 1.0, print: ['#f2f1ea', '#ff8b3d'] }, // Popcore: ping-pong balls
-  { id: 'orbitot', name: 'Orbitot', view: 0.25, print: ['#ecc995', '#d4c09c'] }, // Sol.AR: a little Saturn
-  { id: 'pinboo', name: 'Pinboo', view: 0.3, print: ['#ff6a54', '#fffaf3'] }, // location AR: GPS drifts
-  { id: 'cameleon', name: 'Cameleon', view: 0.9, print: ['#27a898', '#8fd96a'] }, // ARCam: lenses for eyes
-  { id: 'moletage', name: 'Moletage', view: 0.35, print: ['#4c4860', '#ff6a13'] }, // Amsterdam Underground
-  { id: 'driftnot', name: 'Driftnot', view: 0.2, print: ['#ffffff', '#e0553a'] }, // the AR framework's cloud anchors
-  { id: 'chatterkeet', name: 'Chatterkeet', view: 0.7, print: ['#2c9a46', '#5a2a24'] }, // the Amsterdam AI guides
-  { id: 'jerboost', name: 'Jerboost', view: 1.15, print: ['#e2bd86', '#f3c443'] }, // Lightship Drive's crown
+ *  facing the camera, as it was posed in its portrait), its home in the park
+ *  (park frame: spots the close-up's camera sees past the trees and the
+ *  viewer, clear of the path, the jetty and each other) and the piece of the
+ *  kit that home is, and two of its colours for the group photo's print. */
+const CREATURES: { id: Id; name: string; view: number; home: [number, number]; piece?: keyof CreatureKit; print: [string, string] }[] = [
+  { id: 'orbitot', name: 'Orbitot', view: 0.25, home: [-0.14, 0.12], print: ['#ecc995', '#d4c09c'] }, // Sol.AR: a little Saturn, rising out of the lake
+  { id: 'pinboo', name: 'Pinboo', view: 0.3, home: [0.27, 0.26], piece: 'pinboo_dot', print: ['#ff6a54', '#fffaf3'] }, // location AR: dropped on the map, never quite on its dot
+  { id: 'cameleon', name: 'Cameleon', view: 0.9, home: [-0.05, -0.25], piece: 'cameleon_root', print: ['#27a898', '#8fd96a'] }, // ARCam: lenses for eyes, there all along
+  { id: 'moletage', name: 'Moletage', view: 0.35, home: [0.37, 0.11], piece: 'moletage_hill', print: ['#4c4860', '#ff6a13'] }, // Amsterdam Underground: up out of its molehill
+  { id: 'driftnot', name: 'Driftnot', view: 0.2, home: [0.1, 0.28], piece: 'driftnot_anchor', print: ['#ffffff', '#e0553a'] }, // the AR framework's cloud anchors
+  { id: 'chatterkeet', name: 'Chatterkeet', view: 0.7, home: [0.21, -0.13], piece: 'chatterkeet_post', print: ['#2c9a46', '#5a2a24'] }, // the Amsterdam AI guides
+  { id: 'jerboost', name: 'Jerboost', view: 1.15, home: [0.11, 0.03], piece: 'jerboost_ramp', print: ['#e2bd86', '#f3c443'] }, // Lightship Drive's crown, its ramp on the path
 ];
-// Where they turn up (park frame): lawn the close-up's camera sees past the
-// trees (measured from its view), clear of the lake, the trees and the viewer,
-// each at least ROOM from the next, since the ones photographed stay; and the
-// eel in the lake. A new one keeps ROOM clear of any already in the park.
-const LAWN: [number, number][] = [[-0.34, -0.14], [-0.23, -0.09], [-0.1, -0.3], [-0.08, -0.18], [0.02, -0.09], [0.06, 0.37], [0.13, 0.27], [0.22, 0.33], [0.28, -0.02], [0.34, 0.14]];
-const LAKE: [number, number][] = [[-0.2, 0.21], [-0.11, 0.16], [-0.17, 0.12]];
-const ROOM = 0.1;
-// the group photo: each one's place, in two rows across the open lawn
-// between the trees and the lake, the tall and the flying ones at the back,
-// the eel in the lake in front; across the water from the viewer
-const GROUP: [number, number][] = [
-  [-0.32, -0.135], [-0.14, 0.07], [0.06, -0.05], [-0.15, -0.135], [-0.12, -0.05],
-  [0.02, -0.135], [-0.3, -0.05], [-0.235, -0.135], [-0.065, -0.135], [-0.03, -0.05],
-];
-const CENTRE = 4; // the one the viewer aims the group photo at
-/** The butterfly's wings hinge on its body's line, this high (build_creatures.py:
- *  it flies 4 toy units up, at 0.0125 park units each). */
-const WING_HINGE = 0.05;
 
-/** The group photo as it comes out: the park's teal, the lawn, and the ten of
- *  them in two rows, each a blob or two of its own colours, a snapshot. */
+/** How a creature's body sits on its home, frame to frame: an offset (in its
+ *  own frame, facing +X), a turn and a roll, a size (about its middle), how
+ *  much of it shows (its camouflage coming off, pixel by pixel) and how solid. */
+interface Pose {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  roll: number;
+  scale: number;
+  show: number;
+  fade: number;
+}
+const rest = (p: Pose) => Object.assign(p, { x: 0, y: 0, z: 0, yaw: 0, roll: 0, scale: 1, show: 1, fade: 1 });
+/** Each one's own way of coming out (`enter`, over `in` s) and going back in
+ *  (`leave`, over `out` s), and what it gets up to while it's out (`idle`; its
+ *  `busy` is how much, calmer once it's real). `top` is how tall it is, for
+ *  the ones that come up from under. */
+interface Moves {
+  in: number;
+  out: number;
+  enter(p: Pose, t: number, top: number): void;
+  leave(p: Pose, t: number, top: number): void;
+  idle(p: Pose, t: number, busy: number): void;
+}
+const MOVES: Record<Id, Moves> = {
+  // rises out of the lake, spinning, and sinks back into it
+  orbitot: {
+    in: 0.6,
+    out: 0.5,
+    enter: (p, t, top) => {
+      p.y = -top * (1 - easeOutBack(t, 1.4));
+      p.yaw = (1 - t) * 3;
+    },
+    leave: (p, t, top) => {
+      p.y = -top * easeIn(t);
+      p.yaw = t * 2;
+    },
+    idle: (p, t, busy) => {
+      p.y = 0.004 * Math.sin(t * 1.5);
+      p.yaw = 0.35 * Math.sin(t * 0.45) * busy;
+    },
+  },
+  // dropped onto the map from above, a bounce, and off its dot it drifts;
+  // gone like a ghost
+  pinboo: {
+    in: 0.75,
+    out: 0.45,
+    enter: (p, t) => {
+      const f = Math.min(1, t / 0.6);
+      p.y = t < 0.6 ? 0.09 * (1 - f * f) : 0.007 * bump((t - 0.6) / 0.4);
+      p.fade = Math.min(1, t / 0.25);
+    },
+    leave: (p, t) => {
+      p.y = 0.025 * t;
+      p.roll = 0.3 * t;
+      p.fade = 1 - t;
+    },
+    idle: (p, t, busy) => {
+      p.x = 0.012 * Math.sin(t * 0.7) * busy;
+      p.z = 0.009 * Math.sin(t * 1.1 + 1) * busy;
+      p.y = 0.004 * Math.sin(t * 2);
+      p.roll = 0.08 * Math.sin(t * 1.3) * busy;
+    },
+  },
+  // there on its root all along: its camouflage comes off, pixel by pixel,
+  // and goes back on
+  cameleon: {
+    in: 0.7,
+    out: 0.6,
+    enter: (p, t) => {
+      p.show = easeOut(t);
+    },
+    leave: (p, t) => {
+      p.show = 1 - easeIn(t);
+    },
+    idle: (p, t, busy) => {
+      p.yaw = 0.15 * Math.sin(t * 0.6) * busy;
+    },
+  },
+  // pops up out of its molehill, and ducks back down it
+  moletage: {
+    in: 0.4,
+    out: 0.28,
+    enter: (p, t, top) => {
+      p.y = -top * (1 - easeOutBack(t, 1.8));
+    },
+    leave: (p, t, top) => {
+      p.y = -top * easeIn(t);
+    },
+    idle: (p, t, busy) => {
+      p.y = 0.0015 * bump(((t / 2.2) % 1) * 4) * busy;
+      p.yaw = 0.18 * Math.sin(t * 0.9) * busy;
+    },
+  },
+  // puffs up out of nothing over its anchor, and puffs away
+  driftnot: {
+    in: 0.5,
+    out: 0.45,
+    enter: (p, t) => {
+      p.scale = easeOutBack(t, 2.4);
+      p.fade = Math.min(1, t / 0.3);
+    },
+    leave: (p, t) => {
+      p.scale = 1 - easeIn(t);
+      p.y = 0.02 * t;
+      p.fade = 1 - easeIn(t);
+    },
+    idle: (p, t, busy) => {
+      p.yaw = 0.12 * Math.sin(t * 0.5) * busy;
+      p.y = 0.003 * Math.sin(t * 1.1);
+    },
+  },
+  // flies in and lands on its bollard, and flies off again
+  chatterkeet: {
+    in: 0.55,
+    out: 0.5,
+    enter: (p, t) => {
+      const e = easeOut(t);
+      p.x = -0.07 * (1 - e);
+      p.y = 0.07 * (1 - e) * (1 - e) + 0.02 * bump(e);
+      p.z = -0.03 * (1 - e);
+      p.roll = 0.4 * (1 - t) * Math.sin(t * 18);
+      p.fade = Math.min(1, t / 0.3);
+    },
+    leave: (p, t) => {
+      const e = easeIn(t);
+      p.x = 0.08 * e;
+      p.y = 0.09 * e;
+      p.z = 0.03 * e;
+      p.roll = 0.3 * Math.sin(t * 16);
+      p.fade = 1 - easeIn(t, 3);
+    },
+    idle: (p, t, busy) => {
+      p.roll = 0.06 * Math.sin(t * 3.1) * busy;
+      p.yaw = 0.2 * Math.sin(Math.floor(t / 1.4) * 2.3) * busy;
+    },
+  },
+  // jumps in over its ramp, hops about on it, and jumps away
+  jerboost: {
+    in: 0.55,
+    out: 0.5,
+    enter: (p, t) => {
+      p.x = -0.07 * (1 - t);
+      p.y = 0.14 * t * (1 - t);
+      p.fade = Math.min(1, t / 0.25);
+    },
+    leave: (p, t) => {
+      p.x = 0.08 * t;
+      p.y = 0.16 * t * (1 - t);
+      p.fade = 1 - easeIn(t, 2);
+    },
+    idle: (p, t, busy) => {
+      p.y = 0.01 * bump(((t / 0.9) % 1) * 1.6) * busy;
+    },
+  },
+};
+
+/** The group photo as it comes out: the park's teal, the lawn, and the seven
+ *  of them in two rows, each a blob or two of its own colours, a snapshot. */
+const PHOTO_ROWS: Id[][] = [
+  ['driftnot', 'moletage', 'orbitot', 'pinboo'],
+  ['cameleon', 'chatterkeet', 'jerboost'],
+];
 function groupPhoto(): CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
@@ -108,85 +257,81 @@ function groupPhoto(): CanvasTexture {
     g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
     g.fill();
   };
-  CREATURES.forEach((d, i) => {
-    const back = i >= 5;
-    const x = 14 + (i % 5) * 25 + (back ? 12 : 0);
-    const y = back ? 66 : 96;
+  PHOTO_ROWS.forEach((row, r) => {
+    const back = r === 0;
     const k = back ? 0.8 : 1;
-    const [a, b] = d.print;
-    switch (d.id) {
-      case 'doodlefly':
-        blob(x - 4 * k, y - 16 * k, 5 * k, 6 * k, a);
-        blob(x + 4 * k, y - 16 * k, 5 * k, 6 * k, b);
-        break;
-      case 'ampeel':
-        blob(x, y - 6 * k, 3 * k, 9 * k, a);
-        blob(x + 1 * k, y - 13 * k, 3.5 * k, 3 * k, a);
-        break;
-      case 'pingpillar':
-        for (let j = 0; j < 4; j++) blob(x - 7 * k + j * 4 * k, y - 4 * k - (j === 1 || j === 2 ? 4 * k : 0), 3 * k, 3 * k, a);
-        blob(x + 9 * k, y - 4 * k, 3.6 * k, 3.6 * k, b);
-        break;
-      case 'orbitot':
-        blob(x, y - 12 * k, 7 * k, 2 * k, b);
-        blob(x, y - 12 * k, 5 * k, 5 * k, a);
-        break;
-      case 'pinboo':
-        blob(x, y - 13 * k, 5 * k, 5 * k, a);
-        blob(x, y - 7 * k, 2.4 * k, 4 * k, a);
-        blob(x, y - 13 * k, 2.2 * k, 2.2 * k, b);
-        break;
-      case 'cameleon':
-        blob(x, y - 6 * k, 7 * k, 4 * k, a);
-        blob(x + 6 * k, y - 8 * k, 3 * k, 3 * k, b);
-        break;
-      case 'moletage':
-        blob(x, y - 9 * k, 5 * k, 8 * k, a);
-        blob(x, y - 6 * k, 5.2 * k, 3 * k, b);
-        break;
-      case 'driftnot':
-        blob(x, y - 18 * k, 7 * k, 4 * k, a);
-        g.fillStyle = b;
-        g.fillRect(x - 0.6 * k, y - 15 * k, 1.2 * k, 14 * k);
-        blob(x, y - 1.5 * k, 3 * k, 1.6 * k, b);
-        break;
-      case 'chatterkeet':
-        g.fillStyle = b;
-        g.fillRect(x - 1.5 * k, y - 9 * k, 3 * k, 9 * k);
-        blob(x, y - 13 * k, 3.6 * k, 5 * k, a);
-        break;
-      case 'jerboost':
-        blob(x, y - 10 * k, 4.5 * k, 3.6 * k, a);
-        blob(x - 2 * k, y - 16 * k, 1.4 * k, 4 * k, a);
-        blob(x + 2 * k, y - 16 * k, 1.4 * k, 4 * k, a);
-        blob(x, y - 14 * k, 1.6 * k, 1.2 * k, b);
-        break;
-    }
+    const y = back ? 66 : 98;
+    row.forEach((id, n) => {
+      const x = (back ? 22 : 36) + n * 28;
+      const [a, b] = CREATURES.find((d) => d.id === id)!.print;
+      switch (id) {
+        case 'orbitot':
+          blob(x, y - 12 * k, 7 * k, 2 * k, b);
+          blob(x, y - 12 * k, 5 * k, 5 * k, a);
+          break;
+        case 'pinboo':
+          blob(x, y - 13 * k, 5 * k, 5 * k, a);
+          blob(x, y - 7 * k, 2.4 * k, 4 * k, a);
+          blob(x, y - 13 * k, 2.2 * k, 2.2 * k, b);
+          break;
+        case 'cameleon':
+          blob(x, y - 6 * k, 7 * k, 4 * k, a);
+          blob(x + 6 * k, y - 8 * k, 3 * k, 3 * k, b);
+          break;
+        case 'moletage':
+          blob(x, y - 9 * k, 5 * k, 8 * k, a);
+          blob(x, y - 6 * k, 5.2 * k, 3 * k, b);
+          break;
+        case 'driftnot':
+          blob(x, y - 18 * k, 7 * k, 4 * k, a);
+          g.fillStyle = b;
+          g.fillRect(x - 0.6 * k, y - 15 * k, 1.2 * k, 14 * k);
+          blob(x, y - 1.5 * k, 3 * k, 1.6 * k, b);
+          break;
+        case 'chatterkeet':
+          g.fillStyle = b;
+          g.fillRect(x - 1.5 * k, y - 9 * k, 3 * k, 9 * k);
+          blob(x, y - 13 * k, 3.6 * k, 5 * k, a);
+          break;
+        case 'jerboost':
+          blob(x, y - 10 * k, 4.5 * k, 3.6 * k, a);
+          blob(x - 2 * k, y - 16 * k, 1.4 * k, 4 * k, a);
+          blob(x + 2 * k, y - 16 * k, 1.4 * k, 4 * k, a);
+          blob(x, y - 14 * k, 1.6 * k, 1.2 * k, b);
+          break;
+      }
+    });
   });
   const t = new CanvasTexture(c);
   t.colorSpace = SRGBColorSpace;
   return t;
 }
 
-type Phase = 'away' | 'in' | 'out' | 'leaving';
+// home: in it (its home stirring, if it's 'tell'); in: coming out; up: out
+// and about; out: going back in
+type Phase = 'home' | 'tell' | 'in' | 'up' | 'out';
 interface Creature {
-  g: Group | null; // its spot, its turn, its drop-in
-  body: Group | null; // and inside that, its own business
-  wings: (Group | null)[];
+  g: Group | null; // at its home, turned to show you its side
+  home: Group | null; // its home, which stirs
+  body: Group | null; // and the creature itself
   phase: Phase;
-  at: number; // when the phase began
-  x: number;
-  z: number;
-  spot: number; // the spot it's at in its pool (−1: the group photo)
+  at: number; // when the phase began (or begins: a reset staggers their going)
+  left: number; // s it has left out, counting down while you're not holding it
+  face: number | null; // its turn, set while the close-up's open
   caught: boolean;
   caughtAt: number;
-  real: number; // 0 an AR drop-in, 1 photographed (eased)
+  cheerAt: number; // its picture taken in the roll call
+  real: number; // 0 AR, 1 photographed (eased)
   seed: number;
 }
 
 const _pq = new Quaternion();
 const _cam = new Vector3();
 const _aim = new Vector3();
+const _up = new Vector3();
+const _pt = new Vector3();
+const _p: Pose = rest({} as Pose);
+const _q: Pose = rest({} as Pose);
 /** A ring's light: the accent, added onto what's under it. */
 function glowMat(color: string) {
   const m = new MeshBasicMaterial({ color, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, toneMapped: false, side: DoubleSide });
@@ -194,52 +339,100 @@ function glowMat(color: string) {
   return m;
 }
 
-/** A creature's look: the accent's light while it's an AR drop-in, its own
- *  vertex colours once it's real (`real`, 0 → 1). The colours' alpha is how
- *  much a part glows of its own colour (build_creatures.py). */
-function creatureMat() {
+type CreatureMat = MeshStandardMaterial & { userData: { real: { value: number }; show: { value: number } } };
+/** A creature's look (and its home's): the accent's light while it's AR, its
+ *  own vertex colours once it's real (`real`, 0 → 1). The colours' alpha is
+ *  how much a part glows (build_creatures.py). `show` below 1 drops pixels of
+ *  it, in a fixed scatter: the chameleon's camouflage. */
+function creatureMat(): CreatureMat {
   const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.55, transparent: true, toneMapped: false });
   const real = { value: 0 };
+  const show = { value: 1 };
   m.userData.lifeSkip = true;
   m.userData.real = real;
+  m.userData.show = show;
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uReal = real;
+    sh.uniforms.uShow = show;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vCrPos;').replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvCrPos = position;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uReal;')
+      .replace('#include <common>', '#include <common>\nuniform float uReal;\nuniform float uShow;\nvarying vec3 vCrPos;')
+      .replace(
+        '#include <clipping_planes_fragment>',
+        '#include <clipping_planes_fragment>\n\tif ( uShow < 0.999 && fract( sin( dot( floor( vCrPos / 0.0035 ), vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 ) > uShow ) discard;',
+      )
       .replace('#include <color_fragment>', '#ifdef USE_COLOR_ALPHA\n\tdiffuseColor.rgb *= mix( vec3( 1.0 ), vColor.rgb, uReal );\n#endif')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n#ifdef USE_COLOR_ALPHA\n\ttotalEmissiveRadiance = mix( totalEmissiveRadiance, totalEmissiveRadiance * vColor.rgb * ( 1.0 + 6.0 * vColor.a ), uReal );\n#endif');
   };
-  return m as MeshStandardMaterial & { userData: { real: { value: number } } };
+  return m as CreatureMat;
 }
 
 export function ParkCritters({ slug }: { slug: string }) {
   const { accent } = useAccent();
   const close = useCloseUp(slug);
+  const gl = useThree((s) => s.gl);
+  // the creatures come up out of the ground and the lake: below it is cut away
+  useEffect(() => {
+    gl.localClippingEnabled = true;
+  }, [gl]);
   const accentC = useMemo(() => new Color(accent), [accent]);
   const white = useMemo(() => new Color('#ffffff'), []);
   // the models arrive the first time the close-up is opened
   const kit = useCreatureKit(close);
-  // each one's middle (what you aim at), its top (where the bubble goes) and its reach on the ground
+  // each one's middle (what you aim at, in its own frame), its top (where the
+  // bubble goes, and how far down the ones that come up from under start), its
+  // reach on the ground (its home's, if that's wider: the rings go round both),
+  // and how near the cursor has to be
   const size = useMemo(
     () =>
       kit &&
       CREATURES.map((d) => {
+        const flat = (g: (typeof kit)[keyof typeof kit]) => {
+          g.computeBoundingBox();
+          const b = g.boundingBox!;
+          return Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2;
+        };
         const g = kit[d.id];
-        g.computeBoundingBox();
+        const foot = Math.max(0.022, flat(g), d.piece ? flat(kit[d.piece]) * 1.05 : 0);
         const b = g.boundingBox!;
-        return { mid: (b.min.y + b.max.y) / 2, top: b.max.y, foot: Math.max(0.022, Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2) };
+        const half = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) / 2;
+        return { c: b.getCenter(new Vector3()), top: b.max.y, foot, reach: Math.max(LOCK.reach, half * 0.8) };
       }),
     [kit],
   );
-  const mats = useMemo(() => CREATURES.map(() => creatureMat()), []);
-  useEffect(() => () => mats.forEach((m) => m.dispose()), [mats]);
-  const crs = useMemo<Creature[]>(() => CREATURES.map((_, i) => ({ g: null, body: null, wings: [null, null], phase: 'away', at: -99, x: 0, z: 0, spot: -1, caught: false, caughtAt: -99, real: 0, seed: i * 1.7 })), []);
+  // the roll call goes round them in the order the viewer sees them, left to right
+  const roll = useMemo(() => {
+    const heads = CREATURES.map((d) => bearing(d.home[0], d.home[1]));
+    return { order: CREATURES.map((_, i) => i).sort((a, b) => heads[b] - heads[a]), mid: (Math.min(...heads) + Math.max(...heads)) / 2 };
+  }, []);
+  // each one's look and its home's; the creature is cut off at its home's ground (clip)
+  const mats = useMemo(
+    () =>
+      CREATURES.map(() => {
+        const clip = new Plane();
+        const body = creatureMat();
+        body.clippingPlanes = [clip];
+        return { body, home: creatureMat(), clip };
+      }),
+    [],
+  );
+  useEffect(
+    () => () =>
+      mats.forEach((m) => {
+        m.body.dispose();
+        m.home.dispose();
+      }),
+    [mats],
+  );
+  const crs = useMemo<Creature[]>(() => CREATURES.map((_, i) => ({ g: null, home: null, body: null, phase: 'home', at: -99, left: 0, face: null, caught: false, caughtAt: -99, cheerAt: -99, real: 0, seed: i * 1.7 })), []);
   const frame = useRef<Group>(null); // the park's frame, to find the cursor in
   const clock = useRef(0);
-  // who's out (or −1), when the next one comes, the lock's build-up, the shot
-  // asked for and on whom, and the finale's stage and when it began
-  const game = useRef({ out: -1, next: 2, last: -1, lock: 0, focus: 0, pending: -1, seen: 0, finale: 'none' as 'none' | 'gather' | 'pose' | 'shot' | 'print', finAt: 0, printAt: -99 });
-  // the rings: the AR anchor under the one out, the lock filling round it, a burst as it's caught
+  // who's out (or −1), when the next home stirs, the lock's build-up, the shot
+  // asked for and on whom, when the homes first landed, and the finale's stage
+  const game = useRef({ out: -1, next: 0, last: -1, lock: 0, focus: 0, pending: -1, seen: 0, wasClose: false, shownAt: -1, finale: 'none' as 'none' | 'roll' | 'pose' | 'shot' | 'print', finAt: 0, rolled: -1, printAt: -99 });
+  // the rings: a home stirring, the AR anchor under the one out, the lock
+  // filling round it, a burst as it's caught
+  const ping = useRef<Mesh>(null);
   const anchor = useRef<Mesh>(null);
   const lockRing = useRef<Mesh>(null);
   const burst = useRef<Mesh>(null);
@@ -247,7 +440,7 @@ export function ParkCritters({ slug }: { slug: string }) {
   const ringGeo = useGeometry(() => new RingGeometry(0.82, 1, 40).rotateX(-Math.PI / 2));
   const LOCK_SEGS = 48;
   const lockGeo = useGeometry(() => new RingGeometry(0.62, 0.8, LOCK_SEGS, 1, Math.PI / 2, Math.PI * 2).rotateX(-Math.PI / 2));
-  const rings = useMemo(() => ({ anchor: glowMat(accent), lock: glowMat(accent), burst: glowMat(accent) }), [accent]);
+  const rings = useMemo(() => ({ ping: glowMat(accent), anchor: glowMat(accent), lock: glowMat(accent), burst: glowMat(accent) }), [accent]);
   useEffect(() => () => Object.values(rings).forEach((m) => m.dispose()), [rings]);
   // the bubble that says one's been captured
   const said = useRef<Group>(null);
@@ -277,50 +470,65 @@ export function ParkCritters({ slug }: { slug: string }) {
     const G = game.current;
     const fr = frame.current;
     if (!size || !fr) return;
-    const pool = (i: number) => (CREATURES[i].water ? LAKE : LAWN);
+    // opening the close-up: the homes land (the first time), and someone comes out soon
+    if (close && !G.wasClose) {
+      if (G.shownAt < 0) G.shownAt = now;
+      G.next = Math.max(G.next, now + 1.4);
+    }
+    G.wasClose = close;
+    if (G.shownAt < 0) return;
+    const caughtN = crs.filter((a) => a.caught).length;
 
-    // --- someone new turns up, now and then, while you're here to see it ---
+    // --- a home stirs, now and then, while you're here to see it ---
     if (close && G.finale === 'none' && G.out < 0 && now > G.next) {
-      // a creature not yet caught, at a spot of its kind clear of everyone in
-      // the park (somewhere new, if it can be)
-      const room = (i: number) => {
-        const clear = pool(i).map((_, k) => k).filter((k) => crs.every((b, j) => j === i || b.phase === 'away' || Math.hypot(b.x - pool(i)[k][0], b.z - pool(i)[k][1]) > ROOM));
-        const fresh = clear.filter((k) => k !== crs[i].spot);
-        return fresh.length ? fresh : clear;
-      };
-      const free = crs.map((_, i) => i).filter((i) => !crs[i].caught && crs[i].phase === 'away' && room(i).length > 0);
-      const pick = free.filter((i) => i !== G.last);
-      const i = (pick.length ? pick : free)[Math.floor(Math.random() * (pick.length || free.length))];
+      const free = crs.map((_, i) => i).filter((i) => !crs[i].caught && crs[i].phase === 'home');
+      const fresh = free.filter((i) => i !== G.last);
+      const from = fresh.length ? fresh : free;
+      const i = from[Math.floor(Math.random() * from.length)];
       if (i !== undefined) {
-        const a = crs[i];
-        const spots = room(i);
-        a.spot = spots[Math.floor(Math.random() * spots.length)];
-        [a.x, a.z] = pool(i)[a.spot];
-        a.phase = 'in';
-        a.at = now;
+        crs[i].phase = 'tell';
+        crs[i].at = now;
         G.out = i;
         G.last = i;
-        play('critter-in', { volume: 0.5 });
+        play('critter-peek', { volume: 0.45 });
       } else G.next = now + 1;
     }
 
-    // --- each one: dropping in, out and about, blinking out ---
+    // --- each one: its home stirring, coming out, out and about, going back in ---
     crs.forEach((a, i) => {
       const u = now - a.at;
-      if (a.phase === 'in' && u > IN) {
-        a.phase = 'out';
+      const mv = MOVES[CREATURES[i].id];
+      const gone = () => {
+        if (G.out !== i) return;
+        G.out = -1;
+        G.lock = 0;
+        if (G.pending === i) G.pending = -1;
+        G.next = now + GAP[0] + Math.random() * (GAP[1] - GAP[0]);
+      };
+      if (a.phase === 'tell' && !close) {
+        a.phase = 'home';
+        gone();
+      } else if (a.phase === 'tell' && u > TELL) {
+        a.phase = 'in';
         a.at = now;
-      } else if (a.phase === 'out' && !a.caught && G.out === i && (u > STAY || !close) && G.pending !== i) {
-        a.phase = 'leaving';
+        play('critter-in', { volume: 0.5 });
+      } else if (a.phase === 'in' && u > mv.in) {
+        a.phase = 'up';
         a.at = now;
-      } else if (a.phase === 'leaving' && u > OUT) {
-        a.phase = 'away';
-        a.at = now;
-        if (G.out === i) {
-          G.out = -1;
-          G.lock = 0;
-          G.next = now + GAP[0] + Math.random() * (GAP[1] - GAP[0]);
+        a.left = UP[0] + (UP[1] - UP[0]) * Math.min(1, caughtN / (CREATURES.length - 1));
+      } else if ((a.phase === 'in' || a.phase === 'up') && !a.caught && G.out === i) {
+        // its time runs out, except while you're holding it in the viewer
+        if (a.phase === 'up' && G.lock <= 0 && G.pending !== i) a.left -= dt;
+        if ((a.phase === 'up' && a.left <= 0) || !close) {
+          a.phase = 'out';
+          a.at = now;
+          if (G.pending === i) G.pending = -1;
+          if (close) play('critter-away', { volume: 0.4 });
         }
+      } else if (a.phase === 'out' && u > mv.out) {
+        a.phase = 'home';
+        a.at = now;
+        gone();
       }
     });
 
@@ -329,15 +537,17 @@ export function ParkCritters({ slug }: { slug: string }) {
     const oi = G.out;
     const o = oi >= 0 ? crs[oi] : null;
     let near = false;
-    if (o && o.phase === 'out' && !o.caught) {
-      // where the cursor is at its depth, against its middle: so the ones up in the air are aimed at, not the lawn under them
-      _aim.set(o.x, GROUND + size[oi].mid, o.z);
-      near = close && !!cursorAtDepth(s, fr, _aim, cursor) && cursor.distanceTo(_aim) < Math.max(LOCK.reach, size[oi].foot * 0.85);
-      const head = bearing(o.x, o.z);
+    const live = !!o && !!o.body && (o.phase === 'in' || o.phase === 'up') && !o.caught;
+    if (o && o.body && live) {
+      // its middle, where it is now, in the park's frame; and the cursor at
+      // that depth, so the ones up in the air are aimed at, not the lawn under them
+      o.body.updateWorldMatrix(true, false);
+      fr.worldToLocal(o.body.localToWorld(_aim.copy(size[oi].c)));
+      near = close && !!cursorAtDepth(s, fr, _aim, cursor) && cursor.distanceTo(_aim) < size[oi].reach;
+      const head = bearing(_aim.x, _aim.z);
       if (near || G.pending === oi) SAFARI.want = head;
-      const on = near && SAFARI.aiming && Math.abs(SAFARI.yaw - head) < LOCK.tol;
-      G.lock = on ? Math.min(LOCK.hold, G.lock + dt) : G.pending === oi ? G.lock : Math.max(0, G.lock - dt * 1.5);
-      if (G.lock >= LOCK.hold && G.pending < 0) {
+      if (G.pending !== oi) G.lock = near ? Math.min(LOCK.hold, G.lock + dt) : Math.max(0, G.lock - dt * 2);
+      if (G.lock >= LOCK.hold && G.pending < 0 && SAFARI.aiming && Math.abs(SAFARI.yaw - head) < LOCK.tol) {
         G.pending = oi;
         G.seen = SAFARI.fired;
         SAFARI.shoot = 1;
@@ -351,12 +561,12 @@ export function ParkCritters({ slug }: { slug: string }) {
       const a = crs[i];
       a.caught = true;
       a.caughtAt = now;
-      burstAt.current = { t: now, x: a.x, z: a.z, r: size[i].foot };
+      burstAt.current = { t: now, x: _aim.x, z: _aim.z, r: size[i].foot };
       play('critter-snap', { volume: 0.7 });
       // and over it, its name
       const el = saidEl.current;
       if (said.current && el && saidName.current) {
-        said.current.position.set(a.x, GROUND + size[i].top + 0.01, a.z);
+        said.current.position.set(_aim.x, GROUND + size[i].top + 0.008, _aim.z);
         saidName.current.textContent = CREATURES[i].name;
         el.removeAttribute('data-on');
         void el.offsetWidth; // start its animation over
@@ -365,36 +575,34 @@ export function ParkCritters({ slug }: { slug: string }) {
       G.pending = -1;
       G.out = -1;
       G.lock = 0;
-      G.next = now + GAP[1];
+      G.next = now + Math.max(GAP[1], 1.6);
       if (crs.every((b) => b.caught)) {
-        G.finale = 'gather';
+        G.finale = 'roll';
         G.finAt = now + Math.max(FINALE.wait, SAID);
+        G.rolled = -1;
       }
     }
 
-    // --- all ten: together in two rows before the viewer, the group photo, the print ---
-    if (G.finale === 'gather' && now > G.finAt) {
-      crs.forEach((a, i) => {
-        const t0 = G.finAt + i * FINALE.stagger;
-        if (now > t0 && a.spot >= 0 && a.phase === 'out') {
-          a.phase = 'leaving';
-          a.at = now;
-        } else if (a.spot >= 0 && a.phase === 'away') {
-          // gone from its spot: in again at its place in the rows
-          a.spot = -1;
-          [a.x, a.z] = GROUP[i];
-          a.phase = 'in';
-          a.at = now;
-          if (i === 0) play('critter-in', { volume: 0.5 });
+    // --- all seven: a picture of each, at home, then of them all, and the print ---
+    if (G.finale === 'roll' && now > G.finAt) {
+      const k = Math.floor((now - G.finAt) / FINALE.each);
+      if (k < roll.order.length) {
+        const j = roll.order[k];
+        SAFARI.want = bearing(CREATURES[j].home[0], CREATURES[j].home[1]);
+        // the viewer's had a moment to find it: the shutter, and it does a little hop
+        if (k > G.rolled && now - G.finAt - k * FINALE.each > FINALE.each * 0.55) {
+          G.rolled = k;
+          SAFARI.shoot = 1;
+          crs[j].cheerAt = now;
+          play('critter-snap', { volume: 0.35 });
         }
-      });
-      if (crs.every((a) => a.spot < 0 && a.phase === 'out')) {
+      } else {
         G.finale = 'pose';
         G.finAt = now;
       }
     }
     if (G.finale === 'pose' || G.finale === 'shot') {
-      SAFARI.want = bearing(GROUP[CENTRE][0], GROUP[CENTRE][1]);
+      SAFARI.want = roll.mid;
       if (G.finale === 'pose' && now - G.finAt > FINALE.pose) {
         G.finale = 'shot';
         G.seen = SAFARI.fired;
@@ -403,118 +611,105 @@ export function ParkCritters({ slug }: { slug: string }) {
         G.finale = 'print';
         G.printAt = now;
         play('critter-group', { volume: 0.8 });
+        crs.forEach((a) => (a.cheerAt = now));
       }
     }
     if (G.finale === 'print' && now - G.printAt > FINALE.print) {
-      // and the park lets them go: back to AR, and it starts over
-      crs.forEach((a) => {
+      // and the park lets them go: back into their homes, one after another,
+      // AR again, and it starts over
+      crs.forEach((a, k) => {
         a.caught = false;
-        if (a.phase !== 'away') {
-          a.phase = 'leaving';
-          a.at = now;
+        if (a.phase !== 'home') {
+          a.phase = 'out';
+          a.at = now + k * 0.15;
         }
       });
       G.finale = 'none';
-      G.next = now + 2.5;
+      G.next = now + 3.5;
     }
 
     // --- how each one looks and moves ---
     fr.worldToLocal(s.camera.getWorldPosition(_cam));
+    _up.set(0, 1, 0).transformDirection(fr.matrixWorld);
     crs.forEach((a, i) => {
       const g = a.g;
       const body = a.body;
+      const d = CREATURES[i];
       const m = mats[i];
       if (!g || !body) return;
-      const u = now - a.at;
-      const vis = a.phase === 'away' ? 0 : a.phase === 'in' ? easeOutBack(Math.min(1, u / IN), 2.2) : a.phase === 'leaving' ? 1 - easeIn(u / OUT) : 1;
-      g.visible = vis > 0.002;
+      // the homes land, one after another, the first time the close-up opens
+      const land = easeOutBack(Math.min(1, Math.max(0, (now - G.shownAt - i * 0.08) / 0.45)), 2);
+      g.visible = land > 0.002;
       if (!g.visible) return;
-      a.real += ((a.caught ? 1 : 0) - a.real) * (1 - Math.exp(-dt * 4));
       // it shows you the side it was posed to show: turned from facing the
-      // camera by its own `view` (for the group photo too: it's you they pose for)
-      g.position.set(a.x, GROUND, a.z);
-      g.rotation.set(0, CREATURES[i].view - Math.atan2(_cam.z - a.z, _cam.x - a.x), 0);
-      g.scale.setScalar(Math.max(0, vis));
-      // its own business, calmer once it's real (and still for the group photo)
-      const t = now + a.seed * 3;
-      const busy = a.spot < 0 ? 0.15 : 1 - 0.4 * a.real;
-      let bx = 0;
-      let by = 0;
-      let bz = 0;
-      let yaw = 0;
-      let roll = 0;
-      let stretch = 1;
-      switch (CREATURES[i].id) {
-        case 'doodlefly': {
-          // fluttering in a small round, wings beating
-          bx = Math.cos(t * 0.8) * 0.02 * busy;
-          bz = Math.sin(t * 0.8) * 0.02 * busy;
-          by = 0.007 * Math.sin(t * 2.3);
-          yaw = 0.3 * Math.sin(t * 0.8) * busy;
-          const flap = 0.15 + 0.5 * (0.5 + 0.5 * Math.sin(t * 15));
-          if (a.wings[0]) a.wings[0].rotation.x = flap;
-          if (a.wings[1]) a.wings[1].rotation.x = -flap;
-          break;
-        }
-        case 'ampeel': // rising and sinking a little, swaying
-          by = -0.004 + 0.004 * Math.sin(t * 1.2);
-          yaw = 0.25 * Math.sin(t * 0.5) * busy;
-          break;
-        case 'pingpillar': // inching: a stretch and a gather
-          stretch = 1 + 0.07 * Math.sin(t * 3) * busy;
-          bx = 0.008 * Math.sin(t * 0.6) * busy;
-          break;
-        case 'orbitot': // bobbing in the air, turning on its axis to and fro
-          by = 0.006 * Math.sin(t * 1.5);
-          yaw = 0.35 * Math.sin(t * 0.45) * busy;
-          break;
-        case 'pinboo': // never quite where its dot is: drifting off it and back
-          bx = 0.016 * Math.sin(t * 0.7) * busy;
-          bz = 0.012 * Math.sin(t * 1.1 + 1) * busy;
-          by = 0.005 * Math.sin(t * 2);
-          roll = 0.08 * Math.sin(t * 1.3) * busy;
-          break;
-        case 'cameleon': // slow, a turn of the head now and then
-          yaw = 0.15 * Math.sin(t * 0.6) * busy;
-          break;
-        case 'moletage': // a little hop now and then, the cable held up
-          by = 0.002 * bump(((t / 2.2) % 1) * 4) * busy;
-          break;
-        case 'driftnot': // the cloud tugging round on its chain
-          yaw = 0.12 * Math.sin(t * 0.5) * busy;
-          break;
-        case 'chatterkeet': // bobbing as it talks, a look round now and then
-          roll = 0.06 * Math.sin(t * 3.1) * busy;
-          yaw = 0.2 * Math.sin(Math.floor(t / 1.4) * 2.3) * busy;
-          break;
-        case 'jerboost': // the leap, over and over, off the ramp
-          by = 0.012 * bump(((t / 1.3) % 1) * 2) * busy;
-          bx = 0.004 * Math.sin((t / 1.3) * Math.PI * 2) * busy;
-          break;
+      // camera by its own `view` (set while you're in the close-up; it stays put after)
+      if (close || a.face === null) a.face = d.view - Math.atan2(_cam.z - d.home[1], _cam.x - d.home[0]);
+      g.rotation.y = a.face;
+      a.real += ((a.caught ? 1 : 0) - a.real) * (1 - Math.exp(-dt * 4));
+      const u = now - a.at;
+      // its home stirs before it comes out
+      const stir = a.phase === 'tell' ? bump(u / TELL) : 0;
+      if (a.home) {
+        a.home.scale.setScalar(land);
+        a.home.rotation.set(0.03 * Math.sin(u * 37) * stir, 0, 0.05 * Math.sin(u * 45) * stir);
       }
-      body.position.set(bx, by, bz);
-      body.rotation.set(0, yaw, roll);
-      body.scale.set(stretch, 1, 1);
+      m.home.userData.real.value = a.real;
+      m.home.color.copy(accentC).lerp(white, a.real);
+      m.home.emissive.copy(accentC).lerp(white, a.real);
+      m.home.emissiveIntensity = (0.5 + 0.7 * stir) * (1 - a.real) + 0.4 * a.real;
+      m.home.opacity = Math.min(1, (0.62 + 0.3 * stir) * (1 - a.real) + a.real);
+      const out = a.phase === 'in' || a.phase === 'up' || a.phase === 'out';
+      body.visible = out;
+      if (!out) return;
+      // its own business, calmer once it's real, and how it comes and goes
+      const mv = MOVES[d.id];
+      const k = a.phase === 'in' ? Math.min(1, u / mv.in) : a.phase === 'out' ? Math.min(1, Math.max(0, u) / mv.out) : 1;
+      rest(_p);
+      rest(_q);
+      mv.idle(_p, now + a.seed * 3, (1 - 0.4 * a.real) * (a.phase === 'in' ? k : a.phase === 'out' ? 1 - k : 1));
+      if (a.phase === 'in') mv.enter(_q, k, size[i].top);
+      else if (a.phase === 'out' && u > 0) mv.leave(_q, k, size[i].top);
+      // a hop when its picture's taken in the roll call
+      const cheer = bump((now - a.cheerAt) / 0.45);
+      const sc = Math.max(0.0001, _p.scale * _q.scale * (1 + 0.08 * cheer));
+      const c = size[i].c;
+      body.position.set(_p.x + _q.x + (1 - sc) * c.x, _p.y + _q.y + 0.012 * cheer + (1 - sc) * c.y, _p.z + _q.z + (1 - sc) * c.z);
+      body.rotation.set(0, _p.yaw + _q.yaw, _p.roll + _q.roll);
+      body.scale.setScalar(sc);
+      // anything of it below its home's ground (the molehill's rim, the lake) is cut away
+      m.clip.setFromNormalAndCoplanarPoint(_up, fr.localToWorld(_pt.set(d.home[0], GROUND + (d.id === 'moletage' ? MOLE_RIM : 0), d.home[1])));
       // AR, it's the accent's light, a little unsteady; real, its own colours
       // (and the camera chameleon flashes back at the shutter)
       const flick = 0.85 + 0.15 * Math.sin(now * 23 + a.seed) * Math.sin(now * 7.3);
-      const flash = CREATURES[i].id === 'cameleon' ? Math.max(0, 1 - (now - a.caughtAt) / 0.35) : 0;
-      m.userData.real.value = a.real;
-      m.color.copy(accentC).lerp(white, a.real);
-      m.emissive.copy(accentC).lerp(white, a.real);
-      m.emissiveIntensity = 0.75 * flick * (1 - a.real) + 0.2 * a.real + 2.5 * flash;
-      m.opacity = Math.min(1, vis) * (0.78 + 0.22 * a.real);
+      const flash = d.id === 'cameleon' ? Math.max(0, 1 - (now - a.caughtAt) / 0.35) : 0;
+      const b = m.body;
+      b.userData.real.value = a.real;
+      b.userData.show.value = _p.show * _q.show;
+      b.color.copy(accentC).lerp(white, a.real);
+      b.emissive.copy(accentC).lerp(white, a.real);
+      b.emissiveIntensity = 0.75 * flick * (1 - a.real) + 0.45 * a.real + 2.5 * flash;
+      b.opacity = _p.fade * _q.fade * (0.8 + 0.2 * a.real);
     });
 
     // --- the rings ---
+    const pg = ping.current;
+    if (pg) {
+      // a home stirring: two AR pings spreading out from it
+      const st = o && o.phase === 'tell' ? o : null;
+      pg.visible = !!st;
+      if (st) {
+        const kk = (((now - st.at) / TELL) * 2) % 1;
+        pg.position.set(CREATURES[oi].home[0], GROUND + 0.002, CREATURES[oi].home[1]);
+        pg.scale.setScalar(size[oi].foot * (0.5 + 1.6 * easeOut(kk)));
+        rings.ping.opacity = 0.85 * (1 - kk);
+      }
+    }
     const an = anchor.current;
     if (an) {
-      const show = o && (o.phase === 'in' || o.phase === 'out') && !o.caught;
-      an.visible = !!show;
-      if (o && show) {
-        const u = now - o.at;
-        const drop = o.phase === 'in' ? 1 - easeOut(u / IN) : 0; // spreading out as it lands
-        an.position.set(o.x, GROUND + 0.002, o.z);
+      an.visible = live;
+      if (o && live) {
+        const drop = o.phase === 'in' ? 1 - easeOut((now - o.at) / MOVES[CREATURES[oi].id].in) : 0; // spreading out as it comes
+        an.position.set(_aim.x, GROUND + 0.002, _aim.z);
         an.scale.setScalar(size[oi].foot * (1.05 + 1.5 * drop + 0.08 * Math.sin(now * 5)) * (1 + 0.25 * G.focus));
         rings.anchor.opacity = 0.35 + 0.5 * drop + 0.1 * Math.sin(now * 5) + 0.45 * G.focus;
       }
@@ -522,9 +717,9 @@ export function ParkCritters({ slug }: { slug: string }) {
     const lr = lockRing.current;
     if (lr) {
       const p = G.lock / LOCK.hold;
-      lr.visible = !!o && p > 0.01;
-      if (o && lr.visible) {
-        lr.position.set(o.x, GROUND + 0.003, o.z);
+      lr.visible = live && p > 0.01;
+      if (lr.visible) {
+        lr.position.set(_aim.x, GROUND + 0.003, _aim.z);
         lr.scale.setScalar(size[oi].foot * 1.5);
         lockGeo.setDrawRange(0, 6 * Math.ceil(LOCK_SEGS * Math.min(1, p)));
         rings.lock.opacity = 0.55 + 0.45 * p;
@@ -570,36 +765,33 @@ export function ParkCritters({ slug }: { slug: string }) {
         CREATURES.map((d, i) => (
           <group
             key={d.id}
+            position={[d.home[0], GROUND, d.home[1]]}
             ref={(g) => {
               crs[i].g = g;
             }}
             visible={false}
           >
-            {/* what stays put while it moves: the pin's map dot, the jerboa's ramp */}
-            {d.id === 'pinboo' && <mesh geometry={kit.pinboo_dot} material={mats[i]} />}
-            {d.id === 'jerboost' && <mesh geometry={kit.jerboost_ramp} material={mats[i]} />}
+            {/* its home, which stays put */}
+            {d.piece && (
+              <group
+                ref={(g) => {
+                  crs[i].home = g;
+                }}
+              >
+                <mesh geometry={kit[d.piece]} material={mats[i].home} />
+              </group>
+            )}
             <group
               ref={(g) => {
                 crs[i].body = g;
               }}
+              visible={false}
             >
-              <mesh geometry={kit[d.id]} material={mats[i]} />
-              {/* the butterfly's wings beat about the line of its body */}
-              {d.id === 'doodlefly' &&
-                ([kit.doodlefly_wing0, kit.doodlefly_wing1] as const).map((w, k) => (
-                  <group
-                    key={k}
-                    position={[0, WING_HINGE, 0]}
-                    ref={(g) => {
-                      crs[i].wings[k] = g;
-                    }}
-                  >
-                    <mesh geometry={w} material={mats[i]} position={[0, -WING_HINGE, 0]} />
-                  </group>
-                ))}
+              <mesh geometry={kit[d.id]} material={mats[i].body} />
             </group>
           </group>
         ))}
+      <mesh ref={ping} geometry={ringGeo} material={rings.ping} visible={false} renderOrder={2} />
       <mesh ref={anchor} geometry={ringGeo} material={rings.anchor} visible={false} renderOrder={2} />
       <mesh ref={lockRing} geometry={lockGeo} material={rings.lock} visible={false} renderOrder={2} />
       <mesh ref={burst} geometry={ringGeo} material={rings.burst} visible={false} renderOrder={2} />

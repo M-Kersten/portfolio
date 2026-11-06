@@ -68,8 +68,11 @@ export type SoundName =
   | 'ball-in'
   | 'ball-rim'
   | 'bin-tip'
-  // ARCam's park: an animal dropping in by AR, one photographed, and the group photo
+  // ARCam's park: a home stirring, its creature coming out, one getting away,
+  // one photographed, and the group photo
+  | 'critter-peek'
   | 'critter-in'
+  | 'critter-away'
   | 'critter-snap'
   | 'critter-group'
   // the ambient beds, one per layer of the maquette

@@ -82,14 +82,17 @@ model, with the shared helpers in `modelkit.py`:
   are soft toys rather than the kit's bevelled parts: metaball bodies, tubes
   for limbs and tails, big glossy eyes. Each one is painted instead of given a
   material, its colours baked into the mesh as vertex colours (their alpha is
-  how much a part glows); the Doodlefly's wings are cut out of a crayon drawing,
-  `tex/doodlefly.png`. A part that moves on its own is a piece apart: the
-  Doodlefly's wings (`doodlefly_wing0`, `doodlefly_wing1`), Pinboo's dot on the
-  map (`pinboo_dot`) and the ramp Jerboost jumps (`jerboost_ramp`). It ships as
-  `public/models/creatures.glb`, which loads when the ARCam close-up first
-  opens; `critters.tsx` drops them into the park and turns them real. Name
-  creatures after the script to build only those while you work on them
-  (`build_creatures.py pinboo`), but ship the file with all ten.
+  how much a part glows). Each comes with its home, a piece apart that stays
+  put while the creature comes and goes: Pinboo's dot on the map
+  (`pinboo_dot`), Cameleon's root (`cameleon_root`), Moletage's molehill and
+  its street works (`moletage_hill`; the mole sits down the hole), Driftnot's
+  anchor (`driftnot_anchor`), Chatterkeet's Amsterdammertje
+  (`chatterkeet_post`) and Jerboost's ramp (`jerboost_ramp`); Orbitot's home
+  is the lake. It ships as `public/models/creatures.glb`, which loads when the
+  ARCam close-up first opens; `critters.tsx` sets the homes out in the park
+  and runs the game. Name creatures after the script to build only those
+  while you work on them (`build_creatures.py pinboo`), but ship the file
+  with all seven.
 
 `src/scene/maquette/kit.ts` loads the files, and the layers give every part
 the site's own materials.

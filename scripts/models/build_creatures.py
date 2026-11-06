@@ -1,32 +1,32 @@
 # The creatures of the ARCam park's photo game, each out of one of Merijn's
 # projects: soft toys with big glossy eyes and one thing each that says what
-# it is. Exported as one glb of named pieces for the site
-# (src/scene/maquette/critters.tsx, which drops them into the park by AR and
-# turns them real once they're photographed). See README.md to rebuild.
+# it is. Each has a home in the park, where it pops up (the site's game, in
+# src/scene/maquette/critters.tsx). Exported as one glb of named pieces: each
+# creature, and its home apart, which stays put. See README.md to rebuild.
 #
 # Each is modelled in toy units facing +X (creature_kit.py), painted in vertex
 # colours (their alpha is how much a part glows), thinned for the web, then
 # centred on its body's footprint and scaled into the park's units: its feet
-# (or its water line) at y 0, facing +X.
-#   doodlefly         a child's crayon butterfly, cut out of the paper (Kastwezens);
-#                     the body, its two wings apart (doodlefly_wing0/1) to flap
-#                     about the body's line
-#   ampeel            an eel rising out of the lake, the grid's light down its
-#                     flanks and the high-voltage sign on its neck (Alliander)
-#   pingpillar        an inchworm of ping-pong balls, an orange one for a head (Popcore)
-#   orbitot           a little Saturn, rings and all, a moon on a dotted orbit (Sol.AR)
+# (or the water it rises out of) at y 0, facing +X.
+#   orbitot           a little Saturn, rings and all, a moon on a dotted orbit
+#                     (Sol.AR); its home is the lake, so it has no piece of its own
 #   pinboo            a map pin turned ghost, its white dot one big eye; and
 #                     pinboo_dot, the spot the map says it's at, a step to its
 #                     left, with the track it took away from it (GPS drifts)
-#   cameleon          a chameleon in pixel camouflage on a root, camera lenses
-#                     for eyes, a flash on its crest (ARCam)
-#   moletage          a mole in a high-vis vest by its molehill, holding up a
-#                     cable it dug out from under the street (Amsterdam Underground)
-#   driftnot          a cloud on a chain, its anchor dug into the lawn (cloud anchors)
-#   chatterkeet       a ring-necked parakeet on an Amsterdammertje, a reply
-#                     always being typed (the Amsterdam AI guides)
+#   cameleon          a chameleon in pixel camouflage, camera lenses for eyes, a
+#                     flash on its crest (ARCam); and cameleon_root, the old root
+#                     it walks
+#   moletage          a mole in a high-vis vest, holding up a cable it dug out
+#                     from under the street (Amsterdam Underground); and
+#                     moletage_hill, the molehill it sits in, with its bricks
+#                     and the cone that says the street's up
+#   driftnot          a cloud on a chain (cloud anchors); and driftnot_anchor,
+#                     the anchor dug into the lawn, in its AR ring
+#   chatterkeet       a ring-necked parakeet, a reply always being typed (the
+#                     Amsterdam AI guides); and chatterkeet_post, the
+#                     Amsterdammertje it perches on
 #   jerboost          a jerboa in mid-leap, the crown on, a chequered flag at the
-#                     end of its tail; and jerboost_ramp, the ramp it jumped (Lightship Drive)
+#                     end of its tail; and jerboost_ramp, the ramp it jumps (Lightship Drive)
 import math
 import os
 import sys
@@ -35,9 +35,9 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import creature_kit as C  # noqa: E402  (imports modelkit, which imports bpy first)
 from creature_kit import (  # noqa: E402
-    BLUSH, INK, MB, TAU, Bands, Checker, Flat, Matrix, Picture, Pixels, Ramp, Vector, YBands,
-    ball, basis, blobs, cam_az, catmull, catmull_clamped, ell, ell_along, facing, land, patch, put,
-    resample, ring_on, rot_about, skin, smile_on, smooth, surface, toon_eye, torus, toward, turn_to,
+    BLUSH, INK, MB, TAU, Bands, Checker, Flat, Matrix, Pixels, Ramp, Vector, YBands,
+    annulus, ball, basis, blobs, cam_az, catmull, ell, ell_along, facing, land, patch, put,
+    ring_on, rot_about, skin, smile_on, smooth, surface, toon_eye, torus, toward, turn_to,
     wire, xform,
 )
 import modelkit as K  # noqa: E402
@@ -46,190 +46,10 @@ import bpy  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'out')
-TEX = os.path.join(HERE, 'tex')
 CYAN = '#27e8f2'
 
 
-# ------------------------------------------------------------- Doodlefly
-
-def doodlefly():
-    """A child's crayon drawing of a butterfly, cut out of the paper: wings up
-    in a V, the drawing on both. Level, flying at a height (the site flaps the
-    wings and banks it)."""
-    W, H, dih = 8.0, 6.0, math.radians(30)
-    lift = Vector((0, 4.0, 0))
-    drawing = Picture(os.path.join(TEX, 'doodlefly.png'))
-    wings = []
-    for side in (-1, 1):
-        bm = bmesh.new()
-        uv = bm.loops.layers.uv.new('UVMap')
-        nu, nv = 34, 34
-        g = [[bm.verts.new(((0.5 - j / nv) * H, 0.32 * (i / nu) ** 2 + 0.14 * math.sin(math.pi * j / nv) * (i / nu), side * (i / nu) * W / 2)) for j in range(nv + 1)] for i in range(nu + 1)]
-        for i in range(nu):
-            for j in range(nv):
-                q = (g[i][j], g[i + 1][j], g[i + 1][j + 1], g[i][j + 1])
-                f = bm.faces.new(q if side < 0 else tuple(reversed(q)))
-                for lp in f.loops:
-                    x, _, z = lp.vert.co
-                    lp[uv].uv = (0.5 + z / W, 1 - (0.5 - x / H))
-        # cut the drawing out: only the paper with crayon on it stays
-        kill = []
-        for f in bm.faces:
-            cu = sum(lp[uv].uv[0] for lp in f.loops) / 4
-            cv = sum(lp[uv].uv[1] for lp in f.loops) / 4
-            if drawing.sample((cu, cv))[3] < 0.5:
-                kill.append(f)
-        bmesh.ops.delete(bm, geom=kill, context='FACES')
-        ob = K.mk(f'wing{side}', bm)
-        ob.data.transform(Matrix.Translation(lift) @ Matrix.Rotation(-side * dih, 4, 'X'))
-        K.add_mod(ob, 'SOLIDIFY', thickness=0.04, offset=0)  # card, with the drawing on both faces
-        K.bake(ob)
-        wings.append(put(smooth(ob), drawing))
-    crayon = Flat('#4a3428')
-    parts = [put(skin('body', [(0.82, 0.05, 0), (0.1, 0.07, 0), (-0.8, 0.06, 0), (-1.42, 0.04, 0)], [0.12, 0.15, 0.12, 0.06]), crayon)]
-    for s in (-1, 1):
-        parts.append(put(wire(f'feeler{s}', [(1.2, 0.06, s * 0.06), (1.75, 0.45, s * 0.3), (2.25, 0.95, s * 0.42), (2.5, 1.3, s * 0.3), (2.38, 1.42, s * 0.16), (2.28, 1.3, s * 0.18)], 0.03), crayon))
-    xform(parts, Matrix.Translation(lift))
-    # the wings hinge on the body's line: wing0 on its left (-Z), wing1 on its right
-    return parts + wings, {'pieces': {'wing0': [wings[0]], 'wing1': [wings[1]]}}
-
-
-# ------------------------------------------------------------- Ampeel
-
-def ampeel():
-    """An eel come up out of the lake with the city's power running down its
-    flanks, the high-voltage sign on its neck. Cut at the water line (y 0):
-    what's under the surface isn't drawn."""
-    def path(t):
-        x = 3.0 - 7.4 * t
-        z = 1.45 * math.sin(t * TAU * 0.85 + 0.25) * (0.35 + 0.65 * t)
-        y = 0.72 * math.sin(t * TAU * 1.35 + 0.95) - 0.22
-        if t < 0.17:
-            y += (0.17 - t) * 12.5
-        return Vector((x, y, z))
-
-    def rad(t):
-        return 0.08 + 0.46 * (1 - t) ** 0.9 if t > 0.06 else 0.4 + 1.6 * t
-
-    ts = [-0.035] + [i / 46 for i in range(47)]
-    pts = [path(max(t, 0)) + (Vector((0.22, -0.02, 0)) if t < 0 else Vector()) for t in ts]
-    radii = [0.18] + [rad(t) for t in ts[1:]]
-    body = skin('eel', [tuple(p) for p in pts], radii, sub=2)
-    parts = [put(body, Ramp(['#1a3846', '#86bdb3'], axis=(0, -1, 0), stops=(0.42, 0.62)))]
-    up = Vector((0, 1, 0))
-    # the fin along its back
-    bm = bmesh.new()
-    rows = []
-    for i in range(36):
-        t = 0.13 + 0.82 * i / 35
-        p = path(t)
-        tan = (path(t + 0.01) - path(t - 0.01)).normalized()
-        n = (up - tan * up.dot(tan)).normalized()
-        r = rad(t)
-        rows.append((bm.verts.new(p + n * (r * 0.75)), bm.verts.new(p + n * (r + 0.3 * (1 - t) ** 0.6 + 0.05))))
-    for (a, b), (c, d) in zip(rows, rows[1:]):
-        bm.faces.new((a, c, d, b))
-    fin = K.mk('fin', bm)
-    K.add_mod(fin, 'SOLIDIFY', thickness=0.05, offset=0)
-    K.add_mod(fin, 'SUBSURF', levels=1, render_levels=1)
-    K.bake(fin)
-    parts.append(put(smooth(fin), Flat('#24485a')))
-    # eyes, a mouth line
-    Hd = path(0.015)
-    tan = (path(0.0) - path(0.03)).normalized()
-    side = tan.cross(up).normalized()
-    for s in (-1, 1):
-        e = Hd + up * 0.2 + side * (s * 0.33) + tan * 0.12
-        parts += toon_eye(f'eeye{s}', e + side * (s * 0.04), (side * s + tan * 0.6 + up * 0.25).normalized(), up, 0.13, 1.2, 0.6)
-        m0 = Hd + tan * 0.42 - up * 0.1 + side * (s * 0.2)
-        parts.append(put(wire(f'mouth{s}', [tuple(m0), tuple(Hd + tan * 0.15 - up * 0.13 + side * (s * 0.3)), tuple(Hd - tan * 0.05 - up * 0.08 + side * (s * 0.34))], 0.03), Flat('#0f1a20')))
-    # the grid's pulses along each flank, one bright run among the dim
-    for i, t in enumerate([0.16 + 0.055 * k for k in range(14)]):
-        p = path(t)
-        if p.y < 0.05:
-            continue  # under the water
-        tn = (path(t + 0.01) - path(t - 0.01)).normalized()
-        sd = tn.cross(up).normalized()
-        bright = 7 <= i <= 9
-        for s in (-1, 1):
-            parts.append(put(K.sphere(f'pulse{i}{s}', 0.085 * (1.1 - t * 0.6), tuple(p + sd * (s * rad(t) * 0.93) + up * 0.04), 10, 6), Flat(CYAN, glow=1.0 if bright else 0.5)))
-    # the high-voltage sign on its neck, on the flank that faces you: a yellow
-    # triangle with a dark edge
-    p = path(0.09)
-    tn = (path(0.1) - path(0.08)).normalized()
-    sd = -tn.cross(up).normalized()
-    at = p + sd * rad(0.09) * 0.97 + up * 0.05
-    q = Vector((0, 0, 1)).rotation_difference(sd).to_matrix().to_4x4()
-    for k, (r_, col, z) in enumerate([(0.3, '#1d1f22', 0.0), (0.23, '#f5c518', 0.03)]):
-        tri = K.prism_ax(f'hv{k}', [(r_ * math.cos(a), r_ * math.sin(a)) for a in (math.pi / 2, math.pi / 2 + TAU / 3, math.pi / 2 + 2 * TAU / 3)], z, z + 0.035, axis='z')
-        tri.data.transform(Matrix.Translation(at) @ q)
-        parts.append(put(tri, Flat(col)))
-    # ripples where it breaks the surface
-    prev = path(0.0)
-    for i in range(1, 200):
-        t = i / 200
-        cur = path(t)
-        if (prev.y > 0) != (cur.y > 0):
-            c = prev.lerp(cur, prev.y / (prev.y - cur.y))
-            for k, rr in enumerate([rad(t) + 0.28, rad(t) + 0.6]):
-                parts.append(put(torus(f'rip{i}{k}', rr, 0.03, pos=(c.x, 0.012, c.z), seg=40, ring=5), Flat('#cdeef2', glow=0.15)))
-        prev = cur
-    # cut what's under the water away
-    for o in (body, fin):
-        bm = bmesh.new()
-        bm.from_mesh(o.data)
-        bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, -0.06, 0), plane_no=(0, -1, 0), clear_outer=True)
-        bmesh.ops.holes_fill(bm, edges=bm.edges[:], sides=0)  # close the cut
-        bm.to_mesh(o.data)
-        bm.free()
-    return parts, {}
-
-
-# ------------------------------------------------------------- Pingpillar
-
-def pingpillar():
-    """An inchworm of ping-pong balls, an orange one for a head."""
-    ctrl = [(3.3, 0.86, 0.0), (2.25, 1.55, 0.12), (0.95, 2.6, 0.2), (-0.45, 2.85, 0.18), (-1.75, 2.1, 0.05), (-2.85, 1.0, -0.05), (-3.9, 0.76, -0.1)]
-    centres = resample(catmull_clamped(ctrl, 30), 1.42)[:7]
-    white, orange, seam = Flat('#f2f1ea'), Flat('#ff8b3d'), Flat('#d6d3c8')
-    parts = []
-    import random
-    rnd = random.Random(4)
-    for i, c in enumerate(centres):
-        r = 0.86 if i == 0 else 0.75
-        if i in (0, len(centres) - 1):
-            c = Vector((c.x, r + 0.02, c.z))
-            centres[i] = c
-        parts.append(put(smooth(K.sphere(f'ball{i}', r, tuple(c), 40, 26)), orange if i == 0 else white))
-        parts.append(put(torus(f'seam{i}', r * 0.992, 0.02, pos=tuple(c), rot=(rnd.uniform(0, 3), rnd.uniform(0, 3), rnd.uniform(0, 3)), seg=48, ring=5), seam))
-    c0 = centres[0]
-    R0 = 0.86
-    up = Vector((0, 1, 0))
-    for s in (-1, 1):
-        n = Vector((0.74, 0.34, s * 0.36)).normalized()
-        parts += toon_eye(f'ppeye{s}', c0 + n * R0, n, up, 0.15, 1.15, 0.5)
-        parts.append(put(K.sphere(f'blush{s}', 0.13, tuple(c0 + R0 * 0.97 * Vector((0.6, 0.0, s * 0.62)).normalized()), 16, 10, scale=(0.6, 0.6, 0.6)), BLUSH))
-        base = c0 + R0 * Vector((0.15, 1, s * 0.32)).normalized()
-        parts.append(put(wire(f'pp_ant{s}', [tuple(base), tuple(base + Vector((0.25, 0.55, s * 0.12))), tuple(base + Vector((0.55, 1.0, s * 0.32)))], 0.04), Flat('#3f444c')))
-        parts.append(put(smooth(K.sphere(f'pp_tip{s}', 0.17, tuple(base + Vector((0.6, 1.08, s * 0.35))), 20, 12)), white))
-    mc = c0 + R0 * 0.985 * Vector((0.92, -0.08, 0)).normalized()
-    smile = torus('smile', 0.22, 0.04, pos=tuple(mc), rot=(0, 0, math.pi / 2), seg=24, ring=6, arc=2.2)
-    smile.data.transform(rot_about('X', -math.pi / 2 - 1.1 + math.pi, tuple(mc)))
-    parts.append(put(smile, Flat('#3a2420')))
-    for i in (0, 1, 5, 6):
-        c = centres[i]
-        r = 0.86 if i == 0 else 0.75
-        for s in (-1, 1):
-            top = c + Vector((0.05, -r * 0.7, s * 0.32))
-            parts.append(put(skin(f'ppleg{i}{s}', [tuple(top), (top.x + 0.08, 0.1, top.z + s * 0.12)], [0.12, 0.09]), Flat('#4b5059')))
-    return parts, {}
-
-
 # ------------------------------------------------------------- Orbitot
-
-def annulus(name, r0, r1, t=0.025, seg=96):
-    return smooth(K.lathe(name, [(r0, -t), (r1, -t), (r1, t), (r0, t)], seg=seg, closed=True))
-
 
 def orbitot():
     """A little Saturn, rings and all, with a moon on a dotted orbit round it."""
@@ -362,22 +182,23 @@ def lens_eye(name, base, aim, up, skin_p):
 
 def cameleon():
     """A chameleon in pixel camouflage, its turret eyes camera lenses, a flash
-    on its crest and a shutter button on top, walking an old root."""
+    on its crest and a shutter button on top, walking an old root. The root is
+    its own piece: its home, where it shows itself."""
     face_az = cam_az() - 0.9
     cam_local = (Matrix.Rotation(face_az, 4, 'Y') @ C.CAM).normalized()
     br_pts = [(-2.7, -0.1, -0.45), (-2.3, 1.15, -0.3), (-1.5, 1.8, -0.12), (-0.3, 1.86, 0.0), (0.95, 1.8, 0.08), (1.85, 1.2, 0.2), (2.35, -0.1, 0.3)]
     br = catmull(br_pts, 8)
     radii = [0.27 - 0.08 * math.sin(math.pi * i / (len(br) - 1)) for i in range(len(br))]
     wood = Flat('#6e4b33')
-    parts = [put(skin('branch', [tuple(p) for p in br], radii), wood)]
-    parts.append(put(skin('twig', [(1.25, 1.68, 0.1), (1.62, 2.18, 0.3), (1.82, 2.52, 0.32)], [0.09, 0.06, 0.04]), wood))
+    root = [put(skin('branch', [tuple(p) for p in br], radii), wood)]
+    root.append(put(skin('twig', [(1.25, 1.68, 0.1), (1.62, 2.18, 0.3), (1.82, 2.52, 0.32)], [0.09, 0.06, 0.04]), wood))
     for k, (p, d) in enumerate([((1.87, 2.6, 0.33), (0.6, 0.7, 0.3)), ((1.67, 2.32, 0.42), (0.9, 0.1, 0.6))]):
         leaf = K.sphere(f'leaf{k}', 1.0, (0, 0, 0), 16, 8)
         dd = Vector(d).normalized()
         sd = dd.cross(Vector((0, 1, 0))).normalized()
         nn = sd.cross(dd).normalized()
         leaf.data.transform(basis(dd * 0.32, sd * 0.15, nn * 0.04, Vector(p) + dd * 0.28))
-        parts.append(put(smooth(leaf), Flat('#7cc95a')))
+        root.append(put(smooth(leaf), Flat('#7cc95a')))
     Hc = Vector((1.05, 3.7, 0))
     CQ = Vector((0.55, 4.4, 0))
     el = [
@@ -396,7 +217,7 @@ def cameleon():
         el.append(ell(tuple(foot + Vector((0, 0.02, 0))), 0.17, (1.3, 0.75, 1.25)))
     body = blobs('cham', el, res=0.04)
     skin_p = Pixels([(0.0, '#1d8f86'), (0.3, '#27a898'), (0.62, '#36c0a6'), (0.9, '#8fd96a')], '#cdf3df', cell=0.2)
-    parts.append(put(body, skin_p))
+    parts = [put(body, skin_p)]
     parts += [put(lg, skin_p) for lg in legs]
     c = Vector((-2.25, 2.62, 0))
     tail = [Vector((-1.35, 3.2, 0.0))]
@@ -425,35 +246,51 @@ def cameleon():
     parts.append(patch('flash', p, n, up, 0.14, 0.08, 0.05, Flat('#f4fbff', glow=0.35), sink=0.1))
     p2, n2 = land(tree, CQ, Vector((-0.2, 1.0, 0)))
     parts.append(put(K.cyl('shutter', 0.15, 0.13, pos=tuple(p2 + n2 * 0.04), seg=16, bev=0.03), Flat('#ff4a3d')))
-    turn_to(parts, face_az)
-    return parts, {}
+    turn_to(parts + root, face_az)
+    return parts + root, {'pieces': {'root': root}}
 
 
 # ------------------------------------------------------------- Moletage
 
 def moletage():
-    """A mole in a street-works vest, sat by its molehill with the end of a
-    cable it dug up from under the street, still sparking."""
+    """A mole in a street-works vest, come up out of its molehill with the end
+    of a cable it dug up from under the street, still sparking. The molehill
+    and the street works round it are their own piece: its home, the hole it
+    pops up out of (the site hides what's below the rim, MOLE_RIM)."""
     f, u, s = facing((1, 0, 0))
-    parts = []
     soil = Flat('#4c3426')
-    M0 = Vector((-1.25, 0, -0.85))
-    mound_el = [ell((M0.x, 0.15, M0.z), 1.35, (1.0, 0.5, 1.0))]
-    for k in range(7):
-        a = TAU * k / 7 + 0.4
-        mound_el.append(ball((M0.x + 1.1 * math.cos(a), 0.3, M0.z + 1.1 * math.sin(a)), 0.32 + 0.07 * math.sin(3 * a)))
-    parts.append(put(blobs('mound', mound_el, res=0.06, neg=[ball((M0.x, 0.95, M0.z), 0.5)]), soil))
-    for k in range(12):
-        a = TAU * k / 12 + 0.17 * k
-        r = 1.6 + 0.5 * math.sin(2.3 * k)
-        parts.append(put(K.sphere(f'crumb{k}', 0.07 + 0.04 * (k % 3) / 2, (M0.x + r * math.cos(a), 0.04, M0.z + r * math.sin(a)), 8, 5, scale=(1, 0.7, 1)), soil))
-    for k, (p, rot) in enumerate([((-0.55, 0.55, -1.55), (0.45, 0.5, 0.35)), ((-1.95, 0.48, -0.3), (-0.4, 1.7, -0.35)), ((-0.15, 0.1, 1.55), (0.0, 0.7, 0.0))]):
-        parts.append(put(K.rbox(f'brick{k}', (0.62, 0.2, 0.3), 0.04, pos=p, rot=rot, bev=0.015), Flat('#a4493a')))
+    # the molehill: turned-up earth heaped round the hole the mole sits in,
+    # lumpy, lighter where it's dried on top, dark down the hole
+    M0 = Vector((0.42, 0, 0.25))
+    mound_el = [ell((M0.x, 0.0, M0.z), 2.05, (1.0, 0.26, 1.0))]
+    for k in range(13):
+        a = TAU * k / 13 + 0.3 + 0.12 * math.sin(5.1 * k)
+        r = 1.48 + 0.12 * math.sin(3.7 * k + 1)
+        mound_el.append(ball((M0.x + r * math.cos(a), 0.24 + 0.1 * math.sin(2.3 * k), M0.z + r * math.sin(a)), 0.4 + 0.12 * (0.5 + 0.5 * math.sin(4.3 * k + 0.5))))
+    for k in range(9):
+        a = TAU * k / 9 + 0.6
+        mound_el.append(ball((M0.x + 1.98 * math.cos(a), 0.08, M0.z + 1.98 * math.sin(a)), 0.28 + 0.08 * math.sin(2.9 * k)))
+    earth = Ramp(['#3a281d', '#6b4b34'], axis=(0, 1, 0), stops=(0.35, 0.85))
+    mound = blobs('mound', mound_el, res=0.05, neg=[ell((M0.x, 0.55, M0.z), 1.2, (1.0, 0.8, 1.0))])
+    bm = bmesh.new()
+    bm.from_mesh(mound.data)
+    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, 0), plane_no=(0, -1, 0), clear_outer=True)
+    bm.to_mesh(mound.data)  # flat on the lawn: nothing under it
+    bm.free()
+    hill = [put(mound, earth)]
+    hill.append(put(K.cyl('hole', 1.08, 0.02, pos=(M0.x, 0.05, M0.z), seg=32), Flat('#150d09')))
+    for k in range(14):
+        a = TAU * k / 14 + 0.17 * k
+        r = 2.25 + 0.35 * math.sin(2.3 * k)
+        hill.append(put(K.sphere(f'crumb{k}', 0.07 + 0.04 * (k % 3) / 2, (M0.x + r * math.cos(a), 0.04, M0.z + r * math.sin(a)), 8, 5, scale=(1, 0.7, 1)), soil))
+    # the bricks it brought up: one on the hill, two on the grass
+    for k, (p, rot) in enumerate([((0.2, 0.62, -1.15), (0.45, 0.5, 0.35)), ((-1.75, 0.1, -0.5), (0.0, 1.7, 0.0)), ((2.5, 0.1, -0.55), (0.0, 0.4, 0.0))]):
+        hill.append(put(K.rbox(f'brick{k}', (0.62, 0.2, 0.3), 0.04, pos=p, rot=rot, bev=0.015), Flat('#a4493a')))
     B = Vector((0.35, 1.08, 0.25))
     Hh = Vector((0.5, 2.62, 0.25))
     velvet = Ramp(['#3b374a', '#615c78'], axis=(0.85, -0.45, 0), stops=(0.5, 0.78))
     body = blobs('mole', [ell(tuple(B), 1.05, (0.95, 1.0, 0.95)), ell((0.75, 0.9, 0.25), 0.72, (0.85, 0.95, 1.0)), ball(tuple(Hh), 0.9)], res=0.035)
-    parts.append(put(body, velvet))
+    parts = [put(body, velvet)]
     tree = surface(body)
     pink = Flat('#f4a3b1')
     p, n = land(tree, Vector((0.55, 1.0, 0.25)), toward(0.0, -0.1, f, u, s))
@@ -502,8 +339,8 @@ def moletage():
     cone = K.lathe('cone', [(0.0, 0.8), (0.05, 0.8), (0.21, 0.08), (0.24, 0.06), (0.0, 0.06)], seg=20)
     foot = K.rbox('cone_foot', (0.6, 0.06, 0.6), 0.08, pos=(0, 0.03, 0), bev=0.01)
     cn = [put(smooth(cone), YBands(0.06, 0.8, '#ff5a1f', '#f2f2ee', [(0.42, 0.55), (0.7, 0.8)])), put(foot, Flat('#2b2d31'))]
-    xform(cn, Matrix.Translation((-1.0, 0, 1.1)) @ Matrix.Rotation(0.3, 4, 'Y'))
-    parts += cn
+    xform(cn, Matrix.Translation((-1.55, 0, 1.5)) @ Matrix.Rotation(0.3, 4, 'Y'))
+    hill += cn
 
     def hand(name, at, d, palm_n, curl=0.0):
         d = Vector(d).normalized()
@@ -526,7 +363,8 @@ def moletage():
     parts += hand('handR', hR, (0.25, -0.15, -0.95), (0.1, -0.95, 0.1))
     for k, (a, b) in enumerate([((0.62, 1.5, -0.3), hL - Vector((0.15, 0, -0.12))), ((0.65, 1.62, 0.75), hR - Vector((0.15, 0, 0.12)))]):
         parts.append(put(skin(f'arm{k}', [a, tuple(b)], [0.24, 0.19]), velvet))
-    cab = catmull([(M0.x + 0.1, 0.75, M0.z), (-0.7, 0.62, -0.95), (-0.15, 0.1, -1.05), (0.8, 0.08, -0.9), (1.5, 0.2, -0.5), (1.62, 0.75, -0.05), (1.5, 1.2, 0.25), (1.45, 1.62, 0.3)], 6)
+    # the cable, up out of the hole beside it to the paw that holds it up
+    cab = catmull([(1.0, 0.1, -0.45), (1.42, 0.42, -0.42), (1.62, 0.75, -0.1), (1.5, 1.2, 0.25), (1.45, 1.62, 0.3)], 6)
     parts.append(put(skin('cable', [tuple(p) for p in cab], 0.08, sub=1), Flat('#ff7b35')))
     end = cab[-1]
     up_d = (cab[-1] - cab[-2]).normalized()
@@ -543,8 +381,8 @@ def moletage():
         b2 = ax.orthogonal().normalized() * 0.035
         sk.data.transform(basis(b1, b2, b1.cross(b2).normalized() * 0.035, spark_c))
         parts.append(put(smooth(sk), Flat(CYAN, glow=1.0)))
-    turn_to(parts, cam_az() - 0.35)
-    return parts, {}
+    turn_to(parts + hill, cam_az() - 0.35)
+    return parts + hill, {'pieces': {'hill': hill}}
 
 
 # ------------------------------------------------------------- Driftnot
@@ -572,7 +410,8 @@ def chain(name, a, b, sag=0.25, pitch=0.19, paint_=None):
 
 
 def driftnot():
-    """A cloud on a chain, its anchor dug into the lawn so it can't drift off."""
+    """A cloud on a chain, its anchor dug into the lawn so it can't drift off.
+    The anchor and its ring are their own piece: its home, where it puffs up."""
     f, u, s = facing((1, 0, 0))
     Cc = Vector((0, 4.05, 0))
     puffs = [((0, 0.25, 0), 1.0), ((0.05, 0.05, 0.95), 0.74), ((0.05, 0.05, -0.95), 0.74), ((-0.15, -0.05, 1.62), 0.5), ((-0.15, -0.05, -1.62), 0.5),
@@ -616,33 +455,32 @@ def driftnot():
     low = min(v.co.y for o in an for v in o.data.vertices)
     xform(an, Matrix.Translation((0, -low - 0.07, 0)))
     ring_top = Matrix.Translation((0, -low - 0.07, 0)) @ M @ Vector((0, 2.08 + 0.19, 0))
-    parts += an
     # the chain up to its underside, and the AR anchor's ring on the lawn
     top, _ = land(tree, Cc + Vector((0.15, 0, -0.35)), Vector((0.1, -1, -0.15)))
     parts += chain('link', ring_top, top + Vector((0, 0.05, 0)), sag=0.2, paint_=Flat('#aeb8c2'))
-    parts.append(put(torus('anchor_ring', 0.78, 0.035, pos=(A.x, 0.015, A.z), seg=48, ring=5), Flat(CYAN, glow=0.7)))
-    turn_to(parts, cam_az() - 0.2)
-    return parts, {}
+    an.append(put(torus('anchor_ring', 0.78, 0.035, pos=(A.x, 0.015, A.z), seg=48, ring=5), Flat(CYAN, glow=0.7)))
+    turn_to(parts + an, cam_az() - 0.2)
+    return parts + an, {'pieces': {'anchor': an}}
 
 
 # ------------------------------------------------------------- Chatterkeet
 
 def chatterkeet():
     """One of Amsterdam's green parakeets on an Amsterdammertje, a reply always
-    on its way."""
+    on its way. The bollard is its own piece: its home, where it lands."""
     f, u, s = facing((1, 0, 0))
-    post = K.lathe('bollard', [(0.0, 0.0), (0.34, 0.0), (0.34, 0.08), (0.29, 0.14), (0.26, 1.6), (0.3, 1.66), (0.3, 1.74), (0.26, 1.8), (0.24, 1.95), (0.18, 2.06), (0.08, 2.12), (0.0, 2.13)], seg=24)
-    parts = [put(smooth(post), Flat('#5a2a24'))]
+    bollard = K.lathe('bollard', [(0.0, 0.0), (0.34, 0.0), (0.34, 0.08), (0.29, 0.14), (0.26, 1.6), (0.3, 1.66), (0.3, 1.74), (0.26, 1.8), (0.24, 1.95), (0.18, 2.06), (0.08, 2.12), (0.0, 2.13)], seg=24)
+    post = [put(smooth(bollard), Flat('#5a2a24'))]
     for k, y in enumerate((0.72, 1.02, 1.32)):
         r = 0.26 + 0.004 * (1.6 - y)
         for sd in (-1, 1):
-            parts.append(put(K.rbox(f'x{k}{sd}', (0.05, 0.28, 0.08), 0.02, pos=(r, y, 0), rot=(sd * 0.785, 0, 0), bev=0.01), Flat('#efe3cf')))
+            post.append(put(K.rbox(f'x{k}{sd}', (0.05, 0.28, 0.08), 0.02, pos=(r, y, 0), rot=(sd * 0.785, 0, 0), bev=0.01), Flat('#efe3cf')))
     turn = rot_about('Y', -0.5, (0.1, 3.3, 0))
     fh = (turn.to_3x3() @ f).normalized()
     sh = (turn.to_3x3() @ s).normalized()
     Hb = turn @ Vector((0.18, 3.62, 0))
     body = blobs('parakeet', [ell((0.02, 2.72, 0), 0.62, (0.92, 1.12, 0.88), (0, 0, 0.12)), ball(tuple(Hb), 0.56)], res=0.035)
-    parts.append(put(body, Ramp(['#2c9a46', '#b9e66b'], axis=(0.75, -0.65, 0), stops=(0.46, 0.72))))
+    parts = [put(body, Ramp(['#2c9a46', '#b9e66b'], axis=(0.75, -0.65, 0), stops=(0.46, 0.72)))]
     tree = surface(body)
     wing_p = Ramp(['#2a7f8c', '#2a8a4a'], axis=(1, 0.4, 0), stops=(0.25, 0.55))
     for sd in (-1, 1):
@@ -668,7 +506,7 @@ def chatterkeet():
                 c = Vector((dx * 0.24, 2.0, sd * 0.2 + dz * 1.6))
                 parts.append(put(skin(f'toe{sd}{dx}{dz}', [tuple(a), tuple(b), tuple(c)], [0.05, 0.045, 0.035], sub=1), toe))
     az = cam_az() - 0.7
-    turn_to(parts, az)
+    turn_to(parts + post, az)
     # a speech bubble by its head, facing the way it's seen from, a reply being typed
     camv = C.CAM.normalized()
     right = Vector((camv.z, 0, -camv.x)).normalized()
@@ -685,7 +523,7 @@ def chatterkeet():
     parts.append(put(smooth(tail), white))
     for k, (dx, g) in enumerate([(-0.27, 1.0), (0.0, 0.65), (0.27, 0.35)]):
         parts.append(put(K.sphere(f'dot{k}', 0.085, tuple(bc + right * dx + camv * 0.16), 12, 8), Flat(CYAN, glow=g)))
-    return parts, {}
+    return parts + post, {'pieces': {'post': post}}
 
 
 # ------------------------------------------------------------- Jerboost
@@ -763,9 +601,6 @@ def jerboost():
 
 # each one's size in the park: park units per toy unit
 CREATURES = [
-    ('doodlefly', doodlefly, 0.0125),
-    ('ampeel', ampeel, 0.017),
-    ('pingpillar', pingpillar, 0.0145),
     ('orbitot', orbitot, 0.0165),
     ('pinboo', pinboo, 0.0175),
     ('cameleon', cameleon, 0.0165),

@@ -1,8 +1,8 @@
 # creature_kit — the park creatures' shapes and paint (build_creatures.py).
 #
 # The creatures are soft toys, not the kit's bevelled hard-surface parts:
-# metaball bodies, skinned tubes for limbs and tails, curve wires for feelers
-# and whiskers, glossy cartoon eyes pressed into the surface where a ray from
+# metaball bodies, skinned tubes for limbs and tails, curve wires for
+# whiskers, glossy cartoon eyes pressed into the surface where a ray from
 # outside lands on it. Each part is painted rather than given a material: a
 # Paint says what colour a corner is from where it sits (its position, normal,
 # UV), and paint() bakes that into a corner colour attribute the site reads as
@@ -164,44 +164,12 @@ class Checker(Paint):
         return self.w if (int(uv[0] * self.n) + int(uv[1] * self.n)) % 2 == 0 else self.k
 
 
-class Picture(Paint):
-    """An image across the UVs (the butterfly's crayon drawing)."""
-    def __init__(self, path):
-        im = D.images.load(path, check_existing=True)
-        self.w, self.h = im.size
-        self.px = list(im.pixels)
-
-    def sample(self, uv):
-        u = min(1.0, max(0.0, uv[0]))
-        v = min(1.0, max(0.0, uv[1]))
-        i = (int(v * (self.h - 1)) * self.w + int(u * (self.w - 1))) * 4
-        return self.px[i:i + 4]
-
-    def rgb(self, co, no, uv):
-        r, g, b, _ = self.sample(uv)
-        return (srgb_to_lin(r), srgb_to_lin(g), srgb_to_lin(b))
-
-
 PAINT = {}  # object name → its Paint
 
 
 def put(ob, paint):
     PAINT[ob.name] = paint
     return ob
-
-
-# the builders' material calls, as paint (the look they were designed with
-# lives in the colours; the site does the shading)
-def mat(name, col, rough=0.5, metal=0.0, sss=0.0, sss_r=None, coat=0.0, sheen=0.0, emit=None, power=0.0, trans=0.0, ior=1.45, alpha=1.0, spec=0.5):
-    return Flat(col, glow=min(1.0, power / 6.0) if emit else 0.0)
-
-
-def glow(name, col, power):
-    return Flat(col, glow=min(1.0, power / 6.0))
-
-
-def ramp_mat(name, cols, axis=(0, 1, 0), stops=(0.35, 0.65), **kw):
-    return Ramp(cols, axis, stops)
 
 
 def paint(ob):
@@ -417,35 +385,6 @@ def catmull(pts, n=12):
             t = k / n
             out.append(0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t ** 3))
     out.append(P[-2])
-    return out
-
-
-def catmull_clamped(pts, n=12):
-    """Catmull-Rom through the points, its ends held (not run on)."""
-    out = []
-    P = [Vector(p) for p in pts]
-    for i in range(len(P) - 1):
-        p0 = P[max(i - 1, 0)]
-        p1, p2 = P[i], P[i + 1]
-        p3 = P[min(i + 2, len(P) - 1)]
-        for k in range(n):
-            t = k / n
-            out.append(0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t ** 3))
-    out.append(P[-1])
-    return out
-
-
-def resample(curve, step, start=0.0):
-    """Points every `step` along a polyline."""
-    out = []
-    want = start
-    acc = 0.0
-    for a, b in zip(curve, curve[1:]):
-        seg = (b - a).length
-        while seg > 1e-9 and want <= acc + seg:
-            out.append(a.lerp(b, (want - acc) / seg))
-            want += step
-        acc += seg
     return out
 
 
