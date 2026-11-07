@@ -60,13 +60,12 @@ export type SoundName =
   // the AR framework's camera: a cube anchored, and all of them merging into one
   | 'cube-anchor'
   | 'cube-merge'
-  // the Virtuele Brigade's chase: the suspect getting out at the checkpoint,
-  // running, a street closed, caught, and getting away
-  | 'chase-out'
-  | 'chase-run'
-  | 'chase-block'
+  // the Virtuele Brigade's chase: the second player logging in, a clue on the
+  // map, the team sent on, and the suspect caught
+  | 'vr-login'
+  | 'chase-clue'
+  | 'chase-send'
   | 'chase-caught'
-  | 'chase-gone'
   // Popcore's bin: a ball dropping in, one off the rim, the full bin going over,
   // and the confetti as it lands
   | 'ball-in'

@@ -3,7 +3,7 @@
 // phone (Popcore), the AR race table (Lightship Drive) and the bookcase with the
 // openable Zwijsen book, plus lamp and plant props. RoomRig composes and places
 // everything.
-import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
+import { useEffect, useMemo, useRef, type ElementRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, SRGBColorSpace, TorusGeometry, Vector3, type Group, type Mesh, type Texture } from 'three';
@@ -14,9 +14,9 @@ import { spring, wobble } from '../../lib/spring';
 import { bump, easeIn, easeInOut, easeOut, ring } from '../../lib/ease';
 import { cursorAtDepth, cursorIdle, cursorRay, useCloseUp } from './closeup';
 import { POSTS, ROUND_LEN, Scenario, newSessionLink, type SessionLink } from './scenario';
-import { GOLD, PALETTE, SURFACE, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
+import { GOLD, PALETTE, SURFACE, SURFACE_GLOW, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
-import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat, glowTexture } from './materials';
+import { Crease, GlassMat, GroundMat, LiveEdges, LiveGlassMat, glassRim, glowTexture } from './materials';
 import { useBooksKit, useCarKit, useHeadsetKit, useMonitorKit, usePhoneKit, useTableKit, type BooksKit } from './kit';
 import { BlobShadow } from './backdrop';
 import { litMat, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit';
@@ -1607,10 +1607,96 @@ function Headset() {
   );
 }
 
+/* The second player isn't in the room, so its headset is a remote player's:
+   it logs in rather than being picked up (LOGIN). Its outline flickers on
+   first, a scan sweeps up through it filling it in, and it stays see-through
+   (REMOTE): there, and not quite there. */
+const LOGIN = { outline: 0.55, scan: 0.9, settle: 0.45 }; // s: the outline flickering on, the scan filling it in, its light dying away
+const LOGIN_LEN = LOGIN.outline + LOGIN.scan + LOGIN.settle;
+const REMOTE = { fill: 0.4, edge: 0.4 }; // how solid the second's headset stays, logged in, and its outline
+/** The remote player's headset. `login.since`: s since it began logging in
+ *  (below 0: not yet); `login.out`: 1 while it's in, falling to 0 as it leaves. */
+function RemoteHeadset({ login }: { login: { since: number; out: number } }) {
+  const kit = useHeadsetKit();
+  const root = useRef<Group>(null);
+  const edges = useRef<ElementRef<typeof Crease>>(null);
+  // the scan: its height in the world (everything above it not yet there), and its light
+  const scan = useMemo(() => ({ y: { value: 1e3 }, band: { value: 0 }, width: { value: 0.01 } }), []);
+  const mats = useMemo(() => {
+    const make = (tint: Tint) => {
+      const m = new MeshStandardMaterial({ color: SURFACE[tint].color, transparent: true, opacity: 0, roughness: 0.34, metalness: 0, emissive: SURFACE_GLOW, emissiveIntensity: 0.14, depthWrite: false });
+      m.userData = { lifeSkip: true, presenceOwn: true };
+      m.onBeforeCompile = function (this: MeshStandardMaterial, shader) {
+        glassRim.call(this, shader);
+        shader.uniforms.uScan = scan.y;
+        shader.uniforms.uBand = scan.band;
+        shader.uniforms.uBandW = scan.width;
+        shader.vertexShader = shader.vertexShader
+          .replace('void main() {', 'varying float vScanY;\nvoid main() {')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvScanY = (modelMatrix * vec4(transformed, 1.0)).y;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('void main() {', 'uniform float uScan;\nuniform float uBand;\nuniform float uBandW;\nvarying float vScanY;\nvoid main() {\nif (vScanY > uScan) discard;')
+          .replace('#include <opaque_fragment>', '#include <opaque_fragment>\nfloat _sb = uBand * (1.0 - smoothstep(0.0, uBandW, uScan - vScanY));\ngl_FragColor.rgb += vec3(0.7, 0.9, 1.0) * _sb;\ngl_FragColor.a = max(gl_FragColor.a, _sb * 0.85);');
+      };
+      return m;
+    };
+    return { glass: make('glass'), pale: make('pale'), deep: make('deep') };
+  }, [scan]);
+  useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
+  const at = useMemo(() => ({ p: new Vector3(), s: new Vector3() }), []);
+  useFrame(() => {
+    const g = root.current;
+    if (!g) return;
+    const { since, out } = login;
+    // the scan, in world height through the headset
+    g.getWorldPosition(at.p);
+    const k = g.getWorldScale(at.s).y;
+    const h = 0.075 * k;
+    let fill = 0;
+    let edge = 0;
+    if (since < LOGIN.outline) {
+      // its outline, flickering on as the connection's made
+      edge = (Math.sin(since * 70) > -0.3 ? 1 : 0.15) * (0.3 + 0.6 * Math.max(0, since / LOGIN.outline));
+      scan.y.value = at.p.y - 2 * h;
+      scan.band.value = 0;
+    } else if (since < LOGIN.outline + LOGIN.scan) {
+      // the scan sweeping up through it, filling it in
+      edge = 0.85;
+      fill = REMOTE.fill * 1.4;
+      scan.y.value = at.p.y - h + 2 * h * easeInOut((since - LOGIN.outline) / LOGIN.scan);
+      scan.band.value = 1;
+    } else {
+      // in: its light dies away to the remote player's see-through
+      const f = Math.min(1, (since - LOGIN.outline - LOGIN.scan) / LOGIN.settle);
+      edge = 0.85 + (REMOTE.edge - 0.85) * f;
+      fill = REMOTE.fill * (1.4 - 0.4 * f);
+      scan.y.value = 1e3;
+      scan.band.value = 0;
+    }
+    scan.width.value = 0.014 * k;
+    mats.pale.opacity = fill * out;
+    mats.glass.opacity = fill * out * 0.85;
+    mats.deep.opacity = Math.min(1, fill * out * 1.3);
+    const em = edges.current?.material;
+    if (em) em.opacity = edge * out;
+  });
+  if (!kit) return null;
+  return (
+    <group ref={root}>
+      <mesh geometry={kit.hs_strap} material={mats.glass} />
+      <mesh geometry={kit.hs_shell} material={mats.pale}>
+        <Crease ref={edges} threshold={35} color={NEUTRAL} transparent opacity={0} depthWrite={false} userData={{ lifeSkip: true, presenceOwn: true }} />
+      </mesh>
+      <mesh geometry={kit.hs_pods} material={mats.deep} />
+      <mesh geometry={kit.hs_face} material={mats.deep} />
+    </group>
+  );
+}
+
 /* The Virtuele Brigade is played together, so open it and a session starts:
    the headset on the desk lifts to a standing player's head height, a second
-   one joins beside the screen (it spawns in, the way a remote player appears),
-   and the two play a scene only they can see — worn by no one.
+   one logs in beside the screen (a remote player: RemoteHeadset), and the two
+   play a scene only they can see — worn by no one.
 
    What makes it read as multiplayer is that they play it together, beat by
    beat (BEATS): both on the same thing; one turning to the other, who turns
@@ -1626,9 +1712,10 @@ function Headset() {
    places and hold still.
 
    In the close-up with a cursor you're the instructor in their chase, in the
-   editor (scenario.tsx, the chase itself in chase.ts): then that says where
-   each stands and looks as they run a suspect down, and they tell it back
-   where they are and which way they face, for its map. */
+   editor (scenario.tsx, the story itself in chase.ts): then that says where
+   each stands and looks, along with the story rather than on its map (they
+   turn the way the team goes, look about, set off, nod), and they tell it back
+   whether the second's in yet. */
 const HS_PIVOT: V3 = [0, 0.036, -0.1]; // the middle of the wearer's head, in the headset's own frame
 const HS_LEVEL = 0.12; // pitched a little nose-down, which levels the strap round the head that isn't there
 const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -1672,7 +1759,6 @@ const DOUBLE_TAKE = { glance: 0.3, back: 0.65, of: 0.6, glides: [0.1, 0.2, 0.4],
 const NOTICE_EVERY = [6, 9]; // s from one time to the next, at random between
 const NOTICE_LAG = 0.25; // the second looks round this long after the first
 const NOTICE_AT: V3 = [0.05, 0.85, 0.6]; // the depth they look out to, desk frame: in front of them, toward you
-const JOIN_FLICKER = 0.3; // s of flicker as it arrives
 /** Which beat is playing `t` seconds into the session, and how long it has been on. */
 function beatAt(t: number): [number, number] {
   let u = ((t % BEAT_LEN) + BEAT_LEN) % BEAT_LEN;
@@ -1697,6 +1783,7 @@ function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; 
   const heads = useRef(POSTS.map(([x, y, z]) => ({ x, y, z, yaw: 0, pitch: 0, duck: 0, lean: 0, tilt: 0 })));
   const vels = useRef(POSTS.map(() => ({ x: { v: 0 }, y: { v: 0 }, z: { v: 0 }, yaw: { v: 0 }, pitch: { v: 0 }, duck: { v: 0 }, lean: { v: 0 }, tilt: { v: 0 } })));
   const post = useMemo(() => new Vector3(), []);
+  const login = useMemo(() => ({ since: -1, out: 0 }), []); // the second's log-in (RemoteHeadset)
   const restYaw = rotation?.[1] ?? 0;
   // where the first head's middle is while its headset lies on the desk
   const rest = useMemo<V3>(() => {
@@ -1729,10 +1816,13 @@ function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; 
         nt.next = session.current + NOTICE_EVERY[0] + Math.random() * (NOTICE_EVERY[1] - NOTICE_EVERY[0]);
       }
     }
-    // the second player: spawning in once the session's begun, gone when it ends
+    // the second player: logging in once the session's begun (RemoteHeadset
+    // draws it), gone again when it ends
     const since = session.current - JOIN_DELAY;
-    const joined = reduced ? on : selected ? Math.min(1, Math.max(0, since / 0.45)) : Math.max(0, Math.min(1, e * 1.4 - 0.4));
-    const flicker = !reduced && selected && since > 0 && since < JOIN_FLICKER && Math.sin(since * 90) < 0;
+    if (selected && !reduced && since >= 0 && login.since < 0) play('vr-login', { volume: 0.4 });
+    login.since = reduced ? (selected ? LOGIN_LEN : -1) : selected ? since : Math.max(login.since, LOGIN_LEN);
+    login.out = reduced ? on : selected ? 1 : Math.max(0, Math.min(1, e * 1.4 - 0.4));
+    const joined = reduced ? on : selected ? Math.min(1, Math.max(0, since / LOGIN_LEN)) : login.out;
     for (let p = 0; p < POSTS.length; p++) {
       const g = rigs.current[p];
       if (!g) continue;
@@ -1813,10 +1903,8 @@ function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; 
         g.position.set(mix(rest[0], x), mix(rest[1], y), mix(rest[2], z));
         g.rotation.set(mix(0, rx), mix(restYaw, ry), mix(0, roll), 'YXZ');
       } else {
-        // spawned in where it stands: out of nothing, a touch over size, settling
-        g.visible = joined > 0.001 && !flicker;
-        const pop = joined < 1 ? joined * (1 + 0.25 * Math.sin(joined * Math.PI)) : 1;
-        g.scale.setScalar(Math.max(0.001, pop));
+        // logged in where it stands (RemoteHeadset draws the log-in)
+        g.visible = login.since >= 0 && login.out > 0.001;
         g.position.set(x, y, z);
         g.rotation.set(rx, ry, roll, 'YXZ');
       }
@@ -1831,7 +1919,7 @@ function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; 
       </group>
       <group ref={(g) => (rigs.current[1] = g)} position={POSTS[1]} visible={false}>
         <group position={[-HS_PIVOT[0], -HS_PIVOT[1], -HS_PIVOT[2]]}>
-          <Headset />
+          <RemoteHeadset login={login} />
         </group>
       </group>
     </group>
