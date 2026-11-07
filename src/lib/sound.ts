@@ -55,6 +55,11 @@ export type SoundName =
   // higher than the last), and the line reaching a star as it's drawn through them
   | 'star-pop'
   | 'star-trace'
+  // the Zwijsen book: Mouse found, a page turning over, and the book closing
+  // at the end of the story (to open again on the first page)
+  | 'book-find'
+  | 'page-turn'
+  | 'book-close'
   // the heart: the catheter's balloon going up, and a narrowing opening
   | 'cath-inflate'
   | 'cath-clear'

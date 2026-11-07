@@ -127,6 +127,17 @@ In the Popcore close-up the ping-pong balls go for the bin beside the couch.
 | `bin-tip` | the full bin falls over | a hollow clatter of the bin and the balls |
 | `bin-cheer` | the bin lands and the confetti bursts out of it | a party popper's pop with a bright tail, two notes of the signature |
 
+## The picture book
+
+In the Zwijsen close-up the book is a seek-and-find: Mouse hides on every
+spread, and only shows through the lens round the cursor.
+
+| File | When | Notes |
+| --- | --- | --- |
+| `book-find` | Mouse is found and lifts off the page | a small bright "there you are": a squeak-like chirp or two rising notes |
+| `page-turn` | the page turns over onto the next spread | a paper page turning, soft and quick |
+| `book-close` | after the last spread the book closes, to open again on the first | a hardcover closing softly, a gentle thump |
+
 ## Scavenger hunt
 
 In the ARCam close-up the park's creatures hide behind its pines and under its

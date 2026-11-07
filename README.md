@@ -57,7 +57,7 @@ The things you're most likely to want to change, and the file they live in.
 | Which projects are exhibits, and what each one's marker points at | `HOTSPOTS` in `src/scene/framing.ts` (its `anchor`; the marker floats straight above it at its floor's `MARKER_Y`) |
 | An exhibit's camera close-up | its `view` in `HOTSPOTS` (or the dev tools' Camera tab) |
 | An object's place in the model | the `usePlacement(...)` call in `src/scene/maquette/city.tsx` or `room.tsx` (or the dev tools' Objects tab) |
-| What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*`, `CAM_CUBES` and `TILE_*` in `chip.tsx`, `BOOST*`, `DOUBLE_TAKE` and `HOLO_*` in `room.tsx`, `WIND_*`, `GUST*` and `SHOT` in `city.tsx`) |
+| What an exhibit does with the cursor in its close-up | the constants next to its object (e.g. `CAM_TRACK_*`, `CAM_CUBES` and `TILE_*` in `chip.tsx`, `BOOST*` and `DOUBLE_TAKE` in `room.tsx`, `WIND_*`, `GUST*` and `SHOT` in `city.tsx`) |
 | The camera's anchors: how long a cube is held to anchor it, the merge | `ANCHOR_HOLD` and `MERGE_*` in `src/scene/maquette/chip.tsx` |
 | Popcore's bin: where it stands, how true a shot flies, the fall and what it sets off (the slow-motion beat, the confetti); the couch's shape the balls keep to | `BIN`, `BIN_TIP`, `SHOT_*`, `FLOOR_BACK`, `HIT_STOP` and `CONFETTI`; `CUSHION`, `ARM`, `BACK` and `FRAME_BACK` in `src/scene/maquette/room.tsx` |
 | The windmill's power for the tower: how fast the sails turn, how hard to blow, how fast it fills | `SPIN_REST`, `GUST*` and `POWER_*` in `src/scene/maquette/city.tsx` (the cable and its route on the road: `MillLine`) |
@@ -65,6 +65,7 @@ The things you're most likely to want to change, and the file they live in.
 | ARCam's scavenger hunt: the creatures and their names, where each hides and how it comes out, the pines, the clearing where the found ones sit, how long one's out, the lock, the "captured" bubble, the group photo | `CREATURES`, `STYLE`, `MOVES`, `PEEK`, `PERCH`, `SWIM`, `PINES`, `SEATS`, `TELL`, `UP`, `GAP`, `LOCK`, `SAID` and `FINALE` in `src/scene/maquette/critters.tsx`; how they look: `creatureMat()` there (the bubble's look: `.critter-said` in `src/ui/hotspots.css`; their models and props: `scripts/models/build_creatures.py`; a pine's rustle: `ParkTree` in `city.tsx`) |
 | The die's game of Snake: speed, when the chip takes over, the crash and the score | `SNAKE_*` in `src/scene/maquette/chip.tsx`; the rules (board size, steering, the chip's player) in `snake.ts` |
 | The Virtuele Brigade's chase in stages: the district and its places, the stories (each stage's clue, its lines, where it points), how fast the team walks; how long the cursor rests to send them on; the second player's log-in and how see-through it stays | `COLS`, `ROWS`, `BRIDGES`, `PLACES`, `STORIES`, `WALK` and `CLUE_LEN` in `src/scene/maquette/chase.ts`; `DROP` in `scenario.tsx`; `LOGIN` and `REMOTE` in `room.tsx` |
+| The Zwijsen book's seek-and-find: its spreads, their words and where Mouse hides; the lens, how long to rest on Mouse, the page turning, the close at the end, the lens finding Mouse by itself on a touch screen | `SPREADS` in `src/scene/maquette/bookPages.ts`; `LENS`, `FOUND`, `TURN`, `SHUT` and `AUTO` in `room.tsx` (OpenBook) |
 | How a close-up reaction moves: its wind-up, overshoot and settle | the curves in `src/lib/ease.ts` and the springs in `src/lib/spring.ts` (`spring` arrives without passing, `wobble` swings past and back) |
 | The Philips heart: its shape and where its vessels run | `LOBES`, `TRUNK` and `BRANCHES` (with each narrowing's place) in `src/scene/maquette/heartShape.ts` |
 | How the heart beats, and how the catheter steers and treats a narrowing | `BEAT`, `FLOW`, `CATH` and `TREAT` in `src/scene/maquette/heart.tsx` |
@@ -152,6 +153,10 @@ src/
                        (room.tsx VRPlayers)
       chase.ts         the chase in stages (the district, its places, the
                        stories and their clues), apart from how it's drawn
+      bookPages.ts     the Zwijsen book's four spreads (Mouse's day out),
+                       drawn on a canvas: each one's print and its AR layer,
+                       and where Mouse hides (the seek-and-find is OpenBook
+                       in room.tsx)
       critters.tsx     ARCam's scavenger hunt: the park's pines, the
                        creatures hiding behind them and coming out, the lock
                        on one, the "captured" bubble, the group photo and its
@@ -194,8 +199,8 @@ src/
 public/
   posters/<slug>.jpg   timeline/card artwork per project
   og/<slug>.jpg        each project's share card (npm run og)
-  textures/            optional real screenshots (room-screen / room-phone /
-                       zwijsen-book): objects fall back to procedural looks
+  textures/            optional real screenshots (room-screen / room-phone):
+                       objects fall back to procedural looks
   models/              the Blender models (built from scripts/models) and the
                        park's binoculars
   logos/               employer marks for the timeline tooltips
