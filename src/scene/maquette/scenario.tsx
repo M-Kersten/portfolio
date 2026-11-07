@@ -18,12 +18,12 @@
 // session plays as it always has, and the monitor shows the app.
 import { useEffect, useMemo, useRef, type ElementRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, CanvasTexture, CircleGeometry, DoubleSide, MeshBasicMaterial, PlaneGeometry, Ray, RingGeometry, SRGBColorSpace, Vector2, Vector3, type Group, type Mesh } from 'three';
+import { AdditiveBlending, CanvasTexture, CircleGeometry, DoubleSide, MeshBasicMaterial, PlaneGeometry, Ray, SRGBColorSpace, Vector2, Vector3, type Group, type Mesh, type Object3D, type PerspectiveCamera } from 'three';
 import { Line, NEUTRAL, SURFACE, useAccent, type V3 } from './shared';
 import { cursorRay, useCloseUp } from './closeup';
 import { useGeometry } from './shapes';
 import { play } from '../../lib/sound';
-import { bump, easeInOut, easeOutBack } from '../../lib/ease';
+import { bump, easeInOut, easeOut, easeOutBack } from '../../lib/ease';
 
 /** Where the two in VR stand to begin with (their heads, desk frame): over the
  *  desk's left end and to the right of the screen, both clear above it. The
@@ -106,7 +106,6 @@ const SECTOR = [
 const SCAN = [1.3, 2.2];
 const SHOULDER = 0.3; // the share of looks that go over the shoulder
 const ROW = 10; // pips along the foot of the monitor: a full row is a round
-const R = 0.034; // a marker's size in VR
 const BURST = 0.45; // s for a dealt-with one's ring to run out
 const SLIP = 0.5; // s for a missed one to blink out
 const BEAM = 0.5; // s the line from the map to VR shows, as it's put down
@@ -125,7 +124,62 @@ const PLACES = SPOTS.map(([x, , z]) => plan(x, z, new Vector2()));
 const NEXT = new Vector2(-0.205, 0.092); // the next thing, in its frame
 const ROSTER = [-0.004, -0.044, -0.084]; // the two in VR, and you, down the left (y)
 const PIPS = { y: -0.134, pitch: 0.021, size: 0.012 };
-const FILL_SEGS = 40;
+
+/* The marks are the site's reticle (hotspots.css .hotspot__mark): two
+   hairlines with a gap at the centre, a small core, and brackets at the
+   corners that lock in once something's on it; drawn in hairlines (the site's
+   Line: its width in px at any distance), in units of the reticle's
+   half-width. In VR it keeps one size on screen, like the crosshairs do. */
+const CROSS: V3[] = [
+  [0.36, 0, 0], [0.86, 0, 0],
+  [-0.36, 0, 0], [-0.86, 0, 0],
+  [0, 0.36, 0], [0, 0.86, 0],
+  [0, -0.36, 0], [0, -0.86, 0],
+];
+const BRACKETS: V3[] = [-1, 1].flatMap((sx) =>
+  [-1, 1].flatMap((sy): V3[] => [
+    [sx, sy, 0], [sx * 0.45, sy, 0],
+    [sx, sy, 0], [sx, sy * 0.45, 0],
+  ]),
+);
+const arc = (r: number, a0: number, a1: number, n: number): V3[] =>
+  Array.from({ length: n }, (_, k) => k).flatMap((k): V3[] => {
+    const a = a0 + ((a1 - a0) * k) / n;
+    const b = a0 + ((a1 - a0) * (k + 1)) / n;
+    return [[r * Math.cos(a), r * Math.sin(a), 0], [r * Math.cos(b), r * Math.sin(b), 0]];
+  });
+/** Each kind's glyph, round the reticle's core: a diamond for something to
+ *  check, a sound's arcs either side, a triangle pointing down for somewhere
+ *  to go. Hairline segments; the map and its corner draw them too. */
+const GLYPH: Record<Kind, V3[]> = {
+  check: [[0, 1, 0], [1, 0, 0], [1, 0, 0], [0, -1, 0], [0, -1, 0], [-1, 0, 0], [-1, 0, 0], [0, 1, 0]],
+  sound: [...arc(0.62, -0.7, 0.7, 4), ...arc(0.62, Math.PI - 0.7, Math.PI + 0.7, 4), ...arc(1.05, -0.55, 0.55, 4), ...arc(1.05, Math.PI - 0.55, Math.PI + 0.55, 4)],
+  go: [[-0.95, 0.6, 0], [0.95, 0.6, 0], [0.95, 0.6, 0], [0, -1, 0], [0, -1, 0], [-0.95, 0.6, 0]],
+};
+const KINDS: Kind[] = ['check', 'sound', 'go'];
+const CIRCLE: V3[] = Array.from({ length: 65 }, (_, k): V3 => [Math.cos((k / 64) * Math.PI * 2), Math.sin((k / 64) * Math.PI * 2), 0]);
+const RETICLE = 13; // px: half the reticle's width in VR (the site's crosshair is 24 across)
+/** The places on the map: a small cross each. */
+const MARK = 0.005;
+const crosses = (open: boolean[]) =>
+  PLACES.flatMap((p, i): number[] => {
+    if (!open[i]) return [];
+    const x = SCREEN.x + p.x;
+    const y = SCREEN.y + p.y;
+    const z = FACE + 0.0008;
+    return [x - MARK, y, z, x + MARK, y, z, x, y - MARK, z, x, y + MARK, z];
+  });
+const CROSSES: V3[] = (() => {
+  const f = crosses(SPOTS.map(() => true));
+  return Array.from({ length: f.length / 3 }, (_, k): V3 => [f[3 * k], f[3 * k + 1], f[3 * k + 2]]);
+})();
+
+type Hairline = ElementRef<typeof Line>;
+/** A hairline: the site's Line, drawn plain on the screen, or over
+ *  everything (`over`), as VR's marks are. Shown by setting its opacity. */
+function Hair({ at, points, segments, color, width = 1.2, over = false }: { at: (l: Hairline | null) => void; points: V3[]; segments?: boolean; color: string; width?: number; over?: boolean }) {
+  return <Line ref={at} points={points} segments={segments} color={color} lineWidth={width} transparent opacity={0} depthTest={!over} depthWrite={false} fog={false} renderOrder={over ? 9 : 5} userData={{ lifeSkip: true, presenceOwn: true }} />;
+}
 
 type Phase = 'live' | 'seen' | 'go' | 'done' | 'missed';
 interface Cue {
@@ -227,13 +281,6 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
   const ray = useMemo(() => new Ray(), []);
   const geo = useGeometry(() => ({
     dot: new CircleGeometry(1, 24),
-    ring: new RingGeometry(0.8, 1, 40),
-    thin: new RingGeometry(0.92, 1, 48),
-    diamond: new RingGeometry(0.6, 0.92, 4, 1),
-    diamondIn: new CircleGeometry(0.34, 4),
-    tri: new RingGeometry(0.56, 0.95, 3, 1, -Math.PI / 2),
-    triIn: new CircleGeometry(0.34, 3, -Math.PI / 2),
-    fill: new RingGeometry(1.2, 1.45, FILL_SEGS, 1, Math.PI / 2, Math.PI * 2),
     cone: new CircleGeometry(1, 20, -CONE, 2 * CONE),
     strip: new PlaneGeometry(1, 1),
   }));
@@ -255,23 +302,15 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
     return {
       ground,
       // the map
-      place: SPOTS.map(() => ink(NEUTRAL)),
-      fill: ink(accent),
       head: ink(accentPale),
       cone: ink(accentPale),
       talk: ink(accentPale),
-      cue: ink(accent),
-      cueRing: ink(accent),
-      next: ink(accentPale),
+      cueCore: ink(accent),
+      nextCore: ink(accentPale),
       roster: ROSTER.map(() => ink(accent)),
       pips: Array.from({ length: ROW }, () => ink(accent)),
-      // in VR
-      vr: glow(accent),
-      vrRing: glow(accent),
-      vrCloser: glow(accent),
-      vrBurst: glow(accentPale),
-      ghost: glow(accentPale),
-      ghostFill: glow(accent),
+      // in VR: the reticle's core
+      vrCore: glow(accent),
     };
   }, [accent, accentPale]);
   useEffect(
@@ -281,21 +320,23 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
     },
     [mats],
   );
-  // the meshes moved about each frame
+  // what's moved about each frame
   const r = {
     vr: useRef<Group>(null),
-    vrIcon: useRef<Group>(null),
-    vrCloser: useRef<Mesh>(null),
-    vrBurst: useRef<Mesh>(null),
-    vrEcho: useRef<(Mesh | null)[]>([]),
+    vrBrackets: useRef<Group>(null),
+    vrCloser: useRef<Group>(null),
+    vrBurst: useRef<Group>(null),
+    vrPings: useRef<(Group | null)[]>([]),
     ghost: useRef<Group>(null),
-    places: useRef<(Mesh | null)[]>([]),
-    fill: useRef<Mesh>(null),
+    pick: useRef<Group>(null),
     heads: useRef<(Group | null)[]>([]),
     talk: useRef<Mesh>(null),
     cue: useRef<Group>(null),
-    cueRing: useRef<Mesh>(null),
-    next: useRef<Group>(null),
+    cueCloser: useRef<Group>(null),
+  };
+  const hl = useRef<Record<string, Hairline | null>>({});
+  const hold = (k: string) => (l: Hairline | null) => {
+    hl.current[k] = l;
   };
   const beam = useRef<ElementRef<typeof Line>>(null);
   const talk3 = useRef<ElementRef<typeof Line>>(null);
@@ -545,24 +586,39 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
       mats.ground.needsUpdate = true;
     }
     mats.ground.opacity = solid ? 1 : on;
-    // the places: the one the cursor's on lit, with the time it's rested there going round it
-    PLACES.forEach((p, i) => {
-      const m = r.places.current[i];
-      if (!m) return;
-      const lit = i === hover;
-      m.position.set(SCREEN.x + p.x, SCREEN.y + p.y, FACE + 0.0008);
-      m.scale.setScalar(lit ? 0.0125 : 0.0095);
-      mats.place[i].color.set(lit ? (ready ? accentPale : NEUTRAL) : NEUTRAL);
-      mats.place[i].opacity = on * (lit ? 0.95 : s.open[i] ? 0.4 : 0);
-    });
-    const fill = Math.min(1, s.rest / DROP);
-    geo.fill.setDrawRange(0, 6 * Math.ceil(FILL_SEGS * fill));
-    if (r.fill.current) {
-      r.fill.current.visible = fill > 0.01;
-      if (hover >= 0) r.fill.current.position.set(SCREEN.x + PLACES[hover].x, SCREEN.y + PLACES[hover].y, FACE + 0.001);
-      r.fill.current.scale.setScalar(0.0125);
+    /** A hairline's strength (and colour): hidden at nothing. */
+    const hair = (k: string, o: number, color?: string) => {
+      const l = hl.current[k];
+      if (!l) return;
+      l.visible = o > 0.003;
+      l.material.opacity = o;
+      if (color) l.material.color.set(color);
+    };
+    // world units a pixel spans where `o` stands (o: a child of the desk's frame)
+    const cam = st.camera as PerspectiveCamera;
+    const px = (o: Object3D) => {
+      const d = cam.position.distanceTo(fr.localToWorld(_v.copy(o.position)));
+      return (2 * d * Math.tan((cam.fov * Math.PI) / 360)) / (cam.zoom * st.size.height) / fr.getWorldScale(_w).x;
+    };
+    // the places: a small cross each, the ones in the picture
+    const pl = hl.current.places;
+    const key = s.open.map((o) => (o ? 1 : 0)).join('');
+    if (pl && pl.userData.key !== key) {
+      pl.userData.key = key;
+      if (key.includes('1')) pl.geometry.setPositions(crosses(s.open));
     }
-    mats.fill.opacity = on;
+    hair('places', key.includes('1') ? 0.55 * on : 0);
+    // the one the cursor's on: brackets round it, closing in while it rests there
+    const fill = Math.min(1, s.rest / DROP);
+    const pk = r.pick.current;
+    if (pk) {
+      pk.visible = hover >= 0;
+      if (hover >= 0) {
+        pk.position.set(SCREEN.x + PLACES[hover].x, SCREEN.y + PLACES[hover].y, FACE + 0.001);
+        pk.scale.setScalar(0.0105 * (1.7 - 0.7 * easeOut(fill)));
+      }
+    }
+    hair('pick', hover >= 0 ? (ready ? 0.95 : 0.35) * on : 0, ready ? accentPale : NEUTRAL);
     // the two, where they are and the way they face
     for (let i = 0; i < 2; i++) {
       const g = r.heads.current[i];
@@ -576,7 +632,7 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
       g.scale.setScalar(Math.max(0.001, h.joined));
     }
     mats.head.opacity = on;
-    mats.cone.opacity = 0.2 * on;
+    mats.cone.opacity = 0.16 * on;
     // one telling the other: a line between them, on the map and in VR
     const told = Math.max(0, 1 - Math.abs(T - s.talkAt - 0.22) / 0.3);
     if (r.talk.current) {
@@ -585,7 +641,7 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
       r.talk.current.visible = told > 0.01;
       r.talk.current.position.set(SCREEN.x + (_p.x + _q.x) / 2, SCREEN.y + (_p.y + _q.y) / 2, FACE + 0.0007);
       r.talk.current.rotation.z = Math.atan2(_q.y - _p.y, _q.x - _p.x);
-      r.talk.current.scale.set(_p.distanceTo(_q), 0.0024, 1);
+      r.talk.current.scale.set(_p.distanceTo(_q), 0.0018, 1);
     }
     mats.talk.opacity = 0.8 * told * on;
     const t3 = talk3.current;
@@ -600,33 +656,33 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
     }
     // the next thing, in its frame (dim while one's out)
     const nk = LESSON[s.next % LESSON.length];
-    const ng = r.next.current;
-    if (ng) ng.children.forEach((ch) => (ch.visible = ch.name === nk || ch.name.startsWith(nk + '-')));
-    mats.next.opacity = on * (s.cue ? 0.3 : 0.95);
+    const nextOn = on * (s.cue ? 0.3 : 0.9);
+    KINDS.forEach((k) => hair('next-' + k, k === nk ? nextOn : 0));
+    mats.nextCore.opacity = nextOn;
     // the roster: who's in
     mats.roster.forEach((m, i) => (m.opacity = on * (i < 2 ? 0.25 + 0.75 * L.heads[i].joined : 1)));
-    // the one out, on the map: its mark, and the ring closing in on it
-    const cg = r.cue.current;
+    // the one out, on the map: its glyph, and the time it has closing in on it
     const live = c && c.phase === 'live' ? 1 - c.t / c.life : 0;
     const pop = c ? easeOutBack(Math.min(1, (c.phase === 'live' ? c.t : 1) / 0.25)) : 0;
     const slip = c && c.phase === 'missed' ? (Math.floor(c.t * 12) % 2 ? 0 : 1) * (1 - c.t / SLIP) : 1;
     const gone = c && c.phase === 'done' ? 1 - c.t / BURST : 1;
     const seen = !!c && c.phase !== 'live' && c.phase !== 'missed';
+    const ink = seen ? accentPale : accent;
+    const shown = c ? on * slip * gone : 0;
+    const cg = r.cue.current;
     if (cg) {
       cg.visible = !!c;
       if (c) {
         cg.position.set(SCREEN.x + PLACES[c.spot].x, SCREEN.y + PLACES[c.spot].y, FACE + 0.0011);
-        cg.scale.setScalar(0.011 * pop);
-        cg.children.forEach((ch) => (ch.visible = ch.name === c.kind || ch.name.startsWith(c.kind + '-')));
+        cg.scale.setScalar(0.0085 * Math.max(0.001, pop));
       }
     }
-    if (r.cueRing.current) {
-      r.cueRing.current.visible = live > 0;
-      r.cueRing.current.scale.setScalar(1 + 2 * live);
-    }
-    mats.cue.color.set(seen ? accentPale : accent);
-    mats.cue.opacity = on * slip * gone;
-    mats.cueRing.opacity = 0.6 * on * Math.min(1, (c?.t ?? 0) / 0.3);
+    KINDS.forEach((k) => hair('cue-' + k, c && c.kind === k ? shown : 0, ink));
+    mats.cueCore.color.set(ink);
+    mats.cueCore.opacity = shown;
+    r.cueCloser.current?.scale.setScalar(1.3 + 2 * live);
+    const ticking = live > 0 ? on * Math.min(1, (c?.t ?? 0) / 0.3) : 0;
+    hair('cueCloser', 0.6 * ticking);
     // the pips: the newest flashes as it lights, and a full row flashes all together
     const round = L.roundAt >= 0 && now >= L.roundAt && now - L.roundAt < ROUND_LEN;
     mats.pips.forEach((m, i) => {
@@ -636,54 +692,49 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
       m.opacity = on;
     });
 
-    // ---- in VR ----
+    // ---- in VR: the reticle ----
     const vg = r.vr.current;
     if (vg) {
       vg.visible = !!c && on > 0.01;
       if (c) {
         vg.position.set(...SPOTS[c.spot]);
         vg.lookAt(st.camera.position);
-        // it breathes while it waits; a sound rings out from it
-        const breathe = c.phase === 'live' ? 1 + 0.08 * Math.sin(now * 7) : 1;
-        const lock = seen ? 1 - 0.15 * easeOutBack(Math.min(1, (c.phase === 'seen' ? c.t : 1) / 0.2)) : 1;
-        vg.scale.setScalar(R * pop * breathe * lock);
-        r.vrIcon.current?.children.forEach((ch) => (ch.visible = ch.name === c.kind || ch.name.startsWith(c.kind + '-')));
-        r.vrEcho.current.forEach((m, k) => {
-          if (!m) return;
-          const e = (now * 1.3 + k * 0.5) % 1;
-          m.visible = c.kind === 'sound' && c.phase !== 'missed';
-          m.scale.setScalar(1.1 + 1.6 * e);
-          (m.material as MeshBasicMaterial).opacity = 0.5 * (1 - e) * on * gone;
+        vg.scale.setScalar(px(vg) * RETICLE * Math.max(0.001, pop));
+        // its brackets: put down locked (you're on it), loose while it waits,
+        // locking in again once one of them is on it
+        const k = c.phase === 'live' ? 1 + 0.35 * easeOut(Math.min(1, c.t / 0.4)) : c.phase === 'seen' ? 1 + 0.35 * (1 - easeOut(Math.min(1, c.t / 0.25))) : c.phase === 'missed' ? 1.35 : 1;
+        r.vrBrackets.current?.scale.setScalar(k);
+        r.vrCloser.current?.scale.setScalar(1.25 + 2.2 * live);
+        const b = c.phase === 'done' ? Math.min(1, c.t / BURST) : 0;
+        r.vrBurst.current?.scale.setScalar(1.25 + 2.4 * (1 - (1 - b) * (1 - b)));
+        hair('vrBurst', c.phase === 'done' ? 0.8 * (1 - b) * on : 0);
+        // a sound rings out from it, the way the crosshairs ping
+        r.vrPings.current.forEach((g, n) => {
+          if (!g) return;
+          const e = (now * 0.9 + n * 0.5) % 1;
+          g.scale.setScalar(0.45 + 1.8 * e);
+          hair('vrPing' + n, c.kind === 'sound' && c.phase !== 'missed' ? 0.5 * (1 - e) * shown : 0);
         });
-        if (r.vrCloser.current) {
-          r.vrCloser.current.visible = live > 0;
-          r.vrCloser.current.scale.setScalar(1 + 2 * live);
-        }
-        if (r.vrBurst.current) {
-          const k = c.phase === 'done' ? Math.min(1, c.t / BURST) : 0;
-          r.vrBurst.current.visible = c.phase === 'done';
-          r.vrBurst.current.scale.setScalar(1 + 2.6 * (1 - (1 - k) * (1 - k)));
-          mats.vrBurst.opacity = (1 - k) * on;
-        }
-      }
+      } else hair('vrBurst', 0);
     }
-    mats.vr.color.set(seen ? accentPale : accent).multiplyScalar(seen ? 2 : 1.5);
-    mats.vr.opacity = on * slip * gone;
-    mats.vrRing.color.set(seen ? accentPale : accent).multiplyScalar(1.3);
-    mats.vrRing.opacity = on * slip * gone;
-    mats.vrCloser.opacity = 0.55 * on * Math.min(1, (c?.t ?? 0) / 0.3);
-    // the place the cursor's on, there in VR too: where it'll go
+    hair('vrCross', 0.95 * shown, ink);
+    hair('vrBrackets', (seen ? 1 : 0.45) * shown, ink);
+    KINDS.forEach((k) => hair('vr-' + k, c && c.kind === k ? shown : 0, ink));
+    mats.vrCore.color.set(ink).multiplyScalar(1.4);
+    mats.vrCore.opacity = shown;
+    hair('vrCloser', 0.5 * ticking);
+    // the place the cursor's on, there in VR too: brackets where it'll go,
+    // closing in with the ones on the map
     const gg = r.ghost.current;
     if (gg) {
       gg.visible = hover >= 0 && on > 0.01 && (!c || c.spot !== hover);
       if (gg.visible) {
         gg.position.set(...SPOTS[hover]);
         gg.lookAt(st.camera.position);
-        gg.scale.setScalar(R);
+        gg.scale.setScalar(px(gg) * RETICLE * (1.7 - 0.7 * easeOut(fill)));
       }
     }
-    mats.ghost.opacity = (ready ? 0.45 : 0.18) * on;
-    mats.ghostFill.opacity = on;
+    hair('ghost', gg?.visible ? (ready ? 0.75 : 0.3) * on : 0, ready ? accentPale : NEUTRAL);
     // as it's put down: the line from the map to VR
     const bl = beam.current;
     if (bl) {
@@ -693,41 +744,37 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
     }
   });
 
-  // a kind's mark, as children named after it (the frame shows the one wanted)
-  const marks = (m: MeshBasicMaterial) => (
-    <>
-      <mesh name="check" geometry={geo.diamond} material={m} />
-      <mesh name="check-in" geometry={geo.diamondIn} material={m} />
-      <mesh name="go" geometry={geo.tri} material={m} />
-      <mesh name="go-in" geometry={geo.triIn} material={m} />
-      <mesh name="sound" geometry={geo.dot} material={m} scale={0.3} />
-      <mesh name="sound-a" geometry={geo.thin} material={m} scale={0.62} />
-      <mesh name="sound-b" geometry={geo.thin} material={m} scale={0.95} />
-    </>
-  );
   return (
     <group ref={frame}>
       {/* ---- the editor, on the monitor ---- */}
       <mesh material={mats.ground} position={[SCREEN.x, SCREEN.y, FACE + 0.0004]} renderOrder={3}>
         <planeGeometry args={[SCREEN.w, SCREEN.h]} />
       </mesh>
-      {SPOTS.map((_, i) => (
-        <mesh key={i} ref={(m) => (r.places.current[i] = m)} geometry={geo.ring} material={mats.place[i]} renderOrder={4} />
-      ))}
-      <mesh ref={r.fill} geometry={geo.fill} material={mats.fill} visible={false} renderOrder={5} />
+      <Hair at={hold('places')} points={CROSSES} segments color={NEUTRAL} width={1} />
+      <group ref={r.pick} visible={false}>
+        <Hair at={hold('pick')} points={BRACKETS} segments color={accentPale} width={1} />
+      </group>
       {[0, 1].map((i) => (
         <group key={i} ref={(g) => (r.heads.current[i] = g)} visible={false}>
           <mesh geometry={geo.cone} material={mats.cone} scale={0.068} renderOrder={4} />
-          <mesh geometry={geo.dot} material={mats.head} scale={0.0068} renderOrder={6} />
+          <mesh geometry={geo.dot} material={mats.head} scale={0.0055} renderOrder={6} />
         </group>
       ))}
       <mesh ref={r.talk} geometry={geo.strip} material={mats.talk} visible={false} renderOrder={5} />
-      <group ref={r.cue} visible={false} renderOrder={6}>
-        {marks(mats.cue)}
-        <mesh ref={r.cueRing} geometry={geo.thin} material={mats.cueRing} renderOrder={6} />
+      <group ref={r.cue} visible={false}>
+        {KINDS.map((k) => (
+          <Hair key={k} at={hold('cue-' + k)} points={GLYPH[k]} segments color={accent} width={1} />
+        ))}
+        <mesh geometry={geo.dot} material={mats.cueCore} scale={0.28} renderOrder={6} />
+        <group ref={r.cueCloser}>
+          <Hair at={hold('cueCloser')} points={CIRCLE} color={accent} width={1} />
+        </group>
       </group>
-      <group ref={r.next} position={[SCREEN.x + NEXT.x, SCREEN.y + NEXT.y, FACE + 0.001]} scale={0.016} renderOrder={5}>
-        {marks(mats.next)}
+      <group position={[SCREEN.x + NEXT.x, SCREEN.y + NEXT.y, FACE + 0.001]} scale={0.012}>
+        {KINDS.map((k) => (
+          <Hair key={k} at={hold('next-' + k)} points={GLYPH[k]} segments color={accentPale} width={1} />
+        ))}
+        <mesh geometry={geo.dot} material={mats.nextCore} scale={0.22} renderOrder={6} />
       </group>
       {ROSTER.map((y, i) => (
         <mesh key={i} geometry={geo.dot} material={mats.roster[i]} position={[SCREEN.x - 0.188, SCREEN.y + y, FACE + 0.001]} scale={0.0045} renderOrder={5} />
@@ -737,21 +784,32 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
           <planeGeometry args={[PIPS.size, PIPS.size]} />
         </mesh>
       ))}
-      {/* ---- in VR: the one out, and the place the cursor's on ---- */}
-      <group ref={r.vr} visible={false} renderOrder={9}>
-        <group ref={r.vrIcon}>{marks(mats.vr)}</group>
-        <mesh geometry={geo.ring} material={mats.vrRing} scale={1.35} renderOrder={9} />
-        <mesh ref={r.vrCloser} geometry={geo.thin} material={mats.vrCloser} renderOrder={9} />
-        <mesh ref={r.vrBurst} geometry={geo.thin} material={mats.vrBurst} visible={false} renderOrder={9} />
-        {[0, 1].map((k) => (
-          <mesh key={k} ref={(m) => (r.vrEcho.current[k] = m)} geometry={geo.thin} visible={false} renderOrder={9}>
-            <meshBasicMaterial color={accent} transparent opacity={0} depthTest={false} depthWrite={false} blending={AdditiveBlending} toneMapped={false} fog={false} side={DoubleSide} userData={{ lifeSkip: true, presenceOwn: true }} />
-          </mesh>
+      {/* ---- in VR: the reticle on the one out, and brackets where the cursor's resting ---- */}
+      <group ref={r.vr} visible={false}>
+        <Hair at={hold('vrCross')} points={CROSS} segments color={accent} width={1.5} over />
+        <group ref={r.vrBrackets}>
+          <Hair at={hold('vrBrackets')} points={BRACKETS} segments color={accent} width={1.5} over />
+        </group>
+        <group scale={0.34}>
+          {KINDS.map((k) => (
+            <Hair key={k} at={hold('vr-' + k)} points={GLYPH[k]} segments color={accent} width={1.2} over />
+          ))}
+          <mesh geometry={geo.dot} material={mats.vrCore} scale={0.42} renderOrder={9} />
+        </group>
+        <group ref={r.vrCloser}>
+          <Hair at={hold('vrCloser')} points={CIRCLE} color={accent} width={1.2} over />
+        </group>
+        <group ref={r.vrBurst}>
+          <Hair at={hold('vrBurst')} points={CIRCLE} color={accentPale} width={1.2} over />
+        </group>
+        {[0, 1].map((n) => (
+          <group key={n} ref={(g) => (r.vrPings.current[n] = g)}>
+            <Hair at={hold('vrPing' + n)} points={CIRCLE} color={accent} width={1.2} over />
+          </group>
         ))}
       </group>
-      <group ref={r.ghost} visible={false} renderOrder={9}>
-        <mesh geometry={geo.ring} material={mats.ghost} scale={1.35} renderOrder={9} />
-        <mesh geometry={geo.fill} material={mats.ghostFill} renderOrder={9} />
+      <group ref={r.ghost} visible={false}>
+        <Hair at={hold('ghost')} points={BRACKETS} segments color={accentPale} width={1.5} over />
       </group>
       {/* (no `visible` here: drei hands its props to the line's material too) */}
       <Line ref={beam} points={flat} color={accent} lineWidth={1.2} transparent opacity={0} depthTest={false} renderOrder={9} userData={{ lifeSkip: true, presenceOwn: true }} />
