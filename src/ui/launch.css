@@ -584,17 +584,25 @@ body[data-film] .header {
     display: none;
   }
 }
+/* on a phone: one row, so the field starts right under it. The stage keeps
+   its number (the slate says its name as it opens), the score its figure, the
+   shield its icon. */
 @media (max-width: 760px) {
   .ast__hud {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: 'stage side' 'score score';
-    row-gap: 0.4rem;
+    align-items: center;
+    gap: 0.6rem;
+    padding: calc(env(safe-area-inset-top, 0px) + 0.6rem) 1rem 0.4rem;
   }
-  .ast__stage { grid-area: stage; }
-  .ast__side { grid-area: side; gap: 0.7rem; }
-  .ast__score { grid-area: score; }
+  .ast__stage-name,
+  .ast__score > .ast__k,
+  .ast__shield-up,
+  .ast__shield[data-down] .ast__shield-down,
+  .ast__best {
+    display: none;
+  }
+  .ast__side { gap: 0.7rem; }
   .ast__score-n { font-size: var(--step-1); }
-  .ast__best { display: none; }
+  .ast__shield svg { width: 1.35rem; height: 1.35rem; }
 }
 
 /* ---------- the slate: each stage's title as it opens ----------
@@ -792,6 +800,22 @@ body[data-film] .header {
   .comms__proj { width: 78px; height: 98px; }
   .comms__msg { font-size: 0.86rem; }
 }
+/* on a touch screen the bottom of the screen is the thumbs': comms comes in
+   at the top, under the HUD, smaller */
+@media (pointer: coarse) {
+  .comms {
+    top: calc(env(safe-area-inset-top, 0px) + 3.6rem);
+    bottom: auto;
+    left: 1rem;
+    right: 1rem;
+    max-width: 34rem;
+    align-items: flex-start;
+    gap: 0.7rem;
+    transform: translateY(-10px);
+  }
+  .comms__proj { width: 54px; height: 68px; }
+  .comms__msg { font-size: 0.82rem; }
+}
 
 /* the controls, as keycaps, for the first seconds of a run */
 .ast__hint {
@@ -808,8 +832,7 @@ body[data-film] .header {
   white-space: nowrap;
   animation: ast-hint 9s var(--ease) forwards;
 }
-.ast__hint-keys,
-.ast__hint-touch {
+.ast__hint-keys {
   display: flex;
   gap: 1.4rem;
 }
@@ -840,32 +863,102 @@ body[data-film] .header {
   opacity: 0;
   transition: opacity var(--t-slow) var(--ease);
 }
-.ast__hint-touch {
-  display: none;
-}
-/* on a touch screen: which side does what, just under the HUD, clear of comms */
+/* (on a touch screen the keys mean nothing: the pad below has its own captions) */
 @media (pointer: coarse) {
-  .ast__hint-keys {
+  .ast__hint {
     display: none;
   }
-  .ast__hint-touch {
-    display: flex;
+}
+
+/* ---------- the touch controls ----------
+   Drawn only: the canvas under them takes the touches (AsteroidsGame, TOUCH).
+   The stick rests in the bottom-left corner, faint, and sets down wherever the
+   left thumb lands, its knob following the thumb; the fire button sits in the
+   bottom-right and lights while it's held. Each has a caption until all the
+   controls have been used. */
+.ast__pad {
+  display: none;
+}
+@media (pointer: coarse) {
+  .ast__pad {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    font-family: var(--font-mono);
   }
-  /* one label on each half of the screen, just under the HUD */
-  .ast__hint {
-    bottom: auto;
-    top: calc(env(safe-area-inset-top, 0px) + 7.6rem);
-    left: 0;
-    right: 0;
-    transform: none;
-    padding: 0 1rem;
-    font-size: var(--step--2);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-  }
-  .ast__hint-touch {
-    justify-content: space-between;
-  }
+}
+.ast__stick {
+  position: absolute;
+  left: calc(env(safe-area-inset-left, 0px) + 1.4rem);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 2.6rem);
+  width: 7.2rem;
+  height: 7.2rem;
+  border-radius: 50%;
+  border: 1px solid rgba(234, 234, 234, 0.2);
+  background: radial-gradient(circle, rgba(39, 232, 242, 0.06), rgba(6, 8, 10, 0.25) 70%);
+  opacity: 0.55;
+  transition: opacity var(--t-fast) var(--ease);
+}
+.ast__stick i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.9rem;
+  height: 2.9rem;
+  margin: -1.45rem 0 0 -1.45rem;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+/* set down under the thumb: the game places it (left/top) and moves the knob */
+.ast__stick[data-active] {
+  bottom: auto;
+  opacity: 1;
+  border-color: rgba(234, 234, 234, 0.32);
+}
+.ast__fire {
+  position: absolute;
+  right: calc(env(safe-area-inset-right, 0px) + 1.6rem);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 3.2rem);
+  width: 5.6rem;
+  height: 5.6rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: rgba(6, 8, 10, 0.3);
+  font-size: var(--step--2);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  opacity: 0.6;
+  transition: opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.ast__fire[data-on] {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 0 18px var(--accent-glow);
+}
+.ast__pad-cap {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 0.9rem);
+  font-size: var(--step--2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+  transition: opacity var(--t-slow) var(--ease);
+}
+.ast__pad-cap--stick {
+  left: calc(env(safe-area-inset-left, 0px) + 1.4rem);
+}
+.ast__pad-cap--fire {
+  right: calc(env(safe-area-inset-right, 0px) + 1.4rem);
+}
+/* once the stick and the button have been used, their captions go */
+.ast__pad[data-known] .ast__pad-cap {
+  opacity: 0;
 }
 
 /* ---------- the pause menu ----------

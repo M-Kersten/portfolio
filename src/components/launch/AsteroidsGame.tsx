@@ -196,6 +196,11 @@ interface Bullet { x: number; y: number; px: number; py: number; vx: number; vy:
 const BEST_KEY = 'mk-asteroids-best';
 const BULLET_SPEED = 820;
 const BULLET_PAD = 3;
+/** The touch controls: how far the stick travels (px), how far it's pushed
+ *  before the vehicle turns to it and before the engine burns (of its travel),
+ *  how fast it turns there (rad/s), and the aim assist: how far off the nose's
+ *  line (rad) a rock can be and still draw the shot. */
+const TOUCH = { reach: 52, aim: 0.22, burn: 0.5, turn: 7, assist: 0.24 };
 /** Did a shot pass within `r` of a point on its way from (px,py) to (x,y)?
  *  A step that wrapped round the screen edge only tests where it landed. */
 function sweptHit(b: Bullet, cx: number, cy: number, r: number): boolean {
@@ -254,6 +259,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
   const shieldRef = useRef<HTMLSpanElement>(null);
   const labelRef = useRef<HTMLCanvasElement>(null);
   const hintRef = useRef<HTMLDivElement>(null); // the control legend, retired once used
+  const padRef = useRef<HTMLDivElement>(null); // the touch stick and fire button (drawn, not touched)
+  const stickRef = useRef<HTMLSpanElement>(null);
+  const fireRef = useRef<HTMLSpanElement>(null);
   const sayRef = useRef<(msg: string, stay?: boolean) => void>(() => {}); // set by GameComms
   const commsBusy = useRef(false); // ditto — true while a line is on screen
   const [phase, setPhase] = useState<'play' | 'over'>('play');
@@ -277,7 +285,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     menuRef.current = menu;
   }, [menu]);
   // the ship's live pose, handed to the 3D rocket overlay every frame
-  const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, throttle: 0, turn: 0, visible: true, pop: 1, muzzle: 0, shield: 1, shieldBreak: 0 });
+  const shipView = useRef<ShipView>({ x: 0, y: 0, a: 0, throttle: 0, turn: 0, visible: true, pop: 1, muzzle: 0, shield: 1, shieldBreak: 0, scale: 1 });
   const rocksView = useRef<RockView[]>([]); // per-frame view of the rocks for the 3D layer
   const burstsView = useRef<Burst[]>([]); // breakages queued for the 3D debris pool
 
@@ -306,11 +314,24 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let nebGrads: CanvasGradient[] = []; // THE DEMO — the nebula's three glows
     let limbGrad: CanvasGradient | null = null; // RELEASE — the ringed world's limb
     let galGrad: CanvasGradient | null = null; // POST-LAUNCH — the deep-field galaxy
+    // The field's scale. Everything in it was sized for a laptop's window, and
+    // on a phone the vehicle and three big rocks filled the screen. Below about
+    // 760px on the short side the vehicle, the rocks, their hit circles, the
+    // thrust and the shots all shrink with the screen (to 0.6 at a phone's
+    // width; K), and the rocks come in slower (SPD), so a phone's field has
+    // the flying room a laptop's does. `small` also eases the stages (fewer
+    // rocks, a longer grace when the shield goes).
+    let K = 1;
+    let SPD = 1;
+    let small = false;
     (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '0.5px';
     const fit = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = canvas.clientWidth;
       H = canvas.clientHeight;
+      K = Math.min(1, Math.max(0.6, Math.min(W, H) / 760));
+      SPD = Math.min(1, Math.max(0.62, Math.min(W, H) / 700));
+      small = K < 0.85;
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -409,8 +430,9 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     let usedFire = false;
     let hintDone = false;
     let muzzle = 0; // 1 on the shot, decays — drives the 3D nose flash
-    // The 3D ship is ~113px long, so its nose tip sits about this far out
-    // from centre: shots and their sparks leave from THERE, not from mid-hull.
+    // The 3D ship is ~113px long (at K = 1), so its nose tip sits about this
+    // far out from centre: shots and their sparks leave from THERE, not from
+    // mid-hull.
     const NOSE = 56;
     // The star-rush that plays on arrival is "stage separation" by name in the
     // comment below but only ever played once, at the very start — a new stage
@@ -505,7 +527,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       showSlate(phaseTitle(wave), 'phase', `Stage ${String(wave).padStart(2, '0')}`);
       if (stageNumRef.current) stageNumRef.current.textContent = String(wave).padStart(2, '0');
       if (stageNameRef.current) stageNameRef.current.textContent = phaseTitle(wave);
-      const n = Math.min(2 + wave, 7);
+      const n = small ? Math.min(1 + wave, 5) : Math.min(2 + wave, 7);
       // only what this stage of the project could plausibly have produced
       const labels = hazardsForStage(wave).sort(() => Math.random() - 0.5);
       for (let i = 0; i < n; i++) {
@@ -518,8 +540,8 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         const a = Math.atan2(H / 2 - y, W / 2 - x) + (Math.random() - 0.5) * 0.7;
         // a phone's field is small: the rocks come in slower, so there's
         // still a beat to react in
-        const sp = (46 + Math.random() * 38 + wave * 6) * Math.min(1, Math.max(0.62, Math.min(W, H) / 700));
-        rocks.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 44, tier: 0, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 0.8, shape: rockShape(), label: labels[i % labels.length], age: 0, id: rockId++ });
+        const sp = (46 + Math.random() * 38 + wave * (small ? 4 : 6)) * SPD;
+        rocks.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 44 * K, tier: 0, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 0.8, shape: rockShape(), label: labels[i % labels.length], age: 0, id: rockId++ });
       }
     };
 
@@ -578,11 +600,11 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         const shotA = Math.atan2(imp.dy, imp.dx);
         for (let i = 0; i < 2; i++) {
           const a = shotA + (i === 0 ? 1 : -1) * (0.55 + Math.random() * 0.5);
-          const sp = (rk.tier === 0 ? 55 : 90) + Math.random() * 40;
+          const sp = ((rk.tier === 0 ? 55 : 90) + Math.random() * 40) * SPD;
           rocks.push({
             x: rk.x, y: rk.y,
             vx: rk.vx * 0.6 + Math.cos(a) * sp, vy: rk.vy * 0.6 + Math.sin(a) * sp,
-            r: rk.tier === 0 ? 25 : 13,
+            r: (rk.tier === 0 ? 25 : 13) * K,
             tier: (rk.tier + 1) as 1 | 2,
             rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 1.6,
             shape: rockShape(9),
@@ -629,7 +651,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
           flash = 0.4;
           shake = Math.min(shake + 5, 12);
         }
-        ship.inv = 1.2; // a breath of grace so the same rock can't finish you
+        ship.inv = small ? 1.6 : 1.2; // a breath of grace so the same rock can't finish you
         const story = killer ? HAZARD_LINES[killer] : undefined;
         say(
           killer && story
@@ -754,33 +776,71 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
     window.addEventListener('keydown', kd);
     window.addEventListener('keyup', ku);
 
-    // touch: left half steers (rotate toward the finger + thrust), right half fires
-    let steerId: number | null = null;
-    let steerX = 0;
-    let steerY = 0;
+    // Touch: a stick for the left thumb and a fire button for the right. The
+    // stick floats: it sets down wherever the thumb lands on the left of the
+    // screen, and pushing it turns the vehicle to point the way it's pushed;
+    // only pushed past half way does the engine burn, harder the further it
+    // goes, so a thumb can aim without flying off. Anywhere else, a finger held
+    // down fires. (It used to steer toward the finger itself, which never let
+    // the vehicle point right while it was on the right of the screen, and
+    // burned the whole time it turned.) The drawn stick and button are
+    // decoration (.ast__pad); the canvas takes the touches.
+    let stickId: number | null = null;
+    const stick = { x0: 0, y0: 0, x: 0, y: 0 };
+    const fireIds = new Set<number>();
+    let touchy = false; // played by touch: the aim assist is on
+    const showStick = () => {
+      const el = stickRef.current;
+      const knob = el?.firstElementChild as HTMLElement | null | undefined;
+      if (!el || !knob) return;
+      if (stickId === null) {
+        el.removeAttribute('data-active');
+        el.style.left = '';
+        el.style.top = '';
+        knob.style.transform = '';
+        return;
+      }
+      el.setAttribute('data-active', '');
+      el.style.left = `${stick.x0 - el.offsetWidth / 2}px`;
+      el.style.top = `${stick.y0 - el.offsetHeight / 2}px`;
+      knob.style.transform = `translate(${stick.x - stick.x0}px, ${stick.y - stick.y0}px)`;
+    };
+    const showFire = () => fireRef.current?.toggleAttribute('data-on', fireIds.size > 0);
     const pd = (e: PointerEvent) => {
       if (e.pointerType === 'mouse') return;
-      if (e.clientX < W / 2 && steerId === null) {
-        steerId = e.pointerId;
-        steerX = e.clientX;
-        steerY = e.clientY;
-        ship.thrust = true;
+      touchy = true;
+      if (e.clientX < W * 0.55 && stickId === null) {
+        stickId = e.pointerId;
+        stick.x0 = stick.x = e.clientX;
+        stick.y0 = stick.y = e.clientY;
+        showStick();
       } else {
+        fireIds.add(e.pointerId);
         ship.fire = true;
+        showFire();
       }
     };
     const pm = (e: PointerEvent) => {
-      if (e.pointerId === steerId) {
-        steerX = e.clientX;
-        steerY = e.clientY;
+      if (e.pointerId !== stickId) return;
+      let dx = e.clientX - stick.x0;
+      let dy = e.clientY - stick.y0;
+      const m = Math.hypot(dx, dy);
+      if (m > TOUCH.reach) {
+        dx *= TOUCH.reach / m;
+        dy *= TOUCH.reach / m;
       }
+      stick.x = stick.x0 + dx;
+      stick.y = stick.y0 + dy;
+      showStick();
     };
     const pu = (e: PointerEvent) => {
-      if (e.pointerId === steerId) {
-        steerId = null;
+      if (e.pointerId === stickId) {
+        stickId = null;
         ship.thrust = false;
-      } else if (e.pointerType !== 'mouse') {
-        ship.fire = false;
+        showStick();
+      } else if (fireIds.delete(e.pointerId)) {
+        ship.fire = fireIds.size > 0;
+        showFire();
       }
     };
     canvas.addEventListener('pointerdown', pd);
@@ -840,21 +900,31 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       }
       // ship
       ship.spawnAge += dt;
-      if (steerId !== null) {
-        const want = Math.atan2(steerY - ship.y, steerX - ship.x);
-        let d = want - ship.a;
-        while (d > Math.PI) d -= 6.283;
-        while (d < -Math.PI) d += 6.283;
-        ship.a += Math.max(-4.4 * dt, Math.min(4.4 * dt, d));
-        turnIn = Math.max(-1, Math.min(1, d * 4));
+      // how hard the engine burns: the key's all or nothing, the stick by how
+      // far it's pushed past half way
+      let burn = ship.thrust ? 1 : 0;
+      if (stickId !== null) {
+        const dx = (stick.x - stick.x0) / TOUCH.reach;
+        const dy = (stick.y - stick.y0) / TOUCH.reach;
+        const m = Math.hypot(dx, dy);
+        if (m > TOUCH.aim) {
+          let d = Math.atan2(dy, dx) - ship.a;
+          while (d > Math.PI) d -= 6.283;
+          while (d < -Math.PI) d += 6.283;
+          ship.a += Math.max(-TOUCH.turn * dt, Math.min(TOUCH.turn * dt, d));
+          turnIn = Math.max(-1, Math.min(1, d * 4));
+          usedTurn = true;
+        } else turnIn = 0;
+        burn = Math.max(0, Math.min(1, (m - TOUCH.burn) / (1 - TOUCH.burn)));
+        ship.thrust = burn > 0;
       } else {
         if (ship.left) ship.a -= 3.8 * dt;
         if (ship.right) ship.a += 3.8 * dt;
         turnIn = (ship.right ? 1 : 0) - (ship.left ? 1 : 0);
       }
-      if (ship.thrust) {
-        ship.vx += Math.cos(ship.a) * 240 * dt;
-        ship.vy += Math.sin(ship.a) * 240 * dt;
+      if (burn > 0) {
+        ship.vx += Math.cos(ship.a) * 240 * K * burn * dt;
+        ship.vy += Math.sin(ship.a) * 240 * K * burn * dt;
       }
       // (No 2D ember stream: it predated the 3D exhaust plume and spawned only
       // 17px behind the ship's centre — the tail is ~59px back — so it read as a
@@ -876,9 +946,29 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         // Fast enough that you aim where a rock IS, not where it'll be: at the
         // old 430px/s a shot took a second to cross the screen and the small
         // rocks had moved on by the time it got there. Same reach as before.
-        const bx = ship.x + Math.cos(ship.a) * NOSE;
-        const by = ship.y + Math.sin(ship.a) * NOSE;
-        bullets.push({ x: bx, y: by, px: bx, py: by, vx: ship.vx + Math.cos(ship.a) * BULLET_SPEED, vy: ship.vy + Math.sin(ship.a) * BULLET_SPEED, ttl: 0.56 });
+        // Played by touch, a shot leaves for the rock nearest the nose's line
+        // if there's one within a few degrees of it: a thumb turns the vehicle
+        // far less finely than an arrow key does (TOUCH.assist).
+        const speed = BULLET_SPEED * (0.7 + 0.3 * K);
+        let fa = ship.a;
+        if (touchy) {
+          let best = TOUCH.assist;
+          for (const rk of rocks) {
+            const dx = rk.x - ship.x;
+            const dy = rk.y - ship.y;
+            if (dx * dx + dy * dy > (speed * 0.56) ** 2) continue;
+            let d = Math.atan2(dy, dx) - ship.a;
+            while (d > Math.PI) d -= 6.283;
+            while (d < -Math.PI) d += 6.283;
+            if (Math.abs(d) < best) {
+              best = Math.abs(d);
+              fa = ship.a + d;
+            }
+          }
+        }
+        const bx = ship.x + Math.cos(ship.a) * NOSE * K;
+        const by = ship.y + Math.sin(ship.a) * NOSE * K;
+        bullets.push({ x: bx, y: by, px: bx, py: by, vx: ship.vx + Math.cos(fa) * speed, vy: ship.vy + Math.sin(fa) * speed, ttl: 0.56 });
         // panned to where the ship is on screen, a touch of pitch so a burst isn't one note
         play('game-shot', { volume: 0.45, rate: 0.94 + Math.random() * 0.12, pan: (ship.x / W) * 1.2 - 0.6 });
         // muzzle sparks off the nose
@@ -886,22 +976,23 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         for (let i = 0; i < mn; i++) {
           const ja = ship.a + (Math.random() - 0.5) * 0.8;
           const js = 90 + Math.random() * 120;
-          parts.push({ x: ship.x + Math.cos(ship.a) * (NOSE + 2), y: ship.y + Math.sin(ship.a) * (NOSE + 2), vx: ship.vx + Math.cos(ja) * js, vy: ship.vy + Math.sin(ja) * js, ttl: 0.14, max: 0.14, c: CYAN, streak: true });
+          parts.push({ x: ship.x + Math.cos(ship.a) * (NOSE + 2) * K, y: ship.y + Math.sin(ship.a) * (NOSE + 2) * K, vx: ship.vx + Math.cos(ja) * js, vy: ship.vy + Math.sin(ja) * js, ttl: 0.14, max: 0.14, c: CYAN, streak: true });
         }
       }
       if (!hintDone) {
-        if (ship.left || ship.right || steerId !== null) usedTurn = true;
+        if (ship.left || ship.right) usedTurn = true;
         if (ship.thrust) usedThrust = true;
         if (ship.fire) usedFire = true;
         if (usedTurn && usedThrust && usedFire) {
           hintDone = true;
           hintRef.current?.classList.add('ast__hint--done');
+          padRef.current?.setAttribute('data-known', '');
         }
       }
       // engine feel: the throttle spools toward the key, the hull leans into
       // the stick — both eased so nothing snaps
-      const tw = ship.thrust && ship.dead <= 0 ? 1 : 0;
-      throttle += (tw - throttle) * Math.min(1, dt * (tw ? 7 : 10));
+      const tw = ship.dead <= 0 ? burn : 0;
+      throttle += (tw - throttle) * Math.min(1, dt * (tw > throttle ? 7 : 10));
       turnEase += (turnIn - turnEase) * Math.min(1, dt * 8);
       // bullets
       for (let i = bullets.length - 1; i >= 0; i--) {
@@ -944,7 +1035,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
         if (ship.dead <= 0 && ship.inv <= 0) {
           const dx = rk.x - ship.x;
           const dy = rk.y - ship.y;
-          const rr = rk.r + 13; // the 3D vehicle is bigger in frame — meet it partway
+          const rr = rk.r + 13 * K; // the 3D vehicle is bigger in frame — meet it partway
           // (still forgiving: the hull is ~113px long, so only its core collides)
           if (dx * dx + dy * dy < rr * rr) impact(rk.label);
         }
@@ -1268,6 +1359,7 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
       sv.throttle = throttle;
       sv.turn = turnEase;
       sv.pop = Math.min(1, ship.spawnAge / 0.4); // scale-in on spawn
+      sv.scale = K;
       sv.muzzle = muzzle;
       sv.shield = shield ? 1 : 0;
       if (shieldShown !== shield) {
@@ -1391,10 +1483,19 @@ export function AsteroidsGame({ onExit }: { onExit: () => void }) {
             <kbd>Space</kbd> fire
           </span>
         </span>
-        <span className="ast__hint-touch">
-          <span>← Hold to fly</span>
-          <span>Tap to fire →</span>
+      </div>
+      {/* the touch controls, drawn: the stick for the left thumb (it sets down
+          wherever that thumb lands) and the fire button for the right; the
+          canvas under them takes the touches. Captions until they've been used. */}
+      <div className="ast__pad" ref={padRef} aria-hidden="true">
+        <span className="ast__stick" ref={stickRef}>
+          <i />
         </span>
+        <span className="ast__pad-cap ast__pad-cap--stick">Steer · push to fly</span>
+        <span className="ast__fire" ref={fireRef}>
+          Fire
+        </span>
+        <span className="ast__pad-cap ast__pad-cap--fire">Hold to fire</span>
       </div>
 
       {/* The pause menu. Only while flying — on the debrief the run is already over

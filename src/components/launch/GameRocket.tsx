@@ -35,6 +35,7 @@ export interface ShipView {
   muzzle: number; // 1 on the shot, decaying — the nose cannon's flash
   shield: number; // 1 = up (eats the next hit), 0 = down
   shieldBreak: number; // 1 at the burst, decaying — the shell flaring as it goes
+  scale: number; // the field's scale (1 on a laptop, down to 0.6 on a phone): the vehicle's size with it
 }
 
 /** One hazard, as the 3D layer needs it (the engine keeps the authoritative 2D
@@ -347,7 +348,7 @@ function Ship({ view }: { view: MutableRefObject<ShipView> }) {
     // (re)spawn pop: ease-out-back on the scale — a touch of overshoot
     const p = Math.min(1, Math.max(0, v.pop));
     const e = 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2);
-    if (scaler.current) scaler.current.scale.setScalar(SHIP_SCALE * Math.max(0.001, e));
+    if (scaler.current) scaler.current.scale.setScalar(SHIP_SCALE * (v.scale || 1) * Math.max(0.001, e));
     // bank into the turn — a roll about the long axis, eased so it settles
     if (pivot.current) {
       const k = 1 - Math.exp(-9 * Math.min(delta, 0.05));
