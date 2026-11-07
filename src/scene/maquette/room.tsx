@@ -1005,7 +1005,8 @@ function LeaderCrown() {
    follow a course over it instead of circling a ring: down the front straight
    and off a kicker, braking into the hairpin, a jog in toward the middle, off
    the second kicker on the back straight, and round the tighter sweeper home.
-   The course itself is only hinted at: faint arrows down its middle.
+   The course is marked by neon arrows down its middle, with a chase of light
+   running along them.
 
    The table and the kicker are Blender models (build_table.py, via kit.ts);
    the mat, the course and the race are laid out here. Table space: x
@@ -1158,12 +1159,18 @@ const GRIP = (() => {
 })();
 const gripAt = (s: number) => GRIP[Math.floor((wrapS(s) / COURSE.L) * GRIP_N) % GRIP_N];
 
-/* The course, hinted at: small, faint arrows down its middle, pointing the
-   way the race goes, and climbing the kickers with it. One tile of the strip's
-   texture is one arrow; the strip's length is a whole number of them, so it
-   closes without a seam. */
-const ARROW_W = 0.024; // the strip the arrows are drawn on: one arrow wide
-const ARROW_GAP = COURSE.L / Math.round(COURSE.L / 0.09); // from one arrow to the next
+/* The course: small arrows down its middle, pointing the way the race goes,
+   and climbing the kickers with it. They're neon, in the cars' stripe colours,
+   running round the lap from magenta through blue to yellow and back, and a
+   chase of light runs along them the way the race goes, at the race's pace
+   (ARROW_CHASE): a lit arrow every `every`, travelling `speed` arrows a second
+   at full pace, the light falling off behind it by `tail`, and the arrows at
+   `rest` between. One tile of the strip's texture is one arrow; the strip's
+   length is a whole number of them, so it closes without a seam. */
+const ARROW_W = 0.03; // the strip the arrows are drawn on: one arrow wide
+const ARROWS = Math.round(COURSE.L / 0.09);
+const ARROW_GAP = COURSE.L / ARROWS; // from one arrow to the next
+const ARROW_CHASE = { every: 6, speed: 5, tail: 1.2, rest: 0.8 };
 let arrowTex: CanvasTexture | null = null;
 function arrowTexture(): CanvasTexture {
   if (arrowTex) return arrowTex;
@@ -1174,16 +1181,20 @@ function arrowTexture(): CanvasTexture {
   if (g) {
     const { width: w } = c;
     // an arrowhead pointing up the texture, which the strip's v runs along
-    // with the race; the rest of the tile is clear
-    g.strokeStyle = SURFACE.pale.color;
-    g.lineWidth = 6;
+    // with the race, in white for the strip's colours to tint, with a soft
+    // glow round it the way a neon tube has; the rest of the tile is clear
+    g.strokeStyle = '#ffffff';
     g.lineCap = 'round';
     g.lineJoin = 'round';
-    g.beginPath();
-    g.moveTo(w * 0.18, w * 0.78);
-    g.lineTo(w * 0.5, w * 0.36);
-    g.lineTo(w * 0.82, w * 0.78);
-    g.stroke();
+    for (const [width, alpha] of [[20, 0.14], [13, 0.3], [7, 1]]) {
+      g.globalAlpha = alpha;
+      g.lineWidth = width;
+      g.beginPath();
+      g.moveTo(w * 0.18, w * 0.78);
+      g.lineTo(w * 0.5, w * 0.36);
+      g.lineTo(w * 0.82, w * 0.78);
+      g.stroke();
+    }
   }
   const t = new CanvasTexture(c);
   t.colorSpace = SRGBColorSpace;
@@ -1193,11 +1204,13 @@ function arrowTexture(): CanvasTexture {
 }
 
 /** The strip the arrows lie on: down the middle of the course, draped over the
- *  kickers, with v running along it. */
+ *  kickers, with v running along it, and a colour per vertex that the chase
+ *  writes each frame (userData.arrow: which arrow each vertex pair is in). */
 function arrowGeometry(): BufferGeometry {
   const N = 420;
   const pos = new Float32Array((N + 1) * 6);
   const uv = new Float32Array((N + 1) * 4);
+  const arrow = new Uint8Array(N + 1);
   const idx: number[] = [];
   const p = new Vector3();
   const t = new Vector3();
@@ -1211,6 +1224,7 @@ function arrowGeometry(): BufferGeometry {
     const nz = -t.x * (ARROW_W / 2);
     pos.set([p.x + nx, y, p.z + nz, p.x - nx, y, p.z - nz], i * 6);
     uv.set([0, s / ARROW_GAP, 1, s / ARROW_GAP], i * 4);
+    arrow[i] = Math.floor(s / ARROW_GAP + 1e-6) % ARROWS;
   }
   // a quad per step, except down the steep back of a kicker: the strip stops at
   // the lip and picks up again on the mat behind it, rather than hanging a wall
@@ -1221,10 +1235,20 @@ function arrowGeometry(): BufferGeometry {
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(pos, 3));
   g.setAttribute('uv', new BufferAttribute(uv, 2));
+  g.setAttribute('color', new BufferAttribute(new Float32Array((N + 1) * 6).fill(1), 3));
   g.setIndex(idx);
   g.computeVertexNormals();
+  g.userData.arrow = arrow;
   return g;
 }
+/** Each arrow's own neon, round the lap: magenta through blue to yellow and
+ *  back (the cars' STRIPE); the chase's light runs whiter. */
+const WHITE_NEON = new Color('#ffffff');
+const ARROW_HUE = Array.from({ length: ARROWS }, (_, k) => {
+  const h = (k / ARROWS) * 3;
+  const a = Math.floor(h);
+  return new Color().copy(STRIPE[a % 3]).lerp(STRIPE[(a + 1) % 3], h - a);
+});
 
 const PIECE = '#74b6ff'; // the kickers' light blue, as in the film
 
@@ -1297,6 +1321,10 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const arrows = useGeometry(arrowGeometry);
   const mat = useGeometry(() => roundedPlaneGeometry(MAT_W, MAT_D, 0.03));
   const arrowMap = useMemo(arrowTexture, []);
+  // the chase along the arrows (ARROW_CHASE): where its lights are, in arrows
+  // along the lap, and each arrow's colour this frame
+  const chase = useRef(0);
+  const arrowCol = useMemo(() => ARROW_HUE.map(() => new Color()), []);
   const ramps = useMemo(
     () =>
       COURSE.toes.map((toe) => {
@@ -1337,6 +1365,28 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         b.current = 1;
       }
     }
+
+    // the arrows: each in its neon, and the chase of light running along them
+    // the way the race goes, at the race's pace (ARROW_CHASE); held still under
+    // reduced motion
+    if (!reduced) chase.current += dt * ARROW_CHASE.speed * speed.current;
+    const E = ARROW_CHASE.every;
+    for (let k = 0; k < ARROWS; k++) {
+      const behind = (((chase.current - k) % E) + E) % E; // how far the light has gone on past it
+      const pulse = reduced ? 0.25 : Math.exp(-behind * ARROW_CHASE.tail);
+      arrowCol[k]
+        .copy(ARROW_HUE[k])
+        .multiplyScalar(ARROW_CHASE.rest + (1.3 - ARROW_CHASE.rest) * pulse)
+        .lerp(WHITE_NEON, 0.3 * pulse);
+    }
+    const which = arrows.userData.arrow as Uint8Array;
+    const col = arrows.attributes.color as BufferAttribute;
+    for (let i = 0; i < which.length; i++) {
+      const c = arrowCol[which[i]];
+      col.setXYZ(2 * i, c.r, c.g, c.b);
+      col.setXYZ(2 * i + 1, c.r, c.g, c.b);
+    }
+    col.needsUpdate = true;
 
     // who's ahead, by laps covered; the dead band stops the crown flickering through a pass
     const d = dist.current[0] - dist.current[1];
@@ -1446,9 +1496,11 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       <mesh geometry={mat} position={[0, MAT, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <GroundMat />
       </mesh>
-      {/* faint: they show the way without drawing the eye off the cars */}
+      {/* neon, in the cars' colours, with the chase of light along them
+          (ARROW_CHASE): solid, as the cars' stripes are, since light added
+          onto the pale mat only washed out */}
       <mesh geometry={arrows} renderOrder={1}>
-        <meshBasicMaterial map={arrowMap} transparent opacity={0.5} depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial map={arrowMap} vertexColors transparent depthWrite={false} toneMapped={false} />
       </mesh>
       {kit &&
         ramps.map((r, i) => (
@@ -1573,10 +1625,10 @@ function Headset() {
    settles back where it was put down. Under reduced motion they take their
    places and hold still.
 
-   In the close-up with a cursor you run the scenario they're in, from the
-   editor (scenario.tsx): then that says where each stands and looks, they
-   walk where it sends them, and they tell it back where they are and which
-   way they face, for its map. */
+   In the close-up with a cursor you're the instructor in their chase, in the
+   editor (scenario.tsx, the chase itself in chase.ts): then that says where
+   each stands and looks as they run a suspect down, and they tell it back
+   where they are and which way they face, for its map. */
 const HS_PIVOT: V3 = [0, 0.036, -0.1]; // the middle of the wearer's head, in the headset's own frame
 const HS_LEVEL = 0.12; // pitched a little nose-down, which levels the strap round the head that isn't there
 const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -1660,7 +1712,7 @@ function VRPlayers({ position, rotation, link }: { position: V3; rotation?: V3; 
     session.current = selected ? session.current + dt : 0;
     const e = lift.current * lift.current * (3 - 2 * lift.current); // eased off the desk and back onto it
     // noticing you: when it's time, and only while the cursor's moving (not
-    // while you're running the scenario: then they're busy in it)
+    // while you're running the chase: then they're busy in it)
     const nt = notice.current;
     const L = link.current;
     const moving = close && cursorIdle() < 1.5 && !L.on;

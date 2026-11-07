@@ -49,7 +49,7 @@ model, with the shared helpers in `modelkit.py`:
   eased edge, an apron, four tapered legs splayed out to the floor), and the
   light-blue faceted kicker set out on its mat for the cars to jump off. It
   ships as `public/models/table.glb`; `room.tsx` (CoffeeTableAR) lays out the
-  mat, the course (two kickers, faint arrows down its middle) and the race on
+  mat, the course (two kickers, neon arrows down its middle) and the race on
   it. The cars and the arrows ride over the kicker's face, so a change to its
   size or facets has to be made in `RAMP_FACE` there too.
 - `build_books.py`: the books on the Room's bookcase, as hardcovers: two

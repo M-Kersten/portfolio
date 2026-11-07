@@ -317,25 +317,27 @@ const FOCUS_SETTLE = 2.4; // s; past here the term is negligible, so stop evalua
    back. Let the cursor rest (CAM_TRACK_IDLE) and the camera lets go, back to
    its own scan over the first cube. Quick but smooth: a servo, not a snap. */
 const CAM_TRACK_YAW = 0.75; // how far it will turn either way (rad)
-const CAM_TRACK_PITCH = [-0.4, 0.3]; // up (negative tips the aim up) … down
+const CAM_TRACK_PITCH = [-0.5, 0.4]; // up (negative tips the aim up) … down
 const CAM_TRACK_IDLE = 2.5; // s of a resting cursor before it lets go
 const CAM_LOCK = 0.9; // how near the cursor's ray has to pass a cube to lock on, in cube edges
 const CAM_SEE_FADE = 0.18; // s for a cube to light up or grey back
 // Each cube where the head's aim points when it has turned by (yaw, pitch), how
 // far out along that aim (`reach`), its edge, and how it turns. The first is
-// the hologram the camera watches at rest, at the beam's end; the other two
-// come with the close-up, smaller and just inside the beam's reach (the last
-// two only for its game, ANCHOR_HOLD). From where the close-up looks, the
-// head's turn mostly carries a cube toward you or away, its tilt up or down
-// the screen, and its reach along the beam across it, so they're set apart in
-// tilt and reach: one high and back, one low and forward, one in close by the
-// lens and one high beside the first.
+// the hologram the camera watches at rest, at the beam's end; the others
+// come with the close-up, smaller, for its game (ANCHOR_HOLD). From where the
+// close-up looks, the head's turn mostly carries a cube toward you or away,
+// its tilt up or down the screen, and its reach along the beam across it, so
+// they're spread over as much of where it can look as they'll go (its turn
+// and tilt run to CAM_TRACK_YAW and CAM_TRACK_PITCH), and out along the beam
+// and past its end, where a tilt carries a cube furthest: one high and close,
+// one low and far, one low in close by the lens, and one high and far out
+// past the first.
 const CAM_CUBES = [
   { yaw: 0, pitch: 0, reach: CAM_CUBE_Z, size: CAM_CUBE, spin: 0.3, phase: 0 },
-  { yaw: 0.55, pitch: -0.38, reach: 0.7, size: 0.13, spin: -0.36, phase: 2.1 },
-  { yaw: -0.45, pitch: 0.3, reach: 0.7, size: 0.14, spin: 0.24, phase: 4.2 },
-  { yaw: 0.3, pitch: 0.05, reach: 0.42, size: 0.09, spin: 0.42, phase: 1.1 },
-  { yaw: -0.15, pitch: -0.32, reach: 0.82, size: 0.1, spin: -0.3, phase: 3.3 },
+  { yaw: 0.6, pitch: -0.46, reach: 0.52, size: 0.13, spin: -0.36, phase: 2.1 },
+  { yaw: -0.5, pitch: 0.36, reach: 1.0, size: 0.14, spin: 0.24, phase: 4.2 },
+  { yaw: 0.5, pitch: 0.3, reach: 0.4, size: 0.09, spin: 0.42, phase: 1.1 },
+  { yaw: -0.25, pitch: -0.44, reach: 1.18, size: 0.12, spin: -0.3, phase: 3.3 },
 ];
 /* The game in the close-up: anchor the cubes, one after another, in the order
    the camera asks for. The one it wants next has its brackets beating; look
@@ -1005,8 +1007,9 @@ function KitTiles({ geometry, slug, color, game }: { geometry: BufferGeometry; s
    board of twelve cells a side over the sixteen tiles, three to a side of a
    tile, lit the way the tiles are. With no cursor on the die, or one resting
    there, the chip plays it itself, which is how a visitor sees it's a game;
-   point at the die and the snake goes where you point and waits there with
-   its head on the cursor, so it can be led about. Eating pops the cell
+   point at the die and the snake heads where you point and circles there,
+   never stopping, so it can be led about, and led into a corner or inside
+   its own coils it boxes itself in and crashes. Eating pops the cell
    and ripples out, as a tile does; a crash flashes, comes apart from the tail
    and shows the score in the cells, then a new board sweeps on. Only with a
    cursor (useCloseUp): a touch screen and reduced motion keep the waves. */
@@ -1014,6 +1017,7 @@ const SNAKE_RATE = 5; // cells a second at the start…
 const SNAKE_RAMP = 0.1; // …faster by this much for every food…
 const SNAKE_MAX = 7.5; // …up to this
 const SNAKE_MARGIN = 1.5; // cells off the die's edge that a cursor still steers from (held to the edge)
+const SNAKE_IDLE = 2.5; // s a cursor rests on the die before the chip takes over again
 const SNAKE_CRASH = 1.0; // s of a crash: it flashes, then comes apart from the tail
 const SNAKE_SCORE = 1.9; // s the score shows
 const SNAKE_BOOT = 0.55; // s for a new board to sweep on
@@ -1096,9 +1100,10 @@ function DieSnake({ geometry, game }: { geometry: BufferGeometry; game: { on: nu
     }
     r.fresh = false;
     const now = st.clock.elapsedTime;
-    // the cell the cursor points at, if it's on the die (or just off it)
+    // the cell the cursor points at, if it's on the die (or just off it) and
+    // hasn't rested there a while
     let target: number | null = null;
-    if (close && cursorOnLevel(st, im, top, hit)) {
+    if (close && cursorIdle() < SNAKE_IDLE && cursorOnLevel(st, im, top, hit)) {
       const u = ((hit.x - board.bb.min.x) / (board.bb.max.x - board.bb.min.x)) * SNAKE_N;
       const v = ((hit.z - board.bb.min.z) / (board.bb.max.z - board.bb.min.z)) * SNAKE_N;
       const edge = (k: number) => Math.min(SNAKE_N - 1, Math.max(0, Math.floor(k)));

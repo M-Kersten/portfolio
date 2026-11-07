@@ -1,12 +1,13 @@
 // Snake, as the AI accelerator's die plays it (chip.tsx DieSnake draws it):
 // the game on its own, apart from how it's drawn. A board of N×N cells, three
-// to a side of each of the die's sixteen tiles. The snake goes to the cell the
-// cursor points at and waits there, its head on the cursor, until the cursor
-// moves on (so it can be led about, and stops when the cursor does). On its
-// way it turns off a wall or its own body rather than into it, so it only ever
-// crashes when it has boxed itself in. With no cursor on the die it plays
-// itself: the chip's own player goes for the food, looking far enough ahead
-// not to trap itself.
+// to a side of each of the die's sixteen tiles. The snake never stops, the way
+// a snake doesn't: it heads for the cell the cursor points at and, once there,
+// circles it, so it can be led about. It turns off a wall or its own body
+// rather than into it, so it only crashes once there's no move left; but led
+// into a corner, or circling inside its own coils, it can box itself in, and
+// the longer it gets the sooner that happens. With no cursor on the die it
+// plays itself: the chip's own player goes for the food, looking far enough
+// ahead not to trap itself.
 //
 // Cells are numbered row by row: cell = z * N + x, x to the right and z toward
 // the viewer (the die's far edge is row 0).
@@ -26,8 +27,8 @@ export interface Snake {
   eaten: number;
 }
 
-/** What a step did: moved on, ate, waited on the cursor, or ran out of room. */
-export type Step = 'move' | 'eat' | 'stay' | 'crash';
+/** What a step did: moved on, ate, or ran out of room. */
+export type Step = 'move' | 'eat' | 'crash';
 
 const START = 4; // cells long at the start
 
@@ -101,7 +102,8 @@ function room(s: Snake, from: number, growing: boolean): number {
 
 /** Steered by the cursor's cell: the free move that brings the head nearest
  *  it (as the crow flies, so a target behind it turns it round rather than
- *  sending it off straight), going straight on where two are as near. */
+ *  sending it off straight), going straight on where two are as near. It
+ *  doesn't look ahead: that's the chip's player, and the visitor's job. */
 function steer(s: Snake, target: number, opts: { d: Dir; c: number }[]): Dir {
   const tx = xOf(target);
   const tz = zOf(target);
@@ -156,9 +158,8 @@ function autopilot(s: Snake, opts: { d: Dir; c: number }[]): Dir {
 /** One step of the game, toward `target` (a cell the cursor points at) or,
  *  with none, as the chip plays it itself. */
 export function step(s: Snake, target: number | null, rand: () => number = Math.random): Step {
-  // there already, or the cursor on its own body: it waits for the cursor
-  if (target !== null && s.body.includes(target)) return 'stay';
   const opts = moves(s);
+  // boxed in by the walls and its own body: nowhere left to go
   if (!opts.length) return 'crash';
   s.dir = target === null ? autopilot(s, opts) : steer(s, target, opts);
   const head = next(s.body[0], s.dir);

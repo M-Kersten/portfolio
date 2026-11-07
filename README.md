@@ -63,7 +63,7 @@ The things you're most likely to want to change, and the file they live in.
 | The windmill's power for the tower: how fast the sails turn, how hard to blow, how fast it fills | `SPIN_REST`, `GUST*` and `POWER_*` in `src/scene/maquette/city.tsx` (the cable and its route on the road: `MillLine`) |
 | ARCam's scavenger hunt: the creatures and their names, where each hides and how it comes out, the pines, the clearing where the found ones sit, how long one's out, the lock, the "captured" bubble, the group photo | `CREATURES`, `STYLE`, `MOVES`, `PEEK`, `PERCH`, `SWIM`, `PINES`, `SEATS`, `TELL`, `UP`, `GAP`, `LOCK`, `SAID` and `FINALE` in `src/scene/maquette/critters.tsx`; how they look: `creatureMat()` there (the bubble's look: `.critter-said` in `src/ui/hotspots.css`; their models and props: `scripts/models/build_creatures.py`; a pine's rustle: `ParkTree` in `city.tsx`) |
 | The die's game of Snake: speed, when the chip takes over, the crash and the score | `SNAKE_*` in `src/scene/maquette/chip.tsx`; the rules (board size, steering, the chip's player) in `snake.ts` |
-| The Virtuele Brigade's scenario: the places things go, what comes next, how long one has to be spotted, what the two see and where they keep watch, how they walk and check, the row | `SPOTS`, `LESSON`, `LIFE*`, `CONE`, `SECTOR`, `SCAN`, `WALK`, `REACH`, `CHECK`, `DROP`, `ROW` in `src/scene/maquette/scenario.tsx` |
+| The Virtuele Brigade's chase: the district (its streets, the canal and its bridges, the ways out), where each round starts, how fast the suspect and the two run, how many streets you can close, the row; how long the cursor rests to close one, and how the chase lies in the air over the desk | `COLS`, `ROWS`, `BRIDGES`, `WAYS`, `ROUNDS`, `SPEED`, `STILL`, `REACT`, `BLOCKS`, `ROW` in `src/scene/maquette/chase.ts`; `DROP` and `LIFT` in `scenario.tsx` |
 | How a close-up reaction moves: its wind-up, overshoot and settle | the curves in `src/lib/ease.ts` and the springs in `src/lib/spring.ts` (`spring` arrives without passing, `wobble` swings past and back) |
 | The Philips heart: its shape and where its vessels run | `LOBES`, `TRUNK` and `BRANCHES` (with each narrowing's place) in `src/scene/maquette/heartShape.ts` |
 | How the heart beats, and how the catheter steers and treats a narrowing | `BEAT`, `FLOW`, `CATH` and `TREAT` in `src/scene/maquette/heart.tsx` |
@@ -145,9 +145,13 @@ src/
       snake.ts         Snake as the AI die plays it: the board, steering by
                        the cursor, the chip's own player, the score's figures
                        (drawn by DieSnake in chip.tsx)
-      scenario.tsx     the Virtuele Brigade's scenario, run from the editor:
-                       the map on the monitor, the things put down, and what
-                       it tells the two in VR (room.tsx VRPlayers)
+      scenario.tsx     the Virtuele Brigade's chase, run from the editor:
+                       the district's map on the monitor, the streets you
+                       close, and what it tells the two in VR (room.tsx
+                       VRPlayers)
+      chase.ts         the chase itself (the district, the suspect running
+                       for a way out, the two after it), apart from how it's
+                       drawn
       critters.tsx     ARCam's scavenger hunt: the park's pines, the
                        creatures hiding behind them and coming out, the lock
                        on one, the "captured" bubble, the group photo and its

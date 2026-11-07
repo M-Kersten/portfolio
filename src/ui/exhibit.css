@@ -202,7 +202,10 @@
 }
 .xl__watch {
   position: absolute;
-  inset: 0;
+  /* a pixel past the box's foot, like the film under it: where the box's
+     height comes out fractional, the fade otherwise stopped a sliver short
+     and a line of the bare film showed under it */
+  inset: 0 0 -1px;
   z-index: 1;
   display: flex;
   align-items: flex-end;

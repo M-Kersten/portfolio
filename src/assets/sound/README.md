@@ -82,17 +82,19 @@ visitor steers (not while the chip plays itself).
 | `snake-eat` | the snake eats | a short bright blip, under 0.1 s; give it variants |
 | `snake-crash` | the snake runs out of room | a low buzz falling away, about 0.4 s |
 
-## The scenario
+## The chase
 
-In the Virtuele Brigade close-up you run the scenario the two in VR are in,
-from the editor: you put things down, they spot them and deal with them.
+In the Virtuele Brigade close-up you're the instructor in the editor, and the
+two in VR chase a suspect through a small district while you close streets to
+cut it off.
 
 | File | When | Notes |
 | --- | --- | --- |
-| `cue-drop` | something's put down: on the map and in VR at once | a short sync blip, digital |
-| `cue-seen` | one of them spots it (or both hear it) and tells the other | a short radio click |
-| `cue-clear` | they've dealt with it: a pip lights | a soft two-note confirm |
-| `cue-miss` | it slips away before either spots it | a muted low blip |
+| `chase-out` | the suspect gets out at the checkpoint | a car door, or a short sync blip |
+| `chase-run` | it runs, and the two are on the radio | a short radio click |
+| `chase-block` | you close a street: on the map and in VR at once | a short sync blip, digital |
+| `chase-caught` | they catch it: a pip lights | a soft two-note confirm |
+| `chase-gone` | it gets away | a muted low blip |
 
 ## The windmill
 

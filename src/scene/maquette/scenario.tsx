@@ -1,29 +1,32 @@
-// The Virtuele Brigade, played: run the scenario. The project was made
-// multiplayer so instructors could run a scenario together, in VR, on desktop
-// or in the editor. In its close-up you're the one in the editor, at the desk,
-// and the two in VR (room.tsx VRPlayers: two headsets, worn by no one) are in
-// the scenario. The monitor is the editor: the scenario from above, the two of
-// them on it, each with the view its headset has, turning as their heads turn,
-// and the places something can be put. Rest the cursor on one and the next
-// thing goes there: something to check, a sound to follow or somewhere to go
-// (the corner of the map shows which). It's in VR the moment it's on the map.
-// They only see what's in front of them, so one of them has to spot it (a
-// sound they both hear); that one tells the other, and they deal with it as a
-// pair: one goes to check while the other covers, or both go, one leading and
-// the other watching their backs. Each one dealt with lights a pip along the
-// foot of the monitor; one they don't spot before the ring closes on it slips
-// away, and the row goes dark. A full row and the two turn to each other and
-// nod, and it starts over, with less time each round. Not on a touch screen,
-// where there's no cursor, nor under reduced motion (useCloseUp): there the
-// session plays as it always has, and the monitor shows the app.
+// The Virtuele Brigade, played: the chase. The project was made multiplayer
+// so instructors could run a scenario together, in VR, on desktop or in the
+// editor, for training the Marechaussee, the Dutch military police. In its
+// close-up you're the instructor in the editor, at the desk, and the two in
+// VR (room.tsx VRPlayers: two headsets, worn by no one) are a patrol of two.
+// The monitor is the editor: a map of a small district, a canal across it
+// with a bridge at each end and a way out at each corner, the two of them on
+// it, and, each round, a suspect. It gets out at a checkpoint and runs for a
+// way out, and the two give chase: one on its heels, the other cutting round
+// to head it off. On foot they're no faster than it is, so that's up to you:
+// rest the cursor on a street and it's closed (three a round), and the
+// suspect has to turn and find another way. Cut it off and the two run it
+// down: caught, and a pip lights along the foot of the monitor. Let it get
+// away and the row goes dark. A full row and the two turn to each other and
+// nod. A line along the top of the map tells the story as it goes. What's on
+// the map is in VR too: the suspect is a reticle the two chase round over the
+// desk, and a closed street a barrier. They only ever move with the story:
+// they stand and watch, set off, run, turn at the corners. Not on a touch
+// screen, where there's no cursor, nor under reduced motion (useCloseUp):
+// there the session plays as it always has, and the monitor shows the app.
 import { useEffect, useMemo, useRef, type ElementRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, CanvasTexture, CircleGeometry, DoubleSide, MeshBasicMaterial, PlaneGeometry, Ray, SRGBColorSpace, Vector2, Vector3, type Group, type Mesh, type Object3D, type PerspectiveCamera } from 'three';
+import { AdditiveBlending, CanvasTexture, CircleGeometry, DoubleSide, MeshBasicMaterial, Ray, SRGBColorSpace, Vector2, Vector3, type Group, type Mesh, type Object3D, type PerspectiveCamera } from 'three';
 import { Line, NEUTRAL, SURFACE, useAccent, type V3 } from './shared';
 import { cursorRay, useCloseUp } from './closeup';
 import { useGeometry } from './shapes';
 import { play } from '../../lib/sound';
-import { bump, easeInOut, easeOut, easeOutBack } from '../../lib/ease';
+import { bump, easeOut, easeOutBack } from '../../lib/ease';
+import { BLOCKS, BRIDGES, CANAL, COLS, NODES, ROUNDS, ROW, ROWS, STILL, STREETS, REACT, WAYS, closeStreet, heading, nearestNode, newChase, spot, step, still, type Chase } from './chase';
 
 /** Where the two in VR stand to begin with (their heads, desk frame): over the
  *  desk's left end and to the right of the screen, both clear above it. The
@@ -60,76 +63,41 @@ export const newSessionLink = (): SessionLink => ({
 /** How long the two take over a full row, turned to each other. */
 export const ROUND_LEN = 1.8;
 
-/* The places something can be put, desk frame. The close-up sees about
-   −0.6…0.75 across and 0.2…1.15 up from in front and to the left, about at
-   their heads' height, so it can't tell near from far up there: the ones at
-   the back are up high, the ones in front low down, and seen from the camera
-   they lie the way they do on the map, clear of the screen, the two heads and
-   the label. The map shows them from above, as they are. */
-const SPOTS: V3[] = [
-  [-0.5, 1.02, -0.25], // back left
-  [0.0, 1.08, -0.35], // back, over the screen
-  [0.4, 1.05, -0.3], // back right
-  [-0.55, 0.72, 0.2], // left
-  [0.62, 0.75, 0.0], // right
-  [-0.45, 0.5, 0.45], // front left
-  [0.05, 0.62, 0.5], // front
-  [0.3, 0.62, 0.3], // front right
-];
-type Kind = 'check' | 'sound' | 'go';
-/** What comes next, round and round: the corner of the map shows it. */
-const LESSON: Kind[] = ['check', 'sound', 'go', 'check', 'check', 'sound', 'go', 'check', 'sound', 'check'];
-const READY = 1.6; // s into the session before anything can be put down (the second one's joining)
-const DROP = 0.5; // s the cursor rests on a place to put the next thing there
-const PICK = 0.03; // how near the cursor has to come to a place on the map (screen units: ~15 px at 1280)
-const LIFE = 4.4; // s a new one has to be spotted in, at the start of a row…
-const LIFE_STEP = 0.12; // …shorter by this for each one in the row…
-const LIFE_ROUND = 0.35; // …and by this each round…
-const LIFE_MIN = 1.8; // …down to this
-const CONE = 0.62; // rad either side of where a head faces: what it sees
-const HEAR = 0.3; // s before a sound has them turning
-const TELL = [0.35, 0.85]; // s after it's spotted: turned to it until the first, telling the other until the second
-const REACH = 0.16; // how near the one checking goes (from above)
-const WALK = 0.34; // units a second, walking
-const CHECK = 0.9; // s it takes a look, crouched over it
-const DUCK = 0.05; // how far down it crouches
-const BACK = 0.22; // how far behind the leader the other walks, going somewhere
-const STAND = { x: [-0.4, 0.46], z: [-0.35, 0.28] }; // where the two can stand (all of it in the picture, at 1280 across)
-const APART = 0.2; // and never nearer each other than this
-/** Idle, each keeps watch on its own side (rad, the way it faces: 0 is out
- *  into the room, toward the camera, π/2 its right), now and then over its
- *  shoulder; a new look every SCAN s. */
-const SECTOR = [
-  [-2.3, 0.6],
-  [-0.6, 2.3],
-];
-const SCAN = [1.3, 2.2];
-const SHOULDER = 0.3; // the share of looks that go over the shoulder
-const ROW = 10; // pips along the foot of the monitor: a full row is a round
-const BURST = 0.45; // s for a dealt-with one's ring to run out
-const SLIP = 0.5; // s for a missed one to blink out
-const BEAM = 0.5; // s the line from the map to VR shows, as it's put down
-const OPEN_EVERY = 0.5; // s between looks at which places are in the picture
+/* What the chase looks like in VR (the district, in the desk's frame, is in
+   chase.ts). The close-up looks along the district's depth at about the two's
+   height, so it can't tell near from far up there: its far side is lifted
+   (LIFT a unit back), so the two, the suspect and the barriers lie in the air
+   the way they do on the map, far side up. */
+const LIFT = 0.55;
+const lift = (z: number) => (ROWS[ROWS.length - 1] - z) * LIFT;
+const HEAD_Y = 0.85; // the two's eyes, at the district's near side…
+const SUSPECT_Y = 0.81; // …and the suspect's: a touch under them
+const DROP = 0.5; // s the cursor rests on a street to close it
+const PICK = 0.014; // how near a street the cursor has to come on the map (screen units: ~8 px at 1280)
+const SEP = { x: 0.34, y: 0.14 }; // how far apart the two heads keep, across and up, as the close-up sees them (a head turned side-on is as wide as its strap)…
+const ACROSS = [-0.5, 0.56]; // …and how far out to either side that can take them, still in the picture
+const BEAM = 0.5; // s the line from the map to VR shows, as a street's closed
+const TRAIL = 22; // points along the suspect's trail on the map…
+const TRAIL_EVERY = 0.07; // …one every this many s
+const READY = 1.6; // s into the session before the first round (the second one's joining)
 
 /* The editor, on the monitor's screen (RoomScreen in room.tsx: centred at
-   [0, 0.63], 0.542 × 0.302, its face at z −0.1245). The scenario from above
-   (far side up, at one scale both ways, so a view's angle is true on it), and
-   down the left the next thing to put down and who's in the session: the two
-   in VR and you. The pips run along the foot. */
+   [0, 0.63], 0.542 × 0.302, its face at z −0.1245): the story's line along the
+   top, who's in at its right end (the two in VR, you), the map under it, and
+   the pips along the foot. */
 const SCREEN = { x: 0, y: 0.63, w: 0.542, h: 0.302 };
 const FACE = -0.1245;
-const PLAN = { cx: 0.05, cy: 0.022, k: 0.245, x0: 0.03 };
-const plan = (x: number, z: number, out: Vector2) => out.set(PLAN.cx + (x - PLAN.x0) * PLAN.k, PLAN.cy - z * PLAN.k);
-const PLACES = SPOTS.map(([x, , z]) => plan(x, z, new Vector2()));
-const NEXT = new Vector2(-0.205, 0.092); // the next thing, in its frame
-const ROSTER = [-0.004, -0.044, -0.084]; // the two in VR, and you, down the left (y)
-const PIPS = { y: -0.134, pitch: 0.021, size: 0.012 };
+const MAP = { cx: 0, cy: -0.016, kx: 0.47, kz: 0.29, x0: 0.04, z0: -0.03 };
+const plan = (x: number, z: number, out: Vector2) => out.set(MAP.cx + (x - MAP.x0) * MAP.kx, MAP.cy - (z - MAP.z0) * MAP.kz);
+const STATUS = { x: -0.06, y: 0.121, w: 0.4, h: 0.056 }; // the line's strip (centre, size)
+const ROSTER = { x: 0.178, y: 0.121, pitch: 0.03 };
+const PIPS = { y: -0.137, pitch: 0.021, size: 0.011 };
 
 /* The marks are the site's reticle (hotspots.css .hotspot__mark): two
    hairlines with a gap at the centre, a small core, and brackets at the
    corners that lock in once something's on it; drawn in hairlines (the site's
    Line: its width in px at any distance), in units of the reticle's
-   half-width. In VR it keeps one size on screen, like the crosshairs do. */
+   half-width. In VR they keep one size on screen, like the crosshairs do. */
 const CROSS: V3[] = [
   [0.36, 0, 0], [0.86, 0, 0],
   [-0.36, 0, 0], [-0.86, 0, 0],
@@ -142,37 +110,16 @@ const BRACKETS: V3[] = [-1, 1].flatMap((sx) =>
     [sx, sy, 0], [sx, sy * 0.45, 0],
   ]),
 );
-const arc = (r: number, a0: number, a1: number, n: number): V3[] =>
-  Array.from({ length: n }, (_, k) => k).flatMap((k): V3[] => {
-    const a = a0 + ((a1 - a0) * k) / n;
-    const b = a0 + ((a1 - a0) * (k + 1)) / n;
-    return [[r * Math.cos(a), r * Math.sin(a), 0], [r * Math.cos(b), r * Math.sin(b), 0]];
-  });
-/** Each kind's glyph, round the reticle's core: a diamond for something to
- *  check, a sound's arcs either side, a triangle pointing down for somewhere
- *  to go. Hairline segments; the map and its corner draw them too. */
-const GLYPH: Record<Kind, V3[]> = {
-  check: [[0, 1, 0], [1, 0, 0], [1, 0, 0], [0, -1, 0], [0, -1, 0], [-1, 0, 0], [-1, 0, 0], [0, 1, 0]],
-  sound: [...arc(0.62, -0.7, 0.7, 4), ...arc(0.62, Math.PI - 0.7, Math.PI + 0.7, 4), ...arc(1.05, -0.55, 0.55, 4), ...arc(1.05, Math.PI - 0.55, Math.PI + 0.55, 4)],
-  go: [[-0.95, 0.6, 0], [0.95, 0.6, 0], [0.95, 0.6, 0], [0, -1, 0], [0, -1, 0], [-0.95, 0.6, 0]],
-};
-const KINDS: Kind[] = ['check', 'sound', 'go'];
 const CIRCLE: V3[] = Array.from({ length: 65 }, (_, k): V3 => [Math.cos((k / 64) * Math.PI * 2), Math.sin((k / 64) * Math.PI * 2), 0]);
+/** A road barrier: the board, its stripes, its legs. */
+const BARRIER: V3[] = [
+  [-1, 0.3, 0], [1, 0.3, 0], [1, 0.3, 0], [1, -0.25, 0], [1, -0.25, 0], [-1, -0.25, 0], [-1, -0.25, 0], [-1, 0.3, 0],
+  [-0.62, 0.3, 0], [-0.3, -0.25, 0], [-0.02, 0.3, 0], [0.3, -0.25, 0], [0.58, 0.3, 0], [0.86, -0.25, 0],
+  [-0.75, -0.25, 0], [-0.75, -0.95, 0], [0.75, -0.25, 0], [0.75, -0.95, 0],
+];
+/** A way out's chevron, pointing along +x. */
+const CHEVRON: V3[] = [[-0.5, -0.9, 0], [0.4, 0, 0], [0.4, 0, 0], [-0.5, 0.9, 0], [-1.2, -0.9, 0], [-0.3, 0, 0], [-0.3, 0, 0], [-1.2, 0.9, 0]];
 const RETICLE = 13; // px: half the reticle's width in VR (the site's crosshair is 24 across)
-/** The places on the map: a small cross each. */
-const MARK = 0.005;
-const crosses = (open: boolean[]) =>
-  PLACES.flatMap((p, i): number[] => {
-    if (!open[i]) return [];
-    const x = SCREEN.x + p.x;
-    const y = SCREEN.y + p.y;
-    const z = FACE + 0.0008;
-    return [x - MARK, y, z, x + MARK, y, z, x, y - MARK, z, x, y + MARK, z];
-  });
-const CROSSES: V3[] = (() => {
-  const f = crosses(SPOTS.map(() => true));
-  return Array.from({ length: f.length / 3 }, (_, k): V3 => [f[3 * k], f[3 * k + 1], f[3 * k + 2]]);
-})();
 
 type Hairline = ElementRef<typeof Line>;
 /** A hairline: the site's Line, drawn plain on the screen, or over
@@ -181,31 +128,17 @@ function Hair({ at, points, segments, color, width = 1.2, over = false }: { at: 
   return <Line ref={at} points={points} segments={segments} color={color} lineWidth={width} transparent opacity={0} depthTest={!over} depthWrite={false} fog={false} renderOrder={over ? 9 : 5} userData={{ lifeSkip: true, presenceOwn: true }} />;
 }
 
-type Phase = 'live' | 'seen' | 'go' | 'done' | 'missed';
-interface Cue {
-  spot: number;
-  kind: Kind;
-  phase: Phase;
-  t: number; // s in this phase
-  life: number; // s it has to be spotted in
-  by: number; // who spotted it: it's the one that goes to check it, or leads
-  arrive: number; // s into `go` that they're there
-}
-interface Leg {
-  from: Vector3;
-  to: Vector3;
-  at: number;
-  len: number;
-}
-
-const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
-const _v = new Vector3();
-const _w = new Vector3();
+const _a = new Vector2();
+const _b = new Vector2();
+const _d = new Vector2();
 const _p = new Vector2();
 const _q = new Vector2();
+const _v = new Vector3();
+const _w = new Vector3();
 
-/** The editor's still parts, drawn once: the ground, the plan with its grid,
- *  the frame the next thing sits in, and the roster's glyphs. */
+/** The district, drawn once: its blocks, the canal and its bridges, the
+ *  streets, the ways out, and who's in at the top right (two headsets and a
+ *  desktop). */
 function editorTexture(): CanvasTexture {
   const W = 1024;
   const H = Math.round((W * SCREEN.h) / SCREEN.w);
@@ -216,62 +149,160 @@ function editorTexture(): CanvasTexture {
   const px = (sx: number) => ((sx + SCREEN.w / 2) / SCREEN.w) * W;
   const py = (sy: number) => ((SCREEN.h / 2 - sy) / SCREEN.h) * H;
   const u = W / SCREEN.w; // px per screen unit
+  const at = (x: number, z: number): [number, number] => {
+    plan(x, z, _a);
+    return [px(_a.x), py(_a.y)];
+  };
   g.fillStyle = '#0d151c';
   g.fillRect(0, 0, W, H);
-  // the plan: the reach of the scenario the two can be in, and a grid every 0.1
-  const x0 = px(PLAN.cx + (-0.66 - PLAN.x0) * PLAN.k);
-  const x1 = px(PLAN.cx + (0.72 - PLAN.x0) * PLAN.k);
-  const y0 = py(PLAN.cy + 0.47 * PLAN.k);
-  const y1 = py(PLAN.cy - 0.56 * PLAN.k);
-  g.fillStyle = '#122029';
-  g.strokeStyle = '#294352';
+  // the story's strip along the top
+  g.fillStyle = '#101c24';
+  g.fillRect(0, 0, W, py(STATUS.y - STATUS.h / 2));
+  g.strokeStyle = '#22394a';
   g.lineWidth = 2;
   g.beginPath();
-  g.roundRect(x0, y0, x1 - x0, y1 - y0, 10);
+  g.moveTo(0, py(STATUS.y - STATUS.h / 2));
+  g.lineTo(W, py(STATUS.y - STATUS.h / 2));
+  g.stroke();
+  // the district's ground, a margin round the grid
+  const [gx0, gz0] = at(COLS[0] - 0.05, ROWS[0] - 0.05);
+  const [gx1, gz1] = at(COLS[COLS.length - 1] + 0.05, ROWS[ROWS.length - 1] + 0.05);
+  g.fillStyle = '#0f1b23';
+  g.strokeStyle = '#22394a';
+  g.beginPath();
+  g.roundRect(gx0, gz0, gx1 - gx0, gz1 - gz0, 12);
   g.fill();
   g.stroke();
-  g.fillStyle = '#2b4655';
-  for (let x = -0.6; x <= 0.7; x += 0.1)
-    for (let z = -0.4; z <= 0.5; z += 0.1) {
-      g.beginPath();
-      g.arc(px(PLAN.cx + (x - PLAN.x0) * PLAN.k), py(PLAN.cy - z * PLAN.k), 2, 0, Math.PI * 2);
-      g.fill();
+  // the blocks between the streets (the quays either side of the canal)
+  const street = 0.03; // a street's width, desk units
+  const [, canalTop] = at(0, CANAL.z - CANAL.w / 2);
+  const [, canalFoot] = at(0, CANAL.z + CANAL.w / 2);
+  g.fillStyle = '#152833';
+  g.strokeStyle = '#1f3846';
+  g.lineWidth = 2;
+  const block = (x0: number, y0: number, x1: number, y1: number) => {
+    if (x1 - x0 < 4 || y1 - y0 < 4) return;
+    g.beginPath();
+    g.roundRect(x0, y0, x1 - x0, y1 - y0, 6);
+    g.fill();
+    g.stroke();
+  };
+  for (let r = 0; r + 1 < ROWS.length; r++)
+    for (let k = 0; k + 1 < COLS.length; k++) {
+      const [x0, y0] = at(COLS[k] + street / 2, ROWS[r] + street / 2);
+      const [x1, y1] = at(COLS[k + 1] - street / 2, ROWS[r + 1] - street / 2);
+      if (r === 1) {
+        block(x0, y0, x1, canalTop - 3);
+        block(x0, canalFoot + 3, x1, y1);
+      } else block(x0, y0, x1, y1);
     }
-  // down the left: the next thing's frame, then the roster
+  // the canal, right across, rippled
+  const [cx0] = at(COLS[0] - 0.05, 0);
+  const [cx1] = at(COLS[COLS.length - 1] + 0.05, 0);
+  g.fillStyle = '#0d2838';
+  g.fillRect(cx0, canalTop, cx1 - cx0, canalFoot - canalTop);
+  g.strokeStyle = '#1d4a62';
+  g.lineWidth = 2;
+  for (const y of [canalTop, canalFoot]) {
+    g.beginPath();
+    g.moveTo(cx0, y);
+    g.lineTo(cx1, y);
+    g.stroke();
+  }
+  g.strokeStyle = '#16384b';
+  for (let x = cx0 + 18; x < cx1 - 18; x += 46) {
+    const y = (canalTop + canalFoot) / 2 + ((x / 46) % 2 ? -4 : 4);
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + 16, y);
+    g.stroke();
+  }
+  // the streets, the bridges over the canal, and the ways out
+  g.strokeStyle = '#26404f';
+  g.lineCap = 'round';
+  g.lineWidth = street * MAP.kx * u * 0.62;
+  for (const [a, b] of STREETS) {
+    g.beginPath();
+    g.moveTo(...at(NODES[a].x, NODES[a].z));
+    g.lineTo(...at(NODES[b].x, NODES[b].z));
+    g.stroke();
+  }
   g.strokeStyle = '#3c5b6e';
   g.lineWidth = 2;
-  const f = 0.026 * u;
-  g.beginPath();
-  g.roundRect(px(NEXT.x) - f, py(NEXT.y) - f, 2 * f, 2 * f, 8);
-  g.stroke();
+  for (const k of BRIDGES) {
+    const [x] = at(COLS[k], 0);
+    const w = street * MAP.kx * u * 0.55;
+    for (const s of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(x + s * w, canalTop - 2);
+      g.lineTo(x + s * w, canalFoot + 2);
+      g.stroke();
+    }
+  }
+  g.strokeStyle = '#3c5b6e';
+  g.lineWidth = 3;
+  for (const w of WAYS) {
+    const [ex, ey] = at(w.x, w.z);
+    const [fx, fy] = at(NODES[w.from].x, NODES[w.from].z);
+    const a = Math.atan2(ey - fy, ex - fx);
+    const s = 9;
+    for (const back of [0, 9]) {
+      const bx = ex - Math.cos(a) * back;
+      const by = ey - Math.sin(a) * back;
+      g.beginPath();
+      g.moveTo(bx - Math.cos(a) * s - Math.sin(a) * s, by - Math.sin(a) * s + Math.cos(a) * s);
+      g.lineTo(bx, by);
+      g.lineTo(bx - Math.cos(a) * s + Math.sin(a) * s, by - Math.sin(a) * s - Math.cos(a) * s);
+      g.stroke();
+    }
+  }
+  // who's in: the two in VR (a headset each) and you (a desktop)
   g.strokeStyle = SURFACE.glass.color;
   g.fillStyle = SURFACE.glass.color;
   g.lineWidth = 3;
-  ROSTER.forEach((ry, i) => {
-    const cx = px(-0.228);
-    const cy = py(ry);
+  for (let i = 0; i < 3; i++) {
+    const cx = px(ROSTER.x + (i - 1) * ROSTER.pitch);
+    const cy = py(ROSTER.y + 0.006);
     if (i < 2) {
-      // a headset: the visor, its two lenses
       g.beginPath();
-      g.roundRect(cx - 0.016 * u, cy - 0.008 * u, 0.032 * u, 0.016 * u, 0.006 * u);
+      g.roundRect(cx - 0.011 * u, cy - 0.0055 * u, 0.022 * u, 0.011 * u, 0.004 * u);
       g.stroke();
       for (const s of [-1, 1]) {
         g.beginPath();
-        g.arc(cx + s * 0.0075 * u, cy + 0.001 * u, 0.0035 * u, 0, Math.PI * 2);
+        g.arc(cx + s * 0.005 * u, cy + 0.0007 * u, 0.0024 * u, 0, Math.PI * 2);
         g.fill();
       }
     } else {
-      // a desktop: the screen, its stand
       g.beginPath();
-      g.roundRect(cx - 0.015 * u, cy - 0.011 * u, 0.03 * u, 0.017 * u, 0.003 * u);
+      g.roundRect(cx - 0.01 * u, cy - 0.0075 * u, 0.02 * u, 0.0115 * u, 0.002 * u);
       g.stroke();
-      g.fillRect(cx - 0.006 * u, cy + 0.009 * u, 0.012 * u, 0.0025 * u);
+      g.fillRect(cx - 0.004 * u, cy + 0.006 * u, 0.008 * u, 0.0018 * u);
     }
-  });
+  }
   const t = new CanvasTexture(c);
   t.colorSpace = SRGBColorSpace;
   t.anisotropy = 4;
   return t;
+}
+
+/** The story's line: what's happening, and under it what you can do. */
+function drawStatus(t: CanvasTexture, head: string, sub: string, ink: string) {
+  const c = t.image as HTMLCanvasElement;
+  const g = c.getContext('2d')!;
+  const H = c.height;
+  g.clearRect(0, 0, c.width, H);
+  const mono = '"Space Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+  const spaced = g as CanvasRenderingContext2D & { letterSpacing?: string };
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = ink;
+  g.font = `700 ${Math.round(H * 0.36)}px ${mono}`;
+  spaced.letterSpacing = '3px';
+  g.fillText(head, 10, H * 0.47);
+  g.fillStyle = 'rgba(211, 228, 246, 0.62)';
+  g.font = `400 ${Math.round(H * 0.25)}px ${mono}`;
+  spaced.letterSpacing = '2px';
+  g.fillText(sub, 10, H * 0.86);
+  t.needsUpdate = true;
 }
 
 export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<SessionLink> }) {
@@ -281,8 +312,7 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
   const ray = useMemo(() => new Ray(), []);
   const geo = useGeometry(() => ({
     dot: new CircleGeometry(1, 24),
-    cone: new CircleGeometry(1, 20, -CONE, 2 * CONE),
-    strip: new PlaneGeometry(1, 1),
+    cone: new CircleGeometry(1, 20, -0.55, 1.1),
   }));
   // in VR: added on, always in front (it's what the two see, not part of the room)
   // on the screen: drawn on it, plain
@@ -292,22 +322,29 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
       m.userData = { lifeSkip: true, presenceOwn: true };
       return m;
     };
-    const ink = (color: string) => {
-      const m = new MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false });
+    const ink = (color: string, map?: CanvasTexture) => {
+      const m = new MeshBasicMaterial({ color, map, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false });
       m.userData = { lifeSkip: true, presenceOwn: true };
       return m;
     };
     const ground = new MeshBasicMaterial({ map: editorTexture(), transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false });
     ground.userData = { lifeSkip: true, presenceOwn: true };
+    const line = document.createElement('canvas');
+    line.width = 1024;
+    line.height = Math.round((1024 * STATUS.h) / STATUS.w);
+    const status = new CanvasTexture(line);
+    status.colorSpace = SRGBColorSpace;
+    status.anisotropy = 4;
     return {
       ground,
-      // the map
+      statusTex: status,
+      status: ink('#ffffff', status),
       head: ink(accentPale),
       cone: ink(accentPale),
       talk: ink(accentPale),
-      cueCore: ink(accent),
-      nextCore: ink(accentPale),
-      roster: ROSTER.map(() => ink(accent)),
+      suspect: ink(accent),
+      blocks: Array.from({ length: BLOCKS }, () => ink(accentPale)),
+      roster: [0, 1, 2].map(() => ink(accent)),
       pips: Array.from({ length: ROW }, () => ink(accent)),
       // in VR: the reticle's core
       vrCore: glow(accent),
@@ -322,17 +359,19 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
   );
   // what's moved about each frame
   const r = {
-    vr: useRef<Group>(null),
-    vrBrackets: useRef<Group>(null),
-    vrCloser: useRef<Group>(null),
-    vrBurst: useRef<Group>(null),
-    vrPings: useRef<(Group | null)[]>([]),
-    ghost: useRef<Group>(null),
-    pick: useRef<Group>(null),
+    suspect: useRef<Group>(null),
+    ring: useRef<Group>(null),
     heads: useRef<(Group | null)[]>([]),
     talk: useRef<Mesh>(null),
-    cue: useRef<Group>(null),
-    cueCloser: useRef<Group>(null),
+    pick: useRef<Group>(null),
+    way: useRef<Group>(null),
+    blocks: useRef<(Group | null)[]>([]),
+    checkpoint: useRef<Group>(null),
+    vr: useRef<Group>(null),
+    vrBrackets: useRef<Group>(null),
+    vrBurst: useRef<Group>(null),
+    vrBlocks: useRef<(Group | null)[]>([]),
+    ghost: useRef<Group>(null),
   };
   const hl = useRef<Record<string, Hairline | null>>({});
   const hold = (k: string) => (l: Hairline | null) => {
@@ -344,23 +383,22 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
     [0, 0, 0],
     [0, 0.001, 0],
   ], []);
+  const trailPts = useMemo<V3[]>(() => Array.from({ length: TRAIL }, (_, k): V3 => [0, k * 1e-5, 0]), []);
+  const routePts = useMemo<V3[]>(() => Array.from({ length: 12 }, (_, k): V3 => [0, k * 1e-5, 0]), []);
   const game = useRef({
     clock: 0,
     on: 0, // the editor, faded in
     session: 0, // s in the close-up
-    cue: null as Cue | null,
+    c: null as Chase | null,
     hover: -1,
-    rest: 0, // s the cursor has rested on the place it's on
-    open: SPOTS.map(() => true), // which places land in the picture, clear of the label (looked at every OPEN_EVERY s)
-    openAt: -99,
-    next: 0, // into LESSON
-    row: 0,
-    rounds: 0,
+    rest: 0, // s the cursor has rested on the street it's on
+    lock: null as Vector2 | null, // where a street was just closed: the cursor moves off it before it can close another
+    side: 0, // which side of the first the second keeps, while they'd cover each other
     dropAt: -99,
-    talkAt: -99, // one telling the other: the line between them
-    posts: POSTS.map((p) => new Vector3(...p)),
-    legs: POSTS.map((p): Leg => ({ from: new Vector3(...p), to: new Vector3(...p), at: -99, len: 1 })),
-    scan: POSTS.map(() => ({ yaw: 0, pitch: 0, at: 0 })),
+    talkAt: -99, // the two on the radio: the line between them
+    trail: Array.from({ length: TRAIL }, () => new Vector2()),
+    trailAt: -99,
+    status: '',
   });
 
   useFrame((st, delta) => {
@@ -368,215 +406,142 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
     if (!fr) return;
     const dt = Math.min(delta, 1 / 30);
     const now = st.clock.elapsedTime; // the scene's clock: what the two in VR nod and huddle by
-    const s = game.current;
-    const T = (s.clock += dt); // the game's own, by the frame: what its walks, looks and lines go by
+    const g = game.current;
+    const T = (g.clock += dt); // the game's own, by the frame
     const L = link.current;
     L.on = close;
-    s.on = close ? Math.min(1, s.on + dt / 0.4) : Math.max(0, s.on - dt / 0.3);
-    s.session = close ? s.session + dt : 0;
-    if (!close && (s.cue || s.row || s.next || s.legs[0].at > -99 || s.legs[1].at > -99)) {
-      // closed (or a touch screen): nothing out, the row cleared, the two back where they began
-      Object.assign(s, { cue: null, hover: -1, rest: 0, next: 0, row: 0, rounds: 0 });
-      s.posts.forEach((p, i) => p.set(...POSTS[i]));
-      s.legs.forEach((l, i) => {
-        l.from.set(...POSTS[i]);
-        l.to.set(...POSTS[i]);
-        l.at = -99;
-      });
-    }
+    g.on = close ? Math.min(1, g.on + dt / 0.4) : Math.max(0, g.on - dt / 0.3);
+    g.session = close ? g.session + dt : 0;
+    // closed (or a touch screen): the chase called off, the row with it
+    if (!close && g.c) Object.assign(g, { c: null, hover: -1, rest: 0, lock: null });
 
-    // where each is on its legs (eased from one place to the next)
-    const pos = (i: number, out: Vector3) => {
-      const l = s.legs[i];
-      const k = Math.min(1, Math.max(0, (T - l.at) / l.len));
-      return out.copy(l.from).lerp(l.to, easeInOut(k));
-    };
-    const walk = (i: number, to: Vector3) => {
-      const l = s.legs[i];
-      pos(i, l.from);
-      l.to.copy(to);
-      l.at = T;
-      l.len = Math.max(0.35, l.from.distanceTo(to) / WALK);
-      return l.len;
-    };
-    /** Somewhere the two can stand: in reach, at a head's height. */
-    const stand = (x: number, z: number, y: number, out: Vector3) =>
-      out.set(Math.min(STAND.x[1], Math.max(STAND.x[0], x)), y, Math.min(STAND.z[1], Math.max(STAND.z[0], z)));
-
-    // ---- which places are in the picture: on another screen's framing the
-    // label can cover some, and those aren't offered ----
-    if (close && T - s.openAt > OPEN_EVERY) {
-      s.openAt = T;
-      const label = document.querySelector('.exhibit .xl')?.getBoundingClientRect();
-      const { left, top, width, height } = st.size;
-      SPOTS.forEach((p, i) => {
-        fr.localToWorld(_v.set(...p)).project(st.camera);
-        const x = ((_v.x + 1) / 2) * width + left;
-        const y = ((1 - _v.y) / 2) * height + top;
-        const m = 48; // px kept from the edges (and the header's height more at the top)
-        const inside = _v.z < 1 && x > left + m && x < left + width - m && y > top + m + 64 && y < top + height - m;
-        s.open[i] = inside && !(label && x > label.left - 40 && x < label.right + 40 && y > label.top - 40 && y < label.bottom + 40);
-      });
-    }
-
-    // ---- the cursor on the map: which place, and resting there puts the next thing down ----
-    let hover = -1;
-    if (close && cursorRay(st, fr, ray) && ray.direction.z < -1e-4) {
-      const k = (FACE - ray.origin.z) / ray.direction.z;
-      const sx = ray.origin.x + ray.direction.x * k - SCREEN.x;
-      const sy = ray.origin.y + ray.direction.y * k - SCREEN.y;
-      if (k > 0 && Math.abs(sx) < SCREEN.w / 2 && Math.abs(sy) < SCREEN.h / 2) {
-        let best = PICK;
-        PLACES.forEach((p, i) => {
-          const d = Math.hypot(p.x - sx, p.y - sy);
-          if (s.open[i] && d < best) {
-            best = d;
-            hover = i;
-          }
-        });
-      }
-    }
-    const ready = close && s.session > READY && !s.cue;
-    s.rest = hover >= 0 && hover === s.hover && ready ? s.rest + dt : 0;
-    s.hover = hover;
-    if (s.rest > DROP) {
-      const kind = LESSON[s.next % LESSON.length];
-      s.next++;
-      s.rest = 0;
-      s.cue = { spot: hover, kind, phase: 'live', t: 0, life: Math.max(LIFE_MIN, LIFE - LIFE_STEP * s.row - LIFE_ROUND * s.rounds), by: -1, arrive: 0 };
-      s.dropAt = T;
-      // the line from where it went on the map to where it is in VR
-      beam.current?.geometry.setPositions([SCREEN.x + PLACES[hover].x, SCREEN.y + PLACES[hover].y, FACE + 0.002, ...SPOTS[hover]]);
-      play('cue-drop', { volume: 0.45 });
-    }
-
-    // ---- the one out: spotted, told, dealt with ----
-    const c = s.cue;
+    // ---- the chase (chase.ts): it starts once the second one's in ----
+    if (close && !g.c && g.session > READY) g.c = newChase(L.heads.map((h) => nearestNode(h.x, h.z)));
+    const c = g.c;
     if (c) {
-      c.t += dt;
-      const [sx, , sz] = SPOTS[c.spot];
-      const far = (i: number) => Math.hypot(sx - L.heads[i].x, sz - L.heads[i].z);
-      if (c.phase === 'live') {
-        // only what's in front of them; a sound, both hear
-        let by = -1;
-        if (c.kind === 'sound') by = c.t > HEAR ? (far(0) <= far(1) ? 0 : 1) : -1;
-        else
-          for (let i = 0; i < 2; i++) {
-            const h = L.heads[i];
-            if (h.joined < 0.99 || Math.abs(wrap(Math.atan2(sx - h.x, sz - h.z) - h.yaw)) > CONE) continue;
-            if (by < 0 || far(i) < far(by)) by = i;
-          }
-        if (by >= 0) {
-          Object.assign(c, { phase: 'seen', t: 0, by });
-          s.talkAt = T + TELL[0];
-          play('cue-seen', { volume: 0.4 });
-        } else if (c.t > c.life) {
-          Object.assign(c, { phase: 'missed', t: 0 });
-          s.row = 0;
-          play('cue-miss', { volume: 0.4 });
-        }
-      } else if (c.phase === 'seen' && c.t > TELL[1]) {
-        // off they go: one to check it while the other covers, or both, the
-        // other a step behind the first
-        const a = c.by;
-        const b = 1 - a;
-        pos(a, _v);
-        pos(b, _w);
-        const dx = sx - _v.x;
-        const dz = sz - _v.z;
-        const d = Math.max(1e-3, Math.hypot(dx, dz));
-        const near = c.kind === 'go' ? 0 : Math.min(REACH, d); // (already that near, it stays)
-        const lead = stand(sx - (dx / d) * near, sz - (dz / d) * near, POSTS[a][1], new Vector3());
-        if (c.kind !== 'go') {
-          // and not on top of the other
-          const ox = lead.x - _w.x;
-          const oz = lead.z - _w.z;
-          const o = Math.hypot(ox, oz);
-          if (o < APART) stand(_w.x + (ox / Math.max(1e-3, o)) * APART, _w.z + (oz / Math.max(1e-3, o)) * APART, lead.y, lead);
-        }
-        let arrive = walk(a, lead);
-        if (c.kind === 'go') {
-          // the other behind the first, back along the way they came
-          const tail = stand(lead.x - (dx / d) * BACK, lead.z - (dz / d) * BACK, POSTS[b][1], new Vector3());
-          if (Math.hypot(tail.x - lead.x, tail.z - lead.z) < APART) stand(lead.x - (dz / d) * APART, lead.z + (dx / d) * APART, tail.y, tail);
-          arrive = Math.max(arrive, walk(b, tail));
-        }
-        Object.assign(c, { phase: 'go', t: 0, arrive });
-      } else if (c.phase === 'go' && c.t > c.arrive + (c.kind === 'go' ? 0.3 : CHECK)) {
-        // dealt with: a nod each, a pip
-        Object.assign(c, { phase: 'done', t: 0 });
-        s.row++;
-        L.nodAt = now;
-        play('cue-clear', { volume: 0.45 });
-        if (s.row >= ROW) {
-          L.roundAt = now + 0.35;
-          s.rounds++;
-        }
-        if (c.kind === 'go') s.legs.forEach((l, i) => s.posts[i].copy(l.to)); // and that's where they are now
-        else walk(c.by, s.posts[c.by]); // back to its place
-      } else if (c.phase === 'done' && c.t > BURST) {
-        if (s.row >= ROW) s.row = 0;
-        s.cue = null;
-      } else if (c.phase === 'missed' && c.t > SLIP) s.cue = null;
+      const beat = step(c, dt);
+      if (beat === 'out') {
+        g.trail.forEach((p) => p.set(NODES[c.sus.at].x, NODES[c.sus.at].z));
+        play('chase-out', { volume: 0.4 });
+      } else if (beat === 'run') {
+        g.talkAt = T + 0.15; // on the radio: you go round
+        play('chase-run', { volume: 0.4 });
+      } else if (beat === 'caught') {
+        // a nod each, and a word; a full row and they turn to each other
+        L.nodAt = now + 0.55;
+        g.talkAt = T + 1.2;
+        if (c.row >= ROW) L.roundAt = now + 1.3;
+        play('chase-caught', { volume: 0.45 });
+      } else if (beat === 'gone') play('chase-gone', { volume: 0.45 });
     }
 
-    // ---- what each is asked to do ----
-    for (let i = 0; i < 2; i++) {
+    // ---- the cursor on the map: which street, and resting there closes it ----
+    let hover = -1;
+    const open = !!c && c.phase === 'chase' && c.closed.length < BLOCKS;
+    let sx = 0;
+    let sy = 0;
+    let onScreen = false;
+    if (close && c && cursorRay(st, fr, ray) && ray.direction.z < -1e-4) {
+      const k = (FACE - ray.origin.z) / ray.direction.z;
+      sx = ray.origin.x + ray.direction.x * k - SCREEN.x;
+      sy = ray.origin.y + ray.direction.y * k - SCREEN.y;
+      onScreen = k > 0 && Math.abs(sx) < SCREEN.w / 2 && Math.abs(sy) < SCREEN.h / 2;
+    }
+    // (one just closed under the cursor: it moves off before it closes another)
+    if (g.lock && (!onScreen || Math.hypot(sx - g.lock.x, sy - g.lock.y) > PICK * 1.6)) g.lock = null;
+    if (c && onScreen && !g.lock) {
+      let best = PICK;
+      STREETS.forEach(([a, b], i) => {
+        if (c.closed.includes(i)) return;
+        plan(NODES[a].x, NODES[a].z, _a);
+        plan(NODES[b].x, NODES[b].z, _b);
+        // the nearest point on the street to the cursor
+        _d.copy(_b).sub(_a);
+        const f = Math.max(0, Math.min(1, ((sx - _a.x) * _d.x + (sy - _a.y) * _d.y) / Math.max(1e-9, _d.lengthSq())));
+        const d = Math.hypot(_a.x + _d.x * f - sx, _a.y + _d.y * f - sy);
+        if (d < best) {
+          best = d;
+          hover = i;
+        }
+      });
+    }
+    g.rest = hover >= 0 && hover === g.hover && open ? g.rest + dt : 0;
+    g.hover = hover;
+    if (c && open && g.rest > DROP && closeStreet(c, hover)) {
+      g.rest = 0;
+      g.dropAt = T;
+      g.lock = new Vector2(sx, sy);
+      // the line from the map to its barrier in VR
+      const [a, b] = STREETS[hover];
+      const x = (NODES[a].x + NODES[b].x) / 2;
+      const z = (NODES[a].z + NODES[b].z) / 2;
+      plan(x, z, _a);
+      beam.current?.geometry.setPositions([SCREEN.x + _a.x, SCREEN.y + _a.y, FACE + 0.002, x, SUSPECT_Y + lift(z), z]);
+      play('chase-block', { volume: 0.45 });
+    }
+
+    // ---- what each of the two is asked to do: only ever what the story has
+    // them do (stand and watch, set off, run, turn at a corner, close in) ----
+    const sus = c ? spot(c.sus, new Vector2()) : null;
+    const lookAt = (W: SessionLink['want'][number], x: number, y: number, z: number, glide: number) => {
+      W.look.set(x, y, z);
+      W.glide = glide;
+    };
+    for (let i = 0; i < 2 && c; i++) {
       const W = L.want[i];
-      pos(i, W.at);
+      const m = c.cops[i];
+      spot(m, _a);
+      W.at.set(_a.x, HEAD_Y + lift(_a.y), _a.y);
       W.duck = 0;
-      const peer = pos(1 - i, _w);
-      const sc = s.scan[i];
-      const watch = () => {
-        // keeping watch on its own side, now and then over its shoulder
-        if (T > sc.at) {
-          const [lo, hi] = SECTOR[i];
-          sc.yaw = Math.random() < SHOULDER ? (i === 0 ? -1 : 1) * (2.5 + Math.random() * 0.6) : lo + Math.random() * (hi - lo);
-          sc.pitch = (Math.random() - 0.5) * 0.25;
-          sc.at = T + SCAN[0] + Math.random() * (SCAN[1] - SCAN[0]);
-        }
-        W.look.set(W.at.x + Math.sin(sc.yaw), W.at.y + sc.pitch, W.at.z + Math.cos(sc.yaw));
-        W.glide = 0.55;
+      const peer = L.want[1 - i].at;
+      heading(m, _d);
+      const ahead = () => {
+        const x = _a.x + _d.x * 0.6;
+        const z = _a.y + _d.y * 0.6;
+        lookAt(W, x, HEAD_Y + lift(z) - 0.04, z, 0.55);
       };
-      const at = (x: number, y: number, z: number, glide: number) => {
-        W.look.set(x, y, z);
-        W.glide = glide;
-      };
-      const cover = (from: V3) => {
-        // its back to it, looking about the other way
-        const a = Math.atan2(W.at.x - from[0], W.at.z - from[2]) + 0.45 * Math.sin(T * 0.8 + i);
-        at(W.at.x + Math.sin(a), W.at.y, W.at.z + Math.cos(a), 0.5);
-      };
-      if (!c || c.phase === 'live' || c.phase === 'missed') {
-        watch();
-        continue;
+      if (c.phase === 'gather') {
+        const n = NODES[ROUNDS[c.round].suspect];
+        if (!still(m)) ahead();
+        else lookAt(W, n.x, SUSPECT_Y + lift(n.z), n.z, 0.6);
+      } else if (c.phase === 'chase' && sus) {
+        const radio = c.t > STILL + 0.1 + i * 0.12 && c.t < STILL + 0.45 + i * 0.12;
+        if (radio) lookAt(W, peer.x, peer.y, peer.z, 0.28); // on the radio to the other: you go round
+        else if (still(m) || c.t < STILL + REACT[i] || _a.distanceTo(sus) < 0.4) lookAt(W, sus.x, SUSPECT_Y + lift(sus.y), sus.y, 0.45);
+        else ahead();
+      } else if (c.phase === 'caught' && sus) {
+        if (c.t > 1.5) lookAt(W, peer.x, peer.y, peer.z, 0.5);
+        else lookAt(W, sus.x, SUSPECT_Y + lift(sus.y) - (i === c.by ? 0.1 : 0), sus.y, 0.35);
+        if (i === c.by) W.duck = 0.05 * Math.min(1, c.t / 0.3) * (c.t > 1.5 ? Math.max(0, 1 - (c.t - 1.5) / 0.4) : 1);
+      } else if (c.phase === 'gone') {
+        const w = WAYS[NODES[c.sus.at].way] ?? WAYS[0];
+        if (c.t > 1.2) lookAt(W, peer.x, peer.y, peer.z, 0.5);
+        else lookAt(W, w.x, SUSPECT_Y + lift(w.z), w.z, 0.5);
       }
-      const sp = SPOTS[c.spot];
-      if (c.phase === 'seen') {
-        if (i === c.by) {
-          // turned to it, then to the other, telling it, then back to it
-          if (c.t < TELL[0] || c.t > TELL[1] - 0.12) at(sp[0], sp[1], sp[2], 0.25);
-          else at(peer.x, peer.y, peer.z, 0.22);
-        } else if (c.kind === 'sound' && c.t < TELL[0]) at(sp[0], sp[1], sp[2], 0.35); // it heard it too, a beat behind
-        else if (c.t > TELL[0] + 0.08) at(peer.x, peer.y, peer.z, 0.28); // told
-        else watch();
-      } else if (c.kind === 'go') {
-        // the first on ahead, the other behind, watching their backs
-        if (i === c.by) at(sp[0], W.at.y, sp[2], 0.4);
-        else {
-          const l = s.legs[i];
-          const a = Math.atan2(l.from.x - l.to.x, l.from.z - l.to.z) + 0.35 * Math.sin(T * 0.9);
-          at(W.at.x + Math.sin(a), W.at.y, W.at.z + Math.cos(a), 0.45);
+    }
+    if (c) {
+      // never in each other's way as the close-up sees them: one behind the
+      // other on the map would be one in front of the other here, so where
+      // they'd cover each other they stand apart across it, each keeping the
+      // side it came in on until they're clear
+      const A = L.want[0].at;
+      const B = L.want[1].at;
+      const dx = B.x - A.x;
+      if (Math.abs(dx) < SEP.x && Math.abs(B.y - A.y) < SEP.y) {
+        if (!g.side) g.side = dx < 0 ? -1 : 1;
+        const push = (SEP.x - g.side * dx) / 2;
+        if (push > 0) {
+          A.x -= g.side * push;
+          B.x += g.side * push;
+          const shift = Math.max(0, ACROSS[0] - Math.min(A.x, B.x)) - Math.max(0, Math.max(A.x, B.x) - ACROSS[1]);
+          A.x += shift;
+          B.x += shift;
         }
-      } else if (i === c.by) {
-        // there: crouched over it, having a look
-        at(sp[0], sp[1], sp[2], 0.35);
-        if (c.phase === 'go' && c.t > c.arrive) W.duck = DUCK * Math.min(1, (c.t - c.arrive) / 0.3);
-      } else cover(sp);
+      } else g.side = 0;
     }
 
     // ---- the editor ----
-    const on = s.on;
+    const on = g.on;
     // solid once it's up (see-through, the app's picture under it shows more
     // than its opacity says); see-through only while it fades in and out
     const solid = on > 0.98;
@@ -600,145 +565,223 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
       const d = cam.position.distanceTo(fr.localToWorld(_v.copy(o.position)));
       return (2 * d * Math.tan((cam.fov * Math.PI) / 360)) / (cam.zoom * st.size.height) / fr.getWorldScale(_w).x;
     };
-    // the places: a small cross each, the ones in the picture
-    const pl = hl.current.places;
-    const key = s.open.map((o) => (o ? 1 : 0)).join('');
-    if (pl && pl.userData.key !== key) {
-      pl.userData.key = key;
-      if (key.includes('1')) pl.geometry.setPositions(crosses(s.open));
+    // the story's line
+    let head = 'ON PATROL';
+    let sub = 'TWO IN VR, YOU IN THE EDITOR';
+    if (c?.phase === 'chase') {
+      head = c.t < STILL ? 'A SUSPECT AT THE CHECKPOINT' : c.way >= 0 ? `RUNNING FOR ${WAYS[c.way].name.toUpperCase()}` : 'CORNERED';
+      sub = c.closed.length < BLOCKS ? `REST ON A STREET TO CLOSE IT · ${BLOCKS - c.closed.length} LEFT` : 'NO ROADBLOCKS LEFT';
+    } else if (c?.phase === 'caught') {
+      head = 'CAUGHT';
+      sub = c.row >= ROW ? 'A FULL ROW' : `${c.row} IN A ROW`;
+    } else if (c?.phase === 'gone') {
+      head = `GOT AWAY BY ${(WAYS[NODES[c.sus.at].way]?.name ?? 'a way out').toUpperCase()}`;
+      sub = 'THE ROW STARTS OVER';
     }
-    hair('places', key.includes('1') ? 0.55 * on : 0);
-    // the one the cursor's on: brackets round it, closing in while it rests there
-    const fill = Math.min(1, s.rest / DROP);
-    const pk = r.pick.current;
-    if (pk) {
-      pk.visible = hover >= 0;
-      if (hover >= 0) {
-        pk.position.set(SCREEN.x + PLACES[hover].x, SCREEN.y + PLACES[hover].y, FACE + 0.001);
-        pk.scale.setScalar(0.0105 * (1.7 - 0.7 * easeOut(fill)));
-      }
+    const ink = c?.phase === 'gone' ? NEUTRAL : accentPale;
+    if (g.status !== head + sub + ink) {
+      g.status = head + sub + ink;
+      drawStatus(mats.statusTex, head, sub, ink);
     }
-    hair('pick', hover >= 0 ? (ready ? 0.95 : 0.35) * on : 0, ready ? accentPale : NEUTRAL);
+    mats.status.opacity = on;
+    // who's in
+    mats.roster.forEach((m, i) => (m.opacity = on * (i < 2 ? 0.25 + 0.75 * L.heads[i].joined : 1)));
     // the two, where they are and the way they face
     for (let i = 0; i < 2; i++) {
-      const g = r.heads.current[i];
+      const hg = r.heads.current[i];
       const h = L.heads[i];
-      if (!g) continue;
+      if (!hg) continue;
       plan(h.x, h.z, _p);
-      g.position.set(SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.0009);
-      // (on the map, far is up: a view along +z points down it)
-      g.rotation.z = Math.atan2(-Math.cos(h.yaw), Math.sin(h.yaw));
-      g.visible = h.joined > 0.01;
-      g.scale.setScalar(Math.max(0.001, h.joined));
+      hg.position.set(SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.0009);
+      // (on the map, far is up and it's wider than deep: a view along +z points down it)
+      hg.rotation.z = Math.atan2(-Math.cos(h.yaw) * MAP.kz, Math.sin(h.yaw) * MAP.kx);
+      hg.visible = h.joined > 0.01;
+      hg.scale.setScalar(Math.max(0.001, h.joined));
     }
     mats.head.opacity = on;
-    mats.cone.opacity = 0.16 * on;
-    // one telling the other: a line between them, on the map and in VR
-    const told = Math.max(0, 1 - Math.abs(T - s.talkAt - 0.22) / 0.3);
+    mats.cone.opacity = 0.2 * on;
+    // the two on the radio: a line between them, on the map and in VR
+    const told = Math.max(0, 1 - Math.abs(T - g.talkAt - 0.22) / 0.32);
     if (r.talk.current) {
       plan(L.heads[0].x, L.heads[0].z, _p);
       plan(L.heads[1].x, L.heads[1].z, _q);
       r.talk.current.visible = told > 0.01;
       r.talk.current.position.set(SCREEN.x + (_p.x + _q.x) / 2, SCREEN.y + (_p.y + _q.y) / 2, FACE + 0.0007);
       r.talk.current.rotation.z = Math.atan2(_q.y - _p.y, _q.x - _p.x);
-      r.talk.current.scale.set(_p.distanceTo(_q), 0.0018, 1);
+      r.talk.current.scale.set(_p.distanceTo(_q), 0.0016, 1);
     }
     mats.talk.opacity = 0.8 * told * on;
     const t3 = talk3.current;
     if (t3) {
       t3.visible = told > 0.01;
       if (t3.visible) {
-        pos(0, _v);
-        pos(1, _w);
-        t3.geometry.setPositions([_v.x, _v.y, _v.z, _w.x, _w.y, _w.z]);
+        const A = L.want[0].at;
+        const B = L.want[1].at;
+        t3.geometry.setPositions([A.x, A.y, A.z, B.x, B.y, B.z]);
       }
       t3.material.opacity = 0.7 * told * on;
     }
-    // the next thing, in its frame (dim while one's out)
-    const nk = LESSON[s.next % LESSON.length];
-    const nextOn = on * (s.cue ? 0.3 : 0.9);
-    KINDS.forEach((k) => hair('next-' + k, k === nk ? nextOn : 0));
-    mats.nextCore.opacity = nextOn;
-    // the roster: who's in
-    mats.roster.forEach((m, i) => (m.opacity = on * (i < 2 ? 0.25 + 0.75 * L.heads[i].joined : 1)));
-    // the one out, on the map: its glyph, and the time it has closing in on it
-    const live = c && c.phase === 'live' ? 1 - c.t / c.life : 0;
-    const pop = c ? easeOutBack(Math.min(1, (c.phase === 'live' ? c.t : 1) / 0.25)) : 0;
-    const slip = c && c.phase === 'missed' ? (Math.floor(c.t * 12) % 2 ? 0 : 1) * (1 - c.t / SLIP) : 1;
-    const gone = c && c.phase === 'done' ? 1 - c.t / BURST : 1;
-    const seen = !!c && c.phase !== 'live' && c.phase !== 'missed';
-    const ink = seen ? accentPale : accent;
-    const shown = c ? on * slip * gone : 0;
-    const cg = r.cue.current;
-    if (cg) {
-      cg.visible = !!c;
-      if (c) {
-        cg.position.set(SCREEN.x + PLACES[c.spot].x, SCREEN.y + PLACES[c.spot].y, FACE + 0.0011);
-        cg.scale.setScalar(0.0085 * Math.max(0.001, pop));
+    // the checkpoint, while they make for it and the suspect gets out
+    const cp = r.checkpoint.current;
+    const atCheck = !!c && (c.phase === 'gather' || (c.phase === 'chase' && c.t < STILL + 0.6));
+    if (cp && c) {
+      plan(NODES[ROUNDS[c.round].suspect].x, NODES[ROUNDS[c.round].suspect].z, _p);
+      cp.position.set(SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.0008);
+    }
+    hair('checkpoint', atCheck ? 0.6 * on : 0);
+    // the suspect: a dot with a ring beating round it, its trail behind it, and
+    // where it's running for ahead of it
+    const seen = !!c && c.phase !== 'gather' && !!sus;
+    const blink = c?.phase === 'gone' ? (Math.floor(c.t * 10) % 2 ? 0 : 1) * Math.max(0, 1 - c.t / 0.9) : 1;
+    const pop = c && c.phase === 'chase' ? easeOutBack(Math.min(1, c.t / 0.3)) : 1;
+    const sg = r.suspect.current;
+    if (sg && sus) {
+      plan(sus.x, sus.y, _p);
+      sg.position.set(SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.0012);
+      sg.scale.setScalar(0.0042 * Math.max(0.001, pop));
+      sg.visible = seen;
+    } else if (sg) sg.visible = false;
+    mats.suspect.opacity = seen ? on * blink : 0;
+    const beat = (T * 1.4) % 1;
+    r.ring.current?.scale.setScalar(1.6 + 2.2 * beat);
+    hair('ring', seen && c?.phase === 'chase' ? 0.6 * (1 - beat) * on : 0);
+    // the trail: where it's been this last second and a half
+    if (c && sus && seen && T - g.trailAt > TRAIL_EVERY) {
+      g.trailAt = T;
+      const p = g.trail.pop()!;
+      g.trail.unshift(p.copy(sus));
+    }
+    const tl = hl.current.trail;
+    if (tl && seen) {
+      const f: number[] = [];
+      g.trail.forEach((p) => {
+        plan(p.x, p.y, _p);
+        f.push(SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.001);
+      });
+      tl.geometry.setPositions(f);
+    }
+    hair('trail', seen ? 0.45 * on * blink : 0);
+    // its way out, dashed, from where it is
+    const rl = hl.current.route;
+    const showRoute = !!c && c.phase === 'chase' && c.plan.length > 0 && !!sus;
+    if (rl && showRoute && sus) {
+      const f: number[] = [];
+      plan(sus.x, sus.y, _p);
+      f.push(SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.001);
+      for (let k = 0; k < 11; k++) {
+        const n = c.plan[Math.min(k, c.plan.length - 1)];
+        plan(NODES[n].x, NODES[n].z, _p);
+        f.push(SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.001);
+      }
+      rl.geometry.setPositions(f);
+      rl.computeLineDistances();
+    }
+    hair('route', showRoute ? 0.5 * on : 0);
+    // the way out it's running for, beating
+    const wg = r.way.current;
+    const running = !!c && c.phase === 'chase' && c.way >= 0;
+    if (wg && running && c) {
+      const w = WAYS[c.way];
+      plan(w.x, w.z, _p);
+      plan(NODES[w.from].x, NODES[w.from].z, _q);
+      wg.position.set(SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.0011);
+      wg.rotation.z = Math.atan2(_p.y - _q.y, _p.x - _q.x);
+    }
+    hair('way', running ? (0.55 + 0.45 * Math.sin(T * 6)) * on : 0, accent);
+    // the streets closed: a barrier on each, on the map and in VR
+    for (let k = 0; k < BLOCKS; k++) {
+      const st2 = c?.closed[k];
+      const bg = r.blocks.current[k];
+      const vb = r.vrBlocks.current[k];
+      const shown = st2 !== undefined;
+      if (shown && c) {
+        const [a, b] = STREETS[st2];
+        const x = (NODES[a].x + NODES[b].x) / 2;
+        const z = (NODES[a].z + NODES[b].z) / 2;
+        plan(x, z, _p);
+        bg?.position.set(SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.0013);
+        if (vb) {
+          vb.position.set(x, SUSPECT_Y + lift(z), z);
+          vb.lookAt(st.camera.position);
+          vb.scale.setScalar(px(vb) * RETICLE * 0.85);
+        }
+      }
+      const fresh = shown && k === (c?.closed.length ?? 0) - 1 ? easeOutBack(Math.min(1, (T - g.dropAt) / 0.3)) : 1;
+      if (bg) bg.scale.setScalar(0.0062 * Math.max(0.001, fresh));
+      hair('block' + k, shown ? 0.95 * on : 0);
+      hair('vrBlock' + k, shown ? 0.85 * on : 0);
+    }
+    // the street the cursor's on: lit, with brackets round its middle closing in
+    // while it rests there
+    const fill = Math.min(1, g.rest / DROP);
+    const pk = r.pick.current;
+    const hs = hl.current.hoverStreet;
+    if (hover >= 0) {
+      const [a, b] = STREETS[hover];
+      plan((NODES[a].x + NODES[b].x) / 2, (NODES[a].z + NODES[b].z) / 2, _p);
+      if (pk) {
+        pk.position.set(SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.0012);
+        pk.scale.setScalar(0.0105 * (1.7 - 0.7 * easeOut(fill)));
+      }
+      if (hs) {
+        plan(NODES[a].x, NODES[a].z, _p);
+        plan(NODES[b].x, NODES[b].z, _q);
+        hs.geometry.setPositions([SCREEN.x + _p.x, SCREEN.y + _p.y, FACE + 0.0011, SCREEN.x + _q.x, SCREEN.y + _q.y, FACE + 0.0011]);
       }
     }
-    KINDS.forEach((k) => hair('cue-' + k, c && c.kind === k ? shown : 0, ink));
-    mats.cueCore.color.set(ink);
-    mats.cueCore.opacity = shown;
-    r.cueCloser.current?.scale.setScalar(1.3 + 2 * live);
-    const ticking = live > 0 ? on * Math.min(1, (c?.t ?? 0) / 0.3) : 0;
-    hair('cueCloser', 0.6 * ticking);
+    if (pk) pk.visible = hover >= 0;
+    hair('pick', hover >= 0 ? (open ? 0.95 : 0.35) * on : 0, open ? accentPale : NEUTRAL);
+    hair('hoverStreet', hover >= 0 ? (open ? 0.75 : 0.3) * on : 0, open ? accentPale : NEUTRAL);
     // the pips: the newest flashes as it lights, and a full row flashes all together
     const round = L.roundAt >= 0 && now >= L.roundAt && now - L.roundAt < ROUND_LEN;
+    const row = c?.row ?? 0;
     mats.pips.forEach((m, i) => {
-      const fresh = c && c.phase === 'done' && i === s.row - 1 ? 1 + 1.4 * bump(c.t / BURST) : 1;
-      const level = round ? (Math.floor((now - L.roundAt) * 6) % 2 ? 1.7 : 0.35) : i < s.row ? 1.25 * fresh : 0.16;
+      const fresh = c && c.phase === 'caught' && i === row - 1 ? 1 + 1.4 * bump(c.t / 0.6) : 1;
+      const level = round ? (Math.floor((now - L.roundAt) * 6) % 2 ? 1.7 : 0.35) : i < row ? 1.25 * fresh : 0.16;
       m.color.set(accent).multiplyScalar(level);
       m.opacity = on;
     });
 
-    // ---- in VR: the reticle ----
+    // ---- in VR: the suspect's reticle, which the two chase ----
     const vg = r.vr.current;
     if (vg) {
-      vg.visible = !!c && on > 0.01;
-      if (c) {
-        vg.position.set(...SPOTS[c.spot]);
+      vg.visible = seen && on > 0.01;
+      if (vg.visible && sus) {
+        vg.position.set(sus.x, SUSPECT_Y + lift(sus.y), sus.y);
         vg.lookAt(st.camera.position);
         vg.scale.setScalar(px(vg) * RETICLE * Math.max(0.001, pop));
-        // its brackets: put down locked (you're on it), loose while it waits,
-        // locking in again once one of them is on it
-        const k = c.phase === 'live' ? 1 + 0.35 * easeOut(Math.min(1, c.t / 0.4)) : c.phase === 'seen' ? 1 + 0.35 * (1 - easeOut(Math.min(1, c.t / 0.25))) : c.phase === 'missed' ? 1.35 : 1;
+        // its brackets loose while it runs, locked in once it's caught
+        const k = c?.phase === 'caught' ? 1 + 0.4 * (1 - easeOut(Math.min(1, c.t / 0.25))) : 1.4;
         r.vrBrackets.current?.scale.setScalar(k);
-        r.vrCloser.current?.scale.setScalar(1.25 + 2.2 * live);
-        const b = c.phase === 'done' ? Math.min(1, c.t / BURST) : 0;
+        const b = c?.phase === 'caught' ? Math.min(1, c.t / 0.5) : 0;
         r.vrBurst.current?.scale.setScalar(1.25 + 2.4 * (1 - (1 - b) * (1 - b)));
-        hair('vrBurst', c.phase === 'done' ? 0.8 * (1 - b) * on : 0);
-        // a sound rings out from it, the way the crosshairs ping
-        r.vrPings.current.forEach((g, n) => {
-          if (!g) return;
-          const e = (now * 0.9 + n * 0.5) % 1;
-          g.scale.setScalar(0.45 + 1.8 * e);
-          hair('vrPing' + n, c.kind === 'sound' && c.phase !== 'missed' ? 0.5 * (1 - e) * shown : 0);
-        });
+        hair('vrBurst', c?.phase === 'caught' ? 0.8 * (1 - b) * on : 0);
       } else hair('vrBurst', 0);
     }
-    hair('vrCross', 0.95 * shown, ink);
-    hair('vrBrackets', (seen ? 1 : 0.45) * shown, ink);
-    KINDS.forEach((k) => hair('vr-' + k, c && c.kind === k ? shown : 0, ink));
-    mats.vrCore.color.set(ink).multiplyScalar(1.4);
-    mats.vrCore.opacity = shown;
-    hair('vrCloser', 0.5 * ticking);
-    // the place the cursor's on, there in VR too: brackets where it'll go,
-    // closing in with the ones on the map
+    const vInk = c?.phase === 'caught' ? accentPale : accent;
+    const vShown = seen ? on * blink : 0;
+    hair('vrCross', 0.95 * vShown, vInk);
+    hair('vrBrackets', (c?.phase === 'caught' ? 1 : 0.5) * vShown, vInk);
+    mats.vrCore.color.set(vInk).multiplyScalar(1.4);
+    mats.vrCore.opacity = vShown;
+    // the street the cursor's on, there in VR too: brackets where its barrier
+    // will go, closing in with the ones on the map
     const gg = r.ghost.current;
     if (gg) {
-      gg.visible = hover >= 0 && on > 0.01 && (!c || c.spot !== hover);
+      gg.visible = hover >= 0 && on > 0.01;
       if (gg.visible) {
-        gg.position.set(...SPOTS[hover]);
+        const [a, b] = STREETS[hover];
+        const z = (NODES[a].z + NODES[b].z) / 2;
+        gg.position.set((NODES[a].x + NODES[b].x) / 2, SUSPECT_Y + lift(z), z);
         gg.lookAt(st.camera.position);
         gg.scale.setScalar(px(gg) * RETICLE * (1.7 - 0.7 * easeOut(fill)));
       }
     }
-    hair('ghost', gg?.visible ? (ready ? 0.75 : 0.3) * on : 0, ready ? accentPale : NEUTRAL);
-    // as it's put down: the line from the map to VR
+    hair('ghost', gg?.visible ? (open ? 0.75 : 0.3) * on : 0, open ? accentPale : NEUTRAL);
+    // as a street's closed: the line from the map to VR
     const bl = beam.current;
     if (bl) {
-      const k = (T - s.dropAt) / BEAM;
+      const k = (T - g.dropAt) / BEAM;
       bl.visible = k >= 0 && k < 1 && on > 0.01;
       bl.material.opacity = 0.8 * (1 - k) * on;
     }
@@ -750,64 +793,69 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
       <mesh material={mats.ground} position={[SCREEN.x, SCREEN.y, FACE + 0.0004]} renderOrder={3}>
         <planeGeometry args={[SCREEN.w, SCREEN.h]} />
       </mesh>
-      <Hair at={hold('places')} points={CROSSES} segments color={NEUTRAL} width={1} />
+      <mesh material={mats.status} position={[SCREEN.x + STATUS.x, SCREEN.y + STATUS.y, FACE + 0.0008]} renderOrder={5}>
+        <planeGeometry args={[STATUS.w, STATUS.h]} />
+      </mesh>
+      {[0, 1, 2].map((i) => (
+        <mesh key={i} geometry={geo.dot} material={mats.roster[i]} position={[SCREEN.x + ROSTER.x + (i - 1) * ROSTER.pitch, SCREEN.y + ROSTER.y - 0.012, FACE + 0.001]} scale={0.0032} renderOrder={5} />
+      ))}
+      <group ref={r.checkpoint}>
+        <group scale={0.0085}>
+          <Hair at={hold('checkpoint')} points={BRACKETS} segments color={accentPale} width={1} />
+        </group>
+      </group>
+      <Hair at={hold('trail')} points={trailPts} color={accent} width={1.5} />
+      <Line ref={hold('route')} points={routePts} color={accent} lineWidth={1} dashed dashSize={0.006} gapSize={0.004} transparent opacity={0} depthWrite={false} fog={false} renderOrder={5} userData={{ lifeSkip: true, presenceOwn: true }} />
+      <group ref={r.way}>
+        <group scale={0.007}>
+          <Hair at={hold('way')} points={CHEVRON} segments color={accent} width={1.2} />
+        </group>
+      </group>
+      {Array.from({ length: BLOCKS }, (_, k) => (
+        <group key={k} ref={(gr) => (r.blocks.current[k] = gr)}>
+          <Hair at={hold('block' + k)} points={BARRIER} segments color={accentPale} width={1.2} />
+        </group>
+      ))}
+      <Hair at={hold('hoverStreet')} points={flat} color={accentPale} width={2} />
       <group ref={r.pick} visible={false}>
         <Hair at={hold('pick')} points={BRACKETS} segments color={accentPale} width={1} />
       </group>
       {[0, 1].map((i) => (
-        <group key={i} ref={(g) => (r.heads.current[i] = g)} visible={false}>
-          <mesh geometry={geo.cone} material={mats.cone} scale={0.068} renderOrder={4} />
-          <mesh geometry={geo.dot} material={mats.head} scale={0.0055} renderOrder={6} />
+        <group key={i} ref={(gr) => (r.heads.current[i] = gr)} visible={false}>
+          <mesh geometry={geo.cone} material={mats.cone} scale={0.042} renderOrder={4} />
+          <mesh geometry={geo.dot} material={mats.head} scale={0.0048} renderOrder={6} />
         </group>
       ))}
-      <mesh ref={r.talk} geometry={geo.strip} material={mats.talk} visible={false} renderOrder={5} />
-      <group ref={r.cue} visible={false}>
-        {KINDS.map((k) => (
-          <Hair key={k} at={hold('cue-' + k)} points={GLYPH[k]} segments color={accent} width={1} />
-        ))}
-        <mesh geometry={geo.dot} material={mats.cueCore} scale={0.28} renderOrder={6} />
-        <group ref={r.cueCloser}>
-          <Hair at={hold('cueCloser')} points={CIRCLE} color={accent} width={1} />
+      <mesh ref={r.talk} material={mats.talk} visible={false} renderOrder={5}>
+        <planeGeometry args={[1, 1]} />
+      </mesh>
+      <group ref={r.suspect} visible={false}>
+        <mesh geometry={geo.dot} material={mats.suspect} renderOrder={7} />
+        <group ref={r.ring}>
+          <Hair at={hold('ring')} points={CIRCLE} color={accent} width={1} />
         </group>
       </group>
-      <group position={[SCREEN.x + NEXT.x, SCREEN.y + NEXT.y, FACE + 0.001]} scale={0.012}>
-        {KINDS.map((k) => (
-          <Hair key={k} at={hold('next-' + k)} points={GLYPH[k]} segments color={accentPale} width={1} />
-        ))}
-        <mesh geometry={geo.dot} material={mats.nextCore} scale={0.22} renderOrder={6} />
-      </group>
-      {ROSTER.map((y, i) => (
-        <mesh key={i} geometry={geo.dot} material={mats.roster[i]} position={[SCREEN.x - 0.188, SCREEN.y + y, FACE + 0.001]} scale={0.0045} renderOrder={5} />
-      ))}
       {mats.pips.map((m, i) => (
         <mesh key={i} material={m} position={[SCREEN.x + (i - (ROW - 1) / 2) * PIPS.pitch, SCREEN.y + PIPS.y, FACE + 0.0012]} renderOrder={5}>
           <planeGeometry args={[PIPS.size, PIPS.size]} />
         </mesh>
       ))}
-      {/* ---- in VR: the reticle on the one out, and brackets where the cursor's resting ---- */}
+      {/* ---- in VR: the suspect's reticle, the barriers, and brackets where the cursor's resting ---- */}
       <group ref={r.vr} visible={false}>
         <Hair at={hold('vrCross')} points={CROSS} segments color={accent} width={1.5} over />
         <group ref={r.vrBrackets}>
           <Hair at={hold('vrBrackets')} points={BRACKETS} segments color={accent} width={1.5} over />
         </group>
-        <group scale={0.34}>
-          {KINDS.map((k) => (
-            <Hair key={k} at={hold('vr-' + k)} points={GLYPH[k]} segments color={accent} width={1.2} over />
-          ))}
-          <mesh geometry={geo.dot} material={mats.vrCore} scale={0.42} renderOrder={9} />
-        </group>
-        <group ref={r.vrCloser}>
-          <Hair at={hold('vrCloser')} points={CIRCLE} color={accent} width={1.2} over />
-        </group>
+        <mesh geometry={geo.dot} material={mats.vrCore} scale={0.16} renderOrder={9} />
         <group ref={r.vrBurst}>
           <Hair at={hold('vrBurst')} points={CIRCLE} color={accentPale} width={1.2} over />
         </group>
-        {[0, 1].map((n) => (
-          <group key={n} ref={(g) => (r.vrPings.current[n] = g)}>
-            <Hair at={hold('vrPing' + n)} points={CIRCLE} color={accent} width={1.2} over />
-          </group>
-        ))}
       </group>
+      {Array.from({ length: BLOCKS }, (_, k) => (
+        <group key={k} ref={(gr) => (r.vrBlocks.current[k] = gr)}>
+          <Hair at={hold('vrBlock' + k)} points={BARRIER} segments color={accentPale} width={1.2} over />
+        </group>
+      ))}
       <group ref={r.ghost} visible={false}>
         <Hair at={hold('ghost')} points={BRACKETS} segments color={accentPale} width={1.5} over />
       </group>
@@ -817,3 +865,4 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
     </group>
   );
 }
+
