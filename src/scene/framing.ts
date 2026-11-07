@@ -100,7 +100,7 @@ const SPOTS: Omit<Hotspot, 'position'>[] = [
   // City — GIS / location work
   { slug: 'arcam', layer: 'city', anchor: [1.2, 0.3, 0.11], foot: 0.36, view: { offset: [1.28, 0.68, 1.46], aimDown: 0.3, fovZoom: 17 } }, // the park's AR viewer (city.tsx Park → Binoculars)
   { slug: 'alliander-hololens', layer: 'city', anchor: [0, 0.77, 0], foot: 1.03, view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26 } }, // the skyscraper (skyline peak)
-  { slug: 'dtt-amsterdam', layer: 'city', anchor: [-1.2, 0.58, -0.06], foot: 0.75, view: { offset: [-2, -0.2, 3.5], aimDown: 0.6, fovZoom: 19 } }, // the windmill
+  { slug: 'dtt-amsterdam', layer: 'city', anchor: [-1.2, 0.58, -0.06], foot: 0.75, view: { offset: [-1.8, 1.05, 3.4], aimDown: 0.62, fovZoom: 19 } }, // the windmill: from a little above, so the line its power runs along to the tower reads on the road
 ];
 export const HOTSPOTS: Hotspot[] = SPOTS.map((h) => ({ ...h, position: [h.anchor[0], MARKER_Y[h.layer], h.anchor[2]] }));
 
@@ -209,12 +209,12 @@ export const CAMERA = {
   // an exaggerated-perspective push. Then, once it has arrived, a slow "pan"
   // eases in and drifts the camera around the object. All of this is tweakable
   // and all of it is skipped under prefers-reduced-motion.
-  nodeOrbitAmp: 0.12, // how far the pan swings around the node (radians, ~7°)
+  nodeOrbitAmp: 0.07, // how far the pan swings around the node (radians, ~4°; at 7° the view tilted too much)
   nodeOrbitSpeed: 0.3, // pan speed (~21s per full left→right→left cycle)
-  nodeOrbitBob: 0.03, // slight vertical drift paired with the pan (world units)
+  nodeOrbitBob: 0.018, // slight vertical drift paired with the pan (world units)
   nodeOrbitDelay: 0.7, // seconds to wait after selecting before the pan begins
   nodeOrbitRamp: 1.6, // seconds over which the pan eases up to full amplitude
-  idleSwayAmp: 0.07, // the overview idle sway (unchanged feel)
+  idleSwayAmp: 0.045, // the overview idle sway
   idleSwaySpeed: 0.25,
   // The lens breathes with the zoom: on a node close-up the FOV eases WIDER by
   // this many degrees (paired with the dolly-in — an exaggerated-perspective

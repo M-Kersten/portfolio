@@ -2,7 +2,7 @@
 // windmill (DTT), the park with the ARCam tower viewer (ARCam), and the
 // central skyscraper (Alliander), plus roads, power lines, ducks and a
 // constellation. CityRig at the bottom composes and places everything.
-import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ElementRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { AdditiveBlending, Box3, BoxGeometry, BufferAttribute, BufferGeometry, Color, CurvePath, DoubleSide, Euler, InstancedMesh, LineCurve3, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, RingGeometry, Shape, ShapeGeometry, ShaderMaterial, TubeGeometry, Vector2, Vector3, type Group, type Mesh, type Points as ThreePoints, type Sprite } from 'three';
 import { usePlacement } from '../../dev/tuning';
@@ -418,16 +418,16 @@ const MILL_HUB = { y: 0.7, z: 0.265, tilt: 0.12 };
 const WIND_TURN = 1.0; // how far the cap will turn either way (rad)
 const WIND_SWING = { freq: 0.55, damping: 0.42 }; // the cap's springy turn (see wobble)
 const WIND_FROM = 0.8; // how far out toward you the wind blows from, past the cursor (mill units)
-const GUST = 2.6; // spin per unit of cursor travel (screen halves), rad/s
-const GUST_MAX = 8; // rad/s
+const GUST = 1.2; // spin per unit of cursor travel (screen halves), rad/s
+const GUST_MAX = 3.2; // rad/s: about 30 turns a minute, a mill in a strong wind (at 8 it was a fan)
 const GUST_FADE = 2.2; // s for a gust to die down: the sails coast
 const GUST_KICK = { freq: 1.1, damping: 0.45 }; // the sails taking a gust up (see wobble)
 const PUFF_FADE = 0.4; // s for the wind itself to drop once the cursor stops (the cloth, the streaks)
-const FLUTTER = 3; // the wind (as GUST) at which the cloth flaps its most
+const FLUTTER = 1.4; // the wind (as GUST) at which the cloth flaps its most
 /** The gust's streaks: how many at once at most, each one's life (s), how
  *  many a second per rad/s of gust, and where they start, out along the wind
  *  from the mill (mill units). */
-const GUST_STREAKS = { count: 12, life: 0.5, rate: 3.5, from: 0.75 };
+const GUST_STREAKS = { count: 12, life: 0.5, rate: 7, from: 0.75 };
 /* The mill at work, and the game in its close-up. Left to itself the mill
    turns slowly (SPIN_REST), as a working mill in a light breeze does. Blow on
    it hard enough, moving the cursor and keeping it moving, and the sails spin
@@ -437,8 +437,8 @@ const GUST_STREAKS = { count: 12, life: 0.5, rate: 3.5, from: 0.75 };
    slow and it drains back. Once it's full the tower is powered for the visit
    (Skyscraper reads MILL). */
 const SPIN_REST = 0.15; // rad/s, the sails left to themselves
-const POWER_FROM = 2.4; // rad/s the sails have to beat to make power…
-const POWER_RATE = 0.065; // …and the tower's charge a second for every rad/s over it (full in about 5 s of hard blowing)
+const POWER_FROM = 1.1; // rad/s the sails have to beat to make power…
+const POWER_RATE = 0.12; // …and the tower's charge a second for every rad/s over it (full in about 5 s of hard blowing)
 const POWER_DRAIN = 0.05; // the charge a second it loses while they aren't making any (until it's full)
 /** What the mill sends the tower, written by Windmill each frame: how hard
  *  power is flowing down the cable (0–1), how full the tower is (0–1), and when
@@ -547,7 +547,7 @@ function GustStreaks({ wind }: { wind: { current: MillWindState } }) {
         p.from = GUST_STREAKS.from + rnd() * 0.25;
         p.speed = 1.2 + rnd() * 0.5;
         p.len = 0.7 + rnd() * 0.7;
-        p.k = Math.min(1, 0.35 + w.puff / 3);
+        p.k = Math.min(1, 0.35 + w.puff / 1.4);
       }
     } else sp.owed = 0;
     let any = false;
@@ -650,7 +650,7 @@ function Windmill({ position, slug, kit }: { position: V3; slug: string; kit: Mi
     if (sails.current && !reduced) sails.current.rotation.z += Math.min(delta, 0.1) * speed;
     // the power it makes, spun up past POWER_FROM (see MILL)
     const making = close ? Math.max(0, speed - POWER_FROM) : 0;
-    MILL.flow += ((making > 0 ? Math.min(1, 0.35 + making / 4) : 0) - MILL.flow) * (1 - Math.exp(-dt * 3));
+    MILL.flow += ((making > 0 ? Math.min(1, 0.35 + making / 1.6) : 0) - MILL.flow) * (1 - Math.exp(-dt * 3));
     if (MILL.poweredAt < 0) {
       MILL.charge = Math.max(0, Math.min(1, MILL.charge + (making > 0 ? making * POWER_RATE : -POWER_DRAIN) * dt));
       if (MILL.charge >= 1) {
@@ -2421,14 +2421,20 @@ function PowerGrid({ feed, routes, runs, order, stagger, house }: { feed: V3[]; 
 /* ---------- the mill's line to the tower ----------
    The cable the mill's power runs along (see MILL): laid under the road like
    the grid's, from the mill's yard along its lane, the north avenue and the
-   west one, and in at the tower's foot. It shows faintly through the road;
-   while the sails are making power, beads of light run along it toward the
-   tower, faster and brighter the harder they turn. */
-const MILL_BEADS = 24;
+   west one, and in at the tower's foot. It shows faintly through the road; in
+   the mill's close-up its route is traced on the road, a hairline, so you can
+   see where the power will go before you blow; while the sails are making
+   power the trace lights up and beads of light run along it toward the tower,
+   on the road's surface, faster and brighter the harder they turn. */
+const MILL_BEADS = 30;
+const MILL_TRACE_Y = 0.0125; // the trace and the beads: on the road's surface (0.01), not under it
 const MILL_AVE = 0.3; // the avenues' offset (CityRig's AVE)
-function MillLine({ from }: { from: V3 }) {
+function MillLine({ from, slug }: { from: V3; slug: string }) {
   const { accent } = useAccent();
   const reduced = useReducedMotion();
+  const { selected } = useActive(slug);
+  const trace = useRef<ElementRef<typeof Line>>(null);
+  const shown = useRef(0);
   const path = useMemo<V3[]>(() => {
     const y = CABLE_Y;
     const [mx, , mz] = from;
@@ -2442,7 +2448,8 @@ function MillLine({ from }: { from: V3 }) {
       [-towerReach(0.06, -1, 0), y, 0],
     ];
   }, [from]);
-  const way = useMemo(() => walker(path), [path]);
+  const way = useMemo(() => walker(path.map(([x, , z]) => [x, MILL_TRACE_Y, z] as V3)), [path]);
+  const route = useMemo(() => path.map(([x, , z]) => [x, MILL_TRACE_Y, z] as V3), [path]);
   const cable = useGeometry(() => tube(path, CABLE_R, 5, 2), [path]);
   const mats = useMemo(() => {
     const line = new MeshStandardMaterial({ color: SURFACE.deep.color, emissive: accent, emissiveIntensity: 0.05, transparent: true, opacity: 0.5, roughness: 0.5, toneMapped: false });
@@ -2467,7 +2474,15 @@ function MillLine({ from }: { from: V3 }) {
     const dt = Math.min(delta, 1 / 30);
     const f = reduced ? 0 : MILL.flow;
     // the cable warms with the flow
-    mats.line.emissiveIntensity = 0.05 + 0.5 * f;
+    mats.line.emissiveIntensity = 0.05 + 0.9 * f;
+    // the route traced on the road: there while the mill's open, lit with the flow
+    shown.current += ((selected ? 1 : 0) - shown.current) * (1 - Math.exp(-dt * 3));
+    const tr = trace.current;
+    if (tr) {
+      const o = 0.28 * shown.current + 0.7 * f;
+      tr.visible = o > 0.01;
+      tr.material.opacity = Math.min(1, o);
+    }
     im.visible = f > 0.01;
     if (!im.visible) return;
     // the beads' travel, in cable lengths: about a second end to end at full flow
@@ -2477,7 +2492,7 @@ function MillLine({ from }: { from: V3 }) {
       way.at(u, _v);
       // in out of the mill's yard and into the tower's foot rather than popping
       const k = f * Math.min(1, u / 0.06, (1 - u) / 0.06);
-      _s.setScalar(0.005 + 0.005 * f);
+      _s.setScalar(0.008 + 0.007 * f);
       im.setMatrixAt(i, _m.compose(_v, _q.identity(), _s));
       im.setColorAt(i, _c.copy(col).multiplyScalar(1.6 * k));
     }
@@ -2487,6 +2502,8 @@ function MillLine({ from }: { from: V3 }) {
   return (
     <group>
       <mesh geometry={cable} material={mats.line} />
+      {/* (no `visible` prop: drei hands its props to the line's material too) */}
+      <Line ref={trace} points={route} color={accent} lineWidth={1.5} transparent opacity={0} depthWrite={false} renderOrder={2} />
       <instancedMesh ref={beads} args={[undefined, mats.bead, MILL_BEADS]} frustumCulled={false} renderOrder={2} visible={false}>
         <sphereGeometry args={[1, 10, 8]} />
       </instancedMesh>
@@ -2839,7 +2856,7 @@ export function CityRig() {
           house, and the house each block, a block lighting as power reaches it */}
       {towerKit && blocksKit && <PowerGrid feed={grid.feed} routes={grid.routes} runs={grid.runs} order={grid.order} stagger={lightOrder} house={trafo.position} />}
       {/* the mill's cable to the tower, for the power its sails make (MILL) */}
-      {towerKit && <MillLine from={mill.position} />}
+      {towerKit && <MillLine from={mill.position} slug="dtt-amsterdam" />}
 
 
       {/* windmill on the side — carries the DTT Amsterdam hotspot */}

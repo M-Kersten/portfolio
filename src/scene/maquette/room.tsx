@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, RepeatWrapping, RingGeometry, SRGBColorSpace, TorusGeometry, Vector3, type Group, type Mesh, type Texture } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, SRGBColorSpace, TorusGeometry, Vector3, type Group, type Mesh, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useReducedMotion } from '../../lib/media';
 import { play } from '../../lib/sound';
@@ -37,11 +37,47 @@ const PHONE_T = 0.0075;
    All of it in the couch's frame. */
 const BALL_R = 0.015;
 const BALL_G = 2.6; // gravity on the balls, at the maquette's slower pace (m/s²)
-const SEAT = { x: [-0.33, 0.33], z: [-0.08, 0.2] }; // where a ball rolls on the seat
-const SEAT_REST = COUCH_SEAT_Y + BALL_R; // a ball's centre, resting on it
+// where a ball's centre rolls on the seat: forward of the back cushions (see
+// backAt: at the seat's height their face is at −0.034), short of the front edge
+const SEAT = { x: [-0.33, 0.33], z: [-0.03, 0.2] };
+// The seat cushions, as Couch builds them (COUCH_SEAT): each one's middle
+// across and back, its half-width and half-depth, its flat top, how far that's
+// crowned in the middle, and how round its edges are. A ball rests on the
+// crown, and dips into the seam where the two meet.
+const CUSHION = { cx: 0.1885, cz: 0.02, hw: 0.1845, hd: 0.2, top: COUCH_SEAT_Y - 0.003, crown: 0.007, round: 0.026 };
+/** A ball's centre resting on the seat at (x, z). */
+function seatAt(x: number, z: number) {
+  const ax = Math.abs(x);
+  const u = (ax - CUSHION.cx) / CUSHION.hw;
+  const s = (z - CUSHION.cz) / CUSHION.hd;
+  let y = CUSHION.top + CUSHION.crown * Math.max(0, 1 - u * u) * Math.max(0, 1 - s * s) + BALL_R;
+  // the seam: each cushion's inside edge rounded down to it
+  const e = ax - (CUSHION.cx - CUSHION.hw + CUSHION.round);
+  if (e < 0) y = Math.min(y, CUSHION.top - CUSHION.round + Math.sqrt(Math.max(0, (CUSHION.round + BALL_R) ** 2 - e * e)));
+  return y;
+}
 // the right-hand arm, the bin's side: from its inside to its outside, its top,
-// and how round its top edges are
-const ARM = { x: [0.375, 0.46], top: 0.262, round: 0.03 };
+// how round its top edges are, and how far its top's crowned in the middle
+const ARM = { x: [0.375, 0.46], top: 0.262, round: 0.03, crown: 0.006 };
+/* The back cushions, as Couch builds them (COUCH_BACK, reclined 0.19 rad): in
+   the couch's side view, the foot of their flat front face, how far it leans
+   back for each unit up, how high it runs, how far its middle bulges, the
+   round of their bottom front edge (its centre and radius), and their top. */
+const BACK = { y0: 0.2431, z0: -0.047, lean: 0.195, y1: 0.361, bulge: 0.013, foot: [0.2356, -0.0862] as const, round: 0.04, top: 0.405, x: 0.375 };
+// …and behind the arms, the couch's frame: its front face, its top, how wide it runs
+const FRAME_BACK = { z: -0.15, top: 0.33, x: 0.46 };
+/** How far forward a ball's centre has to stay of the back cushions at
+ *  height y: their front face leaning back, bulging a little in the middle,
+ *  and the round of their foot, all grown by a ball's radius. */
+function backAt(y: number) {
+  if (y >= BACK.y0) {
+    const v = Math.min(1, (y - (BACK.y0 + BACK.y1) / 2) / ((BACK.y1 - BACK.y0) / 2));
+    return BACK.z0 - BACK.lean * (y - BACK.y0) + BACK.bulge * Math.max(0, 1 - v * v) + BALL_R * 1.02;
+  }
+  const dy = y - BACK.foot[0];
+  const r = BACK.round + BALL_R;
+  return Math.abs(dy) < r ? BACK.foot[1] + Math.sqrt(r * r - dy * dy) : -Infinity;
+}
 const COUCH_Z = [-0.22, 0.22]; // the couch's depth
 const FLOOR_Y = 0.022; // the rug's top, which the bin stands on
 const FLOOR = { x: [-0.2, 0.95], z: [-0.3, 0.5] }; // as far as a ball on the floor rolls
@@ -51,7 +87,14 @@ const BIN = { x: 0.6, z: 0.1, r0: 0.032, r1: 0.044, h: 0.085, floor: 0.004, yaw:
 const RIM = { y: FLOOR_Y + BIN.h, r: BIN.r1 - 0.002 }; // the circle a ball has to drop through
 // full, it rocks (wait), falls over (fall) onto its rim (angle), spilling the
 // balls once it's past `spill`, lies there (lie) and gets back up (up); seconds
-const BIN_TIP = { wait: 0.5, fall: 0.55, angle: Math.PI / 2 + Math.atan((BIN.r1 - BIN.r0) / BIN.h), spill: 0.95, lie: 1.4, up: 0.8 };
+const BIN_TIP = { wait: 0.7, fall: 0.55, angle: Math.PI / 2 + Math.atan((BIN.r1 - BIN.r0) / BIN.h), spill: 0.95, lie: 1.8, up: 0.8 };
+/* Knocking it over is the round's payoff, so it lands with weight: the game
+   holds still for a beat as it hits (HIT_STOP: s, and how slow), a ring runs
+   out across the floor from its mouth, the phone's screen flashes, and
+   confetti bursts out in the room's colours and flutters down (CONFETTI). Full,
+   before it goes, its rim lights up and the rocking builds. */
+const HIT_STOP = { len: 0.14, slow: 0.25 };
+const CONFETTI = { n: 40, size: [0.011, 0.006] as const, speed: [0.35, 0.75] as const, g: 1.7, drag: 1.8, life: 2.2 };
 // where the balls sit in it, in its own frame: pairs, each across the groove
 // of the one below, so six fill it to just under the rim
 const BIN_SLOTS = Array.from({ length: PHONE_BALLS }, (_, i) => {
@@ -66,21 +109,34 @@ const SHOT_CHARGE = 0.09; // s it sinks into the cushion, gathering itself, befo
 const FLOOR_BACK = 2.5; // s a ball lies off the seat (the floor, an arm) before it hops back onto it
 const DRAG = { seat: 2.2, floor: 3.2 }; // the cushion's friction, and the rug's (1/s)
 interface Ball { mesh: Group | null; body: Mesh | null; vel: Vector3; delay: number; rest: number; charge: number; landAt: number; impact: number; slot: number; backAt: number; rattle: boolean }
+interface Bit { pos: Vector3; vel: Vector3; spin: Vector3; rot: Euler; at: number; down: boolean }
 type BinPhase = 'up' | 'full' | 'tip' | 'lying' | 'righting';
 
-/** How high a ball's centre sits over (x, z): on the seat, on the floor, or
- *  on an arm, whose top edges are rounded the way the couch's are. Where it
- *  rises more than a little above a ball, it's a wall to it. */
+/** What's under a ball's centre at (x, z): the seat, an arm, or the floor. */
+function surfaceAt(x: number, z: number): 'seat' | 'arm' | 'floor' {
+  if (z < COUCH_Z[0] - BALL_R || z > COUCH_Z[1] + BALL_R) return 'floor';
+  const ax = Math.abs(x);
+  if (ax < ARM.x[0] - BALL_R) return 'seat';
+  return ax < ARM.x[1] + BALL_R ? 'arm' : 'floor';
+}
+/** How high a ball's centre sits over (x, z): on the seat (its cushions'
+ *  crown and their seam, seatAt), on the floor, or on an arm, whose top edges
+ *  are rounded and its top crowned, the way the couch's are. Where it rises
+ *  more than a little above a ball, it's a wall to it. */
 function restAt(x: number, z: number) {
   const floor = FLOOR_Y + BALL_R;
   if (z < COUCH_Z[0] - BALL_R || z > COUCH_Z[1] + BALL_R) return floor;
   const ax = Math.abs(x);
-  const under = ax < ARM.x[0] ? SEAT_REST : floor;
+  const under = ax < ARM.x[0] ? seatAt(x, z) : floor;
   if (ax <= ARM.x[0] - BALL_R || ax >= ARM.x[1] + BALL_R) return under;
-  // the arm grown by a ball's radius: flat on top, a quarter round at each edge
+  // the arm grown by a ball's radius: crowned on top, a quarter round at each edge
+  const mid = (ARM.x[0] + ARM.x[1]) / 2;
+  const u = (ax - mid) / ((ARM.x[1] - ARM.x[0]) / 2);
+  const w = z / COUCH_Z[1];
+  const top = ARM.top + ARM.crown * Math.max(0, 1 - u * u) * Math.max(0, 1 - w * w);
   const dx = ax - Math.max(ARM.x[0] + ARM.round, Math.min(ARM.x[1] - ARM.round, ax));
   const r = ARM.round + BALL_R;
-  return Math.max(under, ARM.top - ARM.round + Math.sqrt(Math.max(0, r * r - dx * dx)));
+  return Math.max(under, top - ARM.round + Math.sqrt(Math.max(0, r * r - dx * dx)));
 }
 
 /** Sends a ball from `p` to `to` on an arc: taking `t0` seconds, or longer
@@ -116,7 +172,7 @@ const _q4 = new Quaternion();
 const _v3 = new Vector3();
 const _c3 = new Color();
 const FLAT = new Quaternion().setFromEuler(new Euler(-Math.PI / 2, 0, 0));
-const RINGS = 6;
+const RINGS = 12;
 // …and for the balls
 const UP = new Vector3(0, 1, 0);
 const ORIGIN = new Vector3();
@@ -132,7 +188,7 @@ const _dir = new Vector3();
  *  the seat. The screen shows a screenshot once you've visited it — drop a JPG at
  *  public/textures/room-phone.jpg; until then it stays a plain glowing screen. */
 function Phone({ slug, position, liveColor }: { slug: string; position: V3; liveColor: string }) {
-  const { accent } = useAccent();
+  const { accent, accentPale, accentDeep } = useAccent();
   const { hovered, selected, visited } = useActive(slug);
   const reduced = useReducedMotion();
   const close = useCloseUp(slug);
@@ -163,6 +219,16 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
   );
   const R = BALL_R;
   const fired = useRef(false);
+  // the phone lying face down on the seat, which a ball can't roll through: its
+  // middle, its half-width and half-length, and its turn (the rig's rest pose)
+  const PHONE_LIE = { x: position[0], z: position[2], hw: PHONE_W / 2, hl: PHONE_H / 2, turn: 0.3 };
+  // the round's payoff (see HIT_STOP, CONFETTI): when the game slows for the
+  // bin's landing, the phone's screen flash, the confetti and the rim's light
+  const hitStop = useRef(-99);
+  const cheerAt = useRef(-99);
+  const bits = useMemo<Bit[]>(() => Array.from({ length: CONFETTI.n }, () => ({ pos: new Vector3(), vel: new Vector3(), spin: new Vector3(), rot: new Euler(), at: -99, down: false })), []);
+  const bitsIM = useRef<InstancedMesh>(null);
+  const rimGlow = useRef<MeshBasicMaterial>(null);
   // the game's own clock: frame time, so a slow frame slows the game down
   // rather than jumping it (a throw through the rim between two frames)
   const clock = useRef(0);
@@ -175,17 +241,20 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
   const binGeo = useGeometry(() => ({
     cup: lathe([[0, 0], [BIN.r0, 0], [BIN.r1 - 0.0005, BIN.h - 0.004], [BIN.r1 - 0.0035, BIN.h - 0.002], [BIN.r0 - 0.003, BIN.floor], [0, BIN.floor]], 40),
     rim: new TorusGeometry(RIM.r, 0.0024, 6, 48).rotateX(-Math.PI / 2).translate(0, BIN.h - 0.0015, 0),
+    glow: new TorusGeometry(RIM.r, 0.0045, 6, 48).rotateX(-Math.PI / 2).translate(0, BIN.h - 0.0015, 0),
   }));
   // a ring on the cushion where a ball takes off, and round the rim as one drops in
   const ringsIM = useRef<InstancedMesh>(null);
-  const rings = useMemo(() => Array.from({ length: RINGS }, () => ({ pos: new Vector3(), at: -99, r0: 0, r1: 0 })), []);
+  const rings = useMemo(() => Array.from({ length: RINGS }, () => ({ pos: new Vector3(), at: -99, r0: 0, r1: 0, life: 0.4, k: 0.9 })), []);
   const ringN = useRef(0);
-  const flash = (x: number, y: number, z: number, r0: number, r1: number, now: number) => {
+  const flash = (x: number, y: number, z: number, r0: number, r1: number, now: number, life = 0.4, k = 0.9) => {
     const r = rings[ringN.current++ % RINGS];
     r.pos.set(x, y, z);
     r.at = now;
     r.r0 = r0;
     r.r1 = r1;
+    r.life = life;
+    r.k = k;
   };
   // A ball's shape: squashed into the cushion as it gathers, stretched along
   // its flight, squashed as it lands and springing back round, its bottom kept
@@ -206,6 +275,15 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
     m.position.y = sitting ? -(1 - sy) * R : 0;
   };
   const ringGeo = useGeometry(() => new RingGeometry(0.72, 1, 32));
+  const bitGeo = useGeometry(() => new PlaneGeometry(1, 1));
+  const bitMat = useMemo(() => {
+    const m = new MeshBasicMaterial({ color: '#ffffff', side: DoubleSide, toneMapped: false });
+    m.userData.lifeSkip = true;
+    return m;
+  }, []);
+  useEffect(() => () => bitMat.dispose(), [bitMat]);
+  // the confetti's colours: the room's accent at its values, and the drawing's white
+  const bitCols = useMemo(() => [accent, accentPale, accentDeep, NEUTRAL, '#ffffff'].map((c) => new Color(c)), [accent, accentPale, accentDeep]);
   const ringMat = useMemo(() => {
     const m = new MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
     m.userData.lifeSkip = true;
@@ -221,8 +299,9 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
   const screenGeo = useGeometry(() => roundedPlaneGeometry(PHONE_W * 0.93, PHONE_H * 0.955, PHONE_W * 0.19));
 
   useFrame((s, delta) => {
-    const dt = Math.min(delta, 1 / 30);
     const t = s.clock.elapsedTime;
+    // the game holds still for a beat as the bin lands (HIT_STOP)
+    const dt = Math.min(delta, 1 / 30) * (t < hitStop.current ? HIT_STOP.slow : 1);
     const now = (clock.current += dt);
     body(lit.litU.value, selected || visited);
 
@@ -263,10 +342,12 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
       // ghost screen until it's opened: grey and dim; hover only brightens it a
       // touch ("trying to wake"), colour floods in on click and stays
       m.emissiveIntensity = (wantImg ? 0.62 : 0.14 + 0.38 * glow.current) + k.current * (0.3 + breathe);
+      // the round's payoff: the screen flashes as the bin lands
+      const cheer = reduced ? 0 : Math.exp(-5 * Math.max(0, now - cheerAt.current)) * (now >= cheerAt.current ? 1 : 0);
       if (wantImg) {
         m.color.set('#000000');
         m.emissive.set('#ffffff');
-        m.emissiveIntensity = 0.8;
+        m.emissiveIntensity = 0.8 + 1.4 * cheer;
       } else {
         m.color.copy(GHOST_FILL).lerp(base, Math.max(glow.current, k.current * 0.3)).lerp(lifelike, glow.current);
         m.emissive.copy(GHOST_FILL).lerp(base, Math.max(glow.current, k.current * 0.3)).lerp(lifelike, glow.current);
@@ -281,7 +362,9 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
         if (reduced) {
           // no launch — just scatter them at rest on the cushion around the phone
           const ang = (i / PHONE_BALLS) * Math.PI * 2;
-          b.mesh.position.set(position[0] + Math.cos(ang) * 0.07, SEAT_REST, position[2] + Math.sin(ang) * 0.05);
+          const x = position[0] + Math.cos(ang) * 0.07;
+          const z = position[2] + Math.sin(ang) * 0.05;
+          b.mesh.position.set(x, seatAt(x, z), z);
           b.mesh.visible = true;
         } else {
           const ang = (i / PHONE_BALLS) * Math.PI * 2 + 0.6;
@@ -297,11 +380,11 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
     const rim = ringsIM.current;
     if (rim) {
       rings.forEach((r, j) => {
-        const age = (now - r.at) / 0.4;
+        const age = (now - r.at) / r.life;
         const on = age >= 0 && age < 1;
         _v3.setScalar(on ? r.r0 + (r.r1 - r.r0) * easeOut(age) : 0);
         rim.setMatrixAt(j, _m4.compose(r.pos, FLAT, _v3));
-        rim.setColorAt(j, _c3.setScalar(on ? 0.9 * (1 - age) : 0));
+        rim.setColorAt(j, _c3.setScalar(on ? r.k * (1 - age) : 0));
       });
       rim.instanceMatrix.needsUpdate = true;
       if (rim.instanceColor) rim.instanceColor.needsUpdate = true;
@@ -320,6 +403,30 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
       B.phase = 'lying';
       B.at = now;
       play('bin-tip');
+      // landed: a beat's stillness, a ring across the floor from its mouth (and
+      // a second, wider, after it), the screen's flash, and the confetti
+      binPoint(_to.set(0, BIN.h, 0), BIN_TIP.angle, _at);
+      if (!reduced) {
+        hitStop.current = t + HIT_STOP.len;
+        flash(_at.x, FLOOR_Y + 0.003, _at.z, 0.03, 0.2, now, 0.55, 1.1);
+        flash(_at.x, FLOOR_Y + 0.003, _at.z, 0.02, 0.32, now + 0.12, 0.8, 0.7);
+        cheerAt.current = now;
+        play('bin-cheer');
+        // out of its mouth, the way it fell, and up, spread wide
+        binPoint(UP, BIN_TIP.angle, _dir).sub(binPoint(ORIGIN, BIN_TIP.angle, _to)).normalize();
+        bits.forEach((c, i) => {
+          const sp = CONFETTI.speed[0] + Math.random() * (CONFETTI.speed[1] - CONFETTI.speed[0]);
+          const a = (Math.random() - 0.5) * 2.2;
+          const ca = Math.cos(a);
+          const sa = Math.sin(a);
+          c.pos.copy(_at);
+          c.vel.set((_dir.x * ca - _dir.z * sa) * sp, 0.55 + Math.random() * 0.6, (_dir.x * sa + _dir.z * ca) * sp);
+          c.spin.set((Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18);
+          c.rot.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+          c.at = now + i * 0.004;
+          c.down = false;
+        });
+      }
     } else if (B.phase === 'lying' && u > BIN_TIP.lie) {
       B.phase = 'righting';
       B.at = now;
@@ -335,7 +442,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
     const v = now - B.at;
     B.angle =
       B.phase === 'full'
-        ? 0.05 * easeIn(v / BIN_TIP.wait) * (0.5 - 0.5 * Math.cos(v * 34))
+        ? 0.085 * easeIn(v / BIN_TIP.wait, 1.6) * (0.5 - 0.5 * Math.cos(v * (26 + 22 * v)))
         : B.phase === 'tip'
           ? BIN_TIP.angle * easeIn(v / BIN_TIP.fall, 2.4)
           : B.phase === 'lying'
@@ -345,9 +452,56 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
               : 0.06 * Math.exp(-7 * v) * Math.abs(Math.sin(v * 14)); // up: settling, once it's back
     if (binPivot.current) binPivot.current.rotation.z = -B.angle;
     if (binBody.current) {
-      // it gives as one drops in, and a little when one hits the rim
-      const q = 0.07 * ring(now - B.inAt, 3.5, 9) + 0.03 * ring(now - B.rimAt, 5, 12);
+      // it gives as one drops in, and a little when one hits the rim; and it
+      // squashes as it lands on its side
+      const q = 0.07 * ring(now - B.inAt, 3.5, 9) + 0.03 * ring(now - B.rimAt, 5, 12) + (B.phase === 'lying' ? 0.09 * ring(v, 4, 7) : 0);
       binBody.current.scale.set(1 + q * 0.6, 1 - q, 1 + q * 0.6);
+    }
+    // its rim: a flick of light for each one in; full, lit and pulsing, until it lands
+    if (rimGlow.current) {
+      const each = Math.max(0, 1 - (now - B.inAt) / 0.35) * 0.6;
+      const full = B.phase === 'full' ? easeOut(v / 0.3) * (0.7 + 0.3 * Math.sin(v * 24)) : B.phase === 'tip' ? 1 : B.phase === 'lying' ? Math.max(0, 1 - v / 0.45) : 0;
+      rimGlow.current.opacity = reduced ? 0 : Math.max(each, full);
+    }
+    // the confetti: out and up, then fluttering down onto the rug, and gone
+    const cf = bitsIM.current;
+    if (cf) {
+      let any = false;
+      bits.forEach((c, i) => {
+        const age = now - c.at;
+        const on = age >= 0 && age < CONFETTI.life;
+        if (on) {
+          any = true;
+          if (!c.down) {
+            c.vel.y -= CONFETTI.g * dt;
+            const d = Math.exp(-CONFETTI.drag * dt);
+            c.vel.multiplyScalar(d);
+            // a scrap of paper: it flutters as it falls
+            c.vel.x += Math.sin(age * 11 + i) * 0.35 * dt;
+            c.vel.z += Math.cos(age * 9 + i * 1.7) * 0.35 * dt;
+            c.pos.addScaledVector(c.vel, dt);
+            c.rot.x += c.spin.x * dt;
+            c.rot.y += c.spin.y * dt;
+            c.rot.z += c.spin.z * dt;
+            if (c.pos.y <= FLOOR_Y + 0.002 && c.vel.y < 0) {
+              c.pos.y = FLOOR_Y + 0.002;
+              c.down = true;
+              c.rot.set(-Math.PI / 2, 0, c.rot.z);
+            }
+          }
+          const fade = Math.min(1, (CONFETTI.life - age) / 0.5);
+          _q4.setFromEuler(c.rot);
+          _v3.set(CONFETTI.size[0] * fade, CONFETTI.size[1] * fade, 1);
+          cf.setMatrixAt(i, _m4.compose(c.pos, _q4, _v3));
+          cf.setColorAt(i, bitCols[i % bitCols.length]);
+        } else {
+          _v3.setScalar(0);
+          cf.setMatrixAt(i, _m4.compose(ORIGIN, _q4.identity(), _v3));
+        }
+      });
+      cf.visible = any;
+      cf.instanceMatrix.needsUpdate = true;
+      if (cf.instanceColor) cf.instanceColor.needsUpdate = true;
     }
 
     // --- the balls: thrown, arcing under gravity, bouncing and rolling; in the bin or not ---
@@ -392,9 +546,10 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
           }
           // far enough over: out of its mouth, the way it's falling, and free
           binPoint(UP, B.angle, _dir).sub(binPoint(ORIGIN, B.angle, _to));
-          b.vel.copy(_dir).multiplyScalar(0.26 + 0.2 * Math.random());
-          b.vel.x += (Math.random() - 0.5) * 0.12;
-          b.vel.z += (Math.random() - 0.5) * 0.12;
+          b.vel.copy(_dir).multiplyScalar(0.34 + 0.26 * Math.random());
+          b.vel.x += (Math.random() - 0.5) * 0.2;
+          b.vel.z += (Math.random() - 0.5) * 0.2;
+          b.vel.y += 0.12 + 0.12 * Math.random();
           b.slot = -1;
           b.rest = 0;
         }
@@ -403,7 +558,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
         const down = p.y <= g + 1e-4 && b.vel.y === 0;
         if (down) {
           b.rest += dt;
-          const onSeat = g === SEAT_REST;
+          const onSeat = surfaceAt(p.x, p.z) === 'seat';
           if (onSeat) b.backAt = -1;
           else if (b.backAt < 0) b.backAt = now + FLOOR_BACK;
           const near = pointing && b.charge < 0 && b.rest > SHOT_REST && ray.distanceSqToPoint(p) < (R * SHOT_REACH) ** 2;
@@ -424,7 +579,9 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
             // off the seat (a miss, a spill): back up onto it, somewhere free
             b.rest = 0;
             b.backAt = -1;
-            _to.set(SEAT.x[0] + 0.03 + Math.random() * (SEAT.x[1] - SEAT.x[0] - 0.06), SEAT_REST, SEAT.z[0] + 0.03 + Math.random() * (SEAT.z[1] - SEAT.z[0] - 0.06));
+            _to.x = SEAT.x[0] + 0.03 + Math.random() * (SEAT.x[1] - SEAT.x[0] - 0.06);
+            _to.z = SEAT.z[0] + 0.03 + Math.random() * (SEAT.z[1] - SEAT.z[0] - 0.06);
+            _to.y = seatAt(_to.x, _to.z);
             throwTo(b, p, _to, 0.6 + 0.3 * Math.hypot(_to.x - p.x, _to.z - p.z));
             flash(p.x, g - R + 0.002, p.z, 0.012, 0.04, now);
           }
@@ -434,10 +591,11 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
         // arm's crowned top a lean toward its nearer edge, so it rolls off
         const fall = b.vel.y !== 0 || !down ? BALL_G : 0;
         if (!fall) {
-          const drag = Math.exp(-dt * (g === SEAT_REST ? DRAG.seat : DRAG.floor));
+          const under = surfaceAt(p.x, p.z);
+          const drag = Math.exp(-dt * (under === 'seat' ? DRAG.seat : DRAG.floor));
           b.vel.x *= drag;
           b.vel.z *= drag;
-          if (g > SEAT_REST + 1e-3) b.vel.x += Math.sign(p.x) * Math.sign(Math.abs(p.x) - (ARM.x[0] + ARM.x[1]) / 2 || 1) * 0.8 * dt;
+          if (under === 'arm') b.vel.x += Math.sign(p.x) * Math.sign(Math.abs(p.x) - (ARM.x[0] + ARM.x[1]) / 2 || 1) * 0.8 * dt;
         }
         const x0 = p.x;
         const y0 = p.y;
@@ -455,6 +613,41 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
           p.z = z0;
           b.vel.z *= -0.4;
         }
+        // the back cushions' face: off it, the way it leans; behind the arms,
+        // the frame's
+        const zb = Math.abs(p.x) < BACK.x ? (p.y < BACK.top + R ? backAt(p.y) : -Infinity) : Math.abs(p.x) < FRAME_BACK.x + R && p.y < FRAME_BACK.top + R ? FRAME_BACK.z + R : -Infinity;
+        if (p.z < zb) {
+          p.z = zb;
+          if (b.vel.z < 0) b.vel.z *= -0.35;
+        }
+        // the phone, lying face down on the seat: round it
+        if (turn.current < 0.3 && p.y < seatAt(p.x, p.z) + 0.012) {
+          const c = Math.cos(PHONE_LIE.turn);
+          const sn = Math.sin(PHONE_LIE.turn);
+          const dx = p.x - PHONE_LIE.x;
+          const dz = p.z - PHONE_LIE.z;
+          const lx = dx * c + dz * sn;
+          const lz = -dx * sn + dz * c;
+          const ox = PHONE_LIE.hw + R - Math.abs(lx);
+          const oz = PHONE_LIE.hl + R - Math.abs(lz);
+          if (ox > 0 && oz > 0) {
+            // out the nearer side, and the speed into it turned back; one it's
+            // coming down on (the phone set back down) is eased out from under
+            // it and rolls away, rather than jumping clear
+            const nx = ox < oz ? Math.sign(lx) || 1 : 0;
+            const nz = ox < oz ? 0 : Math.sign(lz) || 1;
+            const push = Math.min(ox, oz, 0.012);
+            const wx = nx * c - nz * sn;
+            const wz = nx * sn + nz * c;
+            p.x += wx * push;
+            p.z += wz * push;
+            const vn = b.vel.x * wx + b.vel.z * wz;
+            if (vn < 0.25) {
+              b.vel.x += (0.25 - vn) * wx;
+              b.vel.z += (0.25 - vn) * wz;
+            }
+          }
+        }
         // down onto something: a bounce or two, then it rolls. It hits at the
         // speed it had as it reached the surface (not where the step left it,
         // below it), or a slow frame would keep it hopping.
@@ -464,6 +657,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
             const hit = Math.sqrt(vy0 * vy0 + 2 * fall * Math.max(0, y0 - floor));
             b.landAt = now;
             b.impact = Math.min(1, hit / 0.7);
+            if (hit > 0.3 && surfaceAt(p.x, p.z) === 'floor') flash(p.x, FLOOR_Y + 0.002, p.z, 0.008, 0.035, now, 0.35, 0.6);
             if (hit < 0.14) b.vel.y = 0;
             else {
               b.vel.y = hit * 0.5;
@@ -529,7 +723,8 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
         // floor's keep one near the bin
         const on = restAt(p.x, p.z);
         if (b.slot < 0 && p.y <= on + 0.02 && b.vel.y <= 0) {
-          const box = on === SEAT_REST ? SEAT : on === FLOOR_Y + R ? FLOOR : null;
+          const under = surfaceAt(p.x, p.z);
+          const box = under === 'seat' ? SEAT : under === 'floor' ? FLOOR : null;
           if (box) {
             for (const [ax, [lo, hi]] of [['x', box.x], ['z', box.z]] as const) {
               if (p[ax] < lo || p[ax] > hi) {
@@ -648,11 +843,17 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
             <mesh geometry={binGeo.rim}>
               <LiveGlassMat slug={slug} ghost={false} tint="pale" />
             </mesh>
+            {/* the rim's light: a flick for each ball in, lit and pulsing when it's full */}
+            <mesh geometry={binGeo.glow} renderOrder={2}>
+              <meshBasicMaterial ref={rimGlow} color={accent} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} toneMapped={false} userData={{ lifeSkip: true }} />
+            </mesh>
           </group>
         </group>
       </group>
       {/* (drawn after the cushion, or its glass covers them) */}
       <instancedMesh ref={ringsIM} args={[ringGeo, ringMat, RINGS]} frustumCulled={false} renderOrder={2} />
+      {/* the confetti, when the bin goes over */}
+      <instancedMesh ref={bitsIM} args={[bitGeo, bitMat, CONFETTI.n]} frustumCulled={false} visible={false} />
     </group>
   );
 }
@@ -1711,13 +1912,53 @@ const BOOKS: { p: V3; s: V3; c: Tint; r?: V3 }[] = [
  *  board + page block + printed page) hinge at the spine: it stands CLOSED in
  *  its shelf gap, and on select it lifts out, tilts toward the player and the
  *  front half swings open to reveal the spread — the left/right halves of
- *  public/textures/zwijsen-book.jpg (cream pages until it loads). The printed
- *  pages sit on top of their blocks, so nothing clips through anything. */
+ *  public/textures/zwijsen-book.jpg (plain pages until it loads), printed in
+ *  the model's stock (bookPrint). The printed pages sit on top of their
+ *  blocks, so nothing clips through anything. */
 const BOOK_W = 0.17; // full open width
 const BOOK_H = 0.19; // page depth (spine length)
 const BOOK_T = 0.011; // cover board thickness
 const BOOK_PT = 0.009; // page block thickness per half
 const BOOK_ANG = 0.14; // resting V of the halves once open: shallow, so both pages face you
+/** The spread printed in the model's own stock: the painting's light and dark
+ *  mapped from a deep ink of SURFACE.deep to the drawing's white-blue
+ *  (NEUTRAL), as a duotone, so its colours only show as light and dark, the
+ *  way the found creatures' do (critters.tsx). In full colour it was the one
+ *  thing on the maquette not drawn in its palette; printed in the accent it
+ *  was a big coral sheet. The accent is left to the cover and to the AR lifting
+ *  off the page (BookAR). Made once, on a canvas, as the picture arrives. */
+const BOOK_INK = 0.6; // how dark the ink is: SURFACE.deep at this much of its value
+const BOOK_GAMMA = 0.85; // a touch lighter in the mids, so the text and the rooms still read
+function bookPrint(tex: Texture, deep: string = SURFACE.deep.color, pale: string = NEUTRAL): CanvasTexture | null {
+  const img = tex.image as (CanvasImageSource & { width: number; height: number }) | undefined;
+  if (!img?.width) return null;
+  const c = document.createElement('canvas');
+  c.width = img.width;
+  c.height = img.height;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  if (!g) return null;
+  g.drawImage(img, 0, 0);
+  const data = g.getImageData(0, 0, c.width, c.height);
+  const rgb = (hex: string, k = 1) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) * k);
+  const lo = rgb(deep, BOOK_INK);
+  const hi = rgb(pale);
+  const lut = Array.from({ length: 256 }, (_, v) => {
+    const t = (v / 255) ** BOOK_GAMMA;
+    return lo.map((a, i) => Math.round(a + (hi[i] - a) * t));
+  });
+  const d = data.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const [r, gg, b] = lut[Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2])];
+    d[i] = r;
+    d[i + 1] = gg;
+    d[i + 2] = b;
+  }
+  g.putImageData(data, 0, 0);
+  const out = new CanvasTexture(c);
+  out.colorSpace = SRGBColorSpace;
+  out.anisotropy = tex.anisotropy;
+  return out;
+}
 function BookHalf({ side, tex, lit, kit }: { side: -1 | 1; tex: Texture | null; lit: LitLink; kit: BooksKit }) {
   const { accentDeep } = useAccent();
   const x = (side * BOOK_W) / 4;
@@ -1737,7 +1978,7 @@ function BookHalf({ side, tex, lit, kit }: { side: -1 | 1; tex: Texture | null; 
       <mesh position={[x, BOOK_T / 2 + BOOK_PT + 0.0008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[BOOK_W / 2 - 0.016, BOOK_H - 0.02]} />
         {tex ? (
-          <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={1} roughness={0.75} toneMapped={false} side={DoubleSide} />
+          <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.85} roughness={0.75} toneMapped={false} side={DoubleSide} />
         ) : (
           <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.55} roughness={0.85} side={DoubleSide} />
         )}
@@ -1845,18 +2086,22 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const backHinge = useRef<Group>(null);
   const sel = useRef(0); // 0 = closed in the gap, 1 = lifted + open + facing you
   const tex = useOptionalTexture('/textures/zwijsen-book.jpg');
+  // the spread, printed in the model's stock (bookPrint)
+  const print = useMemo(() => (tex ? bookPrint(tex) : null), [tex]);
+  useEffect(() => () => print?.dispose(), [print]);
   // the spread is one image — clone it into a left and a right half
   const [texL, texR] = useMemo(() => {
-    if (!tex) return [null, null] as const;
+    const src = print ?? tex;
+    if (!src) return [null, null] as const;
     const half = (off: number) => {
-      const t = tex.clone();
+      const t = src.clone();
       t.repeat.set(0.5, 1);
       t.offset.set(off, 0);
       t.needsUpdate = true;
       return t;
     };
     return [half(0), half(0.5)] as const;
-  }, [tex]);
+  }, [print, tex]);
   useEffect(
     () => () => {
       texL?.dispose();

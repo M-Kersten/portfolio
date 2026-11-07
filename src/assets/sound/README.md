@@ -121,6 +121,7 @@ In the Popcore close-up the ping-pong balls go for the bin beside the couch.
 | `ball-in` | a ball drops into the bin | a light hollow plonk; played a little higher for each ball in |
 | `ball-rim` | a ball hits the rim | a short bright tick; give it variants |
 | `bin-tip` | the full bin falls over | a hollow clatter of the bin and the balls |
+| `bin-cheer` | the bin lands and the confetti bursts out of it | a party popper's pop with a bright tail, two notes of the signature |
 
 ## Scavenger hunt
 

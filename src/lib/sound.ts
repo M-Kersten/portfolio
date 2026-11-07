@@ -65,10 +65,12 @@ export type SoundName =
   | 'cue-seen'
   | 'cue-clear'
   | 'cue-miss'
-  // Popcore's bin: a ball dropping in, one off the rim, and the full bin going over
+  // Popcore's bin: a ball dropping in, one off the rim, the full bin going over,
+  // and the confetti as it lands
   | 'ball-in'
   | 'ball-rim'
   | 'bin-tip'
+  | 'bin-cheer'
   // ARCam's park: a home stirring, its creature coming out, one getting away,
   // one photographed, and the group photo
   | 'critter-peek'
