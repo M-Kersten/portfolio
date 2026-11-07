@@ -95,7 +95,9 @@
   .hero__sub,
   .guide__cover-here,
   .guide__cover-note,
+  .guide__cover-note[data-first],
   .guide__cover-count--flash,
+  .hero__signals-rocket[data-new],
   .hero__signals-rocket[data-next] {
     animation: none;
   }
@@ -337,6 +339,31 @@
 }
 .guide__cover-note[data-close] {
   color: var(--accent-ink);
+}
+/* the first time it's said (the hint, as the second exhibit is counted): a
+   beat after the count's flash it comes in lit, the way the count did, and
+   takes a few seconds to settle into the quiet note */
+.guide__cover-note[data-first] {
+  /* (the quiet colour as a plain one: Chrome blends an animated colour-mix
+     through the wrong colours, red on the way) */
+  color: rgba(234, 234, 234, 0.62);
+  animation: cover-note-first 4.2s var(--ease) both;
+}
+@keyframes cover-note-first {
+  0%,
+  14% {
+    opacity: 0;
+    transform: translateY(6px);
+    color: #8fe9ff;
+    text-shadow: 0 0 10px rgba(39, 232, 242, 0.6);
+  }
+  30%,
+  62% {
+    opacity: 1;
+    transform: none;
+    color: #8fe9ff;
+    text-shadow: 0 0 10px rgba(39, 232, 242, 0.6);
+  }
 }
 @keyframes cover-here-in {
   from {
@@ -609,8 +636,31 @@
   background: var(--grad-spectrum);
   box-shadow: 0 0 6px rgba(168, 158, 255, 0.45);
 }
-/* the tenth pip is the rocket the ten add up to: a dim outline until the
-   model is complete, then lit with the rest */
+/* the tenth pip, once the launch has been hinted at, is the rocket the ten
+   add up to: a dim outline until the model is complete, then lit with the
+   rest. It lands as the hint is given, dropping into its place from above,
+   lit, and settling to the outline. */
+.hero__signals-rocket[data-new] {
+  /* (a clear fill rather than none, so the lit fill can ease out; and the
+     outline's colour as a plain one, since Chrome blends an animated
+     colour-mix through the wrong colours) */
+  fill: rgba(143, 233, 255, 0);
+  stroke: rgba(234, 234, 234, 0.4);
+  animation: rocket-land 1.6s var(--ease) both;
+}
+@keyframes rocket-land {
+  0% {
+    opacity: 0;
+    transform: translateY(-7px);
+    stroke: #8fe9ff;
+  }
+  45% {
+    opacity: 1;
+    transform: none;
+    stroke: #8fe9ff;
+    fill: rgba(143, 233, 255, 0.45);
+  }
+}
 .hero__signals-rocket {
   width: 6px;
   height: 9px;
@@ -626,15 +676,16 @@
   stroke: var(--accent);
 }
 /* one to go: it breathes, like the pad's beacon (from a clear fill, so the
-   fill can be eased) */
+   fill can be eased; both as plain colours, since Chrome blends an animated
+   colour-mix through the wrong colours) */
 .hero__signals-rocket[data-next] {
-  fill: transparent;
+  fill: rgba(39, 232, 242, 0);
   stroke: var(--accent);
   animation: rocket-next 2.4s ease-in-out infinite;
 }
 @keyframes rocket-next {
   50% {
-    fill: color-mix(in srgb, var(--accent) 55%, transparent);
+    fill: rgba(39, 232, 242, 0.55);
   }
 }
 @media (max-width: 760px) {

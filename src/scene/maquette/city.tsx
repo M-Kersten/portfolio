@@ -1,13 +1,12 @@
-// The CITY layer (top) — GIS & location work. A skyline with lit windows, the
-// windmill (DTT), the park with the ARCam tower viewer (ARCam), and the
+// The CITY layer (top) — GIS & location work. A skyline whose windows light as
+// power reaches it, the windmill (DTT), the park with the ARCam tower viewer (ARCam), and the
 // central skyscraper (Alliander), plus roads, power lines, ducks and a
 // constellation. CityRig at the bottom composes and places everything.
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ElementRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { AdditiveBlending, Box3, BoxGeometry, BufferAttribute, BufferGeometry, Color, CurvePath, DoubleSide, Euler, InstancedMesh, LineCurve3, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, RingGeometry, Shape, ShapeGeometry, ShaderMaterial, TubeGeometry, Vector2, Vector3, type Group, type Mesh, type Points as ThreePoints, type Sprite } from 'three';
+import { useFrame } from '@react-three/fiber';
+import { AdditiveBlending, Box3, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, Color, CurvePath, DoubleSide, Euler, InstancedMesh, LineCurve3, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, RingGeometry, Shape, ShapeGeometry, ShaderMaterial, TubeGeometry, Vector2, Vector3, type Group, type Mesh, type Points as ThreePoints, type Sprite } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { useSceneSelector } from '../store';
-import { portraitMix } from '../framing';
 import { isTouch, useReducedMotion } from '../../lib/media';
 import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
@@ -22,7 +21,7 @@ import { loadBinoculars, loadBlocksKit, loadMillKit, loadTowerKit, loadTrafoKit,
 import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
 import { PINES, PINE_RUSTLE, ParkCritters, SAFARI, VIEWER } from './critters';
 import { spring, wobble } from '../../lib/spring';
-import { bump, easeIn, easeOut, ring } from '../../lib/ease';
+import { bump, easeIn, easeInOut, easeOut, easeOutBack, ring } from '../../lib/ease';
 import { play } from '../../lib/sound';
 
 /** The city's wake ramp: written once per frame by WindowDriver, read by every
@@ -157,9 +156,8 @@ function Building({ i, kit, x, z, w, d, winMat, delay = 0 }: { i: number; kit: B
   /* Each building's lights are its own, via its own clone of the window material:
      they come on when the grid's power reaches it (POWER, PowerGrid), not with
      the rest of the skyline. Dark, the panes draw under the glass (see `parts`
-     above); lit, they draw after it, so they shine from the wall's face like
-     the occupied windows (OccupiedWindows) rather than glowing faintly through
-     the glass. The glass writes depth once the city is awake, so the far wall's
+     above); lit, they draw after it, so they shine from the wall's face
+     rather than glowing faintly through the glass. The glass writes depth once the city is awake, so the far wall's
      panes stay hidden behind it.
      Not per pane: every window in a building shares one material, so the only
      per-pane handle is its size — and easing that made the panes visibly grow,
@@ -1375,11 +1373,13 @@ function Park({ position, slug }: { position: V3; slug?: string }) {
 // The city's centrepiece: a setback tower in the manner of the 1920s high-rises,
 // modelled in Blender (scripts/models/build_tower.py, shipped as
 // public/models/tower.glb). A podium with a recessed entrance, three tiers
-// stepping in, two crown steps, a slotted lantern and a spire, with five ribs up
-// each face and window strips between them. Carries the Alliander hotspot: the
-// glass solidifies once visited (LiveGlassMat), the strips light with the rest
-// of the city's windows (the shared winMat, ramped by WindowDriver), the lantern
-// powers on with the beacon, and a light-band climbs the tiers while it's alive.
+// stepping in, a crown step with the lantern on it and a spire, with five ribs
+// up each face and window strips between them. (The top is kept plain: a second
+// crown step and a slotted lantern were a knot of bright lines the eye went to
+// first.) Carries the Alliander hotspot: the glass solidifies once visited
+// (LiveGlassMat), the strips light with the rest of the city's windows (the
+// shared winMat, ramped by WindowDriver), the lantern powers on with the
+// beacon, and a light-band climbs the tiers while it's alive.
 
 // Fetch the model as soon as the scene's code arrives, not when the city first
 // renders: the city is the layer the page opens on, and this is its centrepiece.
@@ -1481,6 +1481,9 @@ function Skyscraper({ position, kit, winMat }: { position: V3; kit: TowerKit; wi
       l.color.copy(GHOST_FILL).lerp(accentC, k);
       l.emissive.copy(GHOST_FILL).lerp(accentC, k);
       l.emissiveIntensity = 0.05 + k * (0.85 + 0.12 * Math.sin(t * 2.2)) + 1.6 * flare;
+      // dark, it's as see-through as the ghost glass under it, not a grey
+      // block on the crown; it fills in as it powers on
+      l.opacity = 0.45 + 0.55 * Math.min(1, k);
     }
     // a light-band climbs the tiers while the tower is alive, energy rising to
     // the crown; it steps in at each setback, the same distance off every tier.
@@ -1540,9 +1543,9 @@ function Skyscraper({ position, kit, winMat }: { position: V3; kit: TowerKit; wi
       </mesh>
       {/* the window strips between the ribs light with the rest of the city */}
       {winMat && <mesh geometry={kit.tower_windows} material={winMat} />}
-      {/* the lantern's lamp, driven above */}
+      {/* the lantern, a block of light on the crown, driven above */}
       <mesh geometry={kit.tower_lamp}>
-        <meshStandardMaterial ref={lamp} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.05} roughness={0.35} toneMapped={false} />
+        <meshStandardMaterial ref={lamp} userData={{ lifeSkip: true }} color={accent} emissive={accent} emissiveIntensity={0.05} roughness={0.35} transparent opacity={0.45} toneMapped={false} />
       </mesh>
       {/* A light-band that climbs the tower while engaged (driven above).
           `renderOrder` is the fix for it flicking between in-front-of and
@@ -1861,8 +1864,8 @@ function RoadNetwork({ roads }: { roads: Road[] }) {
   );
 }
 
-// The Big Dipper (Ursa Major — "the Big Bear") asterism: 7 stars + the links
-// between them. Handle on the right, bowl on the left.
+// The Big Dipper (Ursa Major — "the Big Bear") asterism: 7 stars, handle on
+// the right, bowl on the left.
 const DIPPER: [number, number][] = [
   [0.0, 1.0], // 0 Dubhe  — bowl top-outer
   [0.0, 0.0], // 1 Merak  — bowl bottom-outer
@@ -1872,80 +1875,228 @@ const DIPPER: [number, number][] = [
   [2.6, 1.15], // 5 Mizar
   [3.35, 1.4], // 6 Alkaid — handle end
 ];
-const DIPPER_LINKS: [number, number][] = [
-  [0, 3], [3, 2], [2, 1], [1, 0], // the bowl
-  [3, 4], [4, 5], [5, 6], // the handle
-];
+/** The line, as it's traced through the stars: from the handle's end along
+ *  the handle, round the bowl, and closing it where the handle joins. The
+ *  stars come out in the same order, and the line follows them once they're
+ *  all out. */
+const DIPPER_TRACE = [6, 5, 4, 3, 0, 1, 2, 3];
+const DIPPER_ORDER = DIPPER_TRACE.filter((v, i) => DIPPER_TRACE.indexOf(v) === i);
 const DIPPER_MAG = [1, 0.7, 0.65, 0.8, 1, 0.85, 1]; // relative brightness → star size
+/** Where it hangs: up and to the left of the windmill's cap, just clear of the
+ *  sails' sweep, in the close-up's sky (local to the mill's foot). */
+const DIPPER_AT: V3 = [-0.37, 1.17, 0.05];
+const DIPPER_SCALE = 0.13; // the asterism's units to the city's: a hand's width beside the mill
+/** Each time the windmill opens (s): a beat after the close-up arrives, the
+ *  stars come out one after another, each with a pop (`pop` long), a breath,
+ *  then the line is drawn through them (`trace`), touching each star again as
+ *  it reaches it, and the whole figure flares once it's closed (`flare`).
+ *  Closing the windmill puts it out over `out`. */
+const STARS = { wait: 0.15, gap: 0.19, pop: 0.6, breath: 0.25, trace: 1.3, flare: 0.7, out: 0.35 };
 
-/** A star constellation (the Big Dipper) that fades in behind the windmill while
- *  it's selected, its stars twinkling and blooming against the night. It hangs
- *  in the sky row over the city's marker line and its names (with the launch
- *  invitation), not across them; on a phone, with no names on the line and the
- *  hero title above the city, it comes down beside the windmill. */
-const DIPPER_SKY = 1.67; // the asterism's centre over the windmill's foot…
-const DIPPER_SKY_PORTRAIT = 1.0; // …and on a phone
+let glintTex: CanvasTexture | null = null;
+/** A star's glint, for the moment it comes out: a bright core and a cross of
+ *  thin rays, the way a star catches in a lens. */
+function glintTexture(): CanvasTexture {
+  if (glintTex) return glintTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  if (g) {
+    const core = g.createRadialGradient(64, 64, 0, 64, 64, 30);
+    core.addColorStop(0, 'rgba(255,255,255,1)');
+    core.addColorStop(0.25, 'rgba(255,255,255,0.55)');
+    core.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = core;
+    g.fillRect(0, 0, 128, 128);
+    // the two rays, thin and fading out to the tips
+    for (const [w, h] of [
+      [128, 3],
+      [3, 128],
+    ]) {
+      const ray = w > h ? g.createLinearGradient(0, 0, 128, 0) : g.createLinearGradient(0, 0, 0, 128);
+      ray.addColorStop(0, 'rgba(255,255,255,0)');
+      ray.addColorStop(0.5, 'rgba(255,255,255,0.95)');
+      ray.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = ray;
+      g.fillRect(64 - w / 2, 64 - h / 2, w, h);
+    }
+  }
+  return (glintTex = new CanvasTexture(c));
+}
+
+/** The Big Dipper, beside the windmill while it's open: each time it opens the
+ *  stars come out one by one, each popping in with a glint, and then a line is
+ *  drawn through them, star to star, until the figure closes and flares. It
+ *  faces the camera, like a star chart held up beside the mill, and it's only
+ *  there in the close-up (the overview has enough going on). */
 function Constellation({ anchor }: { anchor: V3 }) {
-  const { selected, visited } = useActive('dtt-amsterdam');
+  const { selected } = useActive('dtt-amsterdam');
   const reduced = useReducedMotion();
   const grp = useRef<Group>(null);
+  const starRefs = useRef<(Mesh | null)[]>([]);
   const starMats = useRef<(MeshStandardMaterial | null)[]>([]);
+  const glints = useRef<(Sprite | null)[]>([]);
+  const head = useRef<Sprite>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lineRef = useRef<any>(null);
-  const k = useRef(0);
-  const sky = DIPPER_SKY + (DIPPER_SKY_PORTRAIT - DIPPER_SKY) * portraitMix(useThree((s) => s.size.width / s.size.height));
+  const glint = useMemo(glintTexture, []);
+  // the reveal: when it started (-1: not open) and how far it had got, when the
+  // line reached each star of the trace, the stars sounded so far, and the
+  // light as it goes out
+  const run = useMemo(() => ({ since: -1, t: 0, reached: new Array<number>(DIPPER_TRACE.length).fill(-1), sounded: 0, out: 0 }), []);
   const stars = useMemo(() => {
     const cx = DIPPER.reduce((a, s) => a + s[0], 0) / DIPPER.length;
     const cy = DIPPER.reduce((a, s) => a + s[1], 0) / DIPPER.length;
-    const S = 0.2; // asterism scale: fits the sky row between the names and the top of the frame
-    return DIPPER.map(([x, y]) => [(x - cx) * S, (y - cy) * S, 0] as V3);
+    return DIPPER.map(([x, y]) => [(x - cx) * DIPPER_SCALE, (y - cy) * DIPPER_SCALE, 0] as V3);
   }, []);
-  const segs = useMemo(() => DIPPER_LINKS.flatMap(([a, b]) => [stars[a], stars[b]]), [stars]);
-  useFrame((s) => {
-    // fades in on select and stays lit once the windmill has been opened
-    k.current += ((selected || visited ? 1 : 0) - k.current) * 0.08;
-    const kk = k.current;
-    if (grp.current) {
-      grp.current.visible = kk > 0.01;
-      grp.current.scale.setScalar(0.9 + 0.1 * kk);
+  // the trace as segments, in order, and how far along it each of its stars is
+  const trace = useMemo(() => {
+    const segs: V3[] = [];
+    const at = [0];
+    for (let i = 1; i < DIPPER_TRACE.length; i++) {
+      const a = stars[DIPPER_TRACE[i - 1]];
+      const b = stars[DIPPER_TRACE[i]];
+      segs.push(a, b);
+      at.push(at[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1]));
     }
-    const t = s.clock.elapsedTime;
-    starMats.current.forEach((m, i) => {
-      if (!m) return;
-      const tw = reduced ? 1 : 0.78 + 0.32 * Math.sin(t * (1.7 + i * 0.4) + i);
-      m.emissiveIntensity = kk * 1.8 * tw; // brighter to keep the now-tiny stars visible
-      m.opacity = Math.min(1, kk * 1.5);
+    return { segs, at, length: at[at.length - 1] };
+  }, [stars]);
+  useFrame((s, dt) => {
+    const g = grp.current;
+    if (!g) return;
+    const now = s.clock.elapsedTime;
+    // opening (the close-up has arrived: useActive waits for it) starts the
+    // reveal over; closing puts it all out quickly, ready to play again
+    if (selected && run.since < 0) {
+      run.since = now + STARS.wait;
+      run.reached.fill(-1);
+      run.sounded = 0;
+    }
+    if (!selected) run.since = -1;
+    run.out = selected ? 1 : Math.max(0, run.out - dt / STARS.out);
+    g.visible = run.out > 0.001;
+    if (!g.visible) return;
+    // a star chart held up beside the mill: square to the camera
+    g.quaternion.copy(s.camera.quaternion);
+    // (closing, it goes out as far as it had got)
+    if (run.since >= 0) run.t = now - run.since;
+    const t = run.t;
+    const all = reduced;
+    // the stars, one after another
+    DIPPER_ORDER.forEach((i, j) => {
+      const m = starMats.current[i];
+      const mesh = starRefs.current[i];
+      const gl = glints.current[i];
+      if (!m || !mesh) return;
+      const u = all ? 1 : (t - j * STARS.gap) / STARS.pop;
+      if (!all && u >= 0 && run.sounded <= j) {
+        run.sounded = j + 1;
+        play('star-pop', { volume: 0.5, rate: 0.9 + j * 0.07 }); // each a step higher
+      }
+      // a second touch as the line reaches it
+      let touch = 0;
+      DIPPER_TRACE.forEach((k, n) => {
+        if (k === i && run.reached[n] >= 0) touch = Math.max(touch, Math.exp(-(now - run.reached[n]) * 7));
+      });
+      const shown = u <= 0 ? 0 : u >= 1 ? 1 : easeOutBack(u, 3);
+      mesh.scale.setScalar(Math.max(0.0001, shown * (1 + 0.45 * touch)));
+      const tw = reduced ? 1 : 0.78 + 0.32 * Math.sin(now * (1.7 + i * 0.4) + i);
+      const flash = u > 0 && u < 1 ? 5 * Math.exp(-u * 6) : 0;
+      m.emissiveIntensity = (1.8 * tw + flash + 3 * touch) * run.out;
+      m.opacity = Math.min(1, u * 3) * run.out;
+      // its glint: out with it, and gone again in a moment
+      if (gl) {
+        const gu = all ? 1 : (t - j * STARS.gap) / (STARS.pop * 1.1);
+        const k = Math.max(gu > 0 && gu < 1 ? (1 - gu) ** 2 : 0, touch * 0.6);
+        gl.visible = k > 0.01;
+        gl.scale.setScalar(DIPPER_SCALE * (0.35 + 0.65 * easeOut(Math.min(1, gu * 4))) * (0.9 + DIPPER_MAG[i] * 0.4));
+        gl.material.rotation = 0.5 * gu;
+        gl.material.opacity = k * run.out;
+      }
     });
-    const lm = lineRef.current?.material;
+    // then the line, star to star
+    const start = (DIPPER_ORDER.length - 1) * STARS.gap + STARS.pop * 0.5 + STARS.breath;
+    const p = all ? 1 : Math.min(1, Math.max(0, (t - start) / STARS.trace));
+    const along = easeInOut(p) * trace.length;
+    for (let n = 0; n < DIPPER_TRACE.length; n++) {
+      if (run.reached[n] < 0 && !all && p > 0 && along >= trace.at[n] - 1e-6) {
+        run.reached[n] = now;
+        if (n > 0) play('star-trace', { volume: 0.35, rate: 1 + n * 0.05 });
+      }
+    }
+    const line = lineRef.current;
+    const lm = line?.material;
     if (lm) {
       lm.userData.lifeSkip = true; // self-animated (a receded city fades it at draw time — presence.tsx)
+      // drawn up to `along`: the dash is the drawn part, the gap the rest
+      line.visible = along > 1e-4;
+      lm.dashSize = Math.max(1e-5, along);
+      lm.gapSize = trace.length * 2;
       // A star chart's lines: faint, so the stars are what you see and the
-      // links between them are read, not looked at.
-      const op = kk * 0.55;
+      // links between them are read, not looked at (a moment brighter as it
+      // closes, the figure complete)
+      const end = run.reached[DIPPER_TRACE.length - 1];
+      const flare = !all && end >= 0 ? Math.exp(-(now - end) / (STARS.flare * 0.5)) : 0;
+      const op = (0.55 + 0.4 * flare) * run.out;
       lm.opacity = op;
       if (lm.uniforms?.opacity) lm.uniforms.opacity.value = op;
     }
+    // the pen: a glint at the line's tip while it's being drawn
+    const h = head.current;
+    if (h) {
+      const drawing = !all && p > 0 && p < 1;
+      h.visible = drawing;
+      if (drawing) {
+        let n = 1;
+        while (n < trace.at.length - 1 && trace.at[n] < along) n++;
+        const a = stars[DIPPER_TRACE[n - 1]];
+        const b = stars[DIPPER_TRACE[n]];
+        const f = (along - trace.at[n - 1]) / Math.max(1e-6, trace.at[n] - trace.at[n - 1]);
+        h.position.set(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 0.001);
+        h.scale.setScalar(DIPPER_SCALE * 0.55);
+        h.material.opacity = run.out * Math.min(1, p * 8, (1 - p) * 8);
+      }
+    }
   });
   return (
-    <group ref={grp} position={[anchor[0] + 0.1, anchor[1] + sky, anchor[2] - 0.7]} rotation={[0.05, 0.4, 0]} visible={false}>
-      <Line ref={lineRef} segments points={segs} color={NEUTRAL} lineWidth={1.5} transparent opacity={0} />
+    <group ref={grp} position={[anchor[0] + DIPPER_AT[0], anchor[1] + DIPPER_AT[1], anchor[2] + DIPPER_AT[2]]} visible={false}>
+      <Line ref={lineRef} segments points={trace.segs} color={NEUTRAL} lineWidth={1.5} dashed dashSize={1e-5} gapSize={1} transparent opacity={0} />
       {stars.map((p, i) => (
-        <mesh key={i} position={p}>
-          <sphereGeometry args={[0.0033 + DIPPER_MAG[i] * 0.0028, 10, 10]} />
-          <meshStandardMaterial
+        <group key={i} position={p}>
+          <mesh
             ref={(m) => {
-              starMats.current[i] = m;
+              starRefs.current[i] = m;
             }}
-            userData={{ lifeSkip: true }}
-            color={NEUTRAL}
-            emissive={NEUTRAL}
-            emissiveIntensity={0}
-            transparent
-            opacity={0}
-            toneMapped={false}
-          />
-        </mesh>
+            scale={0.0001}
+          >
+            <sphereGeometry args={[0.0033 + DIPPER_MAG[i] * 0.0028, 10, 10]} />
+            <meshStandardMaterial
+              ref={(m) => {
+                starMats.current[i] = m;
+              }}
+              userData={{ lifeSkip: true }}
+              color={NEUTRAL}
+              emissive={NEUTRAL}
+              emissiveIntensity={0}
+              transparent
+              opacity={0}
+              toneMapped={false}
+            />
+          </mesh>
+          <sprite
+            ref={(r) => {
+              glints.current[i] = r;
+            }}
+            visible={false}
+            renderOrder={3}
+          >
+            <spriteMaterial map={glint} color={WHITE} transparent opacity={0} depthWrite={false} blending={AdditiveBlending} toneMapped={false} userData={{ lifeSkip: true }} />
+          </sprite>
+        </group>
       ))}
+      <sprite ref={head} visible={false} renderOrder={3}>
+        <spriteMaterial map={glint} color={WHITE} transparent opacity={0} depthWrite={false} blending={AdditiveBlending} toneMapped={false} userData={{ lifeSkip: true }} />
+      </sprite>
     </group>
   );
 }
@@ -1988,7 +2139,7 @@ const PULSE_CLOSE = 0.35; // … and when closing the close-up brings on the res
 const COMET = { beads: 10, gap: 0.011, head: 1.5 }; // the pulse: its head and the tail of beads behind it
 const WAKE = 0.2; // how far behind the head the cable glows, cooling as it goes
 const LIGHT_ON = 0.45; // s for a block's floors to light, ground to roof
-const WIN_LIT = 0.5; // a lit block's windows (an occupied window's glow, OccupiedWindows)
+const WIN_LIT = 0.5; // a lit block's windows
 const WIN_FLASH = 1.6; // and the flash as power arrives, on top
 const TRAFO_DEPTH = 0.15; // the house's footprint front to back, plinth included (build_trafo.py)
 const POWER = {
@@ -2589,48 +2740,6 @@ function CelebrationBurst() {
   );
 }
 
-// A few windows that stay softly lit at rest — a handful of homes awake in the
-// otherwise-sleeping city. Kept in the skyline's own calm blue (never warm, per
-// the window rule above), most just glowing, one or two slowly winking off and
-// on. Independent of the interactive winMat, so waking the whole city (full
-// bright) is still the reward. The panes come with the blocks' model: each
-// occupied block carries one, `block<i>_lit`, a hair proud of its window grid.
-function OccupiedWindows({ kit, buildings }: { kit: BlocksKit; buildings: { x: number; z: number }[] }) {
-  const reduced = useReducedMotion();
-  const { accent } = useAccent();
-  const mats = useRef<(MeshStandardMaterial | null)[]>([]);
-  const wins = useMemo(() => {
-    const rnd = makeRand(4231);
-    const out: { x: number; z: number; g: BufferGeometry; lvl: number; spd: number; ph: number; wink: boolean }[] = [];
-    buildings.forEach((b, i) => {
-      const g = kit[`block${i}_lit`];
-      if (!g) return; // nobody home
-      out.push({ x: b.x, z: b.z, g, lvl: 0.5 + rnd() * 0.5, spd: 0.3 + rnd() * 0.4, ph: rnd() * 6.28, wink: rnd() < 0.4 });
-    });
-    return out;
-  }, [kit, buildings]);
-  useFrame((s) => {
-    const t = s.clock.elapsedTime;
-    for (let i = 0; i < wins.length; i++) {
-      const m = mats.current[i];
-      const w = wins[i];
-      if (!m) continue;
-      // winking windows go dark for a beat now and then; the rest hold a soft glow
-      const wink = w.wink && !reduced ? (Math.sin(t * w.spd + w.ph) > 0.72 ? 0.12 : 1) : 1;
-      m.emissiveIntensity = w.lvl * 0.5 * wink;
-    }
-  });
-  return (
-    <group>
-      {wins.map((w, i) => (
-        <mesh key={i} position={[w.x, 0, w.z]} geometry={w.g}>
-          <meshStandardMaterial ref={(r) => (mats.current[i] = r)} color={accent} emissive={accent} emissiveIntensity={w.lvl * 0.5} transparent opacity={0.92} roughness={0.4} toneMapped={false} depthWrite={false} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
 // A single faint light easing along a road now and then — a lone car crossing
 // the sleeping city. One small cool point (a headlight, not a warm glow), a long
 // gap between passes, fading in and out at the ends, and gone entirely under
@@ -2839,8 +2948,6 @@ export function CityRig() {
       {blocksKit && cluster.map((b, i) => <Building key={i} i={i} kit={blocksKit} x={b.x} z={b.z} w={b.w} d={b.d} winMat={winMat} delay={lightOrder[i]} />)}
       {/* the low fringe that carries the density out to the neighbours */}
       <Outskirts clear={keepClear} blocks={cluster} />
-      {/* a few homes left lit in the sleeping city (independent of the hover glow) */}
-      {blocksKit && <OccupiedWindows kit={blocksKit} buildings={cluster} />}
       {/* The tower and its power lines arrive together, with the tower's model.
           Its LifeGroup mounts with it too, so it takes the tower to the right
           level on its first frame rather than on a later sweep. */}

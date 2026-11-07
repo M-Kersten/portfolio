@@ -34,9 +34,7 @@ const CHIP_PARTS = [
   'ic_body', 'ic_lands',
 ] as const;
 const TOWER_PARTS = ['tower_body', 'tower_ribs', 'tower_windows', 'tower_lamp', 'tower_spire'] as const;
-/** Three parts to each of the six blocks, in the order of city.tsx's plan. The
- *  blocks someone is home in carry a fourth, `block<i>_lit`, which is optional
- *  here. */
+/** Three parts to each of the six blocks, in the order of city.tsx's plan. */
 const BLOCK_PARTS = [0, 1, 2, 3, 4, 5].flatMap((i) => [`block${i}_body`, `block${i}_trim`, `block${i}_windows`]);
 const MILL_PARTS = ['mill_ground', 'mill_body', 'mill_cap', 'mill_beard', 'mill_trim', 'mill_windows', 'mill_sails', 'mill_cloth'] as const;
 const TRAFO_PARTS = ['trafo_body', 'trafo_doors', 'trafo_trim', 'trafo_power'] as const;

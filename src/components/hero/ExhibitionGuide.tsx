@@ -8,18 +8,19 @@ import { sceneStore } from '../../scene/store';
 // The exhibition guide: the leaflet the visitor is handed. It stands pushed
 // into the bottom edge of the screen, folded in half like the one you take at
 // the door, and its cover is the one sign down there: how many of the ten
-// you've seen (4 of 10 seen), what they add up to (launch at ten, counted
-// down at the end), and for a moment a returning visitor's greeting.
+// you've seen (4 of 10 seen), what they add up to once a couple have been
+// seen (launch at ten, counted down at the end), and for a moment a
+// returning visitor's greeting.
 // Pulling it out slides it up into the frame, and its cover swings open to the
 // left onto the inside (hero.css): the ten exhibits by floor, the way a
 // printed leaflet lists them, and the visitor's own pen marks in its margin, a
 // tick against each one they've seen (the tick for one seen since the guide
 // was last open writes itself in as it opens). One not seen yet is in dim
-// letters, and is a way there: the camera flies to it. Then the flight
-// simulator, the ride at the end of the visit (it opens at ten and then takes
-// you onto the pad, to fly the next launch), the way into the depot (the rest
-// of the collection), and "start the tour over". Folding it shut slides it
-// back in, and so does a click anywhere outside it.
+// letters, and is a way there: the camera flies to it. Then (once it's been
+// hinted at) the flight simulator, the ride at the end of the visit (it opens
+// at ten and then takes you onto the pad, to fly the next launch), the way
+// into the depot (the rest of the collection), and "start the tour over".
+// Folding it shut slides it back in, and so does a click anywhere outside it.
 
 const LAYERS = ['city', 'room', 'chip'] as const;
 const TOTAL = HOTSPOTS.length;
@@ -33,12 +34,18 @@ const tally = (n: number) => (n >= TOTAL ? `All ${TOTAL} seen` : `${n} of ${TOTA
 
 const WORD = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 
-/** Under the count, what it adds up to: the next launch, which the pad in
- *  the city stacks a piece at a time as exhibits are seen. So a visitor knows
- *  it's coming, it's said from the first glance, the last two are counted
- *  down, and it says when the pad is ready. (Short enough for a phone's
- *  narrow cover; the opening card says it in full.) */
+/** How many have to be seen before the launch is mentioned at all. A first
+ *  visit is for the work: until a second exhibit has been seen the cover is
+ *  only the count, and then the hint comes in (the tenth pip turns into the
+ *  rocket and the note under the count says what the ten add up to). */
+const HINT_AT = 2;
+
+/** Under the count, once it's been hinted at, what it adds up to: the next
+ *  launch, which the pad in the city stacks a piece at a time as exhibits are
+ *  seen. The last two are counted down, and it says when the pad is ready.
+ *  (Short enough for a phone's narrow cover.) */
 function ahead(n: number) {
+  if (n < HINT_AT) return null;
   if (n >= TOTAL) return 'Ready to launch';
   if (n === TOTAL - 1) return 'One more to launch';
   if (n === TOTAL - 2) return 'Two more to launch';
@@ -73,6 +80,9 @@ export function ExhibitionGuide({
   const found = visited.filter((slug) => HOTSPOTS.some((h) => h.slug === slug)).length;
   const count = tally(revealed);
   const note = ahead(revealed);
+  const hinted = revealed >= HINT_AT;
+  // the step that brings the hint (not a page that loads with it already given)
+  const hintNow = flashKey > 0 && revealed === HINT_AT;
   const rootRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   // The ticks already in the margin: the ones there when the page loaded (the
@@ -159,7 +169,7 @@ export function ExhibitionGuide({
         className="guide__peek"
         onClick={onOpen}
         aria-expanded={state === 'open'}
-        aria-label={`Exhibition guide, ${count}. ${note}`}
+        aria-label={note ? `Exhibition guide, ${count}. ${note}` : `Exhibition guide, ${count}`}
         tabIndex={state === 'closed' ? 0 : -1}
       />
       <div className="guide__sheet" ref={sheetRef} role="dialog" aria-label="Exhibition guide" aria-hidden={state === 'closed' || undefined}>
@@ -182,17 +192,19 @@ export function ExhibitionGuide({
             <span className="guide__cover-tally">
               <span className="hero__signals-pips">
                 {HOTSPOTS.map((h, i) =>
-                  i < TOTAL - 1 ? (
+                  i < TOTAL - 1 || !hinted ? (
                     <i key={h.slug} data-on={i < revealed || undefined} />
                   ) : (
-                    // the last one is what the ten add up to: the rocket
-                    // (with one to go, it breathes, like the pad's beacon)
+                    // the last one, once it's been hinted at, is what the ten
+                    // add up to: the rocket (it lands as the hint is given,
+                    // and with one to go it breathes, like the pad's beacon)
                     <svg
                       key={h.slug}
                       className="hero__signals-rocket"
                       viewBox="0 0 8 12"
                       data-on={i < revealed || undefined}
                       data-next={i === revealed || undefined}
+                      data-new={hintNow || undefined}
                     >
                       <path d="M4 0.6C5.6 2.2 6 4.4 6 6.6V9H2V6.6C2 4.4 2.4 2.2 4 0.6Z" />
                       <path d="M2 7.2 0.6 9.6V10.6L2 9.8ZM6 7.2 7.4 9.6V10.6L6 9.8Z" />
@@ -205,12 +217,19 @@ export function ExhibitionGuide({
               </span>
             </span>
             {/* (a returning visitor's greeting takes its place for a moment;
-                a new note comes in with the count that brings it) */}
-            {here ?? (
-              <span key={note} className="guide__cover-note" data-close={revealed >= TOTAL - 2 || undefined}>
-                {note}
-              </span>
-            )}
+                a new note comes in with the count that brings it, and the
+                first, the hint, comes in lit, a beat after the count) */}
+            {here ??
+              (note && (
+                <span
+                  key={note}
+                  className="guide__cover-note"
+                  data-close={revealed >= TOTAL - 2 || undefined}
+                  data-first={hintNow || undefined}
+                >
+                  {note}
+                </span>
+              ))}
             <span className="guide__cover-title">{EXHIBITION}</span>
           </div>
         </section>
@@ -218,28 +237,31 @@ export function ExhibitionGuide({
           <div className="guide__face guide__face--front">
             {layer('chip')}
             {/* the ride at the end of the visit: the flight simulator, which
-                flies exhibit 11 (the next launch) once all ten are seen */}
-            <div className="guide__layer guide__next">
-              {found === TOTAL ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onOpenPad();
-                  }}
-                >
-                  <span className="guide__mark" aria-hidden="true" />
-                  <span className="guide__name">Flight simulator</span>
-                  <span className="guide__go">fly the next launch →</span>
-                </button>
-              ) : (
-                <span className="guide__dark">
-                  <span className="guide__mark" aria-hidden="true" />
-                  <span className="guide__name">Flight simulator</span>
-                  <span className="guide__when">opens once you’ve seen all {TOTAL}</span>
-                </span>
-              )}
-            </div>
+                flies exhibit 11 (the next launch) once all ten are seen (and
+                isn't listed until the cover has hinted at it) */}
+            {hinted && (
+              <div className="guide__layer guide__next">
+                {found === TOTAL ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenPad();
+                    }}
+                  >
+                    <span className="guide__mark" aria-hidden="true" />
+                    <span className="guide__name">Flight simulator</span>
+                    <span className="guide__go">fly the next launch →</span>
+                  </button>
+                ) : (
+                  <span className="guide__dark">
+                    <span className="guide__mark" aria-hidden="true" />
+                    <span className="guide__name">Flight simulator</span>
+                    <span className="guide__when">opens once you’ve seen all {TOTAL}</span>
+                  </span>
+                )}
+              </div>
+            )}
             <Link className="guide__more" to="/projects" onClick={onClose}>
               {/* (the arrow kept with the last word on a narrow panel) */}
               {DEPOT_COUNT} more in the depot{'\u00a0'}

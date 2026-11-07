@@ -215,8 +215,9 @@ export interface SiteContent {
     subheading: string;
     /** The movie-intro title card, shown once on first load as the camera
      *  dollies into the maquette — written for someone who's never met Merijn.
+     *  One line is the point (a second only when it must add something).
      *  Remove this field to skip the intro card entirely. */
-    intro?: { title: string; body: string };
+    intro?: { title: string; body?: string };
   };
   capabilitiesIntro: { title: string; lead: string };
   workIntro: { title?: string; lead: string };

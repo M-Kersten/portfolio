@@ -4,12 +4,14 @@
 # Coordinates are the city's (see modelkit.py): Y up, the ground at y 0, the
 # tower standing on its plaza at the origin (city.tsx places the group). A
 # setback tower: a podium with a recessed entrance under a canopy, three tiers
-# stepping in, two crown steps, a slotted lantern, and a spire whose tip at
-# y 1.0 carries the site's beacon.
-#   tower_body     the podium, tiers, canopy and lantern: one glass shell
+# stepping in, a crown step, the lantern on it, and a spire whose tip at y 1.0
+# carries the site's beacon. The top is kept plain: at the size the city is
+# seen, two crown steps and a lantern slotted three times a face drew a knot
+# of short bright lines that the eye went to before anything else.
+#   tower_body     the podium, tiers, crown step and canopy: one glass shell
 #   tower_ribs     five vertical ribs a face on the three tiers
 #   tower_windows  the window strips between the ribs (lit with the city's windows)
-#   tower_lamp     the light inside the lantern's slots (powers on with the beacon)
+#   tower_lamp     the lantern: a block of light on the crown (powers on with the beacon)
 #   tower_spire    the four-sided spire
 # city.tsx keeps its own copy of the three tiers (TOWER_TIERS): the cables land
 # on them and the light-band steps in with them, so change both together.
@@ -24,16 +26,15 @@ from modelkit import BEV_M, BEV_S  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
 
-# (width, y0, y1, corner radius): the podium, three tiers, two crown steps
+# (width, y0, y1, corner radius): the podium, three tiers, the crown step
 TIERS = [
     (0.34, 0.0, 0.06, 0.07),
     (0.27, 0.06, 0.46, 0.075),
     (0.23, 0.46, 0.66, 0.065),
     (0.19, 0.66, 0.80, 0.055),
-    (0.15, 0.80, 0.845, 0.045),
-    (0.11, 0.845, 0.885, 0.034),
+    (0.13, 0.80, 0.875, 0.04),
 ]
-LANTERN = (0.078, 0.885, 0.94)  # width, y0, y1
+LANTERN = (0.07, 0.875, 0.94)  # width, y0, y1
 
 
 def on_face(face, u, d):
@@ -53,19 +54,11 @@ def tower():
     K.cut(body, door)
     K.bevel(body, BEV_M, now=True)
     canopy = K.rbox('canopy', (0.15, 0.008, 0.05), 0.01, pos=(0, 0.049, 0.19), axis='y', seg=4, bev=0.002)
-    # the lantern: a slotted glass box on the top step, three slots a face
+    out.append((K.join('tower_body', [body, canopy]), 'glass'))
+    # the lantern on the crown step: the light itself, no glass round it, so it
+    # has no outline to draw (it's ghost grey until the tower powers it on)
     lw, ly0, ly1 = LANTERN
-    lantern = K.rbox('lantern', (lw, ly1 - ly0, lw), 0.014, pos=(0, (ly0 + ly1) / 2, 0), axis='y', seg=6)
-    slots = []
-    for face in range(4):
-        for u in (-0.018, 0, 0.018):
-            x, z, a = on_face(face, u, lw / 2)
-            slots.append(K.box('slot', (0.007, (ly1 - ly0) * 0.7, 0.03), pos=(x, (ly0 + ly1) / 2, z), rot=(0, a, 0)))
-    K.cut(lantern, *slots)
-    K.bevel(lantern, BEV_S, now=True)
-    out.append((K.join('tower_body', [body, canopy, lantern]), 'glass'))
-    # the lamp: a lit core inside the lantern, seen through the slots
-    lamp = K.rbox('tower_lamp', (lw - 0.018, (ly1 - ly0) * 0.78, lw - 0.018), 0.01, pos=(0, (ly0 + ly1) / 2, 0), axis='y', seg=4)
+    lamp = K.rbox('tower_lamp', (lw, ly1 - ly0, lw), 0.016, pos=(0, (ly0 + ly1) / 2, 0), axis='y', seg=6, bev=BEV_S)
     K.finish(lamp, 60)
     out.append((lamp, 'mark'))
     # five ribs a face up the three tiers, and a window strip between each pair

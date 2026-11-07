@@ -51,6 +51,10 @@ export type SoundName =
   | 'grid-on'
   // the windmill's power reaching the tower: it's full, and powered for the visit
   | 'mill-power'
+  // the Big Dipper beside the windmill: a star coming out (each played a step
+  // higher than the last), and the line reaching a star as it's drawn through them
+  | 'star-pop'
+  | 'star-trace'
   // the heart: the catheter's balloon going up, and a narrowing opening
   | 'cath-inflate'
   | 'cath-clear'

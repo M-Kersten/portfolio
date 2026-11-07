@@ -61,6 +61,7 @@ The things you're most likely to want to change, and the file they live in.
 | The camera's anchors: how long a cube is held to anchor it, the merge | `ANCHOR_HOLD` and `MERGE_*` in `src/scene/maquette/chip.tsx` |
 | Popcore's bin: where it stands, how true a shot flies, the fall and what it sets off (the slow-motion beat, the confetti); the couch's shape the balls keep to | `BIN`, `BIN_TIP`, `SHOT_*`, `FLOOR_BACK`, `HIT_STOP` and `CONFETTI`; `CUSHION`, `ARM`, `BACK` and `FRAME_BACK` in `src/scene/maquette/room.tsx` |
 | The windmill's power for the tower: how fast the sails turn, how hard to blow, how fast it fills | `SPIN_REST`, `GUST*` and `POWER_*` in `src/scene/maquette/city.tsx` (the cable and its route on the road: `MillLine`) |
+| The Big Dipper beside the windmill: where it hangs, its size, and the beats of its reveal (the stars one by one, the line drawn through them) | `DIPPER_AT`, `DIPPER_SCALE`, `DIPPER_TRACE` and `STARS` in `src/scene/maquette/city.tsx` |
 | ARCam's scavenger hunt: the creatures and their names, where each hides and how it comes out, the pines, the clearing where the found ones sit, how long one's out, the lock, the "captured" bubble, the group photo | `CREATURES`, `STYLE`, `MOVES`, `PEEK`, `PERCH`, `SWIM`, `PINES`, `SEATS`, `TELL`, `UP`, `GAP`, `LOCK`, `SAID` and `FINALE` in `src/scene/maquette/critters.tsx`; how they look: `creatureMat()` there (the bubble's look: `.critter-said` in `src/ui/hotspots.css`; their models and props: `scripts/models/build_creatures.py`; a pine's rustle: `ParkTree` in `city.tsx`) |
 | The die's game of Snake: speed, when the chip takes over, the crash and the score | `SNAKE_*` in `src/scene/maquette/chip.tsx`; the rules (board size, steering, the chip's player) in `snake.ts` |
 | The Virtuele Brigade's chase in stages: the district and its places, the stories (each stage's clue, its lines, where it points), how fast the team walks; how long the cursor rests to send them on; the second player's log-in and how see-through it stays | `COLS`, `ROWS`, `BRIDGES`, `PLACES`, `STORIES`, `WALK` and `CLUE_LEN` in `src/scene/maquette/chase.ts`; `DROP` in `scenario.tsx`; `LOGIN` and `REMOTE` in `room.tsx` |
@@ -78,7 +79,7 @@ The things you're most likely to want to change, and the file they live in.
 | Where on the site | File |
 | --- | --- |
 | The welcome back line | `components/hero/HeroStage.tsx` |
-| The exhibition guide, and the "4 of 10 seen" count on its cover with its note ("Launch at ten", "Two more to launch") | `components/hero/ExhibitionGuide.tsx` (`tally`, `ahead`) |
+| The exhibition guide, and the "4 of 10 seen" count on its cover with its note ("Launch at ten", "Two more to launch"), held back until the second exhibit is seen | `components/hero/ExhibitionGuide.tsx` (`tally`, `ahead`, `HINT_AT`) |
 | How the pad gets ready as the count climbs (which piece arrives when, the beacon, the vapour) | `BUILD` and the frame loop in `src/scene/maquette/launchSite.tsx` |
 | The exhibition's name, "On display" / "In the depot" | `content/exhibits.ts` |
 | The label beside an exhibit ("Read the full story", "Watch the film") | `components/exhibit/Label.tsx` |

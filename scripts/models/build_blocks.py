@@ -12,7 +12,8 @@
 #                     cut with no outline, so the resting drawing stays sparse
 #   block<i>_windows  every pane, one-sided and facing out (the block's own
 #                     window material, on its beat of the city's light ramp)
-#   block<i>_lit      the one pane an occupied block keeps lit in the sleeping city
+# (A sleeping block used to keep one pane lit, someone home; at the size the
+# city is seen those were stray bright dots, so the city sleeps dark.)
 import math
 import os
 import sys
@@ -73,8 +74,6 @@ def city_blocks():
 
 
 BLOCKS = city_blocks()
-# Only some blocks have someone home (the site's rule: skip every third).
-OCCUPIED = [i for i in range(len(BLOCKS)) if i % 3 != 1]
 
 # ============================================================== the block
 
@@ -213,12 +212,6 @@ def block(i, b):
     wo = K.join(f'block{i}_windows', [panes('w', wins)])
     K.finish(wo, 80)
     out.append((wo, 'mark'))
-    if i in OCCUPIED:
-        # one pane on a camera-facing wall, a hair proud of the rest
-        rnd = make_rand(4231 + i * 17)
-        facing = [sp for sp in wins if sp[0] in (0.0, math.pi / 2)]
-        a, u, y, s, pw, ph = facing[min(len(facing) - 1, int(rnd() * len(facing)))]
-        out.append((panes(f'block{i}_lit', [(a, u, y, s + 0.0008, pw, ph)]), 'mark'))
     return out
 
 

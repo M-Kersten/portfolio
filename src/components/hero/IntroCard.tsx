@@ -3,17 +3,17 @@ import { site } from '../../content';
 import { bootAt, markIntroSeen, MAQUETTE_BOOT, returning, sceneStore } from '../../scene/store';
 import { useReducedMotion } from '../../lib/media';
 import { isMobileViewport } from '../../lib/media';
-import { Scramble } from '../shell/Scramble';
 
 // The movie-intro title card: shown once on first load, centred over the
-// maquette, as the camera dollies in (see CameraRig's intro). It decodes in on
-// the maquette's beat, holds while the camera pushes past the model, then clears
-// as the scene settles — or the moment the visitor scrolls/taps. Skipped on a
-// deep link (a /work node), and its copy lives in site.hero.intro (remove that
-// to drop the card). The premise line is written for a first-time visitor.
+// maquette, as the camera dollies in (see CameraRig's intro). It fades in on
+// the maquette's beat (plainly, no decoding: it's a hello, and the one line
+// anyone reads before the model), holds while the camera pushes past the
+// model, then clears as the scene settles — or the moment the visitor
+// scrolls/taps. Skipped on a deep link (a /work node), and its copy lives in
+// site.hero.intro (remove that to drop the card).
 
-const HOLD = 4200; // ms the card stays up before it clears itself: long enough to read both lines
-const FADE = 650; // ms for the card to fade out (covers intro-card.css's opacity transition)
+const HOLD = 3800; // ms the card stays up before it clears itself: the fade in, and time to read the line
+const FADE = 700; // ms for the card to fade out (covers intro-card.css's opacity transition)
 
 export function IntroCard() {
   const intro = site.hero.intro;
@@ -32,7 +32,7 @@ export function IntroCard() {
   );
   const [show, setShow] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
-  // the card decodes on the maquette's beat; the Scramble waits out that delay
+  // the card comes in on the maquette's beat
   const showDelay = useRef(Math.max(0, MAQUETTE_BOOT - (performance.now() - bootAt)));
 
   useEffect(() => {
@@ -88,9 +88,7 @@ export function IntroCard() {
   if (skip.current || !intro || reduced) return null;
   return (
     <div ref={cardRef} className="intro-card" data-show={show || undefined} aria-hidden={!show}>
-      <p className="intro-card__title">
-        <Scramble text={intro.title} delay={reduced ? 0 : showDelay.current} wrap />
-      </p>
+      <p className="intro-card__title">{intro.title}</p>
       {/* (a second line only when there's something it needs to add) */}
       {intro.body && <p className="intro-card__body">{intro.body}</p>}
     </div>

@@ -98,11 +98,14 @@ you point them on.
 ## The windmill
 
 In the DTT close-up, blowing on the mill hard enough powers the tower in the
-middle of the city.
+middle of the city. As the close-up opens, the Big Dipper comes out beside the
+mill one star at a time, and a line is drawn through it.
 
 | File | When | Notes |
 | --- | --- | --- |
 | `mill-power` | the tower is full and powers on | a big switch thrown, with a rising hum |
+| `star-pop` | a star comes out (seven in a row, each played a little higher) | a tiny glassy ping, very short |
+| `star-trace` | the line reaches the next star | softer than the pop: a faint chime or a brushed tick |
 
 ## Anchors
 

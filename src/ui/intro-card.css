@@ -69,12 +69,16 @@
   text-align: center;
   pointer-events: none;
   opacity: 0;
-  transform: translate(-50%, -50%) translateY(12px);
-  transition: opacity var(--t-slow) var(--ease), transform 0.7s var(--ease);
+  transform: translate(-50%, -50%) translateY(var(--rise-in));
+  /* going out: quicker than it came, out of the way of the hero title */
+  transition: opacity 0.7s var(--ease-in-out), transform 0.9s var(--ease);
 }
 .intro-card[data-show] {
   opacity: 1;
   transform: translate(-50%, -50%);
+  /* coming in: slowly and evenly, a line said to you rather than decoded,
+     rising the last bit into place as the camera settles in */
+  transition: opacity 1.4s var(--ease-in-out), transform 2s var(--ease);
 }
 /* soft dark halo so the type lifts off the busy wireframe behind it */
 .intro-card::before {
@@ -86,7 +90,7 @@
   pointer-events: none;
 }
 .intro-card__title {
-  margin: 0 0 0.55em;
+  margin: 0;
   /* the display voice (base.css) */
   font-size: calc(var(--step-4) * var(--display-scale));
   color: var(--ink);
@@ -94,7 +98,7 @@
   text-shadow: 0 2px 34px rgba(0, 0, 0, 0.9), 0 1px 4px rgba(0, 0, 0, 0.92);
 }
 .intro-card__body {
-  margin: 0 auto;
+  margin: var(--space-s) auto 0;
   max-width: 40ch;
   font-size: var(--step-1);
   line-height: 1.5;
