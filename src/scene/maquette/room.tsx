@@ -2493,76 +2493,192 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   );
 }
 
-/** A little mouse that lives behind the Zwijsen book. When the book is picked up
- *  it hops out of the gap it leaves, drops to the floor and then scurries a loop
- *  around the bookcase. Coords are bookcase-local; it lives outside the pop group
- *  so the bookcase's select-bounce doesn't squash it. */
-const MOUSE_GROUND = 0.03; // belly on the floor, bookcase-local
-function BookcaseMouse({ gap }: { gap: V3 }) {
+/** A little mouse that lives behind the Zwijsen book. When the book is first
+ *  picked up it hops out of the gap it leaves and drops to the floor, and from
+ *  then on it has the run of the room, the way a mouse does: in dashes, off
+ *  fast and braking hard, with stops to sniff and look round and a freeze now
+ *  and then mid-run. Out along the front of the couch, past the chair to under
+ *  the desk (up on its hind legs there for a look about), round behind the
+ *  lamp, and into hiding behind the couch for a while; then a peek out past
+ *  the couch's arm and round again. The route (`route`, set from where the
+ *  couch, the desk and the lamp stand, in RoomRig) is the room's own frame,
+ *  so the mouse lives outside the bookcase. */
+const MOUSE = {
+  dash: 1.0, // its top speed (room units a second)
+  accel: 7, // how hard it sets off…
+  brake: 5, // …and stops
+  freeze: 0.35, // the chance a second of a freeze mid-run (when there's room for one)
+  belly: 0.03, // its height off the floor
+  rug: 1.05, // the rug's radius…
+  rugTop: 0.022, // …and its height: the mouse steps up onto it
+};
+type MouseStop = { at: V3; wait?: number; rear?: boolean };
+function RoomMouse({ gap, route }: { gap: { at: V3; out: V3 }; route: MouseStop[] }) {
   const { accent, accentPale } = useAccent();
   const { selected } = useActive('zwijsen-ar-books');
   const reduced = useReducedMotion();
   const ref = useRef<Group>(null);
-  const pos = useMemo(() => new Vector3(), []);
-  const vel = useMemo(() => new Vector3(), []);
-  const phase = useRef<'hidden' | 'arming' | 'jump' | 'walk'>('hidden');
-  const delay = useRef(0);
-  const walkT = useRef(0);
-  const yaw = useRef(0);
-  // The loop the mouse walks — an ellipse that encloses the bookcase footprint.
-  const CX = 0;
-  const CZ = 0.02;
-  const RX = 0.52;
-  const RZ = 0.34;
+  const head = useRef<Group>(null);
+  // the route as one closed path through its points, and how far along it each is
+  const path = useMemo(() => {
+    const curve = new CatmullRomCurve3(
+      route.map((r) => new Vector3(r.at[0], 0, r.at[2])),
+      true,
+      'centripetal',
+    );
+    const lengths = curve.getLengths(route.length * 60);
+    const at = route.map((_, i) => lengths[i * 60]);
+    const stops = route.map((r, i) => (r.wait ? i : -1)).filter((i) => i >= 0);
+    return { curve, len: lengths[lengths.length - 1], at, stops };
+  }, [route]);
+  const st = useMemo(
+    () => ({
+      mode: 'hidden' as 'hidden' | 'arming' | 'hop' | 'enter' | 'run' | 'stop' | 'freeze',
+      t: 0, // s in this mode
+      wait: 0, // s left stopped
+      s: 0, // how far round the route
+      v: 0, // its speed
+      stop: 0, // the stop it's making for (index into path.stops)
+      from: new Vector3(), // the run in, from where it lands to the route
+      to: new Vector3(),
+      run: 0,
+      yaw: 0,
+      look: 0,
+      lookTo: 0,
+      lookT: 0,
+      rear: 0,
+      pos: new Vector3(),
+      vel: new Vector3(),
+    }),
+    [],
+  );
+  const tan = useMemo(() => new Vector3(), []);
+  const ground = (x: number, z: number) => MOUSE.belly + MOUSE.rugTop * Math.min(1, Math.max(0, (MOUSE.rug + 0.015 - Math.hypot(x, z)) / 0.03));
+  // turns the shorter way round
+  const turnTo = (a: number, b: number, k: number) => a + (Math.atan2(Math.sin(b - a), Math.cos(b - a)) * Math.min(1, k));
 
   useFrame((s, delta) => {
     const g = ref.current;
     if (!g) return;
     const dt = Math.min(delta, 1 / 30);
     const t = s.clock.elapsedTime;
+    st.t += dt;
+    const first = route[path.stops[0]].at;
 
-    if (selected && phase.current === 'hidden') {
-      phase.current = 'arming';
-      delay.current = reduced ? 0 : 0.35; // let the book clear the shelf first
-    }
-    if (phase.current === 'arming') {
-      delay.current -= dt;
-      if (delay.current <= 0) {
-        g.visible = true;
-        if (reduced) {
-          phase.current = 'walk';
-          walkT.current = Math.PI / 2; // sit at the front, no hop
-          pos.set(CX, MOUSE_GROUND, CZ + RZ);
-        } else {
-          phase.current = 'jump';
-          pos.set(gap[0], gap[1], gap[2]);
-          vel.set(0.05, 0.72, 0.55); // hop up and out toward the room
-        }
-      }
-    } else if (phase.current === 'jump') {
-      vel.y -= 3.0 * dt; // gravity
-      pos.addScaledVector(vel, dt);
-      yaw.current = Math.atan2(vel.x, vel.z);
-      if (pos.y <= MOUSE_GROUND) {
-        pos.y = MOUSE_GROUND;
-        phase.current = 'walk';
-        walkT.current = Math.atan2((pos.z - CZ) / RZ, (pos.x - CX) / RX); // continue from here
-      }
-    } else if (phase.current === 'walk') {
-      const speed = reduced ? 0 : 0.85 + Math.sin(t * 6) * 0.18; // rad/s, with a little scurry
-      walkT.current += speed * dt;
-      pos.set(CX + Math.cos(walkT.current) * RX, MOUSE_GROUND, CZ + Math.sin(walkT.current) * RZ);
-      pos.y += reduced ? 0 : Math.abs(Math.sin(t * 15)) * 0.004; // scurry bob
-      yaw.current = Math.atan2(-Math.sin(walkT.current) * RX, Math.cos(walkT.current) * RZ);
-    }
-
-    if (phase.current === 'hidden') {
+    if (selected && st.mode === 'hidden') Object.assign(st, { mode: 'arming', t: 0 });
+    if (st.mode === 'hidden') {
       g.visible = false;
       return;
     }
-    g.position.copy(pos);
-    g.rotation.y = yaw.current;
-    g.rotation.x = phase.current === 'jump' ? Math.max(-0.5, Math.min(0.5, -vel.y * 0.3)) : 0;
+    g.visible = true;
+    if (st.mode === 'arming' && st.t >= (reduced ? 0 : 0.35)) {
+      // (let the book clear the shelf first)
+      if (reduced) {
+        // no hop and no running about: it sits by the couch
+        st.pos.set(first[0], ground(first[0], first[2]), first[2]);
+        Object.assign(st, { mode: 'stop', t: 0, wait: Infinity, yaw: 0.6 });
+      } else {
+        st.pos.set(gap.at[0], gap.at[1], gap.at[2]);
+        st.vel.set(gap.out[0], gap.out[1], gap.out[2]);
+        Object.assign(st, { mode: 'hop', t: 0 });
+      }
+    }
+    let speed = 0;
+    if (st.mode === 'hop') {
+      st.vel.y -= 3.0 * dt; // gravity
+      st.pos.addScaledVector(st.vel, dt);
+      st.yaw = Math.atan2(st.vel.x, st.vel.z);
+      const y0 = ground(st.pos.x, st.pos.z);
+      if (st.pos.y <= y0) {
+        // landed: a dash over to the route, at the stop nearest
+        st.pos.y = y0;
+        st.from.copy(st.pos);
+        let near = 0;
+        path.stops.forEach((i, k) => {
+          const a = route[i].at;
+          const b = route[path.stops[near]].at;
+          if (Math.hypot(a[0] - st.pos.x, a[2] - st.pos.z) < Math.hypot(b[0] - st.pos.x, b[2] - st.pos.z)) near = k;
+        });
+        const a = route[path.stops[near]].at;
+        st.to.set(a[0], 0, a[2]);
+        Object.assign(st, { mode: 'enter', t: 0, run: 0, v: 0.3, stop: near });
+      }
+    }
+    // the dash: off fast, braking to arrive on the mark
+    const dash = (dist: number) => {
+      const top = Math.min(MOUSE.dash, Math.sqrt(2 * MOUSE.brake * Math.max(0, dist)));
+      st.v = Math.min(top, st.v + MOUSE.accel * dt);
+      return st.v * dt;
+    };
+    if (st.mode === 'enter') {
+      const len = Math.hypot(st.to.x - st.from.x, st.to.z - st.from.z);
+      st.run = Math.min(len, st.run + dash(len - st.run));
+      const k = st.run / Math.max(1e-6, len);
+      st.pos.set(st.from.x + (st.to.x - st.from.x) * k, 0, st.from.z + (st.to.z - st.from.z) * k);
+      st.yaw = turnTo(st.yaw, Math.atan2(st.to.x - st.from.x, st.to.z - st.from.z), dt * 14);
+      speed = st.v;
+      if (len - st.run < 0.002) {
+        const i = path.stops[st.stop];
+        Object.assign(st, { mode: 'stop', t: 0, s: path.at[i], wait: route[i].wait ?? 0.5, v: 0 });
+      }
+    }
+    if (st.mode === 'run') {
+      const target = path.at[path.stops[st.stop]];
+      const dist = (target - st.s + path.len) % path.len;
+      const step = dash(dist);
+      st.s = (st.s + step) % path.len;
+      speed = st.v;
+      if (dist - step < 0.002) {
+        const i = path.stops[st.stop];
+        Object.assign(st, { mode: 'stop', t: 0, s: target, wait: route[i].wait ?? 0, v: 0 });
+      } else if (dist > 0.3 && st.v > MOUSE.dash * 0.7 && Math.random() < MOUSE.freeze * dt) {
+        // a freeze, mid-run: still as a stone, then off again
+        Object.assign(st, { mode: 'freeze', t: 0, wait: 0.15 + Math.random() * 0.25, v: 0 });
+      }
+    }
+    if (st.mode === 'run' || st.mode === 'stop' || st.mode === 'freeze') {
+      const u = st.s / path.len;
+      path.curve.getPointAt(u, st.pos);
+      path.curve.getTangentAt(u, tan);
+      if (st.mode === 'run') {
+        // a little zig-zag as it goes, and its head turned along the way
+        const side = Math.sin(st.s * 34) * 0.006 * (st.v / MOUSE.dash);
+        st.pos.x += tan.z * side;
+        st.pos.z -= tan.x * side;
+        st.yaw = turnTo(st.yaw, Math.atan2(tan.x, tan.z), dt * 16);
+      }
+    }
+    if ((st.mode === 'stop' || st.mode === 'freeze') && st.wait !== Infinity) {
+      st.wait -= dt;
+      if (st.wait <= 0) {
+        if (st.mode === 'stop') st.stop = (st.stop + 1) % path.stops.length;
+        Object.assign(st, { mode: 'run', t: 0 });
+      }
+    }
+
+    // stopped: a look round in quick turns of the head, and at the desk up on
+    // its hind legs for a while
+    const still = st.mode === 'stop' && !reduced;
+    if (still) {
+      st.lookT -= dt;
+      if (st.lookT <= 0) {
+        st.lookTo = (Math.random() - 0.5) * 1.8;
+        st.lookT = 0.25 + Math.random() * 0.5;
+      }
+    } else st.lookTo = 0;
+    st.look += (st.lookTo - st.look) * Math.min(1, dt * 18);
+    const rearing = still && route[path.stops[st.stop]]?.rear && st.t > 0.3 && st.wait > 0.35;
+    st.rear += ((rearing ? 1 : 0) - st.rear) * Math.min(1, dt * 9);
+
+    const run = Math.min(1, speed / MOUSE.dash);
+    const y = st.mode === 'hop' ? st.pos.y : ground(st.pos.x, st.pos.z);
+    g.position.set(st.pos.x, y + Math.abs(Math.sin(t * 32)) * 0.005 * run + 0.012 * st.rear, st.pos.z);
+    g.rotation.y = st.yaw + st.look * (1 - st.rear * 0.5);
+    g.rotation.x = st.mode === 'hop' ? Math.max(-0.5, Math.min(0.5, -st.vel.y * 0.3)) : 0.08 * run - 0.75 * st.rear;
+    // stretched out as it runs
+    g.scale.set(1 - 0.06 * run, 1 - 0.06 * run, 1 + 0.14 * run);
+    // and sniffing whenever it's stopped
+    if (head.current) head.current.rotation.x = still || st.mode === 'freeze' ? (st.mode === 'freeze' ? 0 : Math.sin(t * 26) * 0.08) : 0.05 * run;
   });
 
   const GREY = SURFACE.pale.color;
@@ -2573,26 +2689,29 @@ function BookcaseMouse({ gap }: { gap: V3 }) {
         <sphereGeometry args={[1, 12, 10]} />
         <meshStandardMaterial color={GREY} emissive={SURFACE.deep.color} emissiveIntensity={0.25} roughness={0.7} flatShading />
       </mesh>
-      <mesh position={[0, 0.004, 0.03]} scale={[0.015, 0.014, 0.018]}>
-        <sphereGeometry args={[1, 12, 10]} />
-        <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.deep.color} emissiveIntensity={0.25} roughness={0.7} flatShading />
-      </mesh>
-      {[-1, 1].map((sx, i) => (
-        <mesh key={`ear${i}`} position={[sx * 0.011, 0.016, 0.026]}>
-          <sphereGeometry args={[0.008, 10, 8]} />
-          <meshStandardMaterial color={PINK} emissive={SURFACE.deep.color} emissiveIntensity={0.2} roughness={0.7} />
+      {/* the head, on its own so it can sniff */}
+      <group ref={head} position={[0, 0.004, 0.022]}>
+        <mesh position={[0, 0, 0.008]} scale={[0.015, 0.014, 0.018]}>
+          <sphereGeometry args={[1, 12, 10]} />
+          <meshStandardMaterial color={SURFACE.pale.color} emissive={SURFACE.deep.color} emissiveIntensity={0.25} roughness={0.7} flatShading />
         </mesh>
-      ))}
-      {[-1, 1].map((sx, i) => (
-        <mesh key={`eye${i}`} position={[sx * 0.007, 0.006, 0.042]}>
-          <sphereGeometry args={[0.0035, 8, 8]} />
-          <meshStandardMaterial color={accentPale} emissive={accent} emissiveIntensity={1.2} toneMapped={false} />
+        {[-1, 1].map((sx, i) => (
+          <mesh key={`ear${i}`} position={[sx * 0.011, 0.012, 0.004]}>
+            <sphereGeometry args={[0.008, 10, 8]} />
+            <meshStandardMaterial color={PINK} emissive={SURFACE.deep.color} emissiveIntensity={0.2} roughness={0.7} />
+          </mesh>
+        ))}
+        {[-1, 1].map((sx, i) => (
+          <mesh key={`eye${i}`} position={[sx * 0.007, 0.002, 0.02]}>
+            <sphereGeometry args={[0.0035, 8, 8]} />
+            <meshStandardMaterial color={accentPale} emissive={accent} emissiveIntensity={1.2} toneMapped={false} />
+          </mesh>
+        ))}
+        <mesh position={[0, -0.003, 0.028]}>
+          <sphereGeometry args={[0.004, 8, 8]} />
+          <meshStandardMaterial color={accentPale} emissive={accentPale} emissiveIntensity={0.5} toneMapped={false} />
         </mesh>
-      ))}
-      <mesh position={[0, 0.001, 0.05]}>
-        <sphereGeometry args={[0.004, 8, 8]} />
-        <meshStandardMaterial color={accentPale} emissive={accentPale} emissiveIntensity={0.5} toneMapped={false} />
-      </mesh>
+      </group>
       <mesh position={[0, 0.007, -0.03]} rotation={[-0.5, 0, 0]}>
         <cylinderGeometry args={[0.0015, 0.003, 0.05, 6]} />
         <meshStandardMaterial color={PINK} roughness={0.7} />
@@ -2733,7 +2852,6 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
           <OpenBook slug="zwijsen-ar-books" position={[0.12, 0.52, 0.04]} />
         </LifeGroup>
       </group>
-      <BookcaseMouse gap={[0.12, 0.52, 0.04]} />
     </group>
   );
 }
@@ -2935,6 +3053,37 @@ export function RoomRig() {
   const shelf = usePlacement('Room.Bookcase', { position: [0.9, 0, -1.0], rotationY: -0.27 });
   const plant = usePlacement('Room.Plant', { position: [-1.15, 0, -0.95] });
   const lamp = usePlacement('Room.Floor lamp', { position: [-0.5, 0, -0.6] });
+  // the shelf mouse's run of the room (RoomMouse), from where the furniture
+  // stands: a point in a piece's own frame, on the floor in the room's
+  const mouse = useMemo(() => {
+    const at = (p: { position: V3; rotationY?: number }, x: number, z: number): V3 => {
+      const c = Math.cos(p.rotationY ?? 0);
+      const s = Math.sin(p.rotationY ?? 0);
+      return [p.position[0] + x * c + z * s, 0, p.position[2] - x * s + z * c];
+    };
+    const l = lamp.position;
+    const route: MouseStop[] = [
+      { at: at(couch, 0.48, 0.33), wait: 0.9 }, // the couch's front corner: a sniff
+      { at: at(couch, 0.0, 0.34), wait: 0.3 }, // a stop half way along its front
+      { at: at(couch, -0.55, 0.3) }, // its other corner
+      { at: at(desk, -0.29, 0.23) }, // past the chair…
+      { at: at(desk, -0.18, -0.32), wait: 1.8, rear: true }, // …and under the desk: up on its hind legs
+      { at: at(desk, 0.26, -0.15) }, // out the desk's far end
+      { at: [l[0] - 0.45, 0, l[2] + 0.18] }, // round behind the lamp
+      { at: [l[0] - 0.25, 0, l[2] - 0.2] },
+      { at: [l[0] + 0.25, 0, l[2] - 0.26] },
+      { at: at(couch, 0, -0.36), wait: 3.2 }, // behind the couch: hiding
+      { at: at(couch, 0.58, -0.26), wait: 0.6 }, // a peek out past its arm…
+      { at: at(couch, 0.76, 0.0) }, // …and round the outside of Popcore's bin (BIN)
+      { at: at(couch, 0.7, 0.26) },
+    ];
+    // the gap the book leaves on the shelf, and the hop out of it
+    const g = at(shelf, 0.12, 0.04);
+    const c = Math.cos(shelf.rotationY ?? 0);
+    const s = Math.sin(shelf.rotationY ?? 0);
+    const gap = { at: [g[0], 0.52, g[2]] as V3, out: [0.05 * c + 0.55 * s, 0.72, -0.05 * s + 0.55 * c] as V3 };
+    return { route, gap };
+  }, [couch, desk, lamp, shelf]);
   return (
     <group>
       {/* round rug centred on the scene — lined up with the chip die below it.
@@ -2967,6 +3116,9 @@ export function RoomRig() {
       {/* bookcase (back-right) — engaging the Zwijsen book lights its spine +
           lifts the open book out of its gap */}
       <Bookcase position={shelf.position} rotation={[0, shelf.rotationY, 0]} />
+      {/* …and out of that gap the mouse that lives behind the book, which has
+          the run of the room from then on */}
+      <RoomMouse gap={mouse.gap} route={mouse.route} />
 
       {/* couch + phone — faces the coffee table / room front (+z). Opening the
           phone solidifies the couch it sits on. */}
