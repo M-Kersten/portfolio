@@ -6,9 +6,10 @@
 import { useEffect, useMemo, useRef, type ElementRef, type MutableRefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, FrontSide, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, Shape, ShapeGeometry, SRGBColorSpace, TorusGeometry, Vector2, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera, type Side, type Sprite, type SpriteMaterial, type Texture } from 'three';
+import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, FrontSide, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, Shape, ShapeGeometry, SRGBColorSpace, TorusGeometry, Vector2, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera, type Side, type Sprite, SpriteMaterial, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
-import { portraitMix } from '../framing';
+import { HOTSPOTS, portraitMix } from '../framing';
+import { useSceneSelector } from '../store';
 import { isTouch, useReducedMotion } from '../../lib/media';
 import { play } from '../../lib/sound';
 import { spring } from '../../lib/spring';
@@ -1953,8 +1954,52 @@ function CoffeeCup({ position, rotation, lit }: { position: V3; rotation?: V3; l
 
 /** A tripod floor lamp: three splayed, tapered legs meeting at a turned hub,
  *  a stem on up to a drum shade with a real wall (outside and in), and a
- *  finial on top. */
-function FloorLamp({ position }: { position: V3 }) {
+ *  finial on top. It's switched on while `slug`'s exhibit is open (whichever
+ *  stands nearest it: RoomRig): the bulb lights up inside the shade, the shade
+ *  glows with it and a pool of light spreads on the floor round its feet, in
+ *  the room's accent. It catches with a flicker, the way a bulb does, and fades
+ *  off when the exhibit's put down. It goes on the moment the exhibit's picked,
+ *  not when the camera has arrived (the close-ups are tight, and the lamp is
+ *  at the edge of one at best): you see it come on as you fly in, and its
+ *  light on the floor reaches into the close-up, and you see it go off on the
+ *  way out. */
+const LAMP = {
+  catch: 0.34, // s it flickers for, switching on
+  fade: 1.4, // s it takes to go off (the camera's pulling back out meanwhile)
+  pool: 0.7, // the light on the floor: its radius…
+  poolGlow: 0.5, // …and how strong
+};
+const LAMP_FLICKER = [0.65, 0.12, 0.85, 0.3, 0.95, 0.6]; // its level, step by step, as it catches
+function FloorLamp({ position, slug }: { position: V3; slug?: string }) {
+  const { accent, accentPale } = useAccent();
+  const selected = useSceneSelector((s) => !!slug && s.selectedSlug === slug); // as it's picked (see above)
+  const reduced = useReducedMotion();
+  const light = useMemo(() => {
+    const add = (color: string, map?: Texture) => {
+      const m = new MeshBasicMaterial({ color, map, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, toneMapped: false, side: DoubleSide });
+      m.userData = { lifeSkip: true }; // it sets its own opacity (presence.tsx)
+      return m;
+    };
+    const bulb = new SpriteMaterial({ map: glowTexture(), color: accentPale, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
+    bulb.userData = { lifeSkip: true };
+    return { shade: add(accentPale), pool: add(accent, glowTexture()), bulb, level: 0, t: -1 };
+  }, [accent, accentPale]);
+  useEffect(() => () => [light.shade, light.pool, light.bulb].forEach((m) => m.dispose()), [light]);
+  useFrame((_s, delta) => {
+    const dt = Math.min(delta, 1 / 20);
+    if (selected) {
+      // catching: a few steps of flicker, then steady
+      light.t = light.t < 0 ? 0 : light.t + dt;
+      const k = Math.floor((light.t / LAMP.catch) * LAMP_FLICKER.length);
+      light.level = reduced || k >= LAMP_FLICKER.length ? 1 : LAMP_FLICKER[k];
+    } else {
+      light.t = -1;
+      light.level = reduced ? 0 : Math.max(0, light.level - dt / LAMP.fade);
+    }
+    light.shade.opacity = light.level * 0.45;
+    light.bulb.opacity = light.level * 0.95;
+    light.pool.opacity = light.level * LAMP.poolGlow;
+  });
   const g = useGeometry(() => {
     const frame: BufferGeometry[] = [];
     for (let i = 0; i < 3; i++) {
@@ -1978,6 +2023,12 @@ function FloorLamp({ position }: { position: V3 }) {
       </mesh>
       <mesh geometry={g.shade}>
         <GlassMat tint="pale" />
+      </mesh>
+      {/* switched on: the shade lit from inside, the bulb, the light on the floor */}
+      <mesh geometry={g.shade} material={light.shade} scale={[1.006, 1, 1.006]} />
+      <sprite material={light.bulb} position={[0, 0.7, 0]} scale={0.34} />
+      <mesh material={light.pool} position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[LAMP.pool, 40]} />
       </mesh>
     </group>
   );
@@ -3360,6 +3411,18 @@ export function RoomRig() {
     const gap = { at: [g[0], 0.52, g[2]] as V3, out: [0.05 * c + 0.55 * s, 0.72, -0.05 * s + 0.55 * c] as V3 };
     return { route, gap };
   }, [couch, desk, lamp, shelf]);
+  // the lamp is switched on by the exhibit standing nearest it
+  const lampSlug = useMemo(() => {
+    const [x, , z] = lamp.position;
+    let best = '';
+    let d = Infinity;
+    for (const h of HOTSPOTS) {
+      if (h.layer !== 'room') continue;
+      const e = Math.hypot(h.anchor[0] - x, h.anchor[2] - z);
+      if (e < d) [best, d] = [h.slug, e];
+    }
+    return best;
+  }, [lamp]);
   return (
     <group>
       {/* round rug centred on the scene — lined up with the chip die below it.
@@ -3421,7 +3484,7 @@ export function RoomRig() {
       {/* the plant and the lamp fill the back-left, which stood empty; the
           plant belongs to the workstation corner, so it wakes with the monitor */}
       <PottedPlant position={plant.position} liveSlug="virtuele-brigade" />
-      <FloorLamp position={lamp.position} />
+      <FloorLamp position={lamp.position} slug={lampSlug} />
     </group>
   );
 }
