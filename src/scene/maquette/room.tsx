@@ -4,16 +4,17 @@
 // openable Zwijsen book, plus lamp and plant props. RoomRig composes and places
 // everything.
 import { useEffect, useMemo, useRef, type ElementRef, type MutableRefObject } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, FrontSide, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, SRGBColorSpace, TorusGeometry, Vector2, Vector3, Vector4, type Group, type Mesh, type Side, type Sprite, type SpriteMaterial, type Texture } from 'three';
+import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, FrontSide, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, Shape, ShapeGeometry, SRGBColorSpace, TorusGeometry, Vector2, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera, type Side, type Sprite, type SpriteMaterial, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
+import { portraitMix } from '../framing';
 import { isTouch, useReducedMotion } from '../../lib/media';
 import { play } from '../../lib/sound';
 import { spring } from '../../lib/spring';
-import { bump, easeIn, easeInOut, easeOut, easeOutBack, ring } from '../../lib/ease';
+import { bump, easeIn, easeInOut, easeOut, easeOutBack, ring, settle } from '../../lib/ease';
 import { cursorAtDepth, cursorIdle, cursorNdc, cursorRay, useCloseUp } from './closeup';
-import { drawSpread, hideUv, mouseIcon, SPREADS, SPREAD_H, SPREAD_W } from './bookPages';
+import { COVER_H, COVER_W, drawCover, drawSpread, hideUv, mouseIcon, MOUSE_ICON, sparkleIcon, SPREADS, SPREAD_H, SPREAD_W } from './bookPages';
 import { POSTS, ROUND_LEN, Scenario, newSessionLink, type SessionLink } from './scenario';
 import { GOLD, PALETTE, SURFACE, SURFACE_GLOW, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
@@ -2049,71 +2050,136 @@ const BOOKS: { p: V3; s: V3; c: Tint; r?: V3 }[] = [
   { p: [0.03, 0.255, 0.02], s: [0.052, 0.16, 0.18], c: 'pale' },
 ];
 
-/** The Zwijsen AR-books hotspot — a real little book. Two rigid halves (cover
- *  board + page block + printed page) hinge at the spine: it stands CLOSED in
- *  its shelf gap, and on select it lifts out, tilts toward the player and the
- *  front half swings open onto a spread of its picture book (bookPages.ts:
- *  four spreads of Mouse's day out, drawn in the model's stock).
+/** The Zwijsen AR-books hotspot — a real little picture book. Two rigid halves
+ *  (cover board + page block + printed page) hinge at the spine: it stands
+ *  CLOSED in its shelf gap, cover out, and on select it slides out, rises and
+ *  turns to the player, and its cover swings open (falling a touch past open,
+ *  and settling) onto a spread of its picture book (bookPages.ts: four
+ *  spreads of Mouse's day out, drawn in the model's stock).
  *
  *  In the close-up it's a seek-and-find, the way the real apps were. Mouse is
  *  on every spread, but not in the print: only in its AR layer, and wherever
  *  the cursor is on the page, a lens round it (a coral ring on the paper; the
- *  cursor itself stays the cursor) shows the page in AR. Rest it on Mouse and
- *  the ring fills round; full, Mouse is found and lifts off the page, and the
- *  right-hand page turns over onto the next spread. After the fourth, the book
- *  closes in your hands and opens again on the first. Only two spreads are
- *  drawn at a time: the one open and the one coming. With no cursor (a touch
- *  screen) the lens finds Mouse by itself, slowly; under reduced motion the
- *  book just opens on its page. */
-const BOOK_W = 0.17; // full open width
-const BOOK_H = 0.19; // page depth (spine length)
+ *  cursor itself stays the cursor) pops out and shows the page in AR. Rest it
+ *  on Mouse and the ring fills round and draws in; full, Mouse is found: a
+ *  ripple runs out over the page, Mouse pops up out of it in a burst of
+ *  sparkles, looks round and hops off, and the right-hand page peels up and
+ *  turns over onto the next spread, its shadow running over the pages under
+ *  it and the book dipping a little as it lands. After the fourth, the book
+ *  claps shut in your hands and opens again on the first. Only two spreads
+ *  are drawn at a time: the one open and the one coming. With no cursor (a
+ *  touch screen) the lens finds Mouse by itself, slowly; under reduced motion
+ *  the book just opens on its page. */
+// A picture book's own proportions (build_books.py, ZW_*): its pages a little
+// taller than they're wide, so open, the spread is landscape
+const BOOK_W = 0.27; // full open width
+const BOOK_H = 0.18; // page depth (spine length)
 const BOOK_T = 0.011; // cover board thickness
 const BOOK_PT = 0.009; // page block thickness per half
-const BOOK_ANG = 0.14; // resting V of the halves once open: shallow, so both pages face you
-const BOOK_HELD = 0.55; // how much bigger it's held up to be read than it stood on the shelf
-const PAGE_W = BOOK_W / 2 - 0.016; // a printed page, across
-const PAGE_H = BOOK_H - 0.02; // …and along the spine
-const PAGE_Y = BOOK_T / 2 + BOOK_PT + 0.0008; // its face, above the hinge
-const PAGE_X0 = BOOK_W / 4 - PAGE_W / 2; // its inner edge, out from the spine
+const BOOK_SQUARE = 0.004; // how far the board stands proud of the page block
+const BOOK_ANG = 0.12; // resting V of the halves once open: shallow, so both pages face you
+const BOOK_HELD = 0.5; // how much bigger it's held up to be read than it stood on the shelf
+const BOOK_SHUT_Y = BOOK_T + BOOK_PT * 2 + 0.001; // the front half's hinge, lifted onto the back half when shut
+const PAGE_X0 = 0.0015; // a printed page's inner edge: right into the fold…
+const PAGE_W = BOOK_W / 2 - PAGE_X0 - BOOK_SQUARE - 0.0005; // …and out to the block's fore-edge
+const PAGE_H = BOOK_H - 2 * BOOK_SQUARE - 0.001; // …and along the spine
+const PAGE_R = 0.0028; // its outer corners, rounded with the block's
+const PAGE_Y = BOOK_T / 2 + BOOK_PT + 0.0006; // its face, above the hinge
+const PAGE_END = PAGE_X0 + PAGE_W; // its fore-edge, out from the spine
 const SPREAD_ASPECT = (2 * PAGE_W) / PAGE_H; // the spread's width against its height
-/** The lens: its radius (of the page's height), s to fade in or out, s to rest
- *  on Mouse before Mouse counts as found (the ring fills round meanwhile). */
-const LENS = { r: 0.11, fade: 0.12, dwell: 0.5 };
-/** Mouse found: s before the page turns, and s Mouse takes to lift off it. */
-const FOUND = { hold: 0.95, lift: 1.2 };
-/** A page turning: s it takes, and how far its free edge lags (rad) at the middle. */
-const TURN = { len: 0.85, curl: 0.6 };
-/** The end: s to close the book, s held shut, s to open it again. */
-const SHUT = { close: 0.55, hold: 0.35, open: 0.7 };
+/** Where it stands closed in its shelf gap, and where it's held up open
+ *  (offsets from its place): shut, the book lies all on its hinge's +x side,
+ *  so it's set back −x to stand in the middle of the gap. */
+const BOOK_REST = { x: -0.1, y: 0.004, z: 0.02 };
+const BOOK_OPEN = { x: -0.03, y: 0.16, z: 0.36 };
+/** How it's held up to be read (rad): tipped back to face you, turned a
+ *  little in its own plane, and round toward the camera, which looks from a
+ *  little to the right, so the spread reads square on. */
+const BOOK_HOLD = { tilt: 1.12, roll: 0.04, yaw: 0.14 };
+/** On a phone it's held up close instead, in front of you rather than at the
+ *  shelf: on the line from the camera through the porthole's centre (where
+ *  the close-up frames the exhibit; porthole.css) and `lift` of the screen's
+ *  height above it, in the middle of the band between the header and the
+ *  sheet, near enough that it fills `fill` of the screen's width. */
+const BOOK_NEAR = { fill: 0.84, lift: 0.09 };
+/** Where the porthole's centre is on the screen, as NDC (porthole.css,
+ *  --fr-cx / --fr-cy: the same the camera slides the exhibit onto). */
+function portholeNdc(out: Vector2) {
+  const cs = getComputedStyle(document.documentElement);
+  const pct = (name: string, fallback: number) => {
+    const n = parseFloat(cs.getPropertyValue(name));
+    return Number.isFinite(n) ? n / 100 : fallback;
+  };
+  return out.set(pct('--fr-cx', 0.5) * 2 - 1, 1 - pct('--fr-cy', 0.3) * 2);
+}
+/** Opening it: s from the shelf to open in your hands (putting it back takes
+ *  `back` of that), and the stretches of that (as fractions) it slides out of
+ *  its gap over, rises and turns to you over, and its cover swings open over. */
+const OPEN = { len: 1.2, back: 0.6, slide: [0, 0.38], rise: [0.1, 0.62], swing: [0.42, 1] } as const;
+/** The lens: its radius (of the page's height), s to pop out, s to shrink
+ *  away, s to rest on Mouse before Mouse counts as found, and how far it draws
+ *  in round Mouse meanwhile (as the ring fills round). */
+const LENS = { r: 0.11, pop: 0.3, fade: 0.16, dwell: 0.55, draw: 0.14 };
+/** Mouse found: s before the page turns; Mouse popping out of the page: s on
+ *  the way up, s looking round, s hopping off; the sparkles (how many, s they
+ *  fly for); and s the ripple runs out over the page for. */
+const FOUND = { hold: 1.15, up: 0.26, look: 0.36, hop: 0.42, sparks: 10, spark: 0.75, wave: 0.7 };
+/** A page turning: s it takes, how far (rad) its free edge leads as it peels
+ *  up and trails as it comes down, and how dark its shadow on the page under it. */
+const TURN = { len: 0.95, lead: 0.42, trail: 0.7, shadow: 0.42 };
+/** The end: s for the cover to fall shut, s held shut, s to open again. */
+const SHUT = { close: 0.5, hold: 0.55, open: 0.8 };
 /** With no cursor: s before the lens comes out, and s it takes to reach Mouse. */
 const AUTO = { wait: 0.9, glide: 1.8 };
 const AR_SCALE = 0.75; // the AR layer's canvas against the print's (soft, and only ever seen through the lens)
-const LEAF_N = 16; // segments across the turning page
+const LEAF_N = 20; // segments across the turning page
+const span = (t: number, [a, b]: readonly [number, number]) => (t - a) / (b - a);
 
-type LensUniforms = { uAr: { value: Texture }; uLens: { value: Vector4 }; uLock: { value: number }; uRing: { value: Color } };
+type LensUniforms = {
+  uAr: { value: Texture };
+  uLens: { value: Vector4 };
+  uLock: { value: number };
+  uRing: { value: Color };
+  uWave: { value: Vector4 };
+  uTurn: { value: Vector3 };
+};
 /** A printed page. On the two open pages, the lens: inside it the page shows
  *  its AR layer over the print (uAr, the whole spread's, sampled where the
  *  print is), a touch brighter, inside a ring that fills round (uLock) while
  *  Mouse is held in it. uLens: its centre (the spread's u, v), radius, and how
- *  far it's faded in. */
+ *  far it's out. Then the ripple when Mouse is found (uWave: its centre,
+ *  radius, strength), and the shadow of the page turning over them (uTurn:
+ *  where its free edge stands over the spread, in u, how soft, how dark). The
+ *  turning page itself (no uniforms) darkens as it stands up off the book and
+ *  turns its face from you. */
 function pageMaterial(u: LensUniforms | null, side: Side = DoubleSide): MeshStandardMaterial {
-  const m = new MeshStandardMaterial({ emissive: '#ffffff', emissiveIntensity: 0.85, roughness: 0.75, toneMapped: false, side });
+  const m = new MeshStandardMaterial({ emissive: '#ffffff', emissiveIntensity: 0.74, roughness: 0.8, toneMapped: false, side });
+  const aspect = SPREAD_ASPECT.toFixed(4);
   if (!u) {
     // the turning page sits a hair over the open ones; this keeps it in front
     m.polygonOffset = true;
     m.polygonOffsetFactor = -2;
     m.polygonOffsetUnits = -2;
+    m.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+  float leafLit = mix(0.58, 1.0, smoothstep(0.15, 0.85, abs(normal.z)));
+  diffuseColor.rgb *= leafLit;
+  totalEmissiveRadiance *= leafLit;`,
+      );
+    };
     return m;
   }
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, u);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D uAr;\nuniform vec4 uLens;\nuniform float uLock;\nuniform vec3 uRing;')
+      .replace('#include <common>', '#include <common>\nuniform sampler2D uAr;\nuniform vec4 uLens;\nuniform float uLock;\nuniform vec3 uRing;\nuniform vec4 uWave;\nuniform vec3 uTurn;')
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
 #ifdef USE_MAP
-  vec2 lensD = (vMapUv - uLens.xy) * vec2(${SPREAD_ASPECT.toFixed(4)}, 1.0);
+  vec2 lensD = (vMapUv - uLens.xy) * vec2(${aspect}, 1.0);
   float lensR = length(lensD);
   float lensAA = fwidth(lensR) + 0.0006;
   float lensIn = (1.0 - smoothstep(uLens.z - lensAA, uLens.z + lensAA, lensR)) * uLens.w;
@@ -2123,15 +2189,49 @@ function pageMaterial(u: LensUniforms | null, side: Side = DoubleSide): MeshStan
   totalEmissiveRadiance = mix(totalEmissiveRadiance, arC.rgb * 1.1, arA) + uRing * 0.05 * lensIn;
   float ringW = 0.0032 + 0.0035 * uLock;
   float ringA = (1.0 - smoothstep(ringW * 0.5, ringW * 0.5 + lensAA, abs(lensR - uLens.z))) * uLens.w;
-  float round = fract(atan(lensD.x, lensD.y) / 6.28318 + 1.0);
-  float filled = step(round, uLock);
+  float lensRound = fract(atan(lensD.x, lensD.y) / 6.28318 + 1.0);
+  float filled = step(lensRound, uLock);
   ringA *= mix(0.7, 1.0, filled);
   diffuseColor.rgb = mix(diffuseColor.rgb, uRing, ringA);
   totalEmissiveRadiance = mix(totalEmissiveRadiance, uRing * (1.1 + 0.9 * filled), ringA);
+  float waveR = length((vMapUv - uWave.xy) * vec2(${aspect}, 1.0));
+  float waveA = (1.0 - smoothstep(0.0018, 0.0018 + lensAA, abs(waveR - uWave.z))) * uWave.w;
+  diffuseColor.rgb = mix(diffuseColor.rgb, uRing, waveA);
+  totalEmissiveRadiance = mix(totalEmissiveRadiance, uRing * 1.6, waveA);
+  float overRight = step(0.5, uTurn.x);
+  float turnD = (vMapUv.x - uTurn.x) * (overRight * 2.0 - 1.0);
+  float underLeaf = (1.0 - smoothstep(-uTurn.y, uTurn.y, turnD)) * (1.0 - abs(overRight - step(0.5, vMapUv.x)));
+  float turnShade = 1.0 - uTurn.z * underLeaf;
+  diffuseColor.rgb *= turnShade;
+  totalEmissiveRadiance *= turnShade;
 #endif`,
       );
   };
   return m;
+}
+
+/** A printed page, in its own plane (x across, y along the spine): square at
+ *  the fold, its outer corners rounded with the block's (`side`: which way its
+ *  outer edge is), its picture laid on it edge to edge. */
+function pageGeometry(side: -1 | 1): ShapeGeometry {
+  const w = PAGE_W / 2;
+  const h = PAGE_H / 2;
+  const pts = [new Vector2(-w, -h)];
+  for (const [cy, a0] of [
+    [-h + PAGE_R, -Math.PI / 2],
+    [h - PAGE_R, 0],
+  ]) {
+    for (let i = 0; i <= 4; i++) {
+      const a = a0 + (Math.PI / 2) * (i / 4);
+      pts.push(new Vector2(w - PAGE_R + Math.cos(a) * PAGE_R, cy + Math.sin(a) * PAGE_R));
+    }
+  }
+  pts.push(new Vector2(-w, h));
+  for (const p of pts) p.x *= side;
+  const g = new ShapeGeometry(new Shape(pts));
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + w) / PAGE_W, (uv.getY(i) + h) / PAGE_H);
+  return g;
 }
 
 /** The page that turns: a strip from the spine out, bent along its width. */
@@ -2151,27 +2251,33 @@ function leafGeometry(): BufferGeometry {
   g.setIndex(idx);
   return g;
 }
-/** Lays the turning page at `phi` round the spine (BOOK_ANG: on the right
- *  page; π − BOOK_ANG: on the left), its free edge lagging by `curl`: a bend
- *  of constant curvature, so each column's place is exact. */
-function bendLeaf(g: BufferGeometry, phi: number, curl: number) {
+/** The turning page at `phi` round the spine (BOOK_ANG: on the right page;
+ *  π − BOOK_ANG: on the left), its free edge `curl` behind it (ahead of it
+ *  when negative): a bend of constant curvature, so where each column of it
+ *  is comes out exact. Lays the strip and returns where the free edge is
+ *  (x out from the spine, y up), into `edge`. */
+function bendLeaf(g: BufferGeometry, phi: number, curl: number, edge: Vector2) {
   const pos = g.attributes.position as BufferAttribute;
   const nor = g.attributes.normal as BufferAttribute;
-  const end = PAGE_X0 + PAGE_W;
-  const k = -curl / end;
+  const k = -curl / PAGE_END;
+  const at = (a: number, out: Vector2) => {
+    const th = phi + k * a;
+    if (Math.abs(k) < 1e-5) return out.set(a * Math.cos(phi), a * Math.sin(phi));
+    return out.set((Math.sin(th) - Math.sin(phi)) / k, (Math.cos(phi) - Math.cos(th)) / k);
+  };
   for (let i = 0; i <= LEAF_N; i++) {
     const a = PAGE_X0 + (PAGE_W * i) / LEAF_N;
     const th = phi + k * a;
-    const x = Math.abs(k) < 1e-5 ? a * Math.cos(phi) : (Math.sin(th) - Math.sin(phi)) / k;
-    const y = Math.abs(k) < 1e-5 ? a * Math.sin(phi) : (Math.cos(phi) - Math.cos(th)) / k;
-    pos.setXYZ(i * 2, x, y, -PAGE_H / 2);
-    pos.setXYZ(i * 2 + 1, x, y, PAGE_H / 2);
+    at(a, edge);
+    pos.setXYZ(i * 2, edge.x, edge.y, -PAGE_H / 2);
+    pos.setXYZ(i * 2 + 1, edge.x, edge.y, PAGE_H / 2);
     nor.setXYZ(i * 2, -Math.sin(th), Math.cos(th), 0);
     nor.setXYZ(i * 2 + 1, -Math.sin(th), Math.cos(th), 0);
   }
   pos.needsUpdate = true;
   nor.needsUpdate = true;
   g.computeBoundingSphere();
+  return edge; // the last column's: the free edge
 }
 
 /** Two spreads at a time, each on a canvas (its print, and its AR layer at
@@ -2227,7 +2333,7 @@ function useSpreads() {
     draw(0, 0);
     // the words are set in the site's own face: once it's in, set them again
     if (typeof document !== 'undefined' && document.fonts) {
-      Promise.all(['400 32px "Space Grotesk"', '500 44px "Space Grotesk"', '600 36px "Space Grotesk"', '400 24px "Space Mono"'].map((f) => document.fonts.load(f)))
+      Promise.all(['400 30px "Space Grotesk"', '500 44px "Space Grotesk"', '600 36px "Space Grotesk"', '400 22px "Space Mono"'].map((f) => document.fonts.load(f)))
         .then(() => slots.forEach((sl, k) => sl.spread >= 0 && draw(k, sl.spread)))
         .catch(() => {});
     }
@@ -2235,9 +2341,34 @@ function useSpreads() {
   }, []);
 }
 
-function BookHalf({ side, page, pageRef, lit, kit }: { side: -1 | 1; page: MeshStandardMaterial; pageRef: MutableRefObject<Mesh | null>; lit: LitLink; kit: BooksKit }) {
+/** The cover's print (bookPages.ts, drawCover), on the front board's outside,
+ *  inside its rounded corners. */
+const COVER = { w: BOOK_W / 2 - 0.022, inset: 0.0105 };
+function useCover() {
+  const tex = useMemo(() => {
+    const c = document.createElement('canvas');
+    c.width = COVER_W;
+    c.height = COVER_H;
+    const g = c.getContext('2d');
+    if (g) drawCover(g);
+    const t = new CanvasTexture(c);
+    t.colorSpace = SRGBColorSpace;
+    t.anisotropy = 4;
+    // in the site's own face, once it's in
+    document.fonts?.load(`600 92px "Space Grotesk"`).then(() => {
+      if (g) drawCover(g);
+      t.needsUpdate = true;
+    }, () => {});
+    return t;
+  }, []);
+  useEffect(() => () => tex.dispose(), [tex]);
+  return tex;
+}
+
+function BookHalf({ side, page, pageRef, lit, kit, cover }: { side: -1 | 1; page: MeshStandardMaterial; pageRef: MutableRefObject<Mesh | null>; lit: LitLink; kit: BooksKit; cover?: Texture }) {
   const { accentDeep } = useAccent();
-  const x = (side * BOOK_W) / 4;
+  const geo = useMemo(() => pageGeometry(side), [side]);
+  useEffect(() => () => geo.dispose(), [geo]);
   return (
     <>
       {/* the cover board, its outer corners rounded, and the page block on it
@@ -2247,18 +2378,27 @@ function BookHalf({ side, page, pageRef, lit, kit }: { side: -1 | 1; page: MeshS
           <meshStandardMaterial {...litMat(lit)} color={accentDeep} emissive={accentDeep} emissiveIntensity={0.16} roughness={0.5} />
         </mesh>
         <mesh geometry={kit.zw_block}>
-          <meshStandardMaterial {...litMat(lit)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.32} roughness={0.85} />
+          <meshStandardMaterial {...litMat(lit)} color={SURFACE.pale.color} emissive={SURFACE.pale.color} emissiveIntensity={0.3} roughness={0.85} />
         </mesh>
       </group>
-      {/* the printed page on top of the block */}
-      <mesh ref={pageRef} position={[x, PAGE_Y, 0]} rotation={[-Math.PI / 2, 0, 0]} material={page}>
-        <planeGeometry args={[PAGE_W, PAGE_H]} />
-      </mesh>
+      {/* the printed page on top of the block, from the fold to the fore-edge */}
+      <mesh ref={pageRef} geometry={geo} position={[side * (PAGE_X0 + PAGE_W / 2), PAGE_Y, 0]} rotation={[-Math.PI / 2, 0, 0]} material={page} />
+      {/* the cover's print, under the board (its outside), the right way up
+          once the half has swung shut over the other */}
+      {cover && (
+        <mesh position={[side * (COVER.inset + COVER.w / 2), -BOOK_T / 2 - 0.0004, 0]} rotation={[Math.PI / 2, 0, Math.PI]}>
+          <planeGeometry args={[COVER.w, (COVER.w * COVER_H) / COVER_W]} />
+          {/* a print, like the pages: not lit with the boards (the lit shade
+              would firm up its clear ground into a panel) */}
+          <meshStandardMaterial map={cover} emissiveMap={cover} emissive="#ffffff" emissiveIntensity={0.55} roughness={0.6} transparent depthWrite={false} toneMapped={false} />
+        </mesh>
+      )}
     </>
   );
 }
 
 type BookPhase = 'look' | 'found' | 'turn' | 'shut';
+type Spark = { a: number; d: number; h: number; s: number; spin: number; delay: number };
 function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const { accent } = useAccent();
   const kit = useBooksKit();
@@ -2273,10 +2413,18 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   const body = useLitBody(grp);
   const frontHinge = useRef<Group>(null); // the half that swings open
   const backHinge = useRef<Group>(null);
-  const sel = useRef(0); // 0 = closed in the gap, 1 = lifted + open + facing you
+  const spine = useRef<Mesh>(null);
+  const sel = useRef(0); // 0 = shut in the gap … 1 = held up open and facing you (in time: OPEN)
   const book = useSpreads();
   const lens = useMemo<LensUniforms>(
-    () => ({ uAr: { value: book.slots[0].ar }, uLens: { value: new Vector4(0.5, 0.5, LENS.r, 0) }, uLock: { value: 0 }, uRing: { value: new Color(PALETTE.room.accent) } }),
+    () => ({
+      uAr: { value: book.slots[0].ar },
+      uLens: { value: new Vector4(0.5, 0.5, LENS.r, 0) },
+      uLock: { value: 0 },
+      uRing: { value: new Color(PALETTE.room.accent) },
+      uWave: { value: new Vector4(0.5, 0.5, 0, 0) },
+      uTurn: { value: new Vector3(0.5, 0.02, 0) },
+    }),
     [book],
   );
   const mats = useMemo(() => {
@@ -2297,23 +2445,50 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   useEffect(() => () => Object.values(mats).forEach((m) => typeof m !== 'function' && m.dispose()), [mats]);
   const leafGeo = useMemo(leafGeometry, []);
   useEffect(() => () => leafGeo.dispose(), [leafGeo]);
+  const cover = useCover();
   const leftPage = useRef<Mesh | null>(null);
   const rightPage = useRef<Mesh | null>(null);
   const leaf = useRef<Group>(null);
-  // Mouse lifting off the page when found
-  const icon = useMemo(() => {
-    const t = new CanvasTexture(mouseIcon(256));
-    t.colorSpace = SRGBColorSpace;
-    return t;
+  // Mouse popping out of the page when found, and the sparkles round Mouse
+  const icons = useMemo(() => {
+    const mouse = new CanvasTexture(mouseIcon(256));
+    const spark = new CanvasTexture(sparkleIcon(64));
+    for (const t of [mouse, spark]) t.colorSpace = SRGBColorSpace;
+    return { mouse, spark };
   }, []);
-  useEffect(() => () => icon.dispose(), [icon]);
-  const lift = useRef<Sprite>(null);
+  useEffect(() => () => Object.values(icons).forEach((t) => t.dispose()), [icons]);
+  const pop = useRef<Sprite>(null);
+  const sparks = useRef<(Sprite | null)[]>([]);
   const game = useMemo(
-    () => ({ spread: 0, next: 0, phase: 'look' as BookPhase, t: 0, lock: 0, fade: 0, at: new Vector2(0.5, 0.5), from: new Vector2(0.45, 0.4), shut: 0, liftAt: new Vector3(), liftT: -1 }),
+    () => ({
+      spread: 0,
+      next: 0,
+      phase: 'look' as BookPhase,
+      t: 0, // s in this phase
+      lock: 0, // how far round the ring has filled
+      show: 0, // how far the lens is out
+      at: new Vector2(0.5, 0.5), // the lens, on the spread (u, v)
+      from: new Vector2(0.45, 0.4), // where the lens sets off from, with no cursor
+      cover: 1, // the front cover's own swing at the end (× the opening's): 1 open, 0 shut
+      pop: -1, // s since Mouse popped out of the page (−1: not)
+      popAt: new Vector3(), // where, in the book's frame
+      popS: 0.02, // the sprite's size, Mouse's on the page
+      popDir: 1, // which way Mouse hops off: out over its own page
+      wave: -1, // s since the ripple went out
+      waveR: 0, // the lens's radius it went out from
+      thump: -1, // s since a page landed
+      clap: -1, // s since the book clapped shut
+      sparks: Array.from({ length: FOUND.sparks }, (): Spark => ({ a: 0, d: 0, h: 0, s: 0, spin: 0, delay: 0 })),
+    }),
     [],
   );
   const ndc = useMemo(() => new Vector2(), []);
   const v = useMemo(() => new Vector3(), []);
+  const edge = useMemo(() => new Vector2(), []);
+  const pose = useMemo(() => ({ e: new Euler(), q: new Quaternion(), up: new Vector3(0, 1, 0), near: new Vector3() }), []);
+  const aspect = useThree((s) => s.size.width / s.size.height);
+  const portrait = portraitMix(aspect);
+  const porthole = useMemo(() => portholeNdc(new Vector2()), [aspect]); // (re-read as the screen changes shape)
   const showSpread = (i: number) => {
     const sl = book.slot(i, game.spread);
     mats.set(mats.left, sl.left);
@@ -2322,28 +2497,22 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
   };
   useFrame((s, delta) => {
     body(lit.litU.value, selected || visited);
-    sel.current += ((selected ? 1 : 0) - sel.current) * 0.09;
-    const open = reduced ? (selected ? 1 : 0) : sel.current;
     const dt = Math.min(delta, 1 / 20);
+    sel.current = reduced ? (selected ? 1 : 0) : Math.max(0, Math.min(1, sel.current + (selected ? dt / OPEN.len : -dt / (OPEN.len * OPEN.back))));
+    const sp = sel.current;
+    // out of the gap first, then up and round to you, and the cover last
+    const slide = easeInOut(span(sp, OPEN.slide));
+    const rise = easeInOut(span(sp, OPEN.rise));
+    const swing = settle(span(sp, OPEN.swing));
     const g = grp.current;
-    if (g) {
-      // stands closed in the gap (cover out); lifts forward + tilts back so
-      // the opening spread reads face-on. Closed, both halves fold onto the
-      // hinge's +x side, so the rest pose shifts −x to centre that mass in
-      // the gap and keep clear of the leaning neighbour.
-      g.rotation.x = (Math.PI / 2) * (1 - open) + 1.12 * open;
-      g.rotation.y = 0.17 * open; // squared up to the camera, which looks from a little to the right
-      g.scale.setScalar(1 + BOOK_HELD * open); // held up to be read: bigger than it stood on the shelf
-      g.position.set(position[0] - 0.04 + 0.01 * open, position[1] + 0.01 + 0.15 * open, position[2] + 0.02 + 0.34 * open);
-    }
 
     // ---- the game ----
-    const playing = selected && !reduced && open > 0.97;
+    const playing = selected && !reduced && sp >= 1;
     if (!selected && game.phase !== 'look') {
       // put down mid-way: it's on the next spread when it's opened again
       game.spread = game.next;
       showSpread(game.spread);
-      Object.assign(game, { phase: 'look', t: 0, lock: 0, shut: 0, liftT: -1 });
+      Object.assign(game, { phase: 'look', t: 0, lock: 0, cover: 1, pop: -1, wave: -1, thump: -1, clap: -1 });
     }
     game.t += dt;
     let lensOn = false;
@@ -2371,35 +2540,58 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
       const on = lensOn && d < hide.r * 1.1;
       game.lock = Math.max(0, Math.min(1, game.lock + (on ? dt / LENS.dwell : -dt / (LENS.dwell * 0.4))));
       if (game.lock >= 1) {
-        game.phase = 'found';
-        game.t = 0;
-        game.lock = 0;
-        game.next = (game.spread + 1) % SPREADS.length;
+        Object.assign(game, { phase: 'found', t: 0, lock: 0, next: (game.spread + 1) % SPREADS.length });
+        lensOn = false;
         play('book-find');
-        // Mouse lifts off the page from where Mouse was
+        // the ripple goes out from Mouse, from the lens's edge
+        game.wave = 0;
+        game.waveR = lens.uLens.value.z;
+        lens.uWave.value.set(hide.u, hide.v, game.waveR, 0);
+        // Mouse pops up out of the page from where Mouse was, at Mouse's size
         const page = hide.u >= 0.5 ? rightPage.current : leftPage.current;
         if (page && g) {
           const pu = hide.u >= 0.5 ? (hide.u - 0.5) * 2 : hide.u * 2;
           page.localToWorld(v.set((pu - 0.5) * PAGE_W, (hide.v - 0.5) * PAGE_H, 0));
-          g.worldToLocal(game.liftAt.copy(v));
-          game.liftT = 0;
+          g.worldToLocal(game.popAt.copy(v));
+          game.pop = 0;
+          game.popS = (hide.s * PAGE_H) / MOUSE_ICON;
+          game.popDir = hide.u >= 0.5 ? 1 : -1;
+          game.sparks.forEach((k, i) =>
+            Object.assign(k, {
+              a: (i / FOUND.sparks) * Math.PI * 2 + Math.random() * 0.5,
+              d: 0.022 + Math.random() * 0.024,
+              h: 0.006 + Math.random() * 0.018,
+              s: 0.011 + Math.random() * 0.007,
+              spin: (Math.random() - 0.5) * 7,
+              delay: Math.random() * 0.1,
+            }),
+          );
         }
         // the next spread, drawn now, while Mouse has everyone's attention
         book.slot(game.next, game.spread);
       }
     }
-    // the lens fades in and out; the ring's fill follows the lock
-    const f = 1 - Math.exp(-dt / (LENS.fade / 3));
-    game.fade += ((lensOn ? 1 : 0) - game.fade) * f;
-    lens.uLens.value.set(game.at.x, game.at.y, LENS.r, game.fade);
-    lens.uLock.value = game.lock;
+    // the lens pops out (a little past its size, and back) and shrinks away;
+    // as the ring fills round it draws in on Mouse
+    // (held full and drawn in once Mouse is found, as it goes)
+    game.show = Math.max(0, Math.min(1, game.show + (lensOn ? dt / LENS.pop : -dt / LENS.fade)));
+    const lock = game.phase === 'found' ? 1 : game.lock;
+    lens.uLens.value.set(game.at.x, game.at.y, LENS.r * easeOutBack(game.show, 2.2) * (1 - LENS.draw * easeInOut(lock)), Math.min(1, game.show * 4));
+    lens.uLock.value = lock;
+    // the ripple, out over the page and gone
+    if (game.wave >= 0) {
+      game.wave += dt;
+      const w = game.wave / FOUND.wave;
+      lens.uWave.value.z = game.waveR + (0.34 - game.waveR) * easeOut(w, 2.5);
+      lens.uWave.value.w = (1 - Math.min(1, w)) ** 1.6;
+      if (w >= 1) game.wave = -1;
+    } else lens.uWave.value.w = 0;
 
     if (game.phase === 'found' && game.t >= FOUND.hold) {
       game.t = 0;
       if (game.next === 0) {
-        // the last spread: the book closes, and opens again on the first
+        // the last spread: the book claps shut, and opens again on the first
         game.phase = 'shut';
-        play('book-close');
       } else {
         // the right-hand page turns over onto the next spread: underneath it
         // the next spread's right page, on its back the next's left
@@ -2414,66 +2606,138 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
     }
     const lf = leaf.current;
     if (lf) lf.visible = game.phase === 'turn';
+    lens.uTurn.value.z = 0;
     if (game.phase === 'turn') {
+      // it peels up from its free edge first, swings over, and comes down
+      // spine side first, the edge floating down last
       const p = Math.min(1, game.t / TURN.len);
-      bendLeaf(leafGeo, BOOK_ANG + (Math.PI - 2 * BOOK_ANG) * easeInOut(p), TURN.curl * Math.sin(Math.PI * p));
+      const curl = -TURN.lead * bump(p / 0.4) + TURN.trail * bump((p - 0.35) / 0.65);
+      bendLeaf(leafGeo, BOOK_ANG + (Math.PI - 2 * BOOK_ANG) * easeInOut(p), curl, edge);
+      // its shadow on whichever page it's over, softer and lighter the higher
+      // its edge is off that page
+      const high = Math.min(1, Math.max(0, edge.y * Math.cos(BOOK_ANG) - Math.abs(edge.x) * Math.sin(BOOK_ANG)) / PAGE_END);
+      lens.uTurn.value.set(0.5 + (0.5 * edge.x) / PAGE_END, 0.014 + 0.1 * high, TURN.shadow * (1 - 0.4 * high) * Math.sqrt(bump(p)));
       if (p >= 1) {
         game.spread = game.next;
         showSpread(game.spread);
-        Object.assign(game, { phase: 'look', t: 0, lock: 0 });
+        Object.assign(game, { phase: 'look', t: 0, lock: 0, thump: 0 });
         game.from.set(0.3 + Math.random() * 0.4, 0.3 + Math.random() * 0.4);
+        lens.uTurn.value.z = 0;
         if (lf) lf.visible = false;
       }
     }
     if (game.phase === 'shut') {
+      // the cover falls shut (gathering speed), claps, and swings open again
       const c = SHUT.close;
       const h = SHUT.close + SHUT.hold;
-      if (game.t < c) game.shut = easeInOut(game.t / c);
+      if (game.t < c) game.cover = 1 - easeIn(game.t / c, 2.4);
       else if (game.t < h) {
-        game.shut = 1;
+        if (game.cover > 0) {
+          game.cover = 0;
+          game.clap = 0;
+          play('book-close');
+        }
         if (game.spread !== 0) {
           // shut: it's on the first spread when it opens
           game.spread = 0;
           showSpread(0);
         }
-      } else game.shut = 1 - easeInOut((game.t - h) / SHUT.open);
-      if (game.t >= h + SHUT.open) Object.assign(game, { phase: 'look', t: 0, lock: 0, shut: 0 });
+      } else game.cover = settle((game.t - h) / SHUT.open);
+      if (game.t >= h + SHUT.open) Object.assign(game, { phase: 'look', t: 0, lock: 0, cover: 1 });
     }
-    // Mouse lifting off the page, up out of the book, and gone
-    const sp = lift.current;
-    if (sp) {
-      sp.visible = game.liftT >= 0;
-      if (game.liftT >= 0) {
-        game.liftT += dt;
-        const u = game.liftT / FOUND.lift;
-        sp.position.copy(game.liftAt).add(v.set(0, 0.012 + 0.07 * easeOut(u), 0));
-        sp.scale.setScalar(0.036 * easeOutBack(Math.min(1, u * 2.5), 2.4));
-        const m = sp.material as SpriteMaterial;
-        m.opacity = u < 0.6 ? 1 : Math.max(0, 1 - (u - 0.6) / 0.4);
-        m.rotation = 0.25 * Math.sin(u * Math.PI * 3) * (1 - u);
-        if (u >= 1) game.liftT = -1;
+
+    // Mouse, out of the page: up (squashed as Mouse pushes off, stretched on
+    // the way), a look round, and a hop off over the page and gone
+    const pp = pop.current;
+    if (pp) {
+      pp.visible = game.pop >= 0;
+      if (game.pop >= 0) {
+        game.pop += dt;
+        const t = game.pop;
+        const look = FOUND.up + FOUND.look;
+        const hop = Math.max(0, (t - look) / FOUND.hop);
+        const up = easeOut(t / FOUND.up, 3);
+        const stretch = -0.2 * bump(t / 0.1) + 0.22 * bump((t - 0.06) / 0.22) - 0.15 * bump((t - look) / 0.1) + 0.2 * bump((t - look - 0.05) / 0.25);
+        const size = game.popS * (1 + 0.32 * easeOutBack(t / FOUND.up, 2.2)) * (1 - 0.7 * easeIn(hop, 1.6));
+        pp.scale.set(size * (1 - 0.6 * stretch), size * (1 + stretch), 1);
+        pp.position.set(
+          game.popAt.x + game.popDir * 0.055 * easeInOut(hop),
+          game.popAt.y + 0.0015 + 0.02 * up + 0.0015 * Math.sin((t - FOUND.up) * 9) * bump(span(t, [FOUND.up, look])) + 0.12 * hop * (1 - hop) - 0.008 * hop,
+          game.popAt.z - 0.035 * easeOut(hop),
+        );
+        const m = pp.material as SpriteMaterial;
+        m.rotation = 0.22 * Math.sin((t - FOUND.up) * 15) * bump(span(t, [FOUND.up, look])) - game.popDir * 0.4 * easeOut(hop);
+        m.opacity = 1 - easeIn(hop, 2.2);
+        if (hop >= 1) game.pop = -1;
+      }
+    }
+    for (let i = 0; i < FOUND.sparks; i++) {
+      const sk = sparks.current[i];
+      if (!sk) continue;
+      const k = game.sparks[i];
+      const u = game.pop >= 0 ? (game.pop - 0.05 - k.delay) / FOUND.spark : -1;
+      sk.visible = u >= 0 && u < 1;
+      if (!sk.visible) continue;
+      const out = easeOut(u, 3);
+      sk.position.set(game.popAt.x + Math.cos(k.a) * k.d * out, game.popAt.y + 0.004 + k.h * easeOut(u, 2), game.popAt.z + Math.sin(k.a) * k.d * out);
+      sk.scale.setScalar(k.s * (u < 0.2 ? easeOutBack(u / 0.2, 2.4) : 1 - easeIn((u - 0.2) / 0.8, 1.5)));
+      const m = sk.material as SpriteMaterial;
+      m.rotation = k.spin * u;
+      m.opacity = 1 - easeIn(u, 3);
+    }
+
+    // the book: shut in its gap, slid out, risen and turned to you, held up
+    // open; a page landing dips it to that side a moment, and the clap at the
+    // end squashes it shut a moment
+    if (game.thump >= 0) game.thump = game.thump + dt > 1.2 ? -1 : game.thump + dt;
+    if (game.clap >= 0) game.clap = game.clap + dt > 1.2 ? -1 : game.clap + dt;
+    if (g) {
+      // tipped back, turned in its plane and dipped about its spine (in its
+      // own frame), then turned round toward the camera
+      const dip = game.thump >= 0 ? 0.012 * ring(game.thump, 2.4, 7) : 0;
+      const jolt = game.clap >= 0 ? 0.06 * ring(game.clap, 2.2, 6) : 0; // the clap knocks it back in your hands
+      pose.e.set((Math.PI / 2) * (1 - rise) + BOOK_HOLD.tilt * rise - jolt, BOOK_HOLD.roll * rise, dip);
+      g.quaternion.setFromEuler(pose.e).premultiply(pose.q.setFromAxisAngle(pose.up, BOOK_HOLD.yaw * rise));
+      g.scale.setScalar((1 + BOOK_HELD * rise) * (game.clap >= 0 ? 1 - 0.035 * ring(game.clap, 3, 8) : 1)); // held up to be read: bigger than it stood on the shelf
+      g.position.set(
+        position[0] + BOOK_REST.x + (BOOK_OPEN.x - BOOK_REST.x) * rise,
+        position[1] + BOOK_REST.y + (BOOK_OPEN.y - BOOK_REST.y) * rise,
+        position[2] + BOOK_REST.z + (BOOK_OPEN.z - BOOK_REST.z) * slide,
+      );
+      if (portrait > 0 && rise > 0 && g.parent) {
+        // (on a phone) up close, on the line through the porthole's centre
+        const cam = s.camera as PerspectiveCamera;
+        const far = (BOOK_W * (1 + BOOK_HELD)) / (BOOK_NEAR.fill * 2 * Math.tan((cam.fov * Math.PI) / 360) * cam.aspect);
+        pose.near.set(porthole.x, porthole.y + 2 * BOOK_NEAR.lift, 0.5).unproject(cam).sub(cam.position).normalize().multiplyScalar(far).add(cam.position);
+        g.position.lerp(g.parent.worldToLocal(pose.near), portrait * rise);
       }
     }
 
-    // the front cover swings 180° round the spine, from folded-shut to the open
-    // V, out through the front of the book (the side that faces the room: the
+    // the front cover swings 180° round the spine, from shut to the open V,
+    // out through the front of the book (the side that faces the room: the
     // other way it opened through the back, into the shelf, and the book
-    // looked as if it were opening inside out). Its hinge also drops level
-    // with the back half as it opens. At the end of the story it swings shut
-    // and open again (game.shut) while the book is still held up.
-    const fo = open * (1 - game.shut);
+    // looked as if it were opening inside out). Its hinge drops level with
+    // the back half's as it opens, the back half tilts into its side of the V
+    // with it, and the spine, wrapped round the shut book's edge, flattens
+    // under the fold.
+    const fo = swing * game.cover;
+    const fl = Math.max(0, Math.min(1, fo));
     if (frontHinge.current) {
       frontHinge.current.rotation.z = -Math.PI * (1 - fo) - BOOK_ANG * fo; // -π: out through the front, toward the room
-      frontHinge.current.position.y = (BOOK_T + BOOK_PT * 2 + 0.001) * (1 - fo);
+      frontHinge.current.position.y = BOOK_SHUT_Y * (1 - fo);
     }
-    if (backHinge.current) backHinge.current.rotation.z = BOOK_ANG * open;
+    if (backHinge.current) backHinge.current.rotation.z = BOOK_ANG * fl;
+    if (spine.current) {
+      spine.current.scale.y = BOOK_T + 0.003 + BOOK_SHUT_Y * (1 - fl);
+      spine.current.position.set(-0.0035 * (1 - fl), -0.001 + (BOOK_SHUT_Y / 2) * (1 - fl), 0);
+    }
   });
   return (
     <group ref={grp} position={position}>
       {/* back half — stays put, tilting into its side of the V */}
       <group ref={backHinge}>{kit && <BookHalf side={1} page={mats.right} pageRef={rightPage} lit={lit} kit={kit} />}</group>
-      {/* front half — folded over when closed, swings open on select */}
-      <group ref={frontHinge}>{kit && <BookHalf side={-1} page={mats.left} pageRef={leftPage} lit={lit} kit={kit} />}</group>
+      {/* front half — folded over when shut, swings open on select */}
+      <group ref={frontHinge}>{kit && <BookHalf side={-1} page={mats.left} pageRef={leftPage} lit={lit} kit={kit} cover={cover} />}</group>
       {/* the page turning over, from the right-hand page to the left, round the
           spine at the pages' height; its face and its back are two materials */}
       <group ref={leaf} position={[0, PAGE_Y + 0.0012, 0]} visible={false}>
@@ -2481,14 +2745,26 @@ function OpenBook({ slug, position }: { slug: string; position: V3 }) {
         <mesh geometry={leafGeo} material={mats.back} />
       </group>
       {/* spine */}
-      <mesh position={[0, -0.001, 0]}>
-        <boxGeometry args={[0.015, BOOK_T + 0.003, BOOK_H]} />
+      <mesh ref={spine} position={[-0.0035, -0.001 + BOOK_SHUT_Y / 2, 0]} scale={[1, BOOK_T + 0.003 + BOOK_SHUT_Y, 1]}>
+        <boxGeometry args={[0.015, 1, BOOK_H]} />
         <meshStandardMaterial {...litMat(lit)} color={accent} emissive={accent} emissiveIntensity={0.14} roughness={0.5} />
       </mesh>
-      {/* Mouse, found, lifting off the page */}
-      <sprite ref={lift} visible={false} renderOrder={3}>
-        <spriteMaterial map={icon} transparent depthWrite={false} toneMapped={false} />
+      {/* Mouse, found, popping out of the page, and the sparkles round Mouse */}
+      <sprite ref={pop} visible={false} renderOrder={3}>
+        <spriteMaterial map={icons.mouse} transparent depthWrite={false} toneMapped={false} />
       </sprite>
+      {game.sparks.map((_, i) => (
+        <sprite
+          key={i}
+          ref={(el) => {
+            sparks.current[i] = el;
+          }}
+          visible={false}
+          renderOrder={3}
+        >
+          <spriteMaterial map={icons.spark} transparent depthWrite={false} toneMapped={false} />
+        </sprite>
+      ))}
     </group>
   );
 }
@@ -3078,7 +3354,7 @@ export function RoomRig() {
       { at: at(couch, 0.7, 0.26) },
     ];
     // the gap the book leaves on the shelf, and the hop out of it
-    const g = at(shelf, 0.12, 0.04);
+    const g = at(shelf, 0.08, 0.04);
     const c = Math.cos(shelf.rotationY ?? 0);
     const s = Math.sin(shelf.rotationY ?? 0);
     const gap = { at: [g[0], 0.52, g[2]] as V3, out: [0.05 * c + 0.55 * s, 0.72, -0.05 * s + 0.55 * c] as V3 };

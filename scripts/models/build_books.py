@@ -38,8 +38,11 @@ SPINE_Z = D / 2 - BULGE  # where the boards end and the spine's curve begins
 ARC = 10  # points along the spine's curve
 
 # the Zwijsen picture book (room.tsx, BOOK_*): one half's width, the board's
-# thickness, the page depth (spine length), and the page block's thickness
-ZW_W, ZW_T, ZW_H, ZW_PT = 0.085, 0.011, 0.19, 0.009
+# thickness, the page depth (spine length), and the page block's thickness.
+# A picture book's own proportions, its pages three wide to four high (it was
+# a tall, narrow one, and a picture had to squeeze into each page).
+ZW_W, ZW_T, ZW_H, ZW_PT = 0.135, 0.011, 0.18, 0.009
+ZW_SQUARE = 0.004  # how far the board stands proud of the pages, top, bottom and fore-edge
 
 
 def spine_outline(r_out):
@@ -101,9 +104,10 @@ def zw_board():
 
 
 def zw_block():
-    r = 0.008
-    x0, x1 = 0.006, ZW_W - 0.006
-    h = ZW_H - 0.014
+    # right into the gutter, so the two halves' pages meet at the fold
+    r = 0.003
+    x0, x1 = 0.0012, ZW_W - ZW_SQUARE
+    h = ZW_H - 2 * ZW_SQUARE
     pts = [(x0, -h / 2)]
     for cx, cz, a0 in ((x1 - r, -h / 2 + r, -math.pi / 2), (x1 - r, h / 2 - r, 0)):
         for k in range(5):
