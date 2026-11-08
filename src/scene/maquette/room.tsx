@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, type ElementRef, type MutableRefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
-import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, FrontSide, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, Shape, ShapeGeometry, SRGBColorSpace, TorusGeometry, Vector2, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera, type Side, type Sprite, SpriteMaterial, type Texture } from 'three';
+import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, FrontSide, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, ShaderMaterial, Shape, ShapeGeometry, SRGBColorSpace, TorusGeometry, Vector2, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera, type Side, type Sprite, type SpriteMaterial, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { HOTSPOTS, portraitMix } from '../framing';
 import { useSceneSelector } from '../store';
@@ -1955,21 +1955,59 @@ function CoffeeCup({ position, rotation, lit }: { position: V3; rotation?: V3; l
 /** A tripod floor lamp: three splayed, tapered legs meeting at a turned hub,
  *  a stem on up to a drum shade with a real wall (outside and in), and a
  *  finial on top. It's switched on while `slug`'s exhibit is open (whichever
- *  stands nearest it: RoomRig): the bulb lights up inside the shade, the shade
- *  glows with it and a pool of light spreads on the floor round its feet, in
- *  the room's accent. It catches with a flicker, the way a bulb does, and fades
- *  off when the exhibit's put down. It goes on the moment the exhibit's picked,
- *  not when the camera has arrived (the close-ups are tight, and the lamp is
- *  at the edge of one at best): you see it come on as you fly in, and its
+ *  stands nearest it: RoomRig): it throws a cone of light down out of its
+ *  shade onto the floor round its feet, in the room's accent, the shade only
+ *  warmed by it. It catches with a flicker, the way a bulb does, and fades
+ *  off when the exhibit's put down. It goes on the moment the exhibit's
+ *  picked, not when the camera has arrived (the close-ups are tight, and the
+ *  lamp is at the edge of one at best): you see it come on as you fly in, its
  *  light on the floor reaches into the close-up, and you see it go off on the
  *  way out. */
 const LAMP = {
   catch: 0.34, // s it flickers for, switching on
   fade: 1.4, // s it takes to go off (the camera's pulling back out meanwhile)
-  pool: 0.7, // the light on the floor: its radius…
-  poolGlow: 0.5, // …and how strong
+  foot: 0.44, // the cone's radius where it meets the floor
+  cone: 0.22, // how strong the cone is (at its brightest, just under the shade)
+  pool: 0.36, // how strong its light is on the floor
+  shade: 0.1, // how much the shade's warmed by it
 };
 const LAMP_FLICKER = [0.65, 0.12, 0.85, 0.3, 0.95, 0.6]; // its level, step by step, as it catches
+const SHADE_FOOT = { y: 0.63, r: 0.13 }; // the shade's open bottom, where the light comes out
+/** The cone of light: a soft beam, brightest just under the shade and fading
+ *  to the floor, and fading at its sides too, so it reads as light in the air
+ *  rather than as a solid funnel. */
+function lampConeMaterial(color: string): ShaderMaterial {
+  const m = new ShaderMaterial({
+    uniforms: { uColor: { value: new Color(color) }, uLevel: { value: 0 } },
+    vertexShader: /* glsl */ `
+      varying float vUp;
+      varying float vFacing;
+      void main() {
+        vUp = uv.y;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vFacing = abs(dot(normalize(normalMatrix * normal), normalize(-mv.xyz)));
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uColor;
+      uniform float uLevel;
+      varying float vUp;
+      varying float vFacing;
+      void main() {
+        float a = uLevel * pow(vUp, 1.8) * smoothstep(0.05, 0.75, vFacing);
+        gl_FragColor = vec4(uColor, a);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    side: DoubleSide,
+    toneMapped: false,
+  });
+  // it sets its own strength, and is only ever on while its layer's the one
+  // in front (presence.tsx)
+  m.userData = { lifeSkip: true, presenceOwn: true };
+  return m;
+}
 function FloorLamp({ position, slug }: { position: V3; slug?: string }) {
   const { accent, accentPale } = useAccent();
   const selected = useSceneSelector((s) => !!slug && s.selectedSlug === slug); // as it's picked (see above)
@@ -1980,11 +2018,9 @@ function FloorLamp({ position, slug }: { position: V3; slug?: string }) {
       m.userData = { lifeSkip: true }; // it sets its own opacity (presence.tsx)
       return m;
     };
-    const bulb = new SpriteMaterial({ map: glowTexture(), color: accentPale, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
-    bulb.userData = { lifeSkip: true };
-    return { shade: add(accentPale), pool: add(accent, glowTexture()), bulb, level: 0, t: -1 };
+    return { shade: add(accentPale), pool: add(accent, glowTexture()), cone: lampConeMaterial(accentPale), level: 0, t: -1 };
   }, [accent, accentPale]);
-  useEffect(() => () => [light.shade, light.pool, light.bulb].forEach((m) => m.dispose()), [light]);
+  useEffect(() => () => [light.shade, light.pool, light.cone].forEach((m) => m.dispose()), [light]);
   useFrame((_s, delta) => {
     const dt = Math.min(delta, 1 / 20);
     if (selected) {
@@ -1996,9 +2032,9 @@ function FloorLamp({ position, slug }: { position: V3; slug?: string }) {
       light.t = -1;
       light.level = reduced ? 0 : Math.max(0, light.level - dt / LAMP.fade);
     }
-    light.shade.opacity = light.level * 0.45;
-    light.bulb.opacity = light.level * 0.95;
-    light.pool.opacity = light.level * LAMP.poolGlow;
+    light.shade.opacity = light.level * LAMP.shade;
+    light.cone.uniforms.uLevel.value = light.level * LAMP.cone;
+    light.pool.opacity = light.level * LAMP.pool;
   });
   const g = useGeometry(() => {
     const frame: BufferGeometry[] = [];
@@ -2024,11 +2060,14 @@ function FloorLamp({ position, slug }: { position: V3; slug?: string }) {
       <mesh geometry={g.shade}>
         <GlassMat tint="pale" />
       </mesh>
-      {/* switched on: the shade lit from inside, the bulb, the light on the floor */}
+      {/* switched on: the shade warmed, the cone of light down out of it, and
+          where it lands on the floor */}
       <mesh geometry={g.shade} material={light.shade} scale={[1.006, 1, 1.006]} />
-      <sprite material={light.bulb} position={[0, 0.7, 0]} scale={0.34} />
+      <mesh material={light.cone} position={[0, SHADE_FOOT.y / 2 + 0.005, 0]}>
+        <cylinderGeometry args={[SHADE_FOOT.r, LAMP.foot, SHADE_FOOT.y - 0.01, 40, 1, true]} />
+      </mesh>
       <mesh material={light.pool} position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[LAMP.pool, 40]} />
+        <circleGeometry args={[LAMP.foot * 1.35, 40]} />
       </mesh>
     </group>
   );
@@ -2038,7 +2077,7 @@ function FloorLamp({ position, slug }: { position: V3; slug?: string }) {
  *  fourteen arching strap leaves, each folded along its midrib and set on the
  *  golden angle so no two line up. It used to be nine squashed cones, which
  *  read as a bundle of spikes. With a `liveSlug` it solidifies alongside that
- *  hotspot (the workstation). */
+ *  hotspot (the couch it stands by). */
 function PottedPlant({ position, liveSlug }: { position: V3; liveSlug?: string }) {
   const g = useGeometry(() => {
     const pot = merge([
@@ -3193,8 +3232,8 @@ function Bookcase({ position, rotation }: { position: V3; rotation: [number, num
  *  The monitor is a current slim one from Blender (build_monitor.py): the
  *  picture almost to the edge in a thin bezel, a shallow housing on its back,
  *  on an L stand — a flat base plate and one upright leaning up to a hinge.
- *  Engaging it solidifies the desk, chair and plant with it (the life
- *  spreads). Everything structural stays behind the screen's plane
+ *  Engaging it solidifies the desk and chair with it (the life spreads).
+ *  Everything structural stays behind the screen's plane
  *  (z -0.125), so nothing crosses the picture. */
 function Desk({ brigade }: { brigade: LitLink }) {
   const g = useGeometry(() => {
@@ -3378,8 +3417,11 @@ export function RoomRig() {
   const couch = usePlacement('Room.Couch', { position: [0.12, 0, -0.42], rotationY: -0.16 });
   const table = usePlacement('Room.AR table', { position: [0, 0, 0.68] });
   const shelf = usePlacement('Room.Bookcase', { position: [0.9, 0, -1.0], rotationY: -0.27 });
-  const plant = usePlacement('Room.Plant', { position: [-1.15, 0, -0.95] });
-  const lamp = usePlacement('Room.Floor lamp', { position: [-0.5, 0, -0.6] });
+  // the reading corner: the lamp tucked in beside the bookcase, behind the
+  // couch's arm (it lights with the book, the exhibit nearest it), and the
+  // plant at the couch's other arm
+  const plant = usePlacement('Room.Plant', { position: [-0.55, 0, -0.55] });
+  const lamp = usePlacement('Room.Floor lamp', { position: [0.36, 0, -1.03] });
   // the shelf mouse's run of the room (RoomMouse), from where the furniture
   // stands: a point in a piece's own frame, on the floor in the room's
   const mouse = useMemo(() => {
@@ -3388,7 +3430,7 @@ export function RoomRig() {
       const s = Math.sin(p.rotationY ?? 0);
       return [p.position[0] + x * c + z * s, 0, p.position[2] - x * s + z * c];
     };
-    const l = lamp.position;
+    const l = plant.position;
     const route: MouseStop[] = [
       { at: at(couch, 0.48, 0.33), wait: 0.9 }, // the couch's front corner: a sniff
       { at: at(couch, 0.0, 0.34), wait: 0.3 }, // a stop half way along its front
@@ -3396,9 +3438,9 @@ export function RoomRig() {
       { at: at(desk, -0.29, 0.23) }, // past the chair…
       { at: at(desk, -0.18, -0.32), wait: 1.8, rear: true }, // …and under the desk: up on its hind legs
       { at: at(desk, 0.26, -0.15) }, // out the desk's far end
-      { at: [l[0] - 0.45, 0, l[2] + 0.18] }, // round behind the lamp
-      { at: [l[0] - 0.25, 0, l[2] - 0.2] },
-      { at: [l[0] + 0.25, 0, l[2] - 0.26] },
+      { at: [l[0] - 0.4, 0, l[2] + 0.14] }, // round behind the plant
+      { at: [l[0] - 0.22, 0, l[2] - 0.26] },
+      { at: [l[0] + 0.28, 0, l[2] - 0.3] },
       { at: at(couch, 0, -0.36), wait: 3.2 }, // behind the couch: hiding
       { at: at(couch, 0.58, -0.26), wait: 0.6 }, // a peek out past its arm…
       { at: at(couch, 0.76, 0.0) }, // …and round the outside of Popcore's bin (BIN)
@@ -3410,7 +3452,7 @@ export function RoomRig() {
     const s = Math.sin(shelf.rotationY ?? 0);
     const gap = { at: [g[0], 0.52, g[2]] as V3, out: [0.05 * c + 0.55 * s, 0.72, -0.05 * s + 0.55 * c] as V3 };
     return { route, gap };
-  }, [couch, desk, lamp, shelf]);
+  }, [couch, desk, plant, shelf]);
   // the lamp is switched on by the exhibit standing nearest it
   const lampSlug = useMemo(() => {
     const [x, , z] = lamp.position;
@@ -3438,8 +3480,8 @@ export function RoomRig() {
       <Line points={circlePts(0.78)} position={[0, 0.026, 0]} color={NEUTRAL} lineWidth={1} transparent opacity={0.1} />
 
       {/* workstation (desk + monitor + chair) — on the left, angled toward the
-          centre, the plant in the corner behind it; the monitor flickers on
-          hover. Engaging the monitor solidifies the desk, chair + plant with it
+          centre; the monitor flickers on
+          hover. Engaging the monitor solidifies the desk and chair with it
           (the life spreads). */}
       <group position={desk.position} rotation={[0, desk.rotationY, 0]}>
         <BlobShadow position={[0, 0.004, -0.16]} radius={0.6} aspect={0.72} opacity={0.38} />
@@ -3481,9 +3523,9 @@ export function RoomRig() {
         <CoffeeTableAR position={table.position} hoverSlug="lightship-drive" />
       </LifeGroup>
 
-      {/* the plant and the lamp fill the back-left, which stood empty; the
-          plant belongs to the workstation corner, so it wakes with the monitor */}
-      <PottedPlant position={plant.position} liveSlug="virtuele-brigade" />
+      {/* the reading corner's lamp, and the plant at the couch's arm, which
+          wakes with the couch (the phone on it) */}
+      <PottedPlant position={plant.position} liveSlug="popcore-games" />
       <FloorLamp position={lamp.position} slug={lampSlug} />
     </group>
   );
