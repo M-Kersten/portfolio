@@ -1715,8 +1715,8 @@ function RemoteHeadset({ login }: { login: { since: number; out: number } }) {
    places and hold still.
 
    In the close-up with a cursor you're the instructor in their chase, in the
-   editor (scenario.tsx, the story itself in chase.ts): then that says where
-   each stands and looks, along with the story rather than on its map (they
+   editor (scenario.tsx, the story itself in terminal.ts): then that says where
+   each stands and looks, along with the story rather than on its plan (they
    turn the way the team goes, look about, set off, nod), and they tell it back
    whether the second's in yet. */
 const HS_PIVOT: V3 = [0, 0.036, -0.1]; // the middle of the wearer's head, in the headset's own frame

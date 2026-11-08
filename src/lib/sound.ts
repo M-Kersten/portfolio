@@ -69,8 +69,9 @@ export type SoundName =
   // the AR framework's camera: a cube anchored, and all of them merging into one
   | 'cube-anchor'
   | 'cube-merge'
-  // the Virtuele Brigade's chase: the second player logging in, a clue on the
-  // map, the team sent on, and the suspect caught
+  // the Virtuele Brigade's chase: the second player logging in, the suspect
+  // bolting or found (and, quieter, the two getting to the next room), the
+  // team sent on, and the suspect caught
   | 'vr-login'
   | 'chase-clue'
   | 'chase-send'

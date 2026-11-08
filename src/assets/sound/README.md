@@ -85,13 +85,13 @@ visitor steers (not while the chip plays itself).
 ## The chase
 
 In the Virtuele Brigade close-up you're the instructor in the editor: the two
-in VR follow a suspect through a small district, clue by clue, and at each one
-you point them on.
+in VR follow a suspect through a terminal, room by room, and at each door and
+hiding place you point them on.
 
 | File | When | Notes |
 | --- | --- | --- |
 | `vr-login` | the second player logs in | a soft rising chime, a connection made, about 1 s |
-| `chase-clue` | a new clue shows on the map | a short radio click |
+| `chase-clue` | the suspect bolts, or is found; quieter, the two get to the next room | a short radio click |
 | `chase-send` | you send the team on | a short sync blip, digital |
 | `chase-caught` | they catch the suspect: the story done | a soft two-note confirm |
 

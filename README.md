@@ -64,7 +64,7 @@ The things you're most likely to want to change, and the file they live in.
 | The Big Dipper beside the windmill: where it hangs, its size, and the beats of its reveal (the stars one by one, the line drawn through them) | `DIPPER_AT`, `DIPPER_SCALE`, `DIPPER_TRACE` and `STARS` in `src/scene/maquette/city.tsx` |
 | ARCam's scavenger hunt: the creatures and their names, where each hides and how it comes out, the pines, the clearing where the found ones sit, how long one's out, the lock, the "captured" bubble, the group photo | `CREATURES`, `STYLE`, `MOVES`, `PEEK`, `PERCH`, `SWIM`, `PINES`, `SEATS`, `TELL`, `UP`, `GAP`, `LOCK`, `SAID` and `FINALE` in `src/scene/maquette/critters.tsx`; how they look: `creatureMat()` there (the bubble's look: `.critter-said` in `src/ui/hotspots.css`; their models and props: `scripts/models/build_creatures.py`; a pine's rustle: `ParkTree` in `city.tsx`) |
 | The die's game of Snake: speed, when the chip takes over, the crash and the score | `SNAKE_*` in `src/scene/maquette/chip.tsx`; the rules (board size, steering, the chip's player) in `snake.ts` |
-| The Virtuele Brigade's chase in stages: the district and its places, the stories (each stage's clue, its lines, where it points), how fast the team walks; how long the cursor rests to send them on; the second player's log-in and how see-through it stays | `COLS`, `ROWS`, `BRIDGES`, `PLACES`, `STORIES`, `WALK` and `CLUE_LEN` in `src/scene/maquette/chase.ts`; `DROP` in `scenario.tsx`; `LOGIN` and `REMOTE` in `room.tsx` |
+| The Virtuele Brigade's chase, room by room: the four rooms (their doors, what's in them, the hiding places and where the two stand), the stories (who runs, from where, and where they're cornered), how fast the team walks and the suspect runs, how long the view takes to pan; how long the cursor rests to send them on; the second player's log-in and how see-through it stays | `ROOMS`, `STORIES`, `WALK`, `RUN`, `PAN` and `LOOK` in `src/scene/maquette/terminal.ts`; `INK` and `SCALE` in `terminalArt.ts`; `DROP` in `scenario.tsx`; `LOGIN` and `REMOTE` in `room.tsx` |
 | The Zwijsen book: its size and its pages', where it stands on the shelf, where and how it's held up open (and how close on a phone), and its cover | `BOOK_*`, `PAGE_*`, `BOOK_REST`, `BOOK_OPEN`, `BOOK_HOLD` and `BOOK_NEAR` in `src/scene/maquette/room.tsx` (OpenBook), with `ZW_*` in `scripts/models/build_books.py` to match; the cover is `drawCover` in `src/scene/maquette/bookPages.ts` |
 | The Zwijsen book's seek-and-find: its spreads (each a list of cut-paper pieces), their words, the paper's cuts and where Mouse hides; the opening, the lens, how long to rest on Mouse, Mouse popping out, the page turning, the clap at the end, the lens finding Mouse by itself on a touch screen | `SPREADS`, `SKY`/`DARK` and `LAYER_CUT` in `src/scene/maquette/bookPages.ts`; `OPEN`, `LENS`, `FOUND`, `TURN`, `SHUT` and `AUTO` in `room.tsx` (OpenBook) |
 | The room's floor lamp: where it and the plant stand, and how it switches on (its flicker, its fade, the cone of light and where it lands). It lights with whichever exhibit stands nearest it | `Room.Floor lamp` and `Room.Plant` in `RoomRig`, and `LAMP` in `src/scene/maquette/room.tsx` (FloorLamp) |
@@ -152,11 +152,14 @@ src/
                        the cursor, the chip's own player, the score's figures
                        (drawn by DieSnake in chip.tsx)
       scenario.tsx     the Virtuele Brigade's chase, run from the editor:
-                       the district's map on the monitor, each clue and the
-                       place to point to, and what it tells the two in VR
-                       (room.tsx VRPlayers)
-      chase.ts         the chase in stages (the district, its places, the
-                       stories and their clues), apart from how it's drawn
+                       the monitor's view of the terminal, what the cursor
+                       rests on, and what it tells the two in VR (room.tsx
+                       VRPlayers)
+      terminal.ts      the chase through the terminal, room by room (the
+                       rooms, their doors and hiding places, the stories, the
+                       way round what's in the way), apart from how it's drawn
+      terminalArt.ts   the terminal drawn on a canvas: the rooms from above,
+                       and each frame the two, the suspect and what to point at
       bookPages.ts     the Zwijsen book's four spreads (Mouse's day out),
                        drawn on a canvas: each one's print and its AR layer,
                        and where Mouse hides (the seek-and-find is OpenBook
