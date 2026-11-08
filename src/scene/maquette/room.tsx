@@ -2225,6 +2225,9 @@ const AR_SCALE = 0.75; // the AR layer's canvas against the print's (soft, and o
 const LEAF_N = 20; // segments across the turning page
 const span = (t: number, [a, b]: readonly [number, number]) => (t - a) / (b - a);
 
+/** A 2D canvas kept on the CPU (see useSpreads). */
+const CPU_2D: CanvasRenderingContext2DSettings = { willReadFrequently: true };
+
 type LensUniforms = {
   uAr: { value: Texture };
   uLens: { value: Vector4 };
@@ -2401,8 +2404,11 @@ function useSpreads() {
     });
     const draw = (k: number, i: number) => {
       const sl = slots[k];
-      const p = sl.printC.getContext('2d');
-      const a = sl.arC.getContext('2d');
+      // drawn on the CPU: they're cut paper, a hundred soft shadows a page,
+      // and a GPU-backed 2D canvas can drop the lot mid-draw (it did, under
+      // a busy WebGL scene); they're only drawn now and then, and uploaded
+      const p = sl.printC.getContext('2d', CPU_2D);
+      const a = sl.arC.getContext('2d', CPU_2D);
       if (!p || !a) return;
       drawSpread(p, i, 'print');
       a.setTransform(AR_SCALE, 0, 0, AR_SCALE, 0, 0);
@@ -2439,7 +2445,7 @@ function useCover() {
     const c = document.createElement('canvas');
     c.width = COVER_W;
     c.height = COVER_H;
-    const g = c.getContext('2d');
+    const g = c.getContext('2d', CPU_2D);
     if (g) drawCover(g);
     const t = new CanvasTexture(c);
     t.colorSpace = SRGBColorSpace;
