@@ -472,11 +472,12 @@ export function CameraRig() {
         const e = Math.min(Math.max((nodeAge.current - CAMERA.nodeOrbitDelay) / CAMERA.nodeOrbitRamp, 0), 1);
         ease = e * e * (3 - 2 * e); // smoothstep
       }
-      const amp = (hotspot ? CAMERA.nodeOrbitAmp : CAMERA.idleSwayAmp) * ease;
+      const orbit = hotspot && view ? view.orbit : 1; // a wide close-up pans less (HotspotView.orbit)
+      const amp = (hotspot ? CAMERA.nodeOrbitAmp * orbit : CAMERA.idleSwayAmp) * ease;
       const speed = hotspot ? CAMERA.nodeOrbitSpeed : CAMERA.idleSwaySpeed;
       sway.current += dt * speed;
       const a = Math.sin(sway.current) * amp;
-      const bob = hotspot ? Math.cos(sway.current) * CAMERA.nodeOrbitBob * ease : 0;
+      const bob = hotspot ? Math.cos(sway.current) * CAMERA.nodeOrbitBob * orbit * ease : 0;
       desiredPos.current.set(
         base.target.x + off.x * Math.cos(a) - off.z * Math.sin(a),
         base.target.y + off.y + bob,

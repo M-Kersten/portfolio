@@ -518,7 +518,7 @@
 .xb__close {
   position: absolute;
   z-index: 3;
-  top: 0.75rem;
+  top: 0.55rem; /* level with the running head, well clear of its rule */
   right: 0.75rem;
 }
 .xb__verso,
@@ -563,7 +563,7 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  padding-bottom: 0.65rem;
+  padding-bottom: 1.05rem; /* room under the close button, before the rule */
   border-bottom: 1px solid var(--hairline);
   font-family: var(--font-mono);
   font-size: var(--step--2);

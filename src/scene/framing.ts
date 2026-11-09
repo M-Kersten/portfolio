@@ -73,6 +73,10 @@ export interface HotspotView {
    *  backs off). For the odd object whose desktop framing comes out too tight
    *  through a phone's narrow frame — a tall shelf, say. */
   mobileZoom?: number;
+  /** Scales the slow pan round the object once it's settled (1 = CAMERA's
+   *  nodeOrbitAmp and nodeOrbitBob). A close-up through a wide lens swings a
+   *  near object a long way for the same angle, so it pans less. */
+  orbit?: number;
 }
 
 // Each hotspot marks one object: a crosshair on its floor's marker line, with a
@@ -96,7 +100,7 @@ const SPOTS: Omit<Hotspot, 'position'>[] = [
   { slug: 'virtuele-brigade', layer: 'room', anchor: [-1.42, 0.65, 0.26], foot: 0.79, view: { offset: [1.87, 0.2, 0.18], aimDown: 0.45, fovZoom: 0.5 } }, // the monitor's screen (room.tsx Desk, in the desk group)
   { slug: 'popcore-games', layer: 'room', anchor: [0.23, 0.22, -0.34], foot: 0.21, view: { offset: [-0.4, 0.85, 1.2], aimDown: 0.05, fovZoom: 19.5 } }, // phone on the couch; from the front-left and up, so the bin beside the right arm (room.tsx Phone) is in the shot
   { slug: 'lightship-drive', layer: 'room', anchor: [0, 0.2, 0.68], foot: 0.19, view: { offset: [0.95, 0.5, 0.75], aimDown: 0.25, fovZoom: 30 } }, // the AR race table
-  { slug: 'zwijsen-ar-books', layer: 'room', anchor: [0.92, 0.4, -1.07], foot: 0.95, view: { offset: [-0.1, 0.9, 1.35], aimDown: 0.35, fovZoom: 16, mobileZoom: 1.45 } }, // the orange book on the shelf; the marker stands on the bookcase's top
+  { slug: 'zwijsen-ar-books', layer: 'room', anchor: [0.92, 0.4, -1.07], foot: 0.95, view: { offset: [-0.1, 0.9, 1.35], aimDown: 0.35, fovZoom: 16, mobileZoom: 1.45, orbit: 0.3 } }, // the orange book on the shelf; the marker stands on the bookcase's top
   // City — GIS / location work
   { slug: 'arcam', layer: 'city', anchor: [1.2, 0.3, 0.11], foot: 0.36, view: { offset: [1.28, 0.68, 1.46], aimDown: 0.3, fovZoom: 17 } }, // the park's AR viewer (city.tsx Park → Binoculars)
   { slug: 'alliander-hololens', layer: 'city', anchor: [0, 0.77, 0], foot: 1.03, view: { offset: [0.75, -0.1, 3.3], aimDown: 1.15, fovZoom: 26 } }, // the skyscraper (skyline peak)
@@ -288,5 +292,6 @@ export function hotspotView(h: Hotspot): Required<HotspotView> {
     aimDown: v?.aimDown ?? CAMERA.nodeAimDown,
     fovZoom: v?.fovZoom ?? CAMERA.fovZoom,
     mobileZoom: v?.mobileZoom ?? 1,
+    orbit: v?.orbit ?? 1,
   };
 }

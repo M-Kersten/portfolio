@@ -26,6 +26,10 @@ import { litMat, ShadowPrint, useLitBody, useLitLink, type LitLink } from './lit
 import { hang, lathe, leaf, merge, place, softBox, softSeam, tube, useGeometry, type Soft } from './shapes';
 
 const PHONE_BALLS = 6;
+/** The balls' colours once the full bin goes over and spills them, one each:
+ *  the round's payoff, the way a game's pieces light up on a win. */
+const BALL_WHITE = new Color('#ffffff');
+const BALL_PARTY = ['#ff8a7a', '#ffd36b', '#7be0a8', '#6fc3ff', '#b49bff', '#ff9fd2'].map((c) => new Color(c));
 const COUCH_SEAT_Y = 0.2; // top of the couch cushion, in couch-local space
 // the handset's size (build_phone.py: W, H, T); the screen is drawn here, off W and H
 const PHONE_W = 0.075;
@@ -285,6 +289,19 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
     return m;
   }, []);
   useEffect(() => () => bitMat.dispose(), [bitMat]);
+  // the balls: white, and each its own colour once the bin's gone over and
+  // spilled them, back to white as they hop back onto the seat (BALL_PARTY)
+  const ballMats = useMemo(
+    () =>
+      BALL_PARTY.map(() => {
+        const m = new MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.3, roughness: 0.45, toneMapped: false });
+        m.userData.lifeSkip = true; // it sets its own colour
+        return m;
+      }),
+    [],
+  );
+  useEffect(() => () => ballMats.forEach((m) => m.dispose()), [ballMats]);
+  const party = useRef(0);
   // the confetti's colours: the room's accent at its values, and the drawing's white
   const bitCols = useMemo(() => [accent, accentPale, accentDeep, NEUTRAL, '#ffffff'].map((c) => new Color(c)), [accent, accentPale, accentDeep]);
   const ringMat = useMemo(() => {
@@ -442,6 +459,14 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
         if (b.slot < 0) b.backAt = now + 0.15 + i * 0.16;
       });
     }
+    // spilled: the balls in their colours; righted, back to white
+    const spilt = B.phase === 'lying' || B.phase === 'righting';
+    party.current += ((spilt ? 1 : 0) - party.current) * (1 - Math.exp(-dt * (spilt ? 14 : 1.5)));
+    ballMats.forEach((m, i) => {
+      m.color.copy(BALL_WHITE).lerp(BALL_PARTY[i], party.current);
+      m.emissive.copy(m.color);
+      m.emissiveIntensity = 0.3 + 0.15 * party.current;
+    });
     const v = now - B.at;
     B.angle =
       B.phase === 'full'
@@ -829,7 +854,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
             }}
           >
             <sphereGeometry args={[R, 16, 12]} />
-            <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.3} roughness={0.45} toneMapped={false} />
+            <primitive object={ballMats[i % ballMats.length]} attach="material" />
           </mesh>
         </group>
       ))}
@@ -1994,7 +2019,10 @@ function lampConeMaterial(color: string): ShaderMaterial {
       varying float vUp;
       varying float vFacing;
       void main() {
-        float a = uLevel * pow(vUp, 1.8) * smoothstep(0.05, 0.75, vFacing);
+        float a = uLevel * pow(clamp(vUp, 0.0, 1.0), 1.8) * smoothstep(0.05, 0.75, vFacing);
+        // nothing at all where there's next to no light: the rim on the floor
+        // stays clean (some GPUs left it as a dotted dark ring)
+        if (a < 0.004) discard;
         gl_FragColor = vec4(uColor, a);
       }`,
     transparent: true,
@@ -2035,7 +2063,11 @@ function FloorLamp({ position, slug }: { position: V3; slug?: string }) {
     light.shade.opacity = light.level * LAMP.shade;
     light.cone.uniforms.uLevel.value = light.level * LAMP.cone;
     light.pool.opacity = light.level * LAMP.pool;
+    // switched off, the light isn't drawn at all
+    const lit = light.level > 0.002;
+    for (const m of glow.current) if (m) m.visible = lit;
   });
+  const glow = useRef<(Mesh | null)[]>([]);
   const g = useGeometry(() => {
     const frame: BufferGeometry[] = [];
     for (let i = 0; i < 3; i++) {
@@ -2062,11 +2094,11 @@ function FloorLamp({ position, slug }: { position: V3; slug?: string }) {
       </mesh>
       {/* switched on: the shade warmed, the cone of light down out of it, and
           where it lands on the floor */}
-      <mesh geometry={g.shade} material={light.shade} scale={[1.006, 1, 1.006]} />
-      <mesh material={light.cone} position={[0, SHADE_FOOT.y / 2 + 0.005, 0]}>
+      <mesh ref={(m) => (glow.current[0] = m)} geometry={g.shade} material={light.shade} scale={[1.006, 1, 1.006]} visible={false} />
+      <mesh ref={(m) => (glow.current[1] = m)} material={light.cone} position={[0, SHADE_FOOT.y / 2 + 0.005, 0]} visible={false}>
         <cylinderGeometry args={[SHADE_FOOT.r, LAMP.foot, SHADE_FOOT.y - 0.01, 40, 1, true]} />
       </mesh>
-      <mesh material={light.pool} position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh ref={(m) => (glow.current[2] = m)} material={light.pool} position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
         <circleGeometry args={[LAMP.foot * 1.35, 40]} />
       </mesh>
     </group>

@@ -401,23 +401,32 @@
   color: var(--accent-ink);
   margin-bottom: 0.55rem;
 }
-/* the name and the way to fold it away (the count is on the cover, not in here) */
+/* the name (the way to fold it away is top right, on the other panel; the
+   count is on the cover, not in here) */
 .guide__head b {
   flex: 1 1 0;
   min-width: 0;
 }
 .guide__close {
-  position: relative;
-  align-self: flex-start;
+  /* top right of the right-hand panel, over its face (it doesn't scroll away) */
+  position: absolute;
+  z-index: 2;
+  top: 0.62rem;
+  right: 0.6rem;
   padding: 0.1em 0.3em;
-  margin-right: -0.3em;
-  font: inherit;
+  font-family: inherit;
+  font-size: var(--step--2);
+  line-height: 1.2;
   letter-spacing: 0;
   color: var(--ink-40);
   background: none;
   border: 0;
   border-radius: var(--radius-s);
   cursor: pointer;
+}
+/* (only while the leaflet's open: folded, the cover lies over this panel) */
+.guide[data-state='closed'] .guide__close {
+  visibility: hidden;
 }
 /* a thumb-sized target round a small mark */
 .guide__close::after {

@@ -178,9 +178,6 @@ export function ExhibitionGuide({
           <div className="guide__face guide__face--front">
             <div className="guide__head">
               <b>exhibition guide</b>
-              <button ref={closeRef} type="button" className="guide__close" onClick={onClose} aria-label="Fold the guide away">
-                <span aria-hidden="true">✕</span>
-              </button>
             </div>
             {layer('city')}
             {layer('room')}
@@ -234,6 +231,10 @@ export function ExhibitionGuide({
           </div>
         </section>
         <section className="guide__half guide__half--right">
+          {/* the way to fold it away, top right, where a close button is looked for */}
+          <button ref={closeRef} type="button" className="guide__close" onClick={onClose} aria-label="Fold the guide away">
+            <span aria-hidden="true">✕</span>
+          </button>
           <div className="guide__face guide__face--front">
             {layer('chip')}
             {/* the ride at the end of the visit: the flight simulator, which
