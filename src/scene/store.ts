@@ -104,7 +104,8 @@ function readWoken(): string[] {
     const m = document.cookie.match(new RegExp(`(?:^|; )${WOKEN_COOKIE}=([^;]*)`));
     if (!m) return [];
     const slugs = decodeURIComponent(m[1]).split(',');
-    return HOTSPOTS.map((h) => h.slug).filter((slug) => slugs.includes(slug));
+    // (in the order they were seen: the guide's strip is stamped in that order)
+    return slugs.filter((slug, i) => slugs.indexOf(slug) === i && HOTSPOTS.some((h) => h.slug === slug));
   } catch {
     return [];
   }

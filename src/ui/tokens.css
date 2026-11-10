@@ -62,7 +62,7 @@
 
   /* ---- The completion gradient ----
      One signature gradient, reserved for one moment: all locked hues appear
-     together only when the model tally hits 10/10 (see .hero__signals-pips
+     together only when the model tally hits 10/10 (see .guide__strip
      in hero.css) — the single point where "every layer is alive" is literally
      true. Nowhere else mixes hues; that's what makes this one moment read as
      earned rather than decorative. */

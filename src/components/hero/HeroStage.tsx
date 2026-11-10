@@ -120,7 +120,7 @@ export function HeroStage() {
   const foundRef = useRef(found);
   foundRef.current = found;
 
-  // The AMBIENT tally — the pips and the label a visitor sees without asking
+  // The AMBIENT tally — the strip and the label a visitor sees without asking
   // for it — shows the model's settled count (scene store), which trails
   // `found` and only steps on a deselect (zoom-out), after TALLY_SETTLE_MS.
   // Keyed on selectedSlug transitions rather than `found` itself, so opening a

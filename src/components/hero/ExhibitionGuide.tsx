@@ -23,6 +23,8 @@ import { sceneStore } from '../../scene/store';
 
 const LAYERS = ['city', 'room', 'chip'] as const;
 const TOTAL = HOTSPOTS.length;
+/** how long tearing the stub off takes, before the pad (hero.css, guide-tear) */
+const TEAR_MS = 1750;
 
 /** The count on the cover, said the way a visitor would: how many of the ten
  *  they've seen. A gallery keeps its objects in low light and brings it up as
@@ -35,8 +37,9 @@ const WORD = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eigh
 
 /** How many have to be seen before the launch is mentioned at all. A first
  *  visit is for the work: until a second exhibit has been seen the cover is
- *  only the count, and then the hint comes in (the tenth pip turns into the
- *  rocket and the note under the count says what the ten add up to). */
+ *  only the count, and then the hint comes in (a rocket drops into the
+ *  strip's last cell and the note under the count says what the ten add up
+ *  to). */
 const HINT_AT = 2;
 
 /** Under the count, once it's been hinted at, what it adds up to: the next
@@ -80,6 +83,8 @@ export function ExhibitionGuide({
   const count = tally(revealed);
   const note = ahead(revealed);
   const hinted = revealed >= HINT_AT;
+  // the ten in the order they were seen, for the strip's cells
+  const seenOrder = visited.filter((slug) => HOTSPOTS.some((h) => h.slug === slug));
   // the step that brings the hint (not a page that loads with it already given)
   const hintNow = flashKey > 0 && revealed === HINT_AT;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -125,7 +130,8 @@ export function ExhibitionGuide({
       if (!at || at === document.body || sheet?.contains(at)) peekRef.current?.focus({ preventScroll: true });
     }
   }, [state]);
-  // at ten, the stub torn off: it comes away and falls, then the pad
+  // at ten, the stub torn off: a tug, the tear running down the perforation,
+  // and it comes away and drops (hero.css, guide-tear); then the pad
   const [torn, setTorn] = useState(false);
   useEffect(() => {
     if (state === 'closed') setTorn(false);
@@ -139,7 +145,7 @@ export function ExhibitionGuide({
         onClose();
         onOpenPad();
       },
-      reduced ? 0 : 520,
+      reduced ? 0 : TEAR_MS,
     );
   };
   const open = (slug: string) => {
@@ -195,27 +201,41 @@ export function ExhibitionGuide({
             <div className="guide__main">
               <span className="guide__cover-kicker">Admit one · exhibition guide</span>
               <span className="guide__cover-tally">
-                <span className="hero__signals-pips">
-                  {HOTSPOTS.map((h, i) =>
-                    i < TOTAL - 1 || !hinted ? (
-                      <i key={h.slug} data-on={i < revealed || undefined} />
-                    ) : (
-                      // the last one, once it's been hinted at, is what the ten
-                      // add up to: the rocket (it lands as the hint is given,
-                      // and with one to go it breathes, like the pad's beacon)
-                      <svg
+                {/* the ten as a strip of cells, the way a strip ticket is
+                    stamped a cell at a time: each one seen fills the next cell
+                    with a stamp in its floor's colour, in the order they were
+                    seen; once it's been hinted at, the last cell holds the
+                    rocket the ten add up to (it lands as the hint is given,
+                    and with one to go it breathes, like the pad's beacon) */}
+                <span className="guide__strip">
+                  {HOTSPOTS.map((h, i) => {
+                    const on = i < revealed;
+                    const rocket = i === TOTAL - 1 && hinted;
+                    const by = on ? HOTSPOTS.find((x) => x.slug === seenOrder[i])?.layer : undefined;
+                    return (
+                      <i
                         key={h.slug}
-                        className="hero__signals-rocket"
-                        viewBox="0 0 8 12"
-                        data-on={i < revealed || undefined}
-                        data-next={i === revealed || undefined}
-                        data-new={hintNow || undefined}
+                        className="guide__cell"
+                        data-on={(on && !rocket) || undefined}
+                        data-layer={by}
+                        data-fresh={(flashKey > 0 && on && i === revealed - 1) || undefined}
+                        style={{ '--tilt': `${TILT[(i * 3) % TILT.length]}deg` } as CSSProperties}
                       >
-                        <path d="M4 0.6C5.6 2.2 6 4.4 6 6.6V9H2V6.6C2 4.4 2.4 2.2 4 0.6Z" />
-                        <path d="M2 7.2 0.6 9.6V10.6L2 9.8ZM6 7.2 7.4 9.6V10.6L6 9.8Z" />
-                      </svg>
-                    ),
-                  )}
+                        {rocket && (
+                          <svg
+                            className="hero__signals-rocket"
+                            viewBox="0 0 8 12"
+                            data-on={on || undefined}
+                            data-next={i === revealed || undefined}
+                            data-new={hintNow || undefined}
+                          >
+                            <path d="M4 0.6C5.6 2.2 6 4.4 6 6.6V9H2V6.6C2 4.4 2.4 2.2 4 0.6Z" />
+                            <path d="M2 7.2 0.6 9.6V10.6L2 9.8ZM6 7.2 7.4 9.6V10.6L6 9.8Z" />
+                          </svg>
+                        )}
+                      </i>
+                    );
+                  })}
                 </span>
                 <span key={flashKey} className={flashKey > 0 ? 'guide__cover-count guide__cover-count--flash' : 'guide__cover-count'}>
                   {count}
@@ -248,7 +268,9 @@ export function ExhibitionGuide({
               <div className="guide__head">
                 <b>admit one · {tally(found)}</b>
                 <button ref={closeRef} type="button" className="guide__close" onClick={onClose} aria-label="Put the ticket away">
-                  <span aria-hidden="true">✕</span>
+                  <svg viewBox="0 0 12 12" aria-hidden="true">
+                    <path d="M1.5 1.5 10.5 10.5M10.5 1.5 1.5 10.5" />
+                  </svg>
                 </button>
               </div>
               {layer('city')}

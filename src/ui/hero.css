@@ -98,13 +98,14 @@
   .guide__cover-note[data-first],
   .guide__cover-count--flash,
   .hero__signals-rocket[data-new],
-  .hero__signals-rocket[data-next] {
+  .hero__signals-rocket[data-next],
+  .guide__cell[data-fresh]::after {
     animation: none;
   }
 }
 /* The one sign along the bottom: the exhibition guide, an admission ticket
    pushed into the bottom edge of the screen, bottom-right. What shows of it is
-   its face: pips that fill as exhibits are seen, and the count (4 of 10
+   its face: a strip of ten cells, stamped as exhibits are seen, and the count (4 of 10
    seen). Pulling it out turns it over (see .guide below). At 10/10 the
    count takes the accent and the scene's completion state does the real
    celebrating. This box is only as tall as what shows of the face (--peek);
@@ -210,23 +211,21 @@
   from { transform: rotateY(180deg); }
 }
 /* a side of the ticket: the card, dark, with the stub on its right past a
-   perforation and a half-moon cut at each end of it */
+   perforation and a half-moon cut at each end of it. The two parts are each
+   their own piece of the card (each cut with its half of the notches), so the
+   stub can come away from the rest when it's torn off. */
 .guide__side {
+  --paper: linear-gradient(160deg, #1a2028 0%, #12171d 60%, #0f1318 100%);
+  --cut-r: radial-gradient(circle at 100% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) top / 100% 51% no-repeat,
+    radial-gradient(circle at 100% 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) bottom / 100% 51% no-repeat;
+  --cut-l: radial-gradient(circle at 0 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) top / 100% 51% no-repeat,
+    radial-gradient(circle at 0 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) bottom / 100% 51% no-repeat;
   box-sizing: border-box;
   display: grid;
   grid-template-columns: 1fr var(--stub);
-  background: linear-gradient(160deg, #1a2028 0%, #12171d 60%, #0f1318 100%);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.5);
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.45));
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  -webkit-mask:
-    radial-gradient(circle at calc(100% - var(--stub)) 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) top / 100% 51% no-repeat,
-    radial-gradient(circle at calc(100% - var(--stub)) 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) bottom / 100% 51% no-repeat;
-  mask:
-    radial-gradient(circle at calc(100% - var(--stub)) 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) top / 100% 51% no-repeat,
-    radial-gradient(circle at calc(100% - var(--stub)) 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) bottom / 100% 51% no-repeat;
 }
 /* the back sets the ticket's height; the front lies over it */
 .guide__side--back {
@@ -240,6 +239,12 @@
 .guide__main {
   position: relative;
   min-width: 0;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+  -webkit-mask: var(--cut-r);
+  mask: var(--cut-r);
   overflow-y: auto;
   scrollbar-width: none;
   padding: 0.8rem 0.9rem 0.75rem;
@@ -248,9 +253,19 @@
   display: none;
 }
 .guide__stub {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-left: 2px dashed rgba(234, 234, 234, 0.2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  -webkit-mask: var(--cut-l);
+  mask: var(--cut-l);
+  /* (it tears from the top down, so it hinges on its foot) */
+  transform-origin: 0 100%;
+  transition: rotate 0.3s var(--ease), translate 0.3s var(--ease);
 }
 /* printed up the stub, read from the bottom */
 .guide__serial,
@@ -281,25 +296,129 @@
 .guide__tear:focus-visible {
   background: color-mix(in srgb, var(--pink) 10%, transparent);
 }
-/* torn off: the stub comes away at the perforation and drops */
+/* under the pointer, the stub lifts off the perforation a touch: it'll tear */
+@media (hover: hover) {
+  .guide__stub:has(.guide__tear:hover) {
+    rotate: 1.2deg;
+    translate: 0.1rem 0;
+  }
+}
+/* torn off (TEAR_MS in ExhibitionGuide.tsx): a tug and a bit of give, a
+   harder pull, and the tear runs down the perforation from the top notch
+   to the bottom one, the stub swinging away on the last of it; then it comes
+   free and drops out of the frame, turning as it goes. The ticket's other
+   part is pulled along by the tug and gives a little start as it lets go. */
 .guide__stub[data-torn] {
-  animation: guide-tear 0.52s cubic-bezier(0.5, 0, 0.75, 0) forwards;
-  transform-origin: 0 0;
+  animation: guide-tear 1.75s linear forwards;
 }
 @keyframes guide-tear {
-  20% {
-    translate: 0.15rem 0;
-    rotate: 2deg;
+  0% {
+    animation-timing-function: ease-out;
+  }
+  10% {
+    translate: 0.3rem 0;
+    rotate: 1deg;
+    animation-timing-function: ease-in-out;
+  }
+  18% {
+    translate: 0.08rem 0;
+    rotate: 0.3deg;
+    animation-timing-function: ease-in;
+  }
+  28% {
+    translate: 0.35rem 0;
+    rotate: 1.4deg;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
+  }
+  52% {
+    translate: 0.5rem 0;
+    rotate: 6.5deg;
+    animation-timing-function: ease-out;
+  }
+  58% {
+    translate: 0.65rem -0.15rem;
+    rotate: 5deg;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.35);
+  }
+  82% {
+    opacity: 1;
   }
   100% {
-    translate: 0.6rem 9rem;
-    rotate: 14deg;
+    translate: 3.5rem 26rem;
+    rotate: 34deg;
     opacity: 0;
   }
 }
+/* the tear itself, running down the perforation */
+.guide__stub::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -2px;
+  width: 2px;
+  background: var(--pink);
+  box-shadow: 0 0 8px var(--pink);
+  transform-origin: 50% 0;
+  scale: 1 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.guide__stub[data-torn]::before {
+  animation: guide-tear-line 1.75s linear forwards;
+}
+@keyframes guide-tear-line {
+  0%,
+  26% {
+    scale: 1 0;
+    opacity: 0;
+  }
+  28% {
+    scale: 1 0.04;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
+  }
+  52% {
+    scale: 1 1;
+    opacity: 1;
+  }
+  70%,
+  100% {
+    scale: 1 1;
+    opacity: 0;
+  }
+}
+.guide__side:has(> .guide__stub[data-torn]) > .guide__main {
+  animation: guide-tug 1.75s ease-in-out;
+}
+@keyframes guide-tug {
+  10% {
+    translate: 0.12rem 0;
+  }
+  18% {
+    translate: 0 0;
+  }
+  28% {
+    translate: 0.1rem 0;
+  }
+  52% {
+    translate: 0.06rem 0;
+  }
+  60% {
+    translate: -0.14rem 0;
+  }
+  72% {
+    translate: 0 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .guide__stub[data-torn] {
+  .guide__stub[data-torn],
+  .guide__stub[data-torn]::before,
+  .guide__side:has(> .guide__stub[data-torn]) > .guide__main {
     animation: none;
+  }
+  .guide__stub {
+    transition: none;
   }
 }
 /* the small print at the foot of the front */
@@ -309,7 +428,7 @@
   text-transform: uppercase;
   color: var(--ink-40);
 }
-/* what's printed on the cover: the guide's name, the pips and the count, the
+/* what's printed on the cover: the guide's name, the strip and the count, the
    count's note, and the exhibition's name at the foot. The first three lines
    are what shows while it's pushed in. */
 .guide__cover .guide__main {
@@ -323,9 +442,9 @@
   text-transform: uppercase;
   color: var(--accent-ink);
 }
-/* the pips and the count share a row on a desktop cover, with some room to
+/* the strip and the count share a row on a desktop cover, with some room to
    spare at every width (the count's type grows with the window, the cover
-   doesn't); on a phone's narrow cover the count goes under the pips */
+   doesn't); on a phone's narrow cover the count goes under the strip */
 .guide__cover-tally {
   display: flex;
   flex-wrap: wrap;
@@ -444,28 +563,39 @@
 }
 .guide__close {
   position: relative;
-  align-self: flex-start;
-  padding: 0.1em 0.3em;
-  margin-right: -0.3em;
-  font-family: inherit;
-  font-size: var(--step--2);
-  line-height: 1.2;
-  letter-spacing: 0;
-  color: var(--ink-40);
+  display: grid;
+  place-items: center;
+  flex: none;
+  align-self: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  margin: -0.5rem -0.5rem -0.5rem 0;
+  padding: 0;
+  color: var(--ink-60);
   background: none;
   border: 0;
   border-radius: var(--radius-s);
   cursor: pointer;
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
-/* a thumb-sized target round a small mark */
+.guide__close svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+/* a thumb-sized target */
 .guide__close::after {
   content: '';
   position: absolute;
-  inset: -0.65rem -0.55rem;
+  inset: -0.3rem;
 }
 .guide__close:hover,
 .guide__close:focus-visible {
   color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 .guide__layer {
   padding-top: 0.45rem;
@@ -616,28 +746,67 @@
 .guide__more:focus-visible {
   color: var(--ink);
 }
-.hero__signals-pips {
+/* the tally on the front: a strip of ten cells, the way a strip ticket is
+   stamped one cell at a time. Each exhibit seen stamps the next cell, in its
+   floor's colour and in the order they were seen, each stamp set down a
+   little crooked like the ones on the back; the newest comes down as the
+   count flashes. At 10/10 every stamp glows and the strip's edge takes the
+   completion gradient. */
+.guide__strip {
   display: inline-flex;
-  gap: 4px;
+  border: 1px solid rgba(234, 234, 234, 0.24);
+  border-radius: 2px;
 }
-.hero__signals-pips i {
-  width: 5px;
-  height: 5px;
-  background: color-mix(in srgb, var(--ink) 22%, transparent);
-  transition: background var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
+.guide__cell {
+  --stamp: var(--accent);
+  display: grid;
+  place-items: center;
+  width: 0.72rem;
+  height: 0.95rem;
 }
-.hero__signals-pips i[data-on] {
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent-glow);
+.guide__cell + .guide__cell {
+  border-left: 1px dotted rgba(234, 234, 234, 0.22);
 }
-/* 10/10 — every layer proven alive at once. The one moment the locked
-   per-layer hues appear together, on the pips that earned it. */
-.hero__signals[data-complete] .hero__signals-pips i[data-on] {
-  background: var(--grad-spectrum);
-  box-shadow: 0 0 6px rgba(168, 158, 255, 0.45);
+.guide__cell[data-layer='room'] {
+  --stamp: var(--coral);
 }
-/* the tenth pip, once the launch has been hinted at, is the rocket the ten
-   add up to: a dim outline until the model is complete, then lit with the
+.guide__cell[data-layer='chip'] {
+  --stamp: var(--lime);
+}
+.guide__cell[data-on]::after {
+  content: '';
+  box-sizing: border-box;
+  width: 0.44rem;
+  height: 0.44rem;
+  border: 1.2px solid var(--stamp);
+  border-radius: 1.5px;
+  background: color-mix(in srgb, var(--stamp) 38%, transparent);
+  rotate: var(--tilt);
+  transition: box-shadow var(--t-base) var(--ease);
+}
+.guide__cell[data-fresh]::after {
+  animation: cell-stamp 0.5s cubic-bezier(0.3, 0, 0.4, 1) both;
+}
+@keyframes cell-stamp {
+  0% {
+    opacity: 0;
+    scale: 2.2;
+  }
+  60% {
+    opacity: 1;
+    scale: 0.85;
+  }
+}
+.hero__signals[data-complete] .guide__cell[data-on]::after {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--stamp) 70%, transparent);
+}
+/* 10/10 — every layer proven alive at once: the one moment the locked hues
+   appear together, round the strip that earned it (the completion gradient) */
+.hero__signals[data-complete] .guide__strip {
+  border-image: var(--grad-spectrum) 1;
+}
+/* the tenth cell, once the launch has been hinted at, holds the rocket the
+   ten add up to: a dim outline until the model is complete, then lit with the
    rest. It lands as the hint is given, dropping into its place from above,
    lit, and settling to the outline. */
 .hero__signals-rocket[data-new] {
@@ -664,8 +833,6 @@
 .hero__signals-rocket {
   width: 6px;
   height: 9px;
-  margin-left: 2px;
-  align-self: center;
   fill: none;
   stroke: color-mix(in srgb, var(--ink) 40%, transparent);
   stroke-width: 0.9;
@@ -704,15 +871,16 @@
     font-size: var(--step--2);
   }
   /* the ticket's face keeps the bottom-right corner on a phone too, its
-     pips a little smaller */
-  .hero__signals-pips {
-    gap: 3px;
+     strip a little smaller */
+  .guide__cell {
+    width: 0.64rem;
+    height: 0.85rem;
   }
-  .hero__signals-pips i {
-    width: 4px;
-    height: 4px;
+  .guide__cell[data-on]::after {
+    width: 0.38rem;
+    height: 0.38rem;
   }
-  /* a narrow cover: the name on one line, the pips over the count, and room
+  /* a narrow cover: the name on one line, the strip over the count, and room
      under it for a returning visitor's greeting, so a little more of it shows
      and its lines sit closer */
   .hero__signals {
