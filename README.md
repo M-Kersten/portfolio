@@ -84,7 +84,7 @@ The things you're most likely to want to change, and the file they live in.
 | Where on the site | File |
 | --- | --- |
 | The welcome back line | `components/hero/HeroStage.tsx` |
-| The exhibition guide, and the "4 of 10 seen" count on its cover with its note ("Launch at ten", "Two more to launch"), held back until the second exhibit is seen | `components/hero/ExhibitionGuide.tsx` (`tally`, `ahead`, `HINT_AT`) |
+| The exhibition guide, and the "4 of 10 seen" count on the face of its ticket with its note ("Launch at ten", "Two more to launch"), held back until the second exhibit is seen | `components/hero/ExhibitionGuide.tsx` (`tally`, `ahead`, `HINT_AT`) |
 | How the pad gets ready as the count climbs (which piece arrives when, the beacon, the vapour) | `BUILD` and the frame loop in `src/scene/maquette/launchSite.tsx` |
 | The exhibition's name, "On display" / "In the depot" | `content/exhibits.ts` |
 | The label beside an exhibit ("Read the full story", "Watch the film") | `components/exhibit/Label.tsx` |
@@ -116,7 +116,7 @@ src/
                        (the text decode), BootVeil, ScrollToHash, NotFound
     hero/              the maquette's page: SceneCanvas (the lazy 3D boundary
                        and its no-WebGL poster), HeroStage (the title
-                       wall, the guide's cover), ExhibitionGuide,
+                       wall, the guide's ticket), ExhibitionGuide,
                        IntroCard, FocusReticle (the porthole), SoundScape
     home/              the home page's sections: HomeLayout (their order),
                        Capabilities, About, Contact, and their canvas motifs

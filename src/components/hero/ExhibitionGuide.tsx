@@ -1,26 +1,25 @@
-import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { caseBySlug } from '../../content';
 import { DEPOT_COUNT, EXHIBITION } from '../../content/exhibits';
 import { HOTSPOTS } from '../../scene/framing';
 import { sceneStore } from '../../scene/store';
 
-// The exhibition guide: the leaflet the visitor is handed. It stands pushed
-// into the bottom edge of the screen, folded in half like the one you take at
-// the door, and its cover is the one sign down there: how many of the ten
-// you've seen (4 of 10 seen), what they add up to once a couple have been
-// seen (launch at ten, counted down at the end), and for a moment a
-// returning visitor's greeting.
-// Pulling it out slides it up into the frame, and its cover swings open to the
-// left onto the inside (hero.css): the ten exhibits by floor, the way a
-// printed leaflet lists them, and the visitor's own pen marks in its margin, a
-// tick against each one they've seen (the tick for one seen since the guide
-// was last open writes itself in as it opens). One not seen yet is in dim
-// letters, and is a way there: the camera flies to it. Then (once it's been
-// hinted at) the flight simulator, the ride at the end of the visit (it opens
-// at ten and then takes you onto the pad, to fly the next launch), the way
-// into the depot (the rest of the collection), and "start the tour over".
-// Folding it shut slides it back in, and so does a click anywhere outside it.
+// The exhibition guide: your admission ticket. It stands pushed into the
+// bottom edge of the screen, and its top is the one sign down there: ADMIT
+// ONE, how many of the ten you've seen (4 of 10 seen), what they add up to
+// once a couple have been seen (launch at ten, counted down at the end), and
+// for a moment a returning visitor's greeting.
+// Pulling it out slides it up into the frame and turns it over (hero.css): on
+// the back, the ten exhibits by floor, and a stamp against each one you've
+// seen, in its floor's colour (one seen since the guide was last out stamps
+// itself in as it turns over). One not seen yet is in dim letters, and is a
+// way there: the camera flies to it. Past the perforation, the stub is the
+// eleventh: once it's been hinted at, the next launch, which opens at ten;
+// then tearing it off takes you onto the pad to fly it. Under the list, the
+// way into the depot (the rest of the collection) and "start the tour over".
+// Pushing it back in turns it face up again, and so does a click anywhere
+// outside it.
 
 const LAYERS = ['city', 'room', 'chip'] as const;
 const TOTAL = HOTSPOTS.length;
@@ -99,7 +98,7 @@ export function ExhibitionGuide({
   }
   wasOpen.current = state === 'open';
   const fresh = state === 'open' ? freshAtOpen.current : [];
-  // open, a press anywhere outside the leaflet folds it away (and still does
+  // open, a press anywhere outside the ticket puts it away (and still does
   // whatever that press was for)
   useEffect(() => {
     if (state !== 'open') return;
@@ -126,11 +125,29 @@ export function ExhibitionGuide({
       if (!at || at === document.body || sheet?.contains(at)) peekRef.current?.focus({ preventScroll: true });
     }
   }, [state]);
+  // at ten, the stub torn off: it comes away and falls, then the pad
+  const [torn, setTorn] = useState(false);
+  useEffect(() => {
+    if (state === 'closed') setTorn(false);
+  }, [state]);
+  const tear = () => {
+    if (torn) return;
+    setTorn(true);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.setTimeout(
+      () => {
+        onClose();
+        onOpenPad();
+      },
+      reduced ? 0 : 520,
+    );
+  };
   const open = (slug: string) => {
     onClose();
     navigate(`/work/${slug}`);
   };
-  let ticks = 0; // the fresh ticks' order, so they write themselves in one after another
+  let stamps = 0; // the fresh stamps' order, so they come down one after another
+  let n = 0; // each exhibit's place in the ten, for its stamp's angle
   const layer = (l: (typeof LAYERS)[number]) => (
     <div key={l} className="guide__layer">
       <span className="guide__index">{l}</span>
@@ -139,6 +156,7 @@ export function ExhibitionGuide({
           const title = caseBySlug(h.slug)?.title ?? h.slug;
           const on = visited.includes(h.slug);
           const isFresh = fresh.includes(h.slug);
+          const index = n++;
           return (
             <li key={h.slug}>
               {/* one you've seen opens; one not seen yet is named too, but dim,
@@ -149,10 +167,8 @@ export function ExhibitionGuide({
                 onClick={() => open(h.slug)}
                 aria-label={on ? `${title}, seen` : `Fly to ${title}, not seen yet`}
               >
-                <span className="guide__mark" aria-hidden="true">
-                  {on && <PenTick fresh={isFresh} order={isFresh ? ticks++ : 0} />}
-                </span>
                 <span className="guide__name">{title}</span>
+                {on && <Stamp layer={l} index={index} fresh={isFresh} order={isFresh ? stamps++ : 0} />}
               </button>
             </li>
           );
@@ -173,128 +189,127 @@ export function ExhibitionGuide({
         tabIndex={state === 'closed' ? 0 : -1}
       />
       <div className="guide__sheet" ref={sheetRef} role="dialog" aria-label="Exhibition guide" aria-hidden={state === 'closed' || undefined}>
-        {/* the left leaflet panel: hinged on the fold, with the cover on its back */}
-        <section className="guide__half guide__half--left">
-          <div className="guide__face guide__face--front">
-            <div className="guide__head">
-              <b>exhibition guide</b>
-            </div>
-            {layer('city')}
-            {layer('room')}
-          </div>
-          {/* the cover, printed on the back of that panel: the tally is its
-              first lines, so it's what shows while the leaflet is pushed in */}
-          <div className="guide__face guide__face--back guide__cover" aria-hidden="true">
-            <span className="guide__cover-kicker">Exhibition guide</span>
-            <span className="guide__cover-tally">
-              <span className="hero__signals-pips">
-                {HOTSPOTS.map((h, i) =>
-                  i < TOTAL - 1 || !hinted ? (
-                    <i key={h.slug} data-on={i < revealed || undefined} />
-                  ) : (
-                    // the last one, once it's been hinted at, is what the ten
-                    // add up to: the rocket (it lands as the hint is given,
-                    // and with one to go it breathes, like the pad's beacon)
-                    <svg
-                      key={h.slug}
-                      className="hero__signals-rocket"
-                      viewBox="0 0 8 12"
-                      data-on={i < revealed || undefined}
-                      data-next={i === revealed || undefined}
-                      data-new={hintNow || undefined}
-                    >
-                      <path d="M4 0.6C5.6 2.2 6 4.4 6 6.6V9H2V6.6C2 4.4 2.4 2.2 4 0.6Z" />
-                      <path d="M2 7.2 0.6 9.6V10.6L2 9.8ZM6 7.2 7.4 9.6V10.6L6 9.8Z" />
-                    </svg>
-                  ),
-                )}
-              </span>
-              <span key={flashKey} className={flashKey > 0 ? 'guide__cover-count guide__cover-count--flash' : 'guide__cover-count'}>
-                {count}
-              </span>
-            </span>
-            {/* (a returning visitor's greeting takes its place for a moment;
-                a new note comes in with the count that brings it, and the
-                first, the hint, comes in lit, a beat after the count) */}
-            {here ??
-              (note && (
-                <span
-                  key={note}
-                  className="guide__cover-note"
-                  data-close={revealed >= TOTAL - 2 || undefined}
-                  data-first={hintNow || undefined}
-                >
-                  {note}
+        <div className="guide__ticket">
+          {/* the front, face up while it's pushed in: the top of it is what shows */}
+          <section className="guide__side guide__side--front guide__cover" aria-hidden="true">
+            <div className="guide__main">
+              <span className="guide__cover-kicker">Admit one · exhibition guide</span>
+              <span className="guide__cover-tally">
+                <span className="hero__signals-pips">
+                  {HOTSPOTS.map((h, i) =>
+                    i < TOTAL - 1 || !hinted ? (
+                      <i key={h.slug} data-on={i < revealed || undefined} />
+                    ) : (
+                      // the last one, once it's been hinted at, is what the ten
+                      // add up to: the rocket (it lands as the hint is given,
+                      // and with one to go it breathes, like the pad's beacon)
+                      <svg
+                        key={h.slug}
+                        className="hero__signals-rocket"
+                        viewBox="0 0 8 12"
+                        data-on={i < revealed || undefined}
+                        data-next={i === revealed || undefined}
+                        data-new={hintNow || undefined}
+                      >
+                        <path d="M4 0.6C5.6 2.2 6 4.4 6 6.6V9H2V6.6C2 4.4 2.4 2.2 4 0.6Z" />
+                        <path d="M2 7.2 0.6 9.6V10.6L2 9.8ZM6 7.2 7.4 9.6V10.6L6 9.8Z" />
+                      </svg>
+                    ),
+                  )}
                 </span>
-              ))}
-            <span className="guide__cover-title">{EXHIBITION}</span>
-          </div>
-        </section>
-        <section className="guide__half guide__half--right">
-          {/* the way to fold it away, top right, where a close button is looked for */}
-          <button ref={closeRef} type="button" className="guide__close" onClick={onClose} aria-label="Fold the guide away">
-            <span aria-hidden="true">✕</span>
-          </button>
-          <div className="guide__face guide__face--front">
-            {layer('chip')}
-            {/* the ride at the end of the visit: the flight simulator, which
-                flies exhibit 11 (the next launch) once all ten are seen (and
-                isn't listed until the cover has hinted at it) */}
-            {hinted && (
-              <div className="guide__layer guide__next">
-                {found === TOTAL ? (
+                <span key={flashKey} className={flashKey > 0 ? 'guide__cover-count guide__cover-count--flash' : 'guide__cover-count'}>
+                  {count}
+                </span>
+              </span>
+              {/* (a returning visitor's greeting takes its place for a moment;
+                  a new note comes in with the count that brings it, and the
+                  first, the hint, comes in lit, a beat after the count) */}
+              {here ??
+                (note && (
+                  <span
+                    key={note}
+                    className="guide__cover-note"
+                    data-close={revealed >= TOTAL - 2 || undefined}
+                    data-first={hintNow || undefined}
+                  >
+                    {note}
+                  </span>
+                ))}
+              <span className="guide__cover-title">{EXHIBITION}</span>
+              <span className="guide__fine">Valid for one visit · the ten in the model</span>
+            </div>
+            <div className="guide__stub">
+              <span className="guide__serial">No. {String(TOTAL + 1).padStart(4, '0')}</span>
+            </div>
+          </section>
+          {/* the back, turned up once it's out: the ten, stamped as you see them */}
+          <section className="guide__side guide__side--back">
+            <div className="guide__main">
+              <div className="guide__head">
+                <b>admit one · {tally(found)}</b>
+                <button ref={closeRef} type="button" className="guide__close" onClick={onClose} aria-label="Put the ticket away">
+                  <span aria-hidden="true">✕</span>
+                </button>
+              </div>
+              {layer('city')}
+              {layer('room')}
+              {layer('chip')}
+              <div className="guide__foot">
+                <Link className="guide__more" to="/projects" onClick={onClose}>
+                  {/* (the arrow kept with the last word on a narrow ticket) */}
+                  {DEPOT_COUNT} more in the depot{'\u00a0'}
+                  <span aria-hidden="true">→</span>
+                </Link>
+                {found > 0 && (
                   <button
                     type="button"
+                    className="guide__reset"
                     onClick={() => {
                       onClose();
-                      onOpenPad();
+                      sceneStore.resetVisited();
                     }}
                   >
-                    <span className="guide__mark" aria-hidden="true" />
-                    <span className="guide__name">Flight simulator</span>
-                    <span className="guide__go">fly the next launch →</span>
+                    start the tour over
                   </button>
-                ) : (
-                  <span className="guide__dark">
-                    <span className="guide__mark" aria-hidden="true" />
-                    <span className="guide__name">Flight simulator</span>
-                    <span className="guide__when">opens once you’ve seen all {TOTAL}</span>
-                  </span>
                 )}
               </div>
-            )}
-            <Link className="guide__more" to="/projects" onClick={onClose}>
-              {/* (the arrow kept with the last word on a narrow panel) */}
-              {DEPOT_COUNT} more in the depot{'\u00a0'}
-              <span aria-hidden="true">→</span>
-            </Link>
-            {found > 0 && (
-              <button
-                type="button"
-                className="guide__reset"
-                onClick={() => {
-                  onClose();
-                  sceneStore.resetVisited();
-                }}
-              >
-                start the tour over
-              </button>
-            )}
-          </div>
-        </section>
+            </div>
+            {/* the stub: the eleventh, the ride at the end of the visit (the
+                flight simulator, which flies the next launch), once the cover
+                has hinted at it; torn off at ten, it takes you onto the pad */}
+            <div className="guide__stub" data-torn={torn || undefined}>
+              {!hinted ? (
+                <span className="guide__serial">No. {String(TOTAL + 1).padStart(4, '0')}</span>
+              ) : found === TOTAL ? (
+                <button type="button" className="guide__tear" onClick={tear}>
+                  <span>tear here · fly the next launch</span>
+                </button>
+              ) : (
+                <span className="guide__serial">11 · the next launch · opens at {TOTAL}</span>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );
 }
 
-/** A tick in the margin, as a visitor marks off what they've seen with a
- *  pen: one quick stroke, down and then up and away, a little uneven. `fresh`
- *  writes it in (hero.css), after the leaflet has opened, one after another
- *  in `order`. */
-function PenTick({ fresh, order }: { fresh: boolean; order: number }) {
+/** The validator's stamp against an exhibit you've seen: SEEN, in its floor's
+ *  colour, set down a little crooked (each at its own angle). `fresh` stamps
+ *  it in (hero.css), once the ticket has turned over, one after another in
+ *  `order`. */
+const TILT = [-4, 3, -2, 5, -3, 2, -5, 4, -1, 3];
+function Stamp({ layer, index, fresh, order }: { layer: string; index: number; fresh: boolean; order: number }) {
   return (
-    <svg className="guide__tick" viewBox="0 0 18 16" data-fresh={fresh || undefined} style={fresh ? ({ '--i': order } as CSSProperties) : undefined}>
-      <path d="M2.2 8.9C3.7 10 5 11.6 6 13.9C7.9 9.2 11.4 4.6 16.2 1.8" pathLength={1} />
-    </svg>
+    <span
+      className="guide__stamp"
+      data-layer={layer}
+      data-fresh={fresh || undefined}
+      aria-hidden="true"
+      style={{ '--tilt': `${TILT[index % TILT.length]}deg`, '--i': order } as CSSProperties}
+    >
+      seen
+    </span>
   );
 }

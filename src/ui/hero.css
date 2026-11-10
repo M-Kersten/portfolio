@@ -102,13 +102,13 @@
     animation: none;
   }
 }
-/* The one sign along the bottom: the cover of the exhibition guide. The guide
-   is a leaflet pushed into the bottom edge of the screen, bottom-right, and
-   what shows of it is its cover: pips that fill as exhibits are seen, and the
-   count (4 of 10 seen). Pulling it out opens it (see .guide below). At 10/10 the cover's readout takes the
-   accent and the scene's completion state does the real celebrating. This box
-   is only as tall as what shows of the cover (--peek); the rest of the leaflet
-   hangs below the screen's edge. */
+/* The one sign along the bottom: the exhibition guide, an admission ticket
+   pushed into the bottom edge of the screen, bottom-right. What shows of it is
+   its face: pips that fill as exhibits are seen, and the count (4 of 10
+   seen). Pulling it out turns it over (see .guide below). At 10/10 the
+   count takes the accent and the scene's completion state does the real
+   celebrating. This box is only as tall as what shows of the face (--peek);
+   the rest of the ticket hangs below the screen's edge. */
 .hero__signals {
   /* (with a little air under the note, the last line that shows) */
   --peek: 6.1rem;
@@ -119,27 +119,25 @@
   width: min(32rem, calc(var(--page-w) - 2 * var(--space-m)));
   height: var(--peek);
   /* the hero section is pointer-through (page-shell.css) so the 3D hotspots
-     stay clickable, and so is this box: only the leaflet itself is live */
+     stay clickable, and so is this box: only the ticket itself is live */
   pointer-events: none;
   transition: opacity var(--t-base) var(--ease);
 }
 
-/* the exhibition guide — a leaflet folded in half, like the one you pick up
-   at the door. Pushed into the screen's bottom edge it shows only its cover
-   (the left panel, folded over the right one), with the tally printed on it.
-   Pulling it out slides it up into the frame, and the cover swings open on the
-   fold, to the left, onto the inside: the ten exhibits by layer (a lit one
-   named and bright, a dark one named and dim), then exhibit 11 and the way to
-   the rest of the collection. Folding it shut reverses it: the cover closes,
-   then the leaflet slides back in. */
+/* the exhibition guide — your admission ticket. Pushed into the screen's
+   bottom edge it shows only the top of its front, with the tally printed on
+   it. Pulling it out slides it up into the frame and turns it over: on the
+   back, the ten exhibits by layer (one seen stamped, one not seen named and
+   dim), and past the perforation the stub, which is exhibit 11. Pushing it
+   back in reverses it: it turns face up, then slides back in. */
 .guide {
   position: absolute;
   top: 0;
   right: 0;
-  width: 100%;
+  width: min(25rem, 100%);
   font-family: var(--font-mono);
   pointer-events: none;
-  /* closing: wait for the fold, then slide in */
+  /* closing: wait for it to turn face up, then slide in */
   transition: translate 0.45s var(--ease-in-out) 0.38s;
 }
 .guide[data-state='open'] {
@@ -163,13 +161,13 @@
 .guide[data-state='open'] .guide__sheet {
   pointer-events: auto;
 }
-/* the whole of the cover that shows is the way to pull it out */
+/* the whole of the ticket that shows is the way to pull it out */
 .guide__peek {
   position: absolute;
   z-index: 3;
   top: 0;
   right: 0;
-  width: 50%;
+  width: 100%;
   height: var(--peek);
   padding: 0;
   background: none;
@@ -187,99 +185,137 @@
   visibility: hidden;
 }
 .guide__sheet {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  perspective: 1800px;
-  /* so the folded cover sorts in front of the panel under it, not behind it */
-  transform-style: preserve-3d;
+  --stub: 2.6rem; /* the stub's width, past the perforation */
+  --notch: 0.5rem; /* the half-moons cut at each end of the perforation */
+  perspective: 1600px;
 }
-.guide__half {
+/* the ticket: front and back, turned over on its long axis once it's out */
+.guide__ticket {
   position: relative;
-  min-width: 0;
   transform-style: preserve-3d;
+  transform: rotateY(0deg);
 }
-/* the cover's panel is hinged on the fold, at its right edge; folded, it lies
-   over the right-hand panel (1px proud of it) */
-.guide__half--left {
-  transform-origin: 100% 50%;
-  /* folded: lying over the right panel */
-  transform: translateZ(1px) rotateY(180deg);
-}
-.guide[data-state='open'] .guide__half--left {
-  transform: translateZ(1px) rotateY(0deg);
+.guide[data-state='open'] .guide__ticket {
+  transform: rotateY(180deg);
   /* once it has slid up into the frame */
-  animation: guide-unfold 0.8s var(--ease) 0.35s backwards;
+  animation: guide-turn 0.8s var(--ease) 0.35s backwards;
 }
-.guide[data-state='closing'] .guide__half--left {
-  animation: guide-fold 0.4s cubic-bezier(0.5, 0, 0.75, 0) backwards;
+.guide[data-state='closing'] .guide__ticket {
+  animation: guide-turn-back 0.4s cubic-bezier(0.5, 0, 0.75, 0) backwards;
 }
-@keyframes guide-unfold {
-  from { transform: translateZ(1px) rotateY(180deg); }
+@keyframes guide-turn {
+  from { transform: rotateY(0deg); }
 }
-@keyframes guide-fold {
-  from { transform: translateZ(1px) rotateY(0deg); }
+@keyframes guide-turn-back {
+  from { transform: rotateY(180deg); }
 }
-/* a panel: the page the leaflet is printed on */
-.guide__face {
+/* a side of the ticket: the card, dark, with the stub on its right past a
+   perforation and a half-moon cut at each end of it */
+.guide__side {
   box-sizing: border-box;
-  height: 100%;
-  max-height: min(70vh, 30rem);
-  overflow-y: auto;
-  scrollbar-width: none;
-  padding: 0.8rem 0.85rem 0.7rem;
-  background: color-mix(in srgb, var(--paper-2) 96%, var(--ink) 4%);
+  display: grid;
+  grid-template-columns: 1fr var(--stub);
+  background: linear-gradient(160deg, #1a2028 0%, #12171d 60%, #0f1318 100%);
   border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.5);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  -webkit-mask:
+    radial-gradient(circle at calc(100% - var(--stub)) 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) top / 100% 51% no-repeat,
+    radial-gradient(circle at calc(100% - var(--stub)) 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle at calc(100% - var(--stub)) 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) top / 100% 51% no-repeat,
+    radial-gradient(circle at calc(100% - var(--stub)) 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) bottom / 100% 51% no-repeat;
 }
-.guide__face::-webkit-scrollbar {
-  display: none;
+/* the back sets the ticket's height; the front lies over it */
+.guide__side--back {
+  transform: rotateY(180deg);
+  max-height: min(72vh, 31rem);
 }
-.guide__half--left .guide__face--front {
-  border-right: 0;
-  border-radius: var(--radius) 0 0 var(--radius);
-}
-.guide__half--right .guide__face {
-  border-radius: 0 var(--radius) var(--radius) 0;
-}
-/* the crease down the middle: a shaded hairline each side of the fold, and
-   the left panel darkening as it comes round */
-.guide__half--left .guide__face--front::before,
-.guide__half--right .guide__face::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1.4rem;
-  pointer-events: none;
-}
-.guide__half--left .guide__face--front::before {
-  right: 0;
-  background: linear-gradient(to left, rgba(0, 0, 0, 0.28), transparent);
-}
-.guide__half--right .guide__face::before {
-  left: 0;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.28), transparent);
-  border-left: 1px solid var(--line);
-}
-/* the cover, printed on the back of the left panel */
-.guide__face--back {
+.guide__side--front {
   position: absolute;
   inset: 0;
-  transform: rotateY(180deg);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+}
+.guide__main {
+  position: relative;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0.8rem 0.9rem 0.75rem;
+}
+.guide__main::-webkit-scrollbar {
+  display: none;
+}
+.guide__stub {
+  display: grid;
+  place-items: center;
+  border-left: 2px dashed rgba(234, 234, 234, 0.2);
+}
+/* printed up the stub, read from the bottom */
+.guide__serial,
+.guide__tear span {
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  font-size: var(--step--2);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink-40);
+}
+/* at ten the stub is the way onto the pad: tear here */
+.guide__tear {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  font: inherit;
+  background: none;
+  border: 0;
   border-radius: 0 var(--radius) var(--radius) 0;
-  border-left: 0;
-  background: color-mix(in srgb, var(--paper-2) 92%, var(--accent) 8%);
+  cursor: pointer;
+}
+.guide__tear span {
+  color: var(--pink);
+}
+.guide__tear:hover,
+.guide__tear:focus-visible {
+  background: color-mix(in srgb, var(--pink) 10%, transparent);
+}
+/* torn off: the stub comes away at the perforation and drops */
+.guide__stub[data-torn] {
+  animation: guide-tear 0.52s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+  transform-origin: 0 0;
+}
+@keyframes guide-tear {
+  20% {
+    translate: 0.15rem 0;
+    rotate: 2deg;
+  }
+  100% {
+    translate: 0.6rem 9rem;
+    rotate: 14deg;
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide__stub[data-torn] {
+    animation: none;
+  }
+}
+/* the small print at the foot of the front */
+.guide__fine {
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-40);
 }
 /* what's printed on the cover: the guide's name, the pips and the count, the
    count's note, and the exhibition's name at the foot. The first three lines
    are what shows while it's pushed in. */
-.guide__cover {
+.guide__cover .guide__main {
+  display: flex;
+  flex-direction: column;
   gap: 0.45rem;
-  justify-content: flex-start;
 }
 .guide__cover-kicker {
   font-size: var(--step--2);
@@ -384,7 +420,7 @@
   .guide[data-state] {
     transition: none;
   }
-  .guide[data-state] .guide__half--left {
+  .guide[data-state] .guide__ticket {
     animation: none;
   }
   .guide[data-state='closed']:has(.guide__peek:hover) {
@@ -401,19 +437,16 @@
   color: var(--accent-ink);
   margin-bottom: 0.55rem;
 }
-/* the name (the way to fold it away is top right, on the other panel; the
-   count is on the cover, not in here) */
+/* what it is and how many are stamped, and the way to put it away top right */
 .guide__head b {
   flex: 1 1 0;
   min-width: 0;
 }
 .guide__close {
-  /* top right of the right-hand panel, over its face (it doesn't scroll away) */
-  position: absolute;
-  z-index: 2;
-  top: 0.62rem;
-  right: 0.6rem;
+  position: relative;
+  align-self: flex-start;
   padding: 0.1em 0.3em;
+  margin-right: -0.3em;
   font-family: inherit;
   font-size: var(--step--2);
   line-height: 1.2;
@@ -423,10 +456,6 @@
   border: 0;
   border-radius: var(--radius-s);
   cursor: pointer;
-}
-/* (only while the leaflet's open: folded, the cover lies over this panel) */
-.guide[data-state='closed'] .guide__close {
-  visibility: hidden;
 }
 /* a thumb-sized target round a small mark */
 .guide__close::after {
@@ -510,48 +539,51 @@
   background: var(--surface-2);
   color: var(--ink-60);
 }
-/* The margin the visitor marks: a tick against each exhibit they've seen, as
-   if with their own pen, so it stands a little off the print's straight lines. */
-.guide__mark {
-  flex: 0 0 1.15em;
-  display: grid;
-  place-items: center;
-  height: 1em;
+/* the validator's stamp against an exhibit seen: SEEN in a box, in its
+   layer's colour, a little crooked */
+.guide__stamp {
+  flex: none;
+  margin-left: auto;
+  padding: 0.05em 0.45em;
+  font-size: 0.6rem;
+  line-height: 1.4;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--stamp, var(--cyan));
+  border: 1.3px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.88;
+  rotate: var(--tilt, -3deg);
 }
-.guide__tick {
-  width: 1.2em;
-  height: 1.05em;
-  overflow: visible;
-  fill: none;
-  stroke: var(--accent-ink);
-  stroke-width: 2.1;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  rotate: -5deg;
-  translate: 0 -0.08em;
+.guide__stamp[data-layer='room'] {
+  --stamp: var(--coral);
 }
-/* one seen since the guide was last open writes itself in, a stroke at a
-   time, once the leaflet has swung open */
-.guide__tick[data-fresh] path {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: guide-tick 0.32s cubic-bezier(0.5, 0, 0.3, 1) forwards;
-  animation-delay: calc(0.9s + var(--i, 0) * 0.14s);
+.guide__stamp[data-layer='chip'] {
+  --stamp: var(--lime);
 }
-@keyframes guide-tick {
-  to {
-    stroke-dashoffset: 0;
+/* one seen since the ticket was last out comes down on it once it has turned
+   over, one after another: from above, hard, and settles */
+.guide__stamp[data-fresh] {
+  animation: guide-stamp 0.42s cubic-bezier(0.3, 0, 0.2, 1) backwards;
+  animation-delay: calc(1s + var(--i, 0) * 0.22s);
+}
+@keyframes guide-stamp {
+  0% {
+    opacity: 0;
+    scale: 1.9;
+  }
+  55% {
+    opacity: 1;
+    scale: 0.9;
+  }
+  100% {
+    scale: 1;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .guide__tick[data-fresh] path {
+  .guide__stamp[data-fresh] {
     animation: none;
-    stroke-dashoffset: 0;
   }
-}
-.guide__go {
-  margin-left: auto;
-  color: var(--accent-ink);
 }
 .guide__reset {
   margin-top: 0.35rem;
@@ -568,54 +600,13 @@
 .guide__reset:focus-visible {
   color: var(--ink);
 }
-/* exhibit 11, in the Passion colour once it's ready */
-.guide__next button,
-.guide__next .guide__dark {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55em;
-  width: 100%;
-  padding: 0.18em 0.3em;
-  margin-inline: -0.3em;
-  font: inherit;
-  font-size: var(--step--2);
-  letter-spacing: 0.04em;
-  text-align: left;
-  background: none;
-  border: 0;
-  border-radius: var(--radius-s);
-}
-.guide__next button {
-  color: var(--ink);
-  cursor: pointer;
-}
-.guide__next button .guide__go {
-  color: var(--pink);
-}
-.guide__next button:hover,
-.guide__next button:focus-visible {
-  background: var(--surface-2);
-}
-.guide__next .guide__dark {
-  cursor: default;
-}
-.guide__when {
-  margin-left: auto;
-  color: var(--ink-40);
-}
-/* exhibit 11's note ("lights at 10", "on the pad") goes under its name, not over it */
-.guide__next .guide__when,
-.guide__next button .guide__go {
-  flex-basis: 100%;
-  margin-left: 0;
-  padding-left: calc(1.15em + 0.55em);
+.guide__foot {
+  margin-top: 0.6rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed rgba(234, 234, 234, 0.16);
 }
 .guide__more {
   display: block;
-  margin-top: 0.6rem;
-  padding-top: 0.55rem;
-  border-top: 1px solid var(--hairline);
   font-size: var(--step--2);
   letter-spacing: 0.05em;
   color: var(--accent-ink);
@@ -712,7 +703,7 @@
     margin-bottom: 0.45rem;
     font-size: var(--step--2);
   }
-  /* the leaflet's cover keeps the bottom-right corner on a phone too, its
+  /* the ticket's face keeps the bottom-right corner on a phone too, its
      pips a little smaller */
   .hero__signals-pips {
     gap: 3px;
@@ -730,8 +721,11 @@
   .guide__cover {
     gap: 0.3rem;
   }
-  .guide__face--back {
+  .guide__main {
     padding: 0.7rem 0.7rem 0.6rem;
+  }
+  .guide__sheet {
+    --stub: 2.2rem;
   }
   .guide__cover-kicker {
     letter-spacing: 0.12em;

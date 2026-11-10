@@ -63,7 +63,7 @@ export function HeroStage() {
   // scrolls up over that spot instead of lingering on top of it.
   const [heroOwnsBottom, setHeroOwnsBottom] = useState(true);
   const reduced = useReducedMotion();
-  // the guide is a leaflet pushed into the screen's edge: 'closing' is it folding shut and sliding back in
+  // the guide is a ticket pushed into the screen's edge: 'closing' is it turning face up and sliding back in
   const [guide, setGuide] = useState<'closed' | 'open' | 'closing'>('closed');
   const guideOpen = guide === 'open';
   const closeGuide = () => setGuide((g) => (g === 'open' ? 'closing' : g));
@@ -206,7 +206,7 @@ export function HeroStage() {
         Welcome back
       </span>
     ) : null;
-  // out of sight (a label opened, the page scrolled on): the leaflet goes back in, so an unseen sheet never catches a click
+  // out of sight (a label opened, the page scrolled on): the ticket goes back in, so an unseen sheet never catches a click
   useEffect(() => {
     if (!overlayOpacity) setGuide('closed');
   }, [overlayOpacity]);
