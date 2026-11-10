@@ -3,7 +3,7 @@
 // phone (Popcore), the AR race table (Lightship Drive) and the bookcase with the
 // openable Zwijsen book, plus lamp and plant props. RoomRig composes and places
 // everything.
-import { useEffect, useMemo, useRef, type CSSProperties, type ElementRef, type MutableRefObject } from 'react';
+import { useEffect, useMemo, useRef, type ElementRef, type MutableRefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, FrontSide, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, ShaderMaterial, Shape, ShapeGeometry, SRGBColorSpace, TorusGeometry, Vector2, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera, type Side, type Sprite, type SpriteMaterial, type Texture } from 'three';
@@ -16,6 +16,7 @@ import { spring } from '../../lib/spring';
 import { bump, easeIn, easeInOut, easeOut, easeOutBack, ring, settle } from '../../lib/ease';
 import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
 import { newTag, stepTag, type Tag, type TagWorld } from './raceTag';
+import { INK, cpuCanvas } from './terminalArt';
 import { COVER_H, COVER_W, drawCover, drawSpread, hideUv, mouseIcon, MOUSE_ICON, sparkleIcon, SPREADS, SPREAD_H, SPREAD_W } from './bookPages';
 import { POSTS, ROUND_LEN, Scenario, newSessionLink, type SessionLink } from './scenario';
 import { GOLD, PALETTE, SURFACE, SURFACE_GLOW, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, type V3 } from './shared';
@@ -1355,6 +1356,84 @@ const YOU_SIG = '#ff4fd8'; // your car's rims, for what's said about you
 const RIVAL_SIG = '#ff8a3c';
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
+/* The spectator screen the show floor had, standing behind the table for
+   the game: a slim screen on a pole, tilted up to the close-up's camera, its
+   frame the table's own glass. It comes up out of the floor as the game
+   starts. On it, in the editor's colours (terminalArt INK, the Virtuele
+   Brigade's monitor): what to do, and each car's crown time under its name
+   and colour, the holder's half lit with the crown over it. */
+const SCREEN = { at: [-0.12, 0, -MAT_D / 2 - 0.13] as V3, pole: 0.17, w: 0.24, h: 0.135, tilt: 0.8, px: 640 };
+const BOARD_MONO = '"Space Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+function drawBoard(g: CanvasRenderingContext2D & { letterSpacing?: string }, call: string, names: [string, string], times: [string, string], holder: number, accent: string) {
+  const W = g.canvas.width;
+  const H = g.canvas.height;
+  g.fillStyle = INK.bg;
+  g.fillRect(0, 0, W, H);
+  // the holder's half, lit
+  const half = W / 2;
+  const top = 92;
+  g.fillStyle = INK.hi;
+  g.beginPath();
+  g.roundRect(holder * half + 18, top, half - 36, H - top - 18, 12);
+  g.fill();
+  // what to do, across the top
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.letterSpacing = '6px';
+  g.font = `700 36px ${BOARD_MONO}`;
+  g.fillStyle = accent;
+  g.fillText(call.toUpperCase(), W / 2, 48);
+  g.strokeStyle = INK.line;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(24, 82);
+  g.lineTo(W - 24, 82);
+  g.moveTo(half, top + 16);
+  g.lineTo(half, H - 34);
+  g.stroke();
+  for (const i of [0, 1]) {
+    const cx = i * half + half / 2;
+    const lit = i === holder;
+    // the car's colour, a bar beside its name
+    g.letterSpacing = '5px';
+    g.font = `700 32px ${BOARD_MONO}`;
+    const name = names[i].toUpperCase();
+    const nw = g.measureText(name).width;
+    g.fillStyle = i === 0 ? YOU_SIG : RIVAL_SIG;
+    g.fillRect(cx - nw / 2 - 32, 152 - 11, 20, 22);
+    g.fillStyle = lit ? INK.pale : INK.hood;
+    g.fillText(name, cx + 10, 152);
+    g.letterSpacing = '2px';
+    g.font = `700 76px ${BOARD_MONO}`;
+    g.fillStyle = lit ? INK.pale : INK.line;
+    g.fillText(times[i], cx, 236);
+    if (lit) {
+      // the crown, over its half
+      const cw = 46;
+      const ch = 28;
+      const x0 = cx - cw / 2;
+      const y0 = 106;
+      g.fillStyle = GOLD;
+      g.beginPath();
+      g.moveTo(x0, y0 + ch);
+      g.lineTo(x0, y0 + ch * 0.2);
+      g.lineTo(x0 + cw * 0.25, y0 + ch * 0.55);
+      g.lineTo(x0 + cw * 0.5, y0);
+      g.lineTo(x0 + cw * 0.75, y0 + ch * 0.55);
+      g.lineTo(x0 + cw, y0 + ch * 0.2);
+      g.lineTo(x0 + cw, y0 + ch);
+      g.closePath();
+      g.fill();
+    }
+  }
+  // the screen's edge
+  g.strokeStyle = INK.wall;
+  g.lineWidth = 4;
+  g.beginPath();
+  g.roundRect(4, 4, W - 8, H - 8, 14);
+  g.stroke();
+}
+
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
   const reduced = useReducedMotion();
@@ -1384,10 +1463,18 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   // the crown hopping from one car to the other when it changes hands
   const hop = useRef({ holder: -1, at: -9, from: new Vector3() });
   // the scoreboard, and what's said when the crown changes hands
-  const boardCall = useRef<HTMLSpanElement>(null);
-  const boardYou = useRef<HTMLSpanElement>(null);
-  const boardRival = useRef<HTMLSpanElement>(null);
-  const boardText = useRef(['', '', '', '']);
+  const { accent } = useAccent();
+  const board = useMemo(() => {
+    const [c, g] = cpuCanvas(SCREEN.px, Math.round((SCREEN.px * SCREEN.h) / SCREEN.w));
+    const tex = new CanvasTexture(c);
+    tex.colorSpace = SRGBColorSpace;
+    tex.anisotropy = 4;
+    return { g, tex };
+  }, []);
+  useEffect(() => () => board.tex.dispose(), [board]);
+  const boardText = useRef('');
+  const screen = useRef<Group>(null);
+  const rise = useRef(0);
   const said = useRef<Group>(null);
   const saidEl = useRef<HTMLSpanElement>(null);
   const saidAt = useRef({ t: -9, car: 0 });
@@ -1439,6 +1526,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       );
       driven.forEach((d) => (d.length = 0));
       aimAt.current = null;
+      boardText.current = '';
       rejoin.current = null;
     } else if (!game && tag.current) {
       const T = tag.current;
@@ -1480,19 +1568,17 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         clock(T.cars[1].held),
         String(T.holder),
       ];
-      const shown = boardText.current;
-      if (text.some((x, i) => x !== shown[i])) {
-        boardText.current = text;
-        if (boardCall.current) boardCall.current.textContent = text[0];
-        if (boardYou.current) {
-          boardYou.current.textContent = text[1];
-          boardYou.current.parentElement?.toggleAttribute('data-crown', T.holder === 0);
-        }
-        if (boardRival.current) {
-          boardRival.current.textContent = text[2];
-          boardRival.current.parentElement?.toggleAttribute('data-crown', T.holder === 1);
-        }
+      if (text.join('|') !== boardText.current) {
+        boardText.current = text.join('|');
+        drawBoard(board.g, text[0], [touch ? 'Purple' : 'You', 'Rival'], [text[1], text[2]], T.holder, accent);
+        board.tex.needsUpdate = true;
       }
+    }
+    // the screen comes up out of the floor as the game starts, and goes back down
+    rise.current += ((T ? 1 : 0) - rise.current) * (reduced ? 1 : 1 - Math.exp(-dt * 5));
+    if (screen.current) {
+      screen.current.visible = rise.current > 0.01;
+      screen.current.scale.set(1, Math.max(0.001, easeOutBack(Math.min(1, rise.current))), 1);
     }
     // where you're steering: a small ring on the mat
     if (aimRing.current) {
@@ -1564,11 +1650,13 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       const car = T?.cars[i];
       let yaw: number;
       let tilt: number;
+      let roll = 0;
       if (car) {
         // in the game: where it's driven itself
         g.position.set(car.x, MAT + car.y, car.z);
         yaw = car.yaw + car.spin;
         tilt = car.pitch;
+        roll = Math.max(-0.14, Math.min(0.14, car.slip * 1.6)); // leaning out of a slide
         pitch.current[i] = car.pitch;
       } else {
         const u = wrapS(at) / COURSE.L;
@@ -1618,7 +1706,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         sz *= 1 + 0.04 * k;
       }
       g.scale.set(sx, sy, sz);
-      g.rotation.set(tilt - 0.07 * b.current + nose, yaw, 0, 'YXZ');
+      g.rotation.set(tilt - 0.07 * b.current + nose, yaw, roll, 'YXZ');
       // the line it's driven, in the game: a point every TRAIL.gap
       const line = driven[i];
       if (car) {
@@ -1736,27 +1824,31 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         <LeaderCrown />
       </group>
       {/* crown tag: where you're steering, the score, and what's said */}
+      <group ref={screen} position={SCREEN.at} visible={false}>
+        <mesh position={[0, 0.003, 0]}>
+          <cylinderGeometry args={[0.035, 0.04, 0.006, 24]} />
+          <LiveGlassMat slug="lightship-drive" tint="pale" />
+        </mesh>
+        <mesh position={[0, SCREEN.pole / 2, 0]}>
+          <cylinderGeometry args={[0.0045, 0.0045, SCREEN.pole, 12]} />
+          <LiveGlassMat slug="lightship-drive" tint="pale" />
+        </mesh>
+        <group position={[0, SCREEN.pole + SCREEN.h / 2 - 0.01, 0]} rotation={[-SCREEN.tilt, 0, 0]}>
+          <RoundedBox args={[SCREEN.w + 0.014, SCREEN.h + 0.014, 0.01]} radius={0.004} smoothness={2} position={[0, 0, -0.0052]}>
+            <LiveGlassMat slug="lightship-drive" tint="pale" />
+          </RoundedBox>
+          <mesh>
+            <planeGeometry args={[SCREEN.w, SCREEN.h]} />
+            <meshBasicMaterial map={board.tex} toneMapped={false} />
+          </mesh>
+        </group>
+      </group>
       <mesh ref={aimRing} rotation={[-Math.PI / 2, 0, 0]} visible={false} renderOrder={2}>
         <ringGeometry args={[0.009, 0.0125, 32]} />
         <meshBasicMaterial color={YOU_SIG} transparent opacity={0.85} depthWrite={false} toneMapped={false} />
       </mesh>
       {game && (
         <>
-          <group position={[-MAT_W / 2 + 0.06, MAT + 0.13, -MAT_D / 2]}>
-            <Html center zIndexRange={[14, 0]} style={{ pointerEvents: 'none' }}>
-              <span className="race-board">
-                <span ref={boardCall} className="race-board__call">
-                  Catch the crown
-                </span>
-                <span className="race-board__row" style={{ '--sig': YOU_SIG } as CSSProperties}>
-                  {touch ? 'Purple' : 'You'} <b ref={boardYou}>0:00</b>
-                </span>
-                <span className="race-board__row" style={{ '--sig': RIVAL_SIG } as CSSProperties} data-crown="">
-                  Rival <b ref={boardRival}>0:00</b>
-                </span>
-              </span>
-            </Html>
-          </group>
           <group ref={said}>
             <Html center zIndexRange={[14, 0]} className="critter-said-wrap" style={{ pointerEvents: 'none' }}>
               <span ref={saidEl} className="critter-said" />

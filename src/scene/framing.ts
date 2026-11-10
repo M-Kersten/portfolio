@@ -99,7 +99,7 @@ const SPOTS: Omit<Hotspot, 'position'>[] = [
   // (room.tsx RoomRig)
   { slug: 'virtuele-brigade', layer: 'room', anchor: [-1.42, 0.65, 0.26], foot: 0.79, view: { offset: [1.87, 0.2, 0.18], aimDown: 0.45, fovZoom: 0.5 } }, // the monitor's screen (room.tsx Desk, in the desk group)
   { slug: 'popcore-games', layer: 'room', anchor: [0.23, 0.22, -0.34], foot: 0.21, view: { offset: [-0.4, 0.85, 1.2], aimDown: 0.05, fovZoom: 19.5 } }, // phone on the couch; from the front-left and up, so the bin beside the right arm (room.tsx Phone) is in the shot
-  { slug: 'lightship-drive', layer: 'room', anchor: [0, 0.2, 0.68], foot: 0.19, view: { offset: [0.95, 0.5, 0.75], aimDown: 0.25, fovZoom: 30 } }, // the AR race table
+  { slug: 'lightship-drive', layer: 'room', anchor: [0, 0.2, 0.68], foot: 0.19, view: { offset: [-0.15, 1.2, 0.84], aimDown: 0.25, fovZoom: 12, orbit: 0.2 } }, // the AR race table
   { slug: 'zwijsen-ar-books', layer: 'room', anchor: [0.92, 0.4, -1.07], foot: 0.95, view: { offset: [-0.1, 0.9, 1.35], aimDown: 0.35, fovZoom: 16, mobileZoom: 1.45, orbit: 0.3 } }, // the orange book on the shelf; the marker stands on the bookcase's top
   // City — GIS / location work
   { slug: 'arcam', layer: 'city', anchor: [1.2, 0.3, 0.11], foot: 0.36, view: { offset: [1.28, 0.68, 1.46], aimDown: 0.3, fovZoom: 17 } }, // the park's AR viewer (city.tsx Park → Binoculars)

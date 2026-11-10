@@ -40,6 +40,12 @@ export interface TagCar {
   yaw: number;
   /** speed along its heading (m/s) */
   v: number;
+  /** how it's actually moving (m/s): along its heading, plus the slide sideways
+   *  that grip takes out of it (`slip`, + to its right), so it can slide into
+   *  a corner */
+  vx: number;
+  vz: number;
+  slip: number;
   /** height off the mat, and its rate while in the air */
   y: number;
   vy: number;
@@ -87,10 +93,19 @@ export type TagEvent = { kind: 'tag'; to: 0 | 1 } | { kind: 'launch'; car: 0 | 1
 
 /* The cars' handling. Yours is a touch quicker than the rival either way, so
    it can always be caught and always be got away from; the rival steers
-   perfectly, which makes up for it. */
+   perfectly, which makes up for it. A car turns its nose first and its
+   weight follows: grip (GRIP) takes the sideways slide out of it a little at a
+   time, so a hard turn at speed slides into the corner, yours most (it's a
+   toy car on a mat), the rival a bit less. Yours goes where you point and
+   nothing else steers it: no going round kickers for you, no easing off for a
+   bend. */
 const R = 0.02; // a car's reach: two closer than 2R are touching
 export const TAG_R = R;
 const TURN = 5.2; // rad/s, at speed
+const TURN_YOU = 6.2;
+const GRIP = 8; // 1/s: how fast the slide dies away (the rival)
+const GRIP_YOU = 4.2; // yours slides more
+const GRIP_RAMP = 14; // up a kicker's face it runs true
 const ACC = 0.75; // m/s², gathering speed
 const BRAKE = 1.4; // m/s², shedding it
 const YOU = 0.24; // your top speed
@@ -112,6 +127,9 @@ export function newTag(seed: { x: number; z: number; yaw: number; v: number }[],
     z: s.z,
     yaw: s.yaw,
     v: s.v,
+    vx: Math.sin(s.yaw) * s.v,
+    vz: Math.cos(s.yaw) * s.v,
+    slip: 0,
     y: 0,
     vy: 0,
     air: false,
@@ -204,7 +222,9 @@ function gravity(w: TagWorld) {
   return { launch, g: 2 * fall * VREF * VREF };
 }
 
-function drive(car: TagCar, i: 0 | 1, w: TagWorld, dt: number, goal: { x: number; z: number; v: number; straight?: boolean }, events: TagEvent[]) {
+type Goal = { x: number; z: number; v: number; straight?: boolean; you?: boolean };
+
+function drive(car: TagCar, i: 0 | 1, w: TagWorld, dt: number, goal: Goal, events: TagEvent[]) {
   const { launch, g } = gravity(w);
   car.land = Math.max(0, car.land - dt * 4);
   car.burst = Math.max(0, car.burst - dt / BURST_S);
@@ -214,8 +234,8 @@ function drive(car: TagCar, i: 0 | 1, w: TagWorld, dt: number, goal: { x: number
     if (car.stun === 0) car.spin = 0;
   }
   if (car.air) {
-    car.x += Math.sin(car.yaw) * car.v * dt;
-    car.z += Math.cos(car.yaw) * car.v * dt;
+    car.x += car.vx * dt;
+    car.z += car.vz * dt;
     car.y += car.vy * dt;
     car.vy -= g * dt;
     if (car.y <= 0) {
@@ -226,23 +246,40 @@ function drive(car: TagCar, i: 0 | 1, w: TagWorld, dt: number, goal: { x: number
       events.push({ kind: 'land', car: i });
     }
   } else {
-    // steer for the goal (round a kicker that's in the way), and take the speed it wants
-    const [gx, gz] = car.ramp >= 0 ? [goal.x, goal.z] : around(w, car, goal.x, goal.z);
+    // steer for the goal (the rival goes round a kicker that's in the way;
+    // yours goes where it's pointed), and take the speed it wants
+    const [gx, gz] = car.ramp >= 0 || goal.you ? [goal.x, goal.z] : around(w, car, goal.x, goal.z);
     const want = Math.atan2(gx - car.x, gz - car.z);
     const off = wrap(want - car.yaw);
     const d = Math.hypot(goal.x - car.x, goal.z - car.z);
-    let rate = TURN * (0.35 + 0.65 * Math.min(1, car.v / 0.1));
-    if (car.ramp >= 0) rate *= 0.2;
-    let target = goal.straight ? goal.v : goal.v * clamp((d - 0.012) / 0.07, 0, 1) * (1 - 0.6 * Math.min(1, Math.abs(off) / 1.7));
+    let rate = (goal.you ? TURN_YOU : TURN) * (0.45 + 0.55 * Math.min(1, Math.abs(car.v) / 0.1));
+    if (car.ramp >= 0) rate *= goal.you ? 0.6 : 0.2;
+    let target = goal.straight
+      ? goal.v
+      : goal.you
+        ? // flat out until it's nearly there (easing off only to turn right round)
+          goal.v * clamp((d - 0.008) / 0.04, 0, 1) * (Math.abs(off) > 2.2 ? 0.7 : 1)
+        : goal.v * clamp((d - 0.012) / 0.07, 0, 1) * (1 - 0.6 * Math.min(1, Math.abs(off) / 1.7));
     if (car.stun > 0) {
       rate = 0;
       target = 0;
     }
     car.yaw = wrap(car.yaw + clamp(off, -rate * dt, rate * dt));
+    // its way of going, along its nose and sideways: the engine works along
+    // the nose, grip takes the sideways slide out a little at a time
+    const fx = Math.sin(car.yaw);
+    const fz = Math.cos(car.yaw);
+    let f = car.vx * fx + car.vz * fz;
+    let l = car.vx * fz - car.vz * fx;
     const top = target * (1 + BURST * car.burst);
-    car.v += clamp(top - car.v, -BRAKE * dt, ACC * (1 + 2 * car.burst) * dt);
-    car.x += Math.sin(car.yaw) * car.v * dt;
-    car.z += Math.cos(car.yaw) * car.v * dt;
+    f += clamp(top - f, -BRAKE * dt, ACC * (1 + 2 * car.burst) * dt);
+    l *= Math.exp(-(car.ramp >= 0 ? GRIP_RAMP : goal.you ? GRIP_YOU : GRIP) * dt);
+    car.vx = f * fx + l * fz;
+    car.vz = f * fz - l * fx;
+    car.v = f;
+    car.slip = l;
+    car.x += car.vx * dt;
+    car.z += car.vz * dt;
     // the kickers: up one from its toe, or bumped off its sides and back
     if (car.ramp >= 0) {
       const [a, across] = local(w.kickers[car.ramp], w, car.x, car.z);
@@ -257,7 +294,7 @@ function drive(car: TagCar, i: 0 | 1, w: TagWorld, dt: number, goal: { x: number
         car.ramp = -1;
         car.air = true;
         car.y = w.ramp.h;
-        car.vy = launch * car.v * Math.max(0.3, along);
+        car.vy = launch * Math.max(car.v, 0.12) * Math.max(0.3, along);
         events.push({ kind: 'launch', car: i });
       } else if (a < 0) {
         car.ramp = -1;
@@ -271,10 +308,18 @@ function drive(car: TagCar, i: 0 | 1, w: TagWorld, dt: number, goal: { x: number
         const [a, across] = local(kk, w, car.x, car.z);
         const side = w.ramp.w / 2 + R * 0.45;
         if (Math.abs(across) > side || a < -R * 0.5 || a > w.ramp.l + R * 0.5) continue;
-        const along = Math.cos(car.yaw - kk.yaw);
-        if (a < 0.016 && along > 0.4 && Math.abs(across) < w.ramp.w / 2 - 0.006) {
-          car.ramp = k; // onto its toe, and up
+        const along = Math.cos(Math.atan2(car.vx, car.vz) - kk.yaw);
+        if (a < 0.03 && along > 0.2 && Math.abs(across) < w.ramp.w / 2 + 0.006) {
+          // onto its toe, and up: met anywhere across the front and going
+          // roughly its way, it takes the car (nudged in off the very edge)
+          car.ramp = k;
           car.y = face(w, Math.max(a, 0))[0];
+          const inside = w.ramp.w / 2 - 0.005;
+          if (Math.abs(across) > inside) {
+            const nudge = (Math.abs(across) - inside) * Math.sign(across);
+            car.x -= Math.cos(kk.yaw) * nudge;
+            car.z += Math.sin(kk.yaw) * nudge;
+          }
           break;
         }
         // in the way: pushed back out the shortest way, losing speed
@@ -295,22 +340,28 @@ function drive(car: TagCar, i: 0 | 1, w: TagWorld, dt: number, goal: { x: number
           car.z += c * front;
         }
         car.v *= 0.5;
+        car.vx *= 0.5;
+        car.vz *= 0.5;
       }
     }
     // pointed at somewhere and not getting there: the AI picks somewhere else
-    car.stuck = car.v < 0.025 && d > 0.05 && car.stun === 0 ? car.stuck + dt : 0;
+    car.stuck = Math.hypot(car.vx, car.vz) < 0.025 && d > 0.05 && car.stun === 0 ? car.stuck + dt : 0;
   }
   // the edges of the mat
   const cx = clamp(car.x, -w.hx, w.hx);
   const cz = clamp(car.z, -w.hz, w.hz);
-  if (cx !== car.x || cz !== car.z) {
+  // (it bumps off them: what was going into the edge comes back a little)
+  if (cx !== car.x) {
     car.x = cx;
+    car.vx *= -0.25;
+  }
+  if (cz !== car.z) {
     car.z = cz;
-    if (!car.air) car.v *= 0.92;
+    car.vz *= -0.25;
   }
   // the nose: up the face, along the flight, level on the mat
   let aim = 0;
-  if (car.air) aim = -Math.atan2(car.vy, Math.max(car.v, 0.05));
+  if (car.air) aim = -Math.atan2(car.vy, Math.max(Math.hypot(car.vx, car.vz), 0.05));
   else if (car.ramp >= 0) aim = -Math.atan(face(w, local(w.kickers[car.ramp], w, car.x, car.z)[0])[1]);
   car.pitch += (aim - car.pitch) * (1 - Math.exp(-dt * 16));
 }
@@ -326,15 +377,21 @@ function think(tag: Tag, i: 0 | 1, w: TagWorld): { x: number; z: number; v: numb
     tag.plans[i] = null;
     const lead = LEAD * ai;
     return {
-      x: them.x + Math.sin(them.yaw) * them.v * lead,
-      z: them.z + Math.cos(them.yaw) * them.v * lead,
+      x: them.x + them.vx * lead,
+      z: them.z + them.vz * lead,
       v: (i === 1 ? CHASE : CHASE * 0.95) * ai,
     };
   }
   const v = FLEE * (1 - TIRE * Math.min(1, tag.streak / TIRE_S)) * (i === 1 ? 1 : 0.95);
   let p = tag.plans[i];
   const near = p ? Math.hypot(p.x - me.x, p.z - me.z) : 0;
-  if (p && p.phase === 'approach' && near < 0.03) {
+  // lined up in front of the toe (or near enough where it was headed)
+  const funnel = (() => {
+    if (!p || p.phase !== 'approach') return false;
+    const [a, across] = local(w.kickers[p.kicker], w, me.x, me.z);
+    return a > -0.1 && a < 0.02 && Math.abs(across) < w.ramp.w / 2 - 0.01;
+  })();
+  if (p && p.phase === 'approach' && (near < 0.04 || funnel)) {
     // lined up on the toe: up it and off the far side
     const k = w.kickers[p.kicker];
     p = tag.plans[i] = {
@@ -388,7 +445,7 @@ export function stepTag(tag: Tag, w: TagWorld, dt: number, target: { x: number; 
   tag.streak += dt;
   tag.cars[tag.holder].held += dt;
   const goals = [
-    target ? { x: clamp(target.x, -w.hx, w.hx), z: clamp(target.z, -w.hz, w.hz), v: YOU } : think(tag, 0, w),
+    target ? { x: clamp(target.x, -w.hx, w.hx), z: clamp(target.z, -w.hz, w.hz), v: YOU, you: true } : think(tag, 0, w),
     think(tag, 1, w),
   ];
   drive(tag.cars[0], 0, w, dt, goals[0], events);
@@ -417,6 +474,8 @@ export function stepTag(tag: Tag, w: TagWorld, dt: number, target: { x: number; 
       holder.stun = STUN;
       holder.spin = 0;
       holder.v *= 0.3;
+      holder.vx *= 0.3;
+      holder.vz *= 0.3;
       chaser.burst = 1;
       tag.plans = [null, null];
       events.push({ kind: 'tag', to });
