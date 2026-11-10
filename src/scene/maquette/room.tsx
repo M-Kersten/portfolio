@@ -5,7 +5,7 @@
 // everything.
 import { useEffect, useMemo, useRef, type ElementRef, type MutableRefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Html, RoundedBox } from '@react-three/drei';
+import { RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, FrontSide, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, ShaderMaterial, Shape, ShapeGeometry, SRGBColorSpace, TorusGeometry, Vector2, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera, type Side, type Sprite, type SpriteMaterial, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { HOTSPOTS, portraitMix } from '../framing';
@@ -1265,7 +1265,8 @@ function arrowGeometry(): BufferGeometry {
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(pos, 3));
   g.setAttribute('uv', new BufferAttribute(uv, 2));
-  g.setAttribute('color', new BufferAttribute(new Float32Array((N + 1) * 6).fill(1), 3));
+  // (with alpha: the arrows fade off the mat while crown tag is on)
+  g.setAttribute('color', new BufferAttribute(new Float32Array((N + 1) * 8).fill(1), 4));
   g.setIndex(idx);
   g.computeVertexNormals();
   g.userData.arrow = arrow;
@@ -1352,7 +1353,8 @@ function nearestOnCourse(x: number, z: number): number {
   });
   return best / COURSE_PTS.length;
 }
-const YOU_SIG = '#ff4fd8'; // your car's rims, for what's said about you
+const YOU_SIG = '#ff4fd8'; // your car's rims: its colour on the screen, and the ring where you steer
+const TAG_STEP = 1 / 120; // s: the game's step
 const RIVAL_SIG = '#ff8a3c';
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -1360,59 +1362,51 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60))
    the game: a slim screen on a pole, tilted up to the close-up's camera, its
    frame the table's own glass. It comes up out of the floor as the game
    starts. On it, in the editor's colours (terminalArt INK, the Virtuele
-   Brigade's monitor): what to do, and each car's crown time under its name
-   and colour, the holder's half lit with the crown over it. */
+   Brigade's monitor): each car's crown time under its name and colour, the
+   holder's half lit with the crown over it. Nothing else. */
 const SCREEN = { at: [-0.12, 0, -MAT_D / 2 - 0.13] as V3, pole: 0.17, w: 0.24, h: 0.135, tilt: 0.8, px: 640 };
 const BOARD_MONO = '"Space Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
-function drawBoard(g: CanvasRenderingContext2D & { letterSpacing?: string }, call: string, names: [string, string], times: [string, string], holder: number, accent: string) {
+function drawBoard(g: CanvasRenderingContext2D & { letterSpacing?: string }, names: [string, string], times: [string, string], holder: number) {
   const W = g.canvas.width;
   const H = g.canvas.height;
   g.fillStyle = INK.bg;
   g.fillRect(0, 0, W, H);
   // the holder's half, lit
   const half = W / 2;
-  const top = 92;
   g.fillStyle = INK.hi;
   g.beginPath();
-  g.roundRect(holder * half + 18, top, half - 36, H - top - 18, 12);
+  g.roundRect(holder * half + 18, 18, half - 36, H - 36, 12);
   g.fill();
-  // what to do, across the top
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.letterSpacing = '6px';
-  g.font = `700 36px ${BOARD_MONO}`;
-  g.fillStyle = accent;
-  g.fillText(call.toUpperCase(), W / 2, 48);
   g.strokeStyle = INK.line;
   g.lineWidth = 2;
   g.beginPath();
-  g.moveTo(24, 82);
-  g.lineTo(W - 24, 82);
-  g.moveTo(half, top + 16);
-  g.lineTo(half, H - 34);
+  g.moveTo(half, 40);
+  g.lineTo(half, H - 40);
   g.stroke();
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
   for (const i of [0, 1]) {
     const cx = i * half + half / 2;
     const lit = i === holder;
     // the car's colour, a bar beside its name
     g.letterSpacing = '5px';
-    g.font = `700 32px ${BOARD_MONO}`;
+    g.font = `700 34px ${BOARD_MONO}`;
     const name = names[i].toUpperCase();
     const nw = g.measureText(name).width;
     g.fillStyle = i === 0 ? YOU_SIG : RIVAL_SIG;
-    g.fillRect(cx - nw / 2 - 32, 152 - 11, 20, 22);
+    g.fillRect(cx - nw / 2 - 34, 132 - 12, 22, 24);
     g.fillStyle = lit ? INK.pale : INK.hood;
-    g.fillText(name, cx + 10, 152);
+    g.fillText(name, cx + 11, 132);
     g.letterSpacing = '2px';
-    g.font = `700 76px ${BOARD_MONO}`;
+    g.font = `700 92px ${BOARD_MONO}`;
     g.fillStyle = lit ? INK.pale : INK.line;
     g.fillText(times[i], cx, 236);
     if (lit) {
       // the crown, over its half
-      const cw = 46;
-      const ch = 28;
+      const cw = 56;
+      const ch = 34;
       const x0 = cx - cw / 2;
-      const y0 = 106;
+      const y0 = 56;
       g.fillStyle = GOLD;
       g.beginPath();
       g.moveTo(x0, y0 + ch);
@@ -1463,7 +1457,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   // the crown hopping from one car to the other when it changes hands
   const hop = useRef({ holder: -1, at: -9, from: new Vector3() });
   // the scoreboard, and what's said when the crown changes hands
-  const { accent } = useAccent();
   const board = useMemo(() => {
     const [c, g] = cpuCanvas(SCREEN.px, Math.round((SCREEN.px * SCREEN.h) / SCREEN.w));
     const tex = new CanvasTexture(c);
@@ -1475,9 +1468,8 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const boardText = useRef('');
   const screen = useRef<Group>(null);
   const rise = useRef(0);
-  const said = useRef<Group>(null);
-  const saidEl = useRef<HTMLSpanElement>(null);
-  const saidAt = useRef({ t: -9, car: 0 });
+  // the course's arrows, faded off the mat while the game's on: there's no course to follow
+  const arrowMesh = useRef<Mesh>(null);
   const trailIM = useRef<InstancedMesh>(null);
   const trailMat = useMemo(() => {
     const m = new MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
@@ -1543,39 +1535,31 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         aimAt.current = { x: Math.max(-TAG_WORLD.hx, Math.min(TAG_WORLD.hx, onMat.x)), z: Math.max(-TAG_WORLD.hz, Math.min(TAG_WORLD.hz, onMat.z)) };
         aimed = true;
       }
+      // in real time, in small steps (TAG_STEP), however the frames come: a
+      // slow frame doesn't slow the game down or make the car skip a turn
       const you = T.cars[0];
-      const events = stepTag(T, TAG_WORLD, dt, touch ? null : (aimAt.current ?? { x: you.x, z: you.z }));
+      const real = Math.min(delta, 0.1);
+      const n = Math.max(1, Math.ceil(real / TAG_STEP));
+      const events = [];
+      for (let k = 0; k < n; k++) events.push(...stepTag(T, TAG_WORLD, real / n, touch ? null : (aimAt.current ?? { x: you.x, z: you.z })));
       for (const e of events) {
         if (e.kind !== 'tag') continue;
         // the getaway: the new holder squats and goes, its trail streaming
         boost[e.to].at = t;
         boost[e.to].launched = false;
-        saidAt.current = { t, car: e.to };
-        const el = saidEl.current;
-        if (el) {
-          el.textContent = e.to === 0 ? (touch ? 'Purple takes it' : 'Got it!') : 'Stolen!';
-          el.style.setProperty('--sig', e.to === 0 ? YOU_SIG : RIVAL_SIG);
-          el.removeAttribute('data-on');
-          void el.offsetWidth; // start its animation over
-          el.setAttribute('data-on', '');
-        }
         play('select', { volume: 0.55, rate: e.to === 0 ? 1.3 : 0.75 });
       }
-      // the scoreboard: whose crown it is, and how long each has kept it
-      const text = [
-        T.holder === 0 ? (touch ? 'Purple has the crown' : 'Keep the crown') : touch ? 'Purple wants the crown' : 'Catch the crown',
-        clock(T.cars[0].held),
-        clock(T.cars[1].held),
-        String(T.holder),
-      ];
+      // the scoreboard: how long each has kept the crown, and who has it
+      const text = [clock(T.cars[0].held), clock(T.cars[1].held), String(T.holder)];
       if (text.join('|') !== boardText.current) {
         boardText.current = text.join('|');
-        drawBoard(board.g, text[0], [touch ? 'Purple' : 'You', 'Rival'], [text[1], text[2]], T.holder, accent);
+        drawBoard(board.g, [touch ? 'Purple' : 'You', 'Rival'], [text[0], text[1]], T.holder);
         board.tex.needsUpdate = true;
       }
     }
     // the screen comes up out of the floor as the game starts, and goes back down
     rise.current += ((T ? 1 : 0) - rise.current) * (reduced ? 1 : 1 - Math.exp(-dt * 5));
+    if (arrowMesh.current) arrowMesh.current.visible = rise.current < 0.99;
     if (screen.current) {
       screen.current.visible = rise.current > 0.01;
       screen.current.scale.set(1, Math.max(0.001, easeOutBack(Math.min(1, rise.current))), 1);
@@ -1614,12 +1598,13 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         .multiplyScalar(ARROW_CHASE.rest + (1.3 - ARROW_CHASE.rest) * pulse)
         .lerp(WHITE_NEON, 0.3 * pulse);
     }
+    const arrowAlpha = 1 - Math.min(1, rise.current);
     const which = arrows.userData.arrow as Uint8Array;
     const col = arrows.attributes.color as BufferAttribute;
     for (let i = 0; i < which.length; i++) {
       const c = arrowCol[which[i]];
-      col.setXYZ(2 * i, c.r, c.g, c.b);
-      col.setXYZ(2 * i + 1, c.r, c.g, c.b);
+      col.setXYZW(2 * i, c.r, c.g, c.b, arrowAlpha);
+      col.setXYZW(2 * i + 1, c.r, c.g, c.b, arrowAlpha);
     }
     col.needsUpdate = true;
 
@@ -1773,11 +1758,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       crown.current.scale.setScalar(live.current * CAR_SCALE); // only once the race is real
       crown.current.visible = live.current > 0.02;
     }
-    // what's said when it changes hands, over the one that's got it now
-    if (said.current && T) {
-      const sc = T.cars[saidAt.current.car];
-      said.current.position.set(sc.x, MAT + sc.y + 0.075, sc.z);
-    }
   });
   return (
     <group ref={table} position={position} rotation={[0, -0.16, 0]}>
@@ -1798,7 +1778,7 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       {/* neon, in the cars' colours, with the chase of light along them
           (ARROW_CHASE): solid, as the cars' stripes are, since light added
           onto the pale mat only washed out */}
-      <mesh geometry={arrows} renderOrder={1}>
+      <mesh ref={arrowMesh} geometry={arrows} renderOrder={1}>
         <meshBasicMaterial map={arrowMap} vertexColors transparent depthWrite={false} toneMapped={false} />
       </mesh>
       {kit &&
@@ -1847,15 +1827,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         <ringGeometry args={[0.009, 0.0125, 32]} />
         <meshBasicMaterial color={YOU_SIG} transparent opacity={0.85} depthWrite={false} toneMapped={false} />
       </mesh>
-      {game && (
-        <>
-          <group ref={said}>
-            <Html center zIndexRange={[14, 0]} className="critter-said-wrap" style={{ pointerEvents: 'none' }}>
-              <span ref={saidEl} className="critter-said" />
-            </Html>
-          </group>
-        </>
-      )}
     </group>
   );
 }

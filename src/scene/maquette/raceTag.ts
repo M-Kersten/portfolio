@@ -102,9 +102,9 @@ export type TagEvent = { kind: 'tag'; to: 0 | 1 } | { kind: 'launch'; car: 0 | 1
 const R = 0.02; // a car's reach: two closer than 2R are touching
 export const TAG_R = R;
 const TURN = 5.2; // rad/s, at speed
-const TURN_YOU = 6.2;
+const TURN_YOU = 7;
 const GRIP = 8; // 1/s: how fast the slide dies away (the rival)
-const GRIP_YOU = 4.2; // yours slides more
+const GRIP_YOU = 5.5; // yours slides more
 const GRIP_RAMP = 14; // up a kicker's face it runs true
 const ACC = 0.75; // m/s², gathering speed
 const BRAKE = 1.4; // m/s², shedding it
@@ -367,9 +367,12 @@ function drive(car: TagCar, i: 0 | 1, w: TagWorld, dt: number, goal: Goal, event
 }
 
 /** Where the rival (or your car, on a touch screen) is headed next. With the
- *  crown, somewhere well away from the chaser and not past it, or onto a
- *  kicker when the chaser's close; without it, where the holder is going. */
-function think(tag: Tag, i: 0 | 1, w: TagWorld): { x: number; z: number; v: number; straight?: boolean } {
+ *  crown, on through open mat away from the chaser and never past it, or up
+ *  a kicker when the chaser's near; without it, where the holder is going.
+ *  It never parks: with the crown it drives on through each place it picked,
+ *  picking the next as it gets near, and would rather carry on the way it's
+ *  going than double back. */
+function think(tag: Tag, i: 0 | 1, w: TagWorld): Goal {
   const me = tag.cars[i];
   const them = tag.cars[i === 0 ? 1 : 0];
   const ai = i === 1 ? 1 : 0.88; // your car, driving itself, is a little less sharp
@@ -403,14 +406,19 @@ function think(tag: Tag, i: 0 | 1, w: TagWorld): { x: number; z: number; v: numb
     };
   }
   const chaserClose = Math.hypot(them.x - me.x, them.z - me.z) < 0.16;
-  if (!p || tag.time > p.until || (p.phase !== 'run' && near < 0.04) || me.stuck > 0.5 || (p.phase === 'go' && chaserClose && Math.hypot(p.x - them.x, p.z - them.z) < 0.1)) {
+  const chaserNear = Math.hypot(them.x - me.x, them.z - me.z) < 0.26;
+  if (!p || tag.time > p.until || (p.phase === 'go' && near < 0.07) || (p.phase === 'approach' && near < 0.04) || me.stuck > 0.5 || (p.phase === 'go' && chaserClose && Math.hypot(p.x - them.x, p.z - them.z) < 0.1)) {
     me.stuck = 0;
     const pick: { best: Plan | null; score: number } = { best: null, score: -Infinity };
     const consider = (x: number, z: number, phase: Plan['phase'], kicker: number) => {
       const dx = x - me.x;
       const dz = z - me.z;
       const len = Math.hypot(dx, dz) || 1e-6;
+      if (len < 0.1) return; // somewhere else, not here
       let s = Math.hypot(x - them.x, z - them.z) - 0.3 * len;
+      // carrying on the way it's going, rather than doubling back
+      const sp = Math.hypot(me.vx, me.vz);
+      if (sp > 0.03) s += 0.09 * ((me.vx * dx + me.vz * dz) / (sp * len));
       // not past the chaser to get there
       const t = ((them.x - me.x) * dx + (them.z - me.z) * dz) / (len * len);
       if (t > 0 && t < 1) {
@@ -418,10 +426,10 @@ function think(tag: Tag, i: 0 | 1, w: TagWorld): { x: number; z: number; v: numb
         const pz = me.z + dz * t - them.z;
         if (Math.hypot(px, pz) < 0.08) s -= 0.4;
       }
-      if (phase === 'approach' && chaserClose) s += 0.05;
+      if (phase === 'approach' && chaserNear) s += chaserClose ? 0.08 : 0.04;
       if (s > pick.score) {
         pick.score = s;
-        pick.best = { x, z, until: tag.time + (phase === 'approach' ? 2.2 : 1.1), phase, kicker };
+        pick.best = { x, z, until: tag.time + (phase === 'approach' ? 2.2 : 1.6), phase, kicker };
       }
     };
     for (const fx of [-0.8, -0.4, 0, 0.4, 0.8]) for (const fz of [-0.75, 0, 0.75]) consider(fx * w.hx, fz * w.hz, 'go', -1);
@@ -433,7 +441,8 @@ function think(tag: Tag, i: 0 | 1, w: TagWorld): { x: number; z: number; v: numb
     p = tag.plans[i] = pick.best;
   }
   if (!p) return { x: me.x, z: me.z, v };
-  return { x: p.x, z: p.z, v, straight: p.phase === 'run' };
+  // (on through a place it's passing, slowing only to line up on a kicker)
+  return { x: p.x, z: p.z, v, straight: p.phase !== 'approach' };
 }
 
 /** One step of the game. `target` is where the cursor points on the mat, for

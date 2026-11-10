@@ -3,12 +3,15 @@ import { Canvas } from '@react-three/fiber';
 import { PerformanceMonitor } from '@react-three/drei';
 import { Stage } from '../../scene/Stage';
 import { type Hotspot } from '../../scene/framing';
+import { useSceneSelector } from '../../scene/store';
 import { MAQUETTE_HOME } from '../../scene/views';
 
 /** How long a lost context gets to come back. A driver reset or a restarted GPU
  *  process usually restores it within a second; one that stays gone means the
  *  browser has stopped giving this page a GPU. */
 const RESTORE_GRACE_MS = 3000;
+/** The close-up that plays at 1× (see below). */
+const GAME_AT_1X = 'lightship-drive';
 
 /** Calls `onLost` when the canvas loses its context and it isn't restored in
  *  time. three already keeps the context restorable (it prevents the lost
@@ -47,9 +50,12 @@ export default function CanvasScene({
   // fewer pixels. The flip-flop guard locks to the low tier if a device sits on
   // the fence, so it never oscillates.
   const [dpr, setDpr] = useState(1.25);
+  // While the Lightship table's crown tag is on, steering wants every frame it
+  // can get more than it wants sharpness, so the game plays at 1×.
+  const game = useSceneSelector((s) => s.selectedSlug === GAME_AT_1X);
   return (
     <Canvas
-      dpr={dpr}
+      dpr={game ? Math.min(dpr, 1) : dpr}
       frameloop={frameloop}
       // No `shadows`: three would compile shadow sampling into every material
       // in the scene. The hover light's shadows are its own depth pass, drawn
