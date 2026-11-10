@@ -53,6 +53,9 @@ import { LEAVE_MS, TURN_MS, box, sheetLayout, walkIn, type Dir, type From, type 
 // the camera has moved: then the wait is only a backstop.
 const ARRIVE_WAIT = 2200;
 const ARRIVE_BACKSTOP = 6000;
+/** On a page, how long the book takes to settle away before it's gone
+ *  (exhibit.css, .exhibit[data-place='page'][data-closing]). */
+const SHUT_MS = 220;
 const camera = { reported: false };
 
 export function Exhibit({
@@ -94,7 +97,7 @@ export function Exhibit({
   // the label as it unfolds (set then).
   const [cardFrom] = useState<From | null>(() => {
     const r = inMaquette ? null : caseOrigin(study.slug);
-    return r ? { film: box(r) } : null;
+    return r ? { film: box(r.picture), box: r.card ? box(r.card) : undefined } : null;
   });
   const unfoldFrom = useRef<From | null>(cardFrom);
   const { prev, next } = walkFrom(study, place, collection);
@@ -144,7 +147,8 @@ export function Exhibit({
   const openBook = useCallback(() => {
     const h = headRef.current?.getBoundingClientRect();
     const f = filmRef.current?.getBoundingClientRect();
-    unfoldFrom.current = f ? { head: h ? box(h) : undefined, film: box(f) } : null;
+    const l = labelRef.current?.getBoundingClientRect();
+    unfoldFrom.current = f ? { box: l ? box(l) : undefined, head: h ? box(h) : undefined, film: box(f) } : null;
     // the film carries on in the book from where it was in the label
     setFilm(clock.current.playing || clock.current.t > 0 ? { ...clock.current } : null);
     setBook(true);
@@ -199,9 +203,20 @@ export function Exhibit({
     },
     [walk, next, prev],
   );
+  // On a page the book settles away (SHUT_MS) before it's gone; the maquette
+  // fades its label out on its own way out (`closing`).
+  const [shutting, setShutting] = useState(false);
+  const shutTimer = useRef(0);
+  useEffect(() => () => clearTimeout(shutTimer.current), []);
+  const close = useCallback(() => {
+    if (inMaquette || reduced) return onClose();
+    if (shutting) return;
+    setShutting(true);
+    shutTimer.current = window.setTimeout(onClose, SHUT_MS);
+  }, [inMaquette, reduced, onClose, shutting]);
   // Esc steps back one level: the picture, then the book (to the label, in the
   // maquette), then the whole thing
-  const back = book && inMaquette ? foldBook : onClose;
+  const back = book && inMaquette ? foldBook : close;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -227,7 +242,7 @@ export function Exhibit({
       data-place={place}
       data-layer={study.layer}
       data-book={book || undefined}
-      data-closing={closing || undefined}
+      data-closing={closing || shutting || undefined}
       data-leaving={(!book && turning) || undefined}
       data-arrive={(!reduced && arrivedBy) || undefined}
     >
@@ -264,7 +279,7 @@ export function Exhibit({
           reduced={reduced}
           turning={turning}
           onFold={foldBook}
-          onClose={onClose}
+          onClose={close}
           onWalk={walk}
           onStep={step}
           drag={frame === null}

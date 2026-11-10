@@ -206,10 +206,19 @@ export function HeroStage() {
         Welcome back
       </span>
     ) : null;
-  // out of sight (a label opened, the page scrolled on): the ticket goes back in, so an unseen sheet never catches a click
+  // out of sight (a label opened, the page scrolled on): the ticket goes back in,
+  // and the whole of it is out of reach, its pull tab too (which sets its own
+  // pointer-events, so the hidden box's 'none' didn't reach it: the tab was
+  // still there, unseen, over the footer, opening an unseen ticket whose
+  // "more in the depot" link then caught the next click)
+  const signalsRef = useRef<HTMLDivElement>(null);
+  const reachable = Boolean(overlayOpacity && booted);
   useEffect(() => {
     if (!overlayOpacity) setGuide('closed');
   }, [overlayOpacity]);
+  useEffect(() => {
+    if (signalsRef.current) signalsRef.current.inert = !reachable;
+  }, [reachable]);
 
   // exhibit 11, from the guide: up to the city, where the pad stands, and onto it
   const openPad = () => {
@@ -241,8 +250,9 @@ export function HeroStage() {
         {welcome === 'on' && booted ? 'Welcome back' : ''}
       </p>
       <div
+        ref={signalsRef}
         className="hero__signals"
-        style={{ opacity: overlayOpacity * (booted ? 1 : 0), pointerEvents: overlayOpacity && booted ? undefined : 'none' }}
+        style={{ opacity: overlayOpacity * (booted ? 1 : 0), pointerEvents: reachable ? undefined : 'none' }}
         data-complete={complete || undefined}
       >
         <ExhibitionGuide

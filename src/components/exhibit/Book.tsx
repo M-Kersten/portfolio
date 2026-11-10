@@ -5,10 +5,14 @@ import { filmCaption } from '../../content/films';
 import { asset } from '../../lib/asset';
 import { EASE, MOTION } from '../../lib/motion';
 import { useSheetDrag } from '../../lib/useSheetDrag';
+
+/** The unfold's own curve: it gathers itself, then lands long and soft, so a
+ *  page growing out of a card reads as one move rather than a pop. */
+const GROW = 'cubic-bezier(0.2, 0, 0, 1)';
 import { clockLabel, youtubeEmbed, youtubeStart, type FilmClock } from '../../lib/youtube';
 import { Gallery } from './Gallery';
 import { VoiceNote } from './VoiceNote';
-import { PlayMark, Player, Walk, enterAttr, sheetLayout, walkIn, type Dir, type From, type Place } from './parts';
+import { PlayMark, Player, Walk, enterAttr, sheetLayout, walkIn, type Box, type Dir, type From, type Place } from './parts';
 
 // The book: the full story, set as a spread. The left page is the chapter
 // opener (the number, the title, the standfirst, the audio tour) over the
@@ -91,25 +95,57 @@ export function Book({
     grab: '.xb__screen',
   });
 
-  // The unfold. The label's head travels to the top of the left page and its
-  // film grows into the plate (on a page, the card's picture does); the spread
-  // fades up round them, and the right page swings open from the spine.
+  // The unfold, one move: the page grows out of what was clicked (the card on
+  // a page, the label in the maquette), its outline opening out to the whole
+  // book, while the picture on it (the card's, or the label's film) grows into
+  // the plate. The words settle in once there's a page under them, the
+  // right-hand page opens off the spine with a short turn, and the way out
+  // comes last. Anything else (a link straight to the story) rises into place.
   useLayoutEffect(() => {
     const spread = spreadRef.current;
     const opener = openerRef.current;
     const screen = screenRef.current;
     const page = rectoRef.current;
+    const close = closeRef.current;
     if (!spread || !screen) return;
-    if (reduced || !from) {
+    if (reduced) {
+      const a = spread.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.fast, easing: EASE });
+      return () => a.cancel();
+    }
+    if (!from) {
       // a walk lands its page over a spread that's already there (exhibit.css,
-      // data-enter); anything else fades up
-      if (reduced || !enter) spread.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOTION.fast, easing: EASE });
-      return;
+      // data-enter)
+      if (enter) return;
+      const a = spread.animate([{ opacity: 0, transform: 'translateY(14px) scale(0.985)' }, { opacity: 1, transform: 'none' }], {
+        duration: MOTION.base,
+        easing: EASE,
+      });
+      return () => a.cancel();
     }
     const d = MOTION.slow;
+    // (each step that waits its turn does it with a delay: an offset in the
+    // keyframes would be read through the easing, and come round far sooner)
+    const b = spread.getBoundingClientRect();
     const s = screen.getBoundingClientRect();
-    const anims = [
-      spread.animate([{ backgroundColor: 'transparent', borderColor: 'transparent', boxShadow: 'none' }, {}], { duration: d, easing: EASE }),
+    const r = parseFloat(getComputedStyle(spread).borderTopLeftRadius) || 0;
+    // an outline as the page's clip: inset from the book's own edges
+    const outline = (x?: Box) =>
+      x
+        ? `inset(${x.top - b.top}px ${b.right - x.left - x.width}px ${b.bottom - x.top - x.height}px ${x.left - b.left}px round ${r}px)`
+        : `inset(0px 0px 0px 0px round ${r}px)`;
+    const anims: Animation[] = [];
+    // the page (its shadow comes in once it's open: exhibit.css, data-growing;
+    // a run that's cancelled leaves the flag to the one after it)
+    spread.dataset.growing = '';
+    const grow = spread.animate([{ clipPath: outline(from.box ?? from.film) }, { clipPath: outline() }], { duration: d, easing: GROW });
+    let live = true;
+    const grown = () => {
+      if (live) delete spread.dataset.growing;
+    };
+    grow.finished.then(grown, grown);
+    anims.push(grow);
+    // the plate
+    anims.push(
       screen.animate(
         [
           {
@@ -118,37 +154,66 @@ export function Book({
           },
           { transformOrigin: '0 0', transform: 'none' },
         ],
-        { duration: d, easing: EASE },
+        { duration: d, easing: GROW },
       ),
-    ];
+    );
+    // the opener: the label's head travels to the top of the left page; from a
+    // card, it settles in
     if (opener) {
       const o = opener.getBoundingClientRect();
       anims.push(
         from.head
           ? opener.animate([{ transform: `translate(${from.head.left - o.left}px, ${from.head.top - o.top}px)` }, { transform: 'none' }], {
               duration: d,
-              easing: EASE,
+              easing: GROW,
             })
-          : opener.animate([{ opacity: 0 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }], { duration: d * 1.2, easing: EASE }),
+          : opener.animate(
+              [
+                { opacity: 0, transform: 'translateY(10px)' },
+                { opacity: 1, transform: 'none' },
+              ],
+              { duration: d * 0.7, delay: d * 0.3, easing: EASE, fill: 'backwards' },
+            ),
       );
     }
-    if (page && !sheetLayout()) {
+    // the right-hand page, off the spine (on a phone, where it's under the
+    // left one, it just comes up)
+    if (page) {
       anims.push(
         page.animate(
-          [
-            { transformOrigin: '0 50%', transform: 'perspective(2000px) rotateY(-84deg)', opacity: 0.3 },
-            { transformOrigin: '0 50%', transform: 'perspective(2000px) rotateY(0deg)', opacity: 1 },
-          ],
-          { duration: d * 1.3, delay: d * 0.3, easing: EASE, fill: 'backwards' },
+          sheetLayout()
+            ? [
+                { opacity: 0, transform: 'translateY(16px)' },
+                { opacity: 1, transform: 'none' },
+              ]
+            : [
+                { transformOrigin: '0 50%', transform: 'perspective(2200px) rotateY(-12deg)', opacity: 0 },
+                { transformOrigin: '0 50%', transform: 'perspective(2200px) rotateY(0deg)', opacity: 1 },
+              ],
+          { duration: d, delay: d * 0.32, easing: EASE, fill: 'backwards' },
         ),
       );
     }
-    // what wasn't on the label arrives after it
+    // what wasn't on the card or the label arrives after it
     spread
       .querySelectorAll<HTMLElement>('[data-after]')
-      .forEach((el) => anims.push(el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: d * 1.4, easing: EASE })));
-    return () => anims.forEach((a) => a.cancel());
-  }, [from, reduced, enter]);
+      .forEach((el) => anims.push(el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: d * 0.6, delay: d * 0.45, easing: EASE, fill: 'backwards' })));
+    // and the way out, once there's something to close
+    if (close) {
+      anims.push(
+        close.animate([{ opacity: 0, transform: 'scale(0.88)' }, { opacity: 1, transform: 'none' }], {
+          duration: d * 0.45,
+          delay: d * 0.55,
+          easing: EASE,
+          fill: 'backwards',
+        }),
+      );
+    }
+    return () => {
+      live = false;
+      anims.forEach((a) => a.cancel());
+    };
+  }, [from, reduced, enter, closeRef]);
 
   return (
     <div

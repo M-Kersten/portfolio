@@ -256,7 +256,6 @@ export function ExhibitionGuide({
                   </span>
                 ))}
               <span className="guide__cover-title">{EXHIBITION}</span>
-              <span className="guide__fine">Valid for one visit · the ten in the model</span>
             </div>
             <div className="guide__stub">
               <span className="guide__serial">No. {String(TOTAL + 1).padStart(4, '0')}</span>

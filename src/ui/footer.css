@@ -18,8 +18,8 @@
   justify-content: space-between;
 }
 
-/* The CMS link — only in the owner's browser (see Footer.tsx), so it no longer
-   has to hide: quiet, but at the metadata tier's legible contrast. */
+/* The way into the CMS (Footer.tsx): quiet, but at the metadata tier's
+   legible contrast. */
 .footer__admin {
   color: var(--ink-40);
   text-decoration: none;

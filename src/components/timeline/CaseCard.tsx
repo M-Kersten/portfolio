@@ -53,7 +53,7 @@ export function CaseCard({
         data-layer={study.layer}
         onClick={(e) => {
           // the case sheet grows out of this card's picture
-          noteCaseOrigin(study.slug, e.currentTarget.querySelector('.worktile__media'));
+          noteCaseOrigin(study.slug, e.currentTarget.querySelector('.worktile__media'), e.currentTarget);
           onOpen();
         }}
         // No aria-label: the card's own text (year, company, title, sector) is

@@ -421,13 +421,6 @@
     transition: none;
   }
 }
-/* the small print at the foot of the front */
-.guide__fine {
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-40);
-}
 /* what's printed on the cover: the guide's name, the strip and the count, the
    count's note, and the exhibition's name at the foot. The first three lines
    are what shows while it's pushed in. */
@@ -527,7 +520,10 @@
   }
 }
 .guide__cover-title {
-  margin-top: auto;
+  /* just under what shows while it's pushed in, so it's the first thing up
+     as the ticket comes out (rather than at the foot, where it only flashed
+     past as the ticket turned) */
+  margin-top: 1.6rem;
   font-family: var(--font-display);
   font-size: var(--step-2);
   line-height: 1.05;
@@ -751,7 +747,7 @@
    floor's colour and in the order they were seen, each stamp set down a
    little crooked like the ones on the back; the newest comes down as the
    count flashes. At 10/10 every stamp glows and the strip's edge takes the
-   completion gradient. */
+   accent, as the count does. */
 .guide__strip {
   display: inline-flex;
   border: 1px solid rgba(234, 234, 234, 0.24);
@@ -800,10 +796,8 @@
 .hero__signals[data-complete] .guide__cell[data-on]::after {
   box-shadow: 0 0 6px color-mix(in srgb, var(--stamp) 70%, transparent);
 }
-/* 10/10 — every layer proven alive at once: the one moment the locked hues
-   appear together, round the strip that earned it (the completion gradient) */
 .hero__signals[data-complete] .guide__strip {
-  border-image: var(--grad-spectrum) 1;
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
 }
 /* the tenth cell, once the launch has been hinted at, holds the rocket the
    ten add up to: a dim outline until the model is complete, then lit with the

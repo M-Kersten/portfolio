@@ -117,7 +117,7 @@ export function ProjectsIndex({ items, onOpen }: { items: CaseStudy[]; onOpen: (
               style={{ '--c': LAYER_VAR[c.layer] } as CSSProperties}
               onClick={(e) => {
                 // the case sheet grows out of this card's picture
-                noteCaseOrigin(c.slug, e.currentTarget.querySelector('.pi-card__media'));
+                noteCaseOrigin(c.slug, e.currentTarget.querySelector('.pi-card__media'), e.currentTarget);
                 onOpen(c.slug);
               }}
               aria-label={`${c.title} — ${exhibitMark(c.slug)}, ${c.client}, ${LAYER_LABEL[c.layer]}${c.year ? `, ${c.year.slice(0, 4)}` : ''}`}

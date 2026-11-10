@@ -109,7 +109,7 @@ export function Search() {
   // The case sheet grows out of the hit's thumbnail, so note where that is
   // before the overlay closes and takes it away.
   const openCase = (slug: string, i: number) => {
-    noteCaseOrigin(slug, listRef.current?.querySelector(`[data-i="${i}"] .search__thumb`));
+    noteCaseOrigin(slug, listRef.current?.querySelector(`[data-i="${i}"] .search__thumb`), listRef.current?.querySelector(`[data-i="${i}"]`));
     setOpen(false);
     setQ('');
     setOpenSlug(slug);

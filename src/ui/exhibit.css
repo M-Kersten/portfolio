@@ -117,6 +117,18 @@
   opacity: 0;
   transition: opacity var(--t-fast) var(--ease);
 }
+/* On a page the book settles away as it goes, the page behind coming back up
+   with it (Exhibit.tsx SHUT_MS) */
+.exhibit[data-place='page'][data-closing] .xb {
+  transform: translateY(10px) scale(0.985);
+  transition:
+    opacity 0.2s var(--ease-in-out),
+    transform 0.22s var(--ease-in-out);
+}
+.exhibit[data-place='page'][data-closing] .exhibit__dim {
+  opacity: 0;
+  transition: opacity 0.22s var(--ease-in-out);
+}
 /* Walking from one exhibit to the next while zoomed in (Exhibit.tsx): the
    label steps aside the way you're going as the camera sets off (LEAVE_MS),
    its line lets go of the object, and once the camera has arrived the next
@@ -451,6 +463,7 @@
 .xb {
   --spine: 53.5%;
   --page: #0d1115;
+  --page-pad: 2.5rem; /* the right-hand page's outer margin */
   position: fixed;
   inset: calc(var(--header-h) + 0.5rem) clamp(1rem, 4vw, 3.5rem) 1.25rem;
   display: grid;
@@ -459,6 +472,18 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: 0 40px 90px -20px #000;
+  transition: box-shadow 0.45s var(--ease);
+}
+/* while it grows out of the card (or the label) it has no shadow: that comes
+   in once the page is open (Book.tsx). And the left page, which scrolls (so
+   it clips), lets the plate and the opener come in from wherever they were,
+   over the right page, rather than only showing them once they're over it. */
+.xb[data-growing] {
+  box-shadow: none;
+}
+.xb[data-growing] .xb__verso {
+  z-index: 1;
+  overflow: visible;
 }
 /* the spine: the pages curve down into it */
 .xb::after {
@@ -516,10 +541,14 @@
   from { transform: rotateY(-89deg); filter: brightness(0.55); }
 }
 .xb__close {
+  /* in the right-hand page's running head, on its line: its right edge on the
+     page's margin, where the head's rule ends, and as tall as the head's row
+     (.xb__run). It stays put while a leaf turns, so it's the book's, not the
+     page's. */
   position: absolute;
   z-index: 3;
-  top: 0.55rem; /* level with the running head, well clear of its rule */
-  right: 0.75rem;
+  top: 1.25rem;
+  right: var(--page-pad);
 }
 .xb__verso,
 .xb__recto {
@@ -543,7 +572,7 @@
 }
 .xb__recto {
   gap: 1.35rem;
-  padding: 1.25rem 2.5rem 0 3rem;
+  padding: 1.25rem var(--page-pad) 0 3rem;
   border-radius: 0 var(--radius) var(--radius) 0;
 }
 /* a long page fades out at its foot rather than slicing through a line; at
@@ -561,9 +590,11 @@
 /* running heads: the book's name on the left page, the chapter's on the right */
 .xb__run {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding-bottom: 1.05rem; /* room under the close button, before the rule */
+  min-height: 2.25rem; /* the close button's row, on both pages so their rules are level */
+  padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--hairline);
   font-family: var(--font-mono);
   font-size: var(--step--2);
@@ -573,7 +604,7 @@
 }
 .xb__run--recto {
   justify-content: flex-end;
-  padding-right: 2.75rem; /* clear of the close button */
+  padding-right: 3.25rem; /* clear of the close button, with a gap */
 }
 .xb__run--recto span {
   overflow: hidden;
@@ -861,6 +892,10 @@
   .xb__close {
     position: fixed;
     z-index: 4;
+    /* centred on the opener's first line (the page's top margin and the
+       chapter's, then half the line), its right edge on the page's margin */
+    top: calc(env(safe-area-inset-top, 0px) + 1.95rem);
+    right: 1rem;
     background: color-mix(in srgb, var(--paper) 80%, transparent);
   }
   .xb__opener {

@@ -17,9 +17,10 @@ export const box = (r: DOMRect): Box => ({
   width: r.width,
   height: r.height,
 });
-/** What the book unfolds from: the label (its head and its film), or on a page
- *  the picture on the card that was clicked. */
-export type From = { head?: Box; film: Box };
+/** What the book unfolds from: the label (the whole of it, its head and its
+ *  film), or on a page the card that was clicked and the picture on it. The
+ *  page grows out of `box`, the plate out of `film`. */
+export type From = { box?: Box; head?: Box; film: Box };
 export type Dir = 1 | -1;
 /** How long a page takes to lift off the spine when a walk turns it (exhibit.css --turn). */
 export const TURN_MS = 320;
