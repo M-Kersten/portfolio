@@ -312,6 +312,66 @@
   will-change: opacity;
 }
 
+/* Crown tag on the Lightship Drive table (room.tsx CoffeeTableAR): the
+   spectator screen over the far end of the table, the way the show floor had
+   one. What to do, then each car's crown time, its colour chip beside it; the
+   one wearing the crown is lit in its colour, with the crown beside its time. */
+.race-board {
+  display: inline-grid;
+  gap: 0.2em;
+  min-width: 10.5em;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  color: var(--ink-60);
+  background: color-mix(in srgb, var(--paper) 84%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  padding: 0.45em 0.7em 0.5em;
+}
+.race-board__call {
+  margin-bottom: 0.15em;
+  color: var(--accent-ink);
+}
+.race-board__row {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  transition: color var(--t-base) var(--ease);
+}
+.race-board__row::before {
+  content: '';
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 1px;
+  background: var(--sig);
+}
+.race-board__row b {
+  margin-left: auto;
+  font-weight: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.race-board__row::after {
+  content: '';
+  width: 0.85em;
+  height: 0.6em;
+  background: #ffcf5e; /* the crown's gold (GOLD, shared.tsx) */
+  clip-path: polygon(0 100%, 0 20%, 25% 55%, 50% 0, 75% 55%, 100% 20%, 100% 100%);
+  opacity: 0;
+  transform: translateY(0.3em);
+  transition: opacity var(--t-base) var(--ease), transform var(--t-base) var(--ease);
+}
+.race-board__row[data-crown] {
+  color: var(--sig);
+  text-shadow: 0 0 9px color-mix(in srgb, var(--sig) 55%, transparent);
+}
+.race-board__row[data-crown]::after {
+  opacity: 1;
+  transform: none;
+}
+
 /* "<name> captured": the bubble over a park creature ARCam's shutter just
    caught (critters.tsx). The signal labels' type on a paper bubble with a tail
    down to it; it pops up, stays a moment and goes (data-on restarts it). */

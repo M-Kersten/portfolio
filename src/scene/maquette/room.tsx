@@ -3,9 +3,9 @@
 // phone (Popcore), the AR race table (Lightship Drive) and the bookcase with the
 // openable Zwijsen book, plus lamp and plant props. RoomRig composes and places
 // everything.
-import { useEffect, useMemo, useRef, type ElementRef, type MutableRefObject } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties, type ElementRef, type MutableRefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { RoundedBox } from '@react-three/drei';
+import { Html, RoundedBox } from '@react-three/drei';
 import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, Euler, FrontSide, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Ray, RepeatWrapping, RingGeometry, ShaderMaterial, Shape, ShapeGeometry, SRGBColorSpace, TorusGeometry, Vector2, Vector3, Vector4, type Group, type Mesh, type PerspectiveCamera, type Side, type Sprite, type SpriteMaterial, type Texture } from 'three';
 import { usePlacement } from '../../dev/tuning';
 import { HOTSPOTS, portraitMix } from '../framing';
@@ -14,7 +14,8 @@ import { isTouch, useReducedMotion } from '../../lib/media';
 import { play } from '../../lib/sound';
 import { spring } from '../../lib/spring';
 import { bump, easeIn, easeInOut, easeOut, easeOutBack, ring, settle } from '../../lib/ease';
-import { cursorAtDepth, cursorIdle, cursorNdc, cursorRay, useCloseUp } from './closeup';
+import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
+import { newTag, stepTag, type Tag, type TagWorld } from './raceTag';
 import { COVER_H, COVER_W, drawCover, drawSpread, hideUv, mouseIcon, MOUSE_ICON, sparkleIcon, SPREADS, SPREAD_H, SPREAD_W } from './bookPages';
 import { POSTS, ROUND_LEN, Scenario, newSessionLink, type SessionLink } from './scenario';
 import { GOLD, PALETTE, SURFACE, SURFACE_GLOW, NEUTRAL, useAccent, type Tint, circlePts, roundedRectPts, roundedPlaneGeometry, Line, useActive, useOptionalTexture, FX, type V3 } from './shared';
@@ -1306,19 +1307,53 @@ const CATCH = 0.07; // how hard a dropped car pushes on, per radian of gap
 const CATCH_CAP = 6; // never let the band become a rocket if the gap ever runs away
 const LEAD_HYST = 0.07; // the crown won't change hands on a photo finish jitter
 const LAP_SPEED = (2 * Math.PI * 0.2) / COURSE.L; // laps (in radians) per metre-per-second at 0.2 m/s top speed
-/* In the table's close-up, point at a car and it gets a boost: it squats for
-   a beat (BOOST_SQUAT: rear down, low and wide, braking), then launches,
-   stretched along its line and flashing white, into a burst of speed that
-   fades over BOOST_FADE with a neon trail in its stripe's colours streaming
-   behind, its nose lifting and bobbing as it settles. So you can help one into
-   the lead. One boost per car per BOOST_REST. */
+/* A car that takes the crown in crown tag (below) gets away with a boost: it
+   squats for a beat (BOOST_SQUAT: rear down, low and wide), then launches,
+   stretched along its line and flashing white, with a neon trail in its
+   stripe's colours streaming behind for BOOST_FADE, its nose lifting and
+   bobbing as it settles. (The burst of speed itself is the game's, BURST in
+   raceTag.ts; on the course, BOOST is how much quicker it would go.) */
 const BOOST = 0.9; // extra speed at the burst's peak
 const BOOST_FADE = 1.3; // s
 const BOOST_FLASH = 0.7; // the flash lasts while the boost fades from 1 to here (~0.4 s)
-const BOOST_REST = 1.6; // s before the same car takes another
-const BOOST_REACH = 0.035; // how near the cursor's ray has to pass a car (m)
 const BOOST_SQUAT = 0.14; // s it gathers itself before it goes
 const TRAIL = { beads: 12, gap: 0.014, r: 0.0055 }; // the boost's neon trail, back along the car's line
+
+/* Crown tag (raceTag.ts): in the close-up the cars come off the course and
+   play it on the mat, yours (the purple one) driving toward the cursor; on a
+   touch screen it drives itself. The mat they play on, a little in from its
+   edge, and the two kickers where they stand. Closing the exhibit, each car
+   drives back onto the course at the nearest point (REJOIN) and the race goes
+   on. */
+const TAG_WORLD: TagWorld = {
+  hx: MAT_W / 2 - 0.03,
+  hz: MAT_D / 2 - 0.03,
+  kickers: COURSE.toes.map((toe) => {
+    const u = wrapS(toe + RAMP_L / 2) / COURSE.L;
+    const p = COURSE.curve.getPointAt(u);
+    const t = COURSE.curve.getTangentAt(u);
+    return { x: p.x, z: p.z, yaw: Math.atan2(t.x, t.z) };
+  }),
+  ramp: { l: RAMP_L, w: 0.092, h: RAMP_H, lip: LIP, face: RAMP_FACE },
+};
+const REJOIN = 0.8; // s
+const COURSE_PTS = Array.from({ length: 240 }, (_, i) => COURSE.curve.getPointAt(i / 240));
+/** how far round the lap (0–1) the course passes nearest to x, z */
+function nearestOnCourse(x: number, z: number): number {
+  let best = 0;
+  let bd = Infinity;
+  COURSE_PTS.forEach((p, i) => {
+    const d = (p.x - x) ** 2 + (p.z - z) ** 2;
+    if (d < bd) {
+      bd = d;
+      best = i;
+    }
+  });
+  return best / COURSE_PTS.length;
+}
+const YOU_SIG = '#ff4fd8'; // your car's rims, for what's said about you
+const RIVAL_SIG = '#ff8a3c';
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
@@ -1334,7 +1369,28 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   const lead = useRef(0);
   const close = useCloseUp(hoverSlug ?? '');
   const table = useRef<Group>(null);
-  const boost = useMemo(() => CARS.map(() => ({ current: 0, rest: 0, at: -99, launched: true })), []);
+  const boost = useMemo(() => CARS.map(() => ({ current: 0, at: -99, launched: true })), []);
+  // crown tag, in the close-up (TAG_WORLD): the game, while it's on; the
+  // cars driving back onto the course once it's over; the line each has
+  // driven, for its trail; where the cursor last pointed on the mat
+  const touch = useMemo(isTouch, []);
+  const game = selected && !reduced;
+  const tag = useRef<Tag | null>(null);
+  const rejoin = useRef<{ t: number; from: { x: number; y: number; z: number; yaw: number }[] } | null>(null);
+  const driven = useMemo(() => CARS.map(() => [] as Vector3[]), []);
+  const aimAt = useRef<{ x: number; z: number } | null>(null);
+  const onMat = useMemo(() => new Vector3(), []);
+  const aimRing = useRef<Mesh>(null);
+  // the crown hopping from one car to the other when it changes hands
+  const hop = useRef({ holder: -1, at: -9, from: new Vector3() });
+  // the scoreboard, and what's said when the crown changes hands
+  const boardCall = useRef<HTMLSpanElement>(null);
+  const boardYou = useRef<HTMLSpanElement>(null);
+  const boardRival = useRef<HTMLSpanElement>(null);
+  const boardText = useRef(['', '', '', '']);
+  const said = useRef<Group>(null);
+  const saidEl = useRef<HTMLSpanElement>(null);
+  const saidAt = useRef({ t: -9, car: 0 });
   const trailIM = useRef<InstancedMesh>(null);
   const trailMat = useMemo(() => {
     const m = new MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
@@ -1344,8 +1400,6 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
   useEffect(() => () => trailMat.dispose(), [trailMat]);
   const tp = useMemo(() => new Vector3(), []);
   const tt = useMemo(() => new Vector3(), []);
-  const ray = useMemo(() => new Ray(), []);
-  const carAt = useMemo(() => new Vector3(), []);
   const arrows = useGeometry(arrowGeometry);
   const mat = useGeometry(() => roundedPlaneGeometry(MAT_W, MAT_D, 0.03));
   const arrowMap = useMemo(arrowTexture, []);
@@ -1373,21 +1427,88 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     live.current += ((selected || visited ? 1 : 0) - live.current) * FX.engage;
     const t = s.clock.elapsedTime;
 
-    // a car the cursor points at takes a boost
-    const aiming = close && !!table.current && !!cursorRay(s, table.current, ray);
+    // the game: on as the close-up opens, from wherever the cars are; over as
+    // it closes, when they drive back onto the course
+    if (game && !tag.current) {
+      tag.current = newTag(
+        CARS.map((_, i) => {
+          const g = cars.current[i];
+          return { x: g?.position.x ?? 0, z: g?.position.z ?? 0, yaw: g?.rotation.y ?? 0, v: 0.2 * speed.current * 0.6 };
+        }),
+        1, // the rival starts with the crown: go and get it
+      );
+      driven.forEach((d) => (d.length = 0));
+      aimAt.current = null;
+      rejoin.current = null;
+    } else if (!game && tag.current) {
+      const T = tag.current;
+      rejoin.current = { t, from: T.cars.map((c) => ({ x: c.x, y: c.y, z: c.z, yaw: c.yaw })) };
+      T.cars.forEach((c, i) => (dist.current[i] = nearestOnCourse(c.x, c.z) * 2 * Math.PI));
+      tag.current = null;
+    }
+    const T = tag.current;
+    let aimed = false;
+    if (T) {
+      // yours drives for where the cursor points on the mat (or the last place
+      // it did); on a touch screen it drives itself
+      if (close && table.current && cursorOnLevel(s, table.current, MAT, onMat)) {
+        aimAt.current = { x: Math.max(-TAG_WORLD.hx, Math.min(TAG_WORLD.hx, onMat.x)), z: Math.max(-TAG_WORLD.hz, Math.min(TAG_WORLD.hz, onMat.z)) };
+        aimed = true;
+      }
+      const you = T.cars[0];
+      const events = stepTag(T, TAG_WORLD, dt, touch ? null : (aimAt.current ?? { x: you.x, z: you.z }));
+      for (const e of events) {
+        if (e.kind !== 'tag') continue;
+        // the getaway: the new holder squats and goes, its trail streaming
+        boost[e.to].at = t;
+        boost[e.to].launched = false;
+        saidAt.current = { t, car: e.to };
+        const el = saidEl.current;
+        if (el) {
+          el.textContent = e.to === 0 ? (touch ? 'Purple takes it' : 'Got it!') : 'Stolen!';
+          el.style.setProperty('--sig', e.to === 0 ? YOU_SIG : RIVAL_SIG);
+          el.removeAttribute('data-on');
+          void el.offsetWidth; // start its animation over
+          el.setAttribute('data-on', '');
+        }
+        play('select', { volume: 0.55, rate: e.to === 0 ? 1.3 : 0.75 });
+      }
+      // the scoreboard: whose crown it is, and how long each has kept it
+      const text = [
+        T.holder === 0 ? (touch ? 'Purple has the crown' : 'Keep the crown') : touch ? 'Purple wants the crown' : 'Catch the crown',
+        clock(T.cars[0].held),
+        clock(T.cars[1].held),
+        String(T.holder),
+      ];
+      const shown = boardText.current;
+      if (text.some((x, i) => x !== shown[i])) {
+        boardText.current = text;
+        if (boardCall.current) boardCall.current.textContent = text[0];
+        if (boardYou.current) {
+          boardYou.current.textContent = text[1];
+          boardYou.current.parentElement?.toggleAttribute('data-crown', T.holder === 0);
+        }
+        if (boardRival.current) {
+          boardRival.current.textContent = text[2];
+          boardRival.current.parentElement?.toggleAttribute('data-crown', T.holder === 1);
+        }
+      }
+    }
+    // where you're steering: a small ring on the mat
+    if (aimRing.current) {
+      const a = aimAt.current;
+      aimRing.current.visible = !!T && !!a && !touch;
+      if (a && aimRing.current.visible) {
+        aimRing.current.position.set(a.x, MAT + 0.0016, a.z);
+        aimRing.current.scale.setScalar(1 + 0.12 * Math.sin(t * 6) * (aimed ? 1 : 0));
+      }
+    }
+
+    // the getaway's boost (set off when a car takes the crown): it squats
+    // first, and the burst comes as it launches
     for (let i = 0; i < CARS.length; i++) {
       const b = boost[i];
       b.current = Math.max(0, b.current - dt / BOOST_FADE);
-      b.rest = Math.max(0, b.rest - dt);
-      const g = cars.current[i];
-      if (aiming && g && b.rest === 0) {
-        carAt.copy(g.position).y += 0.015;
-        if (ray.distanceSqToPoint(carAt) < BOOST_REACH * BOOST_REACH) {
-          b.at = t; // it squats first; the burst comes as it launches
-          b.launched = false;
-          b.rest = BOOST_REST;
-        }
-      }
       if (!b.launched && t - b.at >= BOOST_SQUAT) {
         b.launched = true;
         b.current = 1;
@@ -1420,10 +1541,12 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
     const d = dist.current[0] - dist.current[1];
     if (d > LEAD_HYST) lead.current = 0;
     else if (d < -LEAD_HYST) lead.current = 1;
+    const back = rejoin.current ? Math.min(1, (t - rejoin.current.t) / REJOIN) : 1;
+    if (rejoin.current && back >= 1) rejoin.current = null;
     for (let i = 0; i < CARS.length; i++) {
       const c = CARS[i];
       const at = (dist.current[i] / (2 * Math.PI)) * COURSE.L;
-      if (!reduced) {
+      if (!reduced && !T) {
         let v = speed.current * gripAt(at) * (1 + c.amp * Math.sin(dist.current[i] * c.wob + c.phase) + PACE * Math.sin(t * PACE_W + c.pace));
         if (i !== lead.current) {
           // pushing on from behind, not towed along in front: zero at the pass,
@@ -1433,18 +1556,39 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         }
         v *= 1 + BOOST * boost[i].current;
         if (!boost[i].launched) v *= 1 - 0.5 * easeOut((t - boost[i].at) / BOOST_SQUAT); // braking into the squat
-        dist.current[i] += v * dt * LAP_SPEED;
+        // (eased back up to pace as it drives back onto the course)
+        dist.current[i] += v * dt * LAP_SPEED * (0.3 + 0.7 * back);
       }
       const g = cars.current[i];
       if (!g) continue;
-      const u = wrapS(at) / COURSE.L;
-      COURSE.curve.getPointAt(u, p);
-      COURSE.curve.getTangentAt(u, tan);
-      const [y, slope] = rideAt(at);
-      // the nose follows the slope, eased, so a landing settles rather than snaps
-      const aim = -Math.atan(slope);
-      pitch.current[i] = reduced ? aim : pitch.current[i] + (aim - pitch.current[i]) * (1 - Math.exp(-dt * 16));
-      g.position.set(p.x + tan.z * c.lane, MAT + y, p.z - tan.x * c.lane);
+      const car = T?.cars[i];
+      let yaw: number;
+      let tilt: number;
+      if (car) {
+        // in the game: where it's driven itself
+        g.position.set(car.x, MAT + car.y, car.z);
+        yaw = car.yaw + car.spin;
+        tilt = car.pitch;
+        pitch.current[i] = car.pitch;
+      } else {
+        const u = wrapS(at) / COURSE.L;
+        COURSE.curve.getPointAt(u, p);
+        COURSE.curve.getTangentAt(u, tan);
+        const [y, slope] = rideAt(at);
+        // the nose follows the slope, eased, so a landing settles rather than snaps
+        const aim = -Math.atan(slope);
+        pitch.current[i] = reduced ? aim : pitch.current[i] + (aim - pitch.current[i]) * (1 - Math.exp(-dt * 16));
+        g.position.set(p.x + tan.z * c.lane, MAT + y, p.z - tan.x * c.lane);
+        yaw = Math.atan2(tan.x, tan.z);
+        tilt = pitch.current[i];
+        // just out of the game: drives back onto the course from where it was
+        const from = rejoin.current?.from[i];
+        if (from) {
+          const k = easeInOut(back);
+          g.position.set(from.x + (g.position.x - from.x) * k, from.y + (g.position.y - from.y) * k, from.z + (g.position.z - from.z) * k);
+          yaw = from.yaw + Math.atan2(Math.sin(yaw - from.yaw), Math.cos(yaw - from.yaw)) * k;
+        }
+      }
       // the boost's body language: low and wide in the squat, rear down; then
       // stretched along its line as it goes, the nose bobbing as it settles
       const b = boost[i];
@@ -1466,8 +1610,23 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         sz = 1 + 0.3 * e;
         nose = -0.05 * ring(ph - BOOST_SQUAT, 2.4, 4);
       }
+      // a landing off a kicker, in the game: squashed onto its wheels
+      if (car && car.land > 0) {
+        const k = car.land * car.land;
+        sx *= 1 + 0.07 * k;
+        sy *= 1 - 0.16 * k;
+        sz *= 1 + 0.04 * k;
+      }
       g.scale.set(sx, sy, sz);
-      g.rotation.set(pitch.current[i] - 0.07 * b.current + nose, Math.atan2(tan.x, tan.z), 0, 'YXZ');
+      g.rotation.set(tilt - 0.07 * b.current + nose, yaw, 0, 'YXZ');
+      // the line it's driven, in the game: a point every TRAIL.gap
+      const line = driven[i];
+      if (car) {
+        if (!line.length || line[0].distanceTo(g.position) > TRAIL.gap) {
+          const pt = line.length >= TRAIL.beads ? (line.pop() as Vector3) : new Vector3();
+          line.unshift(pt.copy(g.position));
+        }
+      }
       // the trail: back along the line it's driven, jumps and all, in its
       // stripe's colours (yellow at the car, through blue, to magenta), as
       // bright as the boost still is
@@ -1477,15 +1636,19 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
           const j = i * TRAIL.beads + k;
           const f = k / (TRAIL.beads - 1);
           const glow = b.current * (1 - f) * 1.4;
-          if (glow <= 0.01) {
+          if (glow <= 0.01 || (car && !line[k])) {
             trail.setMatrixAt(j, _m4.makeScale(0, 0, 0));
             continue;
           }
-          const back = at - (k + 1) * TRAIL.gap;
-          const uk = wrapS(back) / COURSE.L;
-          COURSE.curve.getPointAt(uk, tp);
-          COURSE.curve.getTangentAt(uk, tt);
-          _v3.set(tp.x + tt.z * c.lane, MAT + rideAt(back)[0] + 0.008, tp.z - tt.x * c.lane);
+          if (car) {
+            _v3.copy(line[k]).y += 0.008;
+          } else {
+            const back = at - (k + 1) * TRAIL.gap;
+            const uk = wrapS(back) / COURSE.L;
+            COURSE.curve.getPointAt(uk, tp);
+            COURSE.curve.getTangentAt(uk, tt);
+            _v3.set(tp.x + tt.z * c.lane, MAT + rideAt(back)[0] + 0.008, tp.z - tt.x * c.lane);
+          }
           trail.setMatrixAt(j, _m4.compose(_v3, _q4.identity(), tp.setScalar((1 - 0.55 * f) * TRAIL.r / 0.006)));
           const from = f < 0.5 ? STRIPE[2] : STRIPE[1];
           const to = f < 0.5 ? STRIPE[1] : STRIPE[0];
@@ -1498,14 +1661,34 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       if (trailIM.current.instanceColor) trailIM.current.instanceColor.needsUpdate = true;
     }
 
-    // the crown rides whoever is ahead, and hops across the moment that changes
-    const lc = cars.current[lead.current];
+    // the crown rides whoever is ahead (in the game, whoever wears it), and
+    // hops across in an arc the moment that changes
+    const holder = T ? T.holder : lead.current;
+    const lc = cars.current[holder];
     if (crown.current && lc) {
       const bob = reduced ? 0 : t;
+      const H = hop.current;
+      if (H.holder !== holder) {
+        if (H.holder >= 0 && !reduced) {
+          H.from.copy(crown.current.position);
+          H.at = t;
+        }
+        H.holder = holder;
+      }
       crown.current.position.set(lc.position.x, lc.position.y + 0.034 + Math.sin(bob * 3) * 0.004, lc.position.z);
-      crown.current.rotation.y = bob * 0.9;
+      const k = (t - H.at) / 0.42;
+      if (k < 1) {
+        const e = easeInOut(k);
+        crown.current.position.lerp(H.from, 1 - e).y += Math.sin(Math.PI * k) * 0.05;
+      }
+      crown.current.rotation.y = bob * 0.9 + (k < 1 ? Math.PI * 2 * easeOut(k) : 0);
       crown.current.scale.setScalar(live.current * CAR_SCALE); // only once the race is real
       crown.current.visible = live.current > 0.02;
+    }
+    // what's said when it changes hands, over the one that's got it now
+    if (said.current && T) {
+      const sc = T.cars[saidAt.current.car];
+      said.current.position.set(sc.x, MAT + sc.y + 0.075, sc.z);
     }
   });
   return (
@@ -1552,6 +1735,35 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       <group ref={crown} visible={false}>
         <LeaderCrown />
       </group>
+      {/* crown tag: where you're steering, the score, and what's said */}
+      <mesh ref={aimRing} rotation={[-Math.PI / 2, 0, 0]} visible={false} renderOrder={2}>
+        <ringGeometry args={[0.009, 0.0125, 32]} />
+        <meshBasicMaterial color={YOU_SIG} transparent opacity={0.85} depthWrite={false} toneMapped={false} />
+      </mesh>
+      {game && (
+        <>
+          <group position={[-MAT_W / 2 + 0.06, MAT + 0.13, -MAT_D / 2]}>
+            <Html center zIndexRange={[14, 0]} style={{ pointerEvents: 'none' }}>
+              <span className="race-board">
+                <span ref={boardCall} className="race-board__call">
+                  Catch the crown
+                </span>
+                <span className="race-board__row" style={{ '--sig': YOU_SIG } as CSSProperties}>
+                  {touch ? 'Purple' : 'You'} <b ref={boardYou}>0:00</b>
+                </span>
+                <span className="race-board__row" style={{ '--sig': RIVAL_SIG } as CSSProperties} data-crown="">
+                  Rival <b ref={boardRival}>0:00</b>
+                </span>
+              </span>
+            </Html>
+          </group>
+          <group ref={said}>
+            <Html center zIndexRange={[14, 0]} className="critter-said-wrap" style={{ pointerEvents: 'none' }}>
+              <span ref={saidEl} className="critter-said" />
+            </Html>
+          </group>
+        </>
+      )}
     </group>
   );
 }
