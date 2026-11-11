@@ -1,0 +1,58 @@
+name: Keep the launch counter awake
+
+# The launch counter lives in a free Supabase project (docs/launch-counter.md),
+# and Supabase pauses a free project that shows too little database activity
+# over a week: the tally on the launch site goes dark until someone resumes
+# the project by hand. Every day this reads the count and stamps a heartbeat
+# (a real write, through the same public API the site uses), so it never
+# looks idle, whether or not anyone visited.
+#
+# Daily rather than weekly: Supabase judges whether a week's activity was
+# enough (its guide says a few requests a day typically is), and GitHub can run
+# a schedule late, or skip it, when it's busy. A run that can't reach the
+# project fails, and GitHub emails you, so you hear about it in time.
+#
+# Scheduled workflows only run from the default branch: this starts working
+# once it's merged there. Actions → "Keep the launch counter awake" → Run
+# workflow runs it by hand.
+
+on:
+  schedule:
+    - cron: '37 5 * * *' # every day at 05:37 UTC (off the hour, when GitHub is busiest)
+  workflow_dispatch:
+
+permissions:
+  actions: write # to keep this schedule switched on (the stay-on job)
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    # nothing to keep awake until the counter is set up (the same two repository
+    # Variables the deploy reads)
+    if: ${{ vars.SUPABASE_URL != '' && vars.SUPABASE_ANON_KEY != '' }}
+    steps:
+      - name: Read the count, stamp the heartbeat
+        env:
+          SB_URL: ${{ vars.SUPABASE_URL }}
+          SB_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          auth=(-H "apikey: $SB_KEY" -H "authorization: Bearer $SB_KEY")
+          echo "launches: $(curl -fsS --retry 3 --retry-delay 10 "${auth[@]}" "$SB_URL/rest/v1/counters?name=eq.launches&select=value")"
+          echo "awake at: $(curl -fsS --retry 3 --retry-delay 10 -X POST "${auth[@]}" -H 'content-type: application/json' -d '{}' "$SB_URL/rest/v1/rpc/keep_awake")"
+
+  stay-on:
+    # GitHub switches a public repository's scheduled workflows off after 60
+    # days without activity in it; switching this one on again from here, each
+    # run, keeps it going through a quiet spell. If the token isn't allowed to,
+    # the run says so with a warning rather than failing every day.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Keep this schedule switched on
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: keep-counter-awake.yml
+        run: |
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/enable" \
+            || echo "::warning::Couldn't switch this schedule on again from here. After 60 quiet days GitHub may switch it off: Actions, this workflow, Enable workflow."
