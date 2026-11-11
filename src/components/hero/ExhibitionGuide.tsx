@@ -4,6 +4,7 @@ import { caseBySlug } from '../../content';
 import { DEPOT_COUNT, EXHIBITION } from '../../content/exhibits';
 import { HOTSPOTS } from '../../scene/framing';
 import { sceneStore } from '../../scene/store';
+import { ordinal, useAllTenNo, useTicketNo } from '../../lib/visit';
 
 // The exhibition guide: your admission ticket. It stands pushed into the
 // bottom edge of the screen, and its top is the one sign down there: ADMIT
@@ -80,6 +81,12 @@ export function ExhibitionGuide({
 }) {
   const navigate = useNavigate();
   const found = visited.filter((slug) => HOTSPOTS.some((h) => h.slug === slug)).length;
+  // the visitor's own numbers (lib/visit.ts): the ticket's, printed on it and
+  // on its stub as a ticket's serial is, and once they've seen all ten, which
+  // visitor to do it they were (the last stamp on the back)
+  const ticketNo = useTicketNo();
+  const allTenNo = useAllTenNo(found === TOTAL);
+  const serial = `No. ${String(ticketNo ?? TOTAL + 1).padStart(4, '0')}`;
   const count = tally(revealed);
   const note = ahead(revealed);
   const hinted = revealed >= HINT_AT;
@@ -97,9 +104,20 @@ export function ExhibitionGuide({
   if (!marked.current) marked.current = new Set(visited);
   const freshAtOpen = useRef<string[]>([]);
   const wasOpen = useRef(false);
+  // …and the last stamp, the all-ten one: there already if the page loaded
+  // with it; stamped in after the turn if it's new since the ticket was last
+  // out, or straight away if it arrives while the ticket is out
+  const allTenShown = useRef<number | null | undefined>(undefined);
+  if (allTenShown.current === undefined) allTenShown.current = allTenNo;
+  const allTenFresh = useRef<'turn' | 'now' | null>(null);
   if (state === 'open' && !wasOpen.current) {
     freshAtOpen.current = visited.filter((slug) => !marked.current!.has(slug));
     for (const slug of visited) marked.current.add(slug);
+    allTenFresh.current = allTenNo != null && allTenShown.current !== allTenNo ? 'turn' : null;
+    allTenShown.current = allTenNo;
+  } else if (state === 'open' && allTenNo != null && allTenShown.current !== allTenNo) {
+    allTenFresh.current = 'now';
+    allTenShown.current = allTenNo;
   }
   wasOpen.current = state === 'open';
   const fresh = state === 'open' ? freshAtOpen.current : [];
@@ -191,7 +209,7 @@ export function ExhibitionGuide({
         className="guide__peek"
         onClick={onOpen}
         aria-expanded={state === 'open'}
-        aria-label={note ? `Exhibition guide, ${count}. ${note}` : `Exhibition guide, ${count}`}
+        aria-label={`Exhibition guide${ticketNo != null ? `, ticket ${serial}` : ''}, ${count}${note ? `. ${note}` : ''}`}
         tabIndex={state === 'closed' ? 0 : -1}
       />
       <div className="guide__sheet" ref={sheetRef} role="dialog" aria-label="Exhibition guide" aria-hidden={state === 'closed' || undefined}>
@@ -199,7 +217,16 @@ export function ExhibitionGuide({
           {/* the front, face up while it's pushed in: the top of it is what shows */}
           <section className="guide__side guide__side--front guide__cover" aria-hidden="true">
             <div className="guide__main">
-              <span className="guide__cover-kicker">Admit one · exhibition guide</span>
+              <span className="guide__cover-kicker">
+                Admit one ·{' '}
+                {ticketNo != null ? (
+                  <span key="no" className="guide__ticket-no">
+                    {serial}
+                  </span>
+                ) : (
+                  'exhibition guide'
+                )}
+              </span>
               <span className="guide__cover-tally">
                 {/* the ten as a strip of cells, the way a strip ticket is
                     stamped a cell at a time: each one seen fills the next cell
@@ -258,7 +285,7 @@ export function ExhibitionGuide({
               <span className="guide__cover-title">{EXHIBITION}</span>
             </div>
             <div className="guide__stub">
-              <span className="guide__serial">No. {String(TOTAL + 1).padStart(4, '0')}</span>
+              <span className="guide__serial">{serial}</span>
             </div>
           </section>
           {/* the back, turned up once it's out: the ten, stamped as you see them */}
@@ -293,6 +320,17 @@ export function ExhibitionGuide({
                     start the tour over
                   </button>
                 )}
+                {found === TOTAL && allTenNo != null && (
+                  <span
+                    className="guide__all-ten"
+                    data-fresh={(state === 'open' && allTenFresh.current) || undefined}
+                    style={{ '--i': stamps } as CSSProperties}
+                  >
+                    {ordinal(allTenNo)} visitor
+                    <br />
+                    to see all ten
+                  </span>
+                )}
               </div>
             </div>
             {/* the stub: the eleventh, the ride at the end of the visit (the
@@ -300,7 +338,7 @@ export function ExhibitionGuide({
                 has hinted at it; torn off at ten, it takes you onto the pad */}
             <div className="guide__stub" data-torn={torn || undefined}>
               {!hinted ? (
-                <span className="guide__serial">No. {String(TOTAL + 1).padStart(4, '0')}</span>
+                <span className="guide__serial">{serial}</span>
               ) : found === TOTAL ? (
                 <button type="button" className="guide__tear" onClick={tear}>
                   <span>tear here · fly the next launch</span>

@@ -727,9 +727,63 @@
   color: var(--ink);
 }
 .guide__foot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 0.75rem;
   margin-top: 0.6rem;
   padding-top: 0.55rem;
   border-top: 1px dashed rgba(234, 234, 234, 0.16);
+}
+.guide__more,
+.guide__reset {
+  grid-column: 1;
+  justify-self: start;
+}
+/* With all ten seen, the last stamp on the ticket, beside the way out: which
+   visitor to see all ten this was (lib/visit.ts). The size of the exhibits'
+   stamps, two lines, in the accent the count takes at ten. New since the
+   ticket was last out, it comes down after the turn, after the exhibits'
+   own; arriving while it's out, straight away. */
+.guide__all-ten {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  padding: 0.3em 0.6em;
+  font-size: 0.6rem;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  border: 1.3px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.9;
+  rotate: -5deg;
+}
+.guide__all-ten[data-fresh='turn'] {
+  animation: guide-stamp 0.5s cubic-bezier(0.3, 0, 0.2, 1) backwards;
+  animation-delay: calc(1.15s + var(--i, 0) * 0.22s);
+}
+.guide__all-ten[data-fresh='now'] {
+  animation: guide-stamp 0.5s cubic-bezier(0.3, 0, 0.2, 1) 0.1s backwards;
+}
+/* the ticket's number, as it's issued: printed on, rather than switched in */
+.guide__ticket-no {
+  font-variant-numeric: tabular-nums;
+  animation: ticket-no-in 0.9s var(--ease) backwards;
+}
+@keyframes ticket-no-in {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide__all-ten[data-fresh],
+  .guide__ticket-no {
+    animation: none;
+  }
 }
 .guide__more {
   display: block;

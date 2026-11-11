@@ -1,9 +1,10 @@
 name: Keep the launch counter awake
 
-# The launch counter lives in a free Supabase project (docs/launch-counter.md),
-# and Supabase pauses a free project that shows too little database activity
-# over a week: the tally on the launch site goes dark until someone resumes
-# the project by hand. Every day this reads the count and stamps a heartbeat
+# The site's counters (the flights, the ticket numbers, the visitors who saw
+# all ten) live in a free Supabase project (docs/counters.md), and Supabase
+# pauses a free project that shows too little database activity over a week:
+# the numbers go dark until someone resumes the project by hand. Every day
+# this reads the counters and stamps a heartbeat
 # (a real write, through the same public API the site uses), so it never
 # looks idle, whether or not anyone visited.
 #
@@ -32,14 +33,14 @@ jobs:
     # Variables the deploy reads)
     if: ${{ vars.SUPABASE_URL != '' && vars.SUPABASE_ANON_KEY != '' }}
     steps:
-      - name: Read the count, stamp the heartbeat
+      - name: Read the counters, stamp the heartbeat
         env:
           SB_URL: ${{ vars.SUPABASE_URL }}
           SB_KEY: ${{ vars.SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
           auth=(-H "apikey: $SB_KEY" -H "authorization: Bearer $SB_KEY")
-          echo "launches: $(curl -fsS --retry 3 --retry-delay 10 "${auth[@]}" "$SB_URL/rest/v1/counters?name=eq.launches&select=value")"
+          echo "counters: $(curl -fsS --retry 3 --retry-delay 10 "${auth[@]}" "$SB_URL/rest/v1/counters?select=name,value")"
           echo "awake at: $(curl -fsS --retry 3 --retry-delay 10 -X POST "${auth[@]}" -H 'content-type: application/json' -d '{}' "$SB_URL/rest/v1/rpc/keep_awake")"
 
   stay-on:

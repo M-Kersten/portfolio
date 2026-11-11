@@ -57,7 +57,7 @@ The things you're most likely to want to change, and the file they live in.
 | A poster or share card | `public/posters/<slug>.jpg`, then `npm run og` (or `npm run og -- projects`) |
 | The site's own share card (the hero, rendered) | change the hero or the model, then `npm run og -- site`; what's left out of it and how lit the model is: `LEAVE_OUT` and `SEEN` in `scripts/gen-og.mjs` |
 | The CV | `src/content/cv.json` / `cv.nl.json`, then `npm run cv` |
-| The launch counter (how many visitors have flown the rocket), and keeping its free Supabase project from pausing | `docs/launch-counter.md` (setup, SQL, what to do if it's gone dark); the daily keep-awake is `.github/workflows/keep-counter-awake.yml` |
+| The counters (the flights visitors have flown, the number on each visitor's ticket, the visitors who saw all ten), and keeping their free Supabase project from pausing | `docs/counters.md` (setup, SQL, what to do if they've gone dark); the client is `src/lib/counters.ts`, `launches.ts` and `visit.ts`; the daily keep-awake is `.github/workflows/keep-counter-awake.yml` |
 | Which projects are exhibits, and what each one's marker points at | `HOTSPOTS` in `src/scene/framing.ts` (its `anchor`; the marker floats straight above it at its floor's `MARKER_Y`) |
 | An exhibit's camera close-up | its `view` in `HOTSPOTS` (or the dev tools' Camera tab) |
 | An object's place in the model | the `usePlacement(...)` call in `src/scene/maquette/city.tsx` or `room.tsx` (or the dev tools' Objects tab) |

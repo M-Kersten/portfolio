@@ -32,7 +32,7 @@ jobs:
           # public/CNAME + the repo's Pages setting). The old
           # m-kersten.github.io/portfolio URL 301s there automatically.
           VITE_BASE: /
-          # Launch-counter backend (docs/launch-counter.md). Set these two as
+          # The counters' backend (docs/counters.md). Set these two as
           # repository Variables (Settings → Secrets and variables → Actions →
           # Variables) — the anon key is public by design. Unset → the counter
           # simply doesn't render; everything else works.
