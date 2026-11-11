@@ -32,7 +32,7 @@ for (const c of cases) {
   const outcome = /[.!?…]$/.test(c.outcome) ? c.outcome : `${c.outcome}.`;
   const description = `${outcome} ${[c.client, year].filter(Boolean).join(', ')}.`;
   const url = `${SITE}/work/${c.slug}`;
-  const image = existsSync(join(dist, 'og', `${c.slug}.jpg`)) ? `${SITE}/og/${c.slug}.jpg` : `${SITE}/og.png`;
+  const image = existsSync(join(dist, 'og', `${c.slug}.jpg`)) ? `${SITE}/og/${c.slug}.jpg` : `${SITE}/og.jpg`;
   let html = base.replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`);
   html = meta(html, 'description', description);
   html = meta(html, 'og:url', url);

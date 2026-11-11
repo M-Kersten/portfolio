@@ -28,7 +28,9 @@ npm run preview    # serve the build locally
 
 Useful while developing:
 
-- `/` — home (hero maquette, capabilities, projects timeline, about, contact)
+- `/` — home (hero maquette, capabilities, projects timeline, about, contact);
+  a shared link previews with the hero itself (`public/og.jpg`, rendered by
+  `npm run og`)
 - `/work/:slug` — deep link to a project: the camera flies to its object and
   its label opens beside it; `/work/:slug?entry` opens straight onto the book
   (the full entry). The build writes each one a page of its own, so a shared
@@ -52,7 +54,8 @@ The things you're most likely to want to change, and the file they live in.
 | Where a long film starts | the project's `video` link in `cases.json`, with `?t=95` on it (YouTube's "start at" link) |
 | A project's film loop or voice note | drop `<slug>.mp4` in `src/assets/loops/`, `<slug>.mp3` in `src/assets/voice/` |
 | A sound effect or ambient bed | `src/assets/sound/` (its README lists every name) |
-| A poster or share card | `public/posters/<slug>.jpg`, then `npm run og` |
+| A poster or share card | `public/posters/<slug>.jpg`, then `npm run og` (or `npm run og -- projects`) |
+| The site's own share card (the hero, rendered) | change the hero or the model, then `npm run og -- site`; what's left out of it and how lit the model is: `LEAVE_OUT` and `SEEN` in `scripts/gen-og.mjs` |
 | The CV | `src/content/cv.json` / `cv.nl.json`, then `npm run cv` |
 | Which projects are exhibits, and what each one's marker points at | `HOTSPOTS` in `src/scene/framing.ts` (its `anchor`; the marker floats straight above it at its floor's `MARKER_Y`) |
 | An exhibit's camera close-up | its `view` in `HOTSPOTS` (or the dev tools' Camera tab) |
@@ -210,6 +213,7 @@ src/
                        the page (global.css imports them in order)
 public/
   posters/<slug>.jpg   timeline/card artwork per project
+  og.jpg               the site's share card: the hero, rendered (npm run og)
   og/<slug>.jpg        each project's share card (npm run og)
   textures/            optional real screenshots (room-screen / room-phone):
                        objects fall back to procedural looks
@@ -250,8 +254,8 @@ Safari and older browsers need themselves. When you add CSS:
   the year) or `"2024-09"` (pins the month on the timeline). `follows` names
   the earlier case this one builds on — it renders under "See also" in the
   book, both ways. Drop a matching poster in `public/posters/<slug>.jpg`, then
-  run `npm run og` to redraw the share cards (it uses your installed Chrome,
-  or `CHROME_PATH`) and commit them.
+  run `npm run og -- projects` to redraw the share cards (it uses your
+  installed Chrome, or `CHROME_PATH`) and commit them.
 - **The exhibits** — the ten projects with an object in the maquette
   (`HOTSPOTS` in `src/scene/framing.ts`) are numbered 01–10, city then room
   then chip; every other project is in the depot. Exhibit 11 is the next

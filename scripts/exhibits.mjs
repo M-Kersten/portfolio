@@ -15,5 +15,5 @@ export function loadExhibits(root) {
     const i = order.indexOf(slug);
     return i < 0 ? null : String(i + 1).padStart(2, '0');
   };
-  return { cases, no };
+  return { cases, no, order };
 }
