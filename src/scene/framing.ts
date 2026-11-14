@@ -31,12 +31,11 @@ export const MARKER_Y: Record<LayerId, number> = { city: 1.15, room: 1.15, chip:
 /** The scroll journey down the hero: City at the top (step 0), Room in the
  *  middle (1), Chip at the bottom (2). */
 export const LAYER_STEP: Record<LayerId, number> = { city: 0, room: 1, chip: 2 };
-/** Which step a point in the hero's scroll travel (0 → 1) is on. City and Chip
- *  rest at the very top and bottom, easy to land on; Room is the one you stop
- *  in the middle to hold, so it gets the widest band: the middle half. */
-export const stepAt = (p: number) => (p >= 0.75 ? 2 : p >= 0.25 ? 1 : 0);
-/** The middle of each step's band, where closing an exhibit lands you. */
-export const STEP_CENTRE = [0.125, 0.5, 0.875];
+/** The journey's beats, each a stretch of scrolling that holds one framing
+ *  (the hero's panels: components/hero/journey.ts), and the step each one
+ *  frames: the entrance, under your name, is the City; then each floor has a
+ *  beat of its own, with its text beside it. */
+export const BEAT_STEP = [0, 0, 1, 2];
 
 export interface Hotspot {
   slug: string;
@@ -130,19 +129,21 @@ export const CAMERA = {
   // middle of the frame, so the one below falls away toward the bottom edge.
   overviewLift: 0.34,
   // Per journey step (City, Room, Chip): how far to the side of the floor the
-  // overview looks, and how far out it stands (× overviewOffset). Only the City
-  // has the hero title beside it: looking a little LEFT pushes it right on
-  // screen, clear of the title. The Room and the Chip centre. The Chip's board
-  // is the smallest floor, so its step comes closer, to the share of the screen
-  // the others take — the ladder still reads on the way down.
-  stepAimX: [-0.34, 0, 0] as [number, number, number],
-  stepZoom: [1, 1, 0.72] as [number, number, number],
+  // overview looks, and how far out it stands (× overviewOffset). Every floor
+  // has words beside it, on the left (the hero title, then the floor's own
+  // text): looking LEFT of the floor pushes it right on screen, clear of them,
+  // and each comes in close enough to fill the rest of the frame. The Chip's
+  // board is the smallest floor, so its step comes closest — the ladder still
+  // reads on the way down.
+  stepAimX: [-0.56, -0.95, -0.62] as [number, number, number],
+  stepZoom: [0.8, 0.96, 0.7] as [number, number, number],
   // …and how far the whole framing rises (camera and aim together, so the angle
   // holds), which sets the floor lower in the frame. The City's rises: its top
   // lines up with the hero title's, and the room under it sinks to an edge
   // behind the caption and the guide (the room's tall furniture otherwise
-  // reaches up into the frame from below).
-  stepRise: [0.28, 0, 0] as [number, number, number],
+  // reaches up into the frame from below). The Chip's sinks instead, which
+  // lifts its low, flat board to the middle of the frame.
+  stepRise: [0.16, 0.05, -0.28] as [number, number, number],
 
   // ---- Portrait (phones) ----
   // On a phone the title sits ABOVE the model rather than beside it, and the
@@ -155,7 +156,7 @@ export const CAMERA = {
   // a tall frame has room for it, and the plate opens out instead of lying flat.
   // That fits the layer at a closer distance (maxFit) with every crosshair on
   // screen. Aimed at the middle (nothing to clear on the left) and a little
-  // above the layer, so it sits under the title. Blended in between the two
+  // above the layer, so it sits under the words over it. Blended in between the two
   // aspects below (portraitMix), so a tablet or a narrow window lands in
   // between rather than on a breakpoint.
   portraitOffset: [3.3, 2.57, 1.91] as Vec3, // 60° round, 34° up, 4.6 out
@@ -164,14 +165,17 @@ export const CAMERA = {
   // nothing cut off at the edges
   portraitStepAimX: [0.1, 0.1, 0.1] as [number, number, number],
   portraitStepZoom: [1.1, 1.1, 1] as [number, number, number],
-  portraitStepRise: [0, 0, 0] as [number, number, number],
+  // (every floor has words over it on an upright screen: the hero title and
+  // the way into the tour, or the floor's own text. The framing rises to set
+  // the floor under them.)
+  portraitStepRise: [0.46, 0.46, 0.46] as [number, number, number],
   portraitFrom: 1.0, // width:height where the portrait framing starts to blend in…
   portraitTo: 0.62, // …and where it has fully taken over
   // Every phone held upright gets the same framing (the lens and the distance
-  // stop changing below portraitTo), so the City's top marker sits at the same
-  // share of the screen's height on each, but the hero title above it is the
+  // stop changing below portraitTo), so a floor's top marker sits at the same
+  // share of the screen's height on each, but the words above it are the
   // same height in pixels: on a shorter screen — most phones once a browser's
-  // bars have taken their share — it reaches further down. So on the City step
+  // bars have taken their share — they reach further down. So
   // the framing rises by up to this much more (as portraitStepRise), from none
   // on a tall phone (portraitShortFrom) to all of it on a short one
   // (portraitShortTo), and gone again by the time the screen is a tablet's.

@@ -2,22 +2,22 @@
   {
     "layer": "city",
     "index": "01",
-    "title": "City: maps & the real world",
-    "body": "The big one. Maps, point clouds and GPS: I take real-world data and turn it into something you can move through, like a digital twin of a street or AR that knows which corner you’re standing on. I’m still a little amazed that this works at all.",
+    "title": "City: maps and the real world",
+    "body": "Maps, point clouds and GPS, turned into something you can move through: a digital twin of a street, or AR that knows which corner you’re on.",
     "tags": ["VPS", "RTK", "Point clouds", "GIS"]
   },
   {
     "layer": "room",
     "index": "02",
-    "title": "Room: games, apps & toys",
-    "body": "The one you can hold. Games, apps, websites, buttons and sliders. This is where I get to build fast, whether it’s a tiny mobile game, a training sim or a whole UX overhaul. If it makes someone smile or learn something, I’ve done my job.",
+    "title": "Room: games, apps and training sims",
+    "body": "The things people pick up and play with: games, apps, websites and training sims. It’s where I get to build fast.",
     "tags": ["Unity", "VR", "Mobile", "Web", "UX"]
   },
   {
     "layer": "chip",
     "index": "03",
-    "title": "Chip: tools & the nerdy bits",
-    "body": "The small one, and the one nobody sees. Tools, SDKs, computer vision, synthetic data, characters you can talk to and a backend that simply keeps running. It’s what makes the other two possible. Nobody claps for a backend, and that’s fine.",
+    "title": "Chip: tools, AI and backends",
+    "body": "The part nobody sees: tools, SDKs, computer vision, synthetic data and a backend that keeps running. It makes the other two possible.",
     "tags": ["Computer vision", "AI · LLMs", "Backends", "Databases"]
   }
 ]

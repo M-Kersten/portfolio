@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { caseBySlug } from '../../content';
 import { sceneStore } from '../../scene/store';
-import { LAYER_STEP, STEP_CENTRE } from '../../scene/framing';
+import { BEAT_STEP } from '../../scene/framing';
+import { beatAt, beatOfLayer, beatTop } from '../hero/journey';
 import { useScrollLock } from '../../lib/page';
 import { Exhibit } from './Exhibit';
 import { NotFound } from '../shell/NotFound';
@@ -27,10 +28,13 @@ export function NodeHud() {
   const [closing, setClosing] = useState(false);
   const study = slug ? caseBySlug(slug) : undefined;
 
-  // Closing drops you back onto the layer you left from — scroll to the *centre*
-  // of that layer's band on the hero so the journey lands squarely on it. Closing
-  // the TENTH project is the homecoming: the journey pulls up to the City overview
-  // where the celebration plays out (particle burst, ghost pad).
+  // Closing drops you back onto the floor the exhibit stands on. Opened from
+  // that floor (the usual way), the page is where it was and stays there. After
+  // a walk to an exhibit on another floor it isn't, and it scrolls to the middle
+  // of that floor's own beat, so the journey lands squarely on it. Closing the
+  // TENTH project is the homecoming: the journey pulls up to the top of the
+  // page, the City under the title, where the celebration plays out (particle
+  // burst, ghost pad).
   const runClose = () => {
     // Back to the model the way you came: opened from the home page, closing
     // steps back to it (so the browser's Back doesn't reopen the label);
@@ -40,18 +44,22 @@ export function NodeHud() {
     else navigate('/', { replace: true });
     if (!study) return;
     const homecoming = sceneStore.snapshot().celebrationPending;
-    const step = homecoming ? 0 : LAYER_STEP[study.layer];
     if (homecoming) sceneStore.celebrate();
-    sceneStore.setJourneyStep(step);
+    const hero = document.getElementById('hero');
+    const here = hero ? beatAt(hero) : 0;
+    const home = beatOfLayer(study.layer);
+    // (the entrance is the City's too: an exhibit opened from under the title
+    // closes back to it)
+    const beat = homecoming ? 0 : BEAT_STEP[here] === BEAT_STEP[home] ? here : home;
+    sceneStore.setJourneyBeat(beat);
+    if (beat === here && !homecoming) return;
     // Lift the body-scroll lock before scrolling (the unmount cleanup can land
     // after and swallow the move). Double-rAF so it runs after route + paint.
     document.body.style.overflow = '';
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         const hero = document.getElementById('hero');
-        if (!hero) return;
-        const travel = Math.max(hero.offsetHeight - window.innerHeight, 0);
-        window.scrollTo({ top: hero.offsetTop + STEP_CENTRE[step] * travel });
+        if (hero) window.scrollTo({ top: beatTop(hero, beat, homecoming ? 0 : 0.5) });
       }),
     );
   };

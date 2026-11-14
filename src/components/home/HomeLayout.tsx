@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { site } from '../../content';
 import { HeroStage } from '../hero/HeroStage';
-import { Capabilities } from './Capabilities';
 import { Timeline } from '../timeline/Timeline';
 import { About } from './About';
 import { Contact } from './Contact';
@@ -25,7 +24,6 @@ export function HomeLayout() {
   return (
     <>
       <HeroStage />
-      <Capabilities />
       <Timeline />
       <About />
       <Contact />

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { HOTSPOTS } from './framing';
+import { BEAT_STEP, HOTSPOTS } from './framing';
 import { remember, remembered } from '../lib/page';
 
 /** Wall-clock moment the app first loaded. The boot sequence sequences off this
@@ -37,6 +37,10 @@ export type LaunchStage = 'idle' | 'pad' | 'countdown' | 'ascend' | 'game';
 interface SceneState {
   /** Which layer the scroll journey has centred: 0 = City (top), 1 = Room, 2 = Chip. */
   journeyStep: number;
+  /** Which beat of the journey the scroll is on (BEAT_STEP, framing.ts): 0 the
+   *  entrance, under the hero title; 1–3 a floor with its text beside it. The
+   *  step follows from it. */
+  journeyBeat: number;
   /** The inspected node's case slug, or null in the overview. Drives the zoom +
    *  the bottom HUD + hiding the title. */
   selectedSlug: string | null;
@@ -140,6 +144,7 @@ function cueDone(): boolean {
 
 let state: SceneState = {
   journeyStep: 0,
+  journeyBeat: 0,
   selectedSlug: null,
   hoveredSlug: null,
   visited: woken,
@@ -169,8 +174,10 @@ export const sceneStore = {
     return () => listeners.delete(listener);
   },
   snapshot: () => state,
-  setJourneyStep(journeyStep: number) {
-    if (journeyStep !== state.journeyStep) set({ journeyStep });
+  /** Put the journey on a beat (and so on its floor). */
+  setJourneyBeat(journeyBeat: number) {
+    const journeyStep = BEAT_STEP[journeyBeat] ?? 0;
+    if (journeyBeat !== state.journeyBeat || journeyStep !== state.journeyStep) set({ journeyBeat, journeyStep });
   },
   setSelected(selectedSlug: string | null) {
     if (selectedSlug === state.selectedSlug) return;

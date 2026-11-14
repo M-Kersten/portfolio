@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { site } from '../../content';
 import { returning, sceneStore, useSceneSelector } from '../../scene/store';
-import { HOTSPOTS, stepAt } from '../../scene/framing';
+import { BEAT_STEP, HOTSPOTS } from '../../scene/framing';
 import { useReducedMotion } from '../../lib/media';
 import { useEscape } from '../../lib/page';
 import { Scramble } from '../shell/Scramble';
-import { EXHIBITION } from '../../content/exhibits';
+import { EXHIBITION, EXHIBITS } from '../../content/exhibits';
 import { ExhibitionGuide } from './ExhibitionGuide';
+import { FloorNotes } from './FloorNotes';
+import { beatAt } from './journey';
 
-// Three invisible scroll panels give the camera journey its length and drive
-// `journeyStep` (0 City · 1 Room · 2 Chip). The title (the exhibition's name,
-// yours under it, and the line under that) lives only on the City layer and
-// clears the moment you scroll down (or inspect a node).
-
-const STEPS = [0, 1, 2];
+// Invisible scroll panels give the camera journey its length, one to a beat
+// (journey.ts): the entrance, where the title stands over the City (the
+// exhibition's name, yours under it, the line under that, and the way into
+// the tour), then each floor with its own text beside it (FloorNotes). The
+// beat drives which floor the camera frames. All of it clears while an
+// exhibit is open.
 
 // Every object in the maquette is a project, an exhibit numbered 01–10, kept
 // in low light until it's visited (as a gallery does), then lit for good. The
@@ -46,8 +49,9 @@ const WELCOME_FADE_MS = 600;
 
 export function HeroStage() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
-  const journeyStep = useSceneSelector((s) => s.journeyStep);
+  const beat = useSceneSelector((s) => s.journeyBeat);
   const visited = useSceneSelector((s) => s.visited);
+  const navigate = useNavigate();
   // the launch takes the whole frame, from the pad to the game
   const launching = useSceneSelector((s) => s.launch !== 'idle');
   // Gates the whole hero chrome: held false through the load intro (the centred
@@ -62,6 +66,10 @@ export function HeroStage() {
   // cover lives down there, so it clears as soon as the capabilities section
   // scrolls up over that spot instead of lingering on top of it.
   const [heroOwnsBottom, setHeroOwnsBottom] = useState(true);
+  // …and whether it still holds the part of the screen a floor's text stands
+  // in. The last floor holds while the next section comes up over it, and its
+  // text is fixed over the page: it steps aside as that section reaches it.
+  const [heroHoldsText, setHeroHoldsText] = useState(true);
   const reduced = useReducedMotion();
   // the guide is a ticket pushed into the screen's edge: 'closing' is it turning face up and sliding back in
   const [guide, setGuide] = useState<'closed' | 'open' | 'closing'>('closed');
@@ -88,10 +96,11 @@ export function HeroStage() {
   // below doesn't reliably trip an observer, which used to strand the title over
   // the wall — a per-frame rect read is robust to that.
   //
-  // journeyStep = which band of the hero's scroll travel we're in (stepAt).
+  // The beat is whichever of the hero's panels the scroll has reached (beatAt).
   useEffect(() => {
     let raf = 0;
-    let lastStep = -1;
+    let last = -1;
+    let panels: HTMLElement[] | undefined;
     const loop = () => {
       const hero = heroRef.current;
       if (hero) {
@@ -99,13 +108,13 @@ export function HeroStage() {
         const r = hero.getBoundingClientRect();
         setHeroInView(r.bottom > 0 && r.top < vh);
         setHeroOwnsBottom(r.bottom > vh - 32);
+        setHeroHoldsText(r.bottom > vh * 0.72);
 
-        const travel = Math.max(hero.offsetHeight - vh, 1);
-        const p = Math.min(Math.max(-r.top, 0), travel) / travel; // 0→1 across the hero
-        const step = stepAt(p);
-        if (step !== lastStep) {
-          lastStep = step;
-          sceneStore.setJourneyStep(step);
+        panels ??= [...hero.querySelectorAll<HTMLElement>('.hero__panel')];
+        const now = beatAt(hero, panels);
+        if (now !== last) {
+          last = now;
+          sceneStore.setJourneyBeat(now);
         }
       }
       raf = requestAnimationFrame(loop);
@@ -192,10 +201,21 @@ export function HeroStage() {
   // Esc closes the guide
   useEscape(closeGuide, guideOpen);
 
-  // Title lives only on the City layer (and only while the hero is on screen);
-  // it clears the moment you scroll to Room or leave the hero entirely.
+  // The title lives only at the entrance (and only while the hero is on
+  // screen): it gives way to the City's own text as you scroll on, and each
+  // floor's text to the next. An open exhibit or a launch clears them all.
   const away = Boolean(selectedSlug) || launching || returningFrom;
-  const opacity = away ? 0 : heroInView && journeyStep === 0 ? 1 : 0;
+  const titleOn = !away && heroInView && beat === 0;
+  const noteBeat = !away && heroInView && heroHoldsText && beat > 0 ? beat : null;
+  // …and what can't be seen can't be pressed or tabbed to
+  const titleRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (titleRef.current) titleRef.current.inert = !titleOn;
+  }, [titleOn, introOver]);
+  // The way into the tour: the first exhibit not seen yet (the first of the
+  // ten on a first visit), whose label then walks on to the next.
+  const seenAny = visited.some((slug) => EXHIBITS.includes(slug));
+  const tourNext = EXHIBITS.find((slug) => !visited.includes(slug)) ?? EXHIBITS[0];
   // The guide's cover rides the whole journey, clearing with the HUD and the
   // moment the next section takes over the bottom of the screen.
   const overlayOpacity = away || !heroOwnsBottom ? 0 : 1;
@@ -224,7 +244,7 @@ export function HeroStage() {
   const openPad = () => {
     const hero = heroRef.current;
     if (hero) window.scrollTo({ top: hero.offsetTop });
-    sceneStore.setJourneyStep(0);
+    sceneStore.setJourneyBeat(0);
     sceneStore.setLaunch('pad');
   };
 
@@ -234,14 +254,18 @@ export function HeroStage() {
           play at the moment it appears (the beat after the premise card), not
           silently at load behind the card. */}
       {introOver && (
-        <div className="hero__title" style={{ opacity, pointerEvents: 'none' }}>
+        <div ref={titleRef} className="hero__title" style={{ opacity: titleOn ? 1 : 0 }}>
           <p className="hero__kicker">{EXHIBITION}</p>
           <h1 className="hero__name">
             <Scramble text={site.hero.name} delay={380} wrap />
           </h1>
           <p className="hero__sub">{site.hero.subheading}</p>
+          <button type="button" className="btn btn--ghost hero__tour" onClick={() => navigate(`/work/${tourNext}`)}>
+            {seenAny && tourNext !== EXHIBITS[0] ? 'Continue the tour' : 'Start the tour'} <span aria-hidden="true">→</span>
+          </button>
         </div>
       )}
+      {introOver && <FloorNotes beat={noteBeat} />}
 
       {/* The one sign along the bottom: the exhibition guide's cover, with
           the count printed on it. Pressing it pulls the guide out. (The cover
@@ -267,9 +291,15 @@ export function HeroStage() {
         />
       </div>
 
-      {STEPS.map((step) => (
-        <div key={step} className="hero__panel" data-step={step} aria-hidden="true" />
+      {/* the beats' scroll lengths (hero.css), then a screen's worth more, over
+          which the last floor holds while the next section comes up. "What I
+          do" in the nav lands on the City's text. */}
+      {BEAT_STEP.map((_, i) => (
+        <div key={i} className="hero__panel" data-beat={i} aria-hidden="true">
+          {i === 1 && <span id="capabilities" className="hero__anchor" />}
+        </div>
       ))}
+      <div className="hero__tail" aria-hidden="true" />
     </section>
   );
 }

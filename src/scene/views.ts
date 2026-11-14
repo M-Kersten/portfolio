@@ -40,12 +40,12 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const stepOf = (step: number) => Math.max(0, Math.min(2, step));
 
 /** The point the overview orbits: on the layer, offset sideways by the step's
- *  aim and raised by its rise (the City's a little more on a short phone,
- *  under the hero title: shortRise). */
+ *  aim and raised by its rise (a little more on a short phone, where the text
+ *  over the floor reaches further down the screen: shortRise). */
 function overviewPivot(step: number, gap: number, aspect: number): Vector3 {
   const mix = portraitMix(aspect);
   const s = stepOf(step);
-  const rise = lerp(CAMERA.stepRise[s], CAMERA.portraitStepRise[s], mix) + (s === 0 ? shortRise(aspect) : 0);
+  const rise = lerp(CAMERA.stepRise[s], CAMERA.portraitStepRise[s], mix) + shortRise(aspect);
   return new Vector3(lerp(CAMERA.stepAimX[s], CAMERA.portraitStepAimX[s], mix), (JOURNEY_Y[s] ?? 0) * gap + rise, 0);
 }
 

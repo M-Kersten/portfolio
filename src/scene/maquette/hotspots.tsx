@@ -32,10 +32,11 @@ const NAME_TICK_MS = 300;
 
 type Box = { l: number; r: number; t: number; b: number };
 
-/** What else is on screen for the names to keep clear of: the hero title's
- *  lines of text while it shows (the line boxes of its words, not the boxes of
- *  the elements holding them: a heading's box runs the title's full width), and
- *  the flight simulator's sign while it's up. */
+/** What else is on screen for the names to keep clear of: the lines of text
+ *  beside the model while they show, the hero title's or a floor's own (the
+ *  line boxes of the words, not the boxes of the elements holding them: a
+ *  heading's box runs the block's full width), and the flight simulator's sign
+ *  while it's up. */
 function obstacles(): Box[] {
   const lines: Box[] = [];
   const sign = document.querySelector<HTMLElement>('.nextsite-wrap');
@@ -43,16 +44,17 @@ function obstacles(): Box[] {
     const r = sign.getBoundingClientRect();
     lines.push({ l: r.left, r: r.right, t: r.top, b: r.bottom });
   }
-  const title = document.querySelector<HTMLElement>('.hero__title');
-  if (!title || parseFloat(getComputedStyle(title).opacity) < 0.05) return lines;
   const range = document.createRange();
-  const words = document.createTreeWalker(title, NodeFilter.SHOW_TEXT);
-  for (let t = words.nextNode(); t; t = words.nextNode()) {
-    // (not the copy kept for screen readers: off screen, it measures as one
-    // long line across the title)
-    if (!t.textContent?.trim() || t.parentElement?.closest('.visually-hidden')) continue;
-    range.selectNodeContents(t);
-    for (const r of range.getClientRects()) if (r.width > 0) lines.push({ l: r.left, r: r.right, t: r.top, b: r.bottom });
+  for (const block of document.querySelectorAll<HTMLElement>('.hero__title, .floor-note[data-on]')) {
+    if (parseFloat(getComputedStyle(block).opacity) < 0.05) continue;
+    const words = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    for (let t = words.nextNode(); t; t = words.nextNode()) {
+      // (not the copy kept for screen readers: off screen, it measures as one
+      // long line across the block)
+      if (!t.textContent?.trim() || t.parentElement?.closest('.visually-hidden')) continue;
+      range.selectNodeContents(t);
+      for (const r of range.getClientRects()) if (r.width > 0) lines.push({ l: r.left, r: r.right, t: r.top, b: r.bottom });
+    }
   }
   return lines;
 }
@@ -64,8 +66,8 @@ export function useNameRows(layer: string) {
   useEffect(() => {
     const tick = () => {
       // (not while the tab is hidden, nor once the page has scrolled on past
-      // the model: the hero is 1.4 screens tall)
-      if (document.hidden || window.scrollY > window.innerHeight * 1.6) return;
+      // the model)
+      if (document.hidden || (document.getElementById('hero')?.getBoundingClientRect().bottom ?? 1) < 0) return;
       const names = [...document.querySelectorAll<HTMLElement>('.hotspot')].flatMap((el) => {
         const mark = el.querySelector('.hotspot__mark');
         const name = el.querySelector<HTMLElement>('.hotspot__label-fill');

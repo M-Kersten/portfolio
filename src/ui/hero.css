@@ -1,20 +1,47 @@
-/* The hero: three invisible scroll panels that give the 3D layer journey
-   its length, plus the fixed name/subtitle block over the maquette. */
+/* The hero: invisible scroll panels that give the 3D layer journey its
+   length, plus the fixed blocks of text over the maquette: the name and its
+   line at the entrance, then each floor's own. */
 
 /* ---------- Hero stage (scroll layer journey) ---------- */
 
 .hero {
   position: relative;
 }
-/* Three panels give the camera journey its scroll length and are transparent so
-   the fixed canvas shows through. Their combined height sets how far you scroll
-   per layer — HeroStage weights the travel City<0.25 · Room 0.25–0.75 · Chip≥0.75
-   so Room (the only one you must stop mid-scroll to hold) gets the widest, most
-   forgiving band. No scroll-snap: the old snap points didn't line up with the
-   viewport and made the page feel like it stuck when scrolling past the hero. */
+/* The panels give the camera journey its scroll length and are transparent so
+   the fixed canvas shows through. Each is one beat of the journey
+   (components/hero/journey.ts), and its height is how far you scroll while
+   that beat holds: about half a screen to a floor, enough to stop on it, read
+   its text and open what's on it (they used to go by in a notch or two of the
+   wheel). The entrance is shorter: you're standing on it as the page opens.
+   The last floor holds on through the tail, a screen's worth more, while the
+   next section comes up over it, so its own panel is shorter too. No
+   scroll-snap: the old snap points didn't line up with the viewport and made
+   the page feel like it stuck when scrolling past the hero. */
 .hero__panel {
-  height: 46vh;
-  height: 46svh;
+  position: relative;
+  height: 55vh;
+  height: 55svh;
+}
+.hero__panel[data-beat='0'] {
+  height: 30vh;
+  height: 30svh;
+}
+.hero__panel[data-beat='2'] {
+  height: 60vh;
+  height: 60svh;
+}
+.hero__panel[data-beat='3'] {
+  height: 45vh;
+  height: 45svh;
+}
+.hero__tail {
+  height: 100vh;
+  height: 100svh;
+}
+/* where "What I do" in the nav lands: a little way into the City's beat */
+.hero__anchor {
+  position: absolute;
+  top: 35%;
 }
 
 /* Minimal title — fixed, fades when a node is inspected or scrolled past.
@@ -77,6 +104,182 @@
   /* Load boot — beat 3: rises in after the name has finished decoding (~0.93s). */
   animation: hero-sub-in var(--t-base) var(--ease) 1.05s both;
 }
+/* The way into the tour, under the line: the one thing in the title that's
+   pressed (the title itself lets the pointer through to the model). */
+.hero__tour {
+  margin-top: 1.6rem;
+  pointer-events: auto;
+  /* Load boot — beat 4: after the line */
+  animation: hero-sub-in var(--t-base) var(--ease) 1.4s both;
+}
+
+/* A floor's own text (FloorNotes): in the title's place and set like it, the
+   floor's name where yours was. One shows at a time, for as long as the scroll
+   holds its floor; it leaves quickly and the next arrives a beat later, as the
+   camera settles. Text only: the pointer goes through to the model. */
+.floor-note {
+  --c: var(--cyan);
+  position: fixed;
+  left: max(0px, calc((var(--page-w) - var(--container)) / 2));
+  top: 0;
+  z-index: 5;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 30rem;
+  padding: calc(var(--header-h) + var(--space-xl) + 4.5rem) var(--space-m) 0;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(var(--rise-in));
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-base) var(--ease);
+}
+.floor-note[data-layer='room'] {
+  --c: var(--coral);
+}
+.floor-note[data-layer='chip'] {
+  --c: var(--lime);
+}
+.floor-note[data-on] {
+  opacity: 1;
+  transform: none;
+  transition: opacity var(--t-slow) var(--ease) 0.22s, transform var(--t-slow) var(--ease) 0.22s;
+}
+/* its opening line, as a section's: the name, a rule, and the floor's scale
+   at the rule's end, in the floor's colour */
+.floor-note__kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+  margin: 0 0 0.85rem;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink-60);
+}
+.floor-note__kicker i {
+  flex: 1;
+  min-width: 1.5rem;
+  height: 1px;
+  background: var(--line);
+}
+.floor-note__scale {
+  letter-spacing: 0.1em;
+  color: var(--c);
+}
+.floor-note__title {
+  margin: 0 0 1.1rem;
+}
+.floor-note__name {
+  display: block;
+  font-size: calc(var(--step-6) * var(--display-scale));
+  line-height: var(--display-leading);
+  letter-spacing: calc(var(--display-tracking) - 0.01em);
+  color: var(--ink);
+}
+/* what the floor stands for: the title's standfirst, as the hero's line is */
+.floor-note__line {
+  display: block;
+  margin-top: 0.4em;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-stretch: normal;
+  font-variation-settings: normal;
+  font-size: var(--step-2);
+  line-height: 1.25;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.floor-note__body {
+  margin: 0;
+  max-width: 24rem;
+  font-size: var(--step-0);
+  line-height: 1.6;
+  color: var(--ink-60);
+}
+.floor-note__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  list-style: none;
+  padding: 0;
+  margin: 1.1rem 0 0;
+}
+.floor-note__tags li {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.04em;
+  color: var(--ink-60);
+  border: 1px solid color-mix(in srgb, var(--c) 30%, var(--hairline));
+  border-radius: var(--radius-s);
+  padding: 0.2em 0.55em;
+}
+/* Held upright the model sits under the text (see .hero__title above), so the
+   text tucks up under the header and runs the screen's width. The floor above
+   hangs down behind it there (beside it, on a wide screen), so the page's own
+   dark stands behind the words, running out under them. The camera sets the
+   floor lower to make room (framing.ts, portraitStepRise). */
+@media (orientation: portrait) {
+  .floor-note {
+    max-width: none;
+    padding-top: calc(var(--header-h) + var(--space-m));
+    padding-bottom: 2.5rem;
+    background: linear-gradient(to bottom, var(--paper) 72%, transparent);
+  }
+  .floor-note__body {
+    max-width: 34rem;
+  }
+}
+/* On a phone it keeps short, as the title does: the name a step smaller, the
+   line and the paragraph at reading sizes, and no tools (the paragraph names
+   them): the model needs the height. */
+@media (max-width: 760px) {
+  .floor-note__kicker {
+    margin-bottom: 0.45rem;
+    font-size: var(--step--2);
+  }
+  .floor-note__title {
+    margin-bottom: 0.6rem;
+  }
+  .floor-note__name {
+    font-size: calc(var(--step-5) * var(--display-scale));
+  }
+  .floor-note__line {
+    margin-top: 0.3em;
+    font-size: var(--step-0);
+  }
+  .floor-note__body {
+    font-size: var(--step--1);
+    line-height: 1.5;
+  }
+  .floor-note__tags {
+    display: none;
+  }
+}
+/* A short, wide screen (a phone on its side): the words start right under the
+   header and keep to their opening lines, beside the model. */
+@media (max-height: 480px) and (orientation: landscape) {
+  .hero__title,
+  .floor-note {
+    padding-top: calc(var(--header-h) + var(--space-s));
+  }
+  .hero__name,
+  .floor-note__name {
+    font-size: calc(var(--step-4) * var(--display-scale));
+  }
+  .hero__sub,
+  .floor-note__line {
+    max-width: 21rem;
+    font-size: var(--step-0);
+  }
+  .hero__tour {
+    margin-top: 0.8rem;
+  }
+  .floor-note__body,
+  .floor-note__tags {
+    display: none;
+  }
+}
 @keyframes hero-name-in {
   from {
     opacity: 0;
@@ -93,6 +296,7 @@
   .hero__kicker,
   .hero__name,
   .hero__sub,
+  .hero__tour,
   .guide__cover-here,
   .guide__cover-note,
   .guide__cover-note[data-first],

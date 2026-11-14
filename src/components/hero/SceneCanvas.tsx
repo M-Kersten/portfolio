@@ -2,7 +2,8 @@ import { Component, Suspense, lazy, useCallback, useEffect, useState, type React
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Poster, SceneLoading } from './Poster';
 import { sceneStore, useSceneSelector } from '../../scene/store';
-import { LAYER_STEP, type Hotspot } from '../../scene/framing';
+import { type Hotspot } from '../../scene/framing';
+import { beatOfLayer } from './journey';
 import { useReducedMotion } from '../../lib/media';
 import { useWebGLSupport } from '../../lib/useWebGLSupport';
 import { caseBySlug } from '../../content';
@@ -48,7 +49,7 @@ export function SceneCanvas() {
     const study = slug ? caseBySlug(slug) : undefined;
     if (slug) sceneStore.markVisited(slug); // opening a node marks it "alive"
     sceneStore.setSelected(study ? study.slug : null);
-    if (study) sceneStore.setJourneyStep(LAYER_STEP[study.layer]);
+    if (study) sceneStore.setJourneyBeat(beatOfLayer(study.layer));
   }, [location.pathname]);
 
   // Pause rendering when the hero scrolls out of view (§10). #hero only exists
