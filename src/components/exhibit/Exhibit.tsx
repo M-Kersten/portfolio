@@ -7,6 +7,7 @@ import { useReducedMotion } from '../../lib/media';
 import { useDocumentTitle, useScrollLock } from '../../lib/page';
 import { play } from '../../lib/sound';
 import { useFocusTrap } from '../../lib/useFocusTrap';
+import { byKeyboard } from '../../lib/input';
 import { type FilmClock } from '../../lib/youtube';
 import { useSceneSelector } from '../../scene/store';
 import { Book } from './Book';
@@ -88,7 +89,7 @@ export function Exhibit({
   // the film as the book takes it over from the label: where it was, and whether it was playing
   const [film, setFilm] = useState<FilmClock | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const labelRef = useRef<HTMLElement>(null);
+  const labelRef = useRef<HTMLDivElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
   const filmRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -119,9 +120,13 @@ export function Exhibit({
 
   useFocusTrap(rootRef, frame === null);
   // focus goes into the label as it opens, into the book as it unfolds, and
-  // into the next one after a walk
+  // into the next one after a walk: onto its close button for someone on the
+  // keyboard, and otherwise onto the dialog itself, which shows no ring (a
+  // link straight to an exhibit used to open with one round the ✕)
   useEffect(() => {
-    closeRef.current?.focus({ preventScroll: true });
+    const close = closeRef.current;
+    const into = byKeyboard() ? close : (close?.closest<HTMLElement>('[role="dialog"]') ?? close);
+    into?.focus({ preventScroll: true });
   }, [study.slug, book, arrived]);
   // the tab names the project while it's open (and in the history list)
   useDocumentTitle(`${study.title} — ${site.hero.name}`);

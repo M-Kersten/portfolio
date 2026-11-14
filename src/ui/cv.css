@@ -324,6 +324,23 @@
 }
 
 /* ---------- narrow screens ---------- */
+/* On a wide screen the sheet at paper size is a narrow column of small print
+   in the middle of a lot of dark: it's shown larger there, toolbar and all.
+   The whole sheet is scaled, so it stays the facsimile of the page that
+   prints — and print never matches this (the PDF keeps the paper's size). */
+@media screen and (min-width: 1200px) {
+  .cv-tools,
+  .cv {
+    zoom: 1.2;
+  }
+}
+@media screen and (min-width: 1600px) {
+  .cv-tools,
+  .cv {
+    zoom: 1.35;
+  }
+}
+
 /* The sheet is a literal A4 page — 210mm wide, because it is also what
    `npm run cv` prints the PDF from. On a phone that is 794px of fixed width in
    a 390px viewport: the page scrolled sideways, the header clipped the name to

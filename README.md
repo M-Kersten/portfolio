@@ -28,7 +28,8 @@ npm run preview    # serve the build locally
 
 Useful while developing:
 
-- `/` — home (hero maquette, capabilities, projects timeline, about, contact);
+- `/` — home (the hero maquette and its three floors, projects timeline,
+  about, contact);
   a shared link previews with the hero itself (`public/og.jpg`, rendered by
   `npm run og`)
 - `/work/:slug` — deep link to a project: the camera flies to its object and
@@ -38,7 +39,8 @@ Useful while developing:
 - `/projects` — the collection: every project, the ten on display in the
   model and the rest from the depot
 - anything else — a closed room: "This part of the exhibition isn't open yet"
-- `/cv` — the CV as a web page; `npm run cv` prints it to `public/cv.pdf`
+- `/cv` — the CV as a web page (shown larger than paper size on a wide
+  screen; the PDF isn't); `npm run cv` prints it to `public/cv.pdf`
 - add `?nogl` to any URL to preview the **no-WebGL static fallback**
 - OS reduced-motion is respected everywhere (states snap, no glitches)
 
@@ -120,11 +122,13 @@ src/
                        Search, SoundToggle), Footer, SectionHead, Scramble
                        (the text decode), BootVeil, ScrollToHash, NotFound
     hero/              the maquette's page: SceneCanvas (the lazy 3D boundary
-                       and its no-WebGL poster), HeroStage (the title
-                       wall, the guide's ticket), ExhibitionGuide,
-                       IntroCard, FocusReticle (the porthole), SoundScape
+                       and its no-WebGL poster), HeroStage (the title, the
+                       way into the tour, the guide's ticket), FloorNotes
+                       (each floor's text) and journey.ts (the scroll's
+                       beats), ExhibitionGuide, IntroCard (the opening's
+                       line), FocusReticle (the porthole), SoundScape
     home/              the home page's sections: HomeLayout (their order),
-                       Capabilities, About, Contact, and their canvas motifs
+                       About, Contact, and their canvas motifs
     timeline/          the projects timeline: Timeline.tsx (the component),
                        layout.ts (where everything sits on the route), CaseCard
     exhibit/           a project, opened: Exhibit.tsx (label and book
@@ -137,7 +141,7 @@ src/
   scene/
     Stage.tsx          lighting, fog, post-processing, scene root
     look.ts            the numbers behind the stage's look (LOOK)
-    CameraRig.tsx      the opening dolly, the scroll journey, the fly-to
+    CameraRig.tsx      the opening shot, the scroll journey, the fly-to
     warm.ts            compiling shaders ahead of their first draw (for the
                        composer's buffer, which is what the scene draws into)
     framing.ts         layer stack, hotspots, camera tuning (plain data, no
@@ -284,7 +288,9 @@ Safari and older browsers need themselves. When you add CSS:
   launch, the game, the ambient beds). A name with no file is silent, so add
   them one at a time. The engine is `src/lib/sound.ts`; sound is off until a
   visitor turns it on in the header.
-- `capabilities.json` — the three band columns.
+- `capabilities.json` — the three floors' texts, shown beside each floor in
+  the hero. A title is "Name: what's made there" ("City: maps and the real
+  world"): the name is set large, the rest as a line under it.
 - `cv.json` — the CV-only extras (tagline, profile paragraph, photo,
   location, phone, links, stack, education, certificates, languages,
   interests). The work history itself — including each company's black
@@ -328,9 +334,18 @@ Section styling lives in the `src/ui/*.css` file named after the section;
 
 **Camera & layout of the 3D stack**: `src/scene/framing.ts` — layer heights
 (`LAYER_Y`), scales, each floor's marker height (`MARKER_Y`), the scroll
-journey's bands, and the three camera framings (home, journey, node close-up).
-Each journey step has its own aim, distance and height (`CAMERA.stepAimX` /
-`stepZoom` / `stepRise`, and the `portraitStep…` set for phones).
+journey's beats (`BEAT_STEP`), and the camera framings (journey, node
+close-up). Each journey step has its own distance and height
+(`CAMERA.stepZoom` / `stepRise`, and the `portraitStep…` set for phones).
+Where a floor sits across a wide screen isn't a number: it's centred in what
+the words beside it leave free, measured from the page (`overviewFit`, with
+`CAMERA.stepSpan` saying what each floor must keep in view). The opening shot
+(the rise from the Chip to the City while the model turns) is `OPENING` at
+the top of `src/scene/CameraRig.tsx`: its length, how far the model turns,
+and when the lights go down.
+
+To try a framing without editing the file, the dev build exposes the live
+tuning as `window.__cam.CAMERA` (change a value, then `__cam.invalidate()`).
 
 ## Deploy
 

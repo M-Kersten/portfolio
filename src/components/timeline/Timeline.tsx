@@ -309,7 +309,7 @@ export function Timeline() {
       // the scroll cue retires once there's no more time to scroll through
       scrollRef.current?.querySelector('.wall__cue')?.toggleAttribute('data-done', p > 0.92);
       // xAt() run backwards for the focus, held to the route
-      const yr = Math.floor(timeline.minYear + (x + focus - cfg.startX) / cfg.yearGap);
+      const yr = Math.floor(timeline.yearAt(x + focus));
       const year = String(Math.min(Math.floor(timeline.maxYear), Math.max(timeline.minYear, yr)));
       const yEl = yearRef.current;
       if (yEl && yEl.dataset.year !== year) {

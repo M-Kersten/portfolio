@@ -37,7 +37,9 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active = true) 
       const last = items[items.length - 1];
       const current = document.activeElement;
       // Wrap at the ends; if focus somehow escaped the dialog, pull it back.
-      if (e.shiftKey && (current === first || !el.contains(current))) {
+      // (Focus on the dialog itself, where it lands when one opens after a
+      // click, counts as its start going backwards.)
+      if (e.shiftKey && (current === first || !el.contains(current) || !items.includes(current as HTMLElement))) {
         e.preventDefault();
         last.focus();
       } else if (!e.shiftKey && (current === last || !el.contains(current))) {

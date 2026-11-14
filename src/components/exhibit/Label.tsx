@@ -46,7 +46,7 @@ export function Label({
   onStep,
 }: {
   study: CaseStudy;
-  labelRef: RefObject<HTMLElement>;
+  labelRef: RefObject<HTMLDivElement>;
   headRef: RefObject<HTMLDivElement>;
   filmRef: RefObject<HTMLDivElement>;
   closeRef: RefObject<HTMLButtonElement>;
@@ -140,7 +140,7 @@ export function Label({
           )}
         </svg>
       )}
-      <article ref={labelRef} className="xl" role="dialog" aria-modal="true" aria-label={study.title}>
+      <div ref={labelRef} className="xl" role="dialog" aria-modal="true" aria-label={study.title} tabIndex={-1}>
         {sheet && <span className="xl__grip" aria-hidden="true" />}
         {/* the film first: a silent loop (or the poster, drifting), and pressed,
             the film itself, right here */}
@@ -203,7 +203,7 @@ export function Label({
           </button>
           <Walk place="maquette" prev={prev} next={next} onWalk={onWalk} />
         </div>
-      </article>
+      </div>
     </>
   );
 }

@@ -24,7 +24,7 @@ export function NotFound() {
   return createPortal(
     <div ref={ref} className="exhibit closed" data-place="page">
       <div className="exhibit__dim" aria-hidden="true" />
-      <article className="xl closed__label" role="dialog" aria-modal="true" aria-labelledby="closed-title">
+      <div className="xl closed__label" role="dialog" aria-modal="true" aria-labelledby="closed-title">
         <div className="xl__body">
           <span className="xl__no">Closed for now</span>
           <h1 id="closed-title" className="xl__title">
@@ -43,7 +43,7 @@ export function NotFound() {
             </Link>
           </div>
         </div>
-      </article>
+      </div>
     </div>,
     document.body,
   );

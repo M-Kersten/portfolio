@@ -146,6 +146,7 @@ const WALL_FIELDS: Extract<Field<WallLayout>, { min: number }>[] = [
   { k: 'planeVh', label: 'map height (vh)', min: 1, max: 2, step: 0.05 },
   { k: 'startX', label: 'left margin', min: 40, max: 400, step: 10 },
   { k: 'yearGap', label: 'year spacing', min: 160, max: 560, step: 10 },
+  { k: 'leadGap', label: 'year spacing before the first project', min: 100, max: 560, step: 10 },
   { k: 'rise', label: 'route → card %', min: 0, max: 20, step: 0.5 },
 ];
 

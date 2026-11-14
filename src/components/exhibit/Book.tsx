@@ -224,6 +224,7 @@ export function Book({
       role="dialog"
       aria-modal="true"
       aria-label={`${study.title}: the full story`}
+      tabIndex={-1}
     >
       <button ref={closeRef} type="button" className="xb__close" onClick={onClose} aria-label="Close">
         <span aria-hidden="true">✕</span>

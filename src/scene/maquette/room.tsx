@@ -2317,7 +2317,8 @@ function FloorLamp({ position, slug }: { position: V3; slug?: string }) {
   const reduced = useReducedMotion();
   const light = useMemo(() => {
     const add = (color: string, map?: Texture) => {
-      const m = new MeshBasicMaterial({ color, map, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, toneMapped: false, side: DoubleSide });
+      // (no `map` key at all without one: three.js warns about an undefined parameter)
+      const m = new MeshBasicMaterial({ color, ...(map && { map }), transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, toneMapped: false, side: DoubleSide });
       m.userData = { lifeSkip: true }; // it sets its own opacity (presence.tsx)
       return m;
     };

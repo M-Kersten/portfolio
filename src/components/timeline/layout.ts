@@ -16,6 +16,10 @@ export const WALL = tunable({
   startX: 210,
   /** the distance from one year to the next */
   yearGap: 360,
+  /** …and in the years before the first project, which hold an employer's
+   *  band and no cards: at the full spacing they pushed the first card off
+   *  the side of a laptop's screen, and the section opened on an empty map */
+  leadGap: 220,
   /** the gap between the route and a card's near edge, in % of the map's height */
   rise: 6,
 });
@@ -53,6 +57,8 @@ export interface Route {
   bands: CareerBand[];
   minYear: number;
   maxYear: number;
+  /** the year at a position along the route (the axis run backwards) */
+  yearAt: (x: number) => number;
 }
 
 export function buildRoute(list: CaseStudy[], career: CareerEntry[], cfg: WallLayout): Route {
@@ -70,7 +76,15 @@ export function buildRoute(list: CaseStudy[], career: CareerEntry[], cfg: WallLa
   const now = new Date();
   const present = now.getFullYear() + now.getMonth() / 12;
   const maxYear = Math.max(caseTime(ordered[ordered.length - 1]), present);
-  const xAt = (f: number) => cfg.startX + (f - minYear) * cfg.yearGap;
+  // The years before the first project run closer together (cfg.leadGap).
+  const firstYear = Math.max(minYear, Math.floor(caseTime(ordered[0])));
+  const leadGap = Math.min(cfg.leadGap, cfg.yearGap);
+  const leadW = (firstYear - minYear) * leadGap;
+  const xAt = (f: number) => cfg.startX + (f <= firstYear ? (f - minYear) * leadGap : leadW + (f - firstYear) * cfg.yearGap);
+  const yearAt = (x: number) => {
+    const d = x - cfg.startX;
+    return d <= leadW ? minYear + d / leadGap : firstYear + (d - leadW) / cfg.yearGap;
+  };
 
   // Place the stops left→right, each at its month-precise x. A stop takes
   // whichever side (above/below) still has a clear card-width behind it,
@@ -93,7 +107,7 @@ export function buildRoute(list: CaseStudy[], career: CareerEntry[], cfg: WallLa
   }
 
   const routeLeft = xAt(minYear);
-  const routeW = (maxYear - minYear) * cfg.yearGap;
+  const routeW = xAt(maxYear) - routeLeft;
   const routeRight = routeLeft + routeW;
   const width = routeRight + cfg.startX;
 
@@ -133,7 +147,7 @@ export function buildRoute(list: CaseStudy[], career: CareerEntry[], cfg: WallLa
     if (x2 - x1 > 1) bands.push(band(c, x1, x2));
   }
 
-  return { width, routeLeft, routeW, stops, bands, minYear, maxYear };
+  return { width, routeLeft, routeW, stops, bands, minYear, maxYear, yearAt };
 }
 
 /** The employer under a given x on the route, for the phone's company bar,

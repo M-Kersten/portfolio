@@ -308,6 +308,12 @@
   cursor: pointer;
   transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
+/* The dialogs take the focus themselves when one opens after a click or
+   straight from a link (Exhibit.tsx): no ring round the whole label or book. */
+.xl:focus,
+.xb:focus {
+  outline: none;
+}
 .xl__close:hover,
 .xl__close:focus-visible,
 .xb__close:hover,
@@ -549,6 +555,9 @@
   z-index: 3;
   top: 1.25rem;
   right: var(--page-pad);
+  /* the page's own colour behind it: a long story scrolls up under it, and its
+     lines used to show through the button */
+  background: var(--page);
 }
 .xb__verso,
 .xb__recto {

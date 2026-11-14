@@ -78,7 +78,7 @@ const SEEN = order.slice(0, -1);
 /** What's only there to be used, on a live page: left out of the picture. The
  *  logo stays, on the hero rather than on the header's bar. */
 const LEAVE_OUT = `
-  .header__right, .hero__signals, .hotspot__label, .nextsite-wrap, .scene-loading,
+  .header__right, .hero__signals, .hero__tour, .hotspot__label, .nextsite-wrap, .scene-loading,
   button[title="Open the dev tools"] { visibility: hidden !important; }
   .header { background: none !important; border-color: transparent !important; box-shadow: none !important;
     -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
@@ -98,10 +98,10 @@ async function siteCard(browser) {
     const ctx = await browser.newContext({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 2 });
     await ctx.addInitScript(() => {
       try {
-        localStorage.setItem('mk-intro-seen', '1'); // straight to the model, no opening card
+        localStorage.setItem('mk-intro-seen', '1'); // the short opening, without its line
         localStorage.setItem('mk-model-hint', '1'); // and no cue to scroll
       } catch {
-        /* no storage: the opening card would show, and the render with it */
+        /* no storage: the long opening plays instead, and the card waits for it */
       }
     });
     await ctx.addCookies([{ name: 'mk-woken', value: encodeURIComponent(SEEN.join(',')), url }]);
@@ -109,6 +109,14 @@ async function siteCard(browser) {
     await page.goto(url, { waitUntil: 'load' });
     await page.addStyleTag({ content: LEAVE_OUT });
     await page.evaluate(() => document.fonts.ready);
+    // The opening shot plays first (the short one: this is a returning
+    // visitor), and on a machine drawing the model in software it can take a
+    // minute or two of real time. The card is the hero at rest, so wait for
+    // the shot to land and the title to come up (the dev build says when:
+    // CameraRig's __cam), then let the model settle.
+    await page
+      .waitForFunction(() => window.__cam && !window.__cam.opening.dollying && window.__cam.store.snapshot().introOver, null, { timeout: 300000, polling: 500 })
+      .catch(() => console.warn('og: the opening did not report landing; taking the card anyway'));
     await page.waitForTimeout(SETTLE);
     const shot = await page.screenshot({ type: 'png' });
     // down to 1200×630 in the browser's own resampler, and out as a JPEG

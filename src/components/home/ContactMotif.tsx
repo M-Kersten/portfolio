@@ -66,14 +66,23 @@ export function ContactMotif() {
       ctx.fillRect(x - s / 2, y - s / 2, s, s);
     };
 
+    // A narrow card (a phone) is all text from edge to edge: the wide route
+    // took the letter straight through the heading and the email. There it
+    // flies low instead, along the strip under the buttons where the letterbox
+    // stands (see the route below).
+    const low = () => w < 560;
+
     // Scroll → progress: the flight only starts once a good third of the card
     // is already on screen (so it plays in view), and the letter is posted a
     // touch before the card is fully revealed — right at the end of the page.
+    // (The low route is all in the card's last stretch, so it plays over the
+    // last of the scroll, as that stretch comes into view.)
     const onScroll = () => {
       const rect = cv.getBoundingClientRect();
       const vh = window.innerHeight || 1;
       const reveal = (vh - rect.top) / (rect.height + 1);
-      pTarget = Math.max(0, Math.min(1, (reveal - 0.38) / (0.96 - 0.38)));
+      const [from, to] = low() ? [0.9, 1.1] : [0.38, 0.96];
+      pTarget = Math.max(0, Math.min(1, (reveal - from) / (to - from)));
     };
 
     const render = (dt: number) => {
@@ -92,13 +101,16 @@ export function ContactMotif() {
       const slotHalf = bw * 0.3;
 
       // --- flight route: spawns just past the card's left edge (clipped by
-      // the card), sweeps across and drops into the slot ---
+      // the card), sweeps across and drops into the slot. On a narrow card:
+      // in low from the left, over a small rise and down into it, all under
+      // the buttons ---
+      const narrow = low();
       const x0 = -30;
-      const y0 = h * 0.26;
-      const c1x = w * 0.36;
-      const c1y = h * 0.03;
-      const c2x = w * 0.95;
-      const c2y = h * 0.12;
+      const y0 = narrow ? h - 70 : h * 0.26;
+      const c1x = narrow ? w * 0.3 : w * 0.36;
+      const c1y = narrow ? h - 102 : h * 0.03;
+      const c2x = narrow ? cxB - 64 : w * 0.95;
+      const c2y = narrow ? h - 108 : h * 0.12;
       const ex = cxB;
       const ey = slotY - 8;
 

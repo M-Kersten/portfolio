@@ -199,7 +199,8 @@ export function Scenario({ slug, link }: { slug: string; link: MutableRefObject<
   }, [plan, ink]);
   const mats = useMemo(() => {
     const ink = (color: string, map?: CanvasTexture) => {
-      const m = new MeshBasicMaterial({ color, map, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false });
+      // (no `map` key at all without one: three.js warns about an undefined parameter)
+      const m = new MeshBasicMaterial({ color, ...(map && { map }), transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false });
       m.userData = { lifeSkip: true, presenceOwn: true };
       return m;
     };
