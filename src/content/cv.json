@@ -13,7 +13,7 @@
     "download": "download PDF"
   },
   "tagline": "Creative technologist & spatial developer",
-  "profile": "As a developer I've contributed with a lot of enthusiasm to projects across AR, VR, mobile games and interactive installations. Connecting the virtual and physical world and my drive to explore the edges of what technology can do are central to my work. Every project is another chance to give people a fresh perspective.",
+  "profile": "I build AR, VR, mobile games and interactive installations. Getting the virtual and the physical world to line up, and finding out what a new technology can really do: I can’t think of a better job. Every project is another chance to show people something from a new angle.",
   "photo": "/profile/5.png",
   "location": "Utrecht, Netherlands",
   "phone": "+31 6 21173954",
@@ -34,7 +34,7 @@
   "education": [
     {
       "school": "Saxion",
-      "degree": "Creative media & game technology (Bachelor's degree)",
+      "degree": "Creative media & game technology (Bachelor’s degree)",
       "location": "Enschede, Netherlands",
       "from": "2014-10",
       "to": "2019-06",
@@ -46,7 +46,7 @@
       "location": "Oulu, Finland",
       "from": "2017-01",
       "to": "2017-08",
-      "note": "Led a team building an indie game telling the story of the Sámi, the last tribe of Europe. I guiding the project through every round and we won first place for the year."
+      "note": "Led a team building an indie game that tells the story of the Sámi, the last tribe of Europe. As team lead and developer I took the project through every round, and we won first place for the year."
     }
   ],
   "certificates": ["Unity Certified Professional - Programmer"],

@@ -11,9 +11,9 @@
       "AI",
       "Design"
     ],
-    "problem": "A church service is an hour of speaking, and somewhere in it are two or three minutes people would love to share. But turning those minutes into a reel means cutting, cropping to vertical, subtitling in Dutch and finding the right words to post, which is a lot to ask of a volunteer on a Sunday afternoon. So the clips mostly never got made.",
-    "approach": "I built Preekstof, an app that takes a service recording and turns a moment from it into a vertical video, ready for Instagram Reels and YouTube Shorts. It transcribes the Dutch speech and lets you correct the subtitles, with word-by-word highlighting. It frames the crop on the speaker, adds music that ducks under the voice, a corner logo and an end screen, and drafts the text to post with it. It can also scan a whole service for the moments worth sharing, and it all runs on your own computer. I made the app, its landing page and the film that goes with it.",
-    "outcome": "A volunteer-friendly way to turn a sermon into a reel, now being piloted by my church",
+    "problem": "A church service is an hour of talking with two or three minutes in it that people would love to share. Getting those minutes out means cutting, cropping to vertical, adding Dutch subtitles and writing something to post with it. That’s a lot to ask of a volunteer on a Sunday afternoon, so the clips mostly never got made.",
+    "approach": "So I built Preekstof. You give it a recording of the service and it turns a moment into a vertical video for Instagram Reels and YouTube Shorts. It transcribes the Dutch, lets you correct the subtitles and highlights them word by word. It keeps the speaker in frame, puts music under the voice, adds a corner logo and an end screen, and drafts the text to post with it. It can also go through a whole service and pick out the moments worth sharing. All of it runs on your own computer. I made the app, its landing page and the film that goes with it.",
+    "outcome": "From sermon to reel, now being piloted by my church",
     "tech": [
       "Python",
       "FastAPI",
@@ -22,7 +22,7 @@
       "FFmpeg",
       "LLM"
     ],
-    "lesson": "The people who would use it aren't developers, so every decision had to answer one question: could a volunteer do this without me standing next to them? That is a different standard from 'it works', and it shaped everything from the readiness panel to the one-click start.",
+    "lesson": "The people using it aren’t developers. So with every decision I asked myself whether a volunteer could do this without me standing next to them. That’s a higher bar than ‘it works’, and it’s the reason there’s a readiness panel and a one-click start.",
     "year": "2026-10",
     "video": "https://youtu.be/mjzZSOB-jAM",
     "links": [
@@ -47,8 +47,8 @@
     "discipline": [
       "VR"
     ],
-    "problem": "I joined a VR training sim project that had been in the works for years, and my job was to add multiplayer and VR support to it. Quite a task.",
-    "approach": "A lot of careful surgery later, instructors could run shared scenarios together in VR, on desktop or in the editor: it all works. I was responsible for development, lots of refactoring of code architecture and for the UX flow of the whole application. It gets wheeled out at events and will replace the previous software package used in training new KMar agents, which I’m pretty proud of.",
+    "problem": "I joined a training simulation that had been in the works for years. My job was to add multiplayer and VR to it. Quite a task.",
+    "approach": "A lot of careful surgery later, instructors can run a scenario together in VR, on a desktop or straight from the editor. I did the development, a great deal of refactoring and the UX flow of the whole application. It gets wheeled out at events, and it’s going to replace the software that new KMar recruits are trained with now. I’m pretty proud of that.",
     "outcome": "Multiplayer VR, retrofitted into a long-running project",
     "tech": [
       "Unity",
@@ -57,7 +57,7 @@
       "Networking",
       "UX"
     ],
-    "lesson": "Adding tech to a system that already exists is often harder than starting from scratch. Before I implement a feature I should ask: 'will this even be maintained?'",
+    "lesson": "Adding something to a system that already exists is often harder than starting from scratch. These days, before I build a feature, I ask whether anyone is going to maintain it.",
     "year": "2026",
     "video": "https://youtu.be/12BHW91-Flw",
     "links": [
@@ -78,9 +78,9 @@
       "AR",
       "Geo"
     ],
-    "problem": "Alliander has to drop transformers into neighbourhoods where nobody wants an ugly box in view, so people complain, but the energy transition has to start somewhere. Locations were decided on paper plans, and that could be improved upon.",
-    "approach": "We combined RTK GPS, an Android phone, a HoloLens and a backend together so specialists could literally see the transformer house floating in exactly the right spot on the real street, to the centimetre. The sighting can be saved and reviewed, and the visuals give an immediate idea of the resulting environment. I was responsible for development and for the UX flow of the application.",
-    "outcome": "Visuals that line up with the world to the cm",
+    "problem": "Alliander has to put transformer houses where nobody wants one. People don’t like an ugly box in their view and they complain, but the energy transition has to start somewhere. The locations were being chosen from paper plans, and we thought that could be done better.",
+    "approach": "We tied RTK GPS, an Android phone, a HoloLens and a backend together, so a specialist could stand in the street and see the transformer house in exactly the right spot, to the centimetre. What they saw could be saved and looked at again later, and it gave an idea of the result straight away. I did the development and the UX flow of the application.",
+    "outcome": "A transformer house in the right spot, to the centimetre",
     "tech": [
       "HoloLens",
       "RTK GPS",
@@ -88,7 +88,7 @@
       "Figma",
       "Azure"
     ],
-    "lesson": "The tech was the easy half. But getting it to fit how an organisation actually works was the real puzzle, and the eventual downfall of this project: it did not catch on due to impracticalities. If it were up to me, I would choose an iPad over a HoloLens.",
+    "lesson": "Technically it did what it should. In practice a HoloLens is a lot of hassle for a field crew, and it never caught on. Next time I’d push harder for an iPad.",
     "year": "2024-06",
     "video": "https://www.youtube.com/watch?v=2HM8ZNnEKeU",
     "links": [
@@ -108,8 +108,8 @@
     "discipline": [
       "Geo"
     ],
-    "problem": "Engineers were driving out to the same sites over and over, to check the measurements and sizing of a transformer house.",
-    "approach": "I built a web tool that mashes laser scans, 360° photos and equipment models together, so they could walk the site from their desk and try things out before anyone got in a van.",
+    "problem": "Engineers kept driving out to the same sites to check the measurements and sizing of a transformer house.",
+    "approach": "I built a web tool that puts laser scans, 360° photos and models of the equipment in one place. They could walk around the site from their desk and try things out before anyone got in a van.",
     "outcome": "Site visits you can do from your chair",
     "tech": [
       "Point clouds",
@@ -117,7 +117,7 @@
       "WebGL",
       "Geo-data"
     ],
-    "lesson": "Technically it worked great, but the organisation wasn’t quite ready to change how it worked, so it never fully landed.",
+    "lesson": "It worked well, but using it meant changing how people did their job, and the organisation wasn’t ready for that. It was never really adopted.",
     "year": "2024-06",
     "links": [
       {
@@ -138,9 +138,9 @@
       "Geo",
       "Installation"
     ],
-    "problem": "Niantic wanted to hand event visitors a real photo with their favourite characters from the IPs they work with. Think Pokémon, Monster Hunter beasts, basketball stars, the Niantic mascot. It all had to work first time, on a busy show floor, in a different city every other week.",
-    "approach": "ARCam, an AR photo installation I built at Wonderment for Niantic. An iPad running the Lightship SDK drops the characters into the scene through a viewfinder that came in a few builds: a sturdy pedestal and two portable tripod rigs. Two modes: take a photo with the characters (the main event) or pan around to spot location-based highlights out in the world.",
-    "outcome": "ARCam activations, 16 cities worldwide, all packed in a suitcase",
+    "problem": "Niantic wanted to give visitors a photo with their favourite characters. Think Pokémon, Monster Hunter beasts, basketball stars and the Niantic mascot. It had to work first time, on a busy show floor, in a different city every other week.",
+    "approach": "So at Wonderment I built ARCam, an AR photo installation. An iPad running the Lightship SDK puts the characters in the scene, and you look at them through a viewfinder. We made three: one sturdy pedestal and two tripod rigs you can carry. You can take a photo with the characters, which is what everyone came for, or pan around and spot things placed out in the real world.",
+    "outcome": "16 cities worldwide, and it all fits in a suitcase",
     "tech": [
       "Lightship ARDK",
       "Unity",
@@ -148,7 +148,7 @@
       "Location AR",
       "Node.js"
     ],
-    "lesson": "Location-based AR is a systems-integration problem most of all: the physical world is your least reliable dependency, so you end up owning everything. The tracking, databases, web, audio, performance, devices, UX, 3D, even the electronics and broken screws. The backend was an attempt I built on a hunch, vibe-coded years before that was a phrase; it fell over on day one and then ran flawlessly, which taught me how much value you can add just by taking the initiative early. And living out of a suitcase across all of these cities taught me what ‘delivering’ really means.",
+    "lesson": "With AR on location you end up owning everything, because the real world is the one part you can’t control. Tracking, databases, web, audio, performance, devices, UX, 3D, and yes, the electronics and the broken screws. I built the backend on a hunch, vibe-coded years before that was a word. It fell over on day one and ran without a hitch after that. Starting on it early, before anyone asked, is what made the difference. And after living out of a suitcase in all those cities, I know what ‘delivering’ means.",
     "year": "2022-03",
     "video": "https://youtu.be/lmf0VN5xsI0",
     "links": [
@@ -169,8 +169,8 @@
       "AR",
       "Geo"
     ],
-    "problem": "We kept circling the same question: what can you actually build when digital content is pinned to a real place, and how can we tell stories about the places you visit?",
-    "approach": "A run of location-based experiments: GPS and map-anchored AR prototypes that tie content to real coordinates, poking at how it behaves out in the wild rather than on a tidy desk. I'm especially proud of a concept I developed entirely myself, which guides a tourist through the landings of Operation Market Garden: the Allied liberation attempt at my birthplace, a story I really wanted to help tell.",
+    "problem": "At Wonderment we kept coming back to one question: what can you build when digital things are pinned to a real place? And could we use that to tell the story of the place you’re standing in?",
+    "approach": "So we built a run of prototypes that tie AR to GPS and map coordinates, and took them outside to see how they behaved away from a tidy desk. The one I’m proudest of is my own concept: a tour that takes you through the landings of Operation Market Garden, the Allied attempt to liberate the area where I was born. I really wanted to help tell that story.",
     "outcome": "A bunch of location-anchored AR prototypes",
     "tech": [
       "GPS",
@@ -179,7 +179,7 @@
       "Unity",
       "Maps"
     ],
-    "lesson": "The real world is messy: GPS drifts, places change and people wander into frame. So designing for that mess up front beats pretending it isn't there.",
+    "lesson": "Outside, GPS drifts, places change and people walk through your shot. It goes better when you plan for that from the start than when you hope it won’t happen.",
     "year": "2023-04",
     "video": "https://www.youtube.com/watch?v=2JnAffOhn7c",
     "links": [
@@ -200,9 +200,9 @@
       "AR",
       "VR"
     ],
-    "problem": "How do I get started building interesting projects that ship to big clients? That was when I landed an internship at DTT, where I quickly learned that this was the right career for me, even through the challenges that came up from time to time.",
-    "approach": "I worked across a run of projects here: educational reading games, iOS optimization, a space VR experience, an AR sample & showcase app that shows off what the tech can do.",
-    "outcome": "A shelf of shipped AR / VR / app projects, a flying start to my experience working in and even leading a team of developers",
+    "problem": "I wanted to work on real projects for big clients, and had no idea how. Then I got an internship at DTT. I soon knew this was the job for me, even on the days it didn’t go well.",
+    "approach": "I worked on a bit of everything: educational reading games, iOS optimisation, a VR trip through space and an AR showcase app that let clients see what the technology could do.",
+    "outcome": "A shelf of shipped apps, and my first go at leading a team",
     "tech": [
       "Unity",
       "AR",
@@ -210,7 +210,7 @@
       "iOS",
       "Android"
     ],
-    "lesson": "Everyone is pretending until they figure it out. My dedication to a project and willingness to try is what landed me these projects and I should lean into that.",
+    "lesson": "Everyone is pretending until they figure it out. I got these projects because I was willing to try and stuck with them, and I should keep doing that.",
     "year": "2019-02",
     "video": "https://youtu.be/QiTaakf7yRE",
     "links": [
@@ -231,8 +231,8 @@
       "AR",
       "Games"
     ],
-    "problem": "Show off shared, multiplayer AR on a noisy trade-show floor with a terrible connection, about the most difficult environment you can imagine for a tech demo.",
-    "approach": "A multiplayer AR racing game with spectator screens, synced audio and a server holding it all together. People racing little AR cars across a real table together. The track on the table changes every 30 seconds, the cars play a version of tag where the crown can be captured from the leading player.",
+    "problem": "The brief was multiplayer AR on a trade-show floor. That’s about the hardest place there is for a demo: the connection is bad, it’s loud, and nobody has held the app before.",
+    "approach": "So we made it a racing game on a table, something you get in five seconds. People race little AR cars across a real table, with spectator screens, synced audio and a server keeping everyone in the same race. The track changes every 30 seconds, and the cars play a kind of tag: whoever is in the lead wears a crown, and the others can take it.",
     "outcome": "AR races on a show floor (and they actually worked)",
     "tech": [
       "Unity",
@@ -241,7 +241,7 @@
       "Lightship ARDK"
     ],
     "follows": "arcam",
-    "lesson": "Build assuming things will fail, because on a show floor they absolutely will. In this case the server SDK was brand new and cut sessions off after about 10 minutes. With no fix in sight, I added a 'You won! Give the phone to the next visitor' popup for when the server decided to close.",
+    "lesson": "On a show floor things fail, so I build as if they will. This time the server SDK was brand new and ended every session after about ten minutes. There was no fix coming, so I added a popup for when it happened: ‘You won! Give the phone to the next visitor.’",
     "year": "2023-06",
     "video": "https://youtu.be/pXhApOdiq9g",
     "links": [
@@ -262,8 +262,8 @@
     "discipline": [
       "AR"
     ],
-    "problem": "Zwijsen approached me with an interesting assignment. There was a new edition of a classic book coming out, and they wanted to spotlight this release with a companion app that would bring the book to life.",
-    "approach": "I designed, built and shipped the AR app, from concepting and UX to the technical details of store page submissions. The release was so successful that we ended up doing 6 more book releases and a series of audiobook apps tied to printed books via QR codes.",
+    "problem": "Publisher Zwijsen had a new edition of a classic children’s book coming out. They wanted an app to go with it, one that brought the book to life.",
+    "approach": "I did all of it: the concept, the UX, the AR and the fiddly business of getting it into the app stores. It went well enough that we did six more books, and then a series of audiobook apps that open from a QR code printed in the book.",
     "outcome": "The apps ended up on tens of thousands of phones",
     "tech": [
       "Unity",
@@ -271,7 +271,7 @@
       "iOS",
       "Android"
     ],
-    "lesson": "Owning something end to end teaches you the whole lifecycle and that the last 10% (support, store reviews, weird customer feedback) is most of the work.",
+    "lesson": "When you make something on your own from start to finish, you find out that the last 10% is most of the work. Support, store reviews, and customer feedback I’d never have thought of.",
     "year": "2020-02",
     "video": "https://www.youtube.com/watch?v=7N0ZFuyOyTs",
     "links": [
@@ -291,8 +291,8 @@
     "discipline": [
       "Games"
     ],
-    "problem": "Hyper-casual games live and die by speed: ship fast, perform well, kill it if it flops, then repeat the cycle. The question is: can we make the next hit game?",
-    "approach": "I built new games but also additions to existing titles, multiplayer features and tools for level and game designers, including for big titles like Parking Jam and Pull the Pin.",
+    "problem": "Hyper-casual games live on speed. Ship fast, see how it does, kill it if it flops and start the next one. Everyone is looking for the next hit, and so were we.",
+    "approach": "I built new games and added to the ones that were already big, like Parking Jam and Pull the Pin: new modes, multiplayer features, and tools for the level and game designers.",
     "outcome": "Lots of tiny games, shipped fast",
     "tech": [
       "Unity",
@@ -301,7 +301,7 @@
       "Mobile"
     ],
     "follows": "dtt-amsterdam",
-    "lesson": "Shipping fast and iterating beats elegant code. The market really doesn’t care how pretty your architecture is.",
+    "lesson": "Shipping fast and fixing it afterwards beats elegant code. The market really doesn’t care how pretty your architecture is.",
     "year": "2020-06",
     "video": "https://www.youtube.com/watch?v=yPMbXaRXjvk",
     "links": [
@@ -322,9 +322,9 @@
       "AR",
       "AI"
     ],
-    "problem": "Could emerging XR and AI actually be useful in a clinical setting, or were we just making cool demos and calling it research?",
-    "approach": "I worked on a few answers: we improved VR equipment demos, did Vision Pro experiments, and worked on a synthetic-data project that generated fake humans in Unreal to train heartbeat-detection from plain video.",
-    "outcome": "Research that matters and ended up being used in hospitals",
+    "problem": "At Philips we asked whether XR and AI are of real use in a hospital. Or whether we were making cool demos and calling it research.",
+    "approach": "I worked on a few answers. We improved the VR demos of medical equipment and ran experiments on the Vision Pro. The biggest was a synthetic-data project: digital humans in Unreal, made to train AI that can read a heartbeat from plain video.",
+    "outcome": "Research that ended up being used in hospitals",
     "tech": [
       "Unreal Engine",
       "Computer vision",
@@ -332,7 +332,7 @@
       "Vision Pro",
       "AI"
     ],
-    "lesson": "Research is as much about finding out what you shouldn’t build as what you should. “This isn’t worth it” is still a valuable outcome; better to find that out early than late.",
+    "lesson": "A good part of research is finding out what you shouldn’t build. ‘This isn’t worth it’ is a useful result too, and it’s cheaper in week two than in month six.",
     "year": "2025-03",
     "video": "https://www.youtube.com/watch?v=lDBxik5v1e0",
     "links": [
@@ -354,8 +354,8 @@
       "AR",
       "AI"
     ],
-    "problem": "I wanted to know if an AI tour guide could feel like a person instead of a chatbot. Fictional Amsterdam locals you could actually talk to.",
-    "approach": "A prototype stitching together speech-to-text, an LLM, text-to-speech and facial animation into characters you hold a conversation with in AR.",
+    "problem": "I wanted to know if an AI tour guide could feel like a real person. So I made up a few Amsterdam locals you could talk to, and tried to make them feel less like a chatbot.",
+    "approach": "The prototype strings together speech-to-text, an LLM, text-to-speech and facial animation. What you get is a character standing in front of you in AR that you can have a conversation with.",
     "outcome": "AI locals you can actually chat with in the city",
     "tech": [
       "Azure AI",
@@ -365,7 +365,7 @@
       "Generative AI"
     ],
     "follows": "philips-medical-xr",
-    "lesson": "Just because you can automate the human out of something doesn’t mean you should. This prototype was functional and I made tutorials, documentation, everything. Still, it didn't do what we hoped it would, and it ended up on the shelf.",
+    "lesson": "It worked, and I made the tutorials and the documentation to go with it. It still didn’t do what we’d hoped, and it ended up on the shelf. You can automate the human out of a city tour, but I’m no longer sure you should.",
     "year": "2025-06",
     "video": "https://youtu.be/8UI8EQKnCTY",
     "links": [
@@ -386,8 +386,8 @@
     "discipline": [
       "AR"
     ],
-    "problem": "Back before AR Foundation existed, ARKit and ARCore were two separate worlds, and cross-platform AR meant maintaining two codebases. Could we bridge this divide?",
-    "approach": "For my graduation I built a framework that unified both behind one API and even ran cloud anchors so the experience could be shared between an Android phone and an iPhone.",
+    "problem": "Before AR Foundation existed, ARKit and ARCore were two separate worlds. If you wanted AR on both iPhone and Android, you built and maintained everything twice.",
+    "approach": "For my graduation I built a framework that put both behind one API. It also ran cloud anchors, so an Android phone and an iPhone could share the same AR scene.",
     "outcome": "Two AR platforms working together in one tidy API",
     "tech": [
       "ARCore",
@@ -395,7 +395,7 @@
       "C#",
       "Unity"
     ],
-    "lesson": "Building the tool underneath often creates more value than solving the one problem in front of you.",
+    "lesson": "Sometimes the tool underneath is worth more than the one problem you built it for. I’ve kept an eye out for that ever since.",
     "year": "2019-02",
     "video": "https://youtu.be/iCZRpxt5iPc",
     "links": [
@@ -416,16 +416,16 @@
     "discipline": [
       "Installation"
     ],
-    "problem": "Festivals are full of interactive experiences, but most people are still consuming instead of creating. We wondered if we could build something that blurred that line. What if a simple drawing on paper could become part of the world around you?",
-    "approach": "We spent a weekend in the woods building a network of colourful cabinets suspended between the trees. Visitors draw a butterfly, scan it, and within seconds it appears as a living digital creature projected onto the forest, fluttering from cabinet to cabinet. Under the hood it's a mix of Arduino, Unity, webcams, computer vision and projection mapping, but the goal was never to show off the technology. The goal was to create that split second where someone realizes, “Wait... that's my butterfly.”",
-    "outcome": "Draw a butterfly, watch it fly.",
+    "problem": "Festivals are full of things to look at and short on things to make. We wanted something where a visitor’s own drawing becomes part of the world around them.",
+    "approach": "We spent a weekend in the woods hanging colourful cabinets between the trees. You draw a butterfly, scan it, and a few seconds later it’s projected onto the forest, flying from cabinet to cabinet. Under the hood it’s Arduino, Unity, webcams, computer vision and projection mapping, but nobody needs to know that. What we were after is the moment someone says, ‘Wait, that’s my butterfly.’",
+    "outcome": "Draw a butterfly, watch it fly off",
     "tech": [
       "Arduino",
       "Unity",
       "Computer vision",
       "Projection mapping"
     ],
-    "lesson": "This project reminded me that the best interactive installations don't ask people to press a button. They invite people to leave something of themselves behind. Nobody talks about the webcam, the UV mapping or the projection setup afterwards. They talk about the butterfly they made and watched disappear into the trees. That's exactly the kind of technology I want to build.",
+    "lesson": "Afterwards nobody talked about the webcams, the UV mapping or the projectors. They talked about the butterfly they’d drawn and watched disappear into the trees. I’d like to make more things that work like that.",
     "year": "2026",
     "video": "https://youtu.be/uqjgXV6o8Nw",
     "archive": true
@@ -440,15 +440,15 @@
     "discipline": [
       "Games"
     ],
-    "problem": "How do you tell an emotional story without using a single line of dialogue? That became the central challenge of this student project. We wanted players to feel connected to the world through exploration, atmosphere and gameplay alone.",
-    "approach": "I led a multidisciplinary team in building a third-person adventure where players guide a young girl through the harsh northern wilderness with the help of an owl companion. Alongside leading the project, I focused on building systems that could grow with the game, integrating audio through FMOD, improving performance and creating animation workflows that helped bring the world to life.",
-    "outcome": "A dialogue-free adventure inspired by Sami mythology.",
+    "problem": "A student project in Oulu, Finland, with one rule we set ourselves: tell the story without a single line of dialogue. Players had to get it from the world, the mood and what they did in it.",
+    "approach": "I led the team. We made a third-person adventure in which you guide a young girl through the northern wilderness, with an owl to help her. Besides leading, I built the systems the game runs on, brought in the audio through FMOD, kept the performance up and set up the animation workflow.",
+    "outcome": "A wordless adventure from Sámi mythology, and first place that year",
     "tech": [
       "Unity",
       "C#",
       "FMOD"
     ],
-    "lesson": "This was the first project that showed me software isn't just about writing good code. Every technical decision influences the experience someone has on screen. Winning first place in the competition was rewarding, but the bigger takeaway was learning how to align programmers, artists and designers around a single creative vision.",
+    "lesson": "This is where I first noticed that every technical choice ends up on screen, in what the player feels. We won first place, which was nice. What stuck with me more was getting programmers, artists and designers to pull in the same direction.",
     "year": "2017",
     "video": "https://youtu.be/ZyWztEz-mkw",
     "archive": true
@@ -464,15 +464,15 @@
     "discipline": [
       "AR"
     ],
-    "problem": "Space is difficult to grasp because everything about it is unimaginably large. A textbook can tell you Saturn has rings, but it's hard to appreciate them until you're standing inside them. I wanted to build something that made space feel less like information and more like a place you could explore.",
-    "approach": "Using ARCore, I turned a room into a miniature solar system. You can walk around the planets at scale, inspect them up close and discover interesting facts as you explore. If something catches your attention, you can travel to the surface of that planet or moon to learn more, visit the Mars rovers or even float around the International Space Station. The goal wasn't scientific accuracy down to the millimetre—it was to spark the same sense of curiosity that made me fall in love with space in the first place.",
-    "outcome": "Bring the solar system into your living room.",
+    "problem": "Space is hard to picture because everything in it is too big. A textbook can tell you Saturn has rings, but that’s not the same as standing in them. I wanted space to feel like somewhere you could go.",
+    "approach": "With ARCore I turned a room into a small solar system. You walk around the planets, look at them up close and pick up facts along the way. If one catches your eye you can go down to its surface, visit the Mars rovers or float around the International Space Station. It isn’t accurate to the millimetre. I wanted it to make people as curious about space as I am.",
+    "outcome": "The solar system in your living room",
     "tech": [
       "ARCore",
       "Unity",
       "Android"
     ],
-    "lesson": "I've always believed the best way to learn is by exploring. AR is uniquely good at turning abstract ideas into physical experiences, and this project showed me that sometimes wonder is a better teacher than information.",
+    "lesson": "I learn best by walking around something, and I think most people do. AR is good at turning an abstract idea into a thing in your room. Standing in Saturn’s rings sticks better than reading that it has them.",
     "year": "2018",
     "video": "https://youtu.be/8jmDuHAcsaE",
     "archive": true
@@ -487,16 +487,16 @@
     "discipline": [
       "VR"
     ],
-    "problem": "The Municipality of Amsterdam had a VR game that taught players about the hidden world beneath the city's streets. It had been built as a student project and, for its time, it was impressive. But years later it no longer ran on modern hardware, and the request landed on my desk: could you update it for an upcoming event?\n\nWithin an hour of opening the project, I knew the answer was no. Not because it was poorly made, but because it had been built to demonstrate an idea, not to evolve. The networking was woven through every gameplay system, dependencies were outdated and simply getting the project to compile required upgrading half the stack. This wasn't going to be an update. It had to become a rebuild.",
-    "approach": "Before writing a single line of code, I spent two days doing detective work. Every scene, every button and every multiplayer interaction had to answer the same question: does this still deserve to exist? Once the architecture became clear, I rebuilt the networking layer around Photon Fusion 2, migrated the project to standalone Quest headsets and modernised the visual experience with improved rendering, shaders, haptics and audio.\n\nI deliberately ignored problems that weren't blocking the project. The gameplay wasn't perfect and the balance could have been improved, but those weren't the reasons the game had stopped working. My goal wasn't to create a different game. It was to give the existing one another decade of life.",
-    "outcome": "Bringing a legacy multiplayer VR experience back to life.",
+    "problem": "The Municipality of Amsterdam had a VR game about everything that lies under the city’s streets. It was built as a student project, and a good one. Years later it no longer ran on current hardware, and I was asked to update it for an event.\n\nAn hour after opening the project I knew an update wasn’t going to do it. The game was made to show an idea, not to be worked on for years. The networking ran through every part of the gameplay, the dependencies were out of date, and getting it to compile meant upgrading half the stack. It needed a rebuild.",
+    "approach": "I spent the first two days just reading. For every scene, button and multiplayer interaction I asked whether it still needed to be there. Once I understood how it all fitted together, I rebuilt the networking on Photon Fusion 2, moved the game to standalone Quest headsets and brought the rendering, shaders, haptics and audio up to date.\n\nI left alone what wasn’t broken. The gameplay had rough edges and the balance could have been better, but that wasn’t why it had stopped working. The idea was to keep the same game going for another ten years.",
+    "outcome": "An old multiplayer VR game, running again on today’s headsets",
     "tech": [
       "Unity",
       "Photon Fusion 2",
       "Meta Quest",
       "VR"
     ],
-    "lesson": "Legacy projects reward judgement more than programming. Every hour spent polishing the wrong thing is an hour you never get back. This project reminded me that good engineering isn't fixing everything you find—it's recognising what matters, what can wait and having the confidence to leave the rest alone.",
+    "lesson": "With an old project, choosing what to fix matters more than how well you fix it. I found plenty I wanted to improve, and I left most of it alone. That was the hard part.",
     "year": "2025",
     "video": "https://www.youtube.com/watch?v=U5Mcp2CMTDw",
     "archive": true
@@ -512,10 +512,10 @@
     "discipline": [
       "Design"
     ],
-    "problem": "After being part of Nieuwe Kerk Utrecht for a few months, I noticed something small: the flyers and posters around the church didn't quite represent the energy of the community anymore. I suggested designing some new flags, expecting it to be a one-off project. Instead it opened the door to a lot more questions: how do we make people feel welcome before they even walk through the doors?",
-    "approach": "What started with flags grew into designing flyers, posters, stickers, banners, social media content, PowerPoint presentations and visuals for the church communication app. The biggest challenge was understanding what each piece needed to achieve. Who is this for? What should someone feel or do after seeing it? Over time the style evolved from my usual digital product mindset into something more tailored to the personality of the church.",
-    "outcome": "Helping a church find its visual voice",
-    "lesson": "The better I understand the people, purpose and context behind a request, the better the result becomes. Seeing something I created printed large and hanging in the church is so rewarding because it feels like a practical way to contribute. It also taught me where my limits are: a complete brand redesign is a different discipline, and knowing what you don't want to specialise in is just as valuable as knowing what you do.",
+    "problem": "A few months after joining Nieuwe Kerk Utrecht, I noticed the flyers and posters no longer matched the people inside. I offered to design some new flags and thought that would be it. It wasn’t. The next question was how to make people feel welcome before they’ve even walked through the door.",
+    "approach": "The flags turned into flyers, posters, stickers, banners, social media posts, PowerPoint slides and visuals for the church’s app. The hard part each time was working out what the thing was for: who would see it, and what they should feel or do next. I started out designing the way I design apps. Over time the style became more the church’s own and less mine.",
+    "outcome": "New flags for my church, and then everything else",
+    "lesson": "The better I know who something is for, the better it turns out. Seeing my work printed large and hanging in the church is a good feeling, because it’s a practical way to help. I also found my limit: a full rebrand is a different trade, and it isn’t mine.",
     "year": "2023-10",
     "video": "https://www.youtube.com/watch?v=XA5rmpUBhYY",
     "links": [

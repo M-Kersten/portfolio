@@ -3,21 +3,21 @@
     "layer": "city",
     "index": "01",
     "title": "City: maps & the real world",
-    "body": "The big scale. I love playing with real-world data like maps, point clouds and GPS, and turning it into something you can actually move through, be it a digital twin or location-based AR. The fact that this is possible is still magical to me.",
+    "body": "The big one. Maps, point clouds and GPS: I take real-world data and turn it into something you can move through, like a digital twin of a street or AR that knows which corner you’re standing on. I’m still a little amazed that this works at all.",
     "tags": ["VPS", "RTK", "Point clouds", "GIS"]
   },
   {
     "layer": "room",
     "index": "02",
     "title": "Room: games, apps & toys",
-    "body": "The human scale, the things people pick up and play with. Games, apps, websites, buttons and sliders. This is where I get to prototype fast, from a tiny mobile game or a training sim to a whole UX overhaul. If it makes someone smile or learn something, I did my job.",
+    "body": "The one you can hold. Games, apps, websites, buttons and sliders. This is where I get to build fast, whether it’s a tiny mobile game, a training sim or a whole UX overhaul. If it makes someone smile or learn something, I’ve done my job.",
     "tags": ["Unity", "VR", "Mobile", "Web", "UX"]
   },
   {
     "layer": "chip",
     "index": "03",
     "title": "Chip: tools & the nerdy bits",
-    "body": "The smallest scale is the one that makes my work easier: tools, computer vision, AI and the work nobody sees. From SDKs, synthetic data and NPCs you can talk to, to a simple but solid backend. The stuff needed to run everything.",
+    "body": "The small one, and the one nobody sees. Tools, SDKs, computer vision, synthetic data, characters you can talk to and a backend that simply keeps running. It’s what makes the other two possible. Nobody claps for a backend, and that’s fine.",
     "tags": ["Computer vision", "AI · LLMs", "Backends", "Databases"]
   }
 ]

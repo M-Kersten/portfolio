@@ -104,9 +104,9 @@ export function LaunchOverlay() {
             )}
           </p>
           <p className="launch__story">
-            Every exhibit in this model was launched once: a careful countdown, a clean lift-off, then the problems every project runs into. I follow
-            spaceflight closely and watch every launch I have time for, so that’s how I build. This one is still on the pad. Fly it in the
-            simulator to see how it would go, or let’s build it and give it a place in the collection.
+            Every project in this model was launched once: a countdown, a lift-off, and then the problems nobody had planned for. I follow
+            spaceflight closely and watch every launch I have time for, so that’s how I think about building things. This one is still on
+            the pad. Fly it in the simulator to see how it might go, or let’s build it for real and give it a place in the collection.
           </p>
           <VoiceNote slug="next-launch" title="The next launch" no={String(NEXT_LAUNCH_NO)} label="Audio tour · the countdown" />
           <div className="launch__row">
