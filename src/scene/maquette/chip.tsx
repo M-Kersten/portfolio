@@ -8,7 +8,7 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DoubleSide, EdgesGeometry, Euler, Line as ThreeLine, LineBasicMaterial, LineSegments, Matrix4, MeshStandardMaterial, Quaternion, Ray, Vector3, type Group, type InstancedMesh, type Mesh, type MeshBasicMaterial } from 'three';
-import { useSceneSelector } from '../store';
+import { showsAlive, useSceneSelector } from '../store';
 import { useReducedMotion } from '../../lib/media';
 import { SURFACE, NEUTRAL, LINE_REST, useAccent, circlePts, roundedRectPts, Line, useActive, FX, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
@@ -103,7 +103,7 @@ function PinHeader({ position, kit }: { position: V3; kit: ChipKit }) {
 function useChipEnergyTarget() {
   // Comes to life by selecting, never by hovering, and stays on once visited.
   const selected = useSceneSelector((s) => s.selectedSlug === 'amsterdam-ai');
-  const visited = useSceneSelector((s) => s.visited.includes('amsterdam-ai'));
+  const visited = useSceneSelector((s) => showsAlive(s, 'amsterdam-ai'));
   return selected || visited ? 1 : 0;
 }
 

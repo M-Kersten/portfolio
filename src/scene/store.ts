@@ -9,11 +9,19 @@ export const bootAt = typeof performance !== 'undefined' ? performance.now() : 0
 /** ms after boot that the maquette powers on — its beat, after the hero text
  *  (header ~0.1s · name decode ~0.4–0.9s · subhead ~1.05–1.4s · then this). */
 export const MAQUETTE_BOOT = 1450;
-/** The opening dolly, shared between the camera that runs it (CameraRig) and
- *  what holds still for it: the model's power-on scale and its pointer
- *  parallax would each read as the camera changing speed mid-move. A plain
- *  value rather than store state: it's read every frame, and set by the rig. */
-export const opening = { dollying: false };
+/** The opening shot, shared between the camera that runs it (CameraRig) and
+ *  what goes along with it. `dollying`: it's playing, so the model's power-on
+ *  scale and its pointer parallax hold still (each would read as the camera
+ *  changing speed mid-move). `spin`: how far the model is turned under the
+ *  camera (radians, back to 0 as it lands; the Maquette's turntable applies
+ *  it). `pivotY`: the height the camera is looking at on its way up (the depth
+ *  veil rides under it). Plain values rather than store state: they're read
+ *  every frame, and set by the rig. */
+export const opening = { dollying: false, spin: 0, pivotY: 0 };
+/** Where the opening shot is (the store's `opening`): not playing; parked at
+ *  its start while the models arrive; rising, the model turning under it;
+ *  landing on the City, as the lights go down. */
+export type OpeningPhase = 'idle' | 'wait' | 'rise' | 'land';
 /** Whether this browser has seen the opening before (the intro card marks it
  *  once it has played). A returning visitor gets a shorter way in: no premise
  *  card, a quicker dolly. Read once, at load. */
@@ -68,6 +76,17 @@ interface SceneState {
   celebrateAt: number | null;
   /** The launch easter egg's current stage (idle when not engaged). */
   launch: LaunchStage;
+  /** The opening shot's phase (CameraRig runs it and sets this). While it
+   *  plays every floor is drawn and holds the light and the markers wait; up to
+   *  its landing the lights are up too (see `lightsUp` below). */
+  opening: OpeningPhase;
+  /** Where the words beside the model end, in px from the left of the screen
+   *  (the hero's title, a floor's text: HeroStage measures them), or 0 when
+   *  nothing stands beside it (an upright screen, where they sit over it). The
+   *  camera sets each floor in the room that's left (overviewFit). */
+  textEdge: number;
+  /** …and how much of the top of the screen the header takes, in px. */
+  headTop: number;
   /** True once the load intro (the movie-intro title card) has finished or been
    *  dismissed. Held false during the intro so the hero title + subtitle + the
    *  bottom instrument line reveal *after* the premise card, never on top of it. */
@@ -153,6 +172,9 @@ let state: SceneState = {
   celebrationPending: false,
   celebrateAt: wokenAll ? LONG_AGO : null,
   launch: 'idle',
+  opening: 'idle',
+  textEdge: 0,
+  headTop: 0,
   introOver: false,
   reticleStart: null,
   zoomSettled: true,
@@ -222,6 +244,12 @@ export const sceneStore = {
   setLaunch(launch: LaunchStage) {
     if (launch !== state.launch) set({ launch });
   },
+  setOpening(opening: OpeningPhase) {
+    if (opening !== state.opening) set({ opening });
+  },
+  setStage(textEdge: number, headTop: number) {
+    if (textEdge !== state.textEdge || headTop !== state.headTop) set({ textEdge, headTop });
+  },
   /** Mark the load intro finished — releases the hero chrome (idempotent). */
   endIntro() {
     if (!state.introOver) set({ introOver: true });
@@ -238,6 +266,13 @@ export const sceneStore = {
     if (zoomSettled !== state.zoomSettled) set({ zoomSettled });
   },
 };
+
+/** The opening's lights are up: every exhibit shows alive, as if it had been
+ *  seen, until the shot lands and they go down again (a look at what the
+ *  visitor will be switching back on). */
+export const lightsUp = (s: SceneState) => s.opening === 'wait' || s.opening === 'rise';
+/** Whether an exhibit shows alive: seen, or the opening's lights are up. */
+export const showsAlive = (s: SceneState, slug: string) => lightsUp(s) || s.visited.includes(slug);
 
 /** Subscribe to a primitive slice of scene state (keep selectors primitive). */
 export function useSceneSelector<T>(selector: (s: SceneState) => T): T {

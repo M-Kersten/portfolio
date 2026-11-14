@@ -55,14 +55,15 @@
   }
 }
 
-/* The movie-intro title card — centred over the maquette on first load while
-   the camera dollies in, then clears. Light type on the dark scene, with a soft
-   scrim so it reads over the wireframe city. Decorative overlay (no pointer
-   events); its own component handles the timing (IntroCard.tsx). */
+/* The opening's line — low on the screen on first load, under the model as
+   it turns and the camera rises past it, then clears as the shot lands. Light
+   type on the dark scene, with a soft scrim so it reads over whatever passes
+   behind it. Decorative overlay (no pointer events); its own component handles
+   the timing (IntroCard.tsx). */
 .intro-card {
   position: fixed;
   left: 50%;
-  top: 40%;
+  top: 77%;
   z-index: 40;
   width: min(44rem, 88vw);
   padding: var(--space-m);

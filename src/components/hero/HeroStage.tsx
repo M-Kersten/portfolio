@@ -123,6 +123,33 @@ export function HeroStage() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // Where the words beside the model end, and how much of the top the header
+  // takes (the camera sets each floor in the room they leave: overviewFit).
+  // Read off a ruler laid out as the title's column is, since the title
+  // itself isn't there until the opening is over and the model has to know
+  // where to land before that. On an upright screen the words sit over the
+  // model, and nothing stands beside it.
+  const rulerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const ruler = rulerRef.current;
+    if (!ruler) return;
+    const upright = window.matchMedia('(orientation: portrait)');
+    const measure = () => {
+      const pad = parseFloat(getComputedStyle(ruler).paddingRight) || 0;
+      sceneStore.setStage(upright.matches ? 0 : Math.round(ruler.offsetLeft + ruler.offsetWidth - pad), ruler.offsetHeight);
+    };
+    measure();
+    const seen = new ResizeObserver(measure);
+    seen.observe(ruler);
+    window.addEventListener('resize', measure);
+    upright.addEventListener('change', measure);
+    return () => {
+      seen.disconnect();
+      window.removeEventListener('resize', measure);
+      upright.removeEventListener('change', measure);
+    };
+  }, []);
+
   // The real, live count — used wherever truth matters more than pacing: the
   // exhibition guide (a deliberate "let me check" action) and the aria-label.
   const found = visited.filter((slug) => HOTSPOTS.some((h) => h.slug === slug)).length;
@@ -250,6 +277,7 @@ export function HeroStage() {
 
   return (
     <section id="hero" className="hero" ref={heroRef} aria-label="Introduction">
+      <div ref={rulerRef} className="hero__title hero__ruler" aria-hidden="true" />
       {/* Held back through the load intro, then mounted — so its decode + rise
           play at the moment it appears (the beat after the premise card), not
           silently at load behind the card. */}

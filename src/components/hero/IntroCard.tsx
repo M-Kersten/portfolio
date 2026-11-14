@@ -1,91 +1,105 @@
 import { useEffect, useRef, useState } from 'react';
 import { site } from '../../content';
-import { bootAt, markIntroSeen, MAQUETTE_BOOT, returning, sceneStore } from '../../scene/store';
+import { markIntroSeen, returning, sceneStore, useSceneSelector } from '../../scene/store';
 import { useReducedMotion } from '../../lib/media';
-import { isMobileViewport } from '../../lib/media';
 
-// The movie-intro title card: shown once on first load, centred over the
-// maquette, as the camera dollies in (see CameraRig's intro). It fades in on
-// the maquette's beat (plainly, no decoding: it's a hello, and the one line
-// anyone reads before the model), holds while the camera pushes past the
-// model, then clears as the scene settles — or the moment the visitor
-// scrolls/taps. Skipped on a deep link (a /work node), and its copy lives in
-// site.hero.intro (remove that to drop the card).
+// The opening's one line, said once: "Hi, I'm Merijn and this is my work in
+// miniature." It comes up as the opening shot gets going (the camera rising
+// from the chip to the city while the model turns: CameraRig), low on the
+// screen so the model stays in view above it, holds for the rise and clears as
+// the shot lands and the lights go down — or the moment the visitor
+// scrolls/taps. The hero's title is the next beat: it's released once the line
+// has gone, as the model steps aside for it. A returning visitor has read the
+// line: theirs is the short opening without it, the title coming up as that
+// lands. No opening at all on a deep link (a /work node) or under reduced
+// motion: the title is simply there. The line's copy lives in site.hero.intro
+// (remove that to drop the line).
 
-const HOLD = 3800; // ms the card stays up before it clears itself: the fade in, and time to read the line
-const FADE = 700; // ms for the card to fade out (covers intro-card.css's opacity transition)
+const FADE = 700; // ms for the line to fade out (covers intro-card.css's opacity transition)
+const STEP_ASIDE = 450; // ms the title gives the model to get out of its way, when there's no line to fade first
+/** How long the hero's title waits for an opening that hasn't begun (the 3D
+ *  still downloading on a slow line, or not coming at all: no WebGL). It then
+ *  goes ahead without one; an opening that arrives later plays under it. */
+const NO_SHOW = 3600; // ms
 
 export function IntroCard() {
   const intro = site.hero.intro;
   const reduced = useReducedMotion();
-  // Play once per browser: a returning visitor has read the premise. Also
-  // skipped on a phone (the intro is a desktop flourish — mobile just
-  // appears), on a deep link (a /work/… route goes straight to the node), and
-  // once the intro has already been released — so navigating back to home
-  // from another route doesn't replay the card.
-  const skip = useRef(
-    !intro ||
-      returning || // seen it before: a returning visitor goes straight to the model
-      isMobileViewport() ||
-      (typeof window !== 'undefined' && /\/work\//.test(window.location.pathname)) ||
-      sceneStore.snapshot().introOver,
-  );
+  // where the opening shot is (the camera sets it)
+  const phase = useSceneSelector((s) => s.opening);
+  // No opening to wait for on a deep link (a /work/… route goes straight to
+  // the node), or once the intro has already been released — so navigating
+  // back to home from another route doesn't replay it.
+  const skip = useRef((typeof window !== 'undefined' && /\/work\//.test(window.location.pathname)) || sceneStore.snapshot().introOver);
+  // The line is said once per browser: a returning visitor has read it.
+  const silent = !intro || returning;
   const [show, setShow] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
-  // the card comes in on the maquette's beat
-  const showDelay = useRef(Math.max(0, MAQUETTE_BOOT - (performance.now() - bootAt)));
+  const began = useRef(false); // the opening has been seen to begin
+  const off = skip.current || reduced;
 
+  // Nothing to play (deep link / reduced motion): release the hero chrome
+  // right away so the title + subtitle aren't held back for nothing.
   useEffect(() => {
-    // Nothing to play (deep link / no copy / reduced motion): release the hero
-    // chrome right away so the title + subtitle aren't held back for nothing.
-    if (skip.current || reduced) {
-      sceneStore.endIntro();
+    if (off) sceneStore.endIntro();
+  }, [off]);
+
+  // The line follows the shot: up while it rises, gone as it lands. The hero
+  // title is the NEXT beat, released only once the line has fully faded, so
+  // the two never animate at the same time (a timer is only the backstop,
+  // should the fade not run at all).
+  useEffect(() => {
+    if (off) return;
+    if (phase === 'wait' || phase === 'rise') began.current = true;
+    if (phase === 'rise') {
+      if (!silent) setShow(true);
+      markIntroSeen();
       return;
     }
-    // The hero title/subtitle are the NEXT beat: release them only once the card
-    // has fully faded out, so the two never animate at the same time. Both
-    // beats are taken from what the card actually does rather than from load:
-    // while the models load, a long task can start the card late (which used to
-    // cut its reading time short) and hold its fade back until a clock would
-    // already have released the title. So the hold runs from when it shows, and
-    // the title waits for the fade OUT to end (a timer is only the backstop,
-    // should the fade not run at all).
+    if (!began.current || phase === 'wait') return;
+    // landing, or over (cut short): the line goes, then the title comes
+    const release = () => sceneStore.endIntro();
+    if (silent) {
+      // (no line to wait out, but the model is still on its way aside)
+      const t = window.setTimeout(release, STEP_ASIDE);
+      return () => clearTimeout(t);
+    }
+    setShow(false);
     const card = cardRef.current;
-    let t2 = 0;
-    let t3 = 0;
-    const release = () => {
-      clearTimeout(t3);
-      card?.removeEventListener('transitionend', onFaded);
-      sceneStore.endIntro();
-    };
     const onFaded = (e: TransitionEvent) => {
-      if (card && e.target === card && e.propertyName === 'opacity' && !card.hasAttribute('data-show')) release();
+      if (e.target === card && e.propertyName === 'opacity') release();
     };
-    const t1 = window.setTimeout(() => {
-      setShow(true);
-      markIntroSeen();
-      t2 = window.setTimeout(() => {
-        setShow(false);
-        card?.addEventListener('transitionend', onFaded);
-        t3 = window.setTimeout(release, FADE * 3);
-      }, HOLD);
-    }, showDelay.current);
+    card?.addEventListener('transitionend', onFaded);
+    const backstop = window.setTimeout(release, FADE * 2);
+    return () => {
+      card?.removeEventListener('transitionend', onFaded);
+      clearTimeout(backstop);
+    };
+  }, [phase, off, silent]);
+
+  // …and if no opening begins, the title doesn't wait for one
+  useEffect(() => {
+    if (off) return;
+    const t = window.setTimeout(() => {
+      if (!began.current) sceneStore.endIntro();
+    }, NO_SHOW);
+    return () => clearTimeout(t);
+  }, [off]);
+
+  // the first interaction dismisses the line early and hands the hero
+  // straight back (the camera cuts its shot short on the same signal)
+  useEffect(() => {
+    if (off) return;
     const clear = () => {
-      setShow(false); // first interaction dismisses the card early…
-      sceneStore.endIntro(); // …and hands the hero straight back
+      setShow(false);
+      sceneStore.endIntro();
     };
     const evs = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
     evs.forEach((ev) => window.addEventListener(ev, clear, { passive: true }));
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      card?.removeEventListener('transitionend', onFaded);
-      evs.forEach((ev) => window.removeEventListener(ev, clear));
-    };
-  }, [reduced]);
+    return () => evs.forEach((ev) => window.removeEventListener(ev, clear));
+  }, [off]);
 
-  if (skip.current || !intro || reduced) return null;
+  if (off || silent || !intro) return null;
   return (
     <div ref={cardRef} className="intro-card" data-show={show || undefined} aria-hidden={!show}>
       <p className="intro-card__title">{intro.title}</p>

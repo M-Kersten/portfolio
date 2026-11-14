@@ -128,22 +128,39 @@ export const CAMERA = {
   // How far ABOVE the layer the overview looks: drops the floor in focus to the
   // middle of the frame, so the one below falls away toward the bottom edge.
   overviewLift: 0.34,
-  // Per journey step (City, Room, Chip): how far to the side of the floor the
-  // overview looks, and how far out it stands (× overviewOffset). Every floor
-  // has words beside it, on the left (the hero title, then the floor's own
-  // text): looking LEFT of the floor pushes it right on screen, clear of them,
-  // and each comes in close enough to fill the rest of the frame. The Chip's
-  // board is the smallest floor, so its step comes closest — the ladder still
-  // reads on the way down.
-  stepAimX: [-0.56, -0.95, -0.62] as [number, number, number],
-  stepZoom: [0.8, 0.96, 0.7] as [number, number, number],
+  // Per journey step (City, Room, Chip): how far out the overview stands
+  // (× overviewOffset). The Chip's board is the smallest floor, so its step
+  // comes closest — the ladder still reads on the way down.
+  stepZoom: [0.9, 0.92, 0.68] as [number, number, number],
   // …and how far the whole framing rises (camera and aim together, so the angle
-  // holds), which sets the floor lower in the frame. The City's rises: its top
-  // lines up with the hero title's, and the room under it sinks to an edge
-  // behind the caption and the guide (the room's tall furniture otherwise
-  // reaches up into the frame from below). The Chip's sinks instead, which
-  // lifts its low, flat board to the middle of the frame.
-  stepRise: [0.16, 0.05, -0.28] as [number, number, number],
+  // holds), which sets the floor lower in the frame. The City's rises: its
+  // markers line up with the top of the hero title, and the room under it sinks
+  // to an edge behind the caption and the guide (the room's tall furniture
+  // otherwise reaches up into the frame from below). The Chip's sinks instead,
+  // which lifts its low, flat board to the middle of the frame.
+  stepRise: [0.2, 0.05, -0.28] as [number, number, number],
+  // Every floor has words beside it on a wide screen, on the left (the hero
+  // title, then the floor's own text), and how much of the screen they take
+  // depends on the screen: a third of a laptop's, half of a tablet's on its
+  // side, and on a big monitor they start well in from the edge. So the floor
+  // isn't set to one side by a fixed amount: it's centred in whatever the words
+  // leave free (overviewFit below), and the camera backs off if it wouldn't fit
+  // there. `stepSpan` is what each floor has to keep in view, to the left and
+  // the right of its centre, in screen heights at the step's zoom: the City
+  // from the windmill to the park's viewer (the far side of the park runs off
+  // the edge, and may), the Room from the desk to the bookcase, the Chip its
+  // whole board. `stepFill`: how much of the free width that may take.
+  stepSpan: [
+    [0.42, 0.5],
+    [0.44, 0.49],
+    [0.485, 0.44],
+  ] as [number, number][],
+  stepFill: 0.96,
+  // The framings are set for a screen the header takes this share of the
+  // height of (a laptop's). On a short one (a phone on its side) it takes far
+  // more, and the markers' names would run up under it: the image is set lower
+  // by most of the difference.
+  headShare: 0.076,
 
   // ---- Portrait (phones) ----
   // On a phone the title sits ABOVE the model rather than beside it, and the
@@ -161,8 +178,9 @@ export const CAMERA = {
   // between rather than on a breakpoint.
   portraitOffset: [3.3, 2.57, 1.91] as Vec3, // 60° round, 34° up, 4.6 out
   portraitLift: 0.3,
-  // per step, as stepAimX / stepZoom: each floor fitted to the screen's width,
-  // nothing cut off at the edges
+  // per step: how far to the side of the floor it looks, and how far out it
+  // stands (as stepZoom): each floor fitted to the screen's width, nothing cut
+  // off at the edges
   portraitStepAimX: [0.1, 0.1, 0.1] as [number, number, number],
   portraitStepZoom: [1.1, 1.1, 1] as [number, number, number],
   // (every floor has words over it on an upright screen: the hero title and
@@ -277,6 +295,32 @@ export function fitScale(aspect: number): number {
 export function fitFov(aspect: number): number {
   const f = CAMERA.baseFov * Math.pow(CAMERA.baseAspect / aspect, CAMERA.fovRamp);
   return Math.min(Math.max(f, CAMERA.baseFov), mixed(CAMERA.fovMax, CAMERA.portraitFovMax, aspect));
+}
+
+/** Where a floor's overview sits on a screen with words beside it (see
+ *  CAMERA.stepSpan): `edge` is where those words end, in px from the left (0:
+ *  nothing beside the model — an upright screen, where they sit over it), and
+ *  `head` how much of the top the header takes, in px. `shift`: how far the
+ *  whole image slides to the right, as a share of the screen's width, so the
+ *  floor is centred in the room that's left; `drop`: how far down, as a share
+ *  of its height (CAMERA.headShare); `back`: how much further out the camera
+ *  stands (1 = the step's own zoom) when the floor wouldn't fit there. The
+ *  image is slid rather than the camera turned (the rig's view offset), so the
+ *  floor keeps its angle wherever it lands. */
+export function overviewFit(step: number, width: number, height: number, edge: number, head = 0): { shift: number; drop: number; back: number } {
+  if (!(edge > 0) || !(width > 0) || !(height > 0)) return { shift: 0, drop: 0, back: 1 };
+  const aspect = width / height;
+  const [left, right] = CAMERA.stepSpan[Math.max(0, Math.min(2, step))];
+  const half = (deg: number) => Math.tan((deg / 2) * (Math.PI / 180));
+  // a screen height of floor on a desktop, in px on this screen (the pull-back
+  // and the wider lens of a narrower screen make it less)
+  const unit = (height * half(CAMERA.baseFov)) / (fitScale(aspect) * half(fitFov(aspect)));
+  // (the words never count for more than 70% of the width)
+  const free = Math.max(width - edge, width * 0.3);
+  const back = Math.max(1, ((left + right) * unit) / (free * CAMERA.stepFill));
+  const centre = width - free / 2 + (((left - right) / 2) * unit) / back;
+  const drop = Math.min(Math.max((head / height - CAMERA.headShare) * 0.75, 0), 0.12);
+  return { shift: centre / width - 0.5, drop, back };
 }
 
 /** Vertical spacing multiplier between the three layers. 1 on desktop, growing

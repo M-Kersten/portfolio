@@ -61,6 +61,24 @@
   pointer-events: none;
   transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 }
+/* The column the words beside the model stand in, with nothing in it, as tall
+   as the header: the camera reads where they end (HeroStage) and sets the
+   model clear of them. */
+.hero__ruler {
+  box-sizing: border-box;
+  width: 100vw;
+  height: var(--header-h);
+  padding-block: 0;
+  visibility: hidden;
+}
+/* On its side, a narrow screen (a tablet, a small window) would give the words
+   half its width at their full measure, and the model what's left: they take
+   two fifths at most. */
+@media (orientation: landscape) {
+  .hero__title {
+    max-width: min(32rem, 42vw);
+  }
+}
 /* Held upright (a phone, a tablet, a tall window), the model sits under the
    title rather than beside it — the camera's portrait framing (framing.ts,
    portraitOffset) — so the drop that cleared the windmill is no longer needed:
@@ -213,6 +231,12 @@
   border: 1px solid color-mix(in srgb, var(--c) 30%, var(--hairline));
   border-radius: var(--radius-s);
   padding: 0.2em 0.55em;
+}
+/* (on its side, a narrow screen: as the title's column) */
+@media (orientation: landscape) {
+  .floor-note {
+    max-width: min(30rem, 40vw);
+  }
 }
 /* Held upright the model sits under the text (see .hero__title above), so the
    text tucks up under the header and runs the screen's width. The floor above

@@ -35,7 +35,7 @@ interface LifeSnap {
  *  Materials that animate themselves opt out via `userData.lifeSkip` and blend
  *  their own ghost→alive keyed on the same selected/visited state. */
 export function LifeGroup({ slug, children }: { slug: string; children: ReactNode }) {
-  const { hovered, selected, visited } = useActive(slug);
+  const { hovered, selected, visited, seen } = useActive(slug);
   const reduced = useReducedMotion();
   const grp = useRef<Group>(null);
   const L = useRef(0);
@@ -57,7 +57,9 @@ export function LifeGroup({ slug, children }: { slug: string; children: ReactNod
     if (reduced || Math.abs(target - L.current) < 0.001) L.current = target;
     else L.current += (target - L.current) * 0.09;
     // materialise: a short glitchy flicker the first time it comes alive…
-    if (alive && !born.current) {
+    // (through a visit: lit with everything else for the opening, it just
+    // comes up, and still materialises when it's first opened)
+    if ((selected || seen) && !born.current) {
       born.current = true;
       if (!reduced) glitch.current = 0.5;
     }

@@ -31,9 +31,6 @@ export function useMediaQuery(query: string): boolean {
 export const useReducedMotion = () => useMediaQuery(REDUCED_MOTION);
 
 // Read once, at load:
-/** A phone-sized screen. The opening dolly and the intro card are a desktop
- *  flourish; on a phone the site just appears. */
-export const isMobileViewport = () => matches(PHONE);
 /** A phone or tablet (small screen or touch-first): the launch film runs a
  *  lighter version here, with fewer smoke puffs and a cheaper bloom. */
 export const isLiteDevice = () => matches(`${PHONE}, (pointer: coarse)`);

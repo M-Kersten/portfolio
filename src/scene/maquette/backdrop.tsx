@@ -5,7 +5,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { AdditiveBlending, CanvasTexture, Color, type Mesh, type Points as ThreePoints, type PointsMaterial } from 'three';
 import { useReducedMotion } from '../../lib/media';
-import { useSceneSelector } from '../store';
+import { opening, useSceneSelector } from '../store';
 import { LAYER_Y, layerGap } from '../framing';
 import { BG, GROUND, NEUTRAL, makeRand, useAccent, type V3 } from './shared';
 
@@ -261,7 +261,10 @@ export function DepthVeil() {
   const targetY = ([LAYER_Y.city, LAYER_Y.room, LAYER_Y.chip][journeyStep] ?? LAYER_Y.city) * gap - 0.34;
   useFrame(() => {
     if (!ref.current) return;
-    ref.current.position.y = reduced ? targetY : ref.current.position.y + (targetY - ref.current.position.y) * 0.08;
+    // (through the opening it rides under whatever the camera is looking at on
+    // its way up, rather than waiting under the City for it to arrive)
+    if (opening.dollying) ref.current.position.y = opening.pivotY - 0.34;
+    else ref.current.position.y = reduced ? targetY : ref.current.position.y + (targetY - ref.current.position.y) * 0.08;
   });
   return (
     <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, targetY, 0]}>

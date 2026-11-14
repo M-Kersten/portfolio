@@ -6,7 +6,7 @@ import { createContext, forwardRef, useContext, useEffect, useState, type Compon
 import { Line as DreiLine } from '@react-three/drei';
 import { CatmullRomCurve3, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, Vector3, type Texture } from 'three';
 import { type LayerId } from '../framing';
-import { useSceneSelector } from '../store';
+import { showsAlive, useSceneSelector } from '../store';
 import { asset } from '../../lib/asset';
 import { LOOK } from '../look';
 import { LAYER_HEX } from '../../content';
@@ -234,8 +234,12 @@ export function useActive(slug: string) {
   // to delay — and nothing outside the canvas (the HUD, the hotspot markers'
   // hide-on-open) reads this hook, so none of that timing shifts.
   const zoomSettled = useSceneSelector((s) => s.zoomSettled);
-  const visited = useSceneSelector((s) => s.visited.includes(slug));
-  return { hovered, selected: rawSelected && zoomSettled, visited };
+  // `visited` is "shows alive": seen, or lit with everything else while the
+  // opening's lights are up. `seen` is the visit itself, for what happens once
+  // because of one (the first materialising, a cable's sweep).
+  const visited = useSceneSelector((s) => showsAlive(s, slug));
+  const seen = useSceneSelector((s) => s.visited.includes(slug));
+  return { hovered, selected: rawSelected && zoomSettled, visited, seen };
 }
 /** Load an optional texture from /public. Resolves to null while loading and
  *  stays null when the file hasn't been provided, so objects keep their plain

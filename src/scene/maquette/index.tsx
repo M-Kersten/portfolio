@@ -8,7 +8,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { type Group } from 'three';
 import { isTouch, useReducedMotion } from '../../lib/media';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, layerGap, type Hotspot, type LayerId } from '../framing';
-import { useSceneSelector, bootAt, MAQUETTE_BOOT, opening } from '../store';
+import { useSceneSelector, bootAt, lightsUp, MAQUETTE_BOOT, opening } from '../store';
 import { AccentCtx, PALETTE } from './shared';
 import { DotFloor, SurveyMarks, PointCloud, DepthVeil, HoloFloor } from './backdrop';
 import { PresenceGroup } from './presence';
@@ -106,8 +106,25 @@ function Parallax({ children }: { children: ReactNode }) {
   return <group ref={grp}>{children}</group>;
 }
 
+// The turntable: through the opening shot the whole model turns under the
+// rising camera (CameraRig sets how far, opening.spin, and brings it back to
+// square as the shot lands); the rest of the time it stands still.
+function Turntable({ children }: { children: ReactNode }) {
+  const grp = useRef<Group>(null);
+  useFrame(() => {
+    const g = grp.current;
+    if (g && g.rotation.y !== opening.spin) g.rotation.y = opening.spin;
+  });
+  return <group ref={grp}>{children}</group>;
+}
+
 export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => void }) {
   const journeyStep = useSceneSelector((s) => s.journeyStep);
+  // The opening shot passes every floor on its way up: all three are drawn and
+  // hold the light for it, their exhibits lit (store.lightsUp), and the markers
+  // wait until it has landed.
+  const openingOn = useSceneSelector((s) => s.opening !== 'idle');
+  const lights = useSceneSelector(lightsUp);
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const visited = useSceneSelector((s) => s.visited);
   const launching = useSceneSelector((s) => s.launch) !== 'idle';
@@ -128,6 +145,7 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
   return (
     <Parallax>
       <Reveal>
+       <Turntable>
         <DepthVeil />
       {MAQUETTE_LAYERS.map((id) => {
         const Rig = RIGS[id];
@@ -145,14 +163,14 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
         // The open node's layer always draws: a deep link to a Chip case lands
         // with the page at the top, and HeroStage's scroll loop then holds
         // journeyStep at 0 (City), which would otherwise cull the Chip layer.
-        const near = Math.abs(LAYER_STEP[id] - journeyStep) <= 1 || id === presenceLayer;
+        const near = openingOn || Math.abs(LAYER_STEP[id] - journeyStep) <= 1 || id === presenceLayer;
         const spots = HOTSPOTS.filter((h) => h.layer === id);
         // how alive this layer is — the fraction of its projects you've woken —
         // feeds the ambient field's presence (see PointCloud)
-        const life = spots.length ? spots.filter((h) => visited.includes(h.slug)).length / spots.length : 0;
+        const life = lights ? 1 : spots.length ? spots.filter((h) => visited.includes(h.slug)).length / spots.length : 0;
         return (
           <AccentCtx.Provider key={id} value={PALETTE[id]}>
-            <group position={[0, LAYER_Y[id] * gap, 0]} scale={LAYER_SCALE[id]}>
+            <group name={`layer-${id}`} position={[0, LAYER_Y[id] * gap, 0]} scale={LAYER_SCALE[id]}>
               <group visible={near}>
                 {/* Holo-table sheen — outside the presence dimmer (it only shows
                     on the active layer, which is never the dimmed one). */}
@@ -163,7 +181,7 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
                 {/* Presence: the layer in focus keeps full brightness, the
                     others rest dimmed (see presence.tsx). Only the dressing —
                     the life system's objects are exempt inside. */}
-                <PresenceGroup active={presenceLayer === id}>
+                <PresenceGroup active={openingOn || presenceLayer === id}>
                   <DotFloor />
                   <SurveyMarks />
                   <PointCloud seed={SEED[id]} life={life} />
@@ -177,7 +195,7 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
                     hotspot={h}
                     color={PALETTE[id].accent}
                     onActivate={onActivate}
-                    hidden={!!selectedSlug || launching}
+                    hidden={!!selectedSlug || launching || openingOn}
                     cue={cue ? (h.slug === CUE_LEAD[id] ? 'lead' : 'hold') : undefined}
                     phase={i / spots.length}
                   />
@@ -189,6 +207,7 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
       {RELATIONS.map((rel, i) => (
           <SignalLine key={i} {...rel} />
         ))}
+       </Turntable>
       </Reveal>
     </Parallax>
   );
