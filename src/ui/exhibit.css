@@ -180,7 +180,8 @@
 .xl__film {
   container-type: size;
 }
-.xl__film iframe[data-preview] {
+.xl__film iframe[data-preview],
+.xl__film iframe[data-bare] {
   inset: auto;
   top: 50%;
   left: 50%;
@@ -191,7 +192,8 @@
   opacity: 0;
   transition: opacity var(--t-slow) var(--ease);
 }
-.xl__film iframe[data-preview][data-loaded] {
+.xl__film iframe[data-preview][data-loaded],
+.xl__film iframe[data-bare][data-loaded] {
   opacity: 1;
 }
 /* no loop yet: the poster drifts, slowly, so it still reads as moving image */
@@ -550,4 +552,17 @@
   .xl__read {
     transition: none;
   }
+}
+
+/* full screen, the label's film fills it, whole */
+.xl__film:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  aspect-ratio: auto;
+  background: #000;
+}
+.xl__film:fullscreen img,
+.xl__film:fullscreen video {
+  object-fit: contain;
 }

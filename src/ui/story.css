@@ -344,7 +344,8 @@
   opacity: 1;
 }
 /* (bare: nothing of YouTube's to press, so nothing of YouTube's shows) */
-.xs__screen iframe[data-bare] {
+.xs__screen iframe[data-bare],
+.xl__film iframe[data-bare] {
   pointer-events: none;
 }
 /* The film's controls, the story's own: three words along its foot, there
@@ -361,8 +362,10 @@
   transition: opacity var(--t-fast) var(--ease);
 }
 .xs__screen:hover .xs__controls,
+.xl__film:hover .xs__controls,
 .xs__controls:focus-within,
-.xs__screen:fullscreen .xs__controls {
+.xs__screen:fullscreen .xs__controls,
+.xl__film:fullscreen .xs__controls {
   opacity: 1;
 }
 @media (hover: none) {

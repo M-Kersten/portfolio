@@ -5,13 +5,10 @@ import { loopFor } from '../../content/media';
 import { asset } from '../../lib/asset';
 import { MOTION } from '../../lib/motion';
 import { useSheetDrag } from '../../lib/useSheetDrag';
-import { useYouTubeClock, useYouTubePreviewLoop, youtubeEmbed, youtubeStart, type FilmClock } from '../../lib/youtube';
+import { useYouTubeClock, youtubeEmbed, youtubeStart, type FilmClock } from '../../lib/youtube';
 import { Scramble } from '../shell/Scramble';
 import { VoiceNote } from './VoiceNote';
 import { PlayMark, Player, Walk, sheetLayout, type Dir } from './parts';
-
-/** How long the silent preview runs before it goes round again. */
-const PREVIEW_SECONDS = 14;
 
 // The label, in the maquette: it opens beside the porthole once the camera has
 // reached the object, with a line drawn from the object to it. The film at the
@@ -67,17 +64,34 @@ export function Label({
   const role = roleFor(study);
   const second = [study.sector, role].filter(Boolean).join(' · ');
   const [imgOk, setImgOk] = useState(true);
-  const [playing, setPlaying] = useState(false); // the film, playing here with sound
-  // Until it's pressed, the film plays itself, silent, behind the button (a
-  // loop file first if there is one, else the film itself from the moment its
-  // link starts at). Not under reduced motion, nor on a connection that asked
-  // for less data: the poster stands in.
+  // The film plays itself as the label opens: silent, on a loop, with none of
+  // YouTube's controls (a loop file first if the project has one). The label
+  // has its own three along the film's foot: stop, sound, full screen. Not
+  // under reduced motion, nor on a connection that asked for less data: there
+  // the poster stands in, behind "Play the film".
   const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData === true;
-  const previewing = Boolean(embed) && !playing && !loop && !reduced && !saveData;
-  const [previewUp, setPreviewUp] = useState(false);
-  const previewRef = useRef<HTMLIFrameElement>(null);
-  useYouTubePreviewLoop(previewRef, previewing, filmStart, PREVIEW_SECONDS);
+  const [asked, setAsked] = useState(false); // the film, asked for by hand
+  const rolling = Boolean(embed) && (asked || (!loop && !reduced && !saveData));
+  const looping = Boolean(loop) && !asked && !reduced;
+  const [filmUp, setFilmUp] = useState(false);
+  const [held, setHeld] = useState(false);
+  const [sound, setSound] = useState(false);
   const playerRef = useRef<HTMLIFrameElement>(null);
+  const loopRef = useRef<HTMLVideoElement>(null);
+  const tell = (func: string, args: unknown[] = []) => playerRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+  const voice = (on: boolean) => {
+    if (on) {
+      tell('unMute');
+      tell('setVolume', [100]);
+    } else tell('mute');
+  };
+  // (asked for with its sound: the player has to be there before it can be told)
+  useEffect(() => {
+    if (!filmUp || !sound) return;
+    const timers = [200, 900, 2000].map((ms) => window.setTimeout(() => voice(true), ms));
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filmUp]);
   const [line, setLine] = useState<string | null>(null);
   const [mark, setMark] = useState<{ x: number; y: number } | null>(null);
   // a curator's note: the problem, in its first sentence (the book has the rest)
@@ -88,7 +102,7 @@ export function Label({
   useEffect(() => {
     clock.current = { t: 0, playing: false };
   }, [clock]);
-  useYouTubeClock(playerRef, clock, playing);
+  useYouTubeClock(playerRef, clock, rolling);
   useSheetDrag(labelRef, {
     enabled: true,
     canWalk: (d) => Boolean(d === 1 ? next : prev),
@@ -144,24 +158,57 @@ export function Label({
         {sheet && <span className="xl__grip" aria-hidden="true" />}
         {/* the film first: a silent loop (or the poster, drifting), and pressed,
             the film itself, right here */}
-        <div ref={filmRef} className="xl__film" data-playing={playing || undefined}>
-          {playing && embed ? (
-            <Player embed={embed} title={study.title} start={filmStart} frameRef={playerRef} />
-          ) : loop && !reduced ? (
-            <video src={loop} poster={asset(`/posters/${study.slug}.jpg`)} muted autoPlay loop playsInline preload="metadata" aria-hidden="true" />
+        <div ref={filmRef} className="xl__film" data-playing={(rolling && sound) || undefined}>
+          {looping ? (
+            <video ref={loopRef} src={loop} poster={asset(`/posters/${study.slug}.jpg`)} muted autoPlay loop playsInline preload="metadata" aria-hidden="true" />
           ) : imgOk ? (
-            <img src={asset(`/posters/${study.slug}.jpg`)} alt="" data-drift={reduced ? undefined : ''} onError={() => setImgOk(false)} />
+            <img src={asset(`/posters/${study.slug}.jpg`)} alt="" data-drift={reduced || rolling ? undefined : ''} onError={() => setImgOk(false)} />
           ) : (
             <span className="xl__ph" />
           )}
-          {previewing && embed && (
-            <Player preview embed={embed} title={study.title} start={filmStart} frameRef={previewRef} loaded={previewUp} onLoad={() => setPreviewUp(true)} />
-          )}
-          {embed && !playing && (
-            <button type="button" className="xl__watch" onClick={() => setPlaying(true)}>
+          {rolling && embed && <Player bare embed={embed} title={study.title} start={filmStart} frameRef={playerRef} loaded={filmUp} onLoad={() => setFilmUp(true)} />}
+          {embed && !rolling && !looping && (
+            <button type="button" className="xl__watch" onClick={() => setAsked(true)}>
               <PlayMark />
-              Watch the film
+              Play the film
             </button>
+          )}
+          {/* the film's own few controls, in the site's hand */}
+          {(rolling || looping) && (
+            <div className="xs__controls">
+              <button
+                type="button"
+                aria-pressed={held}
+                onClick={() => {
+                  if (rolling) tell(held ? 'playVideo' : 'pauseVideo');
+                  else if (held) void loopRef.current?.play();
+                  else loopRef.current?.pause();
+                  setHeld(!held);
+                }}
+              >
+                {held ? 'Play' : 'Pause'}
+              </button>
+              {embed && (
+                <button
+                  type="button"
+                  aria-pressed={sound}
+                  onClick={() => {
+                    // (a loop has no sound of its own: its sound is the film's)
+                    if (rolling) voice(!sound);
+                    else setAsked(true);
+                    setHeld(false);
+                    setSound(!sound);
+                  }}
+                >
+                  {sound ? 'Sound off' : 'Sound on'}
+                </button>
+              )}
+              {document.fullscreenEnabled && (
+                <button type="button" onClick={() => (document.fullscreenElement ? document.exitFullscreen() : filmRef.current?.requestFullscreen())?.catch(() => {})}>
+                  Full screen
+                </button>
+              )}
+            </div>
           )}
         </div>
         <div className="xl__body">
