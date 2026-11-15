@@ -52,7 +52,8 @@ The things you're most likely to want to change, and the file they live in.
 | --- | --- |
 | A project's words, dates, client, links, tech | `src/content/cases.json` (or the CMS) |
 | The hero lines, section titles and leads, career, about, contact | `src/content/site.json` (or the CMS) |
-| The line under a project's film in the book | `src/content/films.ts` |
+| The line under a project's film (in the book, and in its story on a page) | `src/content/films.ts` |
+| The pictures floating behind a project's story | `src/assets/stills/<slug>/` (its README says how; `npm run stills` fills an empty folder with frames from the film) |
 | Where a long film starts | the project's `video` link in `cases.json`, with `?t=95` on it (YouTube's "start at" link) |
 | A project's film loop or voice note | drop `<slug>.mp4` in `src/assets/loops/`, `<slug>.mp3` in `src/assets/voice/` |
 | A sound effect or ambient bed | `src/assets/sound/` (its README lists every name) |
@@ -96,6 +97,8 @@ The things you're most likely to want to change, and the file they live in.
 | The exhibition's name, "On display" / "In the depot" | `content/exhibits.ts` |
 | The label beside an exhibit ("Read the full story", "Watch the film") | `components/exhibit/Label.tsx` |
 | The book ("The problem", "See also", "Ask me about it") | `components/exhibit/Book.tsx` |
+| A project's story on a page, opened from the chronology, /projects or search ("In short", "Back to the chronology", the walk) | `components/exhibit/Story.tsx`; its layout (the headline's sizes and block, the stage's height, where each picture hangs) in `src/ui/story.css` |
+| Which words of a story's headline take the floor's colour | `statementParts` in `src/content/exhibits.ts` |
 | The collection's title and line (its counts come from the content) | `components/pages/ProjectsPage.tsx` |
 | The launch pad's panel (exhibit 11) | `components/launch/LaunchOverlay.tsx` |
 | The "not open yet" page | `components/shell/NotFound.tsx` |
@@ -114,9 +117,9 @@ src/
   content/             everything written: the JSON the CMS edits (cases, site,
                        capabilities, cv) and types.ts documenting every field;
                        index.ts (typed access, dates, roles, layer colours),
-                       exhibits.ts (the numbering, the walk, see also),
-                       films.ts (the line under each film), media.ts (finds
-                       the film loops and voice notes)
+                       exhibits.ts (the numbering, the walk, see also, a
+                       story's headline), films.ts (the line under each film),
+                       media.ts (finds the film loops, voice notes and stills)
   components/
     shell/             what every page has: Header (+ Logo, SocialLinks,
                        Search, SoundToggle), Footer, SectionHead, Scramble
@@ -131,9 +134,11 @@ src/
                        About, Contact, and their canvas motifs
     timeline/          the projects timeline: Timeline.tsx (the component),
                        layout.ts (where everything sits on the route), CaseCard
-    exhibit/           a project, opened: Exhibit.tsx (label and book
-                       together), Label.tsx, Book.tsx, parts.tsx, NodeHud (the
-                       /work/:slug route), VoiceNote, Gallery
+    exhibit/           a project, opened: Exhibit.tsx (which of them is
+                       open, the walk, the keys), Label.tsx and Book.tsx (in
+                       the maquette), Story.tsx (on a page: full screen),
+                       parts.tsx, NodeHud (the /work/:slug route), VoiceNote,
+                       Gallery
     launch/            the launch easter egg: LaunchOverlay (the pad's panel),
                        LaunchHud (the film's telemetry), AsteroidsGame (+
                        GameRocket, GameComms)
@@ -278,6 +283,14 @@ Safari and older browsers need themselves. When you add CSS:
   lives in `src/content/films.ts` (not cases.json: the CMS drops keys it
   doesn't know). The current lines are drafts from each film's YouTube title
   and poster; rewrite them in your own words.
+- **A project's pictures** — opened from the chronology, /projects or search,
+  a project's story has its pictures floating behind it: its `gallery` if it
+  has one, otherwise whatever is in `src/assets/stills/<slug>/` (the README
+  there has the details). `npm run stills` fills a folder that's still empty
+  with three frames from the project's film; they're whatever was on screen
+  at those moments, so look through them before committing, delete what
+  shows nothing of the work, and put a better picture in a frame's place
+  where you have one (first file name first, nearest the film).
 - **Voice notes** — record a short clip about a project and save it as
   `src/assets/voice/<slug>.mp3` (or `.m4a`, `.ogg`, `.webm`), named after
   the case's `slug`. Its audio tour then appears on that project's label
