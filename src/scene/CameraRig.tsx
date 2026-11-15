@@ -51,7 +51,6 @@ const OPENING = { dur: 6.2, turn: Math.PI, land: 0.78, startZoom: 0.92, startDro
 // `from`: how much further out it starts.
 const ARRIVAL = { dur: 2.4, from: 1.2 };
 /** The shot this visit gets, in seconds. */
-const SHOT_DUR = returning ? ARRIVAL.dur : OPENING.dur;
 const INTRO_WAIT = 2500; // ms
 
 /** A smooth path through three points (Catmull–Rom, its ends mirrored), `u`
@@ -120,6 +119,9 @@ const smootherstep = (u: number) => u * u * u * (u * (u * 6 - 15) + 10);
 // CAMERA.glide.
 
 export function CameraRig() {
+  // Which way in this is, settled as the page opens: the opening marks itself
+  // seen while it's still playing, and mustn't change course for it.
+  const veteran = useRef(returning).current;
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
@@ -198,7 +200,7 @@ export function CameraRig() {
     };
     const city = rest(0);
     const out = shot.current;
-    if (returning) {
+    if (veteran) {
       const k = ARRIVAL.from + (1 - ARRIVAL.from) * Math.min(Math.max(u, 0), 1);
       out.target.copy(city.target);
       out.pos.copy(city.pos).sub(city.target).multiplyScalar(k).add(city.target);
@@ -233,7 +235,7 @@ export function CameraRig() {
     opening.dollying = true;
     opening.pivotY = s.target.y - CAMERA.overviewLift;
     // (the turn, the line and the waiting markers are the first visit's)
-    if (!returning) {
+    if (!veteran) {
       opening.spin = OPENING.turn;
       sceneStore.setOpening('wait');
     }
@@ -387,7 +389,7 @@ export function CameraRig() {
       // (A frame up to 1/15 s counts in full, so a slow device still plays
       // the move in its own time; only a real stall is cut short.)
       if (introReady.current) introT.current += Math.min(delta, 1 / 15);
-      const p = introT.current / SHOT_DUR;
+      const p = introT.current / (veteran ? ARRIVAL.dur : OPENING.dur);
       if (skipIntro.current || selectedSlug || journeyStep !== 0 || launch !== 'idle' || p >= 1) {
         introDone.current = true;
         opening.dollying = false;
@@ -401,7 +403,7 @@ export function CameraRig() {
         target.current.copy(s.target);
         camera.lookAt(target.current);
         opening.pivotY = s.target.y - CAMERA.overviewLift;
-        if (!returning) {
+        if (!veteran) {
           // the turn finishes a touch before the rise does, so the model is
           // already square on as the camera settles
           opening.spin = OPENING.turn * (1 - smootherstep(Math.min(1, p / 0.94)));

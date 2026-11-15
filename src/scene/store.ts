@@ -26,9 +26,14 @@ export type OpeningPhase = 'idle' | 'wait' | 'rise' | 'land';
  *  once it has played). A returning visitor gets a shorter way in: no premise
  *  card, a quicker dolly. Read once, at load. */
 const INTRO_KEY = 'mk-intro-seen';
-export const returning = remembered(INTRO_KEY) === '1';
-/** (Storage blocked: the card just plays again next time.) */
-export const markIntroSeen = () => remember(INTRO_KEY, '1');
+export let returning = remembered(INTRO_KEY) === '1';
+/** Once it has played it has played: for the next visit (storage blocked: the
+ *  card just plays again then), and for the rest of this one, so coming back
+ *  to the main page from the collection doesn't run it again. */
+export const markIntroSeen = () => {
+  returning = true;
+  remember(INTRO_KEY, '1');
+};
 
 /** The launch easter egg's stage machine (see maquette/launchSite.tsx +
  *  components/launch/LaunchOverlay). 'pad' = camera on the rocket, LAUNCH shown;
