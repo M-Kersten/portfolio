@@ -70,12 +70,14 @@ export const PlayMark = () => (
 
 /** A YouTube player, autoplaying: with sound and its controls when it was
  *  pressed for, or as a silent `preview` (no controls, no keys, no clicks)
- *  playing behind the label's button. */
+ *  playing behind the label's button, or `bare`: starting silent, on a loop,
+ *  with none of YouTube's own controls, for a story that has its own. */
 export function Player({
   embed,
   title,
   start = 0,
   preview = false,
+  bare = false,
   frameRef,
   onLoad,
   loaded,
@@ -84,19 +86,22 @@ export function Player({
   title: string;
   start?: number;
   preview?: boolean;
+  bare?: boolean;
   frameRef?: RefObject<HTMLIFrameElement>;
   onLoad?: () => void;
   loaded?: boolean;
 }) {
   const origin = `&origin=${encodeURIComponent(window.location.origin)}`;
-  const silent = preview ? '&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&playsinline=1' : '';
+  const id = embed.match(/embed\/([\w-]{11})/)?.[1];
+  const silent = preview || bare ? `&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&playsinline=1${bare && id ? `&loop=1&playlist=${id}` : ''}` : '';
   return (
     <iframe
       ref={frameRef}
       src={`${embed}&autoplay=1&enablejsapi=1${origin}${silent}${start > 0 ? `&start=${start}` : ''}`}
-      tabIndex={preview ? -1 : undefined}
+      tabIndex={preview || bare ? -1 : undefined}
       aria-hidden={preview || undefined}
       data-preview={preview || undefined}
+      data-bare={bare || undefined}
       title={`${title}: film`}
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowFullScreen={!preview}

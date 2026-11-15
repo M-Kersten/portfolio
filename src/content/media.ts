@@ -1,3 +1,4 @@
+import { asset } from '../lib/asset';
 // The files dropped in per project, named after its slug: the silent film loop
 // at the top of its label (src/assets/loops/<slug>.mp4), the voice note of me
 // talking about it (src/assets/voice/<slug>.mp3) and its stills, a folder of
@@ -38,3 +39,12 @@ export const loopFor = (slug: string): string | undefined => LOOPS[slug];
 export const voiceFor = (slug: string): string | undefined => VOICES[slug];
 /** The URLs of a project's stills (none, for a project without any). */
 export const stillsFor = (slug: string): string[] => STILLS[slug] ?? [];
+
+/** A project's picture, wherever it comes from. */
+export type Picture = { src: string; caption?: string };
+/** Every picture of a project, in the order they're shown: its gallery first
+ *  (with its captions), then its stills. */
+export const picturesFor = (study: { slug: string; gallery?: { file: string; caption?: string }[] }): Picture[] => [
+  ...(study.gallery ?? []).map((g) => ({ src: asset(`/gallery/${study.slug}/${g.file}`), caption: g.caption })),
+  ...stillsFor(study.slug).map((src) => ({ src })),
+];

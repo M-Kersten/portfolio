@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { site, type CaseStudy } from '../../content';
 import { EXHIBIT_COUNT, exhibitNo, walkFrom } from '../../content/exhibits';
+import { picturesFor } from '../../content/media';
 import { caseOrigin } from '../../lib/caseOrigin';
 import { useReducedMotion } from '../../lib/media';
 import { useDocumentTitle, useScrollLock } from '../../lib/page';
@@ -100,6 +101,8 @@ export function Exhibit({
   });
   const unfoldFrom = useRef<From | null>(cardFrom);
   const { prev, next } = walkFrom(study, place, collection);
+  const pictures = picturesFor(study); // any of them opens full-size
+
   // (where a page's project is among the ones it walks through)
   const at = collection ? collection.findIndex((c) => c.slug === study.slug) + 1 : 0;
   const no = exhibitNo(study.slug);
@@ -226,15 +229,17 @@ export function Exhibit({
         else back();
         return;
       }
-      if (frame !== null || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       const dir = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
       if (!dir) return;
       e.preventDefault();
-      step(dir);
+      // with a picture open the arrows go through the pictures, not the projects
+      if (frame !== null) setFrame((i) => (i === null ? i : (i + dir + pictures.length) % pictures.length));
+      else step(dir);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [frame, back, step]);
+  }, [frame, back, step, pictures.length]);
 
   return createPortal(
     <div
@@ -288,12 +293,11 @@ export function Exhibit({
           onFrame={setFrame}
         />
       )}
-      {frame !== null && (study.gallery?.length ?? 0) > 0 && (
+      {frame !== null && pictures.length > 0 && (
         <Lightbox
-          slug={study.slug}
-          images={study.gallery!}
-          index={frame}
-          onStep={(d) => setFrame((i) => (i === null ? i : (i + d + study.gallery!.length) % study.gallery!.length))}
+          images={pictures}
+          index={Math.min(frame, pictures.length - 1)}
+          onStep={(d) => setFrame((i) => (i === null ? i : (i + d + pictures.length) % pictures.length))}
           onClose={() => setFrame(null)}
         />
       )}

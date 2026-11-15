@@ -2,7 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSPropert
 import { caseWhen, roleFor, site, type CaseStudy } from '../../content';
 import { exhibitNo, pad2, paragraphs, seeAlso, statementParts } from '../../content/exhibits';
 import { filmCaption } from '../../content/films';
-import { stillsFor, voiceFor } from '../../content/media';
+import { picturesFor, voiceFor } from '../../content/media';
 import { asset } from '../../lib/asset';
 import { useMediaQuery } from '../../lib/media';
 import { EASE, MOTION } from '../../lib/motion';
@@ -38,8 +38,7 @@ import { PlayMark, Player, SHEET, enterAttr, walkIn, type Dir, type From, type P
 // The near ones hang off the film, in colour; further back they're smaller,
 // dimmer and grey, drifting off along the line. They drift a little all the
 // time and shift with the pointer, the near ones most; resting the pointer on
-// one brings it forward. A gallery picture opens full-size; a frame of the
-// film starts the film.
+// one brings it forward. Any of them opens full-size.
 //
 // On a phone (and a tablet held upright) it's one column: the headline, the
 // film with the pictures stacked behind it, then the line turned upright with
@@ -80,7 +79,6 @@ const SIZES = ['l', 'm', 's'] as const;
  *  the next one's can glide from there. */
 const rail: { y: number | null } = { y: null };
 
-type Pic = { src: string; frame?: number; label?: string };
 
 export function Story({
   study,
@@ -145,8 +143,17 @@ export function Story({
     ] as [string, string | undefined][]
   ).filter((c): c is [string, string] => Boolean(c[1]));
   const [imgOk, setImgOk] = useState(true);
-  const [playing, setPlaying] = useState(false);
+  // The film plays as the story opens: silent, and with no controls but the
+  // story's own (stop, sound, full screen). Not where motion is unwanted or
+  // data is being saved: there it waits behind "Play the film".
+  const [playing, setPlaying] = useState(
+    () => !reduced && (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData !== true,
+  );
+  const [held, setHeld] = useState(false); // stopped, by hand
+  const [sound, setSound] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const tell = (func: string, args: unknown[] = []) => frameRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
   const sheet = useMediaQuery(SHEET);
   const rootRef = useRef<HTMLDivElement>(null);
   const statementRef = useRef<HTMLParagraphElement>(null);
@@ -225,9 +232,9 @@ export function Story({
     .map((n, i) => `minmax(${i === share.length - 1 ? 'var(--xs-last)' : '0px'}, ${Math.max(0.74, (share.length * n) / total).toFixed(2)}fr)`)
     .join(' ')}`;
 
-  // The pictures: the project's own first, then frames from its film.
-  const gallery: Pic[] = (study.gallery ?? []).map((g, i) => ({ src: asset(`/gallery/${study.slug}/${g.file}`), frame: i, label: g.caption }));
-  const pics: Pic[] = [...gallery, ...stillsFor(study.slug).map((src) => ({ src }))];
+  // The pictures: the project's own first, then frames from its film. Any of
+  // them opens full-size.
+  const pics = picturesFor(study);
   const hasVoice = Boolean(voiceFor(study.slug));
   // (the audio tour stands where the furthest two would drift to)
   const wide = (caption?.length ?? 0) > CAPTION_BESIDE ? WIDE_LONG_CAPTION : WIDE;
@@ -236,22 +243,9 @@ export function Story({
   const placed = slots.map((slot, n) => ({ slot, n, pic: pics[n] }));
   const picture = ({ slot, n, pic }: (typeof placed)[number]) => (
     <span key={slot} className="xs__pic" data-slot={slot} data-depth={depth[slot]} style={{ '--n': n } as CSSProperties}>
-      {pic.frame !== undefined ? (
-        <button
-          type="button"
-          className="xs__pic-in"
-          onClick={() => onFrame(pic.frame!)}
-          aria-label={`${pic.label ?? 'Picture'} — open picture ${pic.frame + 1} of ${gallery.length}`}
-        >
-          <img src={pic.src} alt="" loading="lazy" decoding="async" />
-        </button>
-      ) : (
-        // a frame of the film: pressing it plays the film (the button on the
-        // plate is the control; this is the same press, for a pointer)
-        <span className="xs__pic-in" aria-hidden="true" data-plays={(embed && !playing) || undefined} onClick={embed && !playing ? () => setPlaying(true) : undefined}>
-          <img src={pic.src} alt="" loading="lazy" decoding="async" />
-        </span>
-      )}
+      <button type="button" className="xs__pic-in" onClick={() => onFrame(n)} aria-label={`${pic.caption ?? 'Picture'} — open picture ${n + 1} of ${pics.length}`}>
+        <img src={pic.src} alt="" loading="lazy" decoding="async" />
+      </button>
     </span>
   );
   const hung = placed.filter((p) => p.slot <= 'c');
@@ -342,6 +336,8 @@ export function Story({
   const show = (url: string) => {
     setFilm(url);
     setLoaded(false);
+    setHeld(false);
+    setSound(false);
     setPlaying(true);
     scrollRef.current?.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
   };
@@ -352,7 +348,7 @@ export function Story({
       className="xs"
       data-enter={reduced ? undefined : arrival}
       data-turning={turning || undefined}
-      data-playing={playing || undefined}
+      data-playing={(playing && sound) || undefined}
       role="dialog"
       aria-modal="true"
       aria-label={`${study.title}: the full story`}
@@ -413,12 +409,48 @@ export function Story({
                   {/* the still, under the player until it has loaded (and the
                       whole plate for a project without a film) */}
                   {imgOk ? <img src={asset(`/posters/${study.slug}.jpg`)} alt="" onError={() => setImgOk(false)} /> : <span className="xl__ph" />}
-                  {embed && playing && <Player key={film} embed={embed} title={study.title} start={youtubeStart(film)} loaded={loaded} onLoad={() => setLoaded(true)} />}
+                  {embed && playing && (
+                    <Player key={film} embed={embed} title={study.title} start={youtubeStart(film)} bare frameRef={frameRef} loaded={loaded} onLoad={() => setLoaded(true)} />
+                  )}
                   {embed && !playing && (
                     <button type="button" className="xl__watch" onClick={() => setPlaying(true)}>
                       <PlayMark />
                       Play the film
                     </button>
+                  )}
+                  {/* the film's own few controls, in the site's hand */}
+                  {embed && playing && (
+                    <div className="xs__controls">
+                      <button
+                        type="button"
+                        aria-pressed={held}
+                        onClick={() => {
+                          tell(held ? 'playVideo' : 'pauseVideo');
+                          setHeld(!held);
+                        }}
+                      >
+                        {held ? 'Play' : 'Pause'}
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={sound}
+                        onClick={() => {
+                          if (sound) tell('mute');
+                          else {
+                            tell('unMute');
+                            tell('setVolume', [100]);
+                          }
+                          setSound(!sound);
+                        }}
+                      >
+                        {sound ? 'Sound off' : 'Sound on'}
+                      </button>
+                      {document.fullscreenEnabled && (
+                        <button type="button" onClick={() => (document.fullscreenElement ? document.exitFullscreen() : screenRef.current?.requestFullscreen())?.catch(() => {})}>
+                          Full screen
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
                 {hung.map(picture)}

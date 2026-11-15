@@ -1,26 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GalleryImage } from '../../content';
-import { asset } from '../../lib/asset';
+import type { Picture } from '../../content/media';
 import { useFocusTrap } from '../../lib/useFocusTrap';
 
-// A project's pictures, full size: the lightbox a gallery picture opens into
-// from its story (Story.tsx), where the captions are.
-
-/** Where a case's frames live — the same slug-derived convention as posters. */
-const galleryUrl = (slug: string, file: string) => asset(`/gallery/${slug}/${file}`);
+// A project's pictures, full size: the lightbox any picture floating behind
+// its story opens into (Story.tsx), where the captions are.
 
 /** The full-size viewer. Owns nothing but the frame it's showing — `index` and
  *  the step/close callbacks come from whoever opened it, so the story behind it
  *  can keep one Escape handler for both layers instead of two that race. */
 export function Lightbox({
-  slug,
   images,
   index,
   onStep,
   onClose,
 }: {
-  slug: string;
-  images: GalleryImage[];
+  images: Picture[];
   index: number;
   onStep: (delta: number) => void;
   onClose: () => void;
@@ -99,8 +93,8 @@ export function Lightbox({
           // Keyed so React swaps the element rather than mutating src — without
           // it the browser keeps painting the old frame until the new one
           // decodes, and `loaded` would already have been reset to false.
-          key={img.file}
-          src={galleryUrl(slug, img.file)}
+          key={img.src}
+          src={img.src}
           alt={img.caption ?? ''}
           onLoad={() => setLoaded(true)}
           onError={() => setLoaded(true)}
