@@ -61,11 +61,9 @@ h4 {
   margin: 0 0 0.5em;
   text-wrap: balance;
 }
-/* The display voice (see tokens.css): the section titles, the hero name and
-   the intro card's title. */
+/* The display voice (see tokens.css): the section titles and the hero name. */
 .section__title,
-.hero__name,
-.intro-card__title {
+.hero__name {
   font-family: var(--font-display);
   font-weight: var(--display-weight);
   font-stretch: var(--display-stretch);

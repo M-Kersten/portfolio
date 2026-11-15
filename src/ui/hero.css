@@ -161,32 +161,11 @@
   transform: none;
   transition: opacity var(--t-slow) var(--ease) 0.22s, transform var(--t-slow) var(--ease) 0.22s;
 }
-/* its opening line, as a section's: the name, a rule, and the floor's scale
-   at the rule's end, in the floor's colour */
-.floor-note__kicker {
-  display: flex;
-  align-items: center;
-  gap: 0.9em;
-  margin: 0 0 0.85rem;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--ink-60);
-}
-.floor-note__kicker i {
-  flex: 1;
-  min-width: 1.5rem;
-  height: 1px;
-  background: var(--line);
-}
-.floor-note__scale {
-  letter-spacing: 0.1em;
-  color: var(--c);
-}
+/* The floor's name stands where the hero's does, so on the way down one gives
+   way to the other in place: the title starts lower by the height of the line
+   the hero has over its name (.hero__kicker), which a floor doesn't. */
 .floor-note__title {
-  margin: 0 0 1.1rem;
+  margin: calc(var(--step--1) * 1.6 + 0.85rem) 0 1.1rem;
 }
 .floor-note__name {
   display: block;
@@ -250,6 +229,10 @@
     padding-bottom: 2.5rem;
     background: linear-gradient(to bottom, var(--paper) 72%, transparent);
   }
+  /* (straight under the header there: the model needs the height) */
+  .floor-note__title {
+    margin-top: 0;
+  }
   .floor-note__body {
     max-width: 34rem;
   }
@@ -258,10 +241,6 @@
    line and the paragraph at reading sizes, and no tools (the paragraph names
    them): the model needs the height. */
 @media (max-width: 760px) {
-  .floor-note__kicker {
-    margin-bottom: 0.45rem;
-    font-size: var(--step--2);
-  }
   .floor-note__title {
     margin-bottom: 0.6rem;
   }

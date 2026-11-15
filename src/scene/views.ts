@@ -43,12 +43,11 @@ const stepOf = (step: number) => Math.max(0, Math.min(2, step));
 /** The point the overview orbits: on the layer (a little to one side on an
  *  upright screen: portraitStepAimX), raised by the step's rise (a little more
  *  on a short phone, where the text over the floor reaches further down the
- *  screen: shortRise). `level` leaves out the room an upright screen makes for
- *  the words over the floor: the floor in the middle of the screen. */
-function overviewPivot(step: number, gap: number, aspect: number, level: boolean): Vector3 {
+ *  screen: shortRise). */
+function overviewPivot(step: number, gap: number, aspect: number): Vector3 {
   const mix = portraitMix(aspect);
   const s = stepOf(step);
-  const rise = lerp(CAMERA.stepRise[s], level ? 0 : CAMERA.portraitStepRise[s], mix) + (level ? 0 : shortRise(aspect));
+  const rise = lerp(CAMERA.stepRise[s], CAMERA.portraitStepRise[s], mix) + shortRise(aspect);
   return new Vector3(CAMERA.portraitStepAimX[s] * mix, (JOURNEY_Y[s] ?? 0) * gap + rise, 0);
 }
 
@@ -56,14 +55,11 @@ function overviewPivot(step: number, gap: number, aspect: number, level: boolean
  *  of the given aspect; the default is the desktop framing. The step's zoom
  *  scales the whole framing about the floor, the lift included, so a closer
  *  step keeps the same composition. `back` stands the camera that much further
- *  out again (overviewFit: a floor that wouldn't fit beside the words); `level`
- *  sets the floor in the middle of an upright screen rather than under the
- *  words that stand over it there (the opening passes the lower floors with
- *  no words up yet). */
-export function journeyView(step: number, gap = 1, aspect = CAMERA.baseAspect, back = 1, level = false): Framing {
+ *  out again (overviewFit: a floor that wouldn't fit beside the words). */
+export function journeyView(step: number, gap = 1, aspect = CAMERA.baseAspect, back = 1): Framing {
   const mix = portraitMix(aspect);
   const s = stepOf(step);
-  const pivot = overviewPivot(s, gap, aspect, level);
+  const pivot = overviewPivot(s, gap, aspect);
   const o = CAMERA.overviewOffset;
   const po = CAMERA.portraitOffset;
   const z = lerp(CAMERA.stepZoom[s], CAMERA.portraitStepZoom[s], mix) * back;

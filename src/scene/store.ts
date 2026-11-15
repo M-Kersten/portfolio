@@ -20,7 +20,7 @@ export const MAQUETTE_BOOT = 1450;
 export const opening = { dollying: false, spin: 0, pivotY: 0 };
 /** Where the opening shot is (the store's `opening`): not playing; parked at
  *  its start while the models arrive; rising, the model turning under it;
- *  landing on the City, as the lights go down. */
+ *  landing on the City, as its line gives way to the title. */
 export type OpeningPhase = 'idle' | 'wait' | 'rise' | 'land';
 /** Whether this browser has seen the opening before (the intro card marks it
  *  once it has played). A returning visitor gets a shorter way in: no premise
@@ -77,8 +77,8 @@ interface SceneState {
   /** The launch easter egg's current stage (idle when not engaged). */
   launch: LaunchStage;
   /** The opening shot's phase (CameraRig runs it and sets this). While it
-   *  plays every floor is drawn and holds the light and the markers wait; up to
-   *  its landing the lights are up too (see `lightsUp` below). */
+   *  plays every floor is drawn at full presence, since the camera passes each
+   *  in turn, and the markers wait. */
   opening: OpeningPhase;
   /** Where the words beside the model end, in px from the left of the screen
    *  (the hero's title, a floor's text: HeroStage measures them), or 0 when
@@ -266,13 +266,6 @@ export const sceneStore = {
     if (zoomSettled !== state.zoomSettled) set({ zoomSettled });
   },
 };
-
-/** The opening's lights are up: every exhibit shows alive, as if it had been
- *  seen, until the shot lands and they go down again (a look at what the
- *  visitor will be switching back on). */
-export const lightsUp = (s: SceneState) => s.opening === 'wait' || s.opening === 'rise';
-/** Whether an exhibit shows alive: seen, or the opening's lights are up. */
-export const showsAlive = (s: SceneState, slug: string) => lightsUp(s) || s.visited.includes(slug);
 
 /** Subscribe to a primitive slice of scene state (keep selectors primitive). */
 export function useSceneSelector<T>(selector: (s: SceneState) => T): T {

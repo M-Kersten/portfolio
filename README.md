@@ -340,9 +340,12 @@ close-up). Each journey step has its own distance and height
 Where a floor sits across a wide screen isn't a number: it's centred in what
 the words beside it leave free, measured from the page (`overviewFit`, with
 `CAMERA.stepSpan` saying what each floor must keep in view). The opening shot
-(the rise from the Chip to the City while the model turns) is `OPENING` at
-the top of `src/scene/CameraRig.tsx`: its length, how far the model turns,
-and when the lights go down.
+(the rise from the Chip to the City while the model turns, on a first visit
+only) is `OPENING` at the top of `src/scene/CameraRig.tsx`: its length, how
+far the model turns, and when its greeting gives way to the title; `ARRIVAL`
+under it is the short push-in a returning visitor gets instead. The greeting
+is `hero.intro` in `site.json`: `title` is set as the name is ("Hi, I'm
+Merijn"), `body` as the line under it.
 
 To try a framing without editing the file, the dev build exposes the live
 tuning as `window.__cam.CAMERA` (change a value, then `__cam.invalidate()`).

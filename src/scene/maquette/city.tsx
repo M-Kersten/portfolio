@@ -6,7 +6,7 @@ import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type
 import { useFrame } from '@react-three/fiber';
 import { AdditiveBlending, Box3, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, Color, CurvePath, DoubleSide, Euler, InstancedMesh, LineCurve3, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Ray, RingGeometry, Shape, ShapeGeometry, ShaderMaterial, TubeGeometry, Vector2, Vector3, type Group, type Mesh, type Points as ThreePoints, type Sprite } from 'three';
 import { usePlacement } from '../../dev/tuning';
-import { lightsUp, useSceneSelector } from '../store';
+import { useSceneSelector } from '../store';
 import { isTouch, useReducedMotion } from '../../lib/media';
 import { NEUTRAL, GLASS, PALETTE, SURFACE, SURFACE_ABSENT, SURFACE_GLOW, useAccent, circlePts, roundedRectPts, smoothCurve, makeRand, Line, useActive, FX, fxEnv, type V3 } from './shared';
 import { GHOST_FILL, LifeGroup } from './life';
@@ -33,10 +33,6 @@ import { play } from '../../lib/sound';
  *  also answered hover and the bodies did not. They have carried the same value
  *  since hover came out, so it is one number now. */
 const cityLevel = { k: 0 };
-/** …and the opening's own light, which isn't the latch: the city is lit with
- *  everything else for the opening shot and goes dark again as it lands (the
- *  blocks' windows take whichever is brighter, this or their power). */
-const openingGlow = { k: 0 };
 // scratch for the instanced effects (the gust's streaks, the grid's beads)
 const _m = new Matrix4();
 const _q = new Quaternion();
@@ -104,12 +100,6 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   // lights were then the one thing on the layer that could go back OUT, and no
   // `completedAt`, because visiting all ten includes the tower anyway.
   const lit = useSceneSelector((s) => s.selectedSlug === TOWER || s.visited.includes(TOWER));
-  // The opening's lights are the one exception, and they aren't the latch: the
-  // city comes up with everything else for the opening shot and goes dark
-  // again as it lands, on a level of its own, so the tower still has to be
-  // opened for the city to stay lit.
-  const show = useSceneSelector(lightsUp);
-  const o = useRef(0);
   const reduced = useReducedMotion();
   // Seeded from the latch, so a remount while the city is lit comes back lit
   // instead of replaying the come-on from dark.
@@ -121,13 +111,10 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
     // ON_SECONDS and stays there for the rest of the visit, whatever `lit`,
     // presence or the route do afterwards.
     if (cityLatched) k.current = reduced ? 1 : Math.min(1, k.current + delta / ON_SECONDS);
-    o.current = reduced ? 0 : o.current + ((show ? 1 : 0) - o.current) * Math.min(1, delta * 3.5);
-    openingGlow.k = o.current < 0.004 ? 0 : o.current;
-    const level = Math.max(k.current, openingGlow.k);
-    cityLevel.k = level;
+    cityLevel.k = k.current;
     const t = s.clock.elapsedTime;
-    mat.emissiveIntensity = level * 1.1 * flicker(level, t, 0, reduced);
-    mat.opacity = 0.08 + level * 0.6;
+    mat.emissiveIntensity = k.current * 1.1 * flicker(k.current, t, 0, reduced);
+    mat.opacity = 0.08 + k.current * 0.6;
   });
   return null;
 }
@@ -218,8 +205,7 @@ function Building({ i, kit, x, z, w, d, winMat, delay = 0 }: { i: number; kit: B
     // settle, and a little brighter for a moment each time power arrives again
     const now = s.clock.elapsedTime;
     const first = POWER.first[i] ?? -1;
-    const powered = first >= 0 && now >= first ? (reduced ? 1 : Math.min(1, (now - first) / LIGHT_ON)) : 0;
-    const on = Math.max(powered, openingGlow.k);
+    const on = first >= 0 && now >= first ? (reduced ? 1 : Math.min(1, (now - first) / LIGHT_ON)) : 0;
     const last = POWER.last[i] ?? -1;
     const after = now - last;
     const struck = last >= 0 && after >= 0 && !reduced;
@@ -2327,9 +2313,7 @@ const FLASHES = 12;
 const FLAT = new Quaternion().setFromEuler(new Euler(-Math.PI / 2, 0, 0));
 function PowerGrid({ feed, routes, runs, order, stagger, house }: { feed: V3[]; routes: V3[][]; runs: V3[][]; order: number[]; stagger: number[]; house: V3 }) {
   const { accent } = useAccent();
-  // (`seen`, the visit itself: what's below latches for the rest of the visit,
-  // and the opening's lights mustn't set it)
-  const { hovered, selected, visited, seen } = useActive(TOWER);
+  const { hovered, selected, visited } = useActive(TOWER);
   // open at all, the camera arrived or not (`selected` waits for it, and the
   // visit is marked the moment it opens)
   const open = useSceneSelector((s) => s.selectedSlug === TOWER);
@@ -2417,7 +2401,7 @@ function PowerGrid({ feed, routes, runs, order, stagger, house }: { feed: V3[]; 
           sendPower(now);
           nextAuto.current = now + PULSE_AUTO;
         }
-      } else if (!open && seen) {
+      } else if (!open && visited) {
         // a returning visitor's city comes on as it always did; one you've just
         // closed brings on its last blocks in a quick run
         if (!POWER.opened || reduced) for (const i of dark) first[i] = now + stagger[i] * WIN_STAGGER * ON_SECONDS;

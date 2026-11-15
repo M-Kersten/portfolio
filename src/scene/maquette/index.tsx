@@ -8,7 +8,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { type Group } from 'three';
 import { isTouch, useReducedMotion } from '../../lib/media';
 import { MAQUETTE_LAYERS, HOTSPOTS, LAYER_Y, LAYER_SCALE, layerGap, type Hotspot, type LayerId } from '../framing';
-import { useSceneSelector, bootAt, lightsUp, MAQUETTE_BOOT, opening } from '../store';
+import { useSceneSelector, bootAt, MAQUETTE_BOOT, opening } from '../store';
 import { AccentCtx, PALETTE } from './shared';
 import { DotFloor, SurveyMarks, PointCloud, DepthVeil, HoloFloor } from './backdrop';
 import { PresenceGroup } from './presence';
@@ -120,11 +120,10 @@ function Turntable({ children }: { children: ReactNode }) {
 
 export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => void }) {
   const journeyStep = useSceneSelector((s) => s.journeyStep);
-  // The opening shot passes every floor on its way up: all three are drawn and
-  // hold the light for it, their exhibits lit (store.lightsUp), and the markers
-  // wait until it has landed.
+  // The opening shot passes every floor on its way up: all three are drawn, at
+  // full presence, and the markers wait until it has landed. Nothing is lit
+  // for it: the model is found dark, and what lights up is what you open.
   const openingOn = useSceneSelector((s) => s.opening !== 'idle');
-  const lights = useSceneSelector(lightsUp);
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const visited = useSceneSelector((s) => s.visited);
   const launching = useSceneSelector((s) => s.launch) !== 'idle';
@@ -167,7 +166,7 @@ export function Maquette({ onActivate }: { onActivate: (hotspot: Hotspot) => voi
         const spots = HOTSPOTS.filter((h) => h.layer === id);
         // how alive this layer is — the fraction of its projects you've woken —
         // feeds the ambient field's presence (see PointCloud)
-        const life = lights ? 1 : spots.length ? spots.filter((h) => visited.includes(h.slug)).length / spots.length : 0;
+        const life = spots.length ? spots.filter((h) => visited.includes(h.slug)).length / spots.length : 0;
         return (
           <AccentCtx.Provider key={id} value={PALETTE[id]}>
             <group name={`layer-${id}`} position={[0, LAYER_Y[id] * gap, 0]} scale={LAYER_SCALE[id]}>

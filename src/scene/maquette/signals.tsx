@@ -145,9 +145,8 @@ function pipeRoute(pA: Vector3, pB: Vector3, key: string): { points: Vector3[]; 
 
 export function SignalLine({ thread, from, to, color }: Relation) {
   const reduced = useReducedMotion();
-  // (`seen`, the visit itself: the opening's lights don't set the cables off)
-  const { hovered: hovA, selected: selA, seen: visA } = useActive(from);
-  const { hovered: hovB, selected: selB, seen: visB } = useActive(to);
+  const { hovered: hovA, selected: selA, visited: visA } = useActive(from);
+  const { hovered: hovB, selected: selB, visited: visB } = useActive(to);
 
   // Only show the thread while BOTH endpoints are on visible (un-culled) layers;
   // otherwise it would trail off to where a hidden layer's node used to be.

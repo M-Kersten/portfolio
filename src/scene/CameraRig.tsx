@@ -13,22 +13,30 @@ import { viewFor } from '../dev/tuning';
 // The camera is driven by the scroll journey (which layer is centred) and by the
 // selected node (zoom in).
 
-// The opening shot: the camera starts in close on the Chip, at the bottom of
-// the model, and rises past the Room to the City, where the page begins, while
-// the whole model turns once under it (the Maquette's turntable) with every
-// exhibit lit. As it lands the lights go down, and what's left is the model as
-// a first visitor finds it: dark, to be switched back on one exhibit at a time.
-// (It used to be a dolly-in on the City alone, which showed the model at its
-// quietest and never showed the two floors under it at all.)
+// The opening shot, played once (a first visit): the camera starts in close on
+// the Chip, at the bottom of the model, and rises past the Room to the City,
+// where the page begins, while the whole model makes one turn under it (the
+// Maquette's turntable). It shows what the page is before a word of it is
+// read: three floors, one on top of the other. The model stays dark for it,
+// as it's found: what lights up is what a visitor opens. (It used to be a
+// dolly-in on the City alone, which never showed the two floors under it; and
+// for a while every exhibit was lit on the way up, which gave away what the
+// exploring is for.)
+//
+// The page is laid out from its first frame as it will rest: the model stands
+// where it stands on the City's beat, beside the words (or under them, on an
+// upright screen), each floor passing through its own resting place. So the
+// opening's line stands where the title will, and nothing has to move aside
+// when the title comes.
 //
 // `dur`: seconds for the rise; `turn`: how far the model turns under it (it
-// ends square on); `land`: how far through the lights go down; `startZoom`,
-// `startDrop`: the first frame, closer in on the Chip than its overview and a
-// little lower. A returning visitor has seen the long version and gets a
-// short one: half a turn.
-//
-// The model has the middle of the screen for it, and steps aside as it lands,
-// to where the hero's title is about to come up beside it (the slide below).
+// ends square on). It turns the way that brings each floor's long side round
+// from end-on as the camera reaches it — the City arrives narrow and opens out
+// to its resting spread, its park swinging out to the right — so the model
+// never reaches over the words beside it; the other way, the park came round
+// through them. `land`: how far through the line gives way to the title;
+// `startZoom`, `startDrop`: the first frame, a little closer in on the Chip
+// than its overview and a little lower.
 //
 // It plays on its own frame time, from when the shot is ready, so it always
 // plays in full — a slow cold load delays it rather than eating it — and a
@@ -37,9 +45,13 @@ import { viewFor } from '../dev/tuning';
 // has arrived and the scene's shaders are compiled (INTRO_WAIT at most), so
 // nothing pops in under the move and no first-draw compile stalls a frame of
 // it. Both the rise and the turn ease up from a standstill and settle to one.
-const OPENING = returning
-  ? { dur: 3.4, turn: Math.PI, land: 0.72, startZoom: 0.86, startDrop: 0.06 }
-  : { dur: 6.2, turn: Math.PI * 2, land: 0.78, startZoom: 0.8, startDrop: 0.1 };
+const OPENING = { dur: 6.2, turn: Math.PI * 2, land: 0.78, startZoom: 0.92, startDrop: 0.06 };
+// A returning visitor has had the opening, and once is enough: theirs is a
+// short push-in on the City with the title already up. `dur`: its seconds;
+// `from`: how much further out it starts.
+const ARRIVAL = { dur: 2.4, from: 1.2 };
+/** The shot this visit gets, in seconds. */
+const SHOT_DUR = returning ? ARRIVAL.dur : OPENING.dur;
 const INTRO_WAIT = 2500; // ms
 
 /** A smooth path through three points (Catmull–Rom, its ends mirrored), `u`
@@ -145,7 +157,6 @@ export function CameraRig() {
   const drop = useRef(0); // …and down, clear of the header on a short screen
   const dropVel = useRef({ v: 0 });
   const slideFor = useRef('');
-  const centred = useRef(false); // the opening still has the middle of the screen for the model
   // the spring's velocities (see spring): the camera, its aim, its lens, the porthole's slide
   const posVel = useRef(new Vector3());
   const aimVel = useRef(new Vector3());
@@ -172,25 +183,31 @@ export function CameraRig() {
   // the shot ends exactly where that logic rests (its pull-back on a narrow
   // screen included: ending short of it, the camera eased to a stop and then
   // crept on to the real resting spot, a second move right as it settled).
+  // A returning visitor's is the City's framing alone, from further out.
   const shot = useRef({ from: { pos: new Vector3(), target: new Vector3() }, pos: new Vector3(), target: new Vector3() });
   const openingAt = (u: number, aspect: number) => {
     const g = layerGap(aspect);
-    // (on an upright screen the floors under the City pass in the middle of
-    // it: the words they'd sit under aren't up yet)
-    const rest = (step: number, level = false) => {
-      const f: Framing = journeyView(step, g, aspect, overviewFit(step, size.width, size.height, textEdge, headTop).back, level);
+    const rest = (step: number) => {
+      const f: Framing = journeyView(step, g, aspect, overviewFit(step, size.width, size.height, textEdge, headTop).back);
       f.pos.sub(f.target).multiplyScalar(fitScale(aspect)).add(f.target);
       return f;
     };
-    const chip = rest(2, true);
-    const room = rest(1, true);
     const city = rest(0);
-    const from = shot.current.from;
+    const out = shot.current;
+    if (returning) {
+      const k = ARRIVAL.from + (1 - ARRIVAL.from) * Math.min(Math.max(u, 0), 1);
+      out.target.copy(city.target);
+      out.pos.copy(city.pos).sub(city.target).multiplyScalar(k).add(city.target);
+      return out;
+    }
+    const chip = rest(2);
+    const room = rest(1);
+    const from = out.from;
     from.target.copy(chip.target).setY(chip.target.y - OPENING.startDrop);
     from.pos.copy(chip.pos).sub(chip.target).multiplyScalar(OPENING.startZoom).add(from.target);
-    through(from.pos, room.pos, city.pos, u, shot.current.pos);
-    through(from.target, room.target, city.target, u, shot.current.target);
-    return shot.current;
+    through(from.pos, room.pos, city.pos, u, out.pos);
+    through(from.target, room.target, city.target, u, out.target);
+    return out;
   };
 
   // Park the camera at the shot's START before anything is painted. The Canvas
@@ -210,9 +227,12 @@ export function CameraRig() {
     target.current.copy(s.target);
     camera.lookAt(target.current);
     opening.dollying = true;
-    opening.spin = -OPENING.turn;
     opening.pivotY = s.target.y - CAMERA.overviewLift;
-    sceneStore.setOpening('wait');
+    // (the turn, the line and the waiting markers are the first visit's)
+    if (!returning) {
+      opening.spin = OPENING.turn;
+      sceneStore.setOpening('wait');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -315,10 +335,10 @@ export function CameraRig() {
     // ---- The overview's slide: the floor sits in the room the words beside it
     // leave (overviewFit), by the same means: the image is slid, the camera
     // looks straight at the floor. It gives way to the porthole's offset as a
-    // node is zoomed in on, to nothing for a launch (the rocket has the middle
-    // of the screen), and waits for the opening's landing on a first visit.
+    // node is zoomed in on, and to nothing for a launch (the rocket has the
+    // middle of the screen).
     const seat = overviewFit(journeyStep, size.width, size.height, textEdge, headTop);
-    const aside = launch === 'idle' && !centred.current;
+    const aside = launch === 'idle';
     const wantSlide = aside ? seat.shift : 0;
     const wantDrop = aside ? seat.drop : 0;
     const measuredFor = `${size.width}x${size.height}/${textEdge}/${headTop}`;
@@ -349,10 +369,11 @@ export function CameraRig() {
     const aspect = size.width / size.height;
 
     // ---- The opening shot (see OPENING): up from the Chip to the City while
-    // the model turns under the camera. Cancelled the moment the visitor
-    // scrolls/taps, on a deep link (a node is already selected), during a
-    // launch, or once it completes — then the normal journey logic below takes
-    // over from wherever the camera is.
+    // the model turns under the camera; or a returning visitor's push-in on
+    // the City (ARRIVAL). Cancelled the moment the visitor scrolls/taps, on a
+    // deep link (a node is already selected), during a launch, or once it
+    // completes — then the normal journey logic below takes over from wherever
+    // the camera is.
     if (!introDone.current) {
       // Played on the shot's own frame time, from when it's ready (see
       // INTRO_WAIT): not the shared boot clock, which a slow load had already
@@ -362,10 +383,9 @@ export function CameraRig() {
       // (A frame up to 1/15 s counts in full, so a slow device still plays
       // the move in its own time; only a real stall is cut short.)
       if (introReady.current) introT.current += Math.min(delta, 1 / 15);
-      const p = introT.current / OPENING.dur;
+      const p = introT.current / SHOT_DUR;
       if (skipIntro.current || selectedSlug || journeyStep !== 0 || launch !== 'idle' || p >= 1) {
         introDone.current = true;
-        centred.current = false;
         opening.dollying = false;
         // Cut short, the model comes round the short way from wherever it had
         // got to (eased home below); never started, it's simply square on.
@@ -376,13 +396,13 @@ export function CameraRig() {
         camera.position.copy(s.pos);
         target.current.copy(s.target);
         camera.lookAt(target.current);
-        // the turn finishes a touch before the rise does, so the model is
-        // already square on as the camera settles
-        opening.spin = -OPENING.turn * (1 - smootherstep(Math.min(1, p / 0.94)));
         opening.pivotY = s.target.y - CAMERA.overviewLift;
-        sceneStore.setOpening(!introReady.current ? 'wait' : p < OPENING.land ? 'rise' : 'land');
-        // (the model has the middle of the screen until it lands)
-        centred.current = p < OPENING.land;
+        if (!returning) {
+          // the turn finishes a touch before the rise does, so the model is
+          // already square on as the camera settles
+          opening.spin = OPENING.turn * (1 - smootherstep(Math.min(1, p / 0.94)));
+          sceneStore.setOpening(!introReady.current ? 'wait' : p < OPENING.land ? 'rise' : 'land');
+        }
         restSpring();
         const cam0 = camera as PerspectiveCamera;
         const wantFov0 = fitFov(aspect);
