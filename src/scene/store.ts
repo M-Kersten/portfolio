@@ -85,6 +85,8 @@ interface SceneState {
    *  nothing stands beside it (an upright screen, where they sit over it). The
    *  camera sets each floor in the room that's left (overviewFit). */
   textEdge: number;
+  /** …where a floor's own text ends (its column is the narrower)… */
+  noteEdge: number;
   /** …and how much of the top of the screen the header takes, in px. */
   headTop: number;
   /** True once the load intro (the movie-intro title card) has finished or been
@@ -174,6 +176,7 @@ let state: SceneState = {
   launch: 'idle',
   opening: 'idle',
   textEdge: 0,
+  noteEdge: 0,
   headTop: 0,
   introOver: false,
   reticleStart: null,
@@ -247,8 +250,8 @@ export const sceneStore = {
   setOpening(opening: OpeningPhase) {
     if (opening !== state.opening) set({ opening });
   },
-  setStage(textEdge: number, headTop: number) {
-    if (textEdge !== state.textEdge || headTop !== state.headTop) set({ textEdge, headTop });
+  setStage(textEdge: number, noteEdge: number, headTop: number) {
+    if (textEdge !== state.textEdge || noteEdge !== state.noteEdge || headTop !== state.headTop) set({ textEdge, noteEdge, headTop });
   },
   /** Mark the load intro finished — releases the hero chrome (idempotent). */
   endIntro() {

@@ -131,7 +131,7 @@ export const CAMERA = {
   // Per journey step (City, Room, Chip): how far out the overview stands
   // (× overviewOffset). The Chip's board is the smallest floor, so its step
   // comes closest — the ladder still reads on the way down.
-  stepZoom: [0.9, 0.92, 0.68] as [number, number, number],
+  stepZoom: [0.96, 0.98, 0.72] as [number, number, number],
   // …and how far the whole framing rises (camera and aim together, so the angle
   // holds), which sets the floor lower in the frame. The City's rises: its
   // markers line up with the top of the hero title, and the room under it sinks
@@ -147,15 +147,22 @@ export const CAMERA = {
   // leave free (overviewFit below), and the camera backs off if it wouldn't fit
   // there. `stepSpan` is what each floor has to keep in view, to the left and
   // the right of its centre, in screen heights at the step's zoom: the City
-  // from the windmill to the park's viewer (the far side of the park runs off
-  // the edge, and may), the Room from the desk to the bookcase, the Chip its
-  // whole board. `stepFill`: how much of the free width that may take.
+  // from the windmill's sails to the far side of the park (only the last of
+  // its pines may run off the edge; with the park half out of view the City
+  // read as pushed up against the side of the screen), the Room from the desk
+  // to the bookcase, the Chip its whole board. `stepFill`: how much of the
+  // free width that may take, so there's always air round a floor.
+  // `stepSeat`: where in the room that's left over the floor then sits, as the
+  // share of it that goes to the floor's left (0.5 would centre it): rather
+  // nearer the words than the far edge, where a floor read as pushed to the
+  // side, with a wide gap between it and its text.
   stepSpan: [
-    [0.42, 0.5],
-    [0.44, 0.49],
-    [0.485, 0.44],
+    [0.394, 0.63],
+    [0.413, 0.46],
+    [0.458, 0.416],
   ] as [number, number][],
-  stepFill: 0.96,
+  stepFill: 0.9,
+  stepSeat: 0.38,
   // The framings are set for a screen the header takes this share of the
   // height of (a laptop's). On a short one (a phone on its side) it takes far
   // more, and the markers' names would run up under it: the image is set lower
@@ -302,7 +309,7 @@ export function fitFov(aspect: number): number {
  *  nothing beside the model — an upright screen, where they sit over it), and
  *  `head` how much of the top the header takes, in px. `shift`: how far the
  *  whole image slides to the right, as a share of the screen's width, so the
- *  floor is centred in the room that's left; `drop`: how far down, as a share
+ *  floor sits in the room that's left (CAMERA.stepSeat); `drop`: how far down, as a share
  *  of its height (CAMERA.headShare); `back`: how much further out the camera
  *  stands (1 = the step's own zoom) when the floor wouldn't fit there. The
  *  image is slid rather than the camera turned (the rig's view offset), so the
@@ -318,7 +325,8 @@ export function overviewFit(step: number, width: number, height: number, edge: n
   // (the words never count for more than 70% of the width)
   const free = Math.max(width - edge, width * 0.3);
   const back = Math.max(1, ((left + right) * unit) / (free * CAMERA.stepFill));
-  const centre = width - free / 2 + (((left - right) / 2) * unit) / back;
+  const spare = Math.max(free - ((left + right) * unit) / back, 0);
+  const centre = width - free + spare * CAMERA.stepSeat + (left * unit) / back;
   const drop = Math.min(Math.max((head / height - CAMERA.headShare) * 0.75, 0), 0.12);
   return { shift: centre / width - 0.5, drop, back };
 }

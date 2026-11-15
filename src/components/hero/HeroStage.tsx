@@ -130,17 +130,18 @@ export function HeroStage() {
   // where to land before that. On an upright screen the words sit over the
   // model, and nothing stands beside it.
   const rulerRef = useRef<HTMLDivElement>(null);
+  const noteRulerRef = useRef<HTMLDivElement>(null); // (a floor's text keeps a narrower column than the title)
   useEffect(() => {
     const ruler = rulerRef.current;
-    if (!ruler) return;
+    const noteRuler = noteRulerRef.current;
+    if (!ruler || !noteRuler) return;
     const upright = window.matchMedia('(orientation: portrait)');
-    const measure = () => {
-      const pad = parseFloat(getComputedStyle(ruler).paddingRight) || 0;
-      sceneStore.setStage(upright.matches ? 0 : Math.round(ruler.offsetLeft + ruler.offsetWidth - pad), ruler.offsetHeight);
-    };
+    const edge = (el: HTMLElement) => Math.round(el.offsetLeft + el.offsetWidth - (parseFloat(getComputedStyle(el).paddingRight) || 0));
+    const measure = () => sceneStore.setStage(upright.matches ? 0 : edge(ruler), upright.matches ? 0 : edge(noteRuler), ruler.offsetHeight);
     measure();
     const seen = new ResizeObserver(measure);
     seen.observe(ruler);
+    seen.observe(noteRuler);
     window.addEventListener('resize', measure);
     upright.addEventListener('change', measure);
     return () => {
@@ -278,6 +279,7 @@ export function HeroStage() {
   return (
     <section id="hero" className="hero" ref={heroRef} aria-label="Introduction">
       <div ref={rulerRef} className="hero__title hero__ruler" aria-hidden="true" />
+      <div ref={noteRulerRef} className="floor-note hero__ruler" aria-hidden="true" />
       {/* Held back through the load intro, then mounted — so its decode + rise
           play at the moment it appears (the beat after the premise card), not
           silently at load behind the card. */}

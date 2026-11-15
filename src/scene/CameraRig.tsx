@@ -131,7 +131,11 @@ export function CameraRig() {
   const selectedSlug = useSceneSelector((s) => s.selectedSlug);
   const launch = useSceneSelector((s) => s.launch);
   const textEdge = useSceneSelector((s) => s.textEdge);
+  const noteEdge = useSceneSelector((s) => s.noteEdge);
   const headTop = useSceneSelector((s) => s.headTop);
+  // where the words beside a step's floor end: the City stands beside the
+  // hero's title (and its own text, the narrower), the others beside theirs
+  const edgeOf = (step: number) => (step === 0 ? textEdge : noteEdge || textEdge);
 
   // the porthole's centre as viewport fractions; the breakpoints move it, so
   // it's re-read whenever the canvas resizes
@@ -188,7 +192,7 @@ export function CameraRig() {
   const openingAt = (u: number, aspect: number) => {
     const g = layerGap(aspect);
     const rest = (step: number) => {
-      const f: Framing = journeyView(step, g, aspect, overviewFit(step, size.width, size.height, textEdge, headTop).back);
+      const f: Framing = journeyView(step, g, aspect, overviewFit(step, size.width, size.height, edgeOf(step), headTop).back);
       f.pos.sub(f.target).multiplyScalar(fitScale(aspect)).add(f.target);
       return f;
     };
@@ -283,7 +287,7 @@ export function CameraRig() {
   // itself is driven per-frame in useFrame so it can ease when zooming in/out.
   useEffect(() => {
     invalidate();
-  }, [journeyStep, selectedSlug, launch, textEdge, headTop, size, camera, invalidate]);
+  }, [journeyStep, selectedSlug, launch, textEdge, noteEdge, headTop, size, camera, invalidate]);
 
   // The load intro yields to the visitor: the first scroll / tap / key press
   // cancels the dolly and hands control straight back to the scroll journey.
@@ -337,11 +341,11 @@ export function CameraRig() {
     // looks straight at the floor. It gives way to the porthole's offset as a
     // node is zoomed in on, and to nothing for a launch (the rocket has the
     // middle of the screen).
-    const seat = overviewFit(journeyStep, size.width, size.height, textEdge, headTop);
+    const seat = overviewFit(journeyStep, size.width, size.height, edgeOf(journeyStep), headTop);
     const aside = launch === 'idle';
     const wantSlide = aside ? seat.shift : 0;
     const wantDrop = aside ? seat.drop : 0;
-    const measuredFor = `${size.width}x${size.height}/${textEdge}/${headTop}`;
+    const measuredFor = `${size.width}x${size.height}/${textEdge}/${noteEdge}/${headTop}`;
     if (reduced || slideFor.current !== measuredFor) {
       slide.current = wantSlide;
       drop.current = wantDrop;

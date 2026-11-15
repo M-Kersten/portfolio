@@ -337,9 +337,10 @@ Section styling lives in the `src/ui/*.css` file named after the section;
 journey's beats (`BEAT_STEP`), and the camera framings (journey, node
 close-up). Each journey step has its own distance and height
 (`CAMERA.stepZoom` / `stepRise`, and the `portraitStep…` set for phones).
-Where a floor sits across a wide screen isn't a number: it's centred in what
+Where a floor sits across a wide screen isn't a number: it's seated in what
 the words beside it leave free, measured from the page (`overviewFit`, with
-`CAMERA.stepSpan` saying what each floor must keep in view). The opening shot
+`CAMERA.stepSpan` saying what each floor must keep in view, `stepFill` how
+much of that room it may take and `stepSeat` how near the words it sits). The opening shot
 (the rise from the Chip to the City while the model turns, on a first visit
 only) is `OPENING` at the top of `src/scene/CameraRig.tsx`: its length, how
 far the model turns, and when its greeting gives way to the title; `ARRIVAL`
