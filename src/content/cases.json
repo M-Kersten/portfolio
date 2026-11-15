@@ -90,11 +90,11 @@
     ],
     "lesson": "Technically it did what it should. In practice a HoloLens is a lot of hassle for a field crew, and it never caught on. Next time I’d push harder for an iPad.",
     "year": "2024-06",
-    "video": "https://www.youtube.com/watch?v=2HM8ZNnEKeU",
+    "video": "https://www.youtube.com/watch?v=biTN7qPqWCU",
     "links": [
       {
-        "url": "https://www.youtube.com/watch?v=biTN7qPqWCU",
-        "label": "Watch"
+        "url": "https://www.youtube.com/watch?v=2HM8ZNnEKeU",
+        "label": "Watch the break-out session"
       }
     ]
   },
@@ -187,6 +187,12 @@
         "url": "https://www.linkedin.com/posts/merijn-kersten_augementedreality-sxsw2023-gooutandplay-activity-7053733492467081216-_6Dx/?utm_source=share&utm_medium=member_desktop",
         "label": "Read more"
       }
+    ],
+    "gallery": [
+      {
+        "file": "airborne.jpg",
+        "caption": "The Airborne tour: a paratrooper’s outline on the heath where they landed"
+      }
     ]
   },
   {
@@ -217,6 +223,24 @@
       {
         "url": "https://www.d-tt.nl/apps/edu-play-book",
         "label": "Read more"
+      }
+    ],
+    "gallery": [
+      {
+        "file": "pirates.jpg",
+        "caption": "The pirates game: ships sailing across the office in AR"
+      },
+      {
+        "file": "story-map.jpg",
+        "caption": "The map of a storytelling app for children"
+      },
+      {
+        "file": "space-vr.jpg",
+        "caption": "The space experience in VR: constellations over the Earth"
+      },
+      {
+        "file": "portal.jpg",
+        "caption": "An AR portal standing in the office"
       }
     ]
   },
@@ -279,6 +303,20 @@
         "url": "https://kleutersdigitaal.nl/ga-je-mee-op-droomreis-met-karel/",
         "label": "Read more"
       }
+    ],
+    "gallery": [
+      {
+        "file": "droomreis.jpg",
+        "caption": "De droomreis van neef Karel: a page come to life"
+      },
+      {
+        "file": "zoek-je-mee.jpg",
+        "caption": "Seek-and-find: the word pops up when you find it"
+      },
+      {
+        "file": "audiobook.jpg",
+        "caption": "The audiobook, chapter by chapter"
+      }
     ]
   },
   {
@@ -308,6 +346,16 @@
       {
         "url": "https://www.youtube.com/watch?v=hjyMNTZ0W0A",
         "label": "Watch"
+      }
+    ],
+    "gallery": [
+      {
+        "file": "zen-garden.jpg",
+        "caption": "Zen Garden: raking patterns in the sand"
+      },
+      {
+        "file": "voxel-dog.jpg",
+        "caption": "A voxel figure, coloured in block by block"
       }
     ]
   },
@@ -522,6 +570,10 @@
       {
         "url": "https://nk-utrecht.nl/",
         "label": "Read more"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=KMToENRg_I4",
+        "label": "Watch the NK festival from above"
       }
     ],
     "archive": true,
@@ -545,6 +597,81 @@
       {
         "file": "icons.jpg",
         "caption": "Presentation slides for church events"
+      }
+    ]
+  },
+  {
+    "slug": "eyereader-4d",
+    "title": "Eyereader 4D",
+    "layer": "room",
+    "client": "Saxion",
+    "credit": "Student project at Saxion, for the library of Enschede",
+    "sector": "Interactive installation · reading",
+    "discipline": [
+      "Installation"
+    ],
+    "problem": "At Saxion we got the assignment to make an interactive installation for the library of Enschede. We came up with the Eyereader 4D: a ‘4D’ reading experience, where you feel what you’re reading.",
+    "approach": "We were a team of six, and I took on the technical side. An eye tracker tells Unity where you’re looking while the pages of a book from the library scroll up the screen. When you look at a word I’d marked, Unity sends a message to an Arduino to switch something on: a fan for wind, LED lights for thunder or a lamp, a vibration plate for earthquakes and gunshots, a heater for fire, and a water vapour dispenser for rain.",
+    "outcome": "A library book that blows wind in your face",
+    "tech": [
+      "Unity",
+      "Arduino",
+      "Eye tracking",
+      "C#"
+    ],
+    "year": "2016-06",
+    "video": "https://www.youtube.com/watch?v=WuzCpnRmDb8",
+    "archive": true,
+    "gallery": [
+      {
+        "file": "testing.jpg",
+        "caption": "Testing: reading on the vibration plate"
+      },
+      {
+        "file": "reading.jpg",
+        "caption": "Trying it out, with the fan aimed at the reader"
+      }
+    ]
+  },
+  {
+    "slug": "led-table",
+    "title": "LED table",
+    "layer": "chip",
+    "client": "Alklima",
+    "credit": "For Alklima, at Letink Design",
+    "sector": "Trade fair installation · electronics",
+    "discipline": [
+      "Installation"
+    ],
+    "problem": "Alklima sells Mitsubishi climate installations that run fully on electricity, and wanted to show that off at a convention. The idea was a table with a scale model of a city on it that lights up.",
+    "approach": "I built the installation that lights it, with LED strips running from building to building. The table has four sectors: retail, living, working and hotels. An Arduino lights the strips in order, and when a sector is fully lit it tells a second Arduino to light that sector’s symbol on the panel behind the table. The software is C++. The hard part was doing several things at the same time on a board that isn’t built for it, and FreeRTOS got that working.",
+    "outcome": "A scale-model city, lit up one sector at a time",
+    "tech": [
+      "Arduino",
+      "C++",
+      "FreeRTOS",
+      "LED strips"
+    ],
+    "year": "2018-06",
+    "links": [
+      {
+        "url": "https://merijnkersten.nl/ledtable/",
+        "label": "Read the hardware notes"
+      }
+    ],
+    "archive": true,
+    "gallery": [
+      {
+        "file": "wiring.jpg",
+        "caption": "How one building’s LED strips are wired: power, ground and data"
+      },
+      {
+        "file": "strips.jpg",
+        "caption": "The strips for a tower, before they went in"
+      },
+      {
+        "file": "office.jpg",
+        "caption": "The office it was built in"
       }
     ]
   }

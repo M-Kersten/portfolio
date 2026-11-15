@@ -1,17 +1,16 @@
-/* ---------- An exhibit: its label, and the book it opens into ----------
+/* ---------- An exhibit: its label ----------
    (components/exhibit/). The label is the glance, beside the object in the
    maquette: the film on top, the number, the title and what it achieved, who
    it was for and my part in it, a sentence of curator's note, the audio
    guide, and the way into the full story. It's a panel like the site's other
    panels (a hairline outline, the small radius), with a line from the object
-   it belongs to. The book is the full story, set as a printed spread: the
-   chapter opener and the film on the left page, the facts and the story on
-   the right, under running heads. */
+   it belongs to. The full story it opens into, and that a project on a page
+   opens straight onto, is story.css. */
 
 .exhibit {
   --card-accent: var(--cyan);
-  /* how long a walk from a page's project to the next takes to leave: the
-     book's leaf lifting, the story's stage going (parts.tsx TURN_MS) */
+  /* how long a walk from one story to the next takes to leave (parts.tsx
+     TURN_MS) */
   --turn: 320ms;
   position: fixed;
   inset: 0;
@@ -115,19 +114,12 @@
   }
 }
 .exhibit[data-closing] .xl,
-.exhibit[data-closing] .xl__line,
-.exhibit[data-closing] .xb {
+.exhibit[data-closing] .xl__line {
   opacity: 0;
   transition: opacity var(--t-fast) var(--ease);
 }
-/* On a page the book settles away as it goes, the page behind coming back up
+/* On a page the story settles away as it goes, the page behind coming back up
    with it (Exhibit.tsx SHUT_MS) */
-.exhibit[data-place='page'][data-closing] .xb {
-  transform: translateY(10px) scale(0.985);
-  transition:
-    opacity 0.2s var(--ease-in-out),
-    transform 0.22s var(--ease-in-out);
-}
 .exhibit[data-place='page'][data-closing] .exhibit__dim {
   opacity: 0;
   transition: opacity 0.22s var(--ease-in-out);
@@ -281,8 +273,7 @@
   margin-bottom: 0.2rem;
 }
 /* where it stands: "02 of 10 in the model", said quietly */
-.xl__no,
-.xb__no {
+.xl__no {
   display: flex;
   align-items: baseline;
   gap: 0.3em;
@@ -291,14 +282,12 @@
   line-height: 1.4;
   color: var(--ink-60);
 }
-.xl__no b,
-.xb__no b {
+.xl__no b {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 .xl__close,
-.xb__close,
 .xs__close {
   display: inline-grid;
   place-items: center;
@@ -314,14 +303,11 @@
 }
 /* The dialogs take the focus themselves when one opens after a click or
    straight from a link (Exhibit.tsx): no ring round the whole label or book. */
-.xl:focus,
-.xb:focus {
+.xl:focus {
   outline: none;
 }
 .xl__close:hover,
 .xl__close:focus-visible,
-.xb__close:hover,
-.xb__close:focus-visible,
 .xs__close:hover,
 .xs__close:focus-visible {
   color: var(--ink);
@@ -471,341 +457,6 @@
   transition: opacity var(--t-fast) var(--ease);
 }
 
-/* ---------- the book ---------- */
-.xb {
-  --spine: 53.5%;
-  --page: #0d1115;
-  --page-pad: 2.5rem; /* the right-hand page's outer margin */
-  position: fixed;
-  inset: calc(var(--header-h) + 0.5rem) clamp(1rem, 4vw, 3.5rem) 1.25rem;
-  display: grid;
-  grid-template-columns: var(--spine) minmax(0, 1fr);
-  background: var(--page);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: 0 40px 90px -20px #000;
-  transition: box-shadow 0.45s var(--ease);
-}
-/* while it grows out of the card (or the label) it has no shadow: that comes
-   in once the page is open (Book.tsx). And the left page, which scrolls (so
-   it clips), lets the plate and the opener come in from wherever they were,
-   over the right page, rather than only showing them once they're over it. */
-.xb[data-growing] {
-  box-shadow: none;
-}
-.xb[data-growing] .xb__verso {
-  z-index: 1;
-  overflow: visible;
-}
-/* the spine: the pages curve down into it */
-.xb::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--spine);
-  width: 2.5rem;
-  transform: translateX(-50%);
-  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.34) 45%, rgba(234, 234, 234, 0.05) 50%, rgba(0, 0, 0, 0.3) 55%, transparent);
-  pointer-events: none;
-}
-/* Walking from page to page turns a leaf, the way a book does (Exhibit.tsx
-   waits --turn for it). Towards the next project the right-hand page lifts off
-   the spine and goes over edge-on; the new spread's left page lands where it
-   came down, with the new right page already under it. Back is the mirror:
-   the left page lifts, and the new right page lands. */
-.xb {
-  perspective: 2600px;
-}
-.xb[data-turning] .xb__verso,
-.xb[data-turning] .xb__recto {
-  z-index: 2;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-.xb[data-turning='1'] .xb__recto {
-  transform-origin: 0 50%;
-  animation: leaf-lift-right var(--turn) cubic-bezier(0.45, 0, 0.9, 0.5) forwards;
-}
-.xb[data-turning='-1'] .xb__verso {
-  transform-origin: 100% 50%;
-  animation: leaf-lift-left var(--turn) cubic-bezier(0.45, 0, 0.9, 0.5) forwards;
-}
-@keyframes leaf-lift-right {
-  to { transform: rotateY(-89deg); filter: brightness(0.55); }
-}
-@keyframes leaf-lift-left {
-  to { transform: rotateY(89deg); filter: brightness(0.55); }
-}
-.xb[data-enter='right'] .xb__verso {
-  transform-origin: 100% 50%;
-  animation: leaf-land-left 0.42s cubic-bezier(0.1, 0.6, 0.3, 1) both;
-}
-.xb[data-enter='left'] .xb__recto {
-  transform-origin: 0 50%;
-  animation: leaf-land-right 0.42s cubic-bezier(0.1, 0.6, 0.3, 1) both;
-}
-@keyframes leaf-land-left {
-  from { transform: rotateY(89deg); filter: brightness(0.55); }
-}
-@keyframes leaf-land-right {
-  from { transform: rotateY(-89deg); filter: brightness(0.55); }
-}
-.xb__close {
-  /* in the right-hand page's running head, on its line: its right edge on the
-     page's margin, where the head's rule ends, and as tall as the head's row
-     (.xb__run). It stays put while a leaf turns, so it's the book's, not the
-     page's. */
-  position: absolute;
-  z-index: 3;
-  top: 1.25rem;
-  right: var(--page-pad);
-  /* the page's own colour behind it: a long story scrolls up under it, and its
-     lines used to show through the button */
-  background: var(--page);
-}
-.xb__verso,
-.xb__recto {
-  position: relative;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: none; /* a page scrolls if it must, without a bar down it */
-  display: flex;
-  flex-direction: column;
-  background: var(--page);
-}
-.xb__verso::-webkit-scrollbar,
-.xb__recto::-webkit-scrollbar,
-.xb::-webkit-scrollbar {
-  display: none;
-}
-.xb__verso {
-  gap: 1.2rem;
-  padding: 1.25rem 2.75rem 1.25rem 2.5rem;
-  border-radius: var(--radius) 0 0 var(--radius);
-}
-.xb__recto {
-  gap: 1.35rem;
-  padding: 1.25rem var(--page-pad) 0 3rem;
-  border-radius: 0 var(--radius) var(--radius) 0;
-}
-/* a long page fades out at its foot rather than slicing through a line; at
-   the end of the page it's just the bottom margin */
-.xb__recto::after {
-  content: '';
-  position: sticky;
-  bottom: 0;
-  flex: none;
-  height: 2.5rem;
-  margin-top: -1.35rem; /* sits on the column gap, not after it */
-  background: linear-gradient(transparent, var(--page) 80%);
-  pointer-events: none;
-}
-/* running heads: the book's name on the left page, the chapter's on the right */
-.xb__run {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  min-height: 2.25rem; /* the close button's row, on both pages so their rules are level */
-  padding-bottom: 0.8rem;
-  border-bottom: 1px solid var(--hairline);
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-40);
-}
-.xb__run--recto {
-  justify-content: flex-end;
-  padding-right: 3.25rem; /* clear of the close button, with a gap */
-}
-.xb__run--recto span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* the left page: the chapter opener and the film, from the top of the page */
-.xb__chapter {
-  display: grid;
-  gap: 1.3rem;
-  margin-top: 1.25rem;
-}
-.xb__opener {
-  display: grid;
-  gap: 0.5rem;
-}
-.xb__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--step-3);
-  font-weight: 650;
-  line-height: 1.04;
-  text-wrap: balance;
-}
-.xb__standfirst {
-  margin: 0;
-  max-width: 40ch;
-  font-size: var(--step-1);
-  line-height: 1.35;
-  color: var(--accent-ink);
-  text-wrap: balance;
-}
-.xb__opener .voice {
-  margin-top: 0.4rem;
-}
-.xb__plate {
-  display: grid;
-  gap: 0.6rem;
-  margin: 0;
-}
-/* as wide as the page, unless the page is short: then only as wide as the
-   height left over allows, so the whole opener stays on the page */
-.xb__screen {
-  position: relative;
-  width: min(100%, calc((100vh - var(--header-h) - 24rem) * 16 / 9));
-  width: min(100%, calc((100svh - var(--header-h) - 24rem) * 16 / 9));
-  aspect-ratio: 16 / 9;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  overflow: hidden;
-}
-.xb__screen iframe,
-.xb__screen img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  object-fit: cover;
-}
-/* the player fades in over the still once it has something to show */
-.xb__screen iframe {
-  opacity: 0;
-  transition: opacity var(--t-base) var(--ease);
-}
-.xb__screen iframe[data-loaded] { opacity: 1; }
-/* what you're looking at */
-.xb__caption {
-  margin: 0;
-  max-width: 62ch;
-  font-size: var(--step--1);
-  line-height: 1.55;
-  color: var(--ink-60);
-}
-
-/* the right page: the catalogue entry. The facts first, the way a museum
-   prints them under a work's title… */
-.xb__tomb {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.8rem 1.25rem;
-  margin: 0;
-  padding-bottom: 1.1rem;
-  border-bottom: 1px solid var(--line);
-}
-.xb__tomb div {
-  display: grid;
-  align-content: start;
-  gap: 0.2rem;
-  min-width: 0;
-}
-.xb__tomb-wide {
-  grid-column: span 2;
-}
-.xb__tomb dt {
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-40);
-}
-.xb__tomb dd {
-  margin: 0;
-  font-size: var(--step--1);
-  line-height: 1.4;
-  color: var(--ink);
-}
-/* …then the story: each part under a plain heading, indented paragraphs,
-   and an end mark. Set ragged-right: justified at this measure opened gaps
-   between the words. */
-.xb__essay {
-  font-size: var(--step-0);
-  line-height: 1.72;
-  color: var(--ink-60);
-  text-wrap: pretty;
-}
-.xb__essay section + section {
-  margin-top: 1.5rem;
-}
-.xb__essay h3 {
-  margin: 0 0 0.45em;
-  font-size: var(--step-1);
-  line-height: 1.18;
-  color: var(--ink);
-  text-align: left;
-}
-.xb__essay p {
-  margin: 0;
-}
-.xb__essay p + p {
-  text-indent: 1.5em;
-}
-.xb__essay section:last-child p:last-child::after {
-  content: '';
-  display: inline-block;
-  width: 0.55em;
-  height: 0.55em;
-  margin-left: 0.4em;
-  background: var(--card-accent);
-}
-.xb__see {
-  margin: 0;
-  padding-top: 1.1rem;
-  border-top: 1px solid var(--line);
-  font-size: var(--step--1);
-  line-height: 1.6;
-  color: var(--ink-60);
-}
-.xb__see button {
-  padding: 0;
-  font: inherit;
-  color: var(--accent-ink);
-  background: none;
-  border: 0;
-  cursor: pointer;
-  text-align: left;
-}
-.xb__see button:hover,
-.xb__see button:focus-visible {
-  color: var(--ink);
-}
-.xb__acts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-s);
-}
-.xb__foot {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: auto;
-}
-.xb__fold {
-  justify-self: start;
-  padding: 0.2rem 0;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent-ink);
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.xb__fold:hover,
-.xb__fold:focus-visible {
-  color: var(--ink);
-}
 
 /* ---------- a closed room (the 404, NotFound.tsx) ---------- */
 .closed__label .xl__note {
@@ -822,14 +473,6 @@
 
 /* ---------- a phone (and a tablet held upright, as the porthole is) ---------- */
 @media (max-width: 760px), (max-width: 1120px) and (orientation: portrait) {
-  /* one column, no spine to turn a leaf on: after a walk the next one slides
-     in from the side it was walked towards */
-  .xb[data-enter='right'] .xb__verso,
-  .xb[data-enter='left'] .xb__recto {
-    animation: none;
-  }
-  .xb[data-enter='right'] { animation: xl-in-right var(--t-base) var(--ease); }
-  .xb[data-enter='left'] { animation: xl-in-left var(--t-base) var(--ease); }
   /* the label comes up from the bottom, the porthole above it */
   .xl,
   .exhibit[data-place='maquette'] .xl {
@@ -877,55 +520,6 @@
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
     pointer-events: none;
   }
-  /* the book is the whole screen, one column: the opener and the plate, then
-     the entry; while the film plays it stays at the top as the story scrolls */
-  .xb {
-    inset: 0;
-    display: block;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: none;
-    border: 0;
-    border-radius: 0;
-  }
-  .xb::after,
-  .xb__run {
-    display: none;
-  }
-  .xb__verso,
-  .xb__recto {
-    overflow: visible;
-    border-radius: 0;
-  }
-  .xb__verso {
-    padding: 1.25rem 1rem 0;
-  }
-  .xb__recto {
-    padding: 1.5rem 1rem calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
-  }
-  .xb__close {
-    position: fixed;
-    z-index: 4;
-    /* centred on the opener's first line (the page's top margin and the
-       chapter's, then half the line), its right edge on the page's margin */
-    top: calc(env(safe-area-inset-top, 0px) + 1.95rem);
-    right: 1rem;
-    background: color-mix(in srgb, var(--paper) 80%, transparent);
-  }
-  .xb__opener {
-    padding-right: 2.75rem; /* clear of the close button */
-  }
-  .xb__screen {
-    width: 100%;
-  }
-  .xb__screen[data-playing] {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-  }
-  .xb__tomb {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 @keyframes xl-in-right {
   from { opacity: 0; translate: 48px 0; }
@@ -941,8 +535,7 @@
 /* reduced motion: nothing travels, things just fade */
 @media (prefers-reduced-motion: reduce) {
   .xl,
-  .exhibit[data-place='maquette'] .xl,
-  .xb[data-enter] {
+  .exhibit[data-place='maquette'] .xl {
     animation: x-fade var(--t-fast) linear;
   }
   .xl__line polyline,

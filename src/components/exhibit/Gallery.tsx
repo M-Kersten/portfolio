@@ -3,44 +3,14 @@ import type { GalleryImage } from '../../content';
 import { asset } from '../../lib/asset';
 import { useFocusTrap } from '../../lib/useFocusTrap';
 
-// A project's picture set: a contact-sheet grid in the book, and a lightbox
-// over it for looking properly.
-//
-// The grid is the summary and the lightbox is the reading view — which is why
-// captions only appear in the lightbox. A caption under every thumbnail turns a
-// twelve-frame set into a wall of text at the size where you can't see what the
-// text is about; at full size it's the one place the words help.
+// A project's pictures, full size: the lightbox a gallery picture opens into
+// from its story (Story.tsx), where the captions are.
 
 /** Where a case's frames live — the same slug-derived convention as posters. */
 const galleryUrl = (slug: string, file: string) => asset(`/gallery/${slug}/${file}`);
 
-export function Gallery({ slug, images, onOpen }: { slug: string; images: GalleryImage[]; onOpen: (i: number) => void }) {
-  return (
-    <section className="gal">
-      <h4 className="gal__h">Gallery</h4>
-      <ul className="gal__grid">
-        {images.map((img, i) => (
-          <li key={img.file}>
-            <button
-              type="button"
-              className="gal__thumb"
-              onClick={() => onOpen(i)}
-              // The frame number carries the position for a screen reader, which
-              // a caption alone wouldn't — "2 of 12" is what tells you the set
-              // has a size and where you are in it.
-              aria-label={`${img.caption ?? 'Image'} — open frame ${i + 1} of ${images.length}`}
-            >
-              <img src={galleryUrl(slug, img.file)} alt="" loading="lazy" decoding="async" />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 /** The full-size viewer. Owns nothing but the frame it's showing — `index` and
- *  the step/close callbacks come from whoever opened it, so the book behind it
+ *  the step/close callbacks come from whoever opened it, so the story behind it
  *  can keep one Escape handler for both layers instead of two that race. */
 export function Lightbox({
   slug,

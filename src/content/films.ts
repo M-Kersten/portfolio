@@ -1,4 +1,4 @@
-// What each project's film shows, printed under it in the book. A line in my
+// What each project's film shows, printed under it in its story. A line in my
 // own voice about what you're looking at, rather than a catalogue number.
 //
 // These live here rather than in cases.json: the CMS round-trips that file
@@ -8,8 +8,7 @@
 const FILMS: Record<string, string> = {
   preekstof: 'The Preekstof film: a Sunday’s sermon turned into a vertical reel, the crop following the speaker and the subtitles in place.',
   'virtuele-brigade': 'A look inside the Virtuele Brigade training sim, the shared scenarios I brought multiplayer and VR to.',
-  'alliander-hololens':
-    "A break-out session on AR in the energy transition, from The Future Group's Innovation Event 2023, with the suite seen through the HoloLens (in Dutch).",
+  'alliander-hololens': 'Alliander’s own film: Marlies visits a transformer house with the HoloLens on (in Dutch).',
   arcam: 'ARCam on location: visitors posing with the characters in front of the camera on its pedestal.',
   'wonderment-location': 'A demo of the Airborne tour: AR pinned to the places of Operation Market Garden with VPS.',
   'dtt-amsterdam': 'A reel of the DTT projects: the reading games, the space experience and the AR showcase app.',
@@ -24,6 +23,7 @@ const FILMS: Record<string, string> = {
   'sol-ar': 'SOL.AR gameplay: the solar system at scale in a room, and the trips down to the planets.',
   'amsterdam-underground': 'The trailer for UnderAmsterdam, the multiplayer VR game about the world under the city’s streets.',
   'nieuwe-kerk-utrecht': 'Nieuwe Kerk Utrecht’s own introduction video: the community the visuals are made for.',
+  'eyereader-4d': 'The Eyereader, explained at its stand.',
 };
 
 /** What a project's film shows, if it has a line. */

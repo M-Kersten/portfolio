@@ -33,8 +33,8 @@ Useful while developing:
   a shared link previews with the hero itself (`public/og.jpg`, rendered by
   `npm run og`)
 - `/work/:slug` — deep link to a project: the camera flies to its object and
-  its label opens beside it; `/work/:slug?entry` opens straight onto the book
-  (the full entry). The build writes each one a page of its own, so a shared
+  its label opens beside it; `/work/:slug?entry` opens straight onto its
+  full story. The build writes each one a page of its own, so a shared
   link previews with the project's card (`public/og/<slug>.jpg`)
 - `/projects` — the collection: every project, the ten on display in the
   model and the rest from the depot
@@ -52,7 +52,7 @@ The things you're most likely to want to change, and the file they live in.
 | --- | --- |
 | A project's words, dates, client, links, tech | `src/content/cases.json` (or the CMS) |
 | The hero lines, section titles and leads, career, about, contact | `src/content/site.json` (or the CMS) |
-| The line under a project's film (in the book, and in its story on a page) | `src/content/films.ts` |
+| The line under a project's film (in its story) | `src/content/films.ts` |
 | The pictures floating behind a project's story | `src/assets/stills/<slug>/` (its README says how; `npm run stills` fills an empty folder with frames from the film) |
 | Where a long film starts | the project's `video` link in `cases.json`, with `?t=95` on it (YouTube's "start at" link) |
 | A project's film loop or voice note | drop `<slug>.mp4` in `src/assets/loops/`, `<slug>.mp3` in `src/assets/voice/` |
@@ -96,8 +96,7 @@ The things you're most likely to want to change, and the file they live in.
 | How the pad gets ready as the count climbs (which piece arrives when, the beacon, the vapour) | `BUILD` and the frame loop in `src/scene/maquette/launchSite.tsx` |
 | The exhibition's name, "On display" / "In the depot" | `content/exhibits.ts` |
 | The label beside an exhibit ("Read the full story", "Watch the film") | `components/exhibit/Label.tsx` |
-| The book ("The problem", "See also", "Ask me about it") | `components/exhibit/Book.tsx` |
-| A project's story on a page, opened from the chronology, /projects or search ("In short", "Back to the chronology", the walk) | `components/exhibit/Story.tsx`; its layout (the headline's sizes and block, the stage's height, where each picture hangs) in `src/ui/story.css` |
+| A project's full story, from the label in the maquette and from a card on the chronology, /projects or search ("In short", "The problem", "Ask me about it", "Back to the chronology", the walk) | `components/exhibit/Story.tsx`; its layout (the headline's sizes and block, the stage's height, where each picture hangs) in `src/ui/story.css` |
 | Which words of a story's headline take the floor's colour | `statementParts` in `src/content/exhibits.ts` |
 | The collection's title and line (its counts come from the content) | `components/pages/ProjectsPage.tsx` |
 | The launch pad's panel (exhibit 11) | `components/launch/LaunchOverlay.tsx` |
@@ -135,8 +134,8 @@ src/
     timeline/          the projects timeline: Timeline.tsx (the component),
                        layout.ts (where everything sits on the route), CaseCard
     exhibit/           a project, opened: Exhibit.tsx (which of them is
-                       open, the walk, the keys), Label.tsx and Book.tsx (in
-                       the maquette), Story.tsx (on a page: full screen),
+                       open, the walk, the keys), Label.tsx (in the maquette), Story.tsx (the full
+                       story, full screen),
                        parts.tsx, NodeHud (the /work/:slug route), VoiceNote,
                        Gallery
     launch/            the launch easter egg: LaunchOverlay (the pad's panel),
@@ -279,7 +278,7 @@ Safari and older browsers need themselves. When you add CSS:
   **Start time:** for a long film, paste YouTube's "start at" link as the
   project's `video` (`https://youtu.be/mjzZSOB-jAM?t=95`) and both the preview
   and the film begin on that second.
-- **What the film shows** — the line under each project's film in the book
+- **What the film shows** — the line under each project's film in its story
   lives in `src/content/films.ts` (not cases.json: the CMS drops keys it
   doesn't know). The current lines are drafts from each film's YouTube title
   and poster; rewrite them in your own words.
@@ -291,10 +290,14 @@ Safari and older browsers need themselves. When you add CSS:
   at those moments, so look through them before committing, delete what
   shows nothing of the work, and put a better picture in a frame's place
   where you have one (first file name first, nearest the film).
+- **More than one film** — a project's `video` is the film on its plate. A
+  link in its `links` that goes to YouTube is another film of its: it shows
+  as "▸ Watch …" in the story and plays on the plate instead of opening a
+  new tab, so give it a label that says what it is.
 - **Voice notes** — record a short clip about a project and save it as
   `src/assets/voice/<slug>.mp3` (or `.m4a`, `.ogg`, `.webm`), named after
   the case's `slug`. Its audio tour then appears on that project's label
-  and in its book; projects without a clip show none. `next-launch.mp3` is
+  and in its story; projects without a clip show none. `next-launch.mp3` is
   exhibit 11's (the countdown). Mono at 64–96 kbps is plenty for a voice.
 - **Sound** — effects and ambient are recordings in `src/assets/sound/`, one
   file per event; its README lists every name (wake notes, popups, the

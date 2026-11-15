@@ -1,67 +1,4 @@
-/* ---------- Gallery — a case's picture set, for the projects whose
-     argument is the photographs rather than the write-up ---------- */
-.gal {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-}
-.gal__h {
-  margin: 0 0 0.5em;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-/* auto-fill, not auto-fit: a set of three shouldn't stretch to three huge
-   panes across the card — the frames keep their size and the row runs short,
-   which is what a contact sheet does. */
-.gal__grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-  gap: var(--space-2xs);
-}
-/* A phone has room for two across once the card's padding is off, and two is
-   the point where it still reads as a sheet. At the desktop minimum it fitted
-   exactly one, which is a list of photographs, not a gallery. */
-@media (max-width: 34rem) {
-  .gal__grid { grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); }
-}
-.gal__thumb {
-  display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  padding: 0;
-  overflow: hidden;
-  cursor: zoom-in;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-s);
-  background: color-mix(in srgb, var(--paper) 60%, transparent);
-  transition: border-color var(--t-fast) var(--ease);
-}
-.gal__thumb img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  /* Resting a touch flat and cool, so a dozen frames read as one sheet rather
-     than a dozen competing photographs; the one under the pointer comes up to
-     full colour. */
-  filter: saturate(0.82) brightness(0.88);
-  transition: filter var(--t-fast) var(--ease), transform var(--t-base) var(--ease);
-}
-.gal__thumb:hover,
-.gal__thumb:focus-visible { border-color: var(--card-accent); }
-.gal__thumb:hover img,
-.gal__thumb:focus-visible img {
-  filter: none;
-  transform: scale(1.04);
-}
-
+/* A project's pictures, full size (components/exhibit/Gallery.tsx). */
 
 /* ---------- Lightbox — one frame, full size ---------- */
 .lb {
@@ -177,10 +114,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gal__thumb img,
   .lb__img { transition: none; }
-  .gal__thumb:hover img,
-  .gal__thumb:focus-visible img { transform: none; }
   .lb { animation: none; }
   .lb__img { opacity: 1; }
 }

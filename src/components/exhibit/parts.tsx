@@ -22,7 +22,7 @@ export const box = (r: DOMRect): Box => ({
  *  page grows out of `box`, the plate out of `film`. */
 export type From = { box?: Box; head?: Box; film: Box };
 export type Dir = 1 | -1;
-/** How long a page takes to lift off the spine when a walk turns it (exhibit.css --turn). */
+/** How long a story's stage takes to go when a walk leaves it (exhibit.css --turn). */
 export const TURN_MS = 320;
 /** How long the label takes to step aside when a walk leaves it (exhibit.css xl-leave). */
 export const LEAVE_MS = 200;

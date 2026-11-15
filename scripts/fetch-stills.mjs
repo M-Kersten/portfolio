@@ -37,13 +37,14 @@ const IMAGE = /\.(jpe?g|png|webp)$/i;
 /** Frames that aren't about the work, by project and number, so a later run
  *  doesn't bring them back. */
 const LEAVE_OUT = {
-  'alliander-hololens': [3], // the announcement card of the event the film was made for, with its speakers
+  'alliander-hololens': [2, 3], // people talking to the camera
   'philips-medical-xr': [1, 2], // the hosts and the speaker of the webinar the film is a recording of
   'custom-ar-framework': [1], // the demo app's title card
   'dtt-amsterdam': [3], // the AR framework's demo, which has an entry of its own
   kastwezens: [3], // a title card
   'amsterdam-underground': [3], // the end card
   preekstof: [3], // caught mid-fade
+  'wonderment-location': [2], // the same picture as the one in its gallery, with the film's side bars
 };
 
 /** The 11-char video id (as lib/youtube.ts reads it). */

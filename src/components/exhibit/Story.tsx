@@ -9,11 +9,12 @@ import { EASE, MOTION } from '../../lib/motion';
 import { useSheetDrag } from '../../lib/useSheetDrag';
 import { youtubeEmbed, youtubeStart } from '../../lib/youtube';
 import { VoiceNote } from './VoiceNote';
-import { PlayMark, Player, SHEET, enterAttr, walkIn, type Dir, type From } from './parts';
+import { PlayMark, Player, SHEET, enterAttr, walkIn, type Dir, type From, type Place } from './parts';
 
-// The story: a project opened from a page (the chronology, the collection,
-// search), where the card that was clicked has already been the label. It
-// takes the whole screen.
+// The story: a project, in full. From a page (the chronology, the collection,
+// search) the card that was clicked has already been the label, so a project
+// opens straight onto it; in the maquette it's what the label's "Read the
+// full story" opens. It takes the whole screen.
 //
 // What the project achieved is the headline, set as large as the hero's name,
 // its opening words in the floor's colour; the project's own name is the small
@@ -21,8 +22,12 @@ import { PlayMark, Player, SHEET, enterAttr, walkIn, type Dir, type From } from 
 // both, the story runs as stops along a line, the way the chronology draws a
 // career: in short (when, my part in it, what it's made of, where to read on),
 // the problem, the approach, the lesson; and the line runs on into the way to
-// ask about it. Along the bottom, the
-// walk to the older and the newer project, and where this one is among them.
+// ask about it. Along the bottom, the walk to the older and the newer project
+// (in the maquette, to the exhibit before and the one after), and where this
+// one is among them.
+//
+// A project can have more films than the one on its plate: a link of its that
+// goes to YouTube plays right there, on the plate, in the first one's place.
 //
 // The stage over the line is the same height for every project, so walking
 // from one to the next the line stays where it is and what's on it changes
@@ -79,6 +84,7 @@ type Pic = { src: string; frame?: number; label?: string };
 
 export function Story({
   study,
+  place,
   from,
   closeRef,
   prev,
@@ -88,13 +94,16 @@ export function Story({
   reduced,
   turning,
   onClose,
+  onBack,
   onWalk,
   onStep,
   drag,
   onFrame,
 }: {
   study: CaseStudy;
-  /** The card it was opened from: the film's plate grows out of its picture. */
+  place: Place;
+  /** What it was opened from (a card, or the label): the film's plate grows
+   *  out of its picture. */
   from: From | null;
   closeRef: RefObject<HTMLButtonElement>;
   prev?: CaseStudy;
@@ -107,18 +116,25 @@ export function Story({
   /** A walk is leaving: 1 on to the next, -1 back. */
   turning: Dir | 0;
   onClose: () => void;
+  /** The way back, where that isn't closing it (in the maquette: to the label). */
+  onBack?: () => void;
   onWalk: (slug: string) => void;
   onStep: (dir: Dir) => void;
   /** Off while a picture is open over it. */
   drag: boolean;
   onFrame: (i: number) => void;
 }) {
-  const embed = youtubeEmbed(study.video);
+  // The film on the plate: the project's own, until another of its films is
+  // asked for (a link of its that goes to YouTube).
+  const [film, setFilm] = useState(study.video);
+  const embed = youtubeEmbed(film);
+  const more = (study.links ?? []).filter((l) => youtubeEmbed(l.url));
+  const elsewhere = (study.links ?? []).filter((l) => !youtubeEmbed(l.url));
   const no = exhibitNo(study.slug);
   const role = roleFor(study);
   const when = caseWhen(study);
   const layer = study.layer.charAt(0).toUpperCase() + study.layer.slice(1);
-  const caption = embed ? filmCaption(study.slug) : undefined;
+  const caption = youtubeEmbed(study.video) ? filmCaption(study.slug) : undefined;
   const { buildsOn, ledTo } = seeAlso(study);
   const related = [...(buildsOn ? [buildsOn] : []), ...ledTo];
   const chapters = (
@@ -313,11 +329,22 @@ export function Story({
     };
   }, []);
 
-  const tag = (c: CaseStudy) => (
-    <>
-      {c.year && <b>{c.year.slice(0, 4)}</b>} <span className="xs__walk-name">{c.title}</span>
-    </>
-  );
+  // the maquette walks by exhibit number, a page by date
+  const tag = (c: CaseStudy) => {
+    const n = place === 'maquette' ? exhibitNo(c.slug) : null;
+    const mark = n !== null ? pad2(n) : c.year?.slice(0, 4);
+    return (
+      <>
+        {mark && <b>{mark}</b>} <span className="xs__walk-name">{c.title}</span>
+      </>
+    );
+  };
+  const show = (url: string) => {
+    setFilm(url);
+    setLoaded(false);
+    setPlaying(true);
+    scrollRef.current?.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+  };
 
   return (
     <div
@@ -332,7 +359,7 @@ export function Story({
       tabIndex={-1}
     >
       <div className="xs__bar">
-        <button type="button" className="xs__back" onClick={onClose}>
+        <button type="button" className="xs__back" onClick={onBack ?? onClose}>
           <span aria-hidden="true">← </span>Back{backTo ? ` to ${backTo}` : ''}
         </button>
         <p className="xs__mark">
@@ -386,7 +413,7 @@ export function Story({
                   {/* the still, under the player until it has loaded (and the
                       whole plate for a project without a film) */}
                   {imgOk ? <img src={asset(`/posters/${study.slug}.jpg`)} alt="" onError={() => setImgOk(false)} /> : <span className="xl__ph" />}
-                  {embed && playing && <Player embed={embed} title={study.title} start={youtubeStart(study.video)} loaded={loaded} onLoad={() => setLoaded(true)} />}
+                  {embed && playing && <Player key={film} embed={embed} title={study.title} start={youtubeStart(film)} loaded={loaded} onLoad={() => setLoaded(true)} />}
                   {embed && !playing && (
                     <button type="button" className="xl__watch" onClick={() => setPlaying(true)}>
                       <PlayMark />
@@ -431,7 +458,14 @@ export function Story({
                 </dl>
                 {(study.links?.length ?? 0) > 0 && (
                   <p className="xs__links">
-                    {study.links!.map((link) => (
+                    {/* another film plays here, on the plate; anything else is a way out */}
+                    {more.map((link) => (
+                      <button key={link.url} type="button" aria-pressed={playing && film === link.url} onClick={() => show(link.url)}>
+                        <span aria-hidden="true">▸ </span>
+                        {link.label}
+                      </button>
+                    ))}
+                    {elsewhere.map((link) => (
                       <a key={link.url} href={link.url} target="_blank" rel="noreferrer">
                         {link.label} <span aria-hidden="true">↗</span>
                       </a>
@@ -473,7 +507,7 @@ export function Story({
       </div>
       <span className="xs__more" aria-hidden="true" />
 
-      <nav className="xs__walk" aria-label="Older and newer projects">
+      <nav className="xs__walk" aria-label={place === 'maquette' ? 'Neighbouring exhibits' : 'Older and newer projects'}>
         {prev ? (
           <button type="button" className="xs__walk-prev" onClick={() => onWalk(prev.slug)} aria-keyshortcuts="ArrowLeft">
             <span aria-hidden="true">← </span>

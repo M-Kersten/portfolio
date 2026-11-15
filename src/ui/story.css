@@ -634,6 +634,7 @@ button.xs__pic-in,
   margin-top: 0.9rem;
 }
 .xs__links a,
+.xs__links button,
 .xs__see button {
   padding: 0 0 3px;
   font-family: var(--font-mono);
@@ -654,6 +655,9 @@ button.xs__pic-in,
 }
 .xs__links a:hover,
 .xs__links a:focus-visible,
+.xs__links button:hover,
+.xs__links button:focus-visible,
+.xs__links button[aria-pressed='true'],
 .xs__see button:hover,
 .xs__see button:focus-visible {
   color: var(--ink);

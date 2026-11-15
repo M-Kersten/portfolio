@@ -84,7 +84,9 @@ export interface CaseStudy {
   /** Flags independent work so the waypoint tag reads "Freelance" / "Passion"
    *  in its own colour instead of a client company. */
   kind?: 'freelance' | 'passion';
-  /** A YouTube URL, shown in the exhibit's label (a silent preview) and book.
+  /** A YouTube URL, shown in the exhibit's label (a silent preview) and on
+   *  the plate in its story. A link in `links` that goes to YouTube is another
+   *  film of the project's, and plays on the plate too.
    *  To start a long film at its best part, paste YouTube's own "start at" link
    *  (`https://youtu.be/…?t=95`): the preview and the film begin on that second. */
   video?: string;
