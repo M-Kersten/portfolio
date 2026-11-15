@@ -2,7 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSPropert
 import { caseWhen, roleFor, site, type CaseStudy } from '../../content';
 import { exhibitNo, pad2, paragraphs, seeAlso, statementParts } from '../../content/exhibits';
 import { filmCaption } from '../../content/films';
-import { picturesFor, voiceFor } from '../../content/media';
+import { loopFor, picturesFor, voiceFor } from '../../content/media';
 import { asset } from '../../lib/asset';
 import { useMediaQuery } from '../../lib/media';
 import { EASE, MOTION } from '../../lib/motion';
@@ -145,9 +145,12 @@ export function Story({
   const [imgOk, setImgOk] = useState(true);
   // The film plays as the story opens: silent, and with no controls but the
   // story's own (stop, sound, full screen). Not where motion is unwanted or
-  // data is being saved: there it waits behind "Play the film".
+  // data is being saved: there it waits behind "Play the film". A project with
+  // a loop of its own (src/assets/loops) shows that first, as its label does,
+  // and the film when it's asked for.
+  const loop = loopFor(study.slug);
   const [playing, setPlaying] = useState(
-    () => !reduced && (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData !== true,
+    () => !loop && !reduced && (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData !== true,
   );
   const [held, setHeld] = useState(false); // stopped, by hand
   const [sound, setSound] = useState(false);
@@ -409,6 +412,7 @@ export function Story({
                   {/* the still, under the player until it has loaded (and the
                       whole plate for a project without a film) */}
                   {imgOk ? <img src={asset(`/posters/${study.slug}.jpg`)} alt="" onError={() => setImgOk(false)} /> : <span className="xl__ph" />}
+                  {loop && !playing && !reduced && <video src={loop} muted autoPlay loop playsInline preload="metadata" aria-hidden="true" />}
                   {embed && playing && (
                     <Player key={film} embed={embed} title={study.title} start={youtubeStart(film)} bare frameRef={frameRef} loaded={loaded} onLoad={() => setLoaded(true)} />
                   )}

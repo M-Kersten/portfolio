@@ -1,6 +1,6 @@
 import { asset } from '../lib/asset';
 // The files dropped in per project, named after its slug: the silent film loop
-// at the top of its label (src/assets/loops/<slug>.mp4), the voice note of me
+// at the top of its label and on the plate of its story (src/assets/loops/<slug>.mp4), the voice note of me
 // talking about it (src/assets/voice/<slug>.mp3) and its stills, a folder of
 // pictures (src/assets/stills/<slug>/). See the README in each folder. Vite finds every file there at build time and gives each its hashed
 // URL, so adding one is just dropping it in; a project without one shows none.

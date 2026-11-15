@@ -326,6 +326,7 @@
   box-shadow: 0 1.9rem 5.6rem rgba(0, 0, 0, 0.75);
 }
 .xs__screen img,
+.xs__screen video,
 .xs__screen iframe {
   position: absolute;
   inset: 0;
@@ -393,7 +394,8 @@
   border: 0;
   background: #000;
 }
-.xs__screen:fullscreen img {
+.xs__screen:fullscreen img,
+.xs__screen:fullscreen video {
   object-fit: contain;
 }
 .xs__caption {
