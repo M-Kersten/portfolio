@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { byDate, cases, caseBySlug, site } from '../../content';
 import { Exhibit } from '../exhibit/Exhibit';
 import { useDocumentTitle } from '../../lib/page';
@@ -34,6 +35,10 @@ export function ProjectsPage() {
       <main id="main" className="pc-stage">
         <section className="section pc">
           <div className="container">
+            {/* the way back to the main page, where the collection hangs */}
+            <Link className="pc__back" to="/">
+              <span aria-hidden="true">← </span>Back to the model
+            </Link>
             <SectionHead id="projects" level={1} title={TITLE} lead={LEAD} />
             <ProjectsIndex items={items} onOpen={setOpen} />
           </div>

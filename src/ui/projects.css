@@ -419,3 +419,22 @@
   font-size: var(--step-0);
   padding: 0.7em 1.3em;
 }
+
+/* the way back to the main page, over the collection's title */
+.pc__back {
+  display: inline-block;
+  margin-bottom: var(--space-m);
+  padding: 0.5rem 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1;
+  text-decoration: none;
+  color: var(--ink-60);
+  transition: color var(--t-fast) var(--ease);
+}
+.pc__back:hover,
+.pc__back:focus-visible {
+  color: var(--ink);
+}

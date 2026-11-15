@@ -131,6 +131,41 @@
   animation: hero-sub-in var(--t-base) var(--ease) 1.4s both;
 }
 
+/* Under it, quietly: the page also scrolls. A short line a mark runs down,
+   on its own slow period (an ambient rhythm, not a response). */
+.hero__scroll {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--ink-40);
+  animation: hero-sub-in var(--t-base) var(--ease) 1.8s both;
+}
+.hero__scroll-line {
+  position: relative;
+  width: 1px;
+  height: 1.75rem;
+  overflow: hidden;
+  background: var(--line);
+}
+.hero__scroll-line::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 45%;
+  background: var(--cyan);
+  animation: hero-scroll 2.4s var(--ease-in-out) infinite;
+}
+@keyframes hero-scroll {
+  from { transform: translateY(-110%); }
+  60%, to { transform: translateY(240%); }
+}
+
 /* A floor's own text (FloorNotes): in the title's place and set like it, the
    floor's name where yours was. One shows at a time, for as long as the scroll
    holds its floor; it leaves quickly and the next arrives a beat later, as the
@@ -278,6 +313,9 @@
   .hero__tour {
     margin-top: 0.8rem;
   }
+  .hero__scroll {
+    margin-top: 0.9rem;
+  }
   .floor-note__body,
   .floor-note__tags {
     display: none;
@@ -300,6 +338,8 @@
   .hero__name,
   .hero__sub,
   .hero__tour,
+  .hero__scroll,
+  .hero__scroll-line::after,
   .guide__cover-here,
   .guide__cover-note,
   .guide__cover-note[data-first],

@@ -293,6 +293,11 @@ export function HeroStage() {
           <button type="button" className="btn btn--ghost hero__tour" onClick={() => navigate(`/work/${tourNext}`)}>
             {seenAny && tourNext !== EXHIBITS[0] ? 'Continue the tour' : 'Start the tour'} <span aria-hidden="true">→</span>
           </button>
+          {/* the other way in: down the page, a floor at a time */}
+          <p className="hero__scroll" aria-hidden="true">
+            <span className="hero__scroll-line" />
+            Scroll
+          </p>
         </div>
       )}
       {introOver && <FloorNotes beat={noteBeat} />}
