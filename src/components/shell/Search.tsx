@@ -250,7 +250,7 @@ export function Search() {
           document.body,
         )}
 
-      {study && <Exhibit study={study} place="page" collection={byDate(cases)} onClose={() => setOpenSlug(null)} onWalk={setOpenSlug} />}
+      {study && <Exhibit study={study} place="page" collection={byDate(cases)} backTo="search" onClose={() => setOpenSlug(null)} onWalk={setOpenSlug} />}
     </>
   );
 }

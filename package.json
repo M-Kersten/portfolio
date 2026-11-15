@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "sitemap": "node scripts/gen-sitemap.mjs",
     "posters": "node scripts/optimize-posters.mjs",
+    "stills": "node scripts/fetch-stills.mjs",
     "og": "node scripts/gen-og.mjs",
     "cv": "npm run build && node scripts/generate-cv.mjs"
   },

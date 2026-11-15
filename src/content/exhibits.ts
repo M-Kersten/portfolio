@@ -77,6 +77,29 @@ export function splitHook(text: string): [string, string] {
   return br > 0 ? [text.slice(0, br).trim(), text.slice(br).trim()] : [text, ''];
 }
 
+/** A project's result, as its story's headline sets it: the opening words,
+ *  which carry the floor's colour, and the rest (the two put together are the
+ *  sentence again). It turns where the sentence does: at a comma, a dash or a
+ *  bracket ("16 cities worldwide | , and it all fits in a suitcase"); failing
+ *  that, before the word it leans on ("Site visits | you can do from your
+ *  chair", "The solar system | in your living room"); failing that, at the
+ *  word nearest its first third. */
+export function statementParts(outcome: string): [string, string] {
+  const text = outcome.trim();
+  const turn = text.match(/^(.{6,48}?)(,| \(| [—–-] |: )/);
+  if (turn && turn[1].length < text.length * 0.8) return [turn[1], text.slice(turn[1].length)];
+  // (two words in at least, and not past the middle)
+  const lean = /\s(?:that|you|in|on|of|from|with|to|for|at|by|\w+ing)\b/g;
+  for (let m = lean.exec(text); m; m = lean.exec(text)) {
+    const lead = text.slice(0, m.index);
+    if (lead.split(/\s+/).length >= 2 && m.index <= text.length * 0.6) return [lead, text.slice(m.index)];
+  }
+  const third = text.length * 0.36;
+  let cut = -1;
+  for (let i = text.indexOf(' '); i > 0; i = text.indexOf(' ', i + 1)) if (cut < 0 || Math.abs(i - third) < Math.abs(cut - third)) cut = i;
+  return cut > 0 ? [text.slice(0, cut), text.slice(cut)] : [text, ''];
+}
+
 /** See also: what a project builds on, and what it led to. */
 export function seeAlso(study: CaseStudy): { buildsOn?: CaseStudy; ledTo: CaseStudy[] } {
   return { buildsOn: study.follows ? caseBySlug(study.follows) : undefined, ledTo: cases.filter((c) => c.follows === study.slug) };

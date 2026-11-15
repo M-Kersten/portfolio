@@ -481,7 +481,16 @@ export function Timeline() {
         </div>
       )}
 
-      {openStudy && <Exhibit study={openStudy} place="page" collection={byDate(CURATED)} onClose={() => setOpen(null)} onWalk={setOpen} />}
+      {openStudy && (
+        <Exhibit
+          study={openStudy}
+          place="page"
+          collection={byDate(CURATED)}
+          backTo={workIntro.title ? `the ${workIntro.title.toLowerCase()}` : 'the timeline'}
+          onClose={() => setOpen(null)}
+          onWalk={setOpen}
+        />
+      )}
     </section>
   );
 }

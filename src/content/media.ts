@@ -1,7 +1,7 @@
 // The files dropped in per project, named after its slug: the silent film loop
-// at the top of its label (src/assets/loops/<slug>.mp4) and the voice note of
-// me talking about it (src/assets/voice/<slug>.mp3). See the README in each
-// folder. Vite finds every file there at build time and gives each its hashed
+// at the top of its label (src/assets/loops/<slug>.mp4), the voice note of me
+// talking about it (src/assets/voice/<slug>.mp3) and its stills, a folder of
+// pictures (src/assets/stills/<slug>/). See the README in each folder. Vite finds every file there at build time and gives each its hashed
 // URL, so adding one is just dropping it in; a project without one shows none.
 
 const loops = import.meta.glob('../assets/loops/*.{mp4,webm}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
@@ -19,6 +19,16 @@ const bySlug = (files: Record<string, string>): Record<string, string> =>
     ]),
   );
 
+// A project's stills: the pictures that float behind its story when it's opened
+// from a page (src/assets/stills/<slug>/, in file-name order). `npm run stills`
+// brings in three frames of each film; anything dropped in beside them counts.
+const stills = import.meta.glob('../assets/stills/*/*.{jpg,jpeg,png,webp}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const STILLS: Record<string, string[]> = {};
+for (const path of Object.keys(stills).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))) {
+  const slug = path.split('/').slice(-2)[0];
+  (STILLS[slug] ??= []).push(stills[path]);
+}
+
 const LOOPS = bySlug(loops);
 const VOICES = bySlug(voices);
 
@@ -26,3 +36,5 @@ const VOICES = bySlug(voices);
 export const loopFor = (slug: string): string | undefined => LOOPS[slug];
 /** The URL of a project's voice note, if it has one. */
 export const voiceFor = (slug: string): string | undefined => VOICES[slug];
+/** The URLs of a project's stills (none, for a project without any). */
+export const stillsFor = (slug: string): string[] => STILLS[slug] ?? [];

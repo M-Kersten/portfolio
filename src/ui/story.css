@@ -1,0 +1,977 @@
+/* ---------- A project's story, opened from a page ----------
+   (components/exhibit/Story.tsx: the chronology, the collection, search.)
+   It takes the whole screen. What the project achieved is the headline, at
+   the hero name's size, its opening words in the floor's colour; the film
+   stands on its plate beside it; under both the story runs as stops along a
+   line, the way the chronology draws a career, and the line runs on into the
+   way to ask about it. Behind all of it the project's pictures float at three
+   depths: near (in colour, hung off the film), further (dimmer), far (small,
+   grey, drifting off along the line). The walk to the older and the newer
+   project runs along the bottom.
+
+   The stage (everything over the line) is one height for every project, so
+   the line holds its place from one to the next: --stage-h, made of the
+   headline's block and the band under it, or the film and what's under it,
+   whichever is taller. */
+
+.xs {
+  --c: var(--card-accent);
+  --c-ink: color-mix(in srgb, var(--card-accent) 72%, white);
+  /* (what stands over the line eases off on a short screen, so more of the
+     story under it is on the first one) */
+  --bar-h: clamp(3.25rem, 7.2vh, 4rem);
+  --walk-h: 3.25rem;
+  /* the page's margins: the left one wide, as a page's is; and on a very wide
+     screen the page keeps to a measure, the bars over and under it with it */
+  --pad-l: clamp(1.25rem, 6vw, 6rem);
+  --pad-r: clamp(1.25rem, 4.4vw, 4rem);
+  --page-max: 104rem;
+  --inset: max(0px, (100% - var(--page-max)) / 2);
+  /* the film's plate: by the screen's width, and no taller than a short
+     screen has room for */
+  --plate-w: clamp(17rem, min(28vw, 70vh - 14rem), 34rem);
+  /* the headline's three steps, and the block it's given: Story.tsx takes the
+     largest step it fits the block at. Three lines at the middle step (which
+     is two at the largest, four at the smallest); a tall screen has room for
+     three at the largest, further down. */
+  --head-l: calc(var(--step-6) * var(--display-scale));
+  --head-m: calc(var(--step-5) * var(--display-scale));
+  --head-s: calc(var(--step-4) * var(--display-scale));
+  --head-h: calc(var(--head-m) * var(--display-leading) * 3);
+  /* the pictures adrift under the headline, and the band they float in */
+  --pic-h: clamp(3.4rem, 12.5vh, 7.1rem);
+  --band-h: calc(var(--pic-h) + clamp(1.85rem, 2.4vh + 1.1rem, 2.5rem));
+  /* (under the film: a picture hung below its corner, or four lines of caption) */
+  --stage-h: max(calc(var(--head-h) + var(--band-h)), calc(var(--plate-w) * 0.5625 + max(var(--plate-w) * 0.21 + 1.25rem, 7.6rem)));
+  /* the first stop's column (the facts); the others share the rest, the last
+     at least as wide as the way to ask that stands over it */
+  --xs-short: 13.25rem;
+  --xs-last: 15.5rem;
+  /* from the line down to the stops' words */
+  --drop: 2.05rem;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+}
+.xs:focus {
+  outline: none;
+}
+/* Opening, it fades in over the page. From a card, though, the card's picture
+   is already on its way to being the film's plate (Story.tsx), solid from the
+   first frame: so there it's the ground that fades in under it, and the rest
+   of the page arrives round it piece by piece. */
+.xs[data-enter='open'] {
+  animation: x-fade var(--t-base) var(--ease-in-out);
+}
+.xs[data-enter='card'] {
+  animation: xs-ground var(--t-base) var(--ease-in-out);
+}
+@keyframes xs-ground {
+  from { background-color: transparent; }
+}
+.xs[data-enter='card'] :is(.xs__bar, .xs__name, .xs__band .voice, .xs__caption, .xs__walk) {
+  animation: x-fade var(--t-base) var(--ease-in-out) both;
+}
+/* closing, it settles away (Exhibit.tsx SHUT_MS) */
+.exhibit[data-place='page'][data-closing] .xs {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--t-fast) var(--ease-in-out),
+    transform var(--t-fast) var(--ease-in-out);
+}
+
+/* ---------- the bar: the way back, where it hangs, the way out ---------- */
+.xs__bar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  height: var(--bar-h);
+  padding: 0 calc(var(--inset) + var(--pad-r)) 0 calc(var(--inset) + var(--pad-l));
+  /* the page scrolls up under it */
+  background: linear-gradient(var(--paper) 55%, transparent);
+  pointer-events: none;
+}
+.xs__bar > * {
+  pointer-events: auto;
+}
+.xs__back,
+.xs__mark,
+.xs__credit,
+.xs__h,
+.xs__walk button,
+.xs__count,
+.xs__see {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.xs__back {
+  margin-right: auto;
+  padding: 0.5rem 0;
+  color: var(--ink-60);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease);
+}
+.xs__back:hover,
+.xs__back:focus-visible {
+  color: var(--ink);
+}
+.xs__mark {
+  margin: 0;
+  max-width: none;
+  color: var(--ink-40);
+  white-space: nowrap;
+}
+.xs__mark b {
+  font-weight: 400;
+  color: var(--ink);
+}
+.xs__mark-when {
+  display: none;
+}
+.xs__close {
+  background: color-mix(in srgb, var(--paper) 80%, transparent);
+}
+
+/* ---------- the page ---------- */
+.xs__scroll {
+  position: absolute;
+  inset: 0 0 var(--walk-h);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none; /* it scrolls if it must, without a bar down it (as the book's pages) */
+}
+.xs__scroll::-webkit-scrollbar {
+  display: none;
+}
+/* (it spans the screen, its measure kept by its margins, so that the pictures
+   that hang off the film are cut by the screen's edge and by nothing sooner;
+   and cut they are, rather than left as width to scroll to) */
+.xs__page {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--bar-h) calc(var(--inset) + var(--pad-r)) clamp(1rem, 10vh - 3.4rem, 2.25rem) calc(var(--inset) + var(--pad-l));
+  overflow-x: clip;
+}
+/* a fade over its foot while there's more of it below */
+.xs__more {
+  position: absolute;
+  inset: auto 0 var(--walk-h);
+  z-index: 5;
+  height: 3.5rem;
+  background: linear-gradient(transparent, var(--paper));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-base) var(--ease);
+}
+.xs[data-more] .xs__more {
+  opacity: 1;
+}
+
+/* ---------- the stage: the name, the headline, the film ---------- */
+.xs__stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--plate-w);
+  grid-template-rows: auto minmax(var(--stage-h), auto);
+  column-gap: clamp(1.25rem, 2.4vw, 2.25rem);
+  padding-top: clamp(0.25rem, 8vh - 2.5rem, 2rem);
+}
+.xs__name {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 1.1rem;
+  min-height: 2.1rem;
+  margin-bottom: clamp(0.6rem, 1.8vh, 1rem);
+}
+.xs__title {
+  position: relative;
+  margin: 0;
+  padding-left: 1.4rem;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: var(--step-2);
+  line-height: 1.05;
+  letter-spacing: 0;
+  text-align: left;
+}
+/* the floor's mark: the square the model's markers and the route's stops are */
+.xs__title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0.56rem;
+  height: 0.56rem;
+  margin-top: -0.28rem;
+  background: var(--c);
+}
+.xs__credit {
+  color: var(--ink-40);
+}
+.xs__lead {
+  grid-column: 1;
+  grid-row: 2;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* (the headline's block: nothing to see, Story.tsx measures the headline
+   against it) */
+.xs__block {
+  position: absolute;
+  width: 0;
+  height: var(--head-h);
+  visibility: hidden;
+  pointer-events: none;
+}
+/* The headline: what it achieved, in the display voice at the hero name's size
+   (a step down for one that wouldn't fit its block at that, two for the
+   longest: Story.tsx measures, and sets data-size). */
+.xs__statement {
+  position: relative;
+  z-index: 4;
+  margin: 0;
+  max-width: none;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-stretch: var(--display-stretch);
+  font-variation-settings: var(--display-axes);
+  font-size: var(--head-l);
+  line-height: var(--display-leading);
+  letter-spacing: calc(var(--display-tracking) - 0.005em);
+  text-wrap: balance;
+  color: var(--ink);
+}
+.xs__statement[data-size='m'] {
+  font-size: var(--head-m);
+}
+.xs__statement[data-size='s'] {
+  font-size: var(--head-s);
+}
+.xs__statement em {
+  font-style: normal;
+  color: var(--c-ink);
+}
+/* a word and the line it rises from behind (room over it for an ascender and
+   under it for a descender, taken back so the lines keep their leading) */
+.xs__w {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding: 0.12em 0.03em 0.2em;
+  margin: -0.12em -0.03em -0.2em;
+}
+.xs__w > span {
+  display: inline-block;
+}
+/* (opening; after a walk the stage comes in whole, further down) */
+.xs:is([data-enter='card'], [data-enter='open']) .xs__w > span {
+  animation: xs-word var(--t-slow) var(--ease) calc(var(--t-fast) + var(--i) * var(--stagger) * 0.5) both;
+}
+@keyframes xs-word {
+  from { transform: translateY(150%); } /* (clear of the room left under it for a descender) */
+}
+/* Under the headline, down to the line: the audio tour, and the pictures that
+   have drifted furthest, each at its own height in what room there is (the
+   nearest of them low, by the film; the next up under the headline). */
+.xs__band {
+  display: none;
+}
+.xs__stage[data-adrift] .xs__band {
+  box-sizing: border-box;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 2rem;
+  min-height: var(--band-h);
+  padding: clamp(0.75rem, 2.4vh, 1.4rem) clamp(1rem, 4.7vw, 4.5rem) 1.1rem 0;
+}
+.xs__band .voice {
+  flex: 0 1 22rem;
+}
+.xs__adrift {
+  align-self: stretch;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-end;
+  gap: clamp(1.5rem, 5vw, 4.5rem);
+  margin-left: auto;
+}
+
+/* ---------- the film, on its plate ---------- */
+.xs__plate {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  margin: 0;
+  /* (what's under it stops short of the line, and of the way to ask on it) */
+  padding-bottom: 1.75rem;
+}
+.xs__hang {
+  position: relative;
+}
+.xs__screen {
+  position: relative;
+  z-index: 3;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--c) 50%, var(--line));
+  box-shadow: 0 1.9rem 5.6rem rgba(0, 0, 0, 0.75);
+}
+.xs__screen img,
+.xs__screen iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+}
+/* the player fades in over the still once it has something to show */
+.xs__screen iframe {
+  opacity: 0;
+  transition: opacity var(--t-base) var(--ease);
+}
+.xs__screen iframe[data-loaded] {
+  opacity: 1;
+}
+.xs__caption {
+  position: relative;
+  z-index: 4;
+  margin: 0.75rem 0 0;
+  font-size: var(--step--1);
+  line-height: 1.45;
+  color: var(--ink-60);
+}
+.xs__plate[data-low] .xs__caption {
+  max-width: 64%; /* beside the picture under the plate's corner */
+}
+
+/* ---------- the pictures ----------
+   Each is two boxes: the outer one is where it hangs, and shifts with the
+   pointer by its depth (--px / --py, set by Story.tsx; --k is how far, in px);
+   the inner one drifts, and comes forward under the pointer. --dim is how much
+   of the page's dark lies over it. */
+.xs__pic {
+  --k: 12;
+  --dim: 0.3;
+  position: absolute;
+  z-index: 2;
+  aspect-ratio: 16 / 9;
+  transform: translate3d(calc(var(--px, 0) * var(--k) * -1px), calc(var(--py, 0) * var(--k) * -1px), 0);
+  transition: transform var(--t-slow) var(--ease);
+}
+.xs__pic[data-depth='3'] {
+  --k: 7;
+  --dim: 0.52;
+  z-index: 1;
+}
+.xs__pic[data-depth='4'] {
+  --k: 3;
+  --dim: 0.74;
+  z-index: 0;
+}
+/* hung off the film: over its top right corner, under its bottom right, and
+   up behind its top left (in shares of the plate's own size; that last one
+   keeps to the film's side of the gap, clear of the headline) */
+.xs__pic[data-slot='a'] { left: 60%; top: -30%; width: 62%; }
+.xs__pic[data-slot='b'] { left: 70%; top: 84%; width: 52%; }
+.xs__pic[data-slot='c'] { left: -8%; top: -36%; width: 46%; }
+/* …and adrift along the line, each smaller than the last */
+.xs__adrift .xs__pic {
+  position: relative;
+  flex: none;
+  height: var(--pic-h);
+}
+.xs__adrift .xs__pic[data-slot='e'] { align-self: flex-start; height: calc(var(--pic-h) * 0.74); }
+.xs__adrift .xs__pic[data-slot='f'] { align-self: center; height: calc(var(--pic-h) * 0.57); }
+.xs__pic-in {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
+  color: inherit;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  cursor: default;
+  /* (its own slow period: an ambient rhythm, not a response) */
+  animation: xs-drift var(--dur, 12s) ease-in-out var(--wait, 0s) infinite alternate;
+  transition:
+    scale var(--t-base) var(--ease),
+    border-color var(--t-base) var(--ease);
+}
+button.xs__pic-in,
+.xs__pic-in[data-plays] {
+  cursor: pointer;
+}
+@keyframes xs-drift {
+  to { translate: var(--dx, 4px) var(--dy, -6px); }
+}
+.xs__pic[data-slot='a'] .xs__pic-in { --dx: 5px; --dy: -7px; --dur: 11s; }
+.xs__pic[data-slot='b'] .xs__pic-in { --dx: -6px; --dy: 5px; --dur: 13s; --wait: -4s; }
+.xs__pic[data-slot='c'] .xs__pic-in { --dx: 4px; --dy: 6px; --dur: 15s; --wait: -7s; }
+.xs__pic[data-slot='d'] .xs__pic-in { --dx: -5px; --dy: -4px; --dur: 12s; --wait: -2s; }
+.xs__pic[data-slot='e'] .xs__pic-in { --dx: 4px; --dy: -3px; --dur: 16s; --wait: -9s; }
+.xs__pic[data-slot='f'] .xs__pic-in { --dx: -3px; --dy: 3px; --dur: 18s; --wait: -5s; }
+.xs__pic[data-depth='2'] .xs__pic-in {
+  box-shadow: 0 1.4rem 3.75rem rgba(0, 0, 0, 0.6);
+}
+.xs__pic[data-depth='3'] .xs__pic-in {
+  border-color: var(--hairline);
+}
+.xs__pic[data-depth='4'] .xs__pic-in {
+  border-color: transparent;
+}
+.xs__pic-in img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter var(--t-base) var(--ease);
+}
+/* further back: paler, and at the back grey (the model's ghost) */
+.xs__pic[data-depth='3'] img {
+  filter: saturate(0.7);
+}
+.xs__pic[data-depth='4'] img {
+  filter: grayscale(1);
+}
+.xs__pic-in::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  opacity: var(--dim);
+  pointer-events: none;
+  transition: opacity var(--t-base) var(--ease);
+}
+/* under the pointer (or the keyboard's focus) it comes forward: in front, in
+   full colour (not under a finger: a tap would leave it there) */
+.xs:not([data-playing]) .xs__pic:focus-within {
+  z-index: 5;
+}
+.xs__pic-in:focus-visible {
+  scale: 1.05;
+  border-color: color-mix(in srgb, var(--c) 60%, var(--line));
+}
+.xs__pic-in:focus-visible::after {
+  opacity: 0;
+}
+.xs__pic-in:focus-visible img {
+  filter: none;
+}
+@media (hover: hover) {
+  .xs:not([data-playing]) .xs__pic:hover {
+    z-index: 5;
+  }
+  .xs__pic-in:hover {
+    scale: 1.05;
+    border-color: color-mix(in srgb, var(--c) 60%, var(--line));
+  }
+  .xs__pic-in:hover::after {
+    opacity: 0;
+  }
+  .xs__pic-in:hover img {
+    filter: none;
+  }
+}
+/* while the film plays they stand back */
+.xs[data-playing] .xs__pic {
+  --dim: 0.8;
+}
+.xs:is([data-enter='card'], [data-enter='open']) .xs__pic {
+  animation: xs-pic-in var(--t-slow) var(--ease) calc(var(--t-base) + var(--n) * var(--stagger)) both;
+}
+@keyframes xs-pic-in {
+  from { opacity: 0; scale: 0.9; }
+}
+
+/* ---------- the route: the story as stops along a line ---------- */
+.xs__route {
+  position: relative;
+  flex: 1;
+  padding-top: var(--drop);
+}
+/* the line, from the page's edge (out of nothing) to the last thing on it */
+.xs__line {
+  position: absolute;
+  top: 0;
+  left: -50vw;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent calc(50vw - var(--pad-l)), var(--c) 50vw);
+  transform-origin: 0 50%;
+}
+.xs[data-enter='card'] .xs__line,
+.xs[data-enter='open'] .xs__line {
+  animation: xs-draw calc(var(--t-slow) * 1.6) var(--ease-in-out) var(--t-fast) both;
+}
+@keyframes xs-draw {
+  from { transform: scaleX(0); }
+}
+/* …and on, not yet drawn in */
+.xs__line::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 50vw;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--line-strong) 0 6px, transparent 6px 12px);
+}
+.xs__stops {
+  display: grid;
+  grid-template-columns: var(--cols);
+  gap: clamp(1.25rem, 2.4vw, 2.1rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.xs__stop {
+  position: relative;
+  min-width: 0;
+}
+/* its mark on the line: the chronology's square station */
+.xs__stop::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: calc(-1 * var(--drop) - 5px);
+  width: 12px;
+  height: 12px;
+  background: var(--c);
+  box-shadow:
+    0 0 0 5px var(--paper),
+    0 0 1.1rem color-mix(in srgb, var(--c) 70%, transparent);
+}
+/* the stops arrive as the line reaches them */
+.xs[data-enter='card'] .xs__stop,
+.xs[data-enter='open'] .xs__stop {
+  animation: xs-rise var(--t-slow) var(--ease) calc(var(--t-base) + var(--i) * var(--stagger) * 1.5) both;
+}
+@keyframes xs-rise {
+  from { opacity: 0; transform: translateY(var(--rise-in)); }
+}
+.xs__h {
+  margin: 0 0 0.8rem;
+  color: var(--ink-60);
+  text-align: left;
+}
+.xs__h em {
+  margin-right: 1.1em;
+  font-style: normal;
+  color: var(--c-ink);
+}
+.xs__stop p {
+  margin: 0 0 0.8em;
+  max-width: none;
+  font-size: var(--step--1);
+  line-height: 1.62;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+.xs__stop p:last-child {
+  margin-bottom: 0;
+}
+.xs__stop--short .xs__h {
+  margin-bottom: 1rem;
+}
+.xs__facts {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0;
+}
+.xs__facts dt {
+  margin: 0 0 0.45rem;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+}
+.xs__facts dd {
+  margin: 0;
+  font-size: var(--step--1);
+  line-height: 1.35;
+  color: var(--ink);
+}
+.xs__stop .xs__links,
+.xs__stop .xs__see {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1.1rem;
+  margin: 1rem 0 0;
+  font-size: var(--step--2);
+  line-height: 1;
+  color: var(--ink-40);
+}
+.xs__stop .xs__see {
+  margin-top: 0.9rem;
+}
+.xs__links a,
+.xs__see button {
+  padding: 0 0 3px;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  line-height: 1.3;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: left;
+  text-decoration: none;
+  color: var(--ink-60);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  cursor: pointer;
+  transition:
+    color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease);
+}
+.xs__links a:hover,
+.xs__links a:focus-visible,
+.xs__see button:hover,
+.xs__see button:focus-visible {
+  color: var(--ink);
+  border-color: var(--c);
+}
+/* where the line runs on to: the way to ask about it, standing on the line */
+.xs__ask {
+  --btn-bg: var(--c);
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  translate: 0 -50%;
+  background:
+    linear-gradient(var(--btn-bg), var(--btn-bg)) left / 0% 100% no-repeat,
+    color-mix(in srgb, var(--btn-bg) 13%, var(--paper));
+  box-shadow: 0 0 0 0.5rem var(--paper);
+}
+.xs__ask:hover,
+.xs__ask:focus-visible {
+  box-shadow: 0 0 0 0.5rem var(--paper);
+}
+.xs__ask:hover > span[aria-hidden],
+.xs__ask:focus-visible > span[aria-hidden] {
+  transform: translateX(3px);
+}
+.xs[data-enter='card'] .xs__ask,
+.xs[data-enter='open'] .xs__ask {
+  animation: x-fade var(--t-slow) var(--ease) calc(var(--t-slow) + var(--t-base)) both;
+}
+
+/* ---------- a walk: the line stays, what's on it changes ----------
+   (Exhibit.tsx waits --turn before the next one is in, as for the book's
+   leaf; Story.tsx glides the line if the next one has it elsewhere.) */
+.xs[data-turning] :is(.xs__stage, .xs__stops) {
+  opacity: 0;
+  transition:
+    opacity var(--turn) var(--ease-in-out),
+    transform var(--turn) var(--ease-in-out);
+}
+.xs[data-turning='1'] :is(.xs__stage, .xs__stops) { transform: translateX(-2rem); }
+.xs[data-turning='-1'] :is(.xs__stage, .xs__stops) { transform: translateX(2rem); }
+.xs[data-enter='right'] :is(.xs__stage, .xs__stops) { animation: xs-in-right var(--t-slow) var(--ease) both; }
+.xs[data-enter='left'] :is(.xs__stage, .xs__stops) { animation: xs-in-left var(--t-slow) var(--ease) both; }
+@keyframes xs-in-right {
+  from { opacity: 0; transform: translateX(2.5rem); }
+}
+@keyframes xs-in-left {
+  from { opacity: 0; transform: translateX(-2.5rem); }
+}
+
+/* ---------- the walk: older, where this one is, newer ---------- */
+.xs__walk {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  height: var(--walk-h);
+  padding: 0 calc(var(--inset) + var(--pad-r)) 0 calc(var(--inset) + var(--pad-l));
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+.xs__walk button {
+  min-width: 0;
+  max-width: 100%; /* (a long name is cut short rather than run into the strip) */
+  padding: 0.5rem 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-60);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease);
+}
+.xs__walk button b {
+  font-weight: 400;
+}
+.xs__walk-prev {
+  justify-self: start;
+  text-align: left;
+}
+.xs__walk-next {
+  justify-self: end;
+  text-align: right;
+}
+.xs__walk button:hover,
+.xs__walk button:focus-visible {
+  color: var(--ink);
+}
+.xs__pos {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 0;
+  max-width: none;
+}
+/* a strip of cells, one a project, as on the guide's ticket */
+.xs__cells {
+  display: inline-flex;
+  gap: 3px;
+}
+.xs__cells i {
+  width: 7px;
+  height: 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 1px;
+}
+.xs__cells i[data-on] {
+  background: var(--c);
+  border-color: var(--c);
+  box-shadow: 0 0 0.75rem color-mix(in srgb, var(--c) 60%, transparent);
+}
+.xs__count {
+  color: var(--ink-40);
+  white-space: nowrap;
+}
+.xs__count b {
+  font-weight: 400;
+  color: var(--ink);
+}
+
+/* a short screen (a small laptop): the headline a step down, so the story
+   starts on the first screen */
+@media (max-height: 800px) and (min-width: 761px) and (orientation: landscape) {
+  .xs {
+    --head-l: calc(var(--step-5) * var(--display-scale));
+    --head-m: calc(var(--step-4) * var(--display-scale));
+    --head-s: calc(var(--step-3) * var(--display-scale));
+  }
+}
+/* a tall one (a desktop monitor): room for three lines at the largest */
+@media (min-height: 940px) and (min-width: 761px) and (orientation: landscape) {
+  .xs {
+    --head-h: calc(var(--head-l) * var(--display-leading) * 3);
+  }
+}
+
+/* ---------- a phone (and a tablet held upright): one column ---------- */
+@media (max-width: 760px), (max-width: 1120px) and (orientation: portrait) {
+  .xs {
+    --bar-h: 3.75rem;
+    --walk-h: 3rem;
+    --pad-l: 1.25rem;
+    --pad-r: 1.25rem;
+    --drop: 0rem;
+    --xs-last: 0px;
+    /* (here the page simply grows: the block, four lines at the largest step,
+       only keeps a long result from filling the screen) */
+    --head-h: calc(var(--head-l) * var(--display-leading) * 4);
+    --stage-h: 0px;
+  }
+  /* the bar: where it hangs and when, and the way out (down from its top
+     puts it away too) */
+  .xs__back,
+  .xs__mark-layer {
+    display: none;
+  }
+  .xs__mark {
+    margin-right: auto;
+  }
+  .xs__mark-when {
+    display: inline;
+  }
+  .xs__page {
+    padding-bottom: 1.75rem;
+  }
+  .xs__stage {
+    display: block;
+    padding-top: 0.25rem;
+  }
+  .xs__name {
+    min-height: 0;
+    margin-bottom: 0.7rem;
+  }
+  .xs__title {
+    padding-left: 1.2rem;
+    font-size: var(--step-1);
+  }
+  .xs__credit {
+    line-height: 1.5;
+  }
+  .xs__stage[data-adrift] .xs__band {
+    display: block;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .xs__band .voice {
+    margin-top: 1rem;
+  }
+  /* the film, with the pictures stacked behind it: two off its right side,
+     one far back under its left corner */
+  .xs__plate {
+    margin-top: 1.4rem;
+    padding-bottom: 0;
+  }
+  .xs__plate:not([data-pics='0']) .xs__hang {
+    margin: 12% 17% 11% 0;
+    transition: margin var(--t-base) var(--ease);
+  }
+  .xs__pic[data-slot='a'] { left: 51%; top: -23%; width: 81%; }
+  .xs__pic[data-slot='b'] { left: 70%; top: 56%; width: 61%; }
+  .xs__pic[data-slot='c'] { left: -3%; top: 72%; width: 48%; }
+  .xs__plate[data-low] .xs__caption {
+    max-width: none;
+  }
+  /* playing, the film takes the width and the pictures go */
+  .xs[data-playing] .xs__plate:not([data-pics='0']) .xs__hang {
+    margin: 0;
+  }
+  .xs[data-playing] .xs__pic {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--t-fast) var(--ease);
+  }
+  /* the line turned upright, its stops down the page */
+  .xs__route {
+    margin-top: 1.9rem;
+    padding: 0 0 0 1.9rem;
+  }
+  .xs__line {
+    top: 6px;
+    bottom: 1.4rem;
+    left: 5px;
+    right: auto;
+    width: 2px;
+    height: auto;
+    background: var(--c);
+    transform-origin: 50% 0;
+  }
+  @keyframes xs-draw {
+    from { transform: scaleY(0); }
+  }
+  .xs__line::after {
+    display: none;
+  }
+  .xs__stops {
+    display: block;
+  }
+  .xs__stop {
+    margin-bottom: 1.6rem;
+  }
+  .xs__stop::before {
+    left: -1.9rem;
+    top: 0;
+    box-shadow: 0 0 0 4px var(--paper);
+  }
+  .xs__stop p {
+    font-size: var(--step-0);
+    line-height: 1.6;
+  }
+  .xs__facts {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9rem 1rem;
+  }
+  .xs__ask {
+    position: relative;
+    top: auto;
+    right: auto;
+    translate: none;
+    box-shadow: none;
+  }
+  .xs__ask:hover,
+  .xs__ask:focus-visible {
+    box-shadow: none;
+  }
+  /* the walk: the years, and the strip between them (a swipe does it too) */
+  .xs__walk {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .xs__walk-name {
+    display: none;
+  }
+  .xs__walk button b {
+    color: inherit;
+  }
+  .xs__pos {
+    justify-content: center;
+    min-width: 0;
+  }
+  .xs__cells {
+    min-width: 0;
+  }
+  .xs__cells i {
+    flex: 0 1 7px;
+    min-width: 2px;
+  }
+  /* (which one of how many is still said, not shown) */
+  .xs__count {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* reduced motion: nothing travels, drifts or shifts; it's simply there */
+@media (prefers-reduced-motion: reduce) {
+  .xs,
+  .xs__pic-in {
+    animation: none;
+  }
+  .xs__pic {
+    transform: none;
+    transition: none;
+  }
+  .xs__pic-in,
+  .xs__pic-in img,
+  .xs__pic-in::after {
+    transition: none;
+  }
+  .xs__pic-in:hover,
+  .xs__pic-in:focus-visible {
+    scale: none;
+  }
+}

@@ -10,6 +10,9 @@
 
 .exhibit {
   --card-accent: var(--cyan);
+  /* how long a walk from a page's project to the next takes to leave: the
+     book's leaf lifting, the story's stage going (parts.tsx TURN_MS) */
+  --turn: 320ms;
   position: fixed;
   inset: 0;
   z-index: 55; /* over the fixed header (50) and the porthole (42) */
@@ -295,7 +298,8 @@
   color: var(--ink);
 }
 .xl__close,
-.xb__close {
+.xb__close,
+.xs__close {
   display: inline-grid;
   place-items: center;
   flex: none;
@@ -317,7 +321,9 @@
 .xl__close:hover,
 .xl__close:focus-visible,
 .xb__close:hover,
-.xb__close:focus-visible {
+.xb__close:focus-visible,
+.xs__close:hover,
+.xs__close:focus-visible {
   color: var(--ink);
   border-color: var(--line-strong);
 }
@@ -509,7 +515,6 @@
    came down, with the new right page already under it. Back is the mirror:
    the left page lifts, and the new right page lands. */
 .xb {
-  --turn: 320ms;
   perspective: 2600px;
 }
 .xb[data-turning] .xb__verso,

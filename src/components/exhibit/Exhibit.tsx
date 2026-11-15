@@ -13,6 +13,7 @@ import { useSceneSelector } from '../../scene/store';
 import { Book } from './Book';
 import { Lightbox } from './Gallery';
 import { Label } from './Label';
+import { Story } from './Story';
 import { LEAVE_MS, TURN_MS, box, sheetLayout, walkIn, type Dir, type From, type Place } from './parts';
 
 // A project, opened. The site is an exhibition of my work in miniature, so a
@@ -35,17 +36,20 @@ import { LEAVE_MS, TURN_MS, box, sheetLayout, walkIn, type Dir, type From, type 
 // its own heading, set as a book sets text, then "See also" and the way to ask
 // about it. Esc folds it back into the label.
 //
-// On a page (the timeline, /projects, search) the card that was clicked is the
-// label already, so a project opens straight onto the book, its plate growing
-// out of the card's picture; ← → walk from older to newer.
+// On a page (the chronology, /projects, search) the card that was clicked is
+// the label already, so a project opens straight onto its story, and there the
+// story is no book: it takes the whole screen, what the project achieved as
+// its headline, the story as stops along a line, the project's pictures
+// floating behind (Story.tsx). The film's plate grows out of the card's
+// picture; ← → walk from older to newer.
 //
 // On a touch screen it's handled, not clicked: the label follows the finger
 // sideways to the next exhibit, up into the book, down to put it away; the book
 // pulls down from its top (lib/useSheetDrag).
 //
-// This file holds the two together (which one is open, the walk, the keys);
-// the label is Label.tsx, the book Book.tsx, and what they share is parts.tsx.
-// Its styles are src/ui/exhibit.css.
+// This file holds them together (which one is open, the walk, the keys); the
+// label is Label.tsx, the book Book.tsx, a page's story Story.tsx, and what
+// they share is parts.tsx. Their styles are src/ui/exhibit.css and story.css.
 
 // How long the label waits for the camera before it shows anyway (no WebGL, so
 // nothing will ever report the camera as arrived). Once the camera has reported
@@ -68,6 +72,7 @@ export function Exhibit({
   startInBook = false,
   onBookChange,
   closing = false,
+  backTo,
 }: {
   study: CaseStudy;
   place: Place;
@@ -81,6 +86,8 @@ export function Exhibit({
   onBookChange?: (open: boolean) => void;
   /** The maquette fades the label out before its route closes. */
   closing?: boolean;
+  /** On a page: where closing goes back to, in words ("the chronology"). */
+  backTo?: string;
 }) {
   const reduced = useReducedMotion();
   const inMaquette = place === 'maquette';
@@ -102,6 +109,9 @@ export function Exhibit({
   });
   const unfoldFrom = useRef<From | null>(cardFrom);
   const { prev, next } = walkFrom(study, place, collection);
+  // (where a page's project is among the ones it walks through)
+  const at = collection ? collection.findIndex((c) => c.slug === study.slug) + 1 : 0;
+  const position = collection && at > 0 ? { at, of: collection.length } : undefined;
 
   // In the maquette the label waits for the camera: the object is reached
   // first, then the line runs out from it, then the label opens at its end.
@@ -271,7 +281,26 @@ export function Exhibit({
           onStep={step}
         />
       )}
-      {book && (
+      {book && !inMaquette && (
+        <Story
+          key={study.slug}
+          study={study}
+          from={unfoldFrom.current}
+          closeRef={closeRef}
+          prev={prev}
+          next={next}
+          position={position}
+          backTo={backTo}
+          reduced={reduced}
+          turning={turning}
+          onClose={close}
+          onWalk={walk}
+          onStep={step}
+          drag={frame === null}
+          onFrame={setFrame}
+        />
+      )}
+      {book && inMaquette && (
         <Book
           key={study.slug}
           study={study}

@@ -39,7 +39,7 @@ export function ProjectsPage() {
           </div>
         </section>
         <Footer />
-        {study && <Exhibit study={study} place="page" collection={byDate(cases)} onClose={() => setOpen(null)} onWalk={setOpen} />}
+        {study && <Exhibit study={study} place="page" collection={byDate(cases)} backTo={TITLE.toLowerCase()} onClose={() => setOpen(null)} onWalk={setOpen} />}
       </main>
     </>
   );
