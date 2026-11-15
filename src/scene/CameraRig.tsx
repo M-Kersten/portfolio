@@ -15,7 +15,7 @@ import { viewFor } from '../dev/tuning';
 
 // The opening shot, played once (a first visit): the camera starts in close on
 // the Chip, at the bottom of the model, and rises past the Room to the City,
-// where the page begins, while the whole model makes one turn under it (the
+// where the page begins, while the whole model makes half a turn under it (the
 // Maquette's turntable). It shows what the page is before a word of it is
 // read: three floors, one on top of the other. The model stays dark for it,
 // as it's found: what lights up is what a visitor opens. (It used to be a
@@ -45,7 +45,7 @@ import { viewFor } from '../dev/tuning';
 // has arrived and the scene's shaders are compiled (INTRO_WAIT at most), so
 // nothing pops in under the move and no first-draw compile stalls a frame of
 // it. Both the rise and the turn ease up from a standstill and settle to one.
-const OPENING = { dur: 6.2, turn: Math.PI * 2, land: 0.78, startZoom: 0.92, startDrop: 0.06 };
+const OPENING = { dur: 6.2, turn: Math.PI, land: 0.78, startZoom: 0.92, startDrop: 0.06 };
 // A returning visitor has had the opening, and once is enough: theirs is a
 // short push-in on the City with the title already up. `dur`: its seconds;
 // `from`: how much further out it starts.
