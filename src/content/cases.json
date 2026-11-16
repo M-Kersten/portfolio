@@ -83,14 +83,15 @@
       "Geo"
     ],
     "problem": "Alliander has to put transformer houses where nobody wants one. People don’t like an ugly box in their view and they complain, but the energy transition has to start somewhere. The locations were being chosen from paper plans, and we thought that could be done better.",
-    "approach": "We tied RTK GPS, an Android phone, a HoloLens and a backend together, so a specialist could stand in the street and see the transformer house in exactly the right spot, to the centimetre. What they saw could be saved and looked at again later, and it gave an idea of the result straight away. I did the development and the UX flow of the application.\n\nThe position comes from an RTK tracker, and that was the easy part. Its signal can’t reach the HoloLens directly, so a dedicated Android phone runs an app of ours that passes it on. Then the two have to be lined up: you record where you’re standing, walk five steps forward and record again, which gives the headset its heading as well as its place.",
+    "approach": "We tied RTK GPS, an Android phone, a HoloLens and a backend together, so a specialist could stand in the street and see the transformer house in exactly the right spot, to the centimetre. What they saw could be saved and looked at again later, and it gave an idea of the result straight away. I did the development and the UX flow of the application.\n\nThe position comes from an RTK tracker, and that was the easy part. Its signal can’t reach the HoloLens directly, so a dedicated Android phone runs an app of ours that passes it on. Then the two have to be lined up: you record where you’re standing, walk five steps forward and record again, which gives the headset its heading as well as its place.\n\nWhat was placed can be looked at again from a desk, in a web explorer I built to go with it: a Unity app compiled to WebAssembly, so it runs in a browser tab with nothing to install. It opens on a map of the neighbourhood, with a search circle round each spot where a transformer house could go. All its data ships inside the app, about 75 MB, and a service worker caches it, so after the first visit it opens without a connection and there’s no server to keep running.",
     "outcome": "A transformer house in the right spot, to the centimetre",
     "tech": [
       "HoloLens",
       "RTK GPS",
       "Unity",
       "Figma",
-      "Azure"
+      "Azure",
+      "WebGL"
     ],
     "lesson": "Technically it did what it should, and I’m still impressed we got it to work. In practice a HoloLens is a lot of hassle for a field crew. The calibration alone asked a lot of people who weren’t technical and hadn’t wanted the thing in the first place, and it never caught on. Next time I’d push harder for an iPad.",
     "year": "2024-06",
@@ -99,6 +100,10 @@
       {
         "url": "https://www.youtube.com/watch?v=2HM8ZNnEKeU",
         "label": "Watch the break-out session"
+      },
+      {
+        "url": "https://merijnkersten.nl/web-explorer/",
+        "label": "Open the web explorer"
       }
     ]
   },
@@ -338,11 +343,11 @@
       "Games"
     ],
     "problem": "Hyper-casual games live on speed. Ship fast, see how it does, kill it if it flops and start the next one. Everyone is looking for the next hit, and so were we.",
-    "approach": "I built new games and added to the ones that were already big, like Parking Jam and Pull the Pin: new modes, multiplayer features, and tools for the level and game designers.\n\nEverything in a game ran on ECS: the gameplay, and even the UI plugged into it. Our games were full of entities (puzzle pieces, tiles, blocks to break, cars to release) and had to run on as many phones as possible, so it made sense. The price was code generation. Every system we added had to be generated with Roslyn, which kept the boilerplate out of sight. A necessary evil, and I had it on a hotkey.\n\nTowards the end of a game the design team came in to make the icons, wallpapers and videos, while QA tested the gameplay. That’s most of why a launch went smoothly.",
+    "approach": "I built new games and added to the ones that were already big, like Parking Jam and Pull the Pin: new modes, multiplayer features, and tools for the level and game designers.\n\nEverything in a game ran on Entitas, the open-source ECS for Unity, which names Popcore among the studios it was battle-tested at. Components are plain data, and small systems do the work on whichever entities match. Our games were full of entities (puzzle pieces, tiles, blocks to break, cars to release) and had to run on as many phones as possible, so it made sense: it’s easy on memory, and a game reads as a list of systems instead of a tangle of objects. Even the UI plugged into it.\n\nThe price was code generation. Entitas generates a typed API for every component, so each one we added had to go through the generator, on Roslyn, which kept the boilerplate out of sight. A necessary evil, and I had it on a hotkey.\n\nTowards the end of a game the design team came in to make the icons, wallpapers and videos, while QA tested the gameplay. That’s most of why a launch went smoothly.",
     "outcome": "Lots of tiny games, shipped fast",
     "tech": [
       "Unity",
-      "ECS",
+      "Entitas (ECS)",
       "CI/CD",
       "Mobile",
       "Roslyn"
@@ -443,8 +448,8 @@
     "discipline": [
       "AR"
     ],
-    "problem": "Before AR Foundation existed, ARKit and ARCore were two separate worlds. If you wanted AR on both iPhone and Android, you built and maintained everything twice.",
-    "approach": "For my graduation, at DTT and together with a teammate, I built a framework that put both behind one API. Every AR feature is a subsystem behind an interface (session, camera, planes, point cloud, hit testing, anchors), with an ARKit and an ARCore version of each and a factory that picks the right one for the device. The game code never knows which phone it’s on, and one config asset holds the settings for both.\n\nFor multiplayer it used Google’s cloud anchors, so an Android phone and an iPhone could share the same AR scene. The anchor IDs went round through a Firebase realtime database. I’d choose differently today, but it worked for demonstrations. It had 128 unit tests, and it took two ARCore updates by swapping the plugin and nothing else.",
+    "problem": "In 2019 ARKit and ARCore were two separate worlds. DTT had an AR game stuck on Vuforia, whose tracking wasn’t stable enough to release, and Unity’s own AR Foundation couldn’t do multiplayer across iPhone and Android yet. If you wanted both, you built and maintained everything twice.",
+    "approach": "For my graduation, at DTT and together with a teammate, I built a framework that put both behind one API. Every AR feature is a subsystem behind an interface (session, camera, planes, point cloud, hit testing, anchors), with an ARKit and an ARCore version of each. I chose interfaces over base classes because the two SDKs are too different to share much code. A factory picks the manager for the device, and each manager decides for itself whether it fits, so a new platform is a new class and nothing else changes. The session is a small state machine that decides which subsystems run, and one config asset holds the settings for both, though ARCore wants one config and ARKit four.\n\nThe rest was there to keep it alive after I’d left. The platform check is ordinary code rather than a compiler switch, so it can be unit tested, and there were 128 tests. Each platform compiles into its own assembly, so a change to one doesn’t rebuild the other. It took two ARCore updates by swapping the plugin and nothing else.\n\nFor multiplayer it used Google’s cloud anchors, so an Android phone and an iPhone could share the same AR scene. The anchor IDs went round through a Firebase realtime database, behind an interface of its own so another backend could take its place. I’d choose differently today, but it worked. The six sample scenes went into one demo app that DTT took to dozens of client meetings.",
     "outcome": "Two AR platforms working together in one tidy API",
     "tech": [
       "ARCore",
@@ -453,7 +458,7 @@
       "Unity",
       "Firebase"
     ],
-    "lesson": "Sometimes the tool underneath is worth more than the one problem you built it for. I’ve kept an eye out for that ever since.",
+    "lesson": "This is where I stopped just writing code and started designing it: work out what’s going to change, put that behind an interface, and prove it with tests. And sometimes the tool underneath is worth more than the one problem you built it for. I’ve kept an eye out for that ever since.",
     "year": "2019-02",
     "video": "https://youtu.be/iCZRpxt5iPc",
     "links": [
