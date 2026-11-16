@@ -12,15 +12,17 @@
       "Design"
     ],
     "problem": "A church service is an hour of talking with two or three minutes in it that people would love to share. Getting those minutes out means cutting, cropping to vertical, adding Dutch subtitles and writing something to post with it. That’s a lot to ask of a volunteer on a Sunday afternoon, so the clips mostly never got made.",
-    "approach": "So I built Preekstof. You give it a recording of the service and it turns a moment into a vertical video for Instagram Reels and YouTube Shorts. It transcribes the Dutch, lets you correct the subtitles and highlights them word by word. It keeps the speaker in frame, puts music under the voice, adds a corner logo and an end screen, and drafts the text to post with it. It can also go through a whole service and pick out the moments worth sharing. All of it runs on your own computer. I made the app, its landing page and the film that goes with it.",
+    "approach": "So I built Preekstof. You give it a recording of the service and it turns a moment into a vertical video for Instagram Reels and YouTube Shorts. It transcribes the Dutch, lets you correct the subtitles and highlights them word by word. It keeps the speaker in frame, puts music under the voice, adds a corner logo and an end screen, and drafts the text to post with it. It can also go through a whole service and pick out the moments worth sharing. All of it runs on your own computer. I made the app, its landing page and the film that goes with it.\n\nOnly the sermon ever leaves the laptop. A rule-based labeller marks the welcome, songs, readings and notices, about half of a Sunday service, and those never go anywhere. The whole service is transcribed once, fast and rough, with Whisper small; only the fragments someone picks are heard again, carefully, with medium. That takes seconds instead of an hour. Claude proposes the moments, and code checks every one: snapped to sentence boundaries, dropped if shorter than 25 seconds or longer than three minutes, flagged if the first line leans on what came before.\n\nThe camera in a church is a wide shot from the back, so the app has a camera operator of its own. Two small models on the CPU find the speaker’s face and body, and a motion model moves the crop the way someone on a fluid head would. Most of it is about not moving: a speaker who stands still gets a still frame. The preview in the browser and the final FFmpeg render are the same rules written twice, in TypeScript and in Python, and a mirror test fails the build if they ever disagree. There are about 1,100 tests, and a release only goes out once all six downloads have been installed, started and made to render a clip.",
     "outcome": "From sermon to reel, now being piloted by my church",
     "tech": [
       "Python",
       "FastAPI",
+      "React",
       "TypeScript",
       "Whisper",
-      "FFmpeg",
-      "LLM"
+      "Claude",
+      "ONNX Runtime",
+      "FFmpeg"
     ],
     "lesson": "The people using it aren’t developers. So with every decision I asked myself whether a volunteer could do this without me standing next to them. That’s a higher bar than ‘it works’, and it’s the reason there’s a readiness panel and a one-click start.",
     "year": "2026-10",
