@@ -100,12 +100,19 @@ function WindowDriver({ mat }: { mat: MeshStandardMaterial }) {
   // lights were then the one thing on the layer that could go back OUT, and no
   // `completedAt`, because visiting all ten includes the tower anyway.
   const lit = useSceneSelector((s) => s.selectedSlug === TOWER || s.visited.includes(TOWER));
+  // The one way back out: the tour started over (the guide's reset), which
+  // empties `visited`. Then the city goes dark with everything else.
+  const startedOver = useSceneSelector((s) => s.visited.length === 0 && !s.selectedSlug);
   const reduced = useReducedMotion();
   // Seeded from the latch, so a remount while the city is lit comes back lit
   // instead of replaying the come-on from dark.
   const k = useRef(cityLatched ? 1 : 0);
   useFrame((s, delta) => {
     if (lit) cityLatched = true;
+    if (startedOver) {
+      cityLatched = false;
+      k.current = reduced ? 0 : Math.max(0, k.current - delta / ON_SECONDS);
+    }
     // One direction only. There is no target to lerp toward and no path back to
     // zero: once the tower has been opened the level climbs to 1 over
     // ON_SECONDS and stays there for the rest of the visit, whatever `lit`,
@@ -2319,6 +2326,17 @@ function PowerGrid({ feed, routes, runs, order, stagger, house }: { feed: V3[]; 
   const open = useSceneSelector((s) => s.selectedSlug === TOWER);
   const reduced = useReducedMotion();
   const coarse = useMemo(isTouch, []);
+  // The tour started over (the guide's reset empties `visited`): every block
+  // dark again, nothing on its way, as on a first visit.
+  const startedOver = useSceneSelector((s) => s.visited.length === 0 && !s.selectedSlug);
+  useEffect(() => {
+    if (!startedOver) return;
+    POWER.first.fill(-1);
+    POWER.last.fill(-1);
+    POWER.pulses.length = 0;
+    POWER.round = 0;
+    POWER.opened = false;
+  }, [startedOver]);
   const k = useRef(0);
   const nextAuto = useRef(0);
   const at = useMemo(() => new Vector3(), []);
