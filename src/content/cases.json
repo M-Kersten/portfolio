@@ -480,13 +480,13 @@
       "Installation"
     ],
     "problem": "Festivals are full of things to look at and short on things to make. We wanted something where a visitor’s own drawing becomes part of the world around them.",
-    "approach": "We spent a weekend in the woods hanging colourful cabinets between the trees. You draw a butterfly, scan it, and a few seconds later it’s projected onto the forest, flying from cabinet to cabinet. Under the hood it’s Arduino, Unity, webcams, computer vision and projection mapping, but nobody needs to know that. What we were after is the moment someone says, ‘Wait, that’s my butterfly.’",
+    "approach": "We spent a weekend in the woods hanging colourful cabinets between the trees. You draw a butterfly, scan it, and a few seconds later it’s projected onto the forest, flying from cabinet to cabinet. Under the hood it’s Arduino, Unity, webcams, computer vision and projection mapping, but nobody needs to know that. What we were after is the moment someone says, ‘Wait, that’s my butterfly.’\n\nFor anyone who does want to know: a webcam looks at the drawing table. The colouring sheet is found by its printed outline, with edge detection, ORB features matched against a reference sheet, and a homography that gives its four corners, so the paper can lie crooked and still be found. A big button on an Arduino takes the scan, and the drawing becomes the texture on a butterfly’s wings.\n\nBy day the butterflies flutter round on the screen. When the night button is pressed they leave one by one through a portal onto the projector, where each picks a cabinet, circles it, and moves on to another after a while. The projection is lined up by hand: choose a cabinet with a number key and nudge it into place with the arrows. Every drawing is saved, so after a restart they’re all still there. Trolls work the same way, except they walk.",
     "outcome": "Draw a butterfly, watch it fly off",
     "tech": [
       "Arduino",
       "Unity",
-      "Computer vision",
-      "Projection mapping"
+      "Projection mapping",
+      "OpenCV"
     ],
     "lesson": "Afterwards nobody talked about the webcams, the UV mapping or the projectors. They talked about the butterfly they’d drawn and watched disappear into the trees. I’d like to make more things that work like that.",
     "year": "2026",
