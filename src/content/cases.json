@@ -567,7 +567,13 @@
     "lesson": "With an old project, choosing what to fix matters more than how well you fix it. I found plenty I wanted to improve, and I left most of it alone. That was the hard part.",
     "year": "2025",
     "video": "https://www.youtube.com/watch?v=U5Mcp2CMTDw",
-    "archive": true
+    "archive": true,
+    "links": [
+      {
+        "url": "https://rebels.io/nl/rebels-blogs/de-eerste-48-uur-van-een-vr-remake",
+        "label": "Read more"
+      }
+    ]
   },
   {
     "slug": "nieuwe-kerk-utrecht",
