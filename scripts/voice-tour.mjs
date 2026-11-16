@@ -9,10 +9,11 @@
 // ffmpeg reads will do. Each comes out as src/assets/voice/<slug>.mp3, mono,
 // which is where the site looks for a project's audio tour.
 //
-// The effect, in order: the band a small speaker carries (300 Hz to 3.4 kHz),
-// evened out so quiet words don't drop away, a little of the grit a cheap
-// amplifier adds, brought back up to a steady level, with a breath of silence
-// at each end. It needs ffmpeg on the path.
+// The effect, in order: the narrow band a small speaker carries (about 500 Hz
+// to 3 kHz, the low end well gone), squeezed hard so quiet words don't drop
+// away, driven into the grit a cheap amplifier and line add, set a little way
+// off in the speaker's own small box, and brought back up to a steady level.
+// It needs ffmpeg on the path.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
@@ -28,12 +29,18 @@ if (!dir || !existsSync(dir)) {
 }
 
 const GUIDE = [
-  'highpass=f=300',
-  'lowpass=f=3400',
-  'acompressor=threshold=-24dB:ratio=4:attack=5:release=120:makeup=6',
-  'asoftclip=type=tanh:threshold=0.8', // the grit
-  'equalizer=f=1800:t=q:w=1.2:g=3', // the honk of a small speaker
-  'loudnorm=I=-18:TP=-2:LRA=7',
+  'highpass=f=520', // twice over, so the low end really goes
+  'highpass=f=520',
+  'lowpass=f=3000',
+  'acompressor=threshold=-26dB:ratio=6:attack=4:release=110:makeup=8',
+  'volume=7dB', // pushed into the clip: the grit
+  'asoftclip=type=tanh:threshold=0.55',
+  'acrusher=bits=9:mode=log:mix=0.22:samples=2', // the coarseness of a cheap line
+  'equalizer=f=1900:t=q:w=1.1:g=4', // the honk of a small speaker
+  'aecho=0.85:0.5:21|43:0.22|0.12', // a little way off: the speaker's own small box
+  'highpass=f=420',
+  'lowpass=f=3200',
+  'loudnorm=I=-18:TP=-2:LRA=6',
   'aresample=44100',
   'apad=pad_dur=0.25',
 ].join(',');
