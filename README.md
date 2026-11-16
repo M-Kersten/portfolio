@@ -299,6 +299,11 @@ Safari and older browsers need themselves. When you add CSS:
   the case's `slug`. Its audio tour then appears on that project's label
   and in its story; projects without a clip show none. `next-launch.mp3` is
   exhibit 11's (the countdown). Mono at 64–96 kbps is plenty for a voice.
+- **The audio tour's sound** — `npm run voice -- <folder>` takes a folder of
+  recordings named after their projects ("ARCam.m4a", "Lightship Drive.wav")
+  and writes each to `src/assets/voice/<slug>.mp3` sounding like a museum's
+  audio guide: the narrow band of a small earpiece, evened out, with a little
+  grit. `--plain` leaves the effect off. It needs ffmpeg.
 - **Sound** — effects and ambient are recordings in `src/assets/sound/`, one
   file per event; its README lists every name (wake notes, popups, the
   launch, the game, the ambient beds). A name with no file is silent, so add
