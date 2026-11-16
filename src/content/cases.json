@@ -48,14 +48,16 @@
       "VR"
     ],
     "problem": "I joined a training simulation that had been in the works for years. My job was to add multiplayer and VR to it. Quite a task.",
-    "approach": "A lot of careful surgery later, instructors can run a scenario together in VR, on a desktop or straight from the editor. I did the development, a great deal of refactoring and the UX flow of the whole application. It gets wheeled out at events, and it’s going to replace the software that new KMar recruits are trained with now. I’m pretty proud of that.",
+    "approach": "A lot of careful surgery later, instructors can run a scenario together in VR, on a desktop or straight from the editor. I did the development, a great deal of refactoring and the UX flow of the whole application. It gets wheeled out at events, and it’s going to replace the software that new KMar recruits are trained with now. I’m pretty proud of that.\n\nThe networking that was there had been a prototype, and it wasn’t built for what was coming. I took it out and did it again. I kept Netcode for GameObjects and wrote my own UDP layer next to it to sync how the NPCs move. Then I made the architecture more abstract, so the other developers can build on it without knowing anything about networking.",
     "outcome": "Multiplayer VR, retrofitted into a long-running project",
     "tech": [
       "Unity",
       "C#",
       "VR",
       "Networking",
-      "UX"
+      "UX",
+      "Netcode for GameObjects",
+      "UDP"
     ],
     "lesson": "Adding something to a system that already exists is often harder than starting from scratch. These days, before I build a feature, I ask whether anyone is going to maintain it.",
     "year": "2026",
@@ -79,7 +81,7 @@
       "Geo"
     ],
     "problem": "Alliander has to put transformer houses where nobody wants one. People don’t like an ugly box in their view and they complain, but the energy transition has to start somewhere. The locations were being chosen from paper plans, and we thought that could be done better.",
-    "approach": "We tied RTK GPS, an Android phone, a HoloLens and a backend together, so a specialist could stand in the street and see the transformer house in exactly the right spot, to the centimetre. What they saw could be saved and looked at again later, and it gave an idea of the result straight away. I did the development and the UX flow of the application.",
+    "approach": "We tied RTK GPS, an Android phone, a HoloLens and a backend together, so a specialist could stand in the street and see the transformer house in exactly the right spot, to the centimetre. What they saw could be saved and looked at again later, and it gave an idea of the result straight away. I did the development and the UX flow of the application.\n\nThe position comes from an RTK tracker, and that was the easy part. Its signal can’t reach the HoloLens directly, so a dedicated Android phone runs an app of ours that passes it on. Then the two have to be lined up: you record where you’re standing, walk five steps forward and record again, which gives the headset its heading as well as its place.",
     "outcome": "A transformer house in the right spot, to the centimetre",
     "tech": [
       "HoloLens",
@@ -88,7 +90,7 @@
       "Figma",
       "Azure"
     ],
-    "lesson": "Technically it did what it should. In practice a HoloLens is a lot of hassle for a field crew, and it never caught on. Next time I’d push harder for an iPad.",
+    "lesson": "Technically it did what it should, and I’m still impressed we got it to work. In practice a HoloLens is a lot of hassle for a field crew. The calibration alone asked a lot of people who weren’t technical and hadn’t wanted the thing in the first place, and it never caught on. Next time I’d push harder for an iPad.",
     "year": "2024-06",
     "video": "https://www.youtube.com/watch?v=biTN7qPqWCU",
     "links": [
@@ -139,14 +141,15 @@
       "Installation"
     ],
     "problem": "Niantic wanted to give visitors a photo with their favourite characters. Think Pokémon, Monster Hunter beasts, basketball stars and the Niantic mascot. It had to work first time, on a busy show floor, in a different city every other week.",
-    "approach": "So at Wonderment I built ARCam, an AR photo installation. An iPad running the Lightship SDK puts the characters in the scene, and you look at them through a viewfinder. We made three: one sturdy pedestal and two tripod rigs you can carry. You can take a photo with the characters, which is what everyone came for, or pan around and spot things placed out in the real world.",
+    "approach": "So at Wonderment I built ARCam, an AR photo installation. An iPad running the Lightship SDK puts the characters in the scene, and you look at them through a viewfinder. We made three: one sturdy pedestal and two tripod rigs you can carry. You can take a photo with the characters, which is what everyone came for, or pan around and spot things placed out in the real world.\n\nBehind it sat a backend on Firebase: storage for the files and a database for everything that belonged to them. A photo had to finish uploading before we could show its QR code, which led to a page with a download button. Video was harder, because it went through a few processing steps first. The pedestal itself is all mechanical, so there was nothing in it that software could break. The fiddly part in each new city was the hotspots: look at the Eiffel Tower through ARCam and it tells you about it. All of that was set up in Google Sheets, and today I’d pick something sturdier.",
     "outcome": "16 cities worldwide, and it all fits in a suitcase",
     "tech": [
       "Lightship ARDK",
       "Unity",
       "iPad / iOS",
       "Location AR",
-      "Node.js"
+      "Node.js",
+      "Firebase"
     ],
     "lesson": "With AR on location you end up owning everything, because the real world is the one part you can’t control. Tracking, databases, web, audio, performance, devices, UX, 3D, and yes, the electronics and the broken screws. I built the backend on a hunch, vibe-coded years before that was a word. It fell over on day one and ran without a hitch after that. Starting on it early, before anyone asked, is what made the difference. And after living out of a suitcase in all those cities, I know what ‘delivering’ means.",
     "year": "2022-03",
@@ -207,14 +210,15 @@
       "VR"
     ],
     "problem": "I wanted to work on real projects for big clients, and had no idea how. Then I got an internship at DTT. I soon knew this was the job for me, even on the days it didn’t go well.",
-    "approach": "I worked on a bit of everything: educational reading games, iOS optimisation, a VR trip through space and an AR showcase app that let clients see what the technology could do.",
+    "approach": "I worked on a bit of everything: educational reading games, iOS optimisation, a VR trip through space and an AR showcase app that let clients see what the technology could do.\n\nThe trickiest was the star finder. It ran on an early version of Unity’s job system and ECS, with the sky cut into sectors so that only the stars you could see were drawn, and at first I understood none of it. The star map was calculated properly, so if you flew to Venus and looked up, the sky was slightly different from Earth’s. Looking back, that may have been overkill.\n\nThe reading game had to run on an iPhone 6, with less than 1 GB of memory. Every byte went to textures. Atlasing helped, but it wasn’t automatic, and the game kept changing.",
     "outcome": "A shelf of shipped apps, and my first go at leading a team",
     "tech": [
       "Unity",
       "AR",
       "VR",
       "iOS",
-      "Android"
+      "Android",
+      "ECS & Jobs"
     ],
     "lesson": "Everyone is pretending until they figure it out. I got these projects because I was willing to try and stuck with them, and I should keep doing that.",
     "year": "2019-02",
@@ -256,13 +260,15 @@
       "Games"
     ],
     "problem": "The brief was multiplayer AR on a trade-show floor. That’s about the hardest place there is for a demo: the connection is bad, it’s loud, and nobody has held the app before.",
-    "approach": "So we made it a racing game on a table, something you get in five seconds. People race little AR cars across a real table, with spectator screens, synced audio and a server keeping everyone in the same race. The track changes every 30 seconds, and the cars play a kind of tag: whoever is in the lead wears a crown, and the others can take it.",
+    "approach": "So we made it a racing game on a table, something you get in five seconds. People race little AR cars across a real table, with spectator screens, synced audio and a server keeping everyone in the same race. The track changes every 30 seconds, and the cars play a kind of tag: whoever is in the lead wears a crown, and the others can take it.\n\nWe tried meshing the table first, and it wasn’t accurate enough: the cars bumped into the tiniest dents in the surface. With a track that keeps changing we needed something we could count on, so the whole table became one big tracking image, with a print that’s easy to recognise and not symmetrical. Any iPad that sees it knows where it is. They found each other through a relay that Niantic ran, a new feature they wanted to show off. The rest was Netcode for GameObjects: network variables for the state of the level, RPCs for the collisions.",
     "outcome": "AR races on a show floor (and they actually worked)",
     "tech": [
       "Unity",
       "Networking",
       "VPS",
-      "Lightship ARDK"
+      "Lightship ARDK",
+      "Netcode for GameObjects",
+      "Image tracking"
     ],
     "follows": "arcam",
     "lesson": "On a show floor things fail, so I build as if they will. This time the server SDK was brand new and ended every session after about ten minutes. There was no fix coming, so I added a popup for when it happened: ‘You won! Give the phone to the next visitor.’",
@@ -287,7 +293,7 @@
       "AR"
     ],
     "problem": "Publisher Zwijsen had a new edition of a classic children’s book coming out. They wanted an app to go with it, one that brought the book to life.",
-    "approach": "I did all of it: the concept, the UX, the AR and the fiddly business of getting it into the app stores. It went well enough that we did six more books, and then a series of audiobook apps that open from a QR code printed in the book.",
+    "approach": "I did all of it: the concept, the UX, the AR and the fiddly business of getting it into the app stores. It went well enough that we did six more books, and then a series of audiobook apps that open from a QR code printed in the book.\n\nIt had to work for small children, so there’s nothing to press and no tricky movement to learn. When the camera sees a page, it starts, and the voice and the sounds around it fade in. Most of the work was cutting the pictures out of the pages. I did all of it by hand, and it took weeks of late nights.",
     "outcome": "The apps ended up on tens of thousands of phones",
     "tech": [
       "Unity",
@@ -330,13 +336,14 @@
       "Games"
     ],
     "problem": "Hyper-casual games live on speed. Ship fast, see how it does, kill it if it flops and start the next one. Everyone is looking for the next hit, and so were we.",
-    "approach": "I built new games and added to the ones that were already big, like Parking Jam and Pull the Pin: new modes, multiplayer features, and tools for the level and game designers.",
+    "approach": "I built new games and added to the ones that were already big, like Parking Jam and Pull the Pin: new modes, multiplayer features, and tools for the level and game designers.\n\nEverything in a game ran on ECS: the gameplay, and even the UI plugged into it. Our games were full of entities (puzzle pieces, tiles, blocks to break, cars to release) and had to run on as many phones as possible, so it made sense. The price was code generation. Every system we added had to be generated with Roslyn, which kept the boilerplate out of sight. A necessary evil, and I had it on a hotkey.\n\nTowards the end of a game the design team came in to make the icons, wallpapers and videos, while QA tested the gameplay. That’s most of why a launch went smoothly.",
     "outcome": "Lots of tiny games, shipped fast",
     "tech": [
       "Unity",
       "ECS",
       "CI/CD",
-      "Mobile"
+      "Mobile",
+      "Roslyn"
     ],
     "follows": "dtt-amsterdam",
     "lesson": "Shipping fast and fixing it afterwards beats elegant code. The market really doesn’t care how pretty your architecture is.",
@@ -435,13 +442,14 @@
       "AR"
     ],
     "problem": "Before AR Foundation existed, ARKit and ARCore were two separate worlds. If you wanted AR on both iPhone and Android, you built and maintained everything twice.",
-    "approach": "For my graduation I built a framework that put both behind one API. It also ran cloud anchors, so an Android phone and an iPhone could share the same AR scene.",
+    "approach": "For my graduation, at DTT and together with a teammate, I built a framework that put both behind one API. Every AR feature is a subsystem behind an interface (session, camera, planes, point cloud, hit testing, anchors), with an ARKit and an ARCore version of each and a factory that picks the right one for the device. The game code never knows which phone it’s on, and one config asset holds the settings for both.\n\nFor multiplayer it used Google’s cloud anchors, so an Android phone and an iPhone could share the same AR scene. The anchor IDs went round through a Firebase realtime database. I’d choose differently today, but it worked for demonstrations. It had 128 unit tests, and it took two ARCore updates by swapping the plugin and nothing else.",
     "outcome": "Two AR platforms working together in one tidy API",
     "tech": [
       "ARCore",
       "ARKit",
       "C#",
-      "Unity"
+      "Unity",
+      "Firebase"
     ],
     "lesson": "Sometimes the tool underneath is worth more than the one problem you built it for. I’ve kept an eye out for that ever since.",
     "year": "2019-02",
