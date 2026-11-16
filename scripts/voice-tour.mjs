@@ -10,9 +10,10 @@
 // which is where the site looks for a project's audio tour.
 //
 // The effect, in order: the narrow band a small speaker carries (about 500 Hz
-// to 3 kHz, the low end well gone), squeezed hard so quiet words don't drop
-// away, driven into the grit a cheap amplifier and line add, set a little way
-// off in the speaker's own small box, and brought back up to a steady level.
+// to 3 kHz, the low end well gone), evened out so quiet words don't drop away,
+// then made lo-fi rather than gritty: the slow wow and quick flutter of a tape
+// that doesn't run true, a low sample rate, a breath of hiss under the voice.
+// It sits a little way off, in the speaker's own small box, at a steady level.
 // It needs ffmpeg on the path.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
@@ -28,22 +29,25 @@ if (!dir || !existsSync(dir)) {
   process.exit(1);
 }
 
-const GUIDE = [
-  'highpass=f=520', // twice over, so the low end really goes
-  'highpass=f=520',
-  'lowpass=f=3000',
-  'acompressor=threshold=-26dB:ratio=6:attack=4:release=110:makeup=8',
-  'volume=7dB', // pushed into the clip: the grit
-  'asoftclip=type=tanh:threshold=0.55',
-  'acrusher=bits=9:mode=log:mix=0.22:samples=2', // the coarseness of a cheap line
-  'equalizer=f=1900:t=q:w=1.1:g=4', // the honk of a small speaker
-  'aecho=0.85:0.5:21|43:0.22|0.12', // a little way off: the speaker's own small box
-  'highpass=f=420',
-  'lowpass=f=3200',
-  'loudnorm=I=-18:TP=-2:LRA=6',
-  'aresample=44100',
-  'apad=pad_dur=0.25',
-].join(',');
+// (the voice, then a breath of hiss under it, then levelled)
+const GUIDE =
+  '[0:a]' +
+  [
+    'highpass=f=480',
+    'highpass=f=480',
+    'lowpass=f=3000',
+    'acompressor=threshold=-24dB:ratio=4:attack=5:release=120:makeup=6',
+    'asoftclip=type=tanh:threshold=0.85', // only a touch of grit
+    'vibrato=f=0.6:d=0.07', // wow: a tape that doesn't quite run true
+    'vibrato=f=5.5:d=0.02', // and flutter
+    'aresample=11025', // a low sample rate, and back
+    'aresample=44100',
+    'equalizer=f=1700:t=q:w=1.0:g=3', // the honk of a small speaker
+    'aecho=0.85:0.5:21|43:0.2|0.1', // a little way off: the speaker's own small box
+    'lowpass=f=3200',
+  ].join(',') +
+  '[voice];anoisesrc=c=pink:a=0.006:r=44100,highpass=f=900,lowpass=f=4500[hiss];' +
+  '[voice][hiss]amix=inputs=2:duration=first:normalize=0,loudnorm=I=-18:TP=-2:LRA=6,aresample=44100,apad=pad_dur=0.25[out]';
 const PLAIN = 'highpass=f=80,loudnorm=I=-18:TP=-2:LRA=9,aresample=44100,apad=pad_dur=0.25';
 
 const cases = JSON.parse(readFileSync(join(ROOT, 'src/content/cases.json'), 'utf8'));
@@ -67,7 +71,7 @@ for (const file of readdirSync(dir).sort()) {
     continue;
   }
   const out = join(OUT, `${slug}.mp3`);
-  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', join(dir, file), '-vn', '-ac', '1', '-ar', '44100', '-af', plain ? PLAIN : GUIDE, '-c:a', 'libmp3lame', '-b:a', '80k', out]);
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', join(dir, file), '-vn', '-ac', '1', '-ar', '44100', ...(plain ? ['-af', PLAIN] : ['-filter_complex', GUIDE, '-map', '[out]']), '-c:a', 'libmp3lame', '-b:a', '80k', out]);
   console.log(`${file} → src/assets/voice/${slug}.mp3`);
   done++;
 }
