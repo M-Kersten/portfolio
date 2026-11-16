@@ -35,10 +35,9 @@ const GUIDE = [
   'equalizer=f=1800:t=q:w=1.2:g=3', // the honk of a small speaker
   'loudnorm=I=-18:TP=-2:LRA=7',
   'aresample=44100',
-  'adelay=150:all=1',
   'apad=pad_dur=0.25',
 ].join(',');
-const PLAIN = 'highpass=f=80,loudnorm=I=-18:TP=-2:LRA=9,aresample=44100,adelay=150:all=1,apad=pad_dur=0.25';
+const PLAIN = 'highpass=f=80,loudnorm=I=-18:TP=-2:LRA=9,aresample=44100,apad=pad_dur=0.25';
 
 const cases = JSON.parse(readFileSync(join(ROOT, 'src/content/cases.json'), 'utf8'));
 const key = (s) => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '');
