@@ -417,12 +417,13 @@
       "AI"
     ],
     "problem": "I wanted to know if an AI tour guide could feel like a real person. So I made up a few Amsterdam locals you could talk to, and tried to make them feel less like a chatbot.",
-    "approach": "The prototype strings together speech-to-text, an LLM, text-to-speech and facial animation. What you get is a character standing in front of you in AR that you can have a conversation with.",
+    "approach": "The prototype strings together speech-to-text, an LLM, text-to-speech and facial animation. What you get is a character standing in front of you in AR that you can have a conversation with.\n\nEach local started as a backstory, written with Claude. That gave two things: a short description to generate a face from, and the prompt that tells the character who they are and how they talk. The face went from a generated selfie through background removal, upscaling and Reshot.ai for the other angles into Avaturn, which turns it into a 3D model with the blendshapes a face needs to move.\n\nIn Unity your voice goes to Azure’s speech service, the text goes to an Azure OpenAI model, and the answer comes back through Azure’s voice synthesis. I picked Azure for the voices because it returns visemes along with the audio, so the mouth moves with the words. No single step in that chain is hard any more. The skill is in the joins: each tool’s quirks decide what the next one can do with its output. Avaturn works best from a close selfie, for instance, so that has to be in the image prompt five steps earlier.",
     "outcome": "AI locals you can actually chat with in the city",
     "tech": [
-      "Azure AI",
-      "Speech-to-text",
-      "LLMs",
+      "Unity",
+      "Azure Speech",
+      "Azure OpenAI",
+      "Avaturn",
       "Blendshapes",
       "Generative AI"
     ],
@@ -434,6 +435,10 @@
       {
         "url": "https://medium.com/@rebelscontent/ai-chatbots-for-augmented-reality-a0c06f0c599a",
         "label": "Read more"
+      },
+      {
+        "url": "https://youtu.be/l_HrQ_w_pdc",
+        "label": "Watch the tutorial"
       }
     ]
   },
