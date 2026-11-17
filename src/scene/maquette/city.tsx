@@ -1005,6 +1005,10 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
   const lensFlash = useRef<Sprite>(null);
   const glow = useMemo(glowTexture, []);
   const lastShot = useRef(0);
+  // its own time: the scene's clock starts again from nought whenever the
+  // canvas has been paused (scrolled away, the game up), and a shot timed on it
+  // would then have gone off in the future
+  const now = useRef(0);
   const wakeK = useRef(0); // 0 frosted glass -> 1 the awake, near-solid material
   const screenMat = useRef<MeshStandardMaterial>(null);
   const [model, setModel] = useState<Group | null>(null);
@@ -1070,7 +1074,7 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
 
   useFrame((s, delta) => {
     const dt = Math.min(delta, 1 / 30);
-    const t = s.clock.elapsedTime;
+    const t = (now.current += dt);
     const sh = shot.current;
     // press the shutter (see SHOT); not again before the last one's gone off
     const takeShot = (big = false) => {
