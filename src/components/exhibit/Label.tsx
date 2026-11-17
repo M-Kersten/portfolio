@@ -240,7 +240,6 @@ export function Label({
             key={`voice-${study.slug}`}
             slug={study.slug}
             title={study.title}
-            no={no !== null ? pad2(no) : undefined}
             label="Audio tour · in my own words"
           />
           {/* the way to the content: the whole story, in the book */}

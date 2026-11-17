@@ -400,7 +400,6 @@ export function Story({
                   key={`voice-${study.slug}`}
                   slug={study.slug}
                   title={study.title}
-                  no={no !== null ? pad2(no) : undefined}
                   label="Audio tour · in my own words"
                 />
                 {adrift.length > 0 && <div className="xs__adrift">{adrift.map(picture)}</div>}

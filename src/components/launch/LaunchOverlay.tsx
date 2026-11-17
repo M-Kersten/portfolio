@@ -108,7 +108,7 @@ export function LaunchOverlay() {
             spaceflight closely and watch every launch I have time for, so that’s how I think about building things. This one is still on
             the pad. Fly it in the simulator to see how it might go, or let’s build it for real and give it a place in the collection.
           </p>
-          <VoiceNote slug="next-launch" title="The next launch" no={String(NEXT_LAUNCH_NO)} label="Audio tour · the countdown" />
+          <VoiceNote slug="next-launch" title="The next launch" label="Audio tour · the countdown" />
           <div className="launch__row">
             <button type="button" className="btn launch__go" onClick={() => sceneStore.setLaunch('countdown')}>
               LAUNCH
