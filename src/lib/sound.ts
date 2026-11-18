@@ -24,16 +24,15 @@ export type SoundName =
   // the signature: a project wakes (the n-th, each a little higher), and the pad powering on when all ten have
   | `wake-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10}`
   | 'complete'
-  // the interface
+  // the interface: any link or button pressed, and the pointer coming onto one (or onto a hotspot)
   | 'select'
   // the reticle acquiring a project as the camera goes in on it
   | 'focus'
   | 'hover'
-  | 'popup-open'
-  | 'popup-close'
-  // the admission ticket: pulled out and turned over, pushed back in, stamped
+  // the admission ticket: pulled out and turned over, pushed back in, stamped, its stub torn off
   | 'ticket-open'
   | 'ticket-close'
+  | 'ticket-tear'
   | 'stamp'
   // the launch
   | 'launch-count'
@@ -77,6 +76,8 @@ export type SoundName =
   // Snake on the die: a food eaten, and a crash (only while the visitor steers)
   | 'snake-eat'
   | 'snake-crash'
+  // the chip at work: a bleep every few seconds while its layer is up
+  | 'chip-bleep'
   // the AR framework's camera: a cube anchored, and all of them merging into one
   | 'cube-anchor'
   | 'cube-merge'

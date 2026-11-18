@@ -10,6 +10,7 @@ import { NotFound } from '../components/shell/NotFound';
 import { CvPage } from '../components/pages/CvPage';
 import { ProjectsPage } from '../components/pages/ProjectsPage';
 import { ScrollToHash } from '../components/shell/ScrollToHash';
+import { UiSounds } from '../components/shell/UiSounds';
 import { DevTools } from '../dev/DevTools';
 
 // One Router, one persistent <SceneCanvas/> (§6). Every case study is a modal
@@ -42,6 +43,7 @@ export function App() {
       {/* outside the routes: the fade-up is a property of the page load, so it
           covers the CV and projects sheets too, not just the maquette chrome */}
       <BootVeil />
+      <UiSounds />
       <a className="skip-link" href="#main">
         Skip to content
       </a>

@@ -1128,11 +1128,12 @@ function DieSnake({ geometry, game }: { geometry: BufferGeometry; game: { on: nu
               const ring = Math.max(Math.abs((j % SNAKE_N) - fx), Math.abs(Math.floor(j / SNAKE_N) - fz));
               if (ring >= 1 && ring <= 2) lift.kicks.push({ i: j, at: now + ring * 0.06, of: ring === 1 ? 0.5 : 0.25 });
             }
-            if (target !== null) play('snake-eat', { volume: 0.4 });
+            // (a step higher for each one eaten; fainter while the chip plays itself)
+            play('snake-eat', { volume: target !== null ? 0.4 : 0.15, rate: 2 ** (Math.min(12, r.s.eaten) / 12) });
           } else if (res === 'crash') {
             r.phase = 'crash';
             r.t = 0;
-            if (target !== null) play('snake-crash', { volume: 0.5 });
+            play('snake-crash', { volume: target !== null ? 0.5 : 0.18 });
             break;
           }
         }

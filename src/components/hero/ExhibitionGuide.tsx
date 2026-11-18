@@ -27,6 +27,8 @@ const LAYERS = ['city', 'room', 'chip'] as const;
 const TOTAL = HOTSPOTS.length;
 /** how long tearing the stub off takes, before the pad (hero.css, guide-tear) */
 const TEAR_MS = 1750;
+/** when in that the tear itself starts down the perforation (guide-tear-line: 28%) */
+const RIP_MS = 490;
 /** When a stamp is heard: as it lands, part-way through its keyframes (hero.css).
  *  On the back, guide-stamp starts 1 s after the ticket is pulled, one every
  *  0.22 s, and lands 0.23 s in; the all-ten one starts 0.15 s later and takes a
@@ -202,6 +204,7 @@ export function ExhibitionGuide({
     if (torn) return;
     setTorn(true);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.setTimeout(() => play('ticket-tear', { volume: 0.6 }), reduced ? 0 : RIP_MS);
     window.setTimeout(
       () => {
         onClose();

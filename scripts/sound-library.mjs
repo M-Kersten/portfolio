@@ -57,24 +57,27 @@ const VECTOR_MOVE = 'Movement/Full Screen Transition';
 const DESK = 'Objects on Desk Foley';
 const CAMERA = 'Aperture - Singular';
 
+/** Nothing above 2.5 kHz: for the grid's sounds, which are heard as a squeal with their top left on. */
+const LOW = 'lowpass=f=2500,lowpass=f=2500';
 const PICKS = {
   // the interface
   // the launch: the clamps letting go
   'launch-release': 'made/launch-release',
 
   select: 'Click/Keyboard Click 01',
-  // the reticle finding a project: fine adjustments, the zoom, the lock
-  focus: { from: 'made/focus', dur: 1.3, fadeOut: 0.15 },
+  // the reticle finding a project, in the moment the camera holds before it goes in
+  // (ACQUIRE_HOLD, 0.4 s): a camera's dial clicking round
+  focus: { variants: [{ from: `${CAMERA}/Vintage Camera/Konica Dials 06`, dur: 0.4, fadeOut: 0.08 }, { from: `${CAMERA}/Vintage Camera/Konica Dials 03`, dur: 0.4, fadeOut: 0.08 }, { from: `${CAMERA}/Vintage Camera/Konica Dials 04`, dur: 0.4, fadeOut: 0.08 }] },
   hover: 'Hover/Simple Hover 03',
   // a breath of air as the label opens, and the same drawn back in as it closes
-  'popup-open': { from: `${VECTOR_MOVE}/Airy Transition Fast`, dur: 0.3, fadeOut: 0.1 },
-  'popup-close': { from: `${VECTOR_MOVE}/Airy Transition Fast`, dur: 0.3, fadeOut: 0.1, reverse: true },
   complete: `${VECTOR_MOVE}/Resonant Big Transition`,
 
   // the admission ticket: slid up out of the edge and turned over, pushed
   // back in, and the validator's stamp coming down on it
   'ticket-open': ['Movement/Whoosh/Paper Fast Whoosh', { from: 'Foley/Paper Flap 01', at: 0.4, gain: -2 }],
   'ticket-close': 'Books and Notes/Flip 15',
+  // the stub torn off down its perforation (the tear takes 0.42 s: hero.css, guide-tear-line)
+  'ticket-tear': 'Books and Notes/Rip 03',
   stamp: { variants: [6, 2, 9].map((n) => `${DESK}/Object With Rubber Feet Put Down On Desk ${String(n).padStart(2, '0')}`) },
 
   // the game
@@ -91,8 +94,9 @@ const PICKS = {
   'comms-type': { from: 'made/comms-type', dur: 0.05, fadeOut: 0.02 },
 
   // the city's grid, and the windmill
-  'grid-charge': { from: `${CAMERA}/Charge/Camera Electronic Flash Charge 02`, dur: 0.45, fadeOut: 0.08 },
-  'grid-zap': { variants: [1, 2, 3].map((n) => `${VECTOR_MOVE}/Chaos Data Transition 0${n}`) },
+  // (made: a camera flash charging, which this was, is a squeal)
+  'grid-charge': { from: 'made/grid-charge', dur: 0.6, fadeOut: 0.15, tone: LOW },
+  'grid-zap': { variants: [{ from: 'made/grid-zap', dur: 0.5, fadeOut: 0.15, tone: LOW }, { from: 'made/grid-zap-2', dur: 0.5, fadeOut: 0.15, tone: LOW }] },
   'grid-on': 'Switches and Peripherals/Switches Cables Plugin Peripherals 44',
   'mill-power': `${VECTOR_MOVE}/Tonal Synth Rise`,
   'star-pop': 'Hover/Simple Hover 04',
@@ -108,8 +112,11 @@ const PICKS = {
   'cath-clear': ['Foley/Water Whoosh', ...twoNotes(0.25)],
 
   // Snake
-  'snake-eat': { variants: ['Hover/Simple Hover 01', 'Hover/Simple Hover 05', 'Hover/Simple Hover 06'] },
-  'snake-crash': 'Click/Deny Click',
+  'snake-eat': { variants: ['Bleep/Bleep 03', 'Bleep/Digital Bleep 01', 'Bleep/Digital Bleep 02'] },
+  // (a bloop: the same bleep twice, low and then lower)
+  'snake-crash': [{ from: 'Bleep/Bleep 02', rate: 0.6 }, { from: 'Bleep/Bleep 02', rate: 0.42, at: 0.16 }],
+  // the chip at work: one of these every few seconds while its layer is up (SoundScape), each at its own pitch
+  'chip-bleep': { variants: ['Bleep/Bleep 01', 'Bleep/Bleep 02', 'Bleep/Bleep 03', 'Bleep/Digital Bleep 01', 'Bleep/Digital Bleep 02', 'Bleep/Data Transmission', 'Bleep/Cute Double Bleep'] },
 
   // the AR framework's cubes
   'cube-anchor': 'Tiles/Glass Tap Tiles 01',
@@ -155,8 +162,9 @@ const noise = (colour) => `anoisesrc=c=${colour}:r=44100:seed=11[a];anoisesrc=c=
 const BEDS = {
   // the city from a long way off: the traffic's rumble, none of its detail
   'ambient-city': { from: 'city-background', len: 60, curve: 'tri', tone: 'lowpass=f=900,lowpass=f=900' },
-  // the room: its air and nothing else
-  'ambient-room': { make: noise('pink'), len: 30, tone: 'highpass=f=70,lowpass=f=450,lowpass=f=450' },
+  // the room: an apartment with the windows shut, the outside world faint through them
+  // (the recording's first minute: later on something loud goes by)
+  'ambient-room': { from: 'aparment', start: 5, len: 60 },
   // the chip: mains hum (100 Hz and two harmonics) under a faint high hiss
   'ambient-chip': {
     make:
@@ -169,9 +177,9 @@ const BEDS = {
   'launch-roar': { from: 'made/launch-roar', start: 1.5, len: 8, xfade: 2, lufs: -18 },
   'launch-deluge': { from: 'made/launch-deluge', start: 1.5, len: 8, xfade: 2, lufs: -20 },
   // Not a bed but made the same way: a little car's motor, the steady middle
-  // of a desk's servo, looped; the site plays it faster and slower with the
+  // of a desk's servo with its whine taken off, looped; the site plays it faster and slower with the
   // car's speed. An effect, so at an effect's level (`lufs`, where a bed is -28).
-  'car-engine': { from: 'Standing Desk Motor/Motor Servo Up And Down 04', start: 1.5, len: 3, xfade: 0.5, lufs: -18 },
+  'car-engine': { from: 'Standing Desk Motor/Motor Servo Up And Down 04', start: 1.5, len: 3, xfade: 0.5, lufs: -18, tone: 'lowpass=f=1600,lowpass=f=1600' },
 };
 
 // What the library has nothing for is made: described to ElevenLabs' sound
@@ -186,8 +194,10 @@ const MADE = {
   // the audio tour's frame (scripts/voice-kit, which voice-tour.mjs plays round a recording): the handset starting a track, and ending it
   'voice-intro': { seconds: 1, say: 'Audio guide device start sound: a clear button press click followed by one short bright electronic confirmation tone. Clean and dry, clearly audible.' },
   'voice-outro': { seconds: 1, say: 'A museum audio guide handset ending a track: a single short soft low electronic tone, then one soft button click. Simple, clean, gentle, dry. Nothing else.' },
-  // the reticle (FocusReticle) acquiring an exhibit as the camera goes in
-  focus: { seconds: 1.5, say: 'A precision camera reticle calibrating and locking on to a target: a few quick fine servo adjustments and tiny focus ticks, a soft smooth zoom whirr rising, then one subtle lock-on click. Quiet, precise, modern, dry, no music, no beeps.' },
+  // the city's grid: the station gathering charge, and the pulse going through the transformer house
+  'grid-charge': { seconds: 1, say: 'A large electrical power transformer energising: a deep low 50 hertz mains hum swelling up quickly, with a soft heavy relay clunk. Low pitched and warm, dry, no high-pitched whine, no squeal.' },
+  'grid-zap': { seconds: 0.5, say: 'One short low electrical arc inside a power substation: a deep buzzing zap with a dull thump. Low pitched, dry, no high-pitched whine, no squeal.' },
+  'grid-zap-2': { seconds: 0.5, say: 'One short heavy electrical buzz of a high voltage transformer discharging: a low growling crackle. Low pitched, dry, no high-pitched whine, no squeal.' },
   // the game on the pad: flown in space, but heard the way a cockpit would carry it
   'game-shot': { seconds: 0.5, say: 'One shot from a spacecraft cannon heard from inside the cockpit: a short punchy thump with a brief hiss of gas. Realistic, dry, not a cartoon laser.' },
   'game-shot-2': { seconds: 0.5, say: 'One shot from a spacecraft cannon heard from inside the cockpit: a short hard thump with a brief metallic recoil. Realistic, dry, not a cartoon laser.' },
@@ -279,6 +289,7 @@ function layer(l) {
   const f = ['aresample=48000', 'aformat=channel_layouts=mono', SILENCE, 'areverse', SILENCE, 'areverse'];
   if (l.start || l.dur) f.push(`atrim=start=${l.start ?? 0}${l.dur ? `:duration=${l.dur}` : ''}`, 'asetpts=PTS-STARTPTS');
   if (l.rate && l.rate !== 1) f.push(`asetrate=${Math.round(48000 * l.rate)}`, 'aresample=48000');
+  if (l.tone) f.push(l.tone); // a filter over it (a low-pass, where a sound must not be shrill)
   if (l.reverse) f.push('areverse');
   // a hair of fade at each end, so a cut never clicks
   f.push('afade=t=in:d=0.002', 'areverse', `afade=t=in:d=${l.fadeOut ?? 0.012}`, 'areverse');

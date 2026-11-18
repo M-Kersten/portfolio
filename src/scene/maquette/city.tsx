@@ -2173,7 +2173,7 @@ function sendPower(now: number) {
   if (to === undefined) to = order[POWER.round++ % order.length];
   pulses.push({ to, at: now, k: 1, zapped: false });
   POWER.sentAt = now;
-  play('grid-charge', { volume: 0.5 });
+  play('grid-charge', { volume: 0.35 });
 }
 
 /** The grid's cables under the street plan (`ave`: where the avenues run).
@@ -2452,7 +2452,7 @@ function PowerGrid({ feed, routes, runs, order, stagger, house }: { feed: V3[]; 
         // held in the house: it flares (TransformerHouse) and throws sparks
         if (!p.zapped) {
           p.zapped = true;
-          play('grid-zap', { volume: 0.55 });
+          play('grid-zap', { volume: 0.4 });
           for (let n = 0; n < 10; n++) {
             const sp = fx.sparks[fx.n.spark++ % SPARKS];
             const a = Math.random() * Math.PI * 2;

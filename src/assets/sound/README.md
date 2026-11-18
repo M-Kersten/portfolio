@@ -23,11 +23,9 @@ first file is in here; a visitor's choice is remembered.
 
 | File | When | Notes |
 | --- | --- | --- |
-| `focus` | the camera goes in on a project and the reticle locks on to it | an instrument finding its target: fine adjustments, a zoom's whirr, a lock; about 1.3 s, no beeps |
-| `select` | not played at the moment; kept as a small confirm | one dry tick |
-| `hover` | a hotspot comes under the pointer, or the keyboard's focus | the smallest tick there is, low and soft; it's heard a lot |
-| `popup-open` | a project's label or book opens | a breath of air, about 0.3 s; nothing papery |
-| `popup-close` | the label or book closes | the same, reversed |
+| `focus` | the reticle locks on to a project, in the 0.4 s before the camera goes in; fainter and lower as it comes back out | a camera's dial clicking: a few small dry clicks, 0.4 s at most; give it variants. No whoosh, no beeps |
+| `select` | any link or button is pressed (but not a hotspot or the ticket, which have their own) | one dry tick |
+| `hover` | the pointer comes onto a hotspot (or the keyboard's focus does), or, quieter, onto any link or button | the smallest tick there is, low and soft; it's heard a lot |
 
 ## The admission ticket
 
@@ -35,6 +33,7 @@ first file is in here; a visitor's choice is remembered.
 | --- | --- | --- |
 | `ticket-open` | the ticket is pulled out of the edge and turns over | card sliding, then a flap as it turns: about 1.2 s, the turn starting 0.35 s in |
 | `ticket-close` | it's pushed back in | one quick flip |
+| `ticket-tear` | at ten, the stub is torn off down its perforation (0.5 s after the click, as the tear starts) | card tearing, one pull, about 0.4 s |
 | `stamp` | a stamp comes down: on the cover's strip as the count steps, on the back for each exhibit seen since it was last out, and the all-ten one | a rubber stamp's thud, short and dull; give it variants. Played lighter and higher for the cover's small cell, heavier for the all-ten one |
 
 ## The launch
@@ -67,8 +66,8 @@ the station (the tower) through the house to the next block.
 
 | File | When | Notes |
 | --- | --- | --- |
-| `grid-charge` | the station gathers charge, the moment you point | a rising whine, about 0.3 s |
-| `grid-zap` | the pulse passes through the transformer house | a short electric crackle; give it variants |
+| `grid-charge` | the station gathers charge, the moment you point | a transformer's low hum swelling, about 0.6 s; nothing high, it squeals |
+| `grid-zap` | the pulse passes through the transformer house | a short low electric buzz; give it variants |
 | `grid-on` | a block's lights come on | a soft thunk of a big switch, with a low hum tail |
 
 ## The heart
@@ -83,13 +82,13 @@ open the two narrowed ones.
 
 ## Snake
 
-In the Amsterdam AI close-up the die plays Snake; these sound only while the
-visitor steers (not while the chip plays itself).
+In the Amsterdam AI close-up the die plays Snake; these sound fainter while
+the chip plays itself than while the visitor steers.
 
 | File | When | Notes |
 | --- | --- | --- |
-| `snake-eat` | the snake eats | a short bright blip, under 0.1 s; give it variants |
-| `snake-crash` | the snake runs out of room | a low buzz falling away, about 0.4 s |
+| `snake-eat` | the snake eats (played a step higher for each one eaten) | a short bright bleep, under 0.25 s; give it variants |
+| `snake-crash` | the snake runs out of room | a bloop: two low notes, the second lower, about 0.4 s |
 
 ## The chase
 
@@ -141,7 +140,7 @@ In the Popcore close-up the ping-pong balls go for the bin beside the couch.
 | File | When | Notes |
 | --- | --- | --- |
 | `crown-tag` | in the Lightship Drive close-up, the crown changes hands | one firm click; played higher when you take it, lower when the rival does |
-| `car-engine` | loops for each car while crown tag is on, faster and louder with the car's speed | a small electric motor's steady whirr, 2–3 s, seamless; no revs in the recording itself |
+| `car-engine` | loops for each car while crown tag is on, a little faster and louder with the car's speed | a small electric motor's low whirr, 2–3 s, seamless; no revs in the recording itself and no high whine (it's heard twice over, for as long as the game runs) |
 | `mouse-patter` | the shelf mouse drops to the floor and makes off (the first time the Zwijsen book is picked up) | small quick feet, under a second |
 
 ## The picture book
@@ -177,12 +176,16 @@ fade back while you read the rest of the page and go quiet for the launch.
 | File | Layer |
 | --- | --- |
 | `ambient-city` | the City: traffic from a long way off, only its rumble |
-| `ambient-room` | the Room: the room's air, nothing else |
+| `ambient-room` | the Room: an apartment with the windows shut, the outside world faint through them |
+
+On the Chip's layer the site also plays `chip-bleep` every few seconds, at a
+pitch and a place of its own each time: short machine bleeps, given as many
+variants as there are. They're played, not part of the bed, so they never
+come round the same.
 | `ambient-chip` | the Chip: an electrical hum with a faint high hiss |
 
-Each is one plain, steady thing. Nothing in a bed should be an event (a door,
-a keyboard, a bird): an event gets listened to, and then it's heard coming
-round again.
+Nothing in a bed should be an event close by (a door, a keyboard, a bird at
+the window): an event gets listened to, and then it's heard coming round again.
 
 ## Levels and formats
 

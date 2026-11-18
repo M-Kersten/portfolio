@@ -1435,7 +1435,8 @@ function engineVoice(v: number): { volume: number; rate: number } {
   // straight lines from idle to flat out, capped at 0.5 m/s: the getaway only
   // sounds a little higher than top speed, rather than screaming
   const k = Math.min(1, Math.abs(v) / 0.5);
-  return { volume: 0.06 + 0.3 * k, rate: 0.7 + 0.8 * k };
+  // (kept low and narrow: two motors whining up and down an octave is a mosquito)
+  return { volume: 0.03 + 0.13 * k, rate: 0.8 + 0.4 * k };
 }
 
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {

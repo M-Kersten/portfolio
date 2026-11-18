@@ -6,7 +6,6 @@ import { picturesFor } from '../../content/media';
 import { caseOrigin } from '../../lib/caseOrigin';
 import { useReducedMotion } from '../../lib/media';
 import { useDocumentTitle, useScrollLock } from '../../lib/page';
-import { play } from '../../lib/sound';
 import { useFocusTrap } from '../../lib/useFocusTrap';
 import { byKeyboard } from '../../lib/input';
 import { type FilmClock } from '../../lib/youtube';
@@ -136,21 +135,11 @@ export function Exhibit({
   // the tab names the project while it's open (and in the history list)
   useDocumentTitle(`${study.title} — ${site.hero.name}`);
   // a walk from one exhibit to the next is one move, not a close and an open:
-  // it arrives without the pair of sounds (and its label from the side it was
-  // walked to, exhibit.css)
+  // it arrives with its label from the side it was walked to (exhibit.css)
   const [arrivedBy] = useState(walkIn.dir);
-  const walkedOn = useRef(false);
   useEffect(() => {
     walkIn.dir = 0;
-    if (!arrivedBy) play('popup-open', { volume: 0.8 });
-    return () => {
-      if (!walkedOn.current) play('popup-close', { volume: 0.8 });
-    };
   }, [arrivedBy]);
-  // (on a page this stays mounted through a walk, so it's only "walked on" until the next project is in)
-  useEffect(() => {
-    walkedOn.current = false;
-  }, [study.slug]);
   // a page holds still behind it (the maquette's route does its own)
   useScrollLock(!inMaquette);
 
@@ -186,7 +175,6 @@ export function Exhibit({
       walkIn.dir = dir;
       unfoldFrom.current = null;
       setFrame(null);
-        walkedOn.current = true;
       if ((book || inMaquette) && dir && !reduced && !sheetLayout()) {
         setTurn({ slug: study.slug, dir });
         turnTimer.current = window.setTimeout(
