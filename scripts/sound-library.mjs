@@ -206,9 +206,12 @@ const MADE = {
   'launch-release': { seconds: 1.5, say: 'Heavy steel launch clamps releasing a rocket: one deep, hard metallic clank with a short mechanical thud. Dry, close, no music.' },
   'launch-roar': { seconds: 14, say: 'Continuous roar of many large rocket engines at full thrust, heard from nearby: deep steady rumble with crackle, constant intensity from start to end, no fade in, no fade out, no music.' },
   'launch-deluge': { seconds: 14, say: 'Continuous heavy torrent of water from a launch pad deluge system: a dense rushing spray and hiss of water on steel, constant intensity, no fade in, no fade out, no music.' },
-  // the audio tour's frame (scripts/voice-kit, which voice-tour.mjs plays round a recording): the handset starting a track, and ending it
-  'voice-intro': { seconds: 1, say: 'Audio guide device start sound: a clear button press click followed by one short bright electronic confirmation tone. Clean and dry, clearly audible.' },
-  'voice-outro': { seconds: 1, say: 'A museum audio guide handset ending a track: a single short soft low electronic tone, then one soft button click. Simple, clean, gentle, dry. Nothing else.' },
+  // the audio tour's frame (scripts/voice-kit, which voice-tour.mjs plays round a recording): the handset starting a track (its button, two notes up), and ending it (two notes down, the button let go)
+  // (No 'soft' or 'quiet' in a description: the generator takes it at its word, and makes silence.)
+  'voice-press': { seconds: 1, say: 'One single crisp plastic button press on a handheld audio guide device. Dry, close, clearly audible, nothing else.' },
+  'voice-notes-up': { seconds: 1, say: 'Two warm marimba notes played one after the other, rising, like a friendly museum announcement tone. Clean, dry, clearly audible, nothing else.' },
+  'voice-notes-down': { seconds: 1, say: 'Two warm marimba notes played one after the other, falling, like a friendly museum announcement ending. Clean, dry, clearly audible, nothing else.' },
+  'voice-release': { seconds: 1, say: 'One single plastic button release click on a handheld audio guide device, slightly lower than a press. Dry, close, clearly audible, nothing else.' },
   // the room: the computer under the desk, the rain outside, the clock on the wall
   'room-fan': { seconds: 14, say: 'A desktop computer cooling fan running, recorded close up: a steady low whirring hum, clearly audible, constant and even from start to end. No clicks, no hard drive noise, no keyboard, no voices, no fade in, no fade out.' },
   'room-rain': { seconds: 14, say: 'Light steady rain falling against a window pane, heard from inside a small quiet room. Soft, gentle, even, constant from start to end, no thunder, no wind, no traffic, no fade in, no fade out.' },
@@ -238,8 +241,10 @@ const MADE = {
 };
 /** The audio tour's two bookends, written as WAVs into scripts/voice-kit. */
 const KIT = {
-  intro: { from: 'made/voice-intro', fadeOut: 0.05 },
-  outro: { from: 'made/voice-outro', fadeOut: 0.08 },
+  // the handset's button pressed, and two notes up
+  intro: [{ from: 'made/voice-press', dur: 0.25, fadeOut: 0.1 }, { from: 'made/voice-notes-up', at: 0.15, gain: -3, fadeOut: 0.08 }],
+  // two notes down, and the button let go
+  outro: [{ from: 'made/voice-notes-down', fadeOut: 0.08 }, { from: 'made/voice-release', at: 0.75, gain: -3, fadeOut: 0.05 }],
 };
 
 /* ---------- the library ---------- */

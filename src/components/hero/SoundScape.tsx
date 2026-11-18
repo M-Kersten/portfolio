@@ -10,7 +10,8 @@ import { loop, play, preload, soundOn, subscribeSound, type Loop, type SoundName
 // still as it comes back out), and a hotspot coming under the pointer (or the
 // keyboard's focus) a small tick. Under it all, one ambient bed per layer,
 // crossfaded by the scroll journey: there while the maquette is on screen, gone
-// once it's scrolled away (the rest of the page is read in quiet), and gone for the launch and the game,
+// once it's scrolled away (the rest of the page is read in quiet), gone while a
+// project is open (it has the whole screen), and gone for the launch and the game,
 // which have their own sound. The room's bed (the computer's fan) has rain on
 // the window under it and a clock ticking over it. On the chip's layer the chip is also heard at
 // work: a bleep every few seconds, never the same twice.
@@ -91,7 +92,8 @@ export function SoundScape() {
     if (hero && io) io.observe(hero);
     function mix() {
       const s = sceneStore.snapshot();
-      const room = s.launch === 'idle' && heroVisible ? 1 : 0;
+      // (an open project fills the screen: it's heard on its own)
+      const room = s.launch === 'idle' && heroVisible && !s.selectedSlug ? 1 : 0;
       beds.forEach((bed, i) => bed.set(i === s.journeyStep ? room : 0, 1.2));
       rain.set(s.journeyStep === ROOM ? room * RAIN : 0, 1.2);
     }
@@ -102,7 +104,7 @@ export function SoundScape() {
     let tock = false;
     const clock = window.setInterval(() => {
       const s = sceneStore.snapshot();
-      if (!heroVisible || s.launch !== 'idle' || s.journeyStep !== ROOM) return;
+      if (!heroVisible || s.launch !== 'idle' || s.selectedSlug || s.journeyStep !== ROOM) return;
       play('clock-tick', { volume: TICK, rate: tock ? 0.88 : 1 });
       tock = !tock;
     }, 1000);
@@ -112,7 +114,7 @@ export function SoundScape() {
       bleep = window.setTimeout(
         () => {
           const s = sceneStore.snapshot();
-          if (heroVisible && s.launch === 'idle' && s.journeyStep === CHIP) {
+          if (heroVisible && s.launch === 'idle' && !s.selectedSlug && s.journeyStep === CHIP) {
             const step = BLEEP_STEPS[Math.floor(Math.random() * BLEEP_STEPS.length)];
             play('chip-bleep', { volume: 0.05 + Math.random() * 0.07, rate: 2 ** (step / 12), pan: Math.random() * 1.2 - 0.6 });
           }

@@ -17,9 +17,9 @@
 // It needs ffmpeg on the path.
 //
 // Each one is then framed the way a guide's handset plays a stop: a button and
-// a short tone as the track starts (scripts/voice-kit/intro.wav), the announcer
-// saying which stop this is ("Exhibit 3. ARCam."), the recording, and a tone
-// and a click as it ends (outro.wav). Those two are made by sound-library.mjs.
+// two notes up as the track starts (scripts/voice-kit/intro.wav), the announcer
+// saying which stop this is ("Exhibit 3. ARCam."), the recording, and two notes
+// down and the button let go as it ends (outro.wav). Those two are made by sound-library.mjs.
 //
 // The announcer's lines are kept, one a project, in scripts/voice-kit/announcer/
 // (<slug>.mp3): a line that's there is used as it is, so one can be recorded
