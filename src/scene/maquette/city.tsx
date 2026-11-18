@@ -1012,6 +1012,7 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
   const wakeK = useRef(0); // 0 frosted glass -> 1 the awake, near-solid material
   const screenMat = useRef<MeshStandardMaterial>(null);
   const [model, setModel] = useState<Group | null>(null);
+  const [seat, setSeat] = useState<V3>([0, 0, 0]); // the head, moved so its stem is on the post
   const presence = useContext(PresenceCtx);
   const cfg = useLook();
   // aiming at the cursor (see AIM_*)
@@ -1063,6 +1064,22 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
         scene.scale.setScalar(BINOS_H / (size.y || 1));
         box.setFromObject(scene);
         scene.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+        // The head isn't symmetrical, so its own stem isn't under the middle of
+        // its footprint: find the stem (the lowest slice of the model) and seat
+        // that on the post, which is also what the head turns about.
+        scene.updateMatrixWorld(true);
+        const foot = new Box3();
+        const v = new Vector3();
+        scene.traverse((o) => {
+          const mesh = o as Mesh;
+          if (!(mesh as { isMesh?: boolean }).isMesh) return;
+          const at = mesh.geometry.getAttribute('position');
+          for (let i = 0; i < at.count; i++) {
+            v.fromBufferAttribute(at, i).applyMatrix4(mesh.matrixWorld);
+            if (v.y < BINOS_H * 0.06) foot.expandByPoint(v);
+          }
+        });
+        if (!foot.isEmpty()) setSeat([-(foot.min.x + foot.max.x) / 2, 0, -(foot.min.z + foot.max.z) / 2]);
         setModel(scene);
       },
       () => {}, // absent model → the viewer simply never pops in
@@ -1200,15 +1217,17 @@ function Binoculars({ position, rotationY = 0, slug, lit }: { position: V3; rota
             first, then tipped, so the shot's dip and kick stay a nod however
             far round it's turned) */}
         <group ref={headRef} position={[0, BINOS_STAND_H, 0]} rotation={[0, 0, 0, 'YXZ']}>
-          {model && <primitive object={model} />}
-          {model && (
-            <sprite ref={lensFlash} position={BINOS_LENS} visible={false} renderOrder={2}>
-              <spriteMaterial map={glow} color={WHITE} transparent opacity={0} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
-            </sprite>
-          )}
+          <group position={seat}>
+            {model && <primitive object={model} />}
+            {model && (
+              <sprite ref={lensFlash} position={BINOS_LENS} visible={false} renderOrder={2}>
+                <spriteMaterial map={glow} color={WHITE} transparent opacity={0} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+              </sprite>
+            )}
+          </group>
           {/* the viewfinder screen, set into the hood: lights up on a shot */}
           {model && (
-            <mesh position={BINOS_SCREEN_POS}>
+            <mesh position={[BINOS_SCREEN_POS[0] + seat[0], BINOS_SCREEN_POS[1], BINOS_SCREEN_POS[2] + seat[2]]}>
               <planeGeometry args={BINOS_SCREEN_SIZE} />
               <meshStandardMaterial
                 ref={screenMat}

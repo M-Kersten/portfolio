@@ -80,8 +80,9 @@ export function Search() {
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || t?.isContentEditable) return;
-      // don't stack over an already-open dialog (a case card, the node HUD, or us)
-      if (document.querySelector('[role="dialog"]')) return;
+      // don't stack over an already-open dialog (a case card, the node HUD, or
+      // us); one that's folded away (the guide's sheet stays in the page) doesn't count
+      if (document.querySelector('[role="dialog"]:not([aria-hidden="true"])')) return;
       e.preventDefault();
       setOpen(true);
     };
