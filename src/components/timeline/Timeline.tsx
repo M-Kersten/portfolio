@@ -9,6 +9,10 @@ import { Exhibit } from '../exhibit/Exhibit';
 import { SectionHead } from '../shell/SectionHead';
 import { CaseCard } from './CaseCard';
 import { WALL, bandsAt, buildRoute, companyFavicon, type CareerBand } from './layout';
+import { play } from '../../lib/sound';
+
+/** A fast scroll through the years is thinned to a tick this often (ms). */
+const YEAR_TICK_GAP = 45;
 
 // The projects map: a timeline you pan through. Every project is a waypoint
 // pinned at its year on one route through time (layout.ts works out where);
@@ -291,6 +295,7 @@ export function Timeline() {
   useEffect(() => {
     if (manualPan) return;
     let raf = 0;
+    let tickedAt = 0; // when the year last ticked
     const update = () => {
       raf = 0;
       const el = scrollRef.current;
@@ -313,7 +318,12 @@ export function Timeline() {
       const year = String(Math.min(Math.floor(timeline.maxYear), Math.max(timeline.minYear, yr)));
       const yEl = yearRef.current;
       if (yEl && yEl.dataset.year !== year) {
-        // roll each digit's strip to its new place (the odometer)
+        // roll each digit's strip to its new place (the odometer), and hear it
+        // go: a tooth per year, lower going back (and not for the year it opens on)
+        if (yEl.dataset.year && performance.now() - tickedAt > YEAR_TICK_GAP) {
+          tickedAt = performance.now();
+          play('year-tick', { volume: 0.25, rate: Number(year) > Number(yEl.dataset.year) ? 1 : 0.85 });
+        }
         yEl.dataset.year = year;
         year
           .padStart(4, '0')

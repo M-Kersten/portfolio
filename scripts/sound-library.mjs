@@ -69,6 +69,12 @@ const PICKS = {
   // (ACQUIRE_HOLD, 0.4 s): a camera's dial clicking round
   focus: { variants: [{ from: `${CAMERA}/Vintage Camera/Konica Dials 06`, dur: 0.4, fadeOut: 0.08 }, { from: `${CAMERA}/Vintage Camera/Konica Dials 03`, dur: 0.4, fadeOut: 0.08 }, { from: `${CAMERA}/Vintage Camera/Konica Dials 04`, dur: 0.4, fadeOut: 0.08 }] },
   hover: 'Hover/Simple Hover 03',
+  // a button that fills with colour under the pointer (.btn): something sliding across, as the fill does
+  'hover-fill': { from: 'Tiles/Sliding Tiles Fast 02', dur: 0.3, fadeOut: 0.12 },
+  // a project's card on the timeline, which lifts: a tile touched
+  'hover-card': { variants: ['Tiles/Plastic Tiles 01', 'Tiles/Plastic Tiles 02', 'Tiles/Plastic Tiles 05'] },
+  // the timeline's year rolling over as it's scrolled: one tooth of a small gear
+  'year-tick': { from: 'Singular/Small Gears 34', dur: 0.1, fadeOut: 0.04 },
   // a breath of air as the label opens, and the same drawn back in as it closes
   complete: `${VECTOR_MOVE}/Resonant Big Transition`,
 
@@ -115,6 +121,8 @@ const PICKS = {
   'snake-eat': { variants: ['Bleep/Bleep 03', 'Bleep/Digital Bleep 01', 'Bleep/Digital Bleep 02'] },
   // (a bloop: the same bleep twice, low and then lower)
   'snake-crash': [{ from: 'Bleep/Bleep 02', rate: 0.6 }, { from: 'Bleep/Bleep 02', rate: 0.42, at: 0.16 }],
+  // the room's clock: one tick, which SoundScape plays each second (the tock is the same, a little lower)
+  'clock-tick': { from: 'made/clock-tick', dur: 0.12, fadeOut: 0.05 },
   // the chip at work: one of these every few seconds while its layer is up (SoundScape), each at its own pitch
   'chip-bleep': { variants: ['Bleep/Bleep 01', 'Bleep/Bleep 02', 'Bleep/Bleep 03', 'Bleep/Digital Bleep 01', 'Bleep/Digital Bleep 02', 'Bleep/Data Transmission', 'Bleep/Cute Double Bleep'] },
 
@@ -162,9 +170,11 @@ const noise = (colour) => `anoisesrc=c=${colour}:r=44100:seed=11[a];anoisesrc=c=
 const BEDS = {
   // the city from a long way off: the traffic's rumble, none of its detail
   'ambient-city': { from: 'city-background', len: 60, curve: 'tri', tone: 'lowpass=f=900,lowpass=f=900' },
-  // the room: an apartment with the windows shut, the outside world faint through them
-  // (the recording's first minute: later on something loud goes by)
-  'ambient-room': { from: 'aparment', start: 5, len: 60 },
+  // the room: the desk's computer, its fan turning over. A small room is heard by
+  // what's close by in it, not by its air (air alone, played low, is a hall or a hiss)
+  'ambient-room': { from: 'made/room-fan', start: 1, len: 9, xfade: 2, tone: 'lowpass=f=1400,lowpass=f=1400' },
+  // and over it, a good deal quieter, rain on the window (SoundScape plays it with the room's bed)
+  'ambient-rain': { from: 'made/room-rain', start: 1, len: 9, xfade: 2, tone: 'lowpass=f=5000', lufs: -32 },
   // the chip: mains hum (100 Hz and two harmonics) under a faint high hiss
   'ambient-chip': {
     make:
@@ -194,6 +204,10 @@ const MADE = {
   // the audio tour's frame (scripts/voice-kit, which voice-tour.mjs plays round a recording): the handset starting a track, and ending it
   'voice-intro': { seconds: 1, say: 'Audio guide device start sound: a clear button press click followed by one short bright electronic confirmation tone. Clean and dry, clearly audible.' },
   'voice-outro': { seconds: 1, say: 'A museum audio guide handset ending a track: a single short soft low electronic tone, then one soft button click. Simple, clean, gentle, dry. Nothing else.' },
+  // the room: the computer under the desk, the rain outside, the clock on the wall
+  'room-fan': { seconds: 14, say: 'A desktop computer cooling fan running, recorded close up: a steady low whirring hum, clearly audible, constant and even from start to end. No clicks, no hard drive noise, no keyboard, no voices, no fade in, no fade out.' },
+  'room-rain': { seconds: 14, say: 'Light steady rain falling against a window pane, heard from inside a small quiet room. Soft, gentle, even, constant from start to end, no thunder, no wind, no traffic, no fade in, no fade out.' },
+  'clock-tick': { seconds: 0.5, say: 'One single soft tick of a small quartz wall clock. Dry, close, quiet room, one tick only.' },
   // the city's grid: the station gathering charge, and the pulse going through the transformer house
   'grid-charge': { seconds: 1, say: 'A large electrical power transformer energising: a deep low 50 hertz mains hum swelling up quickly, with a soft heavy relay clunk. Low pitched and warm, dry, no high-pitched whine, no squeal.' },
   'grid-zap': { seconds: 0.5, say: 'One short low electrical arc inside a power substation: a deep buzzing zap with a dull thump. Low pitched, dry, no high-pitched whine, no squeal.' },

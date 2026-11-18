@@ -26,6 +26,9 @@ first file is in here; a visitor's choice is remembered.
 | `focus` | the reticle locks on to a project, in the 0.4 s before the camera goes in; fainter and lower as it comes back out | a camera's dial clicking: a few small dry clicks, 0.4 s at most; give it variants. No whoosh, no beeps |
 | `select` | any link or button is pressed (but not a hotspot or the ticket, which have their own) | one dry tick |
 | `hover` | the pointer comes onto a hotspot (or the keyboard's focus does), or, quieter, onto any link or button | the smallest tick there is, low and soft; it's heard a lot |
+| `hover-fill` | the pointer comes onto a button that fills with colour (`.btn`) | something sliding across, soft, about 0.3 s: the fill, heard |
+| `hover-card` | the pointer comes onto a project's card on the timeline | a tile touched: one small dull tap; give it variants |
+| `year-tick` | the timeline's year rolls over as it's scrolled (played lower going back) | one tooth of a small gear, 0.1 s; it's heard in runs |
 
 ## The admission ticket
 
@@ -170,13 +173,17 @@ lake. One at a time, one shows itself for a few seconds, and you photograph it.
 ## Ambient
 
 One quiet bed per layer of the maquette, crossfading as you scroll; they
-fade back while you read the rest of the page and go quiet for the launch.
+stop once the maquette is scrolled off the screen, and for the launch.
 60–90 s, stereo, seamless (cut at a zero crossing).
 
 | File | Layer |
 | --- | --- |
 | `ambient-city` | the City: traffic from a long way off, only its rumble |
-| `ambient-room` | the Room: an apartment with the windows shut, the outside world faint through them |
+| `ambient-room` | the Room: the desk's computer, its fan turning over, close and low |
+| `ambient-rain` | the Room as well, played with its bed and at half its level: light rain on the window |
+
+In the Room the site also plays `clock-tick` once a second, every other one a
+little lower (tick, tock): one soft tick of a wall clock, about 0.1 s.
 
 On the Chip's layer the site also plays `chip-bleep` every few seconds, at a
 pitch and a place of its own each time: short machine bleeps, given as many

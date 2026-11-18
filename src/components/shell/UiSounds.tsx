@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { play } from '../../lib/sound';
+import { play, type SoundName } from '../../lib/sound';
 
 // The sound of the site's own controls: every link and button ticks softly as
 // the pointer comes onto it, and clicks as it's pressed. Heard from one place
@@ -12,6 +12,14 @@ import { play } from '../../lib/sound';
 // admission ticket when pressed (the card going in or out, the stub tearing).
 
 const CONTROL = 'a[href], button, [role="button"]';
+/** What a control's hover sounds like, by what it does under the pointer: the
+ *  first that matches. A button that fills with colour slides; a project's card
+ *  on the timeline, which lifts, is a tile touched; anything else ticks. */
+const HOVERS: [selector: string, sound: SoundName, volume: number][] = [
+  ['.btn', 'hover-fill', 0.2],
+  ['.worktile', 'hover-card', 0.2],
+  ['*', 'hover', 0.15],
+];
 /** controls whose hover is sounded elsewhere */
 const OWN_HOVER = '.hotspot__dot';
 /** controls whose press is sounded elsewhere (anything on the ticket puts it away, or pulls it out) */
@@ -36,7 +44,8 @@ export function UiSounds() {
       over = el;
       if (!el || el.closest(OWN_HOVER) || e.timeStamp - last < HOVER_GAP) return;
       last = e.timeStamp;
-      play('hover', { volume: 0.15 });
+      const [, sound, volume] = HOVERS.find(([selector]) => el.matches(selector))!;
+      play(sound, { volume });
     };
     // (click, not pointerdown: it's what the keyboard's Enter and Space make too)
     const press = (e: MouseEvent) => {

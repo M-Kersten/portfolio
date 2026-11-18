@@ -9,13 +9,18 @@ import { loop, play, preload, soundOn, subscribeSound, type Loop, type SoundName
 // dial clicking, faint, in the moment before the camera goes in; fainter
 // still as it comes back out), and a hotspot coming under the pointer (or the
 // keyboard's focus) a small tick. Under it all, one ambient bed per layer,
-// crossfaded by the scroll journey: full while the maquette is on screen, low
-// while you read the rest of the page, and quiet for the launch and the game,
-// which have their own sound. On the chip's layer the chip is also heard at
+// crossfaded by the scroll journey: there while the maquette is on screen, gone
+// once it's scrolled away (the rest of the page is read in quiet), and gone for the launch and the game,
+// which have their own sound. The room's bed (the computer's fan) has rain on
+// the window under it and a clock ticking over it. On the chip's layer the chip is also heard at
 // work: a bleep every few seconds, never the same twice.
 
 const BEDS: SoundName[] = ['ambient-city', 'ambient-room', 'ambient-chip'];
+const ROOM = BEDS.indexOf('ambient-room');
 const CHIP = BEDS.indexOf('ambient-chip');
+/** The room's rain against its bed (quiet: it's outside), and how loud the clock ticks. */
+const RAIN = 0.5;
+const TICK = 0.07;
 /** The chip's bleeps: seconds between two (somewhere in this range), and the
  *  pitches one may play at (a pentatonic scale's steps, so any two agree). */
 const BLEEP_GAP = [1.2, 4.5];
@@ -74,6 +79,7 @@ export function SoundScape() {
   useEffect(() => {
     if (!on) return;
     const beds: Loop[] = BEDS.map((b) => loop(b));
+    const rain = loop('ambient-rain');
     const hero = document.getElementById('hero');
     let heroVisible = true;
     const io = hero
@@ -85,13 +91,22 @@ export function SoundScape() {
     if (hero && io) io.observe(hero);
     function mix() {
       const s = sceneStore.snapshot();
-      const room = s.launch === 'idle' ? (heroVisible ? 1 : 0.3) : 0;
+      const room = s.launch === 'idle' && heroVisible ? 1 : 0;
       beds.forEach((bed, i) => bed.set(i === s.journeyStep ? room : 0, 1.2));
+      rain.set(s.journeyStep === ROOM ? room * RAIN : 0, 1.2);
     }
     mix();
     const off = sceneStore.subscribe(mix);
-    // the chip at work, while its layer is the one on screen
-    preload(['chip-bleep']);
+    // the room's clock, while its layer is the one on screen: tick, tock (the same, lower)
+    preload(['clock-tick', 'chip-bleep']);
+    let tock = false;
+    const clock = window.setInterval(() => {
+      const s = sceneStore.snapshot();
+      if (!heroVisible || s.launch !== 'idle' || s.journeyStep !== ROOM) return;
+      play('clock-tick', { volume: TICK, rate: tock ? 0.88 : 1 });
+      tock = !tock;
+    }, 1000);
+    // the chip at work, likewise
     let bleep = 0;
     const next = () => {
       bleep = window.setTimeout(
@@ -110,6 +125,8 @@ export function SoundScape() {
     return () => {
       off();
       clearTimeout(bleep);
+      clearInterval(clock);
+      rain.stop(0.8);
       io?.disconnect();
       beds.forEach((b) => b.stop(0.8));
     };

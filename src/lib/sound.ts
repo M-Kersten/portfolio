@@ -29,6 +29,11 @@ export type SoundName =
   // the reticle acquiring a project as the camera goes in on it
   | 'focus'
   | 'hover'
+  // (a button that fills under the pointer, and a project's card on the timeline)
+  | 'hover-fill'
+  | 'hover-card'
+  // the timeline's year rolling over as it's scrolled
+  | 'year-tick'
   // the admission ticket: pulled out and turned over, pushed back in, stamped, its stub torn off
   | 'ticket-open'
   | 'ticket-close'
@@ -76,6 +81,8 @@ export type SoundName =
   // Snake on the die: a food eaten, and a crash (only while the visitor steers)
   | 'snake-eat'
   | 'snake-crash'
+  // the room's clock, ticking once a second while its layer is up
+  | 'clock-tick'
   // the chip at work: a bleep every few seconds while its layer is up
   | 'chip-bleep'
   // the AR framework's camera: a cube anchored, and all of them merging into one
@@ -104,6 +111,8 @@ export type SoundName =
   // the ambient beds, one per layer of the maquette
   | 'ambient-city'
   | 'ambient-room'
+  // (the room's rain, played with its bed and under it)
+  | 'ambient-rain'
   | 'ambient-chip';
 
 const VARIANTS: Record<string, string[]> = {};
