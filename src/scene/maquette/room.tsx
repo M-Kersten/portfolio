@@ -11,7 +11,7 @@ import { usePlacement } from '../../dev/tuning';
 import { HOTSPOTS, portraitMix } from '../framing';
 import { useSceneSelector } from '../store';
 import { isTouch, useReducedMotion } from '../../lib/media';
-import { play } from '../../lib/sound';
+import { loop, play, type Loop } from '../../lib/sound';
 import { spring } from '../../lib/spring';
 import { bump, easeIn, easeInOut, easeOut, easeOutBack, ring, settle } from '../../lib/ease';
 import { cursorAtDepth, cursorIdle, cursorNdc, cursorOnLevel, cursorRay, useCloseUp } from './closeup';
@@ -1428,8 +1428,27 @@ function drawBoard(g: CanvasRenderingContext2D & { letterSpacing?: string }, nam
   g.stroke();
 }
 
+/** A car's motor at speed `v` (m/s along its heading: about 0.24 flat out, up to
+ *  three times that in the getaway after taking the crown, near 0 after a
+ *  bump): how loud the loop plays (0–1) and how fast (1 = as recorded). */
+function engineVoice(v: number): { volume: number; rate: number } {
+  // straight lines from idle to flat out, capped at 0.5 m/s: the getaway only
+  // sounds a little higher than top speed, rather than screaming
+  const k = Math.min(1, Math.abs(v) / 0.5);
+  return { volume: 0.06 + 0.3 * k, rate: 0.7 + 0.8 * k };
+}
+
 function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: string }) {
   const { hovered, selected, visited } = useActive(hoverSlug ?? '');
+  // the cars' motors, while crown tag is on: yours, and the rival's a little lower and further off
+  const engines = useRef<Loop[] | null>(null);
+  useEffect(
+    () => () => {
+      engines.current?.forEach((e) => e.stop(0.2));
+      engines.current = null;
+    },
+    [],
+  );
   const reduced = useReducedMotion();
   const kit = useTableKit();
   const cars = useRef<(Group | null)[]>([]);
@@ -1525,6 +1544,8 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
       rejoin.current = { t, from: T.cars.map((c) => ({ x: c.x, y: c.y, z: c.z, yaw: c.yaw })) };
       T.cars.forEach((c, i) => (dist.current[i] = nearestOnCourse(c.x, c.z) * 2 * Math.PI));
       tag.current = null;
+      engines.current?.forEach((e) => e.stop(0.4));
+      engines.current = null;
     }
     const T = tag.current;
     let aimed = false;
@@ -1547,8 +1568,15 @@ function CoffeeTableAR({ position, hoverSlug }: { position: V3; hoverSlug?: stri
         // the getaway: the new holder squats and goes, its trail streaming
         boost[e.to].at = t;
         boost[e.to].launched = false;
-        play('select', { volume: 0.55, rate: e.to === 0 ? 1.3 : 0.75 });
+        // (yours higher, the rival's lower)
+        play('crown-tag', { volume: 0.9, rate: e.to === 0 ? 1.3 : 0.75 });
       }
+      engines.current ??= T.cars.map(() => loop('car-engine', 'sfx'));
+      engines.current.forEach((e, i) => {
+        const voice = engineVoice(T.cars[i].v);
+        e.set(voice.volume * (i ? 0.6 : 1), 0.12);
+        e.pitch(voice.rate * (i ? 0.84 : 1), 0.12);
+      });
       // the scoreboard: how long each has kept the crown, and who has it
       const text = [clock(T.cars[0].held), clock(T.cars[1].held), String(T.holder)];
       if (text.join('|') !== boardText.current) {
@@ -3282,6 +3310,7 @@ function RoomMouse({ gap, route }: { gap: { at: V3; out: V3 }; route: MouseStop[
         const a = route[path.stops[near]].at;
         st.to.set(a[0], 0, a[2]);
         Object.assign(st, { mode: 'enter', t: 0, run: 0, v: 0.3, stop: near });
+        play('mouse-patter', { volume: 0.5 });
       }
     }
     // the dash: off fast, braking to arrive on the mark

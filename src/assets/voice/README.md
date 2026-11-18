@@ -14,5 +14,13 @@ shows no button.
 Exhibit 11, the next launch on the pad, has one too: name it `next-launch.mp3`
 and it plays as that label's audio tour ("Audio tour · the countdown").
 
+`npm run voice -- <folder with recordings>` makes them from raw recordings: the
+audio-guide sound, then a frame round each: the click of the handset starting,
+an announcer saying which stop it is ("Exhibit 3. ARCam."), the recording, and
+the click of it stopping. `npm run voice -- --frame` puts the frame on files
+already here (once: a framed file is marked, and left alone after that). The
+two clicks are in `scripts/voice-kit/`; how the announcer says a name is `SAY`
+in `scripts/voice-tour.mjs`.
+
 Keep them short (a minute or two) and small: mono, around 64–96 kbps is plenty
 for a voice.

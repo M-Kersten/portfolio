@@ -123,30 +123,43 @@ const PICKS = {
   'critter-away': 'Bleep/Bleep 03',
   'critter-snap': `${CAMERA}/Digital Camera/Canon EOS T7i Auto Focus Beeps And Shutter Sequence 01`,
   // the bigger shutter, then the print winding out
+  // the shelf mouse dropping to the floor and making off: small quick feet
+  'mouse-patter': { from: 'Phone or Touchscreen Typing/Typing On Cell Phone Sequence 05', dur: 1.6, rate: 2, fadeOut: 0.08 },
+  // the crown changing hands on the race table
+  'crown-tag': 'Click/Click 02',
   'critter-group': [`${CAMERA}/Vintage Camera/Konica Shutter 01`, { from: `${CAMERA}/Vintage Camera/Konica Film Advance 02`, at: 0.7, gain: -3 }],
 };
 
 for (let i = 0; i < 10; i++) PICKS[`wake-${i + 1}`] = { from: WAKE_SOURCE, rate: 2 ** ((i * WAKE_STEP) / 12) };
 PICKS['game-stage'] = twoNotes(0, 0);
 
-// The beds: `len` seconds from `start`, the end faded over the start for
-// `xfade` seconds so it loops. `curve` is tri where the two ends are the same
-// sound (the city file is a loop played twice), qsin where they aren't.
-// `sprinkle` lays short stretches of another recording over it.
+// The beds: `len` seconds, the end faded over the start for `xfade` seconds
+// so it loops. Each is one plain thing, with nothing in it to notice: a bed
+// that has events in it (a door, a keyboard, a drive seeking) gets listened to.
+// `from` and `start` cut it from a recording; `make` has ffmpeg make it (a
+// lavfi source), for the tones no recording is plain enough for. `tone` is a
+// filter over either. `curve` is tri where the two ends are the same sound
+// (the city file is a loop played twice; the chip's hum is whole periods
+// long), qsin where they aren't. `sprinkle` lays short stretches of another
+// recording over it.
+const noise = (colour) => `anoisesrc=c=${colour}:r=44100:seed=11[a];anoisesrc=c=${colour}:r=44100:seed=12[b];[a][b]amerge=inputs=2`;
 const BEDS = {
-  'ambient-city': { from: 'city-background', start: 0, len: 60, xfade: 3, curve: 'tri' },
-  'ambient-room': {
-    from: 'Computer Hard Drives/Desktop Hard Drive Boot Up Shut Down 01',
-    start: 31,
-    len: 28,
-    xfade: 3,
-    repeat: 2,
-    sprinkle: [
-      { from: 'Computer Keyboard Typing/Apple Laptop Keyboard/Apple Keyboard Typing 02', start: 4, dur: 2.5, at: 9, gain: 6 },
-      { from: 'Computer Keyboard Typing/Apple Laptop Keyboard/Apple Keyboard Typing 02', start: 9, dur: 1.5, at: 38, gain: 6 },
-    ],
+  // the city from a long way off: the traffic's rumble, none of its detail
+  'ambient-city': { from: 'city-background', len: 60, curve: 'tri', tone: 'lowpass=f=900,lowpass=f=900' },
+  // the room: its air and nothing else
+  'ambient-room': { make: noise('pink'), len: 30, tone: 'highpass=f=70,lowpass=f=450,lowpass=f=450' },
+  // the chip: mains hum (100 Hz and two harmonics) under a faint high hiss
+  'ambient-chip': {
+    make:
+      'sine=f=100:r=44100,volume=0.5[h1];sine=f=200:r=44100,volume=0.16[h2];sine=f=300:r=44100,volume=0.06[h3];' +
+      'anoisesrc=c=pink:r=44100:a=0.04:seed=13,highpass=f=5000[hiss];[h1][h2][h3][hiss]amix=inputs=4:normalize=0',
+    len: 40.96, // whole frames and whole periods of the hum, so the ends meet in phase
+    curve: 'tri',
   },
-  'ambient-chip': { from: 'Computer Hard Drives/Portable Drive 1 Boot Up Shut Down 01', start: 24, len: 40, xfade: 3 },
+  // Not a bed but made the same way: a little car's motor, the steady middle
+  // of a desk's servo, looped; the site plays it faster and slower with the
+  // car's speed. An effect, so at an effect's level (`lufs`, where a bed is -28).
+  'car-engine': { from: 'Standing Desk Motor/Motor Servo Up And Down 04', start: 1.5, len: 3, xfade: 0.5, lufs: -18 },
 };
 
 /* ---------- the library ---------- */
@@ -231,7 +244,7 @@ function effect(file, layers) {
 /* ---------- a bed ---------- */
 
 function bed(file, b) {
-  const { from, start, len: seconds, xfade = 3, curve = 'qsin', repeat = 1, sprinkle = [] } = b;
+  const { from, make, tone, start = 0, len: seconds, xfade = 3, curve = 'qsin', repeat = 1, sprinkle = [] } = b;
   // Counted in samples, and the length rounded to whole AAC frames (1024
   // samples): a last frame that's only part full is padded with silence, and
   // that silence would be a hole in the loop every time round.
@@ -240,9 +253,9 @@ function bed(file, b) {
   const cut = (a, z, label) => `atrim=start_sample=${a}:end_sample=${z},asetpts=PTS-STARTPTS[${label}]`;
   const loop = temp();
   ffmpeg([
-    '-ss', start, '-t', seconds + xfade + 1, '-i', source(from),
+    ...(make ? ['-f', 'lavfi', '-t', seconds + xfade + 1, '-i', make] : ['-ss', start, '-t', seconds + xfade + 1, '-i', source(from)]),
     '-filter_complex',
-    `[0:a]aresample=44100,aformat=channel_layouts=stereo,asplit=3[a][b][c];[a]${cut(0, X, 'head')};[b]${cut(X, len, 'body')};[c]${cut(len, len + X, 'tail')};` +
+    `[0:a]aresample=44100,aformat=channel_layouts=stereo${tone ? `,${tone}` : ''},asplit=3[a][b][c];[a]${cut(0, X, 'head')};[b]${cut(X, len, 'body')};[c]${cut(len, len + X, 'tail')};` +
       `[tail][head]acrossfade=ns=${X}:c1=${curve}:c2=${curve}[blend];[body][blend]concat=n=2:v=0:a=1[o]`,
     '-map', '[o]', ...FLOAT, loop,
   ]);
@@ -264,7 +277,7 @@ function bed(file, b) {
     '-map', '[m]', ...FLOAT, mix,
   ]);
   const out = join(OUT, `${file}.m4a`);
-  ffmpeg(['-i', mix, '-af', `volume=${(-28 - loudnessOf(mix)).toFixed(2)}dB`, ...BARE, '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', '-movie_timescale', 44100, out]);
+  ffmpeg(['-i', mix, '-af', `volume=${((b.lufs ?? -28) - loudnessOf(mix)).toFixed(2)}dB`, ...BARE, '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', '-movie_timescale', 44100, out]);
   return { ext: 'm4a', kb: statSync(out).size / 1024, s: (len * repeat) / 44100 };
 }
 

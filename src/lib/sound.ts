@@ -60,6 +60,11 @@ export type SoundName =
   // higher than the last), and the line reaching a star as it's drawn through them
   | 'star-pop'
   | 'star-trace'
+  // the race table: the crown changing hands, and a car's motor (a loop, revved by its speed)
+  | 'crown-tag'
+  | 'car-engine'
+  // the shelf mouse: its feet as it drops to the floor and makes off
+  | 'mouse-patter'
   // the Zwijsen book: Mouse found, a page turning over, and the book closing
   // at the end of the story (to open again on the first page)
   | 'book-find'
@@ -242,11 +247,13 @@ export function play(name: SoundName, o: { volume?: number; rate?: number; pan?:
  *  out and lets it go. */
 export interface Loop {
   set(volume: number, glide?: number): void;
+  /** Its speed, and with it its pitch (1 = as recorded): an engine revving. */
+  pitch(rate: number, glide?: number): void;
   stop(fade?: number): void;
 }
-const NO_LOOP: Loop = { set() {}, stop() {} };
+const NO_LOOP: Loop = { set() {}, pitch() {}, stop() {} };
 
-export function loop(name: SoundName, bus: 'ambient' | 'launch' = 'ambient'): Loop {
+export function loop(name: SoundName, bus: 'ambient' | 'launch' | 'sfx' = 'ambient'): Loop {
   const url = pick(name);
   const c = url && enabled ? wake() : null;
   if (!url || !c || !graph) return NO_LOOP;
@@ -255,11 +262,13 @@ export function loop(name: SoundName, bus: 'ambient' | 'launch' = 'ambient'): Lo
   g.connect(graph[bus]);
   let src: AudioBufferSourceNode | null = null;
   let stopped = false;
+  let rate = 1; // asked for before the file's in: it starts at this
   void load(url).then((buf) => {
     if (!buf || stopped) return;
     src = c.createBufferSource();
     src.buffer = buf;
     src.loop = true;
+    src.playbackRate.value = rate;
     src.connect(g);
     // start somewhere into the loop, so two visits don't open identically
     src.start(0, Math.random() * buf.duration);
@@ -267,6 +276,10 @@ export function loop(name: SoundName, bus: 'ambient' | 'launch' = 'ambient'): Lo
   return {
     set(volume, glide = 0.3) {
       if (!stopped) g.gain.setTargetAtTime(Math.max(0, volume), c.currentTime, glide / 3);
+    },
+    pitch(to, glide = 0.1) {
+      rate = Math.max(0.25, Math.min(4, to));
+      if (src && !stopped) src.playbackRate.setTargetAtTime(rate, c.currentTime, glide / 3);
     },
     stop(fade = 0.8) {
       if (stopped) return;

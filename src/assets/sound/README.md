@@ -136,6 +136,14 @@ In the Popcore close-up the ping-pong balls go for the bin beside the couch.
 | `bin-tip` | the full bin falls over | a hollow clatter of the bin and the balls |
 | `bin-cheer` | the bin lands and the confetti bursts out of it | a party popper's pop with a bright tail, two bright rising notes |
 
+## The race table and the mouse
+
+| File | When | Notes |
+| --- | --- | --- |
+| `crown-tag` | in the Lightship Drive close-up, the crown changes hands | one firm click; played higher when you take it, lower when the rival does |
+| `car-engine` | loops for each car while crown tag is on, faster and louder with the car's speed | a small electric motor's steady whirr, 2–3 s, seamless; no revs in the recording itself |
+| `mouse-patter` | the shelf mouse drops to the floor and makes off (the first time the Zwijsen book is picked up) | small quick feet, under a second |
+
 ## The picture book
 
 In the Zwijsen close-up the book is a seek-and-find: Mouse hides on every
@@ -168,9 +176,13 @@ fade back while you read the rest of the page and go quiet for the launch.
 
 | File | Layer |
 | --- | --- |
-| `ambient-city` | the City: distant traffic, wind, the odd bird |
-| `ambient-room` | the Room: room tone, a computer fan, a keyboard now and then |
-| `ambient-chip` | the Chip: an electrical hum with a faint high shimmer |
+| `ambient-city` | the City: traffic from a long way off, only its rumble |
+| `ambient-room` | the Room: the room's air, nothing else |
+| `ambient-chip` | the Chip: an electrical hum with a faint high hiss |
+
+Each is one plain, steady thing. Nothing in a bed should be an event (a door,
+a keyboard, a bird): an event gets listened to, and then it's heard coming
+round again.
 
 ## Levels and formats
 
