@@ -16,16 +16,25 @@ first file is in here; a visitor's choice is remembered.
 
 | File | When | Notes |
 | --- | --- | --- |
-| `wake-1` … `wake-10` | a project in the maquette wakes up (first visit) | the n-th visit plays `wake-n`: record ten notes rising up one scale, so the tour plays a melody |
-| `complete` | all ten projects visited, the launch pad powers on | the chord the ten notes were building to |
+| `wake-1` … `wake-10` | a project in the maquette wakes up (first visit) | the n-th visit plays `wake-n`: a low, soft click, each a little higher than the last. Not notes: a chime here reads as a notification |
+| `complete` | all ten projects visited, the launch pad powers on | something large coming on: a low swell, a second or so |
 
 ## Interface
 
 | File | When | Notes |
 | --- | --- | --- |
 | `select` | opening a project in the maquette you've already visited | one dry tick |
-| `popup-open` | a project's label or book opens | a soft glass "breath", under 150 ms |
+| `hover` | a hotspot comes under the pointer, or the keyboard's focus | the smallest tick there is, low and soft; it's heard a lot |
+| `popup-open` | a project's label or book opens | a breath of air, about 0.3 s; nothing papery |
 | `popup-close` | the label or book closes | the same, reversed |
+
+## The admission ticket
+
+| File | When | Notes |
+| --- | --- | --- |
+| `ticket-open` | the ticket is pulled out of the edge and turns over | card sliding, then a flap as it turns: about 1.2 s, the turn starting 0.35 s in |
+| `ticket-close` | it's pushed back in | one quick flip |
+| `stamp` | a stamp comes down: on the cover's strip as the count steps, on the back for each exhibit seen since it was last out, and the all-ten one | a rubber stamp's thud, short and dull; give it variants. Played lighter and higher for the cover's small cell, heavier for the all-ten one |
 
 ## The launch
 
@@ -46,7 +55,7 @@ The film's countdown runs **9.6 s** from pressing LAUNCH to liftoff.
 | `game-shot` | every shot | short and dry; give it variants |
 | `game-break-big` / `-mid` / `-small` | a rock breaks, by size | crunch or snap; pitch each size apart |
 | `game-shield` | the shield takes a hit | a short glass shatter |
-| `game-stage` | a stage cleared | two notes of the signature |
+| `game-stage` | a stage cleared | two bright rising notes |
 | `game-crash` | the run ends in a crash | a low thud with a falling tone |
 | `comms-open` / `comms-close` | ground control starts / finishes a line | a radio squelch |
 | `comms-type` | as ground control's line types out | a soft blip, played every few characters |
@@ -70,7 +79,7 @@ open the two narrowed ones.
 | File | When | Notes |
 | --- | --- | --- |
 | `cath-inflate` | the balloon goes up in a narrowing | a soft rising squeeze, about 0.5 s |
-| `cath-clear` | the narrowing opens and the blood rushes through | a whoosh with a bright tail, two notes of the signature |
+| `cath-clear` | the narrowing opens and the blood rushes through | a whoosh with a bright tail, two bright rising notes |
 
 ## Snake
 
@@ -125,7 +134,7 @@ In the Popcore close-up the ping-pong balls go for the bin beside the couch.
 | `ball-in` | a ball drops into the bin | a light hollow plonk; played a little higher for each ball in |
 | `ball-rim` | a ball hits the rim | a short bright tick; give it variants |
 | `bin-tip` | the full bin falls over | a hollow clatter of the bin and the balls |
-| `bin-cheer` | the bin lands and the confetti bursts out of it | a party popper's pop with a bright tail, two notes of the signature |
+| `bin-cheer` | the bin lands and the confetti bursts out of it | a party popper's pop with a bright tail, two bright rising notes |
 
 ## The picture book
 
@@ -166,7 +175,7 @@ fade back while you read the rest of the page and go quiet for the launch.
 ## Levels and formats
 
 - Effects: mono, peaking around −6 dBFS, most under 30 KB.
-- Ambient: stereo, around −28 LUFS, under 1 MB each.
+- Ambient: stereo, around −28 LUFS, under 1 MB each. They play well under the effects (`AMBIENT` in `src/lib/sound.ts`).
 - While a voice note plays, everything else drops back on its own.
 
 ## Where they come from

@@ -4,6 +4,7 @@ import { caseBySlug } from '../../content';
 import { DEPOT_COUNT, EXHIBITION } from '../../content/exhibits';
 import { HOTSPOTS } from '../../scene/framing';
 import { sceneStore } from '../../scene/store';
+import { play } from '../../lib/sound';
 import { ordinal, useAllTenNo, useTicketNo } from '../../lib/visit';
 
 // The exhibition guide: your admission ticket. It stands pushed into the
@@ -26,6 +27,13 @@ const LAYERS = ['city', 'room', 'chip'] as const;
 const TOTAL = HOTSPOTS.length;
 /** how long tearing the stub off takes, before the pad (hero.css, guide-tear) */
 const TEAR_MS = 1750;
+/** When a stamp is heard: as it lands, part-way through its keyframes (hero.css).
+ *  On the back, guide-stamp starts 1 s after the ticket is pulled, one every
+ *  0.22 s, and lands 0.23 s in; the all-ten one starts 0.15 s later and takes a
+ *  little longer; on the cover, cell-stamp lands 0.3 s in. */
+const STAMP_MS = { first: 1230, each: 220, allTen: 195, now: 375, cell: 300 };
+/** A stamp coming down: `weight` 0–1, how hard (the cover's small cell is light, the all-ten one heavy). */
+const thud = (weight: number) => play('stamp', { volume: 0.4 + 0.4 * weight, rate: 1.2 - 0.3 * weight + Math.random() * 0.06 });
 
 /** The count on the cover, said the way a visitor would: how many of the ten
  *  they've seen. A gallery keeps its objects in low light and brings it up as
@@ -131,6 +139,42 @@ export function ExhibitionGuide({
     document.addEventListener('pointerdown', away, true);
     return () => document.removeEventListener('pointerdown', away, true);
   }, [state, onClose]);
+  // its sound: the card sliding out and turning over, the fresh stamps coming
+  // down on the back one after another as they're seen to, and the flip back
+  const heard = useRef(state);
+  useEffect(() => {
+    const was = heard.current;
+    heard.current = state;
+    if (state === 'closing') play('ticket-close', { volume: 0.5 });
+    if (state !== 'open' || was === 'open') return;
+    play('ticket-open', { volume: 0.6 });
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const stamped = freshAtOpen.current.filter((slug) => HOTSPOTS.some((h) => h.slug === slug)).length;
+    const timers: number[] = [];
+    // (with reduced motion they're simply there: one stamp, straight away)
+    for (let i = 0; i < (reduced ? Math.min(1, stamped) : stamped); i++) {
+      timers.push(window.setTimeout(() => thud(0.5), reduced ? 0 : STAMP_MS.first + i * STAMP_MS.each));
+    }
+    if (allTenFresh.current === 'turn') {
+      timers.push(window.setTimeout(() => thud(1), reduced ? 0 : STAMP_MS.first + stamped * STAMP_MS.each + STAMP_MS.allTen));
+    }
+    return () => timers.forEach((t) => clearTimeout(t));
+  }, [state]);
+  // …the all-ten stamp, if it arrives while the ticket is out
+  useEffect(() => {
+    if (allTenNo == null || heard.current !== 'open' || allTenFresh.current !== 'now') return;
+    const t = window.setTimeout(() => thud(1), STAMP_MS.now);
+    return () => clearTimeout(t);
+  }, [allTenNo]);
+  // …and on the cover, the cell stamped as the count steps up
+  const counted = useRef(revealed);
+  useEffect(() => {
+    const more = revealed > counted.current;
+    counted.current = revealed;
+    if (!more || flashKey === 0) return;
+    const t = window.setTimeout(() => thud(0), STAMP_MS.cell);
+    return () => clearTimeout(t);
+  }, [revealed, flashKey]);
   const closeRef = useRef<HTMLButtonElement>(null);
   const peekRef = useRef<HTMLButtonElement>(null);
   const pulled = useRef(false);

@@ -30,24 +30,17 @@ if (!lib || !existsSync(lib)) {
 
 /* ---------- the signature ---------- */
 
-// The ten wakes are one recording played at ten pitches, so a tour of the
-// maquette plays a melody; `complete` is the chord it was building to.
-const WAKE_SOURCE = 'Pop-Up/Marimba Dampened Hit'; // sounds B5, about 0.2 s
+// A project waking is a low, soft click, not a note: the same recording each
+// time, a little higher with every project seen (WAKE_STEP semitones a visit),
+// so the tour tightens as it goes without playing a tune.
+const WAKE_SOURCE = 'Click/Tonal Click 02'; // a deep click, about 0.27 s
+const WAKE_STEP = 0.6;
 
-// The melody: ten steps, in semitones away from the source's own pitch (0 = as
-// recorded, -12 = an octave down, 7 = a fifth up), lowest first. It climbs a
-// major pentatonic over two octaves (do re mi sol la, twice: no two of its
-// notes clash, and projects wake in whatever order they're visited), then
-// leaves out the last "la" and leaps sol to do, so the tenth lands home.
-// Low enough to stay round (the top is F#6), high enough to stay short.
-const WAKE_SCALE = [-17, -15, -13, -10, -8, -5, -3, -1, 2, 7];
-// The chord: the low do for body, then do mi sol do at the top of the climb.
-const COMPLETE_CHORD = [-17, -5, -1, 2, 7];
-
-const tuned = WAKE_SCALE.length === 10;
-const note = (semitones, o = {}) => ({ from: WAKE_SOURCE, rate: 2 ** (semitones / 12), fadeOut: 0.03, ...o });
-/** "Two notes of the signature": the eighth step, then the last. */
-const twoNotes = (at = 0, gain = -4) => (tuned ? [note(WAKE_SCALE[7], { at, gain }), note(WAKE_SCALE[9], { at: at + 0.12, gain })] : []);
+// The two bright notes that end a small win (a stage cleared, an artery open,
+// the bin going over): one marimba hit at two pitches, a sixth apart.
+const NOTE_SOURCE = 'Pop-Up/Marimba Dampened Hit'; // sounds B5, about 0.2 s
+const note = (semitones, o = {}) => ({ from: NOTE_SOURCE, rate: 2 ** (semitones / 12), fadeOut: 0.03, ...o });
+const twoNotes = (at = 0, gain = -4) => [note(-1, { at, gain }), note(7, { at: at + 0.12, gain })];
 
 /* ---------- the picks ---------- */
 
@@ -64,8 +57,17 @@ const CAMERA = 'Aperture - Singular';
 const PICKS = {
   // the interface
   select: 'Click/Keyboard Click 01',
-  'popup-open': 'Tiles/Paper Tiles 03',
-  'popup-close': { from: 'Tiles/Paper Tiles 03', reverse: true },
+  hover: 'Hover/Simple Hover 03',
+  // a breath of air as the label opens, and the same drawn back in as it closes
+  'popup-open': { from: `${VECTOR_MOVE}/Airy Transition Fast`, dur: 0.3, fadeOut: 0.1 },
+  'popup-close': { from: `${VECTOR_MOVE}/Airy Transition Fast`, dur: 0.3, fadeOut: 0.1, reverse: true },
+  complete: `${VECTOR_MOVE}/Resonant Big Transition`,
+
+  // the admission ticket: slid up out of the edge and turned over, pushed
+  // back in, and the validator's stamp coming down on it
+  'ticket-open': ['Movement/Whoosh/Paper Fast Whoosh', { from: 'Foley/Paper Flap 01', at: 0.4, gain: -2 }],
+  'ticket-close': 'Books and Notes/Flip 15',
+  stamp: { variants: [6, 2, 9].map((n) => `${DESK}/Object With Rubber Feet Put Down On Desk ${String(n).padStart(2, '0')}`) },
 
   // the game
   'game-shot': { variants: ['Click/Click 02', 'Click/Click 03', 'Click/Stylized Click'] },
@@ -124,12 +126,8 @@ const PICKS = {
   'critter-group': [`${CAMERA}/Vintage Camera/Konica Shutter 01`, { from: `${CAMERA}/Vintage Camera/Konica Film Advance 02`, at: 0.7, gain: -3 }],
 };
 
-if (tuned) {
-  WAKE_SCALE.forEach((s, i) => (PICKS[`wake-${i + 1}`] = note(s)));
-  // the chord, lowest first, each note a breath after the last
-  PICKS.complete = COMPLETE_CHORD.map((s, i) => note(s, { at: i * 0.035, fadeOut: 0.06 }));
-  PICKS['game-stage'] = twoNotes(0, 0);
-}
+for (let i = 0; i < 10; i++) PICKS[`wake-${i + 1}`] = { from: WAKE_SOURCE, rate: 2 ** ((i * WAKE_STEP) / 12) };
+PICKS['game-stage'] = twoNotes(0, 0);
 
 // The beds: `len` seconds from `start`, the end faded over the start for
 // `xfade` seconds so it loops. `curve` is tri where the two ends are the same
@@ -313,7 +311,6 @@ try {
 }
 
 console.log(`\n${count} sound${count === 1 ? '' : 's'} in src/assets/sound/`);
-if (!tuned) console.log('No melody yet (WAKE_SCALE is empty): the wakes, the chord and the two-note tails are left out.');
 if (failed.length) {
   console.log(`\nDidn't make:\n  ${failed.join('\n  ')}`);
   process.exitCode = 1;

@@ -21,13 +21,18 @@ const files = import.meta.glob('../assets/sound/*.{mp3,m4a,ogg,webm,wav}', { eag
  *  extensions above). Variants: `shot.mp3`, `shot.2.mp3`, `shot.3.mp3`… are
  *  picked at random, so a repeated sound doesn't sound mechanical. */
 export type SoundName =
-  // the signature: a project wakes (the n-th, each the next note), and the chord when all ten have
+  // the signature: a project wakes (the n-th, each a little higher), and the pad powering on when all ten have
   | `wake-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10}`
   | 'complete'
   // the interface
   | 'select'
+  | 'hover'
   | 'popup-open'
   | 'popup-close'
+  // the admission ticket: pulled out and turned over, pushed back in, stamped
+  | 'ticket-open'
+  | 'ticket-close'
+  | 'stamp'
   // the launch
   | 'launch-count'
   | 'launch-release'
@@ -143,6 +148,9 @@ if (typeof window !== 'undefined') {
 
 /* ---------- the graph ---------- */
 
+/** The ambient beds' level: well under the effects, a room you notice when it stops. */
+const AMBIENT = 0.2;
+
 let ctx: AudioContext | null = null;
 let graph: { master: GainNode; sfx: GainNode; ambient: GainNode; launch: GainNode } | null = null;
 
@@ -162,7 +170,7 @@ function wake(): AudioContext | null {
         g.connect(master);
         return g;
       };
-      graph = { master, sfx: bus(0.8), ambient: bus(0.5), launch: bus(0.9) };
+      graph = { master, sfx: bus(0.8), ambient: bus(AMBIENT), launch: bus(0.9) };
       document.addEventListener('visibilitychange', () => {
         if (!ctx) return;
         if (document.hidden) void ctx.suspend();
@@ -280,7 +288,7 @@ export function loop(name: SoundName, bus: 'ambient' | 'launch' = 'ambient'): Lo
 export function duck(on: boolean) {
   if (!ctx || !graph) return;
   const t = ctx.currentTime;
-  graph.ambient.gain.setTargetAtTime(on ? 0.12 : 0.5, t, 0.2);
+  graph.ambient.gain.setTargetAtTime(on ? AMBIENT * 0.25 : AMBIENT, t, 0.2);
   graph.sfx.gain.setTargetAtTime(on ? 0.3 : 0.8, t, 0.2);
   graph.launch.gain.setTargetAtTime(on ? 0.2 : 0.9, t, 0.2);
 }
