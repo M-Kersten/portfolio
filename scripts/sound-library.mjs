@@ -16,12 +16,15 @@
 // that changes format doesn't leave a second variant behind. The library itself
 // stays where it is; only the cuts come into the repo. It needs ffmpeg on the path.
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const OUT = fileURLToPath(new URL('../src/assets/sound/', import.meta.url));
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+const VOICE_KIT = join(ROOT, 'scripts/voice-kit');
+const MADE_DIR = join(ROOT, 'scripts/sound-kit/made');
 const [lib, ...only] = process.argv.slice(2);
 if (!lib || !existsSync(lib)) {
   console.error('Give the folder with the sound library: npm run sounds -- ~/Downloads/Website-audio');
@@ -56,6 +59,10 @@ const CAMERA = 'Aperture - Singular';
 
 const PICKS = {
   // the interface
+  // the launch: the clamps letting go, and the tower's arms catching the booster
+  'launch-release': 'made/launch-release',
+  'launch-catch': { from: 'made/launch-catch', dur: 1.4, fadeOut: 0.3 }, // (the first clang of the two it made)
+
   select: 'Click/Keyboard Click 01',
   hover: 'Hover/Simple Hover 03',
   // a breath of air as the label opens, and the same drawn back in as it closes
@@ -156,10 +163,33 @@ const BEDS = {
     len: 40.96, // whole frames and whole periods of the hum, so the ends meet in phase
     curve: 'tri',
   },
+  // the launch's two loops, on its own bus at an effect's level: the engines, and the water under them
+  'launch-roar': { from: 'made/launch-roar', start: 1.5, len: 8, xfade: 2, lufs: -18 },
+  'launch-deluge': { from: 'made/launch-deluge', start: 1.5, len: 8, xfade: 2, lufs: -20 },
   // Not a bed but made the same way: a little car's motor, the steady middle
   // of a desk's servo, looped; the site plays it faster and slower with the
   // car's speed. An effect, so at an effect's level (`lufs`, where a bed is -28).
   'car-engine': { from: 'Standing Desk Motor/Motor Servo Up And Down 04', start: 1.5, len: 3, xfade: 0.5, lufs: -18 },
+};
+
+// What the library has nothing for is made: described to ElevenLabs' sound
+// generator, once, and kept in scripts/sound-kit/made/ (so it isn't made, or
+// paid for, again; delete a file there to have it made anew, or put your own
+// in its place). A pick names one as 'made/<name>'. It needs ELEVENLABS_API_KEY
+// in .env.local, and is sent the description and nothing else.
+const MADE = {
+  'launch-release': { seconds: 1.5, say: 'Heavy steel launch clamps releasing a rocket: one deep, hard metallic clank with a short mechanical thud. Dry, close, no music.' },
+  'launch-catch': { seconds: 3, say: 'Huge steel tower arms catching a heavy metal rocket booster: one massive low metallic clang, then a short ringing resonance dying away. No music.' },
+  'launch-roar': { seconds: 14, say: 'Continuous roar of many large rocket engines at full thrust, heard from nearby: deep steady rumble with crackle, constant intensity from start to end, no fade in, no fade out, no music.' },
+  'launch-deluge': { seconds: 14, say: 'Continuous heavy torrent of water from a launch pad deluge system: a dense rushing spray and hiss of water on steel, constant intensity, no fade in, no fade out, no music.' },
+  // the audio tour's frame (scripts/voice-kit, which voice-tour.mjs plays round a recording): dialling in to the guide's channel, and dropping off it
+  'voice-intro': { seconds: 2, say: 'A handheld radio receiver tuning in to a channel: a short burst of static, a quick sweep across frequencies with squeals, then the static clears as it locks on. Ends clean.' },
+  'voice-outro': { seconds: 1.5, say: 'A handheld radio dropping off a channel: a soft click, a short burst of static that thins out and cuts off to silence.' },
+};
+/** The audio tour's two bookends, written as WAVs into scripts/voice-kit. */
+const KIT = {
+  intro: { from: 'made/voice-intro', fadeOut: 0.05 },
+  outro: { from: 'made/voice-outro', fadeOut: 0.08 },
 };
 
 /* ---------- the library ---------- */
@@ -178,9 +208,35 @@ const library = new Map();
 
 function source(name) {
   const file = library.get(name);
-  if (!file) throw new Error(`not in the library: ${name}`);
+  if (!file) throw new Error(name.startsWith('made/') ? `not made yet: ${name} (it needs ELEVENLABS_API_KEY in .env.local)` : `not in the library: ${name}`);
   return file;
 }
+
+/** The made ones: those already kept, and, with a key, the ones that aren't yet. */
+async function makeMissing() {
+  const key = [...(existsSync(join(ROOT, '.env.local')) ? readFileSync(join(ROOT, '.env.local'), 'utf8') : '').matchAll(/^\s*ELEVENLABS_API_KEY\s*=\s*"?([^"\r\n]*)"?\s*$/gm)].pop()?.[1] ?? process.env.ELEVENLABS_API_KEY;
+  for (const [name, m] of Object.entries(MADE)) {
+    const file = join(MADE_DIR, `${name}.mp3`);
+    if (!existsSync(file)) {
+      if (!key) continue;
+      const r = await fetch('https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128', {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'content-type': 'application/json' },
+        body: JSON.stringify({ text: m.say, duration_seconds: m.seconds, prompt_influence: 0.5 }),
+      });
+      if (!r.ok) {
+        // (the key is never printed)
+        console.error(`ElevenLabs didn't make ${name} (${r.status}: ${(await r.text()).slice(0, 200)})`);
+        continue;
+      }
+      mkdirSync(MADE_DIR, { recursive: true });
+      writeFileSync(file, Buffer.from(await r.arrayBuffer()));
+      console.log(`  made ${name} (${m.seconds} s)`);
+    }
+    library.set(`made/${name}`, file);
+  }
+}
+await makeMissing();
 
 /* ---------- ffmpeg ---------- */
 
@@ -218,8 +274,8 @@ function layer(l) {
   return { file, peak };
 }
 
-/** Layers into one sound at `OUT/<file>.<wav|mp3>`. */
-function effect(file, layers) {
+/** Layers into one sound at `OUT/<file>.<wav|mp3>` (or, given `dir`, a WAV there whatever its size). */
+function effect(file, layers, dir) {
   const parts = layers.map((l) => ({ ...l, ...layer(l) }));
   // each layer brought to the same peak, then set against the others
   const graph =
@@ -232,8 +288,8 @@ function effect(file, layers) {
   const wav = temp();
   ffmpeg(['-i', mix, '-af', `volume=${(-6 - peakOf(mix)).toFixed(2)}dB,aresample=44100`, ...BARE, '-c:a', 'pcm_s16le', wav]);
   const size = statSync(wav).size;
-  if (size <= 30 * 1024) {
-    copyFileSync(wav, join(OUT, `${file}.wav`));
+  if (dir || size <= 30 * 1024) {
+    copyFileSync(wav, join(dir ?? OUT, `${file}.wav`));
     return { ext: 'wav', kb: size / 1024, s: (size - 44) / 88200 };
   }
   const mp3 = join(OUT, `${file}.mp3`);
@@ -309,6 +365,15 @@ try {
       failed.push(`${name}: ${e.message}`);
     }
   }
+  for (const [name, pick] of Object.entries(KIT)) {
+    if (!wanted(`voice-${name}`)) continue;
+    try {
+      report(`voice-kit/${name}`, effect(name, asLayers(pick), VOICE_KIT));
+      count++;
+    } catch (e) {
+      failed.push(`voice-kit/${name}: ${e.message}`);
+    }
+  }
   for (const [name, b] of Object.entries(BEDS)) {
     if (!wanted(name)) continue;
     try {
@@ -323,7 +388,7 @@ try {
   rmSync(TMP, { recursive: true, force: true });
 }
 
-console.log(`\n${count} sound${count === 1 ? '' : 's'} in src/assets/sound/`);
+console.log(`\n${count} sound${count === 1 ? '' : 's'} made.`);
 if (failed.length) {
   console.log(`\nDidn't make:\n  ${failed.join('\n  ')}`);
   process.exitCode = 1;

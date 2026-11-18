@@ -192,6 +192,10 @@ round again.
 
 ## Where they come from
 
+What the library has nothing for (the launch's clamps, catch, roar and water,
+and the audio tour's two bookends) is made by ElevenLabs' sound generator from
+a description (`MADE` in the script), once, and kept in `scripts/sound-kit/made/`.
+
 Most are cut from a bought sound library with `npm run sounds -- <library folder>`.
 `PICKS` in `scripts/sound-library.mjs` says which recording each event plays; change
 a pick there and run it again (name events to redo only those:
