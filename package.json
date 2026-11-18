@@ -15,7 +15,8 @@
     "stills": "node scripts/fetch-stills.mjs",
     "og": "node scripts/gen-og.mjs",
     "cv": "npm run build && node scripts/generate-cv.mjs",
-    "voice": "node scripts/voice-tour.mjs"
+    "voice": "node scripts/voice-tour.mjs",
+    "sounds": "node scripts/sound-library.mjs"
   },
   "dependencies": {
     "@fontsource-variable/oxanium": "^5.3.0",

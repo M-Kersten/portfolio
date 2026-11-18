@@ -1,0 +1,320 @@
+// The site's sounds, cut from the bought sound library.
+//
+//   npm run sounds -- <library folder>                  all of them
+//   npm run sounds -- <library folder> wake page-turn   only the events that start so
+//
+// PICKS below says which recording each event plays (the events and what they
+// should sound like are in src/assets/sound/README.md). Every pick is made mono,
+// has the silence taken off both ends (a click that starts late feels late),
+// and is set to peak at -6 dBFS. Anything under about a third of a second stays
+// a WAV: that small it's under 30 KB, and it starts on the first sample, where
+// an MP3 can open with a few tens of milliseconds of nothing. Longer ones
+// become MP3s. The ambient beds are made to loop (the end faded over the
+// start), levelled to -28 LUFS and written as M4A.
+//
+// An event's old files are removed before its new ones are written, so a pick
+// that changes format doesn't leave a second variant behind. The library itself
+// stays where it is; only the cuts come into the repo. It needs ffmpeg on the path.
+import { spawnSync } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const OUT = fileURLToPath(new URL('../src/assets/sound/', import.meta.url));
+const [lib, ...only] = process.argv.slice(2);
+if (!lib || !existsSync(lib)) {
+  console.error('Give the folder with the sound library: npm run sounds -- ~/Downloads/Website-audio');
+  process.exit(1);
+}
+
+/* ---------- the signature ---------- */
+
+// The ten wakes are one recording played at ten pitches, so a tour of the
+// maquette plays a melody; `complete` is the chord it was building to.
+const WAKE_SOURCE = 'Pop-Up/Marimba Dampened Hit'; // sounds B5, about 0.2 s
+
+// The melody: ten steps, in semitones away from the source's own pitch (0 = as
+// recorded, -12 = an octave down, 7 = a fifth up), lowest first. It climbs a
+// major pentatonic over two octaves (do re mi sol la, twice: no two of its
+// notes clash, and projects wake in whatever order they're visited), then
+// leaves out the last "la" and leaps sol to do, so the tenth lands home.
+// Low enough to stay round (the top is F#6), high enough to stay short.
+const WAKE_SCALE = [-17, -15, -13, -10, -8, -5, -3, -1, 2, 7];
+// The chord: the low do for body, then do mi sol do at the top of the climb.
+const COMPLETE_CHORD = [-17, -5, -1, 2, 7];
+
+const tuned = WAKE_SCALE.length === 10;
+const note = (semitones, o = {}) => ({ from: WAKE_SOURCE, rate: 2 ** (semitones / 12), fadeOut: 0.03, ...o });
+/** "Two notes of the signature": the eighth step, then the last. */
+const twoNotes = (at = 0, gain = -4) => (tuned ? [note(WAKE_SCALE[7], { at, gain }), note(WAKE_SCALE[9], { at: at + 0.12, gain })] : []);
+
+/* ---------- the picks ---------- */
+
+// A recording is named by its folder and the plain part of its file name. A
+// layer may take: start / dur (seconds into it, after the silence is off),
+// rate (speed and pitch), reverse, fadeOut (seconds), gain (dB, against the
+// other layers) and at (seconds into the event it comes in).
+// An event is one recording, a list of layers mixed into one sound, or
+// { variants: [...] } for a few takes to pick from at random.
+const VECTOR_MOVE = 'Movement/Full Screen Transition';
+const DESK = 'Objects on Desk Foley';
+const CAMERA = 'Aperture - Singular';
+
+const PICKS = {
+  // the interface
+  select: 'Click/Keyboard Click 01',
+  'popup-open': 'Tiles/Paper Tiles 03',
+  'popup-close': { from: 'Tiles/Paper Tiles 03', reverse: true },
+
+  // the game
+  'game-shot': { variants: ['Click/Click 02', 'Click/Click 03', 'Click/Stylized Click'] },
+  'game-break-big': 'Foley/Wood Blocks 01',
+  'game-break-mid': 'Foley/Plastic Drop 03',
+  'game-break-small': `${DESK}/Wood Put Down On Desk 03`,
+  'game-shield': 'Tiles/Glass Tap Tiles 02',
+  'game-crash': 'Pop-Up/Drum Flam Low',
+  'comms-open': 'Bleep/Data Transmission',
+  'comms-close': 'Pop-Up/PopUp Data 02',
+  'comms-type': `${CAMERA}/Digital Camera/Canon EOS T7i UI Beep Menu Operation`,
+
+  // the city's grid, and the windmill
+  'grid-charge': { from: `${CAMERA}/Charge/Camera Electronic Flash Charge 02`, dur: 0.45, fadeOut: 0.08 },
+  'grid-zap': { variants: [1, 2, 3].map((n) => `${VECTOR_MOVE}/Chaos Data Transition 0${n}`) },
+  'grid-on': 'Switches and Peripherals/Switches Cables Plugin Peripherals 44',
+  'mill-power': `${VECTOR_MOVE}/Tonal Synth Rise`,
+  'star-pop': 'Hover/Simple Hover 04',
+  'star-trace': 'Text/Pen Writing Single Stroke 01',
+
+  // the picture book
+  'book-find': 'Pop-Up/Cute PopUp 01',
+  'page-turn': { variants: ['Books and Notes/Page Turn 03', 'Books and Notes/Page Turn 01', 'Books and Notes/Page Turn 09'] },
+  'book-close': `${DESK}/Product Box Put Down On Desk 08`,
+
+  // the heart
+  'cath-inflate': { from: 'Foley/Stretched Leather 01', dur: 0.6, fadeOut: 0.12 },
+  'cath-clear': ['Foley/Water Whoosh', ...twoNotes(0.25)],
+
+  // Snake
+  'snake-eat': { variants: ['Hover/Simple Hover 01', 'Hover/Simple Hover 05', 'Hover/Simple Hover 06'] },
+  'snake-crash': 'Click/Deny Click',
+
+  // the AR framework's cubes
+  'cube-anchor': 'Tiles/Glass Tap Tiles 01',
+  'cube-merge': 'Movement/Whoosh/Crystal Whoosh 01',
+
+  // the Virtuele Brigade's chase
+  'vr-login': 'Pop-Up/Tonal PopUp 01',
+  'chase-clue': 'Click/Button Switch 01',
+  'chase-send': 'Bleep/Digital Bleep 01',
+  'chase-caught': 'Bleep/Bleep 02',
+
+  // Popcore's bin
+  'ball-in': 'Foley/Plastic Drop 01',
+  'ball-rim': { variants: ['Tiles/Plastic Tiles 01', 'Tiles/Plastic Tiles 02', 'Tiles/Plastic Tiles 04'] },
+  'bin-tip': 'Foley/Dropping Object',
+  'bin-cheer': ['Pop-Up/Particles PopUp 01', ...twoNotes(0.08)],
+
+  // ARCam's park
+  'critter-peek': 'Tiles/Paper Tiles 02',
+  'critter-in': 'Movement/Whoosh/Digital Light Whoosh',
+  'critter-away': 'Bleep/Bleep 03',
+  'critter-snap': `${CAMERA}/Digital Camera/Canon EOS T7i Auto Focus Beeps And Shutter Sequence 01`,
+  // the bigger shutter, then the print winding out
+  'critter-group': [`${CAMERA}/Vintage Camera/Konica Shutter 01`, { from: `${CAMERA}/Vintage Camera/Konica Film Advance 02`, at: 0.7, gain: -3 }],
+};
+
+if (tuned) {
+  WAKE_SCALE.forEach((s, i) => (PICKS[`wake-${i + 1}`] = note(s)));
+  // the chord, lowest first, each note a breath after the last
+  PICKS.complete = COMPLETE_CHORD.map((s, i) => note(s, { at: i * 0.035, fadeOut: 0.06 }));
+  PICKS['game-stage'] = twoNotes(0, 0);
+}
+
+// The beds: `len` seconds from `start`, the end faded over the start for
+// `xfade` seconds so it loops. `curve` is tri where the two ends are the same
+// sound (the city file is a loop played twice), qsin where they aren't.
+// `sprinkle` lays short stretches of another recording over it.
+const BEDS = {
+  'ambient-city': { from: 'city-background', start: 0, len: 60, xfade: 3, curve: 'tri' },
+  'ambient-room': {
+    from: 'Computer Hard Drives/Desktop Hard Drive Boot Up Shut Down 01',
+    start: 31,
+    len: 28,
+    xfade: 3,
+    repeat: 2,
+    sprinkle: [
+      { from: 'Computer Keyboard Typing/Apple Laptop Keyboard/Apple Keyboard Typing 02', start: 4, dur: 2.5, at: 9, gain: 6 },
+      { from: 'Computer Keyboard Typing/Apple Laptop Keyboard/Apple Keyboard Typing 02', start: 9, dur: 1.5, at: 38, gain: 6 },
+    ],
+  },
+  'ambient-chip': { from: 'Computer Hard Drives/Portable Drive 1 Boot Up Shut Down 01', start: 24, len: 40, xfade: 3 },
+};
+
+/* ---------- the library ---------- */
+
+const library = new Map();
+(function walk(dir, rel) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.isDirectory()) walk(join(dir, e.name), rel ? `${rel}/${e.name}` : e.name);
+    else if (/\.wav$/i.test(e.name)) {
+      // "UIClick_CLICK-Keyboard Click 01_Ocular_Vector.wav" is "Keyboard Click 01"
+      const plain = e.name.replace(/\.wav$/i, '').replace(/^[A-Za-z]+_[A-Z ]+-/, '').replace(/_Ocul.*$/, '').replace(/\s+/g, ' ').trim();
+      library.set(rel ? `${rel}/${plain}` : plain, join(dir, e.name));
+    }
+  }
+})(lib, '');
+
+function source(name) {
+  const file = library.get(name);
+  if (!file) throw new Error(`not in the library: ${name}`);
+  return file;
+}
+
+/* ---------- ffmpeg ---------- */
+
+const TMP = mkdtempSync(join(tmpdir(), 'sounds-'));
+let made = 0;
+const temp = (ext = 'wav') => join(TMP, `${made++}.${ext}`);
+
+function ffmpeg(args) {
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-nostats', '-y', ...args.map(String)], { encoding: 'utf8', maxBuffer: 1 << 26 });
+  if (r.status !== 0) throw new Error((r.stderr ?? String(r.error)).trim().split('\n').slice(-4).join('\n'));
+  return r.stderr;
+}
+// (astats, not volumedetect: that one reads 16-bit, so a mix that runs over full scale would measure as exactly full)
+const peakOf = (file) => Number([...ffmpeg(['-i', file, '-af', 'astats=measure_perchannel=none:measure_overall=Peak_level', '-f', 'null', '-']).matchAll(/Peak level dB: (-?[\d.]+)/g)].pop()?.[1]);
+const loudnessOf = (file) => Number([...ffmpeg(['-i', file, '-af', 'ebur128', '-f', 'null', '-']).matchAll(/I:\s+(-?[\d.]+) LUFS/g)].pop()?.[1]);
+const FLOAT = ['-c:a', 'pcm_f32le'];
+const BARE = ['-map_metadata', '-1', '-fflags', '+bitexact'];
+
+/* ---------- an effect ---------- */
+
+const SILENCE = 'silenceremove=start_periods=1:start_threshold=-48dB:detection=peak';
+
+/** One layer on its own: mono, trimmed, cut, pitched, faded. Returns the file and its peak. */
+function layer(l) {
+  const f = ['aresample=48000', 'aformat=channel_layouts=mono', SILENCE, 'areverse', SILENCE, 'areverse'];
+  if (l.start || l.dur) f.push(`atrim=start=${l.start ?? 0}${l.dur ? `:duration=${l.dur}` : ''}`, 'asetpts=PTS-STARTPTS');
+  if (l.rate && l.rate !== 1) f.push(`asetrate=${Math.round(48000 * l.rate)}`, 'aresample=48000');
+  if (l.reverse) f.push('areverse');
+  // a hair of fade at each end, so a cut never clicks
+  f.push('afade=t=in:d=0.002', 'areverse', `afade=t=in:d=${l.fadeOut ?? 0.012}`, 'areverse');
+  const file = temp();
+  ffmpeg(['-i', source(l.from), '-af', f.join(','), ...FLOAT, file]);
+  const peak = peakOf(file);
+  if (!Number.isFinite(peak) || peak < -80) throw new Error(`nothing left of ${l.from}`);
+  return { file, peak };
+}
+
+/** Layers into one sound at `OUT/<file>.<wav|mp3>`. */
+function effect(file, layers) {
+  const parts = layers.map((l) => ({ ...l, ...layer(l) }));
+  // each layer brought to the same peak, then set against the others
+  const graph =
+    parts.map((p, i) => `[${i}:a]volume=${(-p.peak + (p.gain ?? 0)).toFixed(2)}dB,adelay=${Math.round((p.at ?? 0) * 1000)}:all=1[l${i}]`).join(';') +
+    ';' +
+    parts.map((_, i) => `[l${i}]`).join('') +
+    (parts.length > 1 ? `amix=inputs=${parts.length}:normalize=0:duration=longest[m]` : 'anull[m]');
+  const mix = temp();
+  ffmpeg([...parts.flatMap((p) => ['-i', p.file]), '-filter_complex', graph, '-map', '[m]', ...FLOAT, mix]);
+  const wav = temp();
+  ffmpeg(['-i', mix, '-af', `volume=${(-6 - peakOf(mix)).toFixed(2)}dB,aresample=44100`, ...BARE, '-c:a', 'pcm_s16le', wav]);
+  const size = statSync(wav).size;
+  if (size <= 30 * 1024) {
+    copyFileSync(wav, join(OUT, `${file}.wav`));
+    return { ext: 'wav', kb: size / 1024, s: (size - 44) / 88200 };
+  }
+  const mp3 = join(OUT, `${file}.mp3`);
+  ffmpeg(['-i', wav, ...BARE, '-c:a', 'libmp3lame', '-b:a', '64k', mp3]);
+  return { ext: 'mp3', kb: statSync(mp3).size / 1024, s: (size - 44) / 88200 };
+}
+
+/* ---------- a bed ---------- */
+
+function bed(file, b) {
+  const { from, start, len: seconds, xfade = 3, curve = 'qsin', repeat = 1, sprinkle = [] } = b;
+  // Counted in samples, and the length rounded to whole AAC frames (1024
+  // samples): a last frame that's only part full is padded with silence, and
+  // that silence would be a hole in the loop every time round.
+  const len = Math.round((seconds * 44100) / 1024) * 1024;
+  const X = Math.round(xfade * 44100);
+  const cut = (a, z, label) => `atrim=start_sample=${a}:end_sample=${z},asetpts=PTS-STARTPTS[${label}]`;
+  const loop = temp();
+  ffmpeg([
+    '-ss', start, '-t', seconds + xfade + 1, '-i', source(from),
+    '-filter_complex',
+    `[0:a]aresample=44100,aformat=channel_layouts=stereo,asplit=3[a][b][c];[a]${cut(0, X, 'head')};[b]${cut(X, len, 'body')};[c]${cut(len, len + X, 'tail')};` +
+      `[tail][head]acrossfade=ns=${X}:c1=${curve}:c2=${curve}[blend];[body][blend]concat=n=2:v=0:a=1[o]`,
+    '-map', '[o]', ...FLOAT, loop,
+  ]);
+  const base = loudnessOf(loop);
+  const over = sprinkle.map((s) => {
+    const f = temp();
+    ffmpeg(['-ss', s.start, '-t', s.dur, '-i', source(s.from), '-af', 'aresample=44100,aformat=channel_layouts=stereo,afade=t=in:d=0.15,areverse,afade=t=in:d=0.3,areverse', ...FLOAT, f]);
+    // set against the bed's own level, so `gain` means "this much over (or under) it"
+    return { ...s, file: f, lift: base - 14 - loudnessOf(f) + (s.gain ?? 0) };
+  });
+  const mix = temp();
+  ffmpeg([
+    '-stream_loop', repeat - 1, '-i', loop,
+    ...over.flatMap((s) => ['-i', s.file]),
+    '-filter_complex',
+    over.map((s, i) => `[${i + 1}:a]volume=${s.lift.toFixed(2)}dB,adelay=${Math.round(s.at * 1000)}:all=1[s${i}]`).join(';') +
+      (over.length ? ';' : '') +
+      `[0:a]${over.map((_, i) => `[s${i}]`).join('')}amix=inputs=${over.length + 1}:normalize=0:duration=first[m]`,
+    '-map', '[m]', ...FLOAT, mix,
+  ]);
+  const out = join(OUT, `${file}.m4a`);
+  ffmpeg(['-i', mix, '-af', `volume=${(-28 - loudnessOf(mix)).toFixed(2)}dB`, ...BARE, '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', '-movie_timescale', 44100, out]);
+  return { ext: 'm4a', kb: statSync(out).size / 1024, s: (len * repeat) / 44100 };
+}
+
+/* ---------- all of them ---------- */
+
+const wanted = (name) => !only.length || only.some((o) => name.startsWith(o));
+const asLayers = (pick) => (Array.isArray(pick) ? pick : [pick]).map((l) => (typeof l === 'string' ? { from: l } : l));
+/** Take an event's earlier files away (select.wav, select.2.mp3…), whatever their format. */
+function clear(name) {
+  for (const f of readdirSync(OUT)) if (f !== 'README.md' && f.split('.')[0] === name) rmSync(join(OUT, f));
+}
+const report = (file, r) => console.log(`  ${file.padEnd(20)} ${r.ext}  ${r.s.toFixed(2).padStart(6)} s  ${r.kb.toFixed(0).padStart(4)} KB`);
+
+mkdirSync(OUT, { recursive: true });
+let count = 0;
+const failed = [];
+try {
+  for (const [name, pick] of Object.entries(PICKS)) {
+    if (!wanted(name)) continue;
+    const takes = pick?.variants ?? [pick];
+    try {
+      clear(name);
+      takes.forEach((take, i) => {
+        const file = i ? `${name}.${i + 1}` : name;
+        report(file, effect(file, asLayers(take)));
+        count++;
+      });
+    } catch (e) {
+      failed.push(`${name}: ${e.message}`);
+    }
+  }
+  for (const [name, b] of Object.entries(BEDS)) {
+    if (!wanted(name)) continue;
+    try {
+      clear(name);
+      report(name, bed(name, b));
+      count++;
+    } catch (e) {
+      failed.push(`${name}: ${e.message}`);
+    }
+  }
+} finally {
+  rmSync(TMP, { recursive: true, force: true });
+}
+
+console.log(`\n${count} sound${count === 1 ? '' : 's'} in src/assets/sound/`);
+if (!tuned) console.log('No melody yet (WAKE_SCALE is empty): the wakes, the chord and the two-note tails are left out.');
+if (failed.length) {
+  console.log(`\nDidn't make:\n  ${failed.join('\n  ')}`);
+  process.exitCode = 1;
+}

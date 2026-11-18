@@ -168,3 +168,12 @@ fade back while you read the rest of the page and go quiet for the launch.
 - Effects: mono, peaking around −6 dBFS, most under 30 KB.
 - Ambient: stereo, around −28 LUFS, under 1 MB each.
 - While a voice note plays, everything else drops back on its own.
+
+## Where they come from
+
+Most are cut from a bought sound library with `npm run sounds -- <library folder>`.
+`PICKS` in `scripts/sound-library.mjs` says which recording each event plays; change
+a pick there and run it again (name events to redo only those:
+`npm run sounds -- <folder> page-turn star`). It replaces every file of the events
+it makes and leaves the others alone, so a sound it has no pick for (the launch's)
+can still be dropped in by hand.
