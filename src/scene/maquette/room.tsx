@@ -228,6 +228,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
   );
   const R = BALL_R;
   const fired = useRef(false);
+  const bounced = useRef(-1); // when a ball last sounded a landing
   // the phone lying face down on the seat, which a ball can't roll through: its
   // middle, its half-width and half-length, and its turn (the rig's rest pose)
   const PHONE_LIE = { x: position[0], z: position[2], hw: PHONE_W / 2, hl: PHONE_H / 2, turn: 0.3 };
@@ -543,7 +544,9 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
         if (!b.mesh) return;
         if (b.delay > 0) {
           b.delay -= dt;
-          return;
+          if (b.delay > 0) return;
+          // out it comes
+          play('ball-pop', { volume: 0.3, rate: 0.9 + 0.3 * Math.random() });
         }
         b.mesh.visible = true;
         const p = b.mesh.position;
@@ -604,6 +607,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
               const a = Math.random() * Math.PI * 2;
               throwTo(b, p, _to.set(BIN.x + Math.cos(a) * e, RIM.y, BIN.z + Math.sin(a) * e), 0.5 + 0.35 * d);
               flash(p.x, g - R + 0.002, p.z, 0.012, 0.052, now);
+              play('ball-flick', { volume: 0.4, rate: 0.95 + 0.15 * Math.random() });
             }
           } else if (near || now > b.backAt) {
             // off the seat (a miss, a spill): back up onto it, somewhere free
@@ -614,6 +618,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
             _to.y = seatAt(_to.x, _to.z);
             throwTo(b, p, _to, 0.6 + 0.3 * Math.hypot(_to.x - p.x, _to.z - p.z));
             flash(p.x, g - R + 0.002, p.z, 0.012, 0.04, now);
+            play('ball-flick', { volume: 0.25, rate: 0.85 + 0.15 * Math.random() });
           }
         }
         // gravity in the air (stepped exactly, so a throw follows the arc it
@@ -687,6 +692,13 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
             const hit = Math.sqrt(vy0 * vy0 + 2 * fall * Math.max(0, y0 - floor));
             b.landAt = now;
             b.impact = Math.min(1, hit / 0.7);
+            // a ping-pong ball's tick, by how hard it lands: duller on the cushion, and
+            // a spill of them thinned, so ten landing at once aren't one loud crack
+            if (hit >= 0.14 && now - bounced.current > 0.03) {
+              bounced.current = now;
+              const soft = surfaceAt(p.x, p.z) === 'seat';
+              play('ball-bounce', { volume: (0.08 + 0.3 * Math.min(1, hit / 0.7)) * (soft ? 0.5 : 1), rate: (soft ? 0.8 : 1) * (0.95 + 0.15 * Math.random()) });
+            }
             if (hit > 0.3 && surfaceAt(p.x, p.z) === 'floor') flash(p.x, FLOOR_Y + 0.002, p.z, 0.008, 0.035, now, 0.35, 0.6);
             if (hit < 0.14) b.vel.y = 0;
             else {
@@ -714,7 +726,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
               p.set(cx, RIM.y, cz);
               B.inAt = now;
               flash(BIN.x, RIM.y + 0.003, BIN.z, RIM.r, RIM.r * 1.8, now);
-              play('ball-in', { rate: 0.94 + 0.06 * B.n });
+              play('ball-in', { volume: 0.5, rate: 0.94 + 0.06 * B.n });
             } else if (dh < RIM.r + R * 0.9) {
               const up = 0.24 + 0.12 * Math.random();
               const T = (2 * up) / BALL_G;
@@ -729,7 +741,7 @@ function Phone({ slug, position, liveColor }: { slug: string; position: V3; live
                 b.vel.set(((cx - BIN.x) / dh) * out + b.vel.x * 0.15, up, ((cz - BIN.z) / dh) * out + b.vel.z * 0.15);
               }
               B.rimAt = now;
-              play('ball-rim', { rate: 0.9 + 0.2 * Math.random() });
+              play('ball-rim', { volume: 0.4, rate: 0.9 + 0.2 * Math.random() });
             }
           }
           if (b.slot < 0 && p.y < RIM.y) {
@@ -3240,6 +3252,10 @@ function RoomMouse({ gap, route }: { gap: { at: V3; out: V3 }; route: MouseStop[
     const stops = route.map((r, i) => (r.wait ? i : -1)).filter((i) => i >= 0);
     return { curve, len: lengths[lengths.length - 1], at, stops };
   }, [route]);
+  // (heard only while the room is the layer on screen, and not under the launch)
+  const onRoom = useSceneSelector((s) => s.journeyStep === 1 && s.launch === 'idle');
+  const inRoom = useRef(onRoom);
+  inRoom.current = onRoom;
   const st = useMemo(
     () => ({
       mode: 'hidden' as 'hidden' | 'arming' | 'hop' | 'enter' | 'run' | 'stop' | 'freeze',
@@ -3311,7 +3327,7 @@ function RoomMouse({ gap, route }: { gap: { at: V3; out: V3 }; route: MouseStop[
         const a = route[path.stops[near]].at;
         st.to.set(a[0], 0, a[2]);
         Object.assign(st, { mode: 'enter', t: 0, run: 0, v: 0.3, stop: near });
-        play('mouse-patter', { volume: 0.5 });
+        play('mouse-patter', { volume: 0.7 });
       }
     }
     // the dash: off fast, braking to arrive on the mark
@@ -3363,6 +3379,8 @@ function RoomMouse({ gap, route }: { gap: { at: V3; out: V3 }; route: MouseStop[
       if (st.wait <= 0) {
         if (st.mode === 'stop') st.stop = (st.stop + 1) % path.stops.length;
         Object.assign(st, { mode: 'run', t: 0 });
+        // off again: its feet, while the room is the layer on screen
+        if (inRoom.current && !reduced) play('mouse-patter', { volume: 0.3, rate: 0.9 + 0.25 * Math.random() });
       }
     }
 

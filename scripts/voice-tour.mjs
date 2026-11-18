@@ -86,6 +86,8 @@ const SAY = {
   },
 };
 const LINES = join(KIT, 'announcer');
+/** What the announcer is taken to have said just before a line: plain English, so the line is read as English too. */
+const ENGLISH = 'Welcome to the audio tour of the exhibition. Please listen to the description of each exhibit, in English.';
 /** .env and .env.local's lines over the shell's own (KEY=value, one a line). */
 const env = { ...process.env };
 for (const f of ['.env', '.env.local']) {
@@ -112,7 +114,9 @@ async function announce(slug, title) {
       method: 'POST',
       headers: { 'xi-api-key': ELEVEN.key, 'content-type': 'application/json' },
       // steady and unhurried: an announcement, the same way every time
-      body: JSON.stringify({ text, model_id: ELEVEN.model, voice_settings: { stability: 0.7, similarity_boost: 0.75, style: 0 } }),
+      // (previous_text isn't spoken: it's what she'd just said, so a Dutch name on its own
+      // isn't taken for the language of the line. 'Virtuele Brigade' alone came out Spanish.)
+      body: JSON.stringify({ text, previous_text: ENGLISH, model_id: ELEVEN.model, voice_settings: { stability: 0.7, similarity_boost: 0.75, style: 0 } }),
     });
     if (r.ok) {
       mkdirSync(LINES, { recursive: true });

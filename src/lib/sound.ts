@@ -68,7 +68,7 @@ export type SoundName =
   // the race table: the crown changing hands, and a car's motor (a loop, revved by its speed)
   | 'crown-tag'
   | 'car-engine'
-  // the shelf mouse: its feet as it drops to the floor and makes off
+  // the shelf mouse: its feet, as it drops to the floor and each time it runs
   | 'mouse-patter'
   // the Zwijsen book: Mouse found, a page turning over, and the book closing
   // at the end of the story (to open again on the first page)
@@ -95,8 +95,12 @@ export type SoundName =
   | 'chase-clue'
   | 'chase-send'
   | 'chase-caught'
-  // Popcore's bin: a ball dropping in, one off the rim, the full bin going over,
-  // and the confetti as it lands
+  // Popcore's ping-pong balls: one popping out onto the couch, flicked, landing
+  // on something; and the bin: a ball dropping in, one off the rim, the full
+  // bin going over, and the confetti as it lands
+  | 'ball-pop'
+  | 'ball-flick'
+  | 'ball-bounce'
   | 'ball-in'
   | 'ball-rim'
   | 'bin-tip'

@@ -133,6 +133,9 @@ In the Popcore close-up the ping-pong balls go for the bin beside the couch.
 
 | File | When | Notes |
 | --- | --- | --- |
+| `ball-pop` | a ball pops out onto the couch | a tiny soft pop |
+| `ball-flick` | a ball is flicked: at the bin, or back up onto the couch | a fingernail on hollow plastic, one quick snap |
+| `ball-bounce` | a ball lands on the floor or the couch (quieter and duller on the cushion, louder the harder it lands) | a ping-pong ball's tick: light, hollow, high; give it variants. Nothing with weight in it |
 | `ball-in` | a ball drops into the bin | a light hollow plonk; played a little higher for each ball in |
 | `ball-rim` | a ball hits the rim | a short bright tick; give it variants |
 | `bin-tip` | the full bin falls over | a hollow clatter of the bin and the balls |
@@ -144,7 +147,7 @@ In the Popcore close-up the ping-pong balls go for the bin beside the couch.
 | --- | --- | --- |
 | `crown-tag` | in the Lightship Drive close-up, the crown changes hands | one firm click; played higher when you take it, lower when the rival does |
 | `car-engine` | loops for each car while crown tag is on, a little faster and louder with the car's speed | a small electric motor's low whirr, 2–3 s, seamless; no revs in the recording itself and no high whine (it's heard twice over, for as long as the game runs) |
-| `mouse-patter` | the shelf mouse drops to the floor and makes off (the first time the Zwijsen book is picked up) | small quick feet, under a second |
+| `mouse-patter` | the shelf mouse drops to the floor (the first time the Zwijsen book is picked up), and, quieter, each time it sets off on a run while the Room is on screen | small quick feet, under a second; a run of taps, not one |
 
 ## The picture book
 

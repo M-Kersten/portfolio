@@ -137,8 +137,12 @@ const PICKS = {
   'chase-caught': 'Bleep/Bleep 02',
 
   // Popcore's bin
-  'ball-in': 'Foley/Plastic Drop 01',
-  'ball-rim': { variants: ['Tiles/Plastic Tiles 01', 'Tiles/Plastic Tiles 02', 'Tiles/Plastic Tiles 04'] },
+  // (made: a ping-pong ball is its own sound, light and hollow, and nothing else in a library passes for it)
+  'ball-pop': { from: 'Pop-Up/Organic PopUp', rate: 1.3, dur: 0.2, fadeOut: 0.08 },
+  'ball-flick': { from: 'made/ball-flick', dur: 0.2, fadeOut: 0.08 },
+  'ball-bounce': { variants: [{ from: 'made/ball-bounce', dur: 0.18, fadeOut: 0.08 }, { from: 'made/ball-bounce-2', dur: 0.18, fadeOut: 0.08 }] },
+  'ball-in': { from: 'made/ball-in', dur: 0.35, fadeOut: 0.12 },
+  'ball-rim': { from: 'made/ball-bounce-2', rate: 1.3, dur: 0.15, fadeOut: 0.06 },
   'bin-tip': 'Foley/Dropping Object',
   'bin-cheer': ['Pop-Up/Particles PopUp 01', ...twoNotes(0.08)],
 
@@ -149,7 +153,7 @@ const PICKS = {
   'critter-snap': `${CAMERA}/Digital Camera/Canon EOS T7i Auto Focus Beeps And Shutter Sequence 01`,
   // the bigger shutter, then the print winding out
   // the shelf mouse dropping to the floor and making off: small quick feet
-  'mouse-patter': { from: 'Phone or Touchscreen Typing/Typing On Cell Phone Sequence 05', dur: 1.6, rate: 2, fadeOut: 0.08 },
+  'mouse-patter': { from: 'made/mouse-patter', dur: 0.8, fadeOut: 0.2 },
   // the crown changing hands on the race table
   'crown-tag': 'Click/Click 02',
   'critter-group': [`${CAMERA}/Vintage Camera/Konica Shutter 01`, { from: `${CAMERA}/Vintage Camera/Konica Film Advance 02`, at: 0.7, gain: -3 }],
@@ -208,6 +212,12 @@ const MADE = {
   'room-fan': { seconds: 14, say: 'A desktop computer cooling fan running, recorded close up: a steady low whirring hum, clearly audible, constant and even from start to end. No clicks, no hard drive noise, no keyboard, no voices, no fade in, no fade out.' },
   'room-rain': { seconds: 14, say: 'Light steady rain falling against a window pane, heard from inside a small quiet room. Soft, gentle, even, constant from start to end, no thunder, no wind, no traffic, no fade in, no fade out.' },
   'clock-tick': { seconds: 0.5, say: 'One single soft tick of a small quartz wall clock. Dry, close, quiet room, one tick only.' },
+  // Popcore's ping-pong balls, and the shelf mouse
+  'ball-bounce': { seconds: 0.5, say: 'A single ping pong ball bouncing once on a hard wooden floor: one light hollow high-pitched plastic tick. Dry, close, clearly audible, one bounce only.' },
+  'ball-bounce-2': { seconds: 0.5, say: 'A single ping pong ball bouncing once on a table: one light hollow plastic tock. Dry, close, clearly audible, one bounce only.' },
+  'ball-in': { seconds: 0.5, say: 'A ping pong ball dropping into an empty plastic waste bin: one light hollow plastic plonk with a tiny rattle. Dry, close, clearly audible.' },
+  'ball-flick': { seconds: 0.5, say: 'A finger flicking a ping pong ball away: one quick light snap of a fingernail on hollow plastic. Dry, close, clearly audible.' },
+  'mouse-patter': { seconds: 1, say: 'Tiny mouse feet scurrying quickly across a wooden floor: a fast run of very light tapping footsteps. Dry, close, clearly audible, no squeak.' },
   // the city's grid: the station gathering charge, and the pulse going through the transformer house
   'grid-charge': { seconds: 1, say: 'A large electrical power transformer energising: a deep low 50 hertz mains hum swelling up quickly, with a soft heavy relay clunk. Low pitched and warm, dry, no high-pitched whine, no squeal.' },
   'grid-zap': { seconds: 0.5, say: 'One short low electrical arc inside a power substation: a deep buzzing zap with a dull thump. Low pitched, dry, no high-pitched whine, no squeal.' },
