@@ -16,10 +16,10 @@
 // It sits a little way off, in the speaker's own small box, at a steady level.
 // It needs ffmpeg on the path.
 //
-// Each one is then framed the way a guide's handset plays a stop: dialling in
-// to the channel, static clearing (scripts/voice-kit/intro.wav), the announcer
-// saying which stop this is ("Exhibit 3. ARCam."), the recording, and the
-// channel dropping away (outro.wav). Those two are made by sound-library.mjs.
+// Each one is then framed the way a guide's handset plays a stop: a button and
+// a short tone as the track starts (scripts/voice-kit/intro.wav), the announcer
+// saying which stop this is ("Exhibit 3. ARCam."), the recording, and a tone
+// and a click as it ends (outro.wav). Those two are made by sound-library.mjs.
 //
 // The announcer's lines are kept, one a project, in scripts/voice-kit/announcer/
 // (<slug>.mp3): a line that's there is used as it is, so one can be recorded
@@ -144,12 +144,12 @@ async function frame(slug, title, voice, out) {
   const said = await announce(slug, title);
   const mono = 'aresample=44100,aformat=channel_layouts=mono';
   const parts = [
-    { file: join(KIT, 'intro.wav'), chain: `${mono},volume=-3dB,apad=pad_dur=0.3` },
+    { file: join(KIT, 'intro.wav'), chain: `${mono},volume=-4dB,apad=pad_dur=0.35` },
     // (the silence the voice leaves after her last word comes off, so the pause is the one set here)
     ...(said ? [{ file: said.file, chain: `${mono},silenceremove=start_periods=1:start_threshold=-50dB:detection=peak,areverse,silenceremove=start_periods=1:start_threshold=-50dB:detection=peak,areverse,${ANNOUNCER},apad=pad_dur=0.45` }] : []),
     // (and most of a recording's own run-in: a quarter second of the tape's hiss, then the voice)
     { file: voice, chain: `${mono},silenceremove=start_periods=1:start_threshold=-35dB:start_silence=0.25:detection=peak,apad=pad_dur=0.2` },
-    { file: join(KIT, 'outro.wav'), chain: `${mono},volume=3dB,alimiter=limit=0.7` },
+    { file: join(KIT, 'outro.wav'), chain: `${mono},volume=-4dB` },
   ];
   const graph = parts.map((p, i) => `[${i}:a]${p.chain}[p${i}]`).join(';') + ';' + parts.map((_, i) => `[p${i}]`).join('') + `concat=n=${parts.length}:v=0:a=1[out]`;
   execFileSync('ffmpeg', ['-v', 'error', '-y', ...parts.flatMap((p) => ['-i', p.file]), '-filter_complex', graph, '-map', '[out]', '-metadata', `comment=${FRAMED}`, '-c:a', 'libmp3lame', '-b:a', '80k', out]);

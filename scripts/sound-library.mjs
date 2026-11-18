@@ -59,11 +59,12 @@ const CAMERA = 'Aperture - Singular';
 
 const PICKS = {
   // the interface
-  // the launch: the clamps letting go, and the tower's arms catching the booster
+  // the launch: the clamps letting go
   'launch-release': 'made/launch-release',
-  'launch-catch': { from: 'made/launch-catch', dur: 1.4, fadeOut: 0.3 }, // (the first clang of the two it made)
 
   select: 'Click/Keyboard Click 01',
+  // the reticle finding a project: fine adjustments, the zoom, the lock
+  focus: { from: 'made/focus', dur: 1.3, fadeOut: 0.15 },
   hover: 'Hover/Simple Hover 03',
   // a breath of air as the label opens, and the same drawn back in as it closes
   'popup-open': { from: `${VECTOR_MOVE}/Airy Transition Fast`, dur: 0.3, fadeOut: 0.1 },
@@ -77,15 +78,17 @@ const PICKS = {
   stamp: { variants: [6, 2, 9].map((n) => `${DESK}/Object With Rubber Feet Put Down On Desk ${String(n).padStart(2, '0')}`) },
 
   // the game
-  'game-shot': { variants: ['Click/Click 02', 'Click/Click 03', 'Click/Stylized Click'] },
-  'game-break-big': 'Foley/Wood Blocks 01',
-  'game-break-mid': 'Foley/Plastic Drop 03',
-  'game-break-small': `${DESK}/Wood Put Down On Desk 03`,
-  'game-shield': 'Tiles/Glass Tap Tiles 02',
-  'game-crash': 'Pop-Up/Drum Flam Low',
-  'comms-open': 'Bleep/Data Transmission',
-  'comms-close': 'Pop-Up/PopUp Data 02',
-  'comms-type': `${CAMERA}/Digital Camera/Canon EOS T7i UI Beep Menu Operation`,
+  // (all made: a library of interface sounds has no rock, no cannon and no radio in it)
+  'game-shot': { variants: [{ from: 'made/game-shot', dur: 0.45, fadeOut: 0.12 }, { from: 'made/game-shot-2', dur: 0.45, fadeOut: 0.12 }] },
+  'game-break-big': { from: 'made/game-break-big', dur: 1.1, fadeOut: 0.3 },
+  'game-break-mid': { from: 'made/game-break-mid', dur: 0.7, fadeOut: 0.2 },
+  'game-break-small': { from: 'made/game-break-small', dur: 0.4, fadeOut: 0.12 },
+  'game-shield': { from: 'made/game-shield', dur: 0.9, fadeOut: 0.25 },
+  'game-crash': { from: 'made/game-crash', dur: 1.8, fadeOut: 0.5 },
+  'game-stage': { from: 'made/game-stage', dur: 0.9, fadeOut: 0.15 },
+  'comms-open': { from: 'made/comms-open', dur: 0.35, fadeOut: 0.05 },
+  'comms-close': { from: 'made/comms-close', dur: 0.35, fadeOut: 0.08 },
+  'comms-type': { from: 'made/comms-type', dur: 0.05, fadeOut: 0.02 },
 
   // the city's grid, and the windmill
   'grid-charge': { from: `${CAMERA}/Charge/Camera Electronic Flash Charge 02`, dur: 0.45, fadeOut: 0.08 },
@@ -138,7 +141,6 @@ const PICKS = {
 };
 
 for (let i = 0; i < 10; i++) PICKS[`wake-${i + 1}`] = { from: WAKE_SOURCE, rate: 2 ** ((i * WAKE_STEP) / 12) };
-PICKS['game-stage'] = twoNotes(0, 0);
 
 // The beds: `len` seconds, the end faded over the start for `xfade` seconds
 // so it loops. Each is one plain thing, with nothing in it to notice: a bed
@@ -179,12 +181,25 @@ const BEDS = {
 // in .env.local, and is sent the description and nothing else.
 const MADE = {
   'launch-release': { seconds: 1.5, say: 'Heavy steel launch clamps releasing a rocket: one deep, hard metallic clank with a short mechanical thud. Dry, close, no music.' },
-  'launch-catch': { seconds: 3, say: 'Huge steel tower arms catching a heavy metal rocket booster: one massive low metallic clang, then a short ringing resonance dying away. No music.' },
   'launch-roar': { seconds: 14, say: 'Continuous roar of many large rocket engines at full thrust, heard from nearby: deep steady rumble with crackle, constant intensity from start to end, no fade in, no fade out, no music.' },
   'launch-deluge': { seconds: 14, say: 'Continuous heavy torrent of water from a launch pad deluge system: a dense rushing spray and hiss of water on steel, constant intensity, no fade in, no fade out, no music.' },
-  // the audio tour's frame (scripts/voice-kit, which voice-tour.mjs plays round a recording): dialling in to the guide's channel, and dropping off it
-  'voice-intro': { seconds: 2, say: 'A handheld radio receiver tuning in to a channel: a short burst of static, a quick sweep across frequencies with squeals, then the static clears as it locks on. Ends clean.' },
-  'voice-outro': { seconds: 1.5, say: 'A handheld radio dropping off a channel: a soft click, a short burst of static that thins out and cuts off to silence.' },
+  // the audio tour's frame (scripts/voice-kit, which voice-tour.mjs plays round a recording): the handset starting a track, and ending it
+  'voice-intro': { seconds: 1, say: 'Audio guide device start sound: a clear button press click followed by one short bright electronic confirmation tone. Clean and dry, clearly audible.' },
+  'voice-outro': { seconds: 1, say: 'A museum audio guide handset ending a track: a single short soft low electronic tone, then one soft button click. Simple, clean, gentle, dry. Nothing else.' },
+  // the reticle (FocusReticle) acquiring an exhibit as the camera goes in
+  focus: { seconds: 1.5, say: 'A precision camera reticle calibrating and locking on to a target: a few quick fine servo adjustments and tiny focus ticks, a soft smooth zoom whirr rising, then one subtle lock-on click. Quiet, precise, modern, dry, no music, no beeps.' },
+  // the game on the pad: flown in space, but heard the way a cockpit would carry it
+  'game-shot': { seconds: 0.5, say: 'One shot from a spacecraft cannon heard from inside the cockpit: a short punchy thump with a brief hiss of gas. Realistic, dry, not a cartoon laser.' },
+  'game-shot-2': { seconds: 0.5, say: 'One shot from a spacecraft cannon heard from inside the cockpit: a short hard thump with a brief metallic recoil. Realistic, dry, not a cartoon laser.' },
+  'game-break-big': { seconds: 1.5, say: 'A large boulder cracking apart and crumbling into heavy chunks: a deep crack and tumbling rock debris. Realistic, dry, close.' },
+  'game-break-mid': { seconds: 1, say: 'A medium rock splitting into pieces: a sharp crack and a short scatter of stones. Realistic, dry, close.' },
+  'game-break-small': { seconds: 0.5, say: 'A small stone snapping and shattering into gravel: one short crisp crack. Realistic, dry, close.' },
+  'game-shield': { seconds: 1, say: 'A spacecraft hull shield taking a hard hit: a heavy thud on metal with a short electrical crackle and stressed metal ring. Realistic, dry.' },
+  'game-crash': { seconds: 2, say: 'A spacecraft colliding with a rock: one heavy low impact with crunching, tearing metal, then systems powering down. Realistic, dry, no music.' },
+  'game-stage': { seconds: 1, say: 'Mission control radio confirmation: two short clean rising electronic beeps heard over a radio headset, slightly band-limited. Realistic, no voice.' },
+  'comms-open': { seconds: 0.5, say: 'A two-way radio channel opening: one short squelch burst of static with a click. Realistic, dry, no voice.' },
+  'comms-close': { seconds: 0.5, say: 'A two-way radio channel closing: a click and a very short tail of static cutting off. Realistic, dry, no voice.' },
+  'comms-type': { seconds: 0.5, say: 'A single tiny soft teleprinter tick, one character printing. Very short, dry, quiet.' },
 };
 /** The audio tour's two bookends, written as WAVs into scripts/voice-kit. */
 const KIT = {

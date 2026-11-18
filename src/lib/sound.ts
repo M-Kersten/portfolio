@@ -26,6 +26,8 @@ export type SoundName =
   | 'complete'
   // the interface
   | 'select'
+  // the reticle acquiring a project as the camera goes in on it
+  | 'focus'
   | 'hover'
   | 'popup-open'
   | 'popup-close'
@@ -38,7 +40,6 @@ export type SoundName =
   | 'launch-release'
   | 'launch-roar'
   | 'launch-deluge'
-  | 'launch-catch'
   // the game
   | 'game-shot'
   | 'game-break-big'

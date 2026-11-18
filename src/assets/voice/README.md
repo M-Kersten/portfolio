@@ -15,9 +15,9 @@ Exhibit 11, the next launch on the pad, has one too: name it `next-launch.mp3`
 and it plays as that label's audio tour ("Audio tour · the countdown").
 
 `npm run voice -- <folder with recordings>` makes them from raw recordings: the
-audio-guide sound, then a frame round each: the handset dialling in to the channel,
+audio-guide sound, then a frame round each: a button and a short tone as the handset starts the track,
 an announcer saying which stop it is ("Exhibit 3. ARCam."), the recording, and
-the channel dropping away. `npm run voice -- --frame` puts the frame on files
+a tone and a click as it ends. `npm run voice -- --frame` puts the frame on files
 already here (once: a framed file is marked, and left alone after that). The
 two bookends are in `scripts/voice-kit/`, and so are the announcer's lines once
 they're made (`announcer/<slug>.mp3`): a line that's there is used as it is, so

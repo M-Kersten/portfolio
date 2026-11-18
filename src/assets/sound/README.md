@@ -23,7 +23,8 @@ first file is in here; a visitor's choice is remembered.
 
 | File | When | Notes |
 | --- | --- | --- |
-| `select` | opening a project in the maquette you've already visited | one dry tick |
+| `focus` | the camera goes in on a project and the reticle locks on to it | an instrument finding its target: fine adjustments, a zoom's whirr, a lock; about 1.3 s, no beeps |
+| `select` | not played at the moment; kept as a small confirm | one dry tick |
 | `hover` | a hotspot comes under the pointer, or the keyboard's focus | the smallest tick there is, low and soft; it's heard a lot |
 | `popup-open` | a project's label or book opens | a breath of air, about 0.3 s; nothing papery |
 | `popup-close` | the label or book closes | the same, reversed |
@@ -46,7 +47,6 @@ The film's countdown runs **9.6 s** from pressing LAUNCH to liftoff.
 | `launch-release` | liftoff, as the clamps let go | one heavy metal clank |
 | `launch-roar` | loops from engine start to the catch | follows the engines' thrust, quieter when the camera is far away; seamless loop |
 | `launch-deluge` | loops while the water deluge runs | a shower or hose on full; seamless loop |
-| `launch-catch` | the chopsticks catch the booster | heavy metal, a beat of ring |
 
 ## The game
 

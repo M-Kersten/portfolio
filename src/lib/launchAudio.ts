@@ -14,7 +14,6 @@ export function launchAudio() {
   let water: Loop | null = null;
   let counted = false;
   let released = false;
-  let caught = false;
   return {
     /** One frame of the film, at film time t. */
     update(t: number) {
@@ -41,10 +40,6 @@ export function launchAudio() {
       if (!released && t >= T.release) {
         released = true;
         play('launch-release', { bus: 'launch' });
-      }
-      if (!caught && t >= T.catch) {
-        caught = true;
-        play('launch-catch', { bus: 'launch' });
       }
     },
     /** The film's over (or skipped). */
