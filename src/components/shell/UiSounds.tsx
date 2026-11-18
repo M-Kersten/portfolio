@@ -14,10 +14,10 @@ import { play, type SoundName } from '../../lib/sound';
 const CONTROL = 'a[href], button, [role="button"]';
 /** What a control's hover sounds like, by what it does under the pointer: the
  *  first that matches. A button that fills with colour slides; a project's card
- *  on the timeline, which lifts, is a tile touched; anything else ticks. */
+ *  on the timeline, which lifts, whirs, barely; anything else ticks. */
 const HOVERS: [selector: string, sound: SoundName, volume: number][] = [
   ['.btn', 'hover-fill', 0.2],
-  ['.worktile', 'hover-card', 0.2],
+  ['.worktile', 'hover-card', 0.08],
   ['*', 'hover', 0.15],
 ];
 /** controls whose hover is sounded elsewhere */

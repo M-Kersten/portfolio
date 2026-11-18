@@ -27,7 +27,7 @@ first file is in here; a visitor's choice is remembered.
 | `select` | any link or button is pressed (but not a hotspot or the ticket, which have their own) | one dry tick |
 | `hover` | the pointer comes onto a hotspot (or the keyboard's focus does), or, quieter, onto any link or button | the smallest tick there is, low and soft; it's heard a lot |
 | `hover-fill` | the pointer comes onto a button that fills with colour (`.btn`) | something sliding across, soft, about 0.3 s: the fill, heard |
-| `hover-card` | the pointer comes onto a project's card on the timeline | a tile touched: one small dull tap; give it variants |
+| `hover-card` | the pointer comes onto a project's card on the timeline | a short dull whir, under 0.3 s, the quietest hover on the site; nothing bright, rising or sparkling (it becomes a firework), nothing that taps or pops |
 | `year-tick` | the timeline's year rolls over as it's scrolled (played lower going back) | one tooth of a small gear, 0.1 s; it's heard in runs |
 
 ## The admission ticket

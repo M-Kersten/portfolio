@@ -71,8 +71,9 @@ const PICKS = {
   hover: 'Hover/Simple Hover 03',
   // a button that fills with colour under the pointer (.btn): something sliding across, as the fill does
   'hover-fill': { from: 'Tiles/Sliding Tiles Fast 02', dur: 0.3, fadeOut: 0.12 },
-  // a project's card on the timeline, which lifts: a tile touched
-  'hover-card': { variants: ['Tiles/Plastic Tiles 01', 'Tiles/Plastic Tiles 02', 'Tiles/Plastic Tiles 05'] },
+  // a project's card on the timeline, which lifts and catches the light: a short dull breath of a whir
+  // (its top taken off: with it, and with a sparkle over it, it was a firework going up)
+  'hover-card': { from: 'Movement/Whoosh/Digital Light Whoosh', dur: 0.28, fadeOut: 0.16, tone: 'lowpass=f=2200,lowpass=f=2200' },
   // the timeline's year rolling over as it's scrolled: one tooth of a small gear
   'year-tick': { from: 'Singular/Small Gears 34', dur: 0.1, fadeOut: 0.04 },
   // a breath of air as the label opens, and the same drawn back in as it closes
