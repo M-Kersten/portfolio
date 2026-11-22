@@ -384,17 +384,19 @@
       "AR",
       "AI"
     ],
-    "problem": "At Philips we asked whether XR and AI are of real use in a hospital. Or whether we were making cool demos and calling it research.",
-    "approach": "I worked on a few answers. We improved the VR demos of medical equipment and ran experiments on the Vision Pro. The biggest was a synthetic-data project: digital humans in Unreal, made to train AI that can read a heartbeat from plain video.",
+    "problem": "Philips makes machines most people only meet on the worst day of their year. The question at the immersive lab was whether XR and AI could make that day easier: for the patient on the table, the doctor learning a new system, the visitor at a trade show. Or whether we were making cool demos and calling it research.",
+    "approach": "I worked on six answers. Unison Player puts a room of up to 25 Quest 3 headsets in the same stereo 180° film, frame-locked and fully offline. One presenter runs the show with bare hands: they pick the film, press play, point at the ultrasound screen or pause to circle it, and every headset sees the same dot at the same moment. The MRI Experience gets children ready for a real scan. A virtual scanner is locked onto a real bed, so the child lies down on a real pillow, sees the head coil’s mirror come down and rides the table into the bore while Ollie in Space plays. Hand tracking only, in English, Dutch or Swedish, and it resets itself when the headset comes off. For LumiGuide, Philips’ fibre-optic RealShape wire, I built a guidewire with rope physics that bends the way the real one does and shows up on the screen, so you understand the point of it in seconds. The animated doctor holding it took longer than the physics: keeping his fingers on a wire that moves while both of them are animated. For the DXR app I learnt dynamic IK, so the patients move into position and stay there while the app walks you through an examination and its automatic collimation. And we built an AI avatar to welcome visitors to the lab: Azure AI for the conversation, visemes driving the face, our own animations recorded in a mocap suit, and a lot of thought about what it should and shouldn’t say. The most interesting one I can say least about. Your heartbeat can be measured from a webcam, even in infrared in the dark, but not yet well enough for a clinic. So we simulate the blood moving through a face, digital humans in Unreal, and train the model on that synthetic data to make its predictions more accurate. It’s still in development.",
     "outcome": "Research that ended up being used in hospitals",
     "tech": [
-      "Unreal Engine",
-      "Computer vision",
       "Unity",
-      "Vision Pro",
-      "AI"
+      "Unreal Engine",
+      "Quest 3",
+      "Hand tracking",
+      "Azure AI",
+      "Computer vision",
+      "Synthetic data"
     ],
-    "lesson": "A good part of research is finding out what you shouldn’t build. ‘This isn’t worth it’ is a useful result too, and it’s cheaper in week two than in month six.",
+    "lesson": "A good part of research is finding out what you shouldn’t build. ‘This isn’t worth it’ is a useful result too, and it’s cheaper in week two than in month six. The other part is the unglamorous last ten percent: a finger that stays on a wire, a headset that resets itself. That’s what makes a demo something a hospital can actually use.",
     "year": "2025-03",
     "video": "https://www.youtube.com/watch?v=lDBxik5v1e0",
     "links": [
