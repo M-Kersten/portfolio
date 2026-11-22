@@ -1,4 +1,4 @@
-import { type RefObject } from 'react';
+import { type RefObject, useEffect, useRef } from 'react';
 import { type CaseStudy } from '../../content';
 import { exhibitNo, pad2 } from '../../content/exhibits';
 
@@ -93,10 +93,43 @@ export function Player({
 }) {
   const origin = `&origin=${encodeURIComponent(window.location.origin)}`;
   const id = embed.match(/embed\/([\w-]{11})/)?.[1];
-  const silent = preview || bare ? `&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&playsinline=1${bare && id ? `&loop=1&playlist=${id}` : ''}` : '';
+  // YouTube's own loop (loop=1 + playlist) is unreliable in embeds: it often
+  // stops on the end screen instead. So the player also listens for the film
+  // ending and starts it again itself, from where its link starts.
+  const own = useRef<HTMLIFrameElement>(null);
+  const ref = frameRef ?? own;
+  useEffect(() => {
+    if (!preview && !bare) return;
+    const frame = ref.current;
+    const tell = (func: string, args: unknown[] = []) =>
+      frame?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+    const onMessage = (e: MessageEvent) => {
+      if (!frame || e.source !== frame.contentWindow || typeof e.data !== 'string') return;
+      let d: { event?: string; info?: { playerState?: number } | number };
+      try {
+        d = JSON.parse(e.data);
+      } catch {
+        return;
+      }
+      const state = d.event === 'onStateChange' ? d.info : typeof d.info === 'object' ? d.info?.playerState : undefined;
+      if (state === 0) {
+        tell('seekTo', [start, true]);
+        tell('playVideo');
+      }
+    };
+    const listen = () => frame?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1 }), '*');
+    frame?.addEventListener('load', listen);
+    listen();
+    window.addEventListener('message', onMessage);
+    return () => {
+      frame?.removeEventListener('load', listen);
+      window.removeEventListener('message', onMessage);
+    };
+  }, [preview, bare, start, ref]);
+  const silent = preview || bare ? `&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&playsinline=1${id ? `&loop=1&playlist=${id}` : ''}` : '';
   return (
     <iframe
-      ref={frameRef}
+      ref={ref}
       src={`${embed}&autoplay=1&enablejsapi=1${origin}${silent}${start > 0 ? `&start=${start}` : ''}`}
       tabIndex={preview || bare ? -1 : undefined}
       aria-hidden={preview || undefined}
