@@ -15,7 +15,7 @@ const FILMS: Record<string, string> = {
   'lightship-drive': 'Lightship Drive: little AR cars racing across a real table, and the crown changing hands.',
   'zwijsen-ar-books': 'The app for De droomreis van neef Karel, shown by a speech-therapy practice: seek-and-find on the pages, then the audiobook.',
   'popcore-games': 'A showreel of the Popcore games I worked on.',
-  'philips-medical-xr': 'A Unity webinar with Philips on XR in minimally invasive care, the field this research was for.',
+  'philips-medical-xr': 'The showreel: the six projects one after another, the heartbeat research among them.',
   'amsterdam-ai': 'The Step into Amsterdam demo: conversations with the AI locals.',
   'custom-ar-framework': 'AR samples built on the framework, one of them shared between an Android phone and an iPhone through cloud anchors.',
   kastwezens: 'Wonderkasten in the woods: a drawn butterfly, scanned, flying off between the cabinets.',
