@@ -1,6 +1,6 @@
 # The visitors' book: lines people leave on their way out
 
-At the foot of the site, beside exhibit 11's plinth, is a visitors' book
+At the foot of the site, beside exhibit 11's pedestal, is a visitors' book
 (`src/components/home/Contact.tsx`): a line, a name if you like, and the lines
 others left. It lives in the same free Supabase project as the counters
 ([counters.md](counters.md)), so there's nothing new to set up but one table.
@@ -156,7 +156,7 @@ query: `delete from public.visitors_book where not shown;`
   waiting ones), `signBook()`; plain `fetch`, no SDK, fails soft.
 - `src/components/home/Contact.tsx`: the book itself, and what it says when a
   line is refused or the book won't open.
-- `src/components/home/ContactMotif.tsx`: the plinth beside it. The line being
+- `src/components/home/ContactMotif.tsx`: the pedestal beside it. The line being
   written, or one that's pointed at, takes shape there.
 - `src/lib/counters.ts`: the project's address and key (`project`), shared with
   the counters.

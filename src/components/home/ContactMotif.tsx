@@ -1,35 +1,35 @@
 import { useEffect, useRef } from 'react';
 import { useReducedMotion } from '../../lib/media';
 
-/* The contact section's backdrop: exhibit 11's plinth, and ripples through the
+/* The contact section's backdrop: exhibit 11's pedestal, and ripples through the
    page's own dots.
 
    The launch pad's label says exhibit 11 is "your project, still in the
    workshop", and its "Let's build it" lands here. So here is where it will
-   stand: a plinth with nothing on it yet, the space over it held by scanner
+   stand: a pedestal with nothing on it yet, the space over it held by scanner
    corners. It builds itself out of dots as it scrolls into view, and the
    corners close in and lock.
 
    Ripples run through the section's dot field, lighting the very dots the page
-   is printed with (GRID): one from the plinth as it locks, one from the email,
+   is printed with (GRID): one from the pedestal as it locks, one from the email,
    a button or a line in the visitors' book when it's pointed at or focused,
    small ones from the book as a line is written in it. A ripple that reaches
-   the plinth makes its corners answer.
+   the pedestal makes its corners answer.
 
-   And a line from the visitors' book is what's put on the plinth (`line`: the
+   And a line from the visitors' book is what's put on the pedestal (`line`: the
    one being written, or one that's pointed at): a small cloud of points
    gathers between the corners and keeps changing shape with the words (the
    materials are still to be decided). Signing flashes the cloud and sends a
    last ripple out.
 
    Everything here is drawn behind the content and takes no pointer. Reduced
-   motion gets the finished plinth, no ripples, and a cloud that doesn't turn. */
+   motion gets the finished pedestal, no ripples, and a cloud that doesn't turn. */
 
 const INK = '#cfd6da';
 const CYAN = '#27e8f2';
 const GRID = 30; // the dot field (tokens.css --dots-ink): a 2px square in the middle of every 30px tile
 const RIPPLE = { speed: 560, band: 30, life: 1.9, most: 8 };
-const CLOUD = { points: 150, fill: 0.8 }; // the cloud on the plinth: how many points, and how much of the held space it takes
+const CLOUD = { points: 150, fill: 0.8 }; // the cloud on the pedestal: how many points, and how much of the held space it takes
 
 interface Ripple {
   x: number;
@@ -37,7 +37,7 @@ interface Ripple {
   born: number;
   color: string;
   power: number;
-  own: boolean; // set off by the plinth itself: it doesn't answer its own
+  own: boolean; // set off by the pedestal itself: it doesn't answer its own
 }
 
 // FNV-1a: the words, as a number to shape the cloud with
@@ -64,9 +64,10 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
     const host = cv?.closest<HTMLElement>('section');
     const ctx = cv?.getContext('2d');
     if (!cv || !host || !ctx) return;
-    const stage = host.querySelector<HTMLElement>('.contact__stage');
-    const label = host.querySelector<HTMLElement>('.contact__label');
-    const input = host.querySelector<HTMLInputElement>('.contact__book-line');
+    // where the pedestal is drawn, and its label. Looked up again if the page
+    // swaps them for others (the stage is a button in one of the book's layouts)
+    let stage = host.querySelector<HTMLElement>('.contact__stage');
+    let label = host.querySelector<HTMLElement>('.contact__label');
     if (!stage) return;
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -147,8 +148,9 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
     host.addEventListener('focusin', onFocusIn);
     // writing in the book: a small one from where the pen is
     let wrote = 0;
-    const onWrite = () => {
-      if (!input) return;
+    const onWrite = (e: Event) => {
+      const input = e.target;
+      if (!(input instanceof HTMLInputElement) || !input.matches('.contact__book-line')) return;
       const now = performance.now();
       if (now - wrote < 140) return;
       wrote = now;
@@ -156,9 +158,9 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
       ctx.font = getComputedStyle(input).font;
       ripple(b.x + Math.min(b.w, ctx.measureText(input.value).width), b.y + b.h * 0.6, CYAN, 0.45);
     };
-    input?.addEventListener('input', onWrite);
+    host.addEventListener('input', onWrite); // on the section: the line to write on isn't always there yet
 
-    // ---- the cloud on the plinth -------------------------------------------
+    // ---- the cloud on the pedestal -------------------------------------------
     // points spread evenly over a ball, pushed in and out by the words
     const dirs: [number, number, number][] = [];
     for (let i = 0; i < CLOUD.points; i++) {
@@ -195,16 +197,17 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
     };
 
     // ---- the story's state --------------------------------------------------
-    let build = 0; // the plinth, drawn in by the scroll
+    let build = 0; // the pedestal, drawn in by the scroll
     let goalBuild = 0;
     let locked = false;
     let ping = 0; // the corners answering a ripple
     let flash = 0; // the cloud, as its line is sent
-    let cloud = 0; // 0 nothing on the plinth, 1 the cloud
+    let cloud = 0; // 0 nothing on the pedestal, 1 the cloud
     let wasSent = posted.current;
     let t = 0;
 
     const onScroll = () => {
+      if (!stage) return;
       const r = stage.getBoundingClientRect();
       goalBuild = Math.max(0, Math.min(1, ((window.innerHeight || 1) - r.top) / (r.height + 40)));
     };
@@ -215,7 +218,10 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
       const now = performance.now();
       t += dt;
 
-      // the plinth's place: the right of the stage, standing on its bottom edge
+      if (!stage?.isConnected) stage = host.querySelector<HTMLElement>('.contact__stage');
+      if (!label?.isConnected) label = host.querySelector<HTMLElement>('.contact__label');
+      if (!stage) return;
+      // the pedestal's place: the right of the stage, standing on its bottom edge
       const s = box(stage);
       const pw = Math.min(132, s.w * 0.56);
       const ph = pw * 0.5;
@@ -268,7 +274,7 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
         }
       }
 
-      // ---- the plinth: a denser patch of the same dots, built from the floor up ----
+      // ---- the pedestal: a denser patch of the same dots, built from the floor up ----
       const rows = Math.round(ph / 6);
       for (let j = 0; j <= rows; j++) {
         const y = base - (ph * j) / rows;
@@ -435,7 +441,7 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
       stop();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
-      input?.removeEventListener('input', onWrite);
+      host.removeEventListener('input', onWrite);
       host.removeEventListener('pointerover', onOver);
       host.removeEventListener('focusin', onFocusIn);
     };
