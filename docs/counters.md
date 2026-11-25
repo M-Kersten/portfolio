@@ -193,6 +193,9 @@ takes it from there.
   build time.
 - `.github/workflows/keep-counter-awake.yml`: the daily keep-awake.
 
+The same project also holds the visitors' book (a table of its own):
+[visitors-book.md](visitors-book.md).
+
 ## Later
 
 When the .NET CMS (docs/cms-plan.md) exists, this can move behind a tiny API

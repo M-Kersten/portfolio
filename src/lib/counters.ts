@@ -17,6 +17,10 @@ export const counting = !!SB_URL && !!SB_KEY;
 
 const headers = { apikey: SB_KEY ?? '', authorization: `Bearer ${SB_KEY}` };
 
+/** The same project, for the site's other small table in it: the visitors'
+ *  book (book.ts). */
+export const project = { url: SB_URL ?? '', headers };
+
 /** A counter's value, or null if it can't be had. */
 export async function readCounter(name: string): Promise<number | null> {
   if (!counting) return null;

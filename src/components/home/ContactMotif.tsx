@@ -11,15 +11,16 @@ import { useReducedMotion } from '../../lib/media';
    corners close in and lock.
 
    Ripples run through the section's dot field, lighting the very dots the page
-   is printed with (GRID): one from the plinth as it locks, one from the email
-   or a button when it's pointed at or focused, small ones from the visitors'
-   book as a line is written in it. A ripple that reaches the plinth makes its
-   corners answer.
+   is printed with (GRID): one from the plinth as it locks, one from the email,
+   a button or a line in the visitors' book when it's pointed at or focused,
+   small ones from the book as a line is written in it. A ripple that reaches
+   the plinth makes its corners answer.
 
-   And the line in the visitors' book is what's put on the plinth: as it's
-   written, a small cloud of points gathers between the corners and keeps
-   changing shape with the words (the materials are still to be decided).
-   Sending it flashes the cloud and sends a last ripple out.
+   And a line from the visitors' book is what's put on the plinth (`line`: the
+   one being written, or one that's pointed at): a small cloud of points
+   gathers between the corners and keeps changing shape with the words (the
+   materials are still to be decided). Signing flashes the cloud and sends a
+   last ripple out.
 
    Everything here is drawn behind the content and takes no pointer. Reduced
    motion gets the finished plinth, no ripples, and a cloud that doesn't turn. */
@@ -65,7 +66,7 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
     if (!cv || !host || !ctx) return;
     const stage = host.querySelector<HTMLElement>('.contact__stage');
     const label = host.querySelector<HTMLElement>('.contact__label');
-    const input = host.querySelector<HTMLInputElement>('.contact__book input');
+    const input = host.querySelector<HTMLInputElement>('.contact__book-line');
     if (!stage) return;
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -115,24 +116,35 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
       const b = box(el);
       ripple(b.x + b.w / 2, b.y + b.h / 2, color, power);
     };
-    // the email and the buttons: pointed at with a mouse, or reached with the keyboard
-    const lit = new Map<Element, { color: string; power: number }>();
-    host.querySelectorAll('.contact__email').forEach((el) => lit.set(el, { color: CYAN, power: 1 }));
-    host.querySelectorAll('.contact__links .btn, .contact__book .btn').forEach((el) => lit.set(el, { color: INK, power: 0.6 }));
-    const onEnter = (e: Event) => {
-      if ((e as PointerEvent).pointerType !== 'mouse') return;
-      const k = lit.get(e.currentTarget as Element);
-      if (k) from(e.currentTarget as Element, k.color, k.power);
+    // the email, a line in the book and the buttons: pointed at with a mouse, or
+    // reached with the keyboard. Listened for on the section, since the book's
+    // lines arrive later.
+    const KINDS: [string, string, number][] = [
+      ['.contact__email', CYAN, 1],
+      ['.contact__entry', CYAN, 0.5],
+      ['.btn', INK, 0.6],
+    ];
+    const kind = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return null;
+      for (const [sel, color, power] of KINDS) {
+        const el = target.closest(sel);
+        if (el && host.contains(el)) return { el, color, power };
+      }
+      return null;
     };
-    const onFocus = (e: Event) => {
-      const el = e.currentTarget as Element;
-      const k = lit.get(el);
-      if (k && el.matches(':focus-visible')) from(el, k.color, k.power);
+    let over: Element | null = null;
+    const onOver = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
+      const k = kind(e.target);
+      if (k && k.el !== over) from(k.el, k.color, k.power);
+      over = k?.el ?? null;
     };
-    lit.forEach((_, el) => {
-      el.addEventListener('pointerenter', onEnter);
-      el.addEventListener('focus', onFocus);
-    });
+    const onFocusIn = (e: FocusEvent) => {
+      const k = kind(e.target);
+      if (k && k.el.matches(':focus-visible')) from(k.el, k.color, k.power);
+    };
+    host.addEventListener('pointerover', onOver);
+    host.addEventListener('focusin', onFocusIn);
     // writing in the book: a small one from where the pen is
     let wrote = 0;
     const onWrite = () => {
@@ -205,7 +217,7 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
 
       // the plinth's place: the right of the stage, standing on its bottom edge
       const s = box(stage);
-      const pw = Math.min(104, s.w * 0.56);
+      const pw = Math.min(132, s.w * 0.56);
       const ph = pw * 0.5;
       const dx = pw * 0.27; // the top face, going back
       const dy = pw * 0.21;
@@ -361,7 +373,7 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
       }
 
       // ---- its label's leader: from the label up to the held space ----
-      if (label && lid > 0) {
+      if (label && lid > 0 && label.offsetParent) {
         const l = box(label);
         ctx.globalAlpha = 0.5 * lid;
         ctx.strokeStyle = CYAN;
@@ -424,10 +436,8 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
       input?.removeEventListener('input', onWrite);
-      lit.forEach((_, el) => {
-        el.removeEventListener('pointerenter', onEnter);
-        el.removeEventListener('focus', onFocus);
-      });
+      host.removeEventListener('pointerover', onOver);
+      host.removeEventListener('focusin', onFocusIn);
     };
   }, [reduced]);
 

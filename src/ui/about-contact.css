@@ -479,38 +479,52 @@
   display: block;
 }
 /* The floor of the last room: the visitors' book on the left, exhibit 11's
-   plinth on the right, both standing on the section's bottom edge. */
+   plinth on the right, level with the line you write (what's written takes
+   shape on it, so the two want to be in one look). */
 .contact__floor {
   display: grid;
-  grid-template-columns: minmax(0, 34rem) auto;
+  grid-template-columns: minmax(0, 36rem) auto;
   justify-content: space-between;
-  align-items: end;
+  align-items: start;
   gap: var(--space-l);
   margin-top: var(--space-l);
   text-align: left;
 }
 .contact__book {
   display: grid;
-  gap: var(--space-2xs);
+  gap: var(--space-s);
   padding-bottom: 0.4rem;
 }
 .contact__book-label,
 .contact__label dt {
+  margin: 0;
   font-family: var(--font-mono);
   font-size: var(--step--2);
+  font-weight: 400;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--accent) 82%, transparent);
+}
+.contact__book-intro {
+  margin: 0;
+  max-width: 34em;
+  color: var(--ink-60);
+}
+.contact__book-form {
+  display: grid;
+  gap: var(--space-2xs);
 }
 .contact__book-row {
   display: flex;
   align-items: flex-end;
   gap: var(--space-s);
 }
-/* The line you write on: the email's rule at text size, with the same answer
-   to focus (the accent rule sweeps in over it). */
-.contact__book input {
+/* The lines you write on: the email's rule at text size, with the same answer
+   to focus (the accent rule sweeps in over it). The name's is the quieter. */
+.contact__book-line,
+.contact__book-name {
   flex: 1;
+  width: 100%;
   min-width: 0;
   font: inherit;
   font-size: var(--step-0);
@@ -525,18 +539,98 @@
     linear-gradient(var(--line-strong), var(--line-strong)) left bottom / 100% 1px no-repeat;
   transition: background-size var(--t-base) var(--ease);
 }
-.contact__book input::placeholder {
+.contact__book-name {
+  font-size: var(--step--1);
+  background:
+    linear-gradient(var(--accent), var(--accent)) left bottom / 0% 2px no-repeat,
+    linear-gradient(var(--line), var(--line)) left bottom / 100% 1px no-repeat;
+}
+.contact__book-line::placeholder,
+.contact__book-name::placeholder {
   color: var(--ink-60);
   opacity: 1;
 }
-.contact__book input:focus-visible {
+.contact__book-line:focus-visible,
+.contact__book-name:focus-visible {
   background-size: 100% 2px, 100% 1px;
 }
-.contact__book-note {
+.contact__book-note,
+.contact__book-empty {
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--step--2);
+  line-height: 1.5;
   color: var(--ink-60);
+}
+.contact__book-note[data-kind='thanks'] {
+  color: var(--accent-ink);
+}
+.contact__book-note[data-kind='refusal'] {
+  color: var(--ink);
+}
+/* What's been written: the line, and under it who and when, in the hand of the
+   site's other small print. A line of your own that's still waiting is dimmer. */
+.contact__entries {
+  list-style: none;
+  margin: var(--space-2xs) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-s);
+}
+.contact__entries[data-all] {
+  max-height: 19rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--space-s);
+}
+.contact__entry {
+  display: grid;
+  gap: 0.2em;
+  padding-left: var(--space-s);
+  border-left: 1px solid var(--line);
+  transition: border-color var(--t-fast) var(--ease);
+}
+.contact__entry q {
+  color: var(--ink);
+  quotes: '“' '”' '‘' '’';
+  overflow-wrap: anywhere;
+}
+.contact__entry-by {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--ink-60);
+}
+.contact__entry-by em {
+  font-style: normal;
+  color: color-mix(in srgb, var(--accent) 82%, transparent);
+}
+.contact__entry[data-waiting] q {
+  color: var(--ink-60);
+}
+@media (hover: hover) {
+  .contact__entry:hover {
+    border-left-color: var(--accent);
+  }
+}
+.contact__book-more {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 0.3em;
+  transition: color var(--t-fast) var(--ease);
+}
+.contact__book-more:hover,
+.contact__book-more:focus-visible {
+  color: var(--ink);
 }
 /* Exhibit 11's label, in the hand of the facts pinned to the portrait, beside
    the place its plinth is drawn (the stage is only room for the drawing). */
