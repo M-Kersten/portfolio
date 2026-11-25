@@ -3,10 +3,11 @@
 
 /* ---------- About + Contact ---------- */
 
-/* Shared "instrument viewport" framing: a faint STATIC dot field behind the
-   content, so these editorial sections read as part of the same UI as the
-   hero and the timeline. Deliberately static — no hover-glow or live motif —
-   so the copy stays comfortable to read. */
+/* Shared "instrument viewport" framing: a faint dot field behind the content,
+   so these editorial sections read as part of the same UI as the hero and the
+   timeline. Static in About, so the copy stays comfortable to read; in Contact
+   ripples run through these same dots (ContactMotif.tsx, which knows the 30px
+   grid). */
 .section--instrument {
   overflow: hidden;
   /* clip, where it's supported: it trims the same overflow without making the
@@ -448,19 +449,15 @@
 }
 
 /* Open like About — no card border or raised fill boxing it in; it sits on the
-   section's own dot-field. `overflow: hidden` stays so the letter motif can
-   spawn just off the left edge and be clipped until it rides into view. */
+   section's own dot-field. */
 .contact {
   position: relative;
-  overflow: hidden;
-  padding: var(--space-s) 0 var(--space-2xl);
+  padding: var(--space-s) 0 var(--space-m);
   text-align: center;
 }
 /* Rebalance the section's own padding: About's tall exit plus this section's
-   full 2xl entrance plus .contact's old xl inner pad stacked to ~340px of
-   empty black before the title — trim the entrance, keep the theatrical exit
-   (the motif letterbox lives in .contact's bottom padding) and pull the
-   letterbox down to sit just above the footer. */
+   full 2xl entrance stacked to a lot of empty black before the title, so the
+   entrance is trimmed; the floor (the book and the plinth) is the exit. */
 #contact.section {
   padding-top: var(--space-xl);
   padding-bottom: var(--space-m);
@@ -468,9 +465,8 @@
 .contact > * {
   position: relative;
 }
-/* The contact story — a scroll-driven backdrop behind the card's content: the
-   letter spawns just past the card's edge (clipped by its overflow) and rides
-   the dotted route down to the letterbox standing on the card's bottom edge. */
+/* The backdrop (ContactMotif.tsx): the whole section's, behind its content, so
+   its ripples light the section's own dots from edge to edge. */
 .contact__motif {
   position: absolute;
   inset: 0;
@@ -481,6 +477,109 @@
   width: 100%;
   height: 100%;
   display: block;
+}
+/* The floor of the last room: the visitors' book on the left, exhibit 11's
+   plinth on the right, both standing on the section's bottom edge. */
+.contact__floor {
+  display: grid;
+  grid-template-columns: minmax(0, 34rem) auto;
+  justify-content: space-between;
+  align-items: end;
+  gap: var(--space-l);
+  margin-top: var(--space-l);
+  text-align: left;
+}
+.contact__book {
+  display: grid;
+  gap: var(--space-2xs);
+  padding-bottom: 0.4rem;
+}
+.contact__book-label,
+.contact__label dt {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent) 82%, transparent);
+}
+.contact__book-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-s);
+}
+/* The line you write on: the email's rule at text size, with the same answer
+   to focus (the accent rule sweeps in over it). */
+.contact__book input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--step-0);
+  color: var(--ink);
+  caret-color: var(--accent);
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  padding: 0.55em 0;
+  background:
+    linear-gradient(var(--accent), var(--accent)) left bottom / 0% 2px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) left bottom / 100% 1px no-repeat;
+  transition: background-size var(--t-base) var(--ease);
+}
+.contact__book input::placeholder {
+  color: var(--ink-60);
+  opacity: 1;
+}
+.contact__book input:focus-visible {
+  background-size: 100% 2px, 100% 1px;
+}
+.contact__book-note {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--ink-60);
+}
+/* Exhibit 11's label, in the hand of the facts pinned to the portrait, beside
+   the place its plinth is drawn (the stage is only room for the drawing). */
+.contact__plinth {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: var(--space-s);
+}
+.contact__label {
+  margin: 0;
+  padding-bottom: 0.4rem;
+  text-align: right;
+}
+.contact__label dt {
+  margin-bottom: 0.35em;
+}
+.contact__label dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  line-height: 1.45;
+  color: var(--ink-60);
+}
+.contact__label dt + dd {
+  font-family: var(--font-heading);
+  font-size: var(--step-0);
+  color: var(--ink);
+}
+.contact__stage {
+  flex: none;
+  width: 11.5rem;
+  height: 12rem;
+}
+@media (max-width: 760px) {
+  .contact__floor {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-m);
+  }
+  .contact__stage {
+    width: 9.5rem;
+    height: 10.5rem;
+  }
 }
 /* Hierarchy ladder: the display title (SectionHead, on the centre line) →
    the lead → the email at step 3 (the call to action) → quiet mono buttons,

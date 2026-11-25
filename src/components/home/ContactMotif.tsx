@@ -1,223 +1,377 @@
 import { useEffect, useRef } from 'react';
 import { useReducedMotion } from '../../lib/media';
 
-// The contact card's backdrop story: a letter waits just outside the card's
-// left edge and rides a dotted route toward the letterbox standing at the very
-// bottom of the card — driven by YOUR scroll, not a timer. Reaching the end of
-// the page posts it: the letter slips into the slot and the cyan flag pops up;
-// scrolling back rewinds the story. Drawn in the site's dot language — the
-// letterbox itself is a denser patch of the same dot field the card sits on.
-// Reduced motion gets the delivered still; the loop pauses off-screen.
+/* The contact section's backdrop: exhibit 11's plinth, and ripples through the
+   page's own dots.
+
+   The launch pad's label says exhibit 11 is "your project, still in the
+   workshop", and its "Let's build it" lands here. So here is where it will
+   stand: a plinth with nothing on it yet, the space over it held by scanner
+   corners. It builds itself out of dots as it scrolls into view, and the
+   corners close in and lock.
+
+   Ripples run through the section's dot field, lighting the very dots the page
+   is printed with (GRID): one from the plinth as it locks, one from the email
+   or a button when it's pointed at or focused, small ones from the visitors'
+   book as a line is written in it. A ripple that reaches the plinth makes its
+   corners answer.
+
+   And the line in the visitors' book is what's put on the plinth: as it's
+   written, a small cloud of points gathers between the corners and keeps
+   changing shape with the words (the materials are still to be decided).
+   Sending it flashes the cloud and sends a last ripple out.
+
+   Everything here is drawn behind the content and takes no pointer. Reduced
+   motion gets the finished plinth, no ripples, and a cloud that doesn't turn. */
 
 const INK = '#cfd6da';
 const CYAN = '#27e8f2';
-const PAPER = '#0a0d10'; // the page behind — fills the envelope so the trail reads as behind it
+const GRID = 30; // the dot field (tokens.css --dots-ink): a 2px square in the middle of every 30px tile
+const RIPPLE = { speed: 560, band: 30, life: 1.9, most: 8 };
+const CLOUD = { points: 150, fill: 0.8 }; // the cloud on the plinth: how many points, and how much of the held space it takes
 
-// cubic bezier point
-function bez(p: number, a: number, b: number, c: number, d: number): number {
-  const q = 1 - p;
-  return q * q * q * a + 3 * q * q * p * b + 3 * q * p * p * c + p * p * p * d;
+interface Ripple {
+  x: number;
+  y: number;
+  born: number;
+  color: string;
+  power: number;
+  own: boolean; // set off by the plinth itself: it doesn't answer its own
 }
 
-export function ContactMotif() {
+// FNV-1a: the words, as a number to shape the cloud with
+function hash(s: string) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+export function ContactMotif({ line, sent }: { line: string; sent: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const reduced = useReducedMotion();
+  const words = useRef(line);
+  words.current = line;
+  const posted = useRef(sent);
+  posted.current = sent;
+  const still = useRef<(() => void) | null>(null);
+
+  // under reduced motion nothing runs by itself: redraw when the line changes
+  useEffect(() => still.current?.(), [line, sent]);
 
   useEffect(() => {
     const cv = ref.current;
-    if (!cv) return;
-    const ctx = cv.getContext('2d');
-    if (!ctx) return;
+    const host = cv?.closest<HTMLElement>('section');
+    const ctx = cv?.getContext('2d');
+    if (!cv || !host || !ctx) return;
+    const stage = host.querySelector<HTMLElement>('.contact__stage');
+    const label = host.querySelector<HTMLElement>('.contact__label');
+    const input = host.querySelector<HTMLInputElement>('.contact__book input');
+    if (!stage) return;
+
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     let w = 0;
     let h = 0;
     const resize = () => {
-      const rect = cv.getBoundingClientRect();
-      w = rect.width;
-      h = rect.height;
+      const r = host.getBoundingClientRect();
+      w = r.width;
+      h = r.height;
       if (!w || !h) return;
       cv.width = Math.round(w * dpr);
       cv.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    resize();
-    // Setting canvas.width in resize() wipes the bitmap. The animated path
-    // repaints every frame so it never notices; the reduced-motion still is
-    // drawn just once, so repaint it after any resize (incl. the observer's
-    // initial fire) or it vanishes. `render` is defined below but this closure
-    // only runs asynchronously, well after it's assigned.
-    const ro = new ResizeObserver(() => {
-      resize();
-      if (reduced) render(0);
-    });
-    ro.observe(cv);
-
-    let pCur = 0; // smoothed letter progress along the route
-    let pTarget = 0; // scroll-driven target
-    let flagK = 0; // flag raise 0→1
-    let glow = 0; // slot glow right after posting
-    let delivered = false;
-    const trail: { x: number; y: number; a: number }[] = [];
-
-    // Square marks — the site's dot language is squares, not circles.
-    const dot = (x: number, y: number, radius: number, a: number) => {
-      ctx.globalAlpha = a < 0 ? 0 : a > 1 ? 1 : a;
-      const s = radius * 1.7;
-      ctx.fillRect(x - s / 2, y - s / 2, s, s);
+    /** An element's box, in the canvas's own coordinates. */
+    const box = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      const o = host.getBoundingClientRect();
+      return { x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height };
     };
 
-    // A narrow card (a phone) is all text from edge to edge: the wide route
-    // took the letter straight through the heading and the email. There it
-    // flies low instead, along the strip under the buttons where the letterbox
-    // stands (see the route below).
-    const low = () => w < 560;
+    // Square marks: the site's dot language is squares, not circles.
+    const dot = (x: number, y: number, s: number, a: number, c = INK) => {
+      if (a <= 0.004) return;
+      ctx.globalAlpha = a > 1 ? 1 : a;
+      ctx.fillStyle = c;
+      ctx.fillRect(x - s / 2, y - s / 2, s, s);
+    };
+    const stroke = (x0: number, y0: number, x1: number, y1: number, a: number, lw = 1.5) => {
+      ctx.globalAlpha = a > 1 ? 1 : a;
+      ctx.strokeStyle = CYAN;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    };
 
-    // Scroll → progress: the flight only starts once a good third of the card
-    // is already on screen (so it plays in view), and the letter is posted a
-    // touch before the card is fully revealed — right at the end of the page.
-    // (The low route is all in the card's last stretch, so it plays over the
-    // last of the scroll, as that stretch comes into view.)
+    // ---- ripples -----------------------------------------------------------
+    const ripples: Ripple[] = [];
+    const ripple = (x: number, y: number, color: string, power: number, own = false) => {
+      if (reduced) return;
+      ripples.push({ x, y, born: performance.now(), color, power, own });
+      if (ripples.length > RIPPLE.most) ripples.shift();
+    };
+    const from = (el: Element, color: string, power: number) => {
+      const b = box(el);
+      ripple(b.x + b.w / 2, b.y + b.h / 2, color, power);
+    };
+    // the email and the buttons: pointed at with a mouse, or reached with the keyboard
+    const lit = new Map<Element, { color: string; power: number }>();
+    host.querySelectorAll('.contact__email').forEach((el) => lit.set(el, { color: CYAN, power: 1 }));
+    host.querySelectorAll('.contact__links .btn, .contact__book .btn').forEach((el) => lit.set(el, { color: INK, power: 0.6 }));
+    const onEnter = (e: Event) => {
+      if ((e as PointerEvent).pointerType !== 'mouse') return;
+      const k = lit.get(e.currentTarget as Element);
+      if (k) from(e.currentTarget as Element, k.color, k.power);
+    };
+    const onFocus = (e: Event) => {
+      const el = e.currentTarget as Element;
+      const k = lit.get(el);
+      if (k && el.matches(':focus-visible')) from(el, k.color, k.power);
+    };
+    lit.forEach((_, el) => {
+      el.addEventListener('pointerenter', onEnter);
+      el.addEventListener('focus', onFocus);
+    });
+    // writing in the book: a small one from where the pen is
+    let wrote = 0;
+    const onWrite = () => {
+      if (!input) return;
+      const now = performance.now();
+      if (now - wrote < 140) return;
+      wrote = now;
+      const b = box(input);
+      ctx.font = getComputedStyle(input).font;
+      ripple(b.x + Math.min(b.w, ctx.measureText(input.value).width), b.y + b.h * 0.6, CYAN, 0.45);
+    };
+    input?.addEventListener('input', onWrite);
+
+    // ---- the cloud on the plinth -------------------------------------------
+    // points spread evenly over a ball, pushed in and out by the words
+    const dirs: [number, number, number][] = [];
+    for (let i = 0; i < CLOUD.points; i++) {
+      const y = 1 - (2 * (i + 0.5)) / CLOUD.points;
+      const r = Math.sqrt(1 - y * y);
+      const a = i * Math.PI * (3 - Math.sqrt(5));
+      dirs.push([Math.cos(a) * r, y, Math.sin(a) * r]);
+    }
+    const at = dirs.map((d) => [d[0], d[1], d[2]] as [number, number, number]);
+    const seen = new Float32Array(CLOUD.points);
+    let shaped = '';
+    let goal = at.map((p) => [...p] as [number, number, number]);
+    const shape = (text: string) => {
+      const k = hash(text);
+      const pick = (shift: number, n: number) => (k >>> shift) % n;
+      const e = [2, 2.6, 4, 8][pick(0, 4)]; // 2 is a ball; higher squares it off
+      const k1 = 2 + pick(3, 3);
+      const k2 = 1 + pick(6, 3);
+      const amp = 0.1 + pick(9, 5) * 0.07;
+      const tall = 0.72 + pick(12, 6) * 0.11;
+      const p1 = pick(15, 16) * 0.39;
+      goal = dirs.map(([x, y, z]) => {
+        const r = 1 / Math.pow(Math.abs(x) ** e + Math.abs(y) ** e + Math.abs(z) ** e, 1 / e);
+        const bump = 1 + amp * Math.sin(k1 * Math.atan2(z, x) + p1) * Math.sin(k2 * Math.acos(y) + p1);
+        return [x * r * bump, y * r * bump * tall, z * r * bump];
+      });
+      // whatever shape it is, it fits the space held for it
+      const far = Math.max(...goal.map((g) => Math.hypot(g[0], g[1], g[2])));
+      for (const g of goal) {
+        g[0] /= far;
+        g[1] /= far;
+        g[2] /= far;
+      }
+    };
+
+    // ---- the story's state --------------------------------------------------
+    let build = 0; // the plinth, drawn in by the scroll
+    let goalBuild = 0;
+    let locked = false;
+    let ping = 0; // the corners answering a ripple
+    let flash = 0; // the cloud, as its line is sent
+    let cloud = 0; // 0 nothing on the plinth, 1 the cloud
+    let wasSent = posted.current;
+    let t = 0;
+
     const onScroll = () => {
-      const rect = cv.getBoundingClientRect();
-      const vh = window.innerHeight || 1;
-      const reveal = (vh - rect.top) / (rect.height + 1);
-      const [from, to] = low() ? [0.9, 1.1] : [0.38, 0.96];
-      pTarget = Math.max(0, Math.min(1, (reveal - from) / (to - from)));
+      const r = stage.getBoundingClientRect();
+      goalBuild = Math.max(0, Math.min(1, ((window.innerHeight || 1) - r.top) / (r.height + 40)));
     };
 
     const render = (dt: number) => {
       if (!w || !h) return;
       ctx.clearRect(0, 0, w, h);
+      const now = performance.now();
+      t += dt;
 
-      // --- letterbox geometry — large, sitting right down on the card's
-      // bottom edge (short dotted pole, no ground line needed) ---
-      const bw = Math.min(124, Math.max(86, w * 0.12));
-      const bh = bw * 0.62;
-      const cxB = w - bw / 2 - Math.max(28, w * 0.06);
-      const poleH = Math.min(20, h * 0.05);
-      const byTop = h - 4 - poleH - bh; // seated at the very bottom edge of the page
-      const cyB = byTop + bh / 2;
-      const slotY = byTop + bh * 0.3;
-      const slotHalf = bw * 0.3;
+      // the plinth's place: the right of the stage, standing on its bottom edge
+      const s = box(stage);
+      const pw = Math.min(104, s.w * 0.56);
+      const ph = pw * 0.5;
+      const dx = pw * 0.27; // the top face, going back
+      const dy = pw * 0.21;
+      const x1 = s.x + s.w - 6 - dx; // the front face's right edge
+      const x0 = x1 - pw;
+      const base = s.y + s.h - 6;
+      const top = base - ph;
+      const half = pw * 0.46; // the held space over it
+      const cx = (x0 + x1) / 2 + dx / 2;
+      const cy = top - dy - 12 - half;
 
-      // --- flight route: spawns just past the card's left edge (clipped by
-      // the card), sweeps across and drops into the slot. On a narrow card:
-      // in low from the left, over a small rise and down into it, all under
-      // the buttons ---
-      const narrow = low();
-      const x0 = -30;
-      const y0 = narrow ? h - 70 : h * 0.26;
-      const c1x = narrow ? w * 0.3 : w * 0.36;
-      const c1y = narrow ? h - 102 : h * 0.03;
-      const c2x = narrow ? cxB - 64 : w * 0.95;
-      const c2y = narrow ? h - 108 : h * 0.12;
-      const ex = cxB;
-      const ey = slotY - 8;
+      build += (goalBuild - build) * Math.min(1, dt * 5);
+      if (reduced) build = 1;
+      const e = 1 - (1 - build) ** 3;
+      if (build > 0.97 && !locked) {
+        locked = true;
+        ripple(cx, cy, CYAN, 0.9, true);
+        ping = 1;
+      } else if (build < 0.5) locked = false;
 
-      // story state from scroll
-      pCur += (pTarget - pCur) * Math.min(1, dt * 5);
-      if (reduced) pCur = pTarget; // no easing — direct manipulation only
-      const wasDelivered = delivered;
-      delivered = pCur > 0.985;
-      if (delivered && !wasDelivered) glow = 1;
-      flagK += ((delivered ? 1 : 0) - flagK) * Math.min(1, dt * 6);
-      glow = Math.max(0, glow - dt * 1.4);
-
-      // --- the dotted route (a faint map line, always there) ---
-      ctx.fillStyle = INK;
-      for (let i = 0; i <= 44; i++) {
-        const p = i / 44;
-        dot(bez(p, x0, c1x, c2x, ex), bez(p, y0, c1y, c2y, ey), 1, 0.11);
-      }
-
-      // --- the letterbox — a denser patch of the page's own dot field ---
-      const r = 7; // corner radius of the box silhouette
-      ctx.fillStyle = INK;
-      for (let x = cxB - bw / 2 + 2; x <= cxB + bw / 2 - 1; x += 5.5) {
-        for (let y = byTop + 2; y <= byTop + bh - 1; y += 5.5) {
-          // signed distance to the rounded-rect edge
-          const dx = Math.abs(x - cxB) - (bw / 2 - r);
-          const dy = Math.abs(y - cyB) - (bh / 2 - r);
-          const sd = Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) + Math.min(Math.max(dx, dy), 0) - r;
-          if (sd > 0) continue;
-          if (Math.abs(y - slotY) < 5 && Math.abs(x - cxB) < slotHalf + 4) continue; // clear the slot
-          dot(x, y, 1.05, sd > -4 ? 0.5 : 0.16); // bright rim, dim body
+      // ---- ripples, on the page's own dots ----
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const rp = ripples[i];
+        const age = (now - rp.born) / 1000;
+        if (age > RIPPLE.life) {
+          ripples.splice(i, 1);
+          continue;
+        }
+        const left = 1 - age / RIPPLE.life;
+        const strength = rp.power * Math.min(1, age / 0.08) * left * Math.sqrt(left);
+        const R = age * RIPPLE.speed;
+        if (!rp.own && Math.abs(Math.hypot(cx - rp.x, cy - rp.y) - R) < RIPPLE.band) ping = Math.max(ping, strength);
+        // only the tiles the ring can reach
+        const reach = R + RIPPLE.band * 2.2;
+        const i0 = Math.max(0, Math.floor((rp.x - reach) / GRID));
+        const i1 = Math.min(Math.ceil(w / GRID), Math.ceil((rp.x + reach) / GRID));
+        const j0 = Math.max(0, Math.floor((rp.y - reach) / GRID));
+        const j1 = Math.min(Math.ceil(h / GRID), Math.ceil((rp.y + reach) / GRID));
+        for (let gi = i0; gi < i1; gi++) {
+          for (let gj = j0; gj < j1; gj++) {
+            const gx = gi * GRID + GRID / 2;
+            const gy = gj * GRID + GRID / 2;
+            const d = (Math.hypot(gx - rp.x, gy - rp.y) - R) / RIPPLE.band;
+            if (d > 2.2 || d < -2.2) continue;
+            const k = Math.exp(-d * d) * strength;
+            dot(gx, gy, 2 + k * 2.4, k * 0.85, rp.color);
+          }
         }
       }
-      // the slot — a brighter row of dots (cyan while it glows)
-      ctx.fillStyle = glow > 0.05 ? CYAN : INK;
-      for (let x = cxB - slotHalf; x <= cxB + slotHalf; x += 4.5) dot(x, slotY, 1.35, 0.7 + glow * 0.3);
-      if (glow > 0.02) {
-        // a dotted ring blooming off the slot as the letter lands
-        ctx.fillStyle = CYAN;
-        const rr = 7 + (1 - glow) * 20;
-        for (let i = 0; i < 14; i++) {
-          const ang = (i / 14) * Math.PI * 2;
-          dot(cxB + Math.cos(ang) * rr, slotY + Math.sin(ang) * rr * 0.7, 1.1, glow * 0.55);
+
+      // ---- the plinth: a denser patch of the same dots, built from the floor up ----
+      const rows = Math.round(ph / 6);
+      for (let j = 0; j <= rows; j++) {
+        const y = base - (ph * j) / rows;
+        const up = Math.max(0, Math.min(1, e * (rows + 3) - j)); // each row arrives after the one under it
+        if (up <= 0) continue;
+        const edge = j === 0 || j === rows;
+        for (let x = x0; x <= x1 + 0.5; x += pw / Math.round(pw / 6)) {
+          const side = x - x0 < 1 || x1 - x < 1;
+          dot(x, y, 1.9, (edge || side ? 0.55 : 0.14) * up);
+        }
+        // the side face, going back
+        for (let i = 1; i <= 4; i++) dot(x1 + (dx * i) / 4, y - (dy * i) / 4, 1.8, (edge || i === 4 ? 0.38 : 0.1) * up);
+      }
+      const lid = Math.max(0, Math.min(1, e * 4 - 3)); // the top goes on last
+      if (lid > 0) {
+        for (let i = 1; i <= 4; i++) {
+          const y = top - (dy * i) / 4;
+          const off = (dx * i) / 4;
+          for (let x = x0; x <= x1 + 0.5; x += pw / Math.round(pw / 6)) dot(x + off, y, 1.8, (i === 4 || x - x0 < 1 ? 0.45 : 0.2) * lid);
         }
       }
-      // the pole — a short run of dots down to the card's bottom edge
-      ctx.fillStyle = INK;
-      for (let y = byTop + bh + 4; y <= h - 5; y += 5) dot(cxB, y, 1.05, 0.4);
-      // the flag — dots along the stem, a dot cluster at the tip; pops up
-      // once the letter is posted
-      const fx = cxB + bw / 2 + 2;
-      const fy = byTop + bh * 0.35;
-      const ang = -Math.PI / 2 + (1 - flagK) * (Math.PI * 0.6);
-      const stem = bh * 0.6;
-      ctx.fillStyle = flagK > 0.5 ? CYAN : INK;
-      for (let i = 0; i <= 4; i++) dot(fx + Math.cos(ang) * stem * (i / 4), fy + Math.sin(ang) * stem * (i / 4), 1.15, 0.4 + flagK * 0.6);
-      const tipX = fx + Math.cos(ang) * stem;
-      const tipY = fy + Math.sin(ang) * stem;
-      for (const [ox, oy] of [
-        [2.5, -2.5],
-        [6, -2.5],
-        [2.5, 2],
-        [6, 2],
-      ] as [number, number][]) {
-        dot(tipX + Math.cos(ang + Math.PI / 2) * oy + Math.cos(ang) * ox, tipY + Math.sin(ang + Math.PI / 2) * oy + Math.sin(ang) * ox, 1.3, 0.4 + flagK * 0.6);
+
+      // ---- the space over it, held by four corners that close in and lock ----
+      ping = Math.max(0, ping - dt * 1.6);
+      flash = Math.max(0, flash - dt * 1.4);
+      const out = (1 - lid) * 14 + ping * 3;
+      const bl = half * 0.34;
+      const ba = (0.25 + 0.6 * lid + ping * 0.4) * Math.min(1, e * 2);
+      for (const [sx, sy] of [
+        [-1, -1],
+        [1, -1],
+        [-1, 1],
+        [1, 1],
+      ]) {
+        const bx = cx + sx * (half + out);
+        const by = cy + sy * (half + out);
+        stroke(bx, by, bx - sx * bl, by, ba);
+        stroke(bx, by, bx, by - sy * bl, ba);
       }
 
-      // --- the fading cyan trail, rendered behind the letter ---
-      ctx.fillStyle = CYAN;
-      for (let i = trail.length - 1; i >= 0; i--) {
-        const d = trail[i];
-        d.a -= dt * 0.9;
-        if (d.a <= 0) trail.splice(i, 1);
-        else dot(d.x, d.y, 1.5, d.a);
+      // ---- what stands on it: the words, as a cloud of points ----
+      const text = words.current.trim();
+      if (text !== shaped) {
+        shaped = text;
+        if (text) shape(text.toLowerCase());
       }
-      ctx.fillStyle = INK;
-
-      // --- the letter riding the route ---
-      if (pCur < 0.992) {
-        const lx = bez(pCur, x0, c1x, c2x, ex);
-        const ly = bez(pCur, y0, c1y, c2y, ey);
-        const lx2 = bez(Math.min(1, pCur + 0.02), x0, c1x, c2x, ex);
-        const ly2 = bez(Math.min(1, pCur + 0.02), y0, c1y, c2y, ey);
-        const rot = Math.atan2(ly2 - ly, lx2 - lx);
-        if (!reduced) trail.push({ x: lx, y: ly, a: 0.5 });
-        const s = pCur > 0.9 ? Math.max(0.2, 1 - (pCur - 0.9) / 0.1) : 1; // slips into the slot
-        ctx.save();
-        ctx.translate(lx, ly);
-        ctx.rotate(rot);
-        ctx.scale(s, s);
-        // fill the envelope with the page colour first, so the cyan trail (drawn
-        // just above) is occluded by the letter's body and reads as behind it
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = PAPER;
-        ctx.fillRect(-13, -9, 26, 18);
-        ctx.globalAlpha = 0.95;
-        ctx.strokeStyle = INK;
-        ctx.lineWidth = 1.3;
-        ctx.strokeRect(-13, -9, 26, 18);
-        ctx.globalAlpha = 0.6;
+      if (posted.current !== wasSent) {
+        wasSent = posted.current;
+        flash = 1;
+        ripple(cx, cy, CYAN, 1, true);
+        ping = 1;
+      }
+      const count = text ? Math.min(CLOUD.points, 14 + text.length * 4) : 0;
+      cloud += ((text ? 1 : 0) - cloud) * (reduced ? 1 : Math.min(1, dt * 6));
+      const yaw = reduced ? 0.6 : t * 0.5;
+      const cyw = Math.cos(yaw);
+      const syw = Math.sin(yaw);
+      const tilt = 0.38;
+      const ct = Math.cos(tilt);
+      const st = Math.sin(tilt);
+      const ease = reduced ? 1 : Math.min(1, dt * 4);
+      const R = half * CLOUD.fill * lid;
+      for (let i = 0; i < CLOUD.points; i++) {
+        const p = at[i];
+        const g = goal[i];
+        p[0] += (g[0] - p[0]) * ease;
+        p[1] += (g[1] - p[1]) * ease;
+        p[2] += (g[2] - p[2]) * ease;
+        seen[i] += ((i < count ? 1 : 0) - seen[i]) * (reduced ? 1 : Math.min(1, dt * 8));
+        if (seen[i] < 0.02) continue;
+        const x = p[0] * cyw + p[2] * syw;
+        const z = -p[0] * syw + p[2] * cyw;
+        const y = p[1] * ct - z * st;
+        const near = (z * ct + p[1] * st + 1.3) / 2.6; // 0 at the back, 1 at the front
+        dot(cx + x * R, cy - y * R, 1.5 + near * 1.3 + flash * 1.2, (0.3 + 0.7 * near) * seen[i], flash > 0.5 ? '#ffffff' : CYAN);
+      }
+      // nothing on it yet: the crosshair the maquette marks a place with, and a dotted ring
+      const empty = (1 - cloud) * lid;
+      if (empty > 0.02) {
+        ctx.globalAlpha = 0.9 * empty;
+        ctx.strokeStyle = CYAN;
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(-13, -9);
-        ctx.lineTo(0, 2);
-        ctx.lineTo(13, -9);
+        ctx.arc(cx, cy, 3.4, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.restore();
+        for (const [ux, uy] of [
+          [0, -1],
+          [0, 1],
+          [-1, 0],
+          [1, 0],
+        ]) {
+          ctx.beginPath();
+          ctx.moveTo(cx + ux * 4.5, cy + uy * 4.5);
+          ctx.lineTo(cx + ux * 9, cy + uy * 9);
+          ctx.stroke();
+        }
+        const rr = half * 0.52 + ping * 5;
+        for (let i = 0; i < 24; i++) {
+          const a = (i / 24) * Math.PI * 2 + (reduced ? 0 : t * 0.12);
+          dot(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 1.6, (0.22 + ping * 0.5) * empty, CYAN);
+        }
       }
+
+      // ---- its label's leader: from the label up to the held space ----
+      if (label && lid > 0) {
+        const l = box(label);
+        ctx.globalAlpha = 0.5 * lid;
+        ctx.strokeStyle = CYAN;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(l.x + l.w + 6, l.y + 5);
+        ctx.lineTo(cx - half - 6, cy + half - 8);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
     };
 
     let raf = 0;
@@ -231,39 +385,49 @@ export function ContactMotif() {
       if (running) raf = requestAnimationFrame(frame);
     };
     const start = () => {
-      if (!running) {
-        running = true;
-        last = performance.now();
-        raf = requestAnimationFrame(frame);
-      }
+      if (running) return;
+      running = true;
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
     };
     const stop = () => {
       running = false;
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
     };
-    const io = new IntersectionObserver((es) => (es[0].isIntersecting ? start() : stop()), { threshold: 0.05 });
+
+    resize();
+    // Setting canvas.width wipes the bitmap. The animated path repaints every
+    // frame; the reduced-motion still is drawn once, so repaint it after a resize.
+    const ro = new ResizeObserver(() => {
+      resize();
+      if (reduced) render(0);
+    });
+    ro.observe(host);
+    const io = new IntersectionObserver((es) => (es[0].isIntersecting ? start() : stop()), { threshold: 0.02 });
 
     if (reduced) {
-      // the delivered still: letter posted, flag up — no motion at all
-      pCur = 1;
-      pTarget = 1;
-      flagK = 1;
-      delivered = true;
+      still.current = () => render(0);
       render(0);
     } else {
       window.addEventListener('scroll', onScroll, { passive: true });
       window.addEventListener('resize', onScroll);
       onScroll();
-      io.observe(cv);
+      io.observe(host);
     }
 
     return () => {
+      still.current = null;
       io.disconnect();
       ro.disconnect();
       stop();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
+      input?.removeEventListener('input', onWrite);
+      lit.forEach((_, el) => {
+        el.removeEventListener('pointerenter', onEnter);
+        el.removeEventListener('focus', onFocus);
+      });
     };
   }, [reduced]);
 
