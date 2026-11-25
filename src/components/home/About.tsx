@@ -5,15 +5,21 @@ import { useReducedMotion } from '../../lib/media';
 import { useReveal } from '../../lib/useReveal';
 import { Scramble } from '../shell/Scramble';
 import { SectionHead } from '../shell/SectionHead';
+import { CROP, PortraitRelief } from './PortraitRelief';
 
 const PORTRAITS = 5;
 
 // A portrait that scrubs through five photos as it rises up the screen, landing
 // on the last one the moment it reaches the vertical middle of the viewport.
+// The last one is in relief (PortraitRelief): the same dots, with depth, turning
+// to look at the cursor. Until that's drawn, and under reduced motion, it's the
+// flat photo.
 function AboutPortrait({ children }: { children?: ReactNode }) {
   const reduced = useReducedMotion();
   const boxRef = useRef<HTMLElement>(null);
   const [frame, setFrame] = useState(0);
+  const [relief, setRelief] = useState(false);
+  const last = frame === PORTRAITS - 1;
 
   useEffect(() => {
     const box = boxRef.current;
@@ -43,16 +49,27 @@ function AboutPortrait({ children }: { children?: ReactNode }) {
   }, [reduced]);
 
   return (
-    <figure className="about__portrait" ref={boxRef} role="img" aria-label={`Portrait of ${site.hero.name}`}>
+    <figure
+      className="about__portrait"
+      ref={boxRef}
+      role="img"
+      aria-label={`Portrait of ${site.hero.name}`}
+      style={{ '--zoom': CROP.zoom, '--crop-y': CROP.y } as CSSProperties}
+    >
       <div className="about__portrait-ph" aria-hidden="true" />
       {Array.from({ length: PORTRAITS }, (_, i) => (
         <div
           key={i}
           className="about__portrait-frame"
           aria-hidden="true"
-          style={{ backgroundImage: `url(${asset(`/profile/${i + 1}.png`)})`, opacity: i === frame ? 1 : 0 }}
+          style={{ backgroundImage: `url(${asset(`/profile/${i + 1}.png`)})`, opacity: i === frame && !(relief && i === PORTRAITS - 1) ? 1 : 0 }}
         />
       ))}
+      {!reduced && (
+        <div className="about__relief-box" style={{ opacity: last && relief ? 1 : 0 }}>
+          <PortraitRelief photo={asset(`/profile/${PORTRAITS}.png`)} depth={asset('/profile/depth.png')} active={last} onReady={setRelief} />
+        </div>
+      )}
       {children}
     </figure>
   );
