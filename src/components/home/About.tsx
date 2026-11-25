@@ -5,7 +5,7 @@ import { useReducedMotion } from '../../lib/media';
 import { useReveal } from '../../lib/useReveal';
 import { Scramble } from '../shell/Scramble';
 import { SectionHead } from '../shell/SectionHead';
-import { CROP, PortraitRelief } from './PortraitRelief';
+import { CROP, PortraitRelief, type Pulse } from './PortraitRelief';
 
 const PORTRAITS = 5;
 
@@ -14,7 +14,7 @@ const PORTRAITS = 5;
 // The last one is in relief (PortraitRelief): the same dots, with depth, turning
 // to look at the cursor. Until that's drawn, and under reduced motion, it's the
 // flat photo.
-function AboutPortrait({ children }: { children?: ReactNode }) {
+function AboutPortrait({ children, pulse }: { children?: ReactNode; pulse?: Pulse | null }) {
   const reduced = useReducedMotion();
   const boxRef = useRef<HTMLElement>(null);
   const [frame, setFrame] = useState(0);
@@ -67,7 +67,7 @@ function AboutPortrait({ children }: { children?: ReactNode }) {
       ))}
       {!reduced && (
         <div className="about__relief-box" style={{ opacity: last && relief ? 1 : 0 }}>
-          <PortraitRelief photo={asset(`/profile/${PORTRAITS}.png`)} depth={asset('/profile/depth.png')} active={last} onReady={setRelief} />
+          <PortraitRelief photo={asset(`/profile/${PORTRAITS}.png`)} depth={asset('/profile/depth.png')} active={last} pulse={pulse} onReady={setRelief} />
         </div>
       )}
       {children}
@@ -94,6 +94,12 @@ const PINS: PinGeo[] = [
   { c: '#a9f75c', box: { left: '75%', top: '58%', width: '25%' }, line: [470, 430, 418, 380], mark: [414, 376] },
   { c: '#27e8f2', box: { left: '1%', top: '80%', width: '26%', textAlign: 'right' }, line: [130, 566, 186, 408], mark: [190, 404] },
 ];
+
+// Where each fact's crosshair sits on the portrait's own frame (the stage's
+// 27% / 12.5% / 46%, at 4:5), and its colour: resting on a fact sends ripples of
+// that colour through the portrait's dots from there, as if down its leader.
+const FRAME = { x: 600 * 0.27, y: 720 * 0.125, w: 600 * 0.46, h: 600 * 0.46 * 1.25 };
+const PULSES: Pulse[] = PINS.map((p) => ({ x: (p.mark[0] - FRAME.x) / FRAME.w, y: (p.mark[1] - FRAME.y) / FRAME.h, color: p.c }));
 
 function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
   const reduced = useReducedMotion();
@@ -184,7 +190,7 @@ function AboutStage({ facts }: { facts: { label: string; value: string }[] }) {
       style={hot != null ? ({ '--hotc': PINS[hot].c } as CSSProperties) : undefined}
     >
       <div className="about__stage-tilt">
-        <AboutPortrait>
+        <AboutPortrait pulse={hot != null ? PULSES[hot] : null}>
           <span className="about__scan" aria-hidden="true" />
         </AboutPortrait>
         <svg className="about__stage-svg" viewBox="0 0 600 720" preserveAspectRatio="none" aria-hidden="true">

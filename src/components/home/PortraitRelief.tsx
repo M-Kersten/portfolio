@@ -31,6 +31,21 @@ const TURN = { yaw: 0.4, pitch: 0.13 }; // rad, at most
 const REACH = 520; // px from the portrait at which a mouse has it most of the way round
 const REST = 3.5; // s of a still mouse before it faces front again
 const SWAY = { mouse: 0.035, touch: 0.16 }; // rad, a slow idle turn
+/* A ripple of colour through the dots (see Pulse): a thin shell that grows out
+   from a point, tinting the dots it passes and fading as it goes. It travels
+   through the relief's depth too, so it runs over the face rather than across a
+   flat picture. `speed` and `width` are photo pixels, `life` and `every`
+   seconds (it repeats while the pulse is held), `tint` how far a dot goes to
+   the colour at the front of a fresh ripple. */
+const RIPPLE = { speed: 430, width: 46, life: 1.7, every: 1.5, tint: 0.8 };
+const RIPPLES = 2; // at once: a second one can set off before the first has faded
+
+/** A point on the portrait's frame to send ripples from, and their colour. */
+export interface Pulse {
+  x: number; // across the frame, 0..1
+  y: number; // down it
+  color: string; // #rrggbb
+}
 
 const VERT = `
 attribute vec4 aP; // x, y in photo pixels; depth 0..1; brightness
@@ -39,8 +54,16 @@ uniform vec3 uPivot;
 uniform vec2 uTurn; // yaw, pitch
 uniform float uDepth;
 uniform mediump float uSize; // the quad drawn for a dot, in pixels
-varying float vA;
+uniform vec4 uRipple[${RIPPLES}]; // a ripple's centre in photo pixels (x, y, depth) and its radius
+uniform vec4 uTint[${RIPPLES}]; // its colour, and how strong it still is
+varying vec4 vC;
 void main() {
+  vec3 q = vec3(aP.xy, aP.z * ${DEPTH.toFixed(1)});
+  vec3 c = vec3(1.0);
+  for (int i = 0; i < ${RIPPLES}; i++) {
+    float d = (distance(q, uRipple[i].xyz) - uRipple[i].w) / ${RIPPLE.width.toFixed(1)};
+    c = mix(c, uTint[i].rgb, uTint[i].a * exp(-d * d));
+  }
   vec3 p = vec3(aP.xy - uPivot.xy, (aP.z * ${DEPTH.toFixed(1)} - uPivot.z) * uDepth);
   float cy = cos(uTurn.x), sy = sin(uTurn.x), cp = cos(uTurn.y), sp = sin(uTurn.y);
   float x = p.x * cy + p.z * sy;
@@ -48,7 +71,7 @@ void main() {
   float y = p.y * cp - z * sp;
   gl_Position = vec4((x + uPivot.x - uBox.x) / uBox.z, -(y + uPivot.y - uBox.y) / uBox.w, 0.0, 1.0);
   gl_PointSize = uSize;
-  vA = aP.w;
+  vC = vec4(c, 1.0) * aP.w;
 }`;
 // A dot is a square of the photo, usually smaller than a screen pixel. Each is
 // drawn over the pixels it touches, by how much of each it covers, and they add
@@ -59,11 +82,11 @@ const FRAG = `
 precision mediump float;
 uniform mediump float uSize;
 uniform float uDot; // the dot itself, in pixels
-varying float vA;
+varying vec4 vC;
 void main() {
   vec2 d = abs(gl_PointCoord - 0.5) * uSize;
   vec2 o = clamp(0.5 + uDot * 0.5 - d, 0.0, min(1.0, uDot));
-  gl_FragColor = vec4(vA * o.x * o.y);
+  gl_FragColor = vC * (o.x * o.y);
 }`;
 
 function load(src: string) {
@@ -110,11 +133,14 @@ export function PortraitRelief({
   photo,
   depth,
   active,
+  pulse = null,
   onReady,
 }: {
   photo: string;
   depth: string;
   active: boolean;
+  /** While set, ripples of its colour run out through the dots from its point (keep the object the same between renders). */
+  pulse?: Pulse | null;
   /** It has drawn (true), or lost its canvas (false): the flat photo stands in until, and after. */
   onReady: (ok: boolean) => void;
 }) {
@@ -123,6 +149,8 @@ export function PortraitRelief({
   live.current = active;
   const ready = useRef(onReady);
   ready.current = onReady;
+  const pulsing = useRef(pulse);
+  pulsing.current = pulse;
 
   useEffect(() => {
     const canvas = ref.current;
@@ -183,6 +211,14 @@ export function PortraitRelief({
       const uDepth = u('uDepth');
       const uSize = u('uSize');
       const uDot = u('uDot');
+      const uRipple = u('uRipple[0]');
+      const uTint = u('uTint[0]');
+      const ripple = new Float32Array(RIPPLES * 4);
+      const tint = new Float32Array(RIPPLES * 4);
+      const born = new Array<number>(RIPPLES).fill(-1e9);
+      let slot = 0;
+      let held: Pulse | null = null;
+      let sent = -1e9;
       gl.uniform3f(u('uPivot'), PIVOT.x * pts.w, PIVOT.y * pts.h, PIVOT.z);
       // the dots add up, the way they do when the photo is scaled down
       gl.enable(gl.BLEND);
@@ -236,7 +272,37 @@ export function PortraitRelief({
         // the frame, in photo pixels
         const k = (CROP.zoom * r.width) / pts.w; // screen px per photo px
         const top = (r.height - k * pts.h) * CROP.y;
-        gl.uniform4f(uBox, pts.w / 2, (r.height / 2 - top) / k, r.width / 2 / k, r.height / 2 / k);
+        const bx = pts.w / 2;
+        const by = (r.height / 2 - top) / k;
+        const hw = r.width / 2 / k;
+        const hh = r.height / 2 / k;
+        gl.uniform4f(uBox, bx, by, hw, hh);
+
+        // ripples: one as a pulse starts, another every so often while it's held
+        const want = on ? pulsing.current : null;
+        if (want && (want !== held || now - sent > RIPPLE.every * 1000)) {
+          const o = slot * 4;
+          slot = (slot + 1) % RIPPLES;
+          ripple[o] = bx + (want.x * 2 - 1) * hw;
+          ripple[o + 1] = by + (want.y * 2 - 1) * hh;
+          ripple[o + 2] = PIVOT.z;
+          const rgb = parseInt(want.color.slice(1), 16);
+          tint[o] = ((rgb >> 16) & 255) / 255;
+          tint[o + 1] = ((rgb >> 8) & 255) / 255;
+          tint[o + 2] = (rgb & 255) / 255;
+          born[o / 4] = now;
+          sent = now;
+        }
+        held = want;
+        for (let i = 0; i < RIPPLES; i++) {
+          const age = (now - born[i]) / 1000;
+          const left = Math.max(0, 1 - age / RIPPLE.life);
+          ripple[i * 4 + 3] = age * RIPPLE.speed;
+          // in over the first tenth of a second, then fading all the way out
+          tint[i * 4 + 3] = RIPPLE.tint * Math.min(1, age / 0.1) * left * Math.sqrt(left);
+        }
+        gl.uniform4fv(uRipple, ripple);
+        gl.uniform4fv(uTint, tint);
         gl.uniform2f(uTurn, turn.yaw, turn.pitch);
         gl.uniform1f(uDepth, turn.depth);
         const s = k * dpr; // a dot, in device pixels
