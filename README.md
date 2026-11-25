@@ -230,6 +230,7 @@ public/
                        park's binoculars
   logos/               employer marks for the timeline tooltips
   profile/1..5.png     the About portrait frames
+  profile/depth.png    the last frame's depth map: it's shown in relief (see profile/README.md)
 ```
 
 **The life system** (`life.tsx`): each hotspot object's materials are
