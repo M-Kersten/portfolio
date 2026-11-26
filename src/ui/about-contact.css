@@ -478,46 +478,47 @@
   height: 100%;
   display: block;
 }
-/* The floor of the last room: the visitors' book on the left, exhibit 11's
-   pedestal on the right, level with the line you write (what's written takes
-   shape on it, so the two want to be in one look). */
+/* The floor of the last room: the question on the left ("What do we build
+   next?"), exhibit 11's pedestal on the right, level with it (a suggestion
+   takes shape there as it's typed, so the two want to be in one look). */
 .contact__floor {
   display: grid;
   grid-template-columns: minmax(0, 36rem) auto;
+  grid-template-areas:
+    'ask pedestal'
+    'book pedestal';
   justify-content: space-between;
   align-items: start;
-  gap: var(--space-l);
+  column-gap: var(--space-l);
+  row-gap: var(--space-s);
   margin-top: var(--space-l);
   text-align: left;
 }
-.contact__book {
+.contact__ask {
+  grid-area: ask;
   display: grid;
-  gap: var(--space-s);
-  padding-bottom: 0.4rem;
+  gap: var(--space-2xs);
 }
-.contact__book-label,
-.contact__label dt {
+.contact__ask-title {
   margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  font-weight: 400;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--accent) 82%, transparent);
+  font-family: var(--font-heading);
+  font-size: var(--step-2);
+  line-height: 1.12;
+  color: var(--ink);
+  text-wrap: balance;
 }
-.contact__book-intro {
+.contact__ask-intro {
   margin: 0;
   max-width: 34em;
   color: var(--ink-60);
 }
+.contact__book {
+  grid-area: book;
+  display: grid;
+  gap: var(--space-s);
+}
 .contact__book-form {
   display: grid;
-  gap: var(--space-2xs);
-}
-.contact__book-row {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-s);
 }
 /* The lines you write on: the email's rule at text size, with the same answer
    to focus (the accent rule sweeps in over it). The name's is the quieter. */
@@ -554,6 +555,36 @@
 .contact__book-name:focus-visible {
   background-size: 100% 2px, 100% 1px;
 }
+/* The name, the button and the note: there once there's something to send, or
+   the caret is in the form; folded away until then. */
+.contact__book-rest {
+  display: grid;
+  gap: var(--space-2xs);
+  max-height: 0;
+  padding-top: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    max-height var(--t-base) var(--ease),
+    padding-top var(--t-base) var(--ease),
+    opacity var(--t-base) var(--ease),
+    visibility 0s linear var(--t-base);
+}
+.contact__book-form:focus-within .contact__book-rest,
+.contact__book-form[data-busy] .contact__book-rest {
+  max-height: 10rem;
+  padding-top: var(--space-2xs);
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.contact__book-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-s);
+  padding: 0.4rem 0.4rem 0.4rem 0; /* room for the button's lift, inside the fold */
+}
 .contact__book-note,
 .contact__book-empty {
   margin: 0;
@@ -568,32 +599,65 @@
 .contact__book-note[data-kind='refusal'] {
   color: var(--ink);
 }
-/* What's been written: the line, and under it who and when, in the hand of the
-   site's other small print. A line of your own that's still waiting is dimmer. */
-.contact__entries {
+.contact__book-label,
+.contact__label dt {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  font-weight: 400;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent) 82%, transparent);
+}
+.contact__book-label span {
+  color: var(--ink-60);
+}
+/* What's been suggested so far, as a reel: a few show, the rest is a scroll
+   away, fading out at the foot. The one at the top (or the one pointed at) is
+   the one in view: it's lit, and it's the shape on the pedestal. The room under
+   the last one lets it come up to the top too. */
+.contact__earlier {
+  display: grid;
+  gap: var(--space-xs, 0.75rem);
+}
+.contact__reel {
   list-style: none;
-  margin: var(--space-2xs) 0 0;
-  padding: 0;
+  margin: 0;
+  padding: 0 var(--space-s) 7rem 0;
   display: grid;
   gap: var(--space-s);
-}
-.contact__entries[data-all] {
-  max-height: 19rem;
+  max-height: 11.5rem;
   overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: var(--space-s);
+  scroll-snap-type: y proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent);
+  mask-image: linear-gradient(to bottom, #000 58%, transparent);
+  outline: none;
+}
+.contact__reel:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 0.4rem;
 }
 .contact__entry {
   display: grid;
   gap: 0.2em;
   padding-left: var(--space-s);
   border-left: 1px solid var(--line);
+  scroll-snap-align: start;
   transition: border-color var(--t-fast) var(--ease);
 }
 .contact__entry q {
-  color: var(--ink);
+  color: var(--ink-60);
   quotes: '“' '”' '‘' '’';
   overflow-wrap: anywhere;
+  transition: color var(--t-fast) var(--ease);
+}
+.contact__entry[data-current] {
+  border-left-color: var(--accent);
+}
+.contact__entry[data-current] q {
+  color: var(--ink);
 }
 .contact__entry-by {
   font-family: var(--font-mono);
@@ -604,57 +668,24 @@
   font-style: normal;
   color: color-mix(in srgb, var(--accent) 82%, transparent);
 }
-.contact__entry[data-waiting] q {
-  color: var(--ink-60);
-}
-@media (hover: hover) {
-  .contact__entry:hover {
-    border-left-color: var(--accent);
-  }
-}
-.contact__book-more {
-  justify-self: start;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-60);
-  text-decoration: underline;
-  text-decoration-color: var(--line-strong);
-  text-underline-offset: 0.3em;
-  transition: color var(--t-fast) var(--ease);
-}
-.contact__book-more:hover,
-.contact__book-more:focus-visible {
-  color: var(--ink);
-}
 /* Exhibit 11's label, in the hand of the facts pinned to the portrait, beside
    the place its pedestal is drawn (the stage is only room for the drawing). */
 .contact__pedestal {
+  grid-area: pedestal;
   display: flex;
   align-items: flex-end;
   justify-content: flex-end;
   gap: var(--space-s);
 }
 .contact__label {
+  margin: 0;
   padding-bottom: 0.4rem;
   text-align: right;
-}
-.contact__label dl,
-.contact__label figure,
-.contact__label blockquote {
-  margin: 0;
 }
 .contact__label dt {
   margin-bottom: 0.35em;
 }
-.contact__label dd,
-.contact__label figcaption,
-.contact__label figure span {
+.contact__label dd {
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--step--2);
@@ -671,215 +702,25 @@
   width: 11.5rem;
   height: 12rem;
 }
-
-/* ---- the book's layouts (Contact.tsx: LAYOUTS) ---- */
-
-/* fold: a closed book. One line saying it's there and how much is in it; the
-   newest line shows under it while it's pointed at; pressing it opens it. */
-.contact__book-tab {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-s);
-  width: 100%;
-  max-width: 28rem;
-  padding: 0.55em 0;
-  border: 0;
-  background:
-    linear-gradient(var(--accent), var(--accent)) left bottom / 0% 2px no-repeat,
-    linear-gradient(var(--line-strong), var(--line-strong)) left bottom / 100% 1px no-repeat;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-60);
-  transition: background-size var(--t-base) var(--ease), color var(--t-fast) var(--ease);
-}
-.contact__book-turn {
-  margin-left: auto;
-  color: var(--ink);
-}
-.contact__book-tab:hover,
-.contact__book-tab:focus-visible,
-.contact__book[data-open] .contact__book-tab {
-  background-size: 100% 2px, 100% 1px;
-}
-.contact__book-newest {
-  margin: 0;
-  max-width: 32em;
-  color: var(--ink);
-  opacity: 0;
-  transform: translateY(-0.3rem);
-  transition: opacity var(--t-base) var(--ease), transform var(--t-base) var(--ease);
-}
-.contact__book-tab:focus-visible + .contact__book-newest {
-  opacity: 1;
-  transform: none;
-}
-@media (hover: hover) {
-  .contact__book-tab:hover + .contact__book-newest {
-    opacity: 1;
-    transform: none;
-  }
-}
-/* nothing to point with: the newest line simply shows */
-@media (hover: none) {
-  .contact__book-newest {
-    opacity: 1;
-    transform: none;
-  }
-}
-.contact__book-body {
-  display: grid;
-  gap: var(--space-s);
-}
-
-/* pedestal and line: only the line to write on. The name, the button and the
-   note are there once there's a line to sign, or the caret is in the form
-   (their room is kept, so nothing jumps). */
-[data-layout='pedestal'] .contact__book-rest,
-[data-layout='pedestal'] .contact__book-note,
-[data-layout='line'] .contact__book-rest,
-[data-layout='line'] .contact__book-note {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity var(--t-base) var(--ease), visibility 0s linear var(--t-base);
-}
-[data-layout] .contact__book-form:focus-within .contact__book-rest,
-[data-layout] .contact__book-form:focus-within .contact__book-note,
-[data-layout] .contact__book-form[data-busy] .contact__book-rest,
-[data-layout] .contact__book-form[data-busy] .contact__book-note {
-  opacity: 1;
-  visibility: visible;
-  transition-delay: 0s;
-}
-
-/* pedestal: what others wrote is read off the pedestal. Its label becomes a
-   visitor's line while it's pointed at (a line at a time), and the drawing is
-   the way to the next one. */
-[data-layout='pedestal'] .contact__label {
-  width: 17rem;
-}
-.contact__label blockquote {
-  font-size: var(--step-0);
-  line-height: 1.4;
-  color: var(--ink);
-  text-wrap: balance;
-  quotes: '“' '”';
-}
-.contact__label blockquote::before {
-  content: open-quote;
-}
-.contact__label blockquote::after {
-  content: close-quote;
-}
-.contact__label figure {
-  display: grid;
-  gap: 0.4em;
-}
-.contact__label .contact__label-hint {
-  margin-top: 0.7em;
-  color: color-mix(in srgb, var(--accent) 82%, transparent);
-}
-button.contact__stage {
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius);
-  background: none;
-  cursor: pointer;
-}
-
-/* line: one row. What others wrote passes through the line as its placeholder;
-   the rest is behind the count, which opens upward. */
-[data-layout='line'] .contact__book-row:first-child {
-  align-items: baseline;
-  flex-wrap: wrap;
-}
-[data-layout='line'] .contact__book-line {
-  flex: 1 1 14rem;
-  width: auto;
-  text-overflow: ellipsis;
-}
-[data-layout='line'] .contact__book-line::placeholder {
-  text-overflow: ellipsis;
-}
-.contact__book-all {
-  position: relative;
-  flex: none;
-}
-.contact__book-all .contact__entries {
-  position: absolute;
-  right: 0;
-  bottom: 100%;
-  z-index: 3;
-  width: min(30rem, 86vw);
-  max-height: 19rem;
-  margin: 0 0 var(--space-2xs);
-  padding: var(--space-s);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  background: var(--paper-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity var(--t-base) var(--ease), visibility 0s linear var(--t-base);
-}
-.contact__book-all[data-open] .contact__entries,
-.contact__book-all:focus-within .contact__entries {
-  opacity: 1;
-  visibility: visible;
-  transition-delay: 0s;
-}
-@media (hover: hover) {
-  .contact__book-all:hover .contact__entries {
-    opacity: 1;
-    visibility: visible;
-    transition-delay: 0s;
-  }
-}
-
-/* Only in `npm run dev`: the chips that switch between the layouts. Dashed, so
-   they don't pass for part of the design. */
-.contact__layouts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2xs);
-  margin-top: var(--space-l);
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  color: var(--ink-60);
-}
-.contact__layouts button {
-  font: inherit;
-  color: inherit;
-  padding: 0.3em 0.7em;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-s);
-  background: none;
-  cursor: pointer;
-}
-.contact__layouts button[aria-pressed='true'] {
-  color: var(--paper);
-  background: var(--accent);
-  border: 1px solid var(--accent);
-}
-
 @media (max-width: 760px) {
+  /* a phone: the question, then the pedestal, then where you answer, so the
+     shape is over the line as it's typed and not under the keyboard */
   .contact__floor {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-m);
+    grid-template-areas:
+      'ask'
+      'pedestal'
+      'book';
+    row-gap: var(--space-s);
   }
   .contact__stage {
     width: 9.5rem;
     height: 10.5rem;
   }
-  [data-layout='pedestal'] .contact__label {
-    width: auto;
-    flex: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .contact__book-rest {
+    transition: none;
   }
 }
 /* Hierarchy ladder: the display title (SectionHead, on the centre line) →

@@ -16,20 +16,217 @@ import { useReducedMotion } from '../../lib/media';
    small ones from the book as a line is written in it. A ripple that reaches
    the pedestal makes its corners answer.
 
-   And a line from the visitors' book is what's put on the pedestal (`line`: the
-   one being written, or one that's pointed at): a small cloud of points
-   gathers between the corners and keeps changing shape with the words (the
-   materials are still to be decided). Signing flashes the cloud and sends a
-   last ripple out.
+   Over the pedestal a handful of dots float about, each on its own slow wander.
+   Give them a suggestion (`line`: the one being written, or an earlier one
+   that's being looked at) and they gather into a shape, and which shape is
+   down to the words: the text is hashed into a seed, the seed picks a family
+   (a ball squared off, a ring, a spring, a pyramid, a frame, a planet, a
+   tower, a star, a knot, a sheet) and its proportions (FORMS). So every
+   suggestion has a shape of its own, the same one each time, and a letter
+   more or less is another seed and another shape: it changes as it's typed.
+   Take the suggestion away and the dots let go and drift again. Sending one
+   flashes the shape and sends a last ripple out.
 
    Everything here is drawn behind the content and takes no pointer. Reduced
-   motion gets the finished pedestal, no ripples, and a cloud that doesn't turn. */
+   motion gets the finished pedestal, no ripples, dots that stand still and a
+   shape that doesn't turn. */
 
 const INK = '#cfd6da';
 const CYAN = '#27e8f2';
 const GRID = 30; // the dot field (tokens.css --dots-ink): a 2px square in the middle of every 30px tile
 const RIPPLE = { speed: 560, band: 30, life: 1.9, most: 8 };
-const CLOUD = { points: 150, fill: 0.8 }; // the cloud on the pedestal: how many points, and how much of the held space it takes
+/* The dots over the pedestal: how many, how much of the held space a shape
+   takes (`fill`), and how far out they wander when they're not one (`roam`,
+   in the same measure: 1 is the edge of a shape). */
+const CLOUD = { points: 160, fill: 0.8, roam: 1.25 };
+
+type P3 = [number, number, number];
+const TAU = Math.PI * 2;
+const frac = (x: number) => x - Math.floor(x);
+// two numbers per dot that never line up: a dot's place on a surface (the R2 sequence)
+const U = (i: number) => frac(0.5 + i * 0.7548776662466927);
+const V = (i: number) => frac(0.5 + i * 0.5698402909980532);
+/** A dot's direction on a ball, evenly spread. */
+function ball(i: number, n: number): P3 {
+  const y = 1 - (2 * (i + 0.5)) / n;
+  const r = Math.sqrt(1 - y * y);
+  const a = i * Math.PI * (3 - Math.sqrt(5));
+  return [Math.cos(a) * r, y, Math.sin(a) * r];
+}
+/** A seed's own run of numbers, 0..1 (mulberry32). */
+function dice(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** A shape leaned over (about the x axis, then the z): the flat ones are shown
+ *  off, not edge-on. */
+function leaned(place: (i: number) => P3, ax: number, az: number) {
+  const ca = Math.cos(ax);
+  const sa = Math.sin(ax);
+  const cz = Math.cos(az);
+  const sz = Math.sin(az);
+  return (i: number): P3 => {
+    const [x, y, z] = place(i);
+    const y1 = y * ca - z * sa;
+    const z1 = y * sa + z * ca;
+    return [x * cz - y1 * sz, x * sz + y1 * cz, z1];
+  };
+}
+
+/** The families of shape. Each takes the seed's dice for its proportions and
+ *  says where dot `i` of `n` stands; sizes don't matter (the shape is fitted to
+ *  the space afterwards). */
+const FORMS: ((d: () => number, n: number) => (i: number) => P3)[] = [
+  // a ball, squared off towards a block, with a swell running round it
+  (d, n) => {
+    const e = [2, 2.6, 4, 8][Math.floor(d() * 4)];
+    const k1 = 2 + Math.floor(d() * 3);
+    const k2 = 1 + Math.floor(d() * 3);
+    const amp = 0.08 + d() * 0.3;
+    const tall = 0.7 + d() * 0.6;
+    const ph = d() * TAU;
+    return (i) => {
+      const [x, y, z] = ball(i, n);
+      const r = (1 / Math.pow(Math.abs(x) ** e + Math.abs(y) ** e + Math.abs(z) ** e, 1 / e)) * (1 + amp * Math.sin(k1 * Math.atan2(z, x) + ph) * Math.sin(k2 * Math.acos(y) + ph));
+      return [x * r, y * r * tall, z * r];
+    };
+  },
+  // a ring
+  (d) => {
+    const r = 0.2 + d() * 0.28;
+    const flat = 0.5 + d() * 0.5;
+    return leaned(
+      (i) => {
+        const u = U(i) * TAU;
+        const v = V(i) * TAU;
+        return [(1 + r * Math.cos(v)) * Math.cos(u), r * Math.sin(v) * flat, (1 + r * Math.cos(v)) * Math.sin(u)];
+      },
+      0.7 + d() * 0.6,
+      d() * 0.5,
+    );
+  },
+  // a spring, of one strand or two
+  (d, n) => {
+    const turns = 2 + Math.floor(d() * 3);
+    const strands = 1 + Math.floor(d() * 2);
+    const wide = 0.4 + d() * 0.3;
+    const taper = d() * 0.6;
+    return (i) => {
+      const t = Math.floor(i / strands) / (n / strands);
+      const a = t * turns * TAU + (i % strands) * Math.PI;
+      const r = wide * (1 - taper * t);
+      return [Math.cos(a) * r, (t - 0.5) * 1.9, Math.sin(a) * r];
+    };
+  },
+  // a cone, or a pyramid of three, four or five sides
+  (d) => {
+    const sides = [0, 3, 4, 5][Math.floor(d() * 4)];
+    const tall = 1.2 + d() * 0.8;
+    return (i) => {
+      const a = U(i) * TAU;
+      const up = 1 - Math.sqrt(V(i)); // more of them towards the base
+      const face = sides ? Math.cos(Math.PI / sides) / Math.cos((a % (TAU / sides)) - Math.PI / sides) : 1;
+      const r = (1 - up) * face;
+      return [Math.cos(a) * r, (up - 0.4) * tall, Math.sin(a) * r];
+    };
+  },
+  // a frame: the twelve edges of a box
+  (d) => {
+    const w = 0.6 + d() * 0.4;
+    const h = 0.6 + d() * 0.4;
+    const l = 0.6 + d() * 0.4;
+    return (i) => {
+      const edge = i % 12;
+      const t = U(i) * 2 - 1;
+      const a = edge & 1 ? 1 : -1;
+      const b = edge & 2 ? 1 : -1;
+      return edge < 4 ? [t * w, a * h, b * l] : edge < 8 ? [a * w, t * h, b * l] : [a * w, b * h, t * l];
+    };
+  },
+  // a planet with a ring round it
+  (d, n) => {
+    const body = 0.5 + d() * 0.15;
+    const inner = 0.85 + d() * 0.1;
+    const share = Math.floor(n * 0.58);
+    return leaned(
+      (i) => {
+        if (i < share) {
+          const [x, y, z] = ball(i, share);
+          return [x * body, y * body, z * body];
+        }
+        const a = U(i) * TAU;
+        const r = inner + V(i) * 0.3;
+        return [Math.cos(a) * r, 0, Math.sin(a) * r];
+      },
+      0.35 + d() * 0.4,
+      0.2 + d() * 0.4,
+    );
+  },
+  // a tower: rings stacked, each with its own width
+  (d) => {
+    const floors = 4 + Math.floor(d() * 4);
+    const widths = Array.from({ length: floors }, () => 0.3 + d() * 0.5);
+    const sides = [0, 4, 6][Math.floor(d() * 3)];
+    return (i) => {
+      const f = i % floors;
+      const a = U(i) * TAU;
+      const face = sides ? Math.cos(Math.PI / sides) / Math.cos((a % (TAU / sides)) - Math.PI / sides) : 1;
+      return [Math.cos(a) * widths[f] * face, (f / (floors - 1) - 0.5) * 1.9, Math.sin(a) * widths[f] * face];
+    };
+  },
+  // a star: spikes out of a small core
+  (d, n) => {
+    const spikes = 5 + Math.floor(d() * 6);
+    const core = 0.2 + d() * 0.12;
+    const long = 0.7 + d() * 0.4;
+    return (i) => {
+      const [x, y, z] = ball(i % spikes, spikes); // the spike's way out
+      const t = U(i); // how far along it
+      const o = ball(i, n); // a little off its line, less towards the tip
+      const out = core + long * t;
+      const w = core * (1 - t);
+      return [x * out + o[0] * w, y * out + o[1] * w, z * out + o[2] * w];
+    };
+  },
+  // a knot
+  (d, n) => {
+    const p = 2 + Math.floor(d() * 2);
+    const q = p + 1;
+    const thick = 0.06 + d() * 0.1;
+    return leaned(
+      (i) => {
+        const t = (i / n) * TAU;
+        const r = 1 + 0.45 * Math.cos(q * t);
+        const o = ball(i, n);
+        return [r * Math.cos(p * t) + o[0] * thick, 0.45 * Math.sin(q * t) + o[1] * thick, r * Math.sin(p * t) + o[2] * thick];
+      },
+      0.8 + d() * 0.5,
+      d() * 0.4,
+    );
+  },
+  // a sheet with a wave in it
+  (d) => {
+    const k1 = 1 + Math.floor(d() * 3);
+    const k2 = 1 + Math.floor(d() * 3);
+    const deep = 0.2 + d() * 0.3;
+    const ph = d() * TAU;
+    return leaned(
+      (i) => {
+        const x = U(i) * 2 - 1;
+        const z = V(i) * 2 - 1;
+        return [x, deep * Math.sin(k1 * x * Math.PI + ph) * Math.cos(k2 * z * Math.PI), z];
+      },
+      0.5 + d() * 0.5,
+      d() * 0.4,
+    );
+  },
+];
 
 interface Ripple {
   x: number;
@@ -160,40 +357,41 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
     };
     host.addEventListener('input', onWrite); // on the section: the line to write on isn't always there yet
 
-    // ---- the cloud on the pedestal -------------------------------------------
-    // points spread evenly over a ball, pushed in and out by the words
-    const dirs: [number, number, number][] = [];
-    for (let i = 0; i < CLOUD.points; i++) {
-      const y = 1 - (2 * (i + 0.5)) / CLOUD.points;
-      const r = Math.sqrt(1 - y * y);
-      const a = i * Math.PI * (3 - Math.sqrt(5));
-      dirs.push([Math.cos(a) * r, y, Math.sin(a) * r]);
-    }
-    const at = dirs.map((d) => [d[0], d[1], d[2]] as [number, number, number]);
-    const seen = new Float32Array(CLOUD.points);
+    // ---- the dots over the pedestal ------------------------------------------
+    // Each has a wander of its own, for when it isn't part of a shape: three
+    // slow swings at its own speeds, out to its own distance.
+    const N = CLOUD.points;
+    const wander = Array.from({ length: N }, (_, i) => ({
+      far: (0.35 + 0.65 * Math.cbrt(U(i + 7))) * CLOUD.roam,
+      fx: 0.17 + V(i + 3) * 0.26,
+      fy: 0.13 + U(i + 11) * 0.22,
+      fz: 0.15 + V(i + 19) * 0.24,
+      px: U(i) * TAU,
+      py: V(i) * TAU,
+      pz: U(i + 31) * TAU,
+    }));
+    const roam = (i: number, time: number): P3 => {
+      const m = wander[i];
+      const [x, y, z] = ball(i, N);
+      // round its own spot on the ball, drawn in and out
+      const r = m.far * (0.62 + 0.38 * Math.sin(time * m.fy + m.py));
+      return [x * r + 0.3 * Math.sin(time * m.fx + m.px), y * r * 0.85 + 0.26 * Math.sin(time * m.fz + m.pz), z * r + 0.3 * Math.cos(time * m.fx * 0.8 + m.pz)];
+    };
+    const at: P3[] = Array.from({ length: N }, (_, i) => roam(i, 0));
     let shaped = '';
-    let goal = at.map((p) => [...p] as [number, number, number]);
-    const shape = (text: string) => {
-      const k = hash(text);
-      const pick = (shift: number, n: number) => (k >>> shift) % n;
-      const e = [2, 2.6, 4, 8][pick(0, 4)]; // 2 is a ball; higher squares it off
-      const k1 = 2 + pick(3, 3);
-      const k2 = 1 + pick(6, 3);
-      const amp = 0.1 + pick(9, 5) * 0.07;
-      const tall = 0.72 + pick(12, 6) * 0.11;
-      const p1 = pick(15, 16) * 0.39;
-      goal = dirs.map(([x, y, z]) => {
-        const r = 1 / Math.pow(Math.abs(x) ** e + Math.abs(y) ** e + Math.abs(z) ** e, 1 / e);
-        const bump = 1 + amp * Math.sin(k1 * Math.atan2(z, x) + p1) * Math.sin(k2 * Math.acos(y) + p1);
-        return [x * r * bump, y * r * bump * tall, z * r * bump];
-      });
-      // whatever shape it is, it fits the space held for it
-      const far = Math.max(...goal.map((g) => Math.hypot(g[0], g[1], g[2])));
-      for (const g of goal) {
-        g[0] /= far;
-        g[1] /= far;
-        g[2] /= far;
-      }
+    let goal: P3[] | null = null; // the shape they're asked for, or none: they wander
+    /** The words' own shape: seeded by them, so the same words are the same shape. */
+    const shape = (text: string): P3[] => {
+      const seed = hash(text);
+      const d = dice(seed);
+      const place = FORMS[seed % FORMS.length](d, N);
+      const pts = Array.from({ length: N }, (_, i) => place(i));
+      // whatever it is, it's centred, and fits the space held for it
+      const mid = [0, 1, 2].map((k) => (Math.min(...pts.map((q) => q[k])) + Math.max(...pts.map((q) => q[k]))) / 2);
+      for (const q of pts) for (let k = 0; k < 3; k++) q[k] -= mid[k];
+      const far = Math.max(...pts.map((q) => Math.hypot(q[0], q[1], q[2])), 1e-6);
+      for (const q of pts) for (let k = 0; k < 3; k++) q[k] /= far;
+      return pts;
     };
 
     // ---- the story's state --------------------------------------------------
@@ -202,7 +400,8 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
     let locked = false;
     let ping = 0; // the corners answering a ripple
     let flash = 0; // the cloud, as its line is sent
-    let cloud = 0; // 0 nothing on the pedestal, 1 the cloud
+    let cloud = 0; // 0 the dots wander, 1 they're a shape
+    let turn = 0; // how far round the shape has turned
     let wasSent = posted.current;
     let t = 0;
 
@@ -315,11 +514,11 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
         stroke(bx, by, bx, by - sy * bl, ba);
       }
 
-      // ---- what stands on it: the words, as a cloud of points ----
-      const text = words.current.trim();
+      // ---- over it: the dots, wandering, or gathered into the words' shape ----
+      const text = words.current.trim().toLowerCase();
       if (text !== shaped) {
         shaped = text;
-        if (text) shape(text.toLowerCase());
+        goal = text ? shape(text) : null;
       }
       if (posted.current !== wasSent) {
         wasSent = posted.current;
@@ -327,55 +526,31 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
         ripple(cx, cy, CYAN, 1, true);
         ping = 1;
       }
-      const count = text ? Math.min(CLOUD.points, 14 + text.length * 4) : 0;
-      cloud += ((text ? 1 : 0) - cloud) * (reduced ? 1 : Math.min(1, dt * 6));
-      const yaw = reduced ? 0.6 : t * 0.5;
+      cloud += ((goal ? 1 : 0) - cloud) * (reduced ? 1 : Math.min(1, dt * 5));
+      // a shape turns; the wandering dots barely do
+      turn += dt * (reduced ? 0 : 0.1 + 0.42 * cloud);
+      const yaw = reduced ? 0.6 : turn;
       const cyw = Math.cos(yaw);
       const syw = Math.sin(yaw);
       const tilt = 0.38;
       const ct = Math.cos(tilt);
       const st = Math.sin(tilt);
-      const ease = reduced ? 1 : Math.min(1, dt * 4);
+      // into a shape briskly, back out to wandering in their own time
+      const ease = reduced ? 1 : Math.min(1, dt * (goal ? 4.5 : 1.6));
       const R = half * CLOUD.fill * lid;
-      for (let i = 0; i < CLOUD.points; i++) {
+      for (let i = 0; i < N; i++) {
         const p = at[i];
-        const g = goal[i];
+        const g = goal ? goal[i] : roam(i, reduced ? 0 : t);
         p[0] += (g[0] - p[0]) * ease;
         p[1] += (g[1] - p[1]) * ease;
         p[2] += (g[2] - p[2]) * ease;
-        seen[i] += ((i < count ? 1 : 0) - seen[i]) * (reduced ? 1 : Math.min(1, dt * 8));
-        if (seen[i] < 0.02) continue;
         const x = p[0] * cyw + p[2] * syw;
         const z = -p[0] * syw + p[2] * cyw;
         const y = p[1] * ct - z * st;
-        const near = (z * ct + p[1] * st + 1.3) / 2.6; // 0 at the back, 1 at the front
-        dot(cx + x * R, cy - y * R, 1.5 + near * 1.3 + flash * 1.2, (0.3 + 0.7 * near) * seen[i], flash > 0.5 ? '#ffffff' : CYAN);
-      }
-      // nothing on it yet: the crosshair the maquette marks a place with, and a dotted ring
-      const empty = (1 - cloud) * lid;
-      if (empty > 0.02) {
-        ctx.globalAlpha = 0.9 * empty;
-        ctx.strokeStyle = CYAN;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 3.4, 0, Math.PI * 2);
-        ctx.stroke();
-        for (const [ux, uy] of [
-          [0, -1],
-          [0, 1],
-          [-1, 0],
-          [1, 0],
-        ]) {
-          ctx.beginPath();
-          ctx.moveTo(cx + ux * 4.5, cy + uy * 4.5);
-          ctx.lineTo(cx + ux * 9, cy + uy * 9);
-          ctx.stroke();
-        }
-        const rr = half * 0.52 + ping * 5;
-        for (let i = 0; i < 24; i++) {
-          const a = (i / 24) * Math.PI * 2 + (reduced ? 0 : t * 0.12);
-          dot(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 1.6, (0.22 + ping * 0.5) * empty, CYAN);
-        }
+        const near = Math.max(0, Math.min(1, (z * ct + p[1] * st + 1.3) / 2.6)); // 0 at the back, 1 at the front
+        // dimmer and smaller adrift, firmer as a shape
+        const a = (0.22 + 0.5 * near) * (1 - cloud) + (0.3 + 0.7 * near) * cloud;
+        dot(cx + x * R, cy - y * R, 1.3 + near * (1.0 + 0.4 * cloud) + flash * 1.2, a * lid, flash > 0.5 ? '#ffffff' : CYAN);
       }
 
       // ---- its label's leader: from the label up to the held space ----

@@ -1,9 +1,12 @@
-# The visitors' book: lines people leave on their way out
+# The visitors' book: what visitors suggest we build next
 
-At the foot of the site, beside exhibit 11's pedestal, is a visitors' book
-(`src/components/home/Contact.tsx`): a line, a name if you like, and the lines
-others left. It lives in the same free Supabase project as the counters
-([counters.md](counters.md)), so there's nothing new to set up but one table.
+At the foot of the site, beside exhibit 11's pedestal, the page asks "What do
+we build next?" (`src/components/home/Contact.tsx`): a suggestion in a line, a
+name if you like, and what others suggested. Each suggestion is a shape on the
+pedestal. They're kept in a table called the visitors' book (the name it
+started with), in the same free Supabase project as the counters
+([counters.md](counters.md)), so there's nothing new to set up but that table.
+Below, a "line" is a suggestion.
 
 **A line isn't public until you've read it.** It's stored waiting, and only
 lines you've marked as shown can be read back by anyone. Whoever wrote it sees
@@ -156,7 +159,8 @@ query: `delete from public.visitors_book where not shown;`
   waiting ones), `signBook()`; plain `fetch`, no SDK, fails soft.
 - `src/components/home/Contact.tsx`: the book itself, and what it says when a
   line is refused or the book won't open.
-- `src/components/home/ContactMotif.tsx`: the pedestal beside it. The line being
-  written, or one that's pointed at, takes shape there.
+- `src/components/home/ContactMotif.tsx`: the pedestal beside it. The
+  suggestion being written, or an earlier one that's scrolled to, is the shape
+  the dots over it take (the text is the seed).
 - `src/lib/counters.ts`: the project's address and key (`project`), shared with
   the counters.
