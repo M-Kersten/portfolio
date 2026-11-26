@@ -11,10 +11,8 @@ import { useReducedMotion } from '../../lib/media';
    corners close in and lock.
 
    Ripples run through the section's dot field, lighting the very dots the page
-   is printed with (GRID): one from the pedestal as it locks, one from the email,
-   a button or a line in the visitors' book when it's pointed at or focused,
-   small ones from the book as a line is written in it. A ripple that reaches
-   the pedestal makes its corners answer.
+   is printed with (GRID), and only the pedestal sends them: one as it locks,
+   one as a suggestion is sent.
 
    Over the pedestal a handful of dots float about, each on its own slow wander.
    Give them a suggestion (`line`: the one being written, or an earlier one
@@ -310,52 +308,6 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
       ripples.push({ x, y, born: performance.now(), color, power, own });
       if (ripples.length > RIPPLE.most) ripples.shift();
     };
-    const from = (el: Element, color: string, power: number) => {
-      const b = box(el);
-      ripple(b.x + b.w / 2, b.y + b.h / 2, color, power);
-    };
-    // the email, a line in the book and the buttons: pointed at with a mouse, or
-    // reached with the keyboard. Listened for on the section, since the book's
-    // lines arrive later.
-    const KINDS: [string, string, number][] = [
-      ['.contact__email', CYAN, 1],
-      ['.contact__entry', CYAN, 0.5],
-      ['.btn', INK, 0.6],
-    ];
-    const kind = (target: EventTarget | null) => {
-      if (!(target instanceof Element)) return null;
-      for (const [sel, color, power] of KINDS) {
-        const el = target.closest(sel);
-        if (el && host.contains(el)) return { el, color, power };
-      }
-      return null;
-    };
-    let over: Element | null = null;
-    const onOver = (e: PointerEvent) => {
-      if (e.pointerType !== 'mouse') return;
-      const k = kind(e.target);
-      if (k && k.el !== over) from(k.el, k.color, k.power);
-      over = k?.el ?? null;
-    };
-    const onFocusIn = (e: FocusEvent) => {
-      const k = kind(e.target);
-      if (k && k.el.matches(':focus-visible')) from(k.el, k.color, k.power);
-    };
-    host.addEventListener('pointerover', onOver);
-    host.addEventListener('focusin', onFocusIn);
-    // writing in the book: a small one from where the pen is
-    let wrote = 0;
-    const onWrite = (e: Event) => {
-      const input = e.target;
-      if (!(input instanceof HTMLInputElement) || !input.matches('.contact__book-line')) return;
-      const now = performance.now();
-      if (now - wrote < 140) return;
-      wrote = now;
-      const b = box(input);
-      ctx.font = getComputedStyle(input).font;
-      ripple(b.x + Math.min(b.w, ctx.measureText(input.value).width), b.y + b.h * 0.6, CYAN, 0.45);
-    };
-    host.addEventListener('input', onWrite); // on the section: the line to write on isn't always there yet
 
     // ---- the dots over the pedestal ------------------------------------------
     // Each has a wander of its own, for when it isn't part of a shape: three
@@ -363,9 +315,9 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
     const N = CLOUD.points;
     const wander = Array.from({ length: N }, (_, i) => ({
       far: (0.35 + 0.65 * Math.cbrt(U(i + 7))) * CLOUD.roam,
-      fx: 0.17 + V(i + 3) * 0.26,
-      fy: 0.13 + U(i + 11) * 0.22,
-      fz: 0.15 + V(i + 19) * 0.24,
+      fx: 0.07 + V(i + 3) * 0.11,
+      fy: 0.055 + U(i + 11) * 0.09,
+      fz: 0.065 + V(i + 19) * 0.1,
       px: U(i) * TAU,
       py: V(i) * TAU,
       pz: U(i + 31) * TAU,
@@ -526,9 +478,9 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
         ripple(cx, cy, CYAN, 1, true);
         ping = 1;
       }
-      cloud += ((goal ? 1 : 0) - cloud) * (reduced ? 1 : Math.min(1, dt * 5));
+      cloud += ((goal ? 1 : 0) - cloud) * (reduced ? 1 : Math.min(1, dt * 2));
       // a shape turns; the wandering dots barely do
-      turn += dt * (reduced ? 0 : 0.1 + 0.42 * cloud);
+      turn += dt * (reduced ? 0 : 0.05 + 0.25 * cloud);
       const yaw = reduced ? 0.6 : turn;
       const cyw = Math.cos(yaw);
       const syw = Math.sin(yaw);
@@ -536,7 +488,7 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
       const ct = Math.cos(tilt);
       const st = Math.sin(tilt);
       // into a shape briskly, back out to wandering in their own time
-      const ease = reduced ? 1 : Math.min(1, dt * (goal ? 4.5 : 1.6));
+      const ease = reduced ? 1 : Math.min(1, dt * (goal ? 1.7 : 0.8));
       const R = half * CLOUD.fill * lid;
       for (let i = 0; i < N; i++) {
         const p = at[i];
@@ -616,9 +568,6 @@ export function ContactMotif({ line, sent }: { line: string; sent: number }) {
       stop();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
-      host.removeEventListener('input', onWrite);
-      host.removeEventListener('pointerover', onOver);
-      host.removeEventListener('focusin', onFocusIn);
     };
   }, [reduced]);
 

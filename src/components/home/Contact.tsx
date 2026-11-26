@@ -24,6 +24,17 @@ import { SectionHead } from '../shell/SectionHead';
    With no project behind it (book.ts: `bookOpen`), there's nowhere to keep
    them, and the line goes to me as an email instead. */
 
+/** What the line to write on suggests while it's empty, one after another. */
+const EXAMPLES = [
+  'An AR treasure hunt through Utrecht',
+  'A museum guide you can argue with',
+  'A plant that tells you when it’s thirsty',
+  'A VR choir where nobody hears you sing badly',
+  'Something with dinosaurs',
+  'A game about bread',
+];
+const EXAMPLE_MS = 3200;
+
 const HOLD = { browse: 3200, sent: 7000 }; // ms a shape stays: after the last look at the earlier ones, and after sending one
 
 /** Why a suggestion didn't go in, said the way I'd say it. */
@@ -83,6 +94,14 @@ export function Contact() {
 
   const lines = book ?? [];
   const typing = line.trim().length > 0;
+
+  // the examples, in a loop, while there's nothing written
+  const [example, setExample] = useState(0);
+  useEffect(() => {
+    if (typing) return;
+    const t = window.setInterval(() => setExample((n) => (n + 1) % EXAMPLES.length), EXAMPLE_MS);
+    return () => window.clearInterval(t);
+  }, [typing]);
 
   /** The earlier suggestions are being looked at: the one in view keeps its
    *  shape for as long as they are, and a little after. */
@@ -175,13 +194,11 @@ export function Contact() {
           <div className="contact__floor" ref={floorRef}>
             <div className="contact__ask">
               <h3 className="contact__ask-title">What do we build next?</h3>
-              <p className="contact__ask-intro">Exhibit 11 is still empty, and I take suggestions. Each one gets a shape of its own. I can’t promise I’ll build it.</p>
             </div>
             <div className="contact__pedestal">
               <dl className="contact__label">
                 <dt>Exhibit 11</dt>
                 <dd>Your project</dd>
-                <dd>Materials to be decided</dd>
               </dl>
               {/* the pedestal, and the dots over it, are drawn here (ContactMotif) */}
               <div className="contact__stage" aria-hidden="true" />
@@ -199,7 +216,7 @@ export function Contact() {
                     if (answered) setStatus('idle');
                   }}
                   maxLength={LINE_MAX}
-                  placeholder="Your idea, in a line"
+                  placeholder={`${EXAMPLES[example]}…`}
                   aria-label="Your suggestion for what we build next"
                   autoComplete="off"
                   enterKeyHint="send"
